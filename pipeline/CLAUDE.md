@@ -87,7 +87,7 @@ publish as four clean calls beside three retries.
 
 **The schema admits the prompt's own spellings.** The tool's `gwas_trait` enum
 is `CANONICAL_TRAITS`: the tracked keys, the `untracked` terms, and the
-prompt-sourced `synonyms` from `lib/vocabulary.json`. The prompt's frozen
+prompt-sourced `synonyms` from `disease/vocabulary.json`. The prompt's frozen
 canonical sentence asks for `cerebral-microbleeds` while the tracked key is
 `CMB`, and with the spelling refused a model that obeyed the prompt failed the
 paper after two paid calls -- which instruction it followed decided whether the
@@ -99,8 +99,8 @@ prompt against the enum as well as against the vocabulary.
 **The enum is part of the method, and it is the half that constrains the
 model.** The frozen canonical sentence in `prompts.py` is what the model is
 _asked_ for; the tool schema's `gwas_trait` enum is what it is _allowed_ to say,
-and it is generated from `lib/vocabulary.json` at import time. So an edit to a
-`traits[*].key` changes what a run may report with no prompt edit and no
+and it is generated from `disease/vocabulary.json` at import time. So an edit to
+a `traits[*].key` changes what a run may report with no prompt edit and no
 re-recorded cassette — the drift the frozen sentence is documented to prevent,
 arriving through the other door. It is not hypothetical: the enum admits `CMB`,
 `NODDI` and `lacunar stroke`, none of which the sentence names, and the recorded

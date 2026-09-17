@@ -7,11 +7,11 @@
  * strings included, so they must stay byte-identical to what
  * `pipeline/export/tables.py` emits.
  *
- * `GWAS_TRAIT_CHOICES` is derived from `lib/vocabulary.json`, the single source
- * of truth for the trait vocabulary. Add a trait there, not here.
+ * `GWAS_TRAIT_CHOICES` is derived from `disease/vocabulary.json`, the single
+ * source of truth for the trait vocabulary. Add a trait there, not here.
  */
 
-import vocabulary from "./vocabulary.json" with { type: "json" };
+import vocabulary from "../disease/vocabulary.json" with { type: "json" };
 import type { FilterChoice } from "./types.ts";
 import type { IconName } from "../components/Icon.tsx";
 import { NONE_FOUND, UNKNOWN } from "./sentinels.ts";
@@ -102,7 +102,7 @@ export const YES_NO_CHOICES: readonly FilterChoice[] = [
 export const GWAS_TRAIT_CHOICES: readonly FilterChoice[] = [
   { label: "Show All", value: SHOW_ALL },
   { label: "None Found", value: NONE_FOUND },
-  // Derived, never listed: `lib/vocabulary.json` is the one place a trait's
+  // Derived, never listed: `disease/vocabulary.json` is the one place a trait's
   // key and label live. Listing them here too is what let "Lacunar Stroke"
   // and the phenogram's "Lacunar stroke" drift apart unnoticed.
   ...vocabulary.traits.map((trait) => ({

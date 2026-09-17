@@ -100,7 +100,7 @@ def _filter_choice_values() -> set[str]:
     """The omics values lib/constants.ts offers, normalized as the filter is.
 
     Read from the TypeScript rather than restated, the way
-    tests/pipeline/test_prompt_vocabulary.py reads lib/vocabulary.json: a
+    tests/pipeline/test_prompt_vocabulary.py reads disease/vocabulary.json: a
     choice added there has to reach the export, or the export publishes a
     value the UI cannot select.
     """

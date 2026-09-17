@@ -37,7 +37,7 @@ import { ValueBox } from "../components/ValueBox.tsx";
 import { SHOW_ALL, YES_NO_CHOICES } from "../lib/constants.ts";
 import { trials } from "../lib/data.ts";
 import type { TrialLocation } from "../lib/types.ts";
-import vocabulary from "../lib/vocabulary.json" with { type: "json" };
+import vocabulary from "../disease/vocabulary.json" with { type: "json" };
 
 const render = (node: preact.VNode) => renderToString(node);
 

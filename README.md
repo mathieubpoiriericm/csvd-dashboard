@@ -156,8 +156,8 @@ Filters:
 
 - Mendelian randomization performed (Yes / No)
 - GWAS traits — the 16 canonical cSVD phenotypes declared in
-  `lib/vocabulary.json`: WMH, PVWMH, DWMH, SVS, BG-PVS, WM-PVS, HIP-PVS, PSMD,
-  MD, FA, NODDI, extreme-cSVD, lacunes, lacunar stroke, stroke, CMB
+  `disease/vocabulary.json`: WMH, PVWMH, DWMH, SVS, BG-PVS, WM-PVS, HIP-PVS,
+  PSMD, MD, FA, NODDI, extreme-cSVD, lacunes, lacunar stroke, stroke, CMB
 - Evidence from other omics studies (EWAS, TWAS, PWAS, Proteomics, WES/WGS,
   MENTR)
 
@@ -1040,9 +1040,9 @@ Behaviour matches the Shiny app except where it was demonstrably wrong.
   from the committed JSON. The last iframe, the phenogram, was a PhenoGram
   raster with pixel-colour hit-testing that had drifted from the data — ABO
   labelled APOE, C6orf195 and COL4A1/2 missing.
-- **The trait vocabulary has one home.** `lib/vocabulary.json` defines all 16
-  traits — label, family, long name, STRIVE-2 definition, ontology xref (or an
-  explicit `null` with the reason), synonyms and the 9 deliberately untracked
+- **The trait vocabulary has one home.** `disease/vocabulary.json` defines all
+  16 traits — label, family, long name, STRIVE-2 definition, ontology xref (or
+  an explicit `null` with the reason), synonyms and the 9 deliberately untracked
   prompt terms. Restating it is what let `PVWMH` — the second most extracted
   trait — have no filter choice and no phenogram entry.
 - **The extraction prompt is reconciled, not generated.**

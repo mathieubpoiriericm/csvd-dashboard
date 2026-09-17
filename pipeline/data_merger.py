@@ -133,7 +133,7 @@ def _build_combined_gene_data(entries: Sequence[GeneEntry]) -> dict[str, Any]:
     deciding = deciding_entry(entries)
     # The schema admits the prompt's own spellings of a tracked trait
     # (`cerebral-microbleeds` for CMB) so the model can obey the instruction
-    # it was given; lib/vocabulary.json says what each folds onto. Exact
+    # it was given; disease/vocabulary.json says what each folds onto. Exact
     # keys, not the export's substring rewrites: those are for curated
     # prose, and a substring fold has the NODDI/OD hazard. Before the
     # tracked filter, or the spelling would be dropped as untracked.

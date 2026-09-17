@@ -1,5 +1,5 @@
 {
-  "$comment": "Appearance only. Trait identity -- key, label, family, name and the STRIVE-2 definitions -- lives in lib/vocabulary.json.",
+  "$comment": "Appearance only. Trait identity -- key, label, family, name and the STRIVE-2 definitions -- lives in disease/vocabulary.json.",
   "families": [
     {
       "key": "pvs",

@@ -16,7 +16,7 @@
  */
 
 import encodingJson from "./phenogram_encoding.json" with { type: "json" };
-import vocabulary from "./vocabulary.json" with { type: "json" };
+import vocabulary from "../disease/vocabulary.json" with { type: "json" };
 import {
   type BandHit,
   cytobands as defaultCytobands,
@@ -42,7 +42,8 @@ export interface TraitEncoding {
   family: string;
   name: string;
   definition?: string;
-  strive?: boolean;
+  /** Has a definition quoted from the manifest's citation standard. */
+  standard?: boolean;
   /** Ontology term, or null where no exact one exists. Internal, never published. */
   xref?: string | null;
   xrefLabel?: string;

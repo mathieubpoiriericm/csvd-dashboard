@@ -517,7 +517,7 @@ derived record-confidence channels, the seven rings and the key.
 ### Phenogram
 
 `.claude/rules/phenogram.md` loads with `islands/Phenogram.tsx`,
-`lib/phenogram*`, `lib/vocabulary.json`, `lib/cytobands.ts`,
+`lib/phenogram*`, `disease/vocabulary.json`, `lib/cytobands.ts`,
 `scripts/phenogram_figure.py` and their tests — the vocabulary as single source
 of truth, the reconciled prompt, the non-derived `viewBox`, and the two
 renderers.

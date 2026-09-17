@@ -10,14 +10,15 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 /**
- * The GWAS trait vocabulary, read rather than restated. `lib/vocabulary.json`
- * is the single source of truth that `GWAS_TRAIT_CHOICES` and both phenogram
- * renderers derive from; a literal here would be one more copy of the list to
- * drift. The assertions still prove something: they check the rendered DOM,
- * so they fail if a vocabulary change does not reach the browser.
+ * The GWAS trait vocabulary, read rather than restated.
+ * `disease/vocabulary.json` is the single source of truth that
+ * `GWAS_TRAIT_CHOICES` and both phenogram renderers derive from; a literal
+ * here would be one more copy of the list to drift. The assertions still
+ * prove something: they check the rendered DOM, so they fail if a vocabulary
+ * change does not reach the browser.
  */
 const vocabulary = JSON.parse(
-  readFileSync(join(__dirname, "..", "..", "lib", "vocabulary.json"), "utf8"),
+  readFileSync(join(__dirname, "..", "..", "disease", "vocabulary.json"), "utf8"),
 ) as { traits: { key: string }[] };
 
 export const TRAIT_COUNT = vocabulary.traits.length;

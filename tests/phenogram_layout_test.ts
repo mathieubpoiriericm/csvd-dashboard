@@ -1,7 +1,7 @@
 import { assert, assertAlmostEquals, assertEquals } from "@std/assert";
 
 import { type CytobandTable, placeGene } from "../lib/cytobands.ts";
-import vocabulary from "../lib/vocabulary.json" with { type: "json" };
+import vocabulary from "../disease/vocabulary.json" with { type: "json" };
 import { genes } from "../lib/data.ts";
 import {
   blockHeight,

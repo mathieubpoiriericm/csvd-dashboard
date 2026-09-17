@@ -13,7 +13,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Final
 
-from pipeline.config import PROJECT_ROOT
+from pipeline.disease import VOCABULARY_PATH
 from pipeline.export.text import (
     clean_column_name,
     fill_missing_text,
@@ -45,13 +45,13 @@ _SPLIT_OMICS = re.compile(r"\s*,\s*(?![^(]*\))")
 # A synonym that never reaches that vocabulary is unreachable in the UI and
 # fails the data contract test, so the known ones are rewritten here.
 #
-# Read from lib/vocabulary.json rather than listed: that file is the single
-# source of truth for the trait vocabulary, and every consumer derives from it.
-# Order is load-bearing -- these are applied in sequence as substring
+# Read from disease/vocabulary.json rather than listed: that file is the
+# single source of truth for the trait vocabulary, and every consumer derives
+# from it. Order is load-bearing -- these are applied in sequence as substring
 # replacements, matching the long-standing SVS rewrite rather than exact match.
 # Changing that would risk the byte-exact contract for no gain, so the file
 # keeps `synonyms` as an ordered array.
-_VOCABULARY: Final[Path] = PROJECT_ROOT / "lib" / "vocabulary.json"
+_VOCABULARY: Final[Path] = VOCABULARY_PATH
 
 
 def _load_trait_vocabulary() -> tuple[

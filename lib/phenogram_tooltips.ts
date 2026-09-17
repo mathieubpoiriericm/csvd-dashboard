@@ -4,7 +4,7 @@ import { NONE_FOUND } from "./constants.ts";
 import { geneInfoByName } from "./data/gene_info.ts";
 import { omimByNumber } from "./data/omim.ts";
 import encodingJson from "./phenogram_encoding.json" with { type: "json" };
-import vocabulary from "./vocabulary.json" with { type: "json" };
+import vocabulary from "../disease/vocabulary.json" with { type: "json" };
 import type { TraitEncoding } from "./phenogram.ts";
 import {
   ncbiGeneLink,
@@ -71,5 +71,5 @@ export function phenotypeTooltip(trait: TraitEncoding): TooltipContent {
   if (trait.definition) {
     rows.push({ label: "STRIVE-2 definition", value: trait.definition });
   }
-  return { rows, link: trait.strive ? STRIVE_LINK : undefined };
+  return { rows, link: trait.standard ? STRIVE_LINK : undefined };
 }

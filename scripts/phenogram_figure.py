@@ -30,7 +30,7 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_GENES = _PROJECT_ROOT / "data" / "table1.json"
 DEFAULT_CYTOBANDS = _PROJECT_ROOT / "data" / "cytobands_hg38.json"
 DEFAULT_ENCODING = _PROJECT_ROOT / "lib" / "phenogram_encoding.json"
-DEFAULT_VOCABULARY = _PROJECT_ROOT / "lib" / "vocabulary.json"
+DEFAULT_VOCABULARY = _PROJECT_ROOT / "disease" / "vocabulary.json"
 DEFAULT_OUT = _PROJECT_ROOT / "figures"
 FORMATS = ("svg", "pdf", "png")
 

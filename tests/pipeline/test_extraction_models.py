@@ -92,7 +92,7 @@ class TestExtractionResult:
 
 
 def test_the_canonical_traits_come_from_the_shared_vocabulary() -> None:
-    """lib/vocabulary.json is the single source; nothing restates it.
+    """disease/vocabulary.json is the single source; nothing restates it.
 
     The list is the full canonical one -- tracked traits and `untracked`
     terms alike. Constraining the schema to the tracked set would delete
@@ -100,7 +100,7 @@ def test_the_canonical_traits_come_from_the_shared_vocabulary() -> None:
     names correctly and the dashboard does not yet carry.
     """
     with (
-        Path(__file__).resolve().parents[2] / "lib" / "vocabulary.json"
+        Path(__file__).resolve().parents[2] / "disease" / "vocabulary.json"
     ).open(encoding="utf-8") as handle:
         vocabulary = json.load(handle)
 
@@ -164,7 +164,7 @@ def test_the_tracked_traits_are_the_vocabularys_traits_and_nothing_else() -> Non
     schema's enum.
     """
     with (
-        Path(__file__).resolve().parents[2] / "lib" / "vocabulary.json"
+        Path(__file__).resolve().parents[2] / "disease" / "vocabulary.json"
     ).open(encoding="utf-8") as handle:
         vocabulary = json.load(handle)
 

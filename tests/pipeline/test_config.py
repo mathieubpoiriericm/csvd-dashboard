@@ -125,7 +125,7 @@ class TestPipelineConfigDefaults:
         assert PipelineConfig().output_config == {"effort": "medium"}
 
     def test_the_tool_constrains_gwas_trait_to_the_shared_vocabulary(self) -> None:
-        """The enum is derived from lib/vocabulary.json, never restated.
+        """The enum is derived from disease/vocabulary.json, never restated.
 
         And it enumerates the *full* canonical list -- tracked traits and
         `untracked` ones alike. Narrowing it to the tracked set would
@@ -139,7 +139,8 @@ class TestPipelineConfigDefaults:
 
         from pipeline.config import PROJECT_ROOT
 
-        with (PROJECT_ROOT / "lib" / "vocabulary.json").open(encoding="utf-8") as fh:
+        vocabulary_path = PROJECT_ROOT / "disease" / "vocabulary.json"
+        with vocabulary_path.open(encoding="utf-8") as fh:
             vocabulary = json.load(fh)
         expected = (
             {t["key"] for t in vocabulary["traits"]}

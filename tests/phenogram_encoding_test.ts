@@ -1,14 +1,14 @@
 import { assert, assertEquals } from "@std/assert";
 
 import encoding from "../lib/phenogram_encoding.json" with { type: "json" };
-import vocabulary from "../lib/vocabulary.json" with { type: "json" };
+import vocabulary from "../disease/vocabulary.json" with { type: "json" };
 import { encoding as composed } from "../lib/phenogram.ts";
 import { GWAS_TRAIT_CHOICES, NONE_FOUND, SHOW_ALL } from "../lib/constants.ts";
 import { STAINS } from "../lib/cytobands.ts";
 import { genes } from "../lib/data.ts";
 
 /**
- * `lib/vocabulary.json` is the one place a GWAS trait gets its key, label,
+ * `disease/vocabulary.json` is the one place a GWAS trait gets its key, label,
  * family and definition; `lib/phenogram_encoding.json` carries appearance only.
  * Two renderers compose them — `lib/phenogram.ts` for the island and
  * `scripts/phenogram_figure.py` for print. These assertions make the committed
@@ -204,8 +204,11 @@ Deno.test("evidence glyphs, the citation and the stains are complete", () => {
   assertEquals(encoding.citation.doi, "10.1016/S1474-4422(23)00131-X");
   assertEquals(Object.keys(encoding.stains).sort(), [...STAINS].sort());
   for (const value of Object.values(encoding.stains)) assert(HEX.test(value));
-  for (const trait of vocabulary.traits.filter((t) => "strive" in t)) {
-    assert("definition" in trait, `${trait.key}: strive without a definition`);
+  for (const trait of vocabulary.traits.filter((t) => "standard" in t)) {
+    assert(
+      "definition" in trait,
+      `${trait.key}: standard without a definition`,
+    );
   }
 });
 

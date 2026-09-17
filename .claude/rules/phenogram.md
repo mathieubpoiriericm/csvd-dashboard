@@ -4,7 +4,7 @@ paths:
   - "lib/phenogram.ts"
   - "lib/phenogram_encoding.json"
   - "lib/cytobands.ts"
-  - "lib/vocabulary.json"
+  - "disease/vocabulary.json"
   - "scripts/phenogram_figure.py"
   - "scripts/fetch_cytobands.py"
   - "tests/phenogram_*.ts"
@@ -24,7 +24,7 @@ the island lists such genes instead of guessing.
 
 Two renderers, one contract, as for the timeline:
 
-- **`lib/vocabulary.json` is the single source of truth for the GWAS trait
+- **`disease/vocabulary.json` is the single source of truth for the GWAS trait
   vocabulary**, and the only place a trait is defined: key, display label,
   family, long name, the STRIVE-2 definition where one exists, and an internal
   ontology `xref` (or an explicit `null` with the reason — seven of the sixteen
