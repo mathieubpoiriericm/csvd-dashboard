@@ -1,7 +1,9 @@
 import { assert, assertEquals, assertThrows } from "@std/assert";
 
 import manifestJson from "../disease/manifest.json" with { type: "json" };
+import diseaseTimeline from "../disease/timeline.json" with { type: "json" };
 import { manifest, normalizeManifest } from "../lib/disease.ts";
+import { POPULATION_CHOICES, SHOW_ALL } from "../lib/constants.ts";
 
 Deno.test("the manifest normalizes to the committed values", () => {
   assertEquals(manifest.schemaVersion, 1);
@@ -48,4 +50,22 @@ Deno.test("every population key is unique and non-empty", () => {
   const keys = manifest.populations.map((p) => p.key);
   assertEquals(new Set(keys).size, keys.length);
   assert(keys.every((k) => k.length > 0));
+});
+
+Deno.test("the radar's populations are the manifest's, in order", () => {
+  assertEquals(
+    diseaseTimeline.populations.map((p) => p.key),
+    manifest.populations.map((p) => p.key),
+  );
+});
+
+Deno.test("POPULATION_CHOICES is Show All followed by the manifest's populations", () => {
+  assertEquals(POPULATION_CHOICES.map((c) => c.value), [
+    SHOW_ALL,
+    ...manifest.populations.map((p) => p.key),
+  ]);
+  assertEquals(POPULATION_CHOICES.map((c) => c.label), [
+    "Show All",
+    ...manifest.populations.map((p) => p.label),
+  ]);
 });

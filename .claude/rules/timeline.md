@@ -3,6 +3,8 @@ paths:
   - "islands/TrialsTimeline.tsx"
   - "lib/timeline.ts"
   - "lib/timeline_encoding.json"
+  - "disease/timeline.json"
+  - "lib/disease/populations.ts"
   - "scripts/timeline_figure.py"
   - "tests/timeline_*.ts"
   - "tests/scripts/test_timeline_figure.py"
@@ -17,19 +19,25 @@ island reads its data.
 
 The figure has two renderers and one contract:
 
-- `lib/timeline_encoding.json` is the only place styling lives — population
-  order, each population's wedge colour and the deeper `band` step of it, ring
-  radii and opacities and the rim band's `gap` and `width` (all fractions of the
-  outer radius), the `boundary` hairline between cells, the empty-cell style,
-  the three `evidenceStates`, the `recordFlag`, and the mechanism palette with
-  its `families` grouping. `tests/timeline_encoding_test.ts` fails when the
-  committed data contains a population, phase, mechanism or evidence value the
-  file does not cover, when two mechanisms share a colour, or when a mechanism
-  sits in no family or in two. Add the entry; do not widen the test. The palette
-  is one hue per family with lightness steps inside it — eleven
-  pairwise-distinct hues cannot clear a colour-vision check, so identity rides
-  the drug label beside every marker and the legend, and the colour says the
-  family first. Do not "fix" it back to eleven unrelated hues.
+- `lib/timeline_encoding.json` is the only place styling lives for what is a
+  registry fact rather than the disease's — ring radii and opacities and the
+  rim band's `gap` and `width` (all fractions of the outer radius), the
+  `boundary` hairline between cells, the empty-cell style, the three
+  `evidenceStates`, and the `recordFlag`. Population order, each population's
+  wedge colour and the deeper `band` step of it, the mechanism palette and its
+  `families` grouping are the disease's and live in `disease/timeline.json`;
+  population _identity_ — key, label, order — is `populations[]` in
+  `disease/manifest.json`, read on the TypeScript side through
+  `lib/disease/populations.ts` and composed with the appearance file in
+  `lib/timeline.ts` and `scripts/timeline_figure.py`'s `load_encoding`.
+  `tests/timeline_encoding_test.ts` fails when the committed data contains a
+  population, phase, mechanism or evidence value the file does not cover, when
+  two mechanisms share a colour, or when a mechanism sits in no family or in
+  two. Add the entry; do not widen the test. The palette is one hue per family
+  with lightness steps inside it — eleven pairwise-distinct hues cannot clear a
+  colour-vision check, so identity rides the drug label beside every marker and
+  the legend, and the colour says the family first. Do not "fix" it back to
+  eleven unrelated hues.
 - `lib/timeline.ts` (island) and `scripts/timeline_figure.py` (print, via
   `deno task figure`) each implement the same layout rule: sector span ∝ unique
   drugs per population; markers at `(j+1)/(m+1)` of the sector in table order;

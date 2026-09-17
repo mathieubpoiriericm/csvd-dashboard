@@ -14,6 +14,7 @@
 import vocabulary from "../disease/vocabulary.json" with { type: "json" };
 import type { FilterChoice } from "./types.ts";
 import type { IconName } from "../components/Icon.tsx";
+import { POPULATIONS } from "./disease/populations.ts";
 import { NONE_FOUND, UNKNOWN } from "./sentinels.ts";
 import { parseMonthYear } from "./sorting.ts";
 import { STATUS_NOT_STATED, TRIAL_STATUSES } from "./trial_status.ts";
@@ -165,10 +166,11 @@ export const PHASE_CHOICES: readonly FilterChoice[] = [
 
 export const POPULATION_CHOICES: readonly FilterChoice[] = [
   { label: "Show All", value: SHOW_ALL },
-  { label: "CAA", value: "CAA" },
-  { label: "Cognitive Impairment", value: "Cognitive Impairment" },
-  { label: "Stroke", value: "Stroke" },
-  { label: "SVD", value: "SVD" },
+  // Derived, never listed: `disease/manifest.json` is the one place a
+  // population's key and label live, and `disease/timeline.json` gives the
+  // same keys their sector colours. tests/disease_manifest_test.ts holds the
+  // two in the same order.
+  ...POPULATIONS.map((p) => ({ label: p.label, value: p.key })),
 ];
 
 export const SPONSOR_CHOICES: readonly FilterChoice[] = [

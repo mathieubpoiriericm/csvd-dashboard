@@ -5,3 +5,4 @@
  */
 export * from "./disease/manifest.ts";
 export * from "./disease/citation.ts";
+export * from "./disease/populations.ts";
