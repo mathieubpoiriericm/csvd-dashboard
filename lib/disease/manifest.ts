@@ -184,9 +184,6 @@ export function normalizeManifest(raw: unknown): DiseaseManifest {
       glossary: stringMap(cellTypes.glossary),
     },
     citationStandard: citationStandard(source.citationStandard),
-    monogenicGenes: list(source.monogenicGenes)
-      .map(nullableText)
-      .filter((g): g is string => g !== null),
   };
 }
 

@@ -283,7 +283,6 @@ export interface DiseaseManifest {
   populationField: { label: string; detailsLabel: string };
   cellTypes: { label: string; glossary: Record<string, string> };
   citationStandard: CitationStandard | null;
-  monogenicGenes: string[];
 }
 
 export interface PaperCounts {

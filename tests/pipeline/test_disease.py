@@ -1,19 +1,29 @@
 """The disease manifest is the one place the pipeline learns which disease it serves."""
 
+import copy
 import json
 from pathlib import Path
 
 import pytest
 
 from pipeline import disease as disease_module
-from pipeline.disease import DISEASE_DIR, Disease, load_disease
+from pipeline.disease import DISEASE_DIR, PIPELINE_PATH, Disease, load_disease
 
 _ROOT = Path(__file__).resolve().parents[2]
+
+_MANIFEST_RAW = json.loads((DISEASE_DIR / "manifest.json").read_text(encoding="utf-8"))
+_PIPELINE_RAW = json.loads((DISEASE_DIR / "pipeline.json").read_text(encoding="utf-8"))
 
 
 def test_the_directory_is_the_repository_s_disease_folder() -> None:
     assert DISEASE_DIR == _ROOT / "disease"
     assert (DISEASE_DIR / "manifest.json").is_file()
+
+
+def test_the_pipeline_document_lives_beside_the_manifest() -> None:
+    assert PIPELINE_PATH.is_file()
+    for key in ("search", "monogenicGenes", "geneAliases", "pipeline"):
+        assert key not in _MANIFEST_RAW
 
 
 def test_load_disease_is_cached() -> None:
@@ -45,21 +55,21 @@ def test_the_manifest_fills_every_field() -> None:
 
 
 def test_the_parser_refuses_a_missing_key() -> None:
-    raw = json.loads((DISEASE_DIR / "manifest.json").read_text(encoding="utf-8"))
-    del raw["search"]["pubmed"]["meshTerms"]
+    pipeline_raw = copy.deepcopy(_PIPELINE_RAW)
+    del pipeline_raw["search"]["pubmed"]["meshTerms"]
     with pytest.raises(ValueError, match="search.pubmed.meshTerms"):
-        disease_module._parse_manifest(raw)
+        disease_module._parse_manifest(_MANIFEST_RAW, pipeline_raw)
 
 
 def test_the_parser_refuses_a_wrong_schema_version() -> None:
-    raw = json.loads((DISEASE_DIR / "manifest.json").read_text(encoding="utf-8"))
-    raw["schemaVersion"] = 2
+    manifest_raw = copy.deepcopy(_MANIFEST_RAW)
+    manifest_raw["schemaVersion"] = 2
     with pytest.raises(ValueError, match="schemaVersion"):
-        disease_module._parse_manifest(raw)
+        disease_module._parse_manifest(manifest_raw, _PIPELINE_RAW)
 
 
 def test_the_parser_refuses_an_empty_term() -> None:
-    raw = json.loads((DISEASE_DIR / "manifest.json").read_text(encoding="utf-8"))
-    raw["search"]["clinicalTrials"]["searchTerms"].append("  ")
+    pipeline_raw = copy.deepcopy(_PIPELINE_RAW)
+    pipeline_raw["search"]["clinicalTrials"]["searchTerms"].append("  ")
     with pytest.raises(ValueError, match="search.clinicalTrials.searchTerms"):
-        disease_module._parse_manifest(raw)
+        disease_module._parse_manifest(_MANIFEST_RAW, pipeline_raw)

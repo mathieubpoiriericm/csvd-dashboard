@@ -48,57 +48,6 @@
   "hosting": {
     "url": "https://csvd-dashboard.mathieubpoiriericm.deno.net"
   },
-  "search": {
-    "pubmed": {
-      "diseaseTerms": ["cerebral small vessel disease"],
-      "markerTerms": [
-        "stroke",
-        "dementia",
-        "lacunes",
-        "lacunar stroke",
-        "white matter hyperintensities",
-        "perivascular spaces",
-        "cerebral microbleeds"
-      ],
-      "meshTerms": ["Cerebral Small Vessel Diseases", "White Matter"]
-    },
-    "clinicalTrials": {
-      "searchTerms": [
-        "cerebral small vessel disease",
-        "lacunar stroke",
-        "lacunar infarction",
-        "CADASIL",
-        "CARASIL",
-        "cerebral microbleeds",
-        "white matter hyperintensities",
-        "vascular cognitive impairment",
-        "vascular dementia",
-        "cerebral amyloid angiopathy"
-      ],
-      "conditions": [
-        "small vessel disease",
-        "small vascular disease",
-        "lacunar",
-        "lacune",
-        "cadasil",
-        "carasil",
-        "microbleed",
-        "white matter hyperintensit",
-        "white matter lesion",
-        "white matter disease",
-        "leukoaraiosis",
-        "amyloid angiopathy",
-        "binswanger",
-        "perivascular space",
-        "subcortical infarct",
-        "subcortical ischemi",
-        "covert brain infarct",
-        "silent brain infarct",
-        "silent cerebral infarct"
-      ],
-      "conditionPairs": [["vascular", "dementia"], ["vascular", "cognitive"]]
-    }
-  },
   "populations": [
     { "key": "CAA", "label": "CAA" },
     { "key": "Cognitive Impairment", "label": "Cognitive Impairment" },
@@ -127,14 +76,5 @@
     "label": "Duering, M. et al. Neuroimaging standards for research into small vessel disease—advances since 2013. The Lancet Neurology 22, 602–618 (2023).",
     "doi": "10.1016/S1474-4422(23)00131-X",
     "linkLabel": "View STRIVE-2 (Lancet Neurol 2023)"
-  },
-  "monogenicGenes": ["NOTCH3", "COL4A1", "COL4A2", "HTRA1", "TREX1", "GLA"],
-  "geneAliases": {
-    "COL4A1/2": ["COL4A1", "COL4A2"],
-    "C6orf195": ["LINC01600"]
-  },
-  "pipeline": {
-    "runLabel": "SVD Pipeline",
-    "maxGenesPerPaper": 20
   }
 }

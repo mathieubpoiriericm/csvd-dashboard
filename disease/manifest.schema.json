@@ -10,14 +10,10 @@
     "contact",
     "about",
     "hosting",
-    "search",
     "populations",
     "populationField",
     "cellTypes",
-    "citationStandard",
-    "monogenicGenes",
-    "geneAliases",
-    "pipeline"
+    "citationStandard"
   ],
   "additionalProperties": false,
   "properties": {
@@ -159,39 +155,6 @@
       "required": ["url"],
       "properties": { "url": { "type": ["string", "null"] } }
     },
-    "search": {
-      "type": "object",
-      "required": ["pubmed", "clinicalTrials"],
-      "additionalProperties": false,
-      "properties": {
-        "pubmed": {
-          "type": "object",
-          "required": ["diseaseTerms", "markerTerms", "meshTerms"],
-          "properties": {
-            "diseaseTerms": { "$ref": "#/$defs/terms" },
-            "markerTerms": { "$ref": "#/$defs/terms" },
-            "meshTerms": { "$ref": "#/$defs/terms" }
-          }
-        },
-        "clinicalTrials": {
-          "type": "object",
-          "required": ["searchTerms", "conditions", "conditionPairs"],
-          "properties": {
-            "searchTerms": { "$ref": "#/$defs/terms" },
-            "conditions": { "$ref": "#/$defs/terms" },
-            "conditionPairs": {
-              "type": "array",
-              "items": {
-                "type": "array",
-                "items": { "type": "string" },
-                "minItems": 2,
-                "maxItems": 2
-              }
-            }
-          }
-        }
-      }
-    },
     "populations": {
       "type": "array",
       "minItems": 1,
@@ -237,26 +200,6 @@
           }
         }
       ]
-    },
-    "monogenicGenes": { "$ref": "#/$defs/terms" },
-    "geneAliases": {
-      "type": "object",
-      "additionalProperties": {
-        "type": "array",
-        "minItems": 1,
-        "items": { "type": "string" }
-      }
-    },
-    "pipeline": {
-      "type": "object",
-      "required": ["runLabel", "maxGenesPerPaper"],
-      "properties": {
-        "runLabel": { "type": "string" },
-        "maxGenesPerPaper": { "type": "integer", "minimum": 1 }
-      }
     }
-  },
-  "$defs": {
-    "terms": { "type": "array", "items": { "type": "string", "minLength": 1 } }
   }
 }
