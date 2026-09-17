@@ -18,14 +18,14 @@ code change with a re-recorded harness.
 **The prompt version is pinned the same way, by refusal rather than by
 fallback.** `PIPELINE_PROMPT_VERSION` still selects one, but `__post_init__`
 refuses a name `prompts.py` does not carry, and `build_extraction_prompt` raises
-instead of falling back to v6. The fallback was safe for the prompt and false
-for every record of the run: `report_metadata`, `pipeline_runs.report`,
+instead of falling back to the default. The fallback was safe for the prompt and
+false for every record of the run: `report_metadata`, `pipeline_runs.report`,
 `data/pipeline_run.json` and the checkpoint fingerprint all publish
-`config.prompt_version` verbatim, so `PIPELINE_PROMPT_VERSION=v7` named a
-version that never existed as the method behind rows extracted with v6 — on the
-public About page — and correcting the typo afterwards changed the fingerprint,
-discarding a checkpoint whose papers had been extracted with the very same
-prompt. A run reports the prompt it ran.
+`config.prompt_version` verbatim, so a typo'd `PIPELINE_PROMPT_VERSION` named a
+version that never existed as the method behind the rows it was extracting — on
+the public About page — and correcting the typo afterwards changed the
+fingerprint, discarding a checkpoint whose papers had been extracted with the
+very same prompt. A run reports the prompt it ran.
 
 What went with it: `LEGACY_THINKING_MODELS`, `EFFORT_INCAPABLE_MODELS`,
 `uses_adaptive_thinking()`, `supports_effort()`, `THINKING_OUTPUT_RESERVE`, the
@@ -143,7 +143,19 @@ a re-run could land either side. **`medium` is the lever** if cost or latency
 ever binds: 34% cheaper, 55% of the wall-clock, quote fidelity if anything
 better. `low` is not: 13 points, and it stops producing prose.
 
-### The prompt is v6, and v4's guards were measured rather than assumed
+### The prompt is v7: a template plus `disease/prompt.md`, and v4's guards were measured rather than assumed
+
+`pipeline/prompts.py` holds the methodology as a template with
+`{{ section.id }}` slots and `disease/prompt.md` holds the disease prose, one
+`## id` per slot. `render_prompt` refuses an unknown slot, an unreferenced
+section and a residual `{{`, and `tests/pipeline/test_prompt_assembly.py` pins
+the cSVD rendering byte-identical to the v6 literals (sha256 `70908abc…`), which
+is why the recall baseline and the golden cassettes carried over without
+re-recording. `prompt_sha256()` hashes the rendered system prompt and
+instructions together, because the version name stopped being enough the moment
+half the prompt moved into a data file. `deno fmt` is excluded from
+`disease/prompt.md` in `deno.json`: reflowing its prose would rewrap the very
+lines the model reads, and byte identity is the whole contract.
 
 `pipeline/prompts.py` holds one prompt, and its module docstring records why
 v4's stricter exclusion guards were measured and ruled out rather than assumed
@@ -750,7 +762,7 @@ in `_MISSED`, and the anchor-only and MeSH-branch figures are pinned so widening
 a term list in the belief that it helps recall fails loudly).
 `tests/pipeline/test_extraction_golden.py` replays ten cassettes and asserts
 recall over the gold genes a paper's retrieved text actually names, reported
-apart for the 13 gold genes the v6 prompt itself names -- **quote the clean 88%,
+apart for the 13 gold genes the prompt itself names -- **quote the clean 88%,
 not the pooled 91%**. Its `_RECALL_BASELINE` is raised when the prompt is
 widened, never to turn a red run green. What neither proves:
 
