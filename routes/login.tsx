@@ -1,7 +1,7 @@
 import { page } from "fresh";
 
 import { define } from "../utils.ts";
-import { IcmLogo } from "../components/IcmLogo.tsx";
+import { InstituteLogo } from "../components/InstituteLogo.tsx";
 import ThemeToggle from "../islands/ThemeToggle.tsx";
 import { SITE_TITLE } from "../lib/constants.ts";
 import { LOGIN_LEDE } from "../lib/disease/site.ts";
@@ -64,7 +64,7 @@ export function LoginCard({ next, error }: LoginData) {
     <div class="login-page">
       <ThemeToggle />
       <section class="login-card" aria-labelledby="login-title">
-        <IcmLogo />
+        <InstituteLogo />
         <h1 id="login-title">{SITE_TITLE}</h1>
         <p class="login-lede">
           {LOGIN_LEDE}{" "}

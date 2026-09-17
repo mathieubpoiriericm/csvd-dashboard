@@ -3,7 +3,7 @@
 // module constant and never touches request data.
 import { define } from "../utils.ts";
 import { Icon } from "../components/Icon.tsx";
-import { IcmLogo } from "../components/IcmLogo.tsx";
+import { InstituteLogo } from "../components/InstituteLogo.tsx";
 import ThemeToggle from "../islands/ThemeToggle.tsx";
 import { LOGIN_PATH, LOGOUT_PATH } from "../lib/auth.ts";
 import { SITE_TITLE, TABS } from "../lib/constants.ts";
@@ -130,7 +130,7 @@ export default define.page(function App({ Component, url, state }) {
             <header class="navbar">
               <div class="navbar-inner">
                 <a class="navbar-brand" href="/" aria-label="Home">
-                  <IcmLogo decorative />
+                  <InstituteLogo dark decorative />
                 </a>
                 {
                   /* Outside the brand link: the heading is centred against the

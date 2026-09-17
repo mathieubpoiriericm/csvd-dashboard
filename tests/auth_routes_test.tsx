@@ -167,8 +167,8 @@ Deno.test("the gate fails closed when a secret is missing", async () => {
 
 Deno.test("the login card shows the ICM logo, the form and the return path", () => {
   const html = renderToString(<LoginCard next="/genes" error={false} />);
-  assertStringIncludes(html, 'class="icm-logo"');
-  assertStringIncludes(html, 'aria-label="Paris Brain Institute"');
+  assertStringIncludes(html, 'class="institute-logo"');
+  assertStringIncludes(html, 'alt="Paris Brain Institute"');
   assertStringIncludes(html, "ICM Cerebral SVD Dashboard");
   assertStringIncludes(html, 'method="post" action="/login"');
   assertStringIncludes(html, 'type="password" name="passphrase" autofocus');

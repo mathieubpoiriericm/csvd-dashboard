@@ -19,7 +19,7 @@ import {
 } from "../components/DensityReadout.tsx";
 import GenesView, { BrainCellTypesCell } from "../islands/GenesView.tsx";
 import TrialsView, { GeneticTargets } from "../islands/TrialsView.tsx";
-import { IcmLogo } from "../components/IcmLogo.tsx";
+import { InstituteLogo } from "../components/InstituteLogo.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { MapPopup } from "../components/MapPopup.tsx";
 import { Page } from "../components/Page.tsx";
@@ -185,7 +185,7 @@ Deno.test("presentational shells render their optional variants", () => {
       <TipBox>Default guidance</TipBox>
       <TipBox label="Note:">Specific guidance</TipBox>
       <ValueBox label="Records" value={12345} />
-      <IcmLogo />
+      <InstituteLogo />
       <Icon name="info" />
       <Icon name="dna" />
     </Page>,
@@ -196,9 +196,25 @@ Deno.test("presentational shells render their optional variants", () => {
   assertStringIncludes(html, "<strong>Tip:</strong>");
   assertStringIncludes(html, "<strong>Note:</strong>");
   assertStringIncludes(html, "12,345");
-  assertStringIncludes(html, 'aria-label="Paris Brain Institute"');
+  assertStringIncludes(html, 'alt="Paris Brain Institute"');
   assertEquals((html.match(/class="icon"/g) ?? []).length, 2);
-  assertEquals((html.match(/<path/g) ?? []).length > 5, true);
+  // InstituteLogo is an <img>, so every <path> here comes from the two
+  // Icon glyphs: "info" (one) and the multi-path "dna" (three).
+  assertEquals((html.match(/<path/g) ?? []).length, 4);
+});
+
+Deno.test("InstituteLogo renders the manifest's logo and swaps the file on dark", () => {
+  const light = renderToString(<InstituteLogo />);
+  assertStringIncludes(light, 'src="/institute/logo-light.svg"');
+  assertStringIncludes(light, 'alt="Paris Brain Institute"');
+  const dark = renderToString(<InstituteLogo dark />);
+  assertStringIncludes(dark, 'src="/institute/logo-dark.svg"');
+  const decorative = renderToString(<InstituteLogo decorative />);
+  // preact-render-to-string serialises an empty string attribute as the
+  // bare attribute name rather than `alt=""` -- valid HTML5 parses `<img
+  // alt>` as `alt=""` either way, so this checks the same emptiness the
+  // literal form would.
+  assertStringIncludes(decorative, 'alt aria-hidden="true"');
 });
 
 Deno.test("DensityReadout renders totals and zero-height buckets safely", () => {
