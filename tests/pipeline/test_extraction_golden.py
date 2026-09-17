@@ -420,7 +420,10 @@ def test_the_gold_standard_is_not_fully_reachable() -> None:
 def _genes_named_in_the_prompt() -> set[str]:
     """Gold-standard genes that appear verbatim in the production prompt."""
     prompt = build_extraction_prompt(
-        paper_text="", pmid="0", max_chars=1, prompt_version="v6"
+        paper_text="",
+        pmid="0",
+        max_chars=1,
+        prompt_version=PipelineConfig().prompt_version,
     )
     text = f"{prompt.system_prompt}\n{prompt.extraction_instructions}"
     named = set()
@@ -435,7 +438,7 @@ def _genes_named_in_the_prompt() -> set[str]:
 def test_the_prompt_names_part_of_its_own_answer_key() -> None:
     """Pin the contamination so it cannot grow unnoticed.
 
-    The v6 prompt's few-shot examples name 13 of the 36 gold-standard
+    The production prompt's few-shot examples name 13 of the 36 gold-standard
     genes, six of them with the expected gwas_trait and confidence. That
     inflates measured recall on those genes, so the harness reports the
     two separately and the paper should quote the uncontaminated figure.
@@ -638,7 +641,7 @@ def test_the_update_floor_is_set_where_gold_recall_saturates() -> None:
 def test_recall_is_reported_separately_for_contaminated_genes() -> None:
     """The honest headline is the clean subset, not the pooled figure.
 
-    13 of the 36 gold genes are named in the v6 prompt and six carry their
+    13 of the 36 gold genes are named in the production prompt and six carry their
     expected gwas_trait and confidence, so recall on those genes is
     measuring partly what the prompt already said. The clean subset is the
     number that means something about extraction.

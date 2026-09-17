@@ -19,6 +19,7 @@ from typing import Any, Final
 from anthropic import transform_schema
 from lxml import etree  # type: ignore[import-untyped]
 
+from pipeline.disease import load_disease
 from pipeline.extraction_models import ExtractionResult
 from pipeline.prompts import PROMPT_VERSIONS, PROMPT_VERSIONS_WITHOUT_PROVENANCE
 
@@ -279,11 +280,11 @@ class PipelineConfig:
     llm_effort: str = field(
         default_factory=lambda: _env_str("PIPELINE_LLM_EFFORT", "high")
     )
-    # Extraction prompt version. v6 is production; __post_init__ refuses
+    # Extraction prompt version. v7 is production; __post_init__ refuses
     # the pre-provenance versions and any name prompts.py does not carry —
     # this string is published as the method behind every extracted row.
     prompt_version: str = field(
-        default_factory=lambda: _env_str("PIPELINE_PROMPT_VERSION", "v6")
+        default_factory=lambda: _env_str("PIPELINE_PROMPT_VERSION", "v7")
     )
 
     # Maximum paper text chars sent to the LLM. ~100K tokens of a 1M-token
@@ -662,7 +663,7 @@ class PipelineConfig:
         if self.pdf_max_pages < 1:
             raise ValueError(f"pdf_max_pages must be >= 1, got {self.pdf_max_pages}")
 
-        # A pre-v6 prompt does not ask the model to copy a verbatim
+        # A pre-provenance prompt does not ask the model to copy a verbatim
         # sentence, but the schema still requires a non-blank source_quote
         # -- so the model supplies a paraphrase or an invention,
         # min_length=1 passes it, and every quote the run stores is
@@ -677,10 +678,10 @@ class PipelineConfig:
                 "verbatim-quote instruction, but the extraction schema "
                 "requires a non-blank source_quote -- the model would "
                 "paraphrase or invent one and validation would accept it. "
-                "Use 'v6' (the default); unset PIPELINE_PROMPT_VERSION to "
+                "Use 'v7' (the default); unset PIPELINE_PROMPT_VERSION to "
                 "get it."
             )
-        # An unrecognised version used to fall back to v6 with a warning
+        # An unrecognised version used to fall back with a warning
         # deep in build_extraction_prompt, which was safe for the *prompt*
         # and false everywhere else: report_metadata, the run report and
         # the checkpoint fingerprint all publish this string, so a typo'd
@@ -759,8 +760,8 @@ class PipelineConfig:
         return {
             "name": EXTRACTION_TOOL_NAME,
             "description": (
-                "Report every gene with a putative causal link to cerebral "
-                "small vessel disease found in the document."
+                "Report every gene with a putative causal link to "
+                f"{load_disease().name} found in the document."
             ),
             "input_schema": transform_schema(ExtractionResult),
             "strict": False,

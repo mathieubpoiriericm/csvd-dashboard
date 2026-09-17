@@ -1,5 +1,5 @@
-"""The disease this pipeline serves, read once from ``disease/manifest.json``
-and ``disease/pipeline.json``.
+"""The disease this pipeline serves, read once from ``disease/manifest.json``,
+``disease/pipeline.json`` and ``disease/prompt.md``.
 
 Stdlib only, and it imports nothing from ``pipeline``: ``extraction_models``
 and ``config`` both read it, and ``config`` imports ``extraction_models``,
@@ -14,7 +14,9 @@ dataclass is frozen.
 
 from __future__ import annotations
 
+import hashlib
 import json
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import cache
@@ -35,6 +37,11 @@ SCHEMA_VERSION: Final[int] = 1
 
 _MANIFEST = "disease/manifest.json"
 _PIPELINE = "disease/pipeline.json"
+_PROMPT = "disease/prompt.md"
+
+_HEADING: Final[re.Pattern[str]] = re.compile(
+    r"^## (?P<id>[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*)\s*$", re.M
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -58,6 +65,12 @@ class Disease:
     population_keys: tuple[str, ...]
     population_label: str
     population_details_label: str
+    # The prose halves of the extraction prompt, one entry per `## id`
+    # heading in disease/prompt.md, and the hash of the file they were read
+    # from: an edit to the prompt changes what the model is asked, so the
+    # run record carries the file's bytes as well as the version name.
+    prompt_sections: Mapping[str, str]
+    prompt_file_sha256: str
 
 
 def _at(raw: Mapping[str, Any], path: str, filename: str) -> Any:
@@ -91,8 +104,27 @@ def _check_schema_version(raw: Mapping[str, Any], filename: str) -> None:
         raise ValueError(f"{filename}: schemaVersion must be {SCHEMA_VERSION}")
 
 
+def _parse_prompt_sections(text: str) -> dict[str, str]:
+    """``## id`` headings to bodies, blank lines at either end stripped."""
+    matches = list(_HEADING.finditer(text))
+    if not matches:
+        raise ValueError(f"{_PROMPT}: no '## <section.id>' headings")
+    sections: dict[str, str] = {}
+    for index, match in enumerate(matches):
+        start = match.end()
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
+        key = match.group("id")
+        if key in sections:
+            raise ValueError(f"{_PROMPT}: duplicate section {key}")
+        sections[key] = text[start:end].strip("\n")
+    return sections
+
+
 def _parse_manifest(
-    manifest_raw: Mapping[str, Any], pipeline_raw: Mapping[str, Any]
+    manifest_raw: Mapping[str, Any],
+    pipeline_raw: Mapping[str, Any],
+    prompt_sections: Mapping[str, str] = MappingProxyType({}),
+    prompt_file_sha256: str = "",
 ) -> Disease:
     """Read disease/site prose from the manifest, gene symbols and search
     terms from the pipeline document. Neither carries the other: the manifest
@@ -155,14 +187,22 @@ def _parse_manifest(
         population_details_label=_text(
             manifest_raw, "populationField.detailsLabel", _MANIFEST
         ),
+        prompt_sections=MappingProxyType(dict(prompt_sections)),
+        prompt_file_sha256=prompt_file_sha256,
     )
 
 
 @cache
 def load_disease() -> Disease:
-    """Read the manifest and the pipeline document once for the process."""
+    """Read the manifest, the pipeline document and the prompt once per process."""
     with MANIFEST_PATH.open(encoding="utf-8") as handle:
         manifest_raw = json.load(handle)
     with PIPELINE_PATH.open(encoding="utf-8") as handle:
         pipeline_raw = json.load(handle)
-    return _parse_manifest(manifest_raw, pipeline_raw)
+    prompt_bytes = PROMPT_PATH.read_bytes()
+    return _parse_manifest(
+        manifest_raw,
+        pipeline_raw,
+        prompt_sections=_parse_prompt_sections(prompt_bytes.decode("utf-8")),
+        prompt_file_sha256=hashlib.sha256(prompt_bytes).hexdigest(),
+    )

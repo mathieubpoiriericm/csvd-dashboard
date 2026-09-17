@@ -2,6 +2,7 @@
 
 import pytest
 
+from pipeline.disease import load_disease
 from pipeline.prompts import (
     _PROMPTS,
     PROMPT_VERSIONS,
@@ -9,7 +10,7 @@ from pipeline.prompts import (
     paper_text_truncated,
 )
 
-DEFAULT_SYSTEM_PROMPT, DEFAULT_EXTRACTION_INSTRUCTIONS = _PROMPTS["v6"]
+DEFAULT_SYSTEM_PROMPT, DEFAULT_EXTRACTION_INSTRUCTIONS = _PROMPTS["v7"]
 
 
 def test_prompt_versions_is_derived_from_the_registry() -> None:
@@ -19,7 +20,7 @@ def test_prompt_versions_is_derived_from_the_registry() -> None:
     assert frozenset(_PROMPTS) == PROMPT_VERSIONS
 
 
-def test_only_v6_remains() -> None:
+def test_only_v7_remains() -> None:
     """One prompt, and v4 is gone because it was measured, not assumed.
 
     v4 held two exclusion guards v5 relaxed (MTAG locus labels,
@@ -27,14 +28,15 @@ def test_only_v6_remains() -> None:
     could say whether they recovered precision. Recording both arms over
     the same ten fixtures gave identical pooled recall (42/46) while the
     stricter arm returned *more* genes, 144 against 138. The guards are
-    ruled out rather than assumed.
+    ruled out rather than assumed. v7 is v6 split into template and
+    disease file; the bytes are pinned in test_prompt_assembly.py.
     """
-    assert set(_PROMPTS) == {"v6"}
+    assert set(_PROMPTS) == {"v7"}
 
 
 class TestSystemPrompt:
-    def test_contains_csvd(self):
-        assert "cSVD" in DEFAULT_SYSTEM_PROMPT
+    def test_contains_the_disease_abbreviation(self):
+        assert load_disease().abbreviation in DEFAULT_SYSTEM_PROMPT
 
     def test_contains_role(self):
         assert "systematic reviewer" in DEFAULT_SYSTEM_PROMPT
@@ -129,10 +131,10 @@ class TestBuildExtractionPrompt:
         assert isinstance(prompt.task_instruction, str)
 
     def test_parts_match_canonical_constants(self):
-        """Pins the v6 dispatch specifically — independent of whichever
+        """Pins the v7 dispatch specifically — independent of whichever
         version the function currently defaults to."""
         prompt = build_extraction_prompt(
-            paper_text="Test", pmid="111", max_chars=50000, prompt_version="v6"
+            paper_text="Test", pmid="111", max_chars=50000, prompt_version="v7"
         )
         assert prompt.system_prompt == DEFAULT_SYSTEM_PROMPT
         assert prompt.extraction_instructions == DEFAULT_EXTRACTION_INSTRUCTIONS
@@ -205,7 +207,7 @@ class TestBuildExtractionPrompt:
             paper_text="ICA1L is significant.",
             pmid="12345678",
             max_chars=1000,
-            prompt_version="v6",
+            prompt_version="v7",
         )
         assert prompt.document_text == "ICA1L is significant."
         assert "<document" not in prompt.document_text
@@ -216,14 +218,14 @@ class TestBuildExtractionPrompt:
             paper_text="x" * 500,
             pmid="12345678",
             max_chars=100,
-            prompt_version="v6",
+            prompt_version="v7",
         )
         assert len(prompt.document_text) == 100
 
-    def test_v6_dispatch_adds_provenance_instruction(self):
-        """v6 prompt should demand a verbatim source_quote and forbid paraphrase."""
+    def test_v7_dispatch_adds_provenance_instruction(self):
+        """v7 prompt should demand a verbatim source_quote and forbid paraphrase."""
         prompt = build_extraction_prompt(
-            paper_text="Test", pmid="111", max_chars=50000, prompt_version="v6"
+            paper_text="Test", pmid="111", max_chars=50000, prompt_version="v7"
         )
         instructions = prompt.extraction_instructions
         assert "## Provenance" in instructions
@@ -232,20 +234,21 @@ class TestBuildExtractionPrompt:
         assert "not paraphrase" in instructions.lower()
         assert "stitch two sentences" in instructions
 
-    def test_default_version_is_v6(self):
+    def test_default_version_is_v7(self):
         """The parameter default must track production (config.py defaults
-        PIPELINE_PROMPT_VERSION to v6). v4 carries no verbatim-quote
-        instruction, so a stale v4 default would silently let paraphrased
-        quotes pass GeneEntry.source_quote validation undetected."""
+        PIPELINE_PROMPT_VERSION to v7). A pre-provenance prompt carries no
+        verbatim-quote instruction, so a stale default would silently let
+        paraphrased quotes pass GeneEntry.source_quote validation
+        undetected."""
         prompt = build_extraction_prompt(paper_text="Test", pmid="111", max_chars=50000)
-        v6_prompt = build_extraction_prompt(
-            paper_text="Test", pmid="111", max_chars=50000, prompt_version="v6"
+        v7_prompt = build_extraction_prompt(
+            paper_text="Test", pmid="111", max_chars=50000, prompt_version="v7"
         )
-        assert prompt.extraction_instructions == v6_prompt.extraction_instructions
-        assert prompt.system_prompt == v6_prompt.system_prompt
+        assert prompt.extraction_instructions == v7_prompt.extraction_instructions
+        assert prompt.system_prompt == v7_prompt.system_prompt
 
     def test_an_unknown_version_raises_rather_than_falling_back(self):
-        """The fallback to v6 built the right prompt under the wrong name.
+        """The fallback built the right prompt under the wrong name.
 
         Nothing downstream re-derived the version actually used:
         report_metadata, the published run report and the checkpoint

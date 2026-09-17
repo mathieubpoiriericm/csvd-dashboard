@@ -28,7 +28,7 @@ class TestFingerprint:
 
         assert base != other
         assert base["model"] == "claude-opus-5"
-        assert base["prompt_version"] == "v6"
+        assert base["prompt_version"] == "v7"
 
     def test_the_verbatim_quote_gate_is_part_of_the_method(self) -> None:
         # `report_provenance` drops unverified genes *inside* extraction, so

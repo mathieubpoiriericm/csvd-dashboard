@@ -204,7 +204,7 @@ class TestPipelineConfigDefaults:
     def test_default_prompt_version(self, monkeypatch):
         monkeypatch.delenv("PIPELINE_PROMPT_VERSION", raising=False)
         cfg = PipelineConfig()
-        assert cfg.prompt_version == "v6"
+        assert cfg.prompt_version == "v7"
 
     def test_construction_does_not_require_api_key(self, monkeypatch):
         """Non-LLM pipeline modes can still build config without Anthropic creds."""
@@ -314,7 +314,7 @@ def test_a_pre_provenance_prompt_version_is_refused_at_config_time(
     the run stores would be untrustworthy with nothing in the output to
     show it, so it has to fail at startup rather than warn.
 
-    The set is empty now that v6 is the only prompt, and parametrising
+    The set is empty now that v7 is the only prompt, and parametrising
     over it made this test silently skip -- an empty parameter set asserts
     nothing while still reporting green. So the rule is tested against a
     synthetic version instead, which is what keeps the guard covered no
@@ -330,7 +330,7 @@ def test_a_pre_provenance_prompt_version_is_refused_at_config_time(
 def test_the_refused_set_is_exactly_the_versions_without_the_block() -> None:
     """Derived from the prompt table, not a hardcoded list.
 
-    The set is empty now that v6 is the only version, and the machinery
+    The set is empty now that v7 is the only version, and the machinery
     stays for that reason rather than in spite of it: a future version
     that forgets the Provenance block has to land in this set on its own,
     and one that keeps it must not. Asserting emptiness would pin the
@@ -346,19 +346,19 @@ def test_the_refused_set_is_exactly_the_versions_without_the_block() -> None:
 
 
 def test_the_production_default_is_accepted() -> None:
-    assert PipelineConfig().prompt_version == "v6"
-    assert PipelineConfig(prompt_version="v6").prompt_version == "v6"
+    assert PipelineConfig().prompt_version == "v7"
+    assert PipelineConfig(prompt_version="v7").prompt_version == "v7"
 
 
 def test_an_unrecognised_version_is_refused_before_the_run() -> None:
     """A typo'd PIPELINE_PROMPT_VERSION must not become a published method.
 
-    It used to be accepted here and fall back to v6 with a warning inside
+    It used to be accepted here and fall back to the default with a warning inside
     build_extraction_prompt -- safe for the prompt, false for every record
     of the run: report_metadata, `pipeline_runs.report`,
     data/pipeline_run.json and the checkpoint fingerprint all carry
-    `config.prompt_version` verbatim, so `PIPELINE_PROMPT_VERSION=v7`
-    published "v7" as the method behind rows extracted with v6, and
+    `config.prompt_version` verbatim, so a typo'd PIPELINE_PROMPT_VERSION
+    published a name that never existed as the method behind the rows, and
     correcting the typo later discarded a checkpoint whose papers had been
     extracted with the very same prompt.
     """
@@ -369,7 +369,7 @@ def test_an_unrecognised_version_is_refused_before_the_run() -> None:
 def test_the_refusal_names_the_versions_that_do_exist() -> None:
     """The operator's next move is in the message, not in the source.
 
-    Derived from the registry rather than spelled "v6", so adding v7 needs
+    Derived from the registry rather than spelled "v7", so adding v8 needs
     no edit here -- the same reason the refused set is derived above.
     """
     with pytest.raises(ValueError) as raised:

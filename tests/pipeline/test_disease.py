@@ -1,13 +1,20 @@
 """The disease manifest is the one place the pipeline learns which disease it serves."""
 
 import copy
+import hashlib
 import json
 from pathlib import Path
 
 import pytest
 
 from pipeline import disease as disease_module
-from pipeline.disease import DISEASE_DIR, PIPELINE_PATH, Disease, load_disease
+from pipeline.disease import (
+    DISEASE_DIR,
+    PIPELINE_PATH,
+    PROMPT_PATH,
+    Disease,
+    load_disease,
+)
 
 _ROOT = Path(__file__).resolve().parents[2]
 
@@ -73,3 +80,27 @@ def test_the_parser_refuses_an_empty_term() -> None:
     pipeline_raw["search"]["clinicalTrials"]["searchTerms"].append("  ")
     with pytest.raises(ValueError, match="search.clinicalTrials.searchTerms"):
         disease_module._parse_manifest(_MANIFEST_RAW, pipeline_raw)
+
+
+def test_the_prompt_sections_are_read_from_the_prompt_file() -> None:
+    d = load_disease()
+    assert PROMPT_PATH.is_file()
+    assert d.prompt_file_sha256 == hashlib.sha256(PROMPT_PATH.read_bytes()).hexdigest()
+    assert d.prompt_sections["strategy.monogenic_genes"] == ", ".join(d.monogenic_genes)
+
+
+def test_the_prompt_parser_splits_on_headings() -> None:
+    parsed = disease_module._parse_prompt_sections(
+        "# Title\n\nlead\n\n## a.b\n\nbody one\n\n## c\n\nbody two\n"
+    )
+    assert parsed == {"a.b": "body one", "c": "body two"}
+
+
+def test_the_prompt_parser_refuses_a_file_with_no_headings() -> None:
+    with pytest.raises(ValueError, match="no '## <section.id>' headings"):
+        disease_module._parse_prompt_sections("# Title\n\njust prose\n")
+
+
+def test_the_prompt_parser_refuses_a_duplicate_section() -> None:
+    with pytest.raises(ValueError, match="duplicate section a.b"):
+        disease_module._parse_prompt_sections("## a.b\n\none\n\n## a.b\n\ntwo\n")

@@ -27,6 +27,11 @@
       "functions": 90
     }
   },
+  "fmt": {
+    "exclude": [
+      "disease/prompt.md"
+    ]
+  },
   "lint": {
     "rules": {
       "tags": [

@@ -1,10 +1,11 @@
 """The prompt's trait vocabulary is reconciled against disease/vocabulary.json.
 
-`pipeline/prompts.py` names the canonical GWAS trait abbreviations in prose, and
-that sentence stays a frozen literal on purpose: it is compared across runs,
-recorded in cassettes, and treated as part of the method, so generating it from a
-mutable file would let an edit silently change what the model is asked. The
-reconciliation happens here instead.
+The canonical GWAS trait abbreviations are named in prose, and that sentence is
+prose in `disease/prompt.md`, rendered into the v7 template; the cSVD rendering
+is pinned byte-for-byte by `test_prompt_assembly.py`, so an edit is a visible
+fixture change rather than a silent one. Deriving the sentence from
+`disease/vocabulary.json` instead would let an edit there change what the model
+is asked with nothing to show it. The reconciliation happens here instead.
 
 Two artifacts fix what a run may report, and only one of them is frozen. The
 sentence is what the model is *asked* for; the tool schema's `gwas_trait` enum
