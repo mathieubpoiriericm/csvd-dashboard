@@ -322,6 +322,31 @@ def test_clean_column_name_then_to_camel_reproduces_table2_wire_keys() -> None:
 _TSX_ACCESSOR_HEADER = re.compile(r'accessor\("(\w+)",\s*\{\s*header:\s*"([^"]+)"')
 _TSX_ID_HEADER = re.compile(r'id:\s*"(\w+)",\s*\n\s*header:\s*"([^"]+)"')
 
+# Task 6 moved three headers -- the cell-type column and the two SVD
+# Population ones -- off their string literals and onto manifest-derived
+# constants, so `header:` there is an identifier rather than a `"..."`
+# literal and the two regexes above no longer see it. This regex captures
+# that identifier (dotted, for `POPULATION_FIELD.label`); _MANIFEST_HEADERS
+# below is where it gets resolved back to the string this test still checks
+# against the tsx file's own accessor key. An identifier missing from that
+# table raises rather than silently reporting no header at all, so a future
+# manifest-sourced column has to be added here on purpose.
+_TSX_ACCESSOR_HEADER_IDENTIFIER = re.compile(
+    r'accessor\("(\w+)",\s*\{\s*header:\s*([A-Za-z_][\w.]*),'
+)
+
+_MANIFEST = json.loads(
+    (Path(__file__).resolve().parents[3] / "disease" / "manifest.json").read_text(
+        encoding="utf-8"
+    )
+)
+
+_MANIFEST_HEADERS = {
+    "CELL_TYPES_LABEL": _MANIFEST["cellTypes"]["label"],
+    "POPULATION_FIELD.label": _MANIFEST["populationField"]["label"],
+    "POPULATION_FIELD.detailsLabel": _MANIFEST["populationField"]["detailsLabel"],
+}
+
 # clean_table1.R renames these two names *after* clean_column_name runs (see
 # its final gsub() calls), so the raw helper output is transformed before
 # comparing it to the committed header.
@@ -342,6 +367,14 @@ def _tsx_headers(relative_path: str) -> dict[str, str]:
     text = (repo_root / relative_path).read_text(encoding="utf-8")
     headers = dict(_TSX_ACCESSOR_HEADER.findall(text))
     headers.update(_TSX_ID_HEADER.findall(text))
+    for accessor_key, identifier in _TSX_ACCESSOR_HEADER_IDENTIFIER.findall(text):
+        if identifier not in _MANIFEST_HEADERS:
+            raise KeyError(
+                f"{relative_path}: accessor {accessor_key!r} has a header "
+                f"identifier {identifier!r} not in _MANIFEST_HEADERS -- add "
+                "it there deliberately"
+            )
+        headers[accessor_key] = _MANIFEST_HEADERS[identifier]
     return headers
 
 
