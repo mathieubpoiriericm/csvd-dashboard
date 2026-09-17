@@ -17,6 +17,7 @@ from collections import Counter, defaultdict
 import pandas as pd
 import pandera.pandas as pa
 
+from pipeline.disease import load_disease
 from pipeline.extraction_models import GeneEntry
 
 logger = logging.getLogger(__name__)
@@ -24,7 +25,7 @@ logger = logging.getLogger(__name__)
 _MAX_PAPERS_PER_GENE = 3
 _MAX_MEAN_CONFIDENCE = 0.95
 _MAX_NULL_PROTEIN_RATE = 0.3
-_MAX_GENES_PER_PAPER = 20
+_MAX_GENES_PER_PAPER = load_disease().max_genes_per_paper
 _MAX_SUMMARY_LENGTH = 1000
 
 # Pandera schema for individual gene entry validation within the batch.
@@ -125,7 +126,8 @@ def batch_validate(genes: list[GeneEntry]) -> list[str]:
         )
 
     # Check 4: Per-paper gene count sanity
-    # A single paper yielding >20 genes is unusual for cSVD literature.
+    # A single paper yielding >20 genes is unusual for this literature; the
+    # cap is `pipeline.maxGenesPerPaper` in the manifest.
     genes_per_paper = Counter(gene.pmid for gene in genes if gene.pmid)
     warnings.extend(
         f"PMID {pmid} yielded {count} genes "

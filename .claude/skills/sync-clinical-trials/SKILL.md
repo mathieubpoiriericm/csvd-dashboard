@@ -11,7 +11,7 @@ deno task data      # then, and only then:
 deno task geocode
 ```
 
-The discovery gate (`is_csvd_study`, `ct_max_retries`, and why `trial_name` and
+The discovery gate (`is_disease_study`, `ct_max_retries`, and why `trial_name` and
 `primary_outcome` are curator-owned once `svd_population` is filled in) is under
 "The discovery is gated on a stated cSVD condition" in `pipeline/CLAUDE.md`.
 
@@ -129,7 +129,7 @@ arrangement are load-bearing:
 - **The status is captured in two places because the search cannot reach the
   curated set.** Reading it in `_map_study_to_records` is free -- the search
   sends no `fields` list, so `overallStatus` is already in every payload -- but
-  `is_csvd_study` and the interventional and drug-type gates all drop trials a
+  `is_disease_study` and the interventional and drug-type gates all drop trials a
   curator nonetheless published, and the terminated rows in the committed data
   are exactly the old, off-vocabulary trials the ten `query.cond` terms are
   least likely to reach. `fetch_trial_statuses` sweeps every NCT id the _table_
@@ -193,7 +193,7 @@ a `None` phase never overwrites a curated one.
 
 **A term whose pagination stopped short is an error, not a log line.**
 `_search_condition_term` keeps the pages it reached and returns the truncation
-beside them; `fetch_csvd_studies` appends it to the sync's `errors`, so a 503 on
+beside them; `fetch_disease_studies` appends it to the sync's `errors`, so a 503 on
 page 2 reaches the run record instead of badging a partial result set as the
 whole registry. **It is not a `failed` count, though.** `failed` used to be
 `len(errors)`, so a truncated term -- a hundred studies never fetched -- was

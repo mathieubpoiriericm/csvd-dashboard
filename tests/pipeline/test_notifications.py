@@ -6,6 +6,7 @@ import pytest
 
 from pipeline.config import PipelineConfig
 from pipeline.data_merger import MergeResult
+from pipeline.disease import load_disease
 from pipeline.notifications import (
     _build_template_context,
     _format_duration,
@@ -205,7 +206,7 @@ def test_sender_registers_multiple_nonempty_urls(mock_apprise_cls):
 def test_render_markdown_standard():
     """Markdown rendering includes key metrics."""
     md = _render_markdown(_make_run_data())
-    assert "SVD Pipeline Standard" in md
+    assert f"{load_disease().run_label} Standard" in md
     assert "Papers:" in md
     assert "Genes:" in md
 

@@ -12,34 +12,38 @@ from pipeline.database import (
     get_existing_genes,
     merge_genes_transactional,
 )
+from pipeline.disease import load_disease
 from pipeline.extraction_models import TRACKED_TRAITS, TRAIT_SYNONYMS, GeneEntry
 
 logger = logging.getLogger(__name__)
 
-# The curated dataset records the COL4A1/COL4A2 pair under one combined
-# symbol: the two collagen IV alpha chains form the same heterotrimer, and
-# the cSVD literature reports them together. An extraction names whichever
-# chain its own paper discusses, so without this a run adds "COL4A1" as a
-# *new* gene beside the curated "COL4A1/2" row -- genes.gene is UNIQUE, so
-# nothing collapses them and the published table gains a duplicate. Observed
-# on the first live run, which extracted COL4A1 from PMID 42437605.
+# The curated dataset records some gene groups (the COL4A1/COL4A2 pair, say)
+# under one combined symbol, and NCBI has retired some symbols the curated
+# table keeps the literature's name for. `geneAliases` in
+# disease/pipeline.json is that correspondence, curated key to member
+# symbols; this is the reverse map, member symbol to curated key. An
+# extraction names whichever member its own paper discusses, so without this
+# a run adds "COL4A1" as a *new* gene beside the curated "COL4A1/2" row --
+# genes.gene is UNIQUE, so nothing collapses them and the published table
+# gains a duplicate. Observed on the first live run, which extracted COL4A1
+# from PMID 42437605.
 #
 # Canonicalisation is deliberately after NCBI validation, not before:
 # COL4A1 and COL4A2 are real symbols and must validate as themselves. Only
 # the stored key is combined.
 #
-# C6orf195 is the same bug in a second form. The curated table keeps the
-# symbol the literature uses, and the prompt asks for it by that name, but
-# NCBI has retired it: uid 154386 is now LINC01600 with C6orf195 among its
-# aliases. Validation rewrites the extracted symbol to NCBI's current name,
-# so the merge saw LINC01600, found no such curated gene, and would have
-# inserted a 64th row beside C6orf195. The curated key wins here as it does
-# for the collagen pair; tests/pipeline/test_data_merger.py reads
+# C6orf195/LINC01600 is the same bug in a second form. The curated table
+# keeps the symbol the literature uses, and the prompt asks for it by that
+# name, but NCBI has retired it: uid 154386 is now LINC01600 with C6orf195
+# among its aliases. Validation rewrites the extracted symbol to NCBI's
+# current name, so the merge saw LINC01600, found no such curated gene, and
+# would have inserted a 64th row beside C6orf195. The curated key wins here
+# as it does for the collagen pair; tests/pipeline/test_data_merger.py reads
 # data/gene_info.json so the next rename NCBI makes fails a test.
 _CANONICAL_GENE_SYMBOLS: Final[dict[str, str]] = {
-    "COL4A1": "COL4A1/2",
-    "COL4A2": "COL4A1/2",
-    "LINC01600": "C6orf195",
+    member: curated
+    for curated, members in load_disease().gene_aliases.items()
+    for member in members
 }
 
 

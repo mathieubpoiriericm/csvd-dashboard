@@ -17,6 +17,7 @@ from typing import Any, Final, Protocol, TypedDict, cast
 from Bio import Entrez
 
 from pipeline.api_telemetry import record_service_call
+from pipeline.disease import load_disease
 
 logger = logging.getLogger(__name__)
 
@@ -59,32 +60,16 @@ MIN_DAYS_BACK: Final[int] = 1
 MAX_DAYS_BACK: Final[int] = 365 * 10  # 10 years
 DEFAULT_RETMAX: Final[int] = 500
 
-# Primary disease terms for cSVD/SVD - canonical names used in literature
-DISEASE_TERMS: Final[tuple[str, ...]] = ("cerebral small vessel disease",)
+_DISEASE = load_disease()
 
-# cSVD imaging markers and clinical phenotypes
-MARKER_TERMS: Final[tuple[str, ...]] = (
-    "stroke",
-    "dementia",
-    "lacunes",
-    "lacunar stroke",
-    "white matter hyperintensities",
-    "perivascular spaces",
-    "cerebral microbleeds",
-)
-
-# Indexed headings that reach papers never writing "cerebral small vessel
-# disease" out in the title or abstract. Both Title/Abstract branches AND on
-# that phrase, so nothing else in this module can retrieve such a paper --
-# measured at 10 of the 28 the dashboard cites.
-#
-# Two terms rather than the five that were tried. "Leukoaraiosis", "CADASIL"
-# and "Stroke, Lacunar" are each fully subsumed by these: adding them changes
-# recall not at all and widens the all-time result set by 23 papers.
-MESH_TERMS: Final[tuple[str, ...]] = (
-    "Cerebral Small Vessel Diseases",
-    "White Matter",
-)
+# The disease's anchor phrases, markers and MeSH headings come from
+# disease/pipeline.json; the genetics vocabulary below is the method's and
+# stays in code. The comments that used to sit here about which MeSH
+# headings were tried and dropped now live beside the terms in the manifest's
+# git history and in disease/README.md.
+DISEASE_TERMS: Final[tuple[str, ...]] = _DISEASE.pubmed_disease_terms
+MARKER_TERMS: Final[tuple[str, ...]] = _DISEASE.pubmed_marker_terms
+MESH_TERMS: Final[tuple[str, ...]] = _DISEASE.pubmed_mesh_terms
 
 # Terms to capture genetic/omics research methodologies
 GENETIC_TERMS: Final[tuple[str, ...]] = (

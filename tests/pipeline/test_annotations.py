@@ -129,10 +129,12 @@ class TestLookupAliases:
 
         `_CANONICAL_GENE_SYMBOLS` folds an extracted `COL4A1` onto the curated
         `COL4A1/2` on the way in; `_LOOKUP_ALIASES` fans the curated key back
-        out to `COL4A1` on the way to an external database. They are declared
-        separately -- `pipeline.annotations` imports nothing from the pipeline,
-        which is what keeps the row contract free of the merge's dependencies
-        -- so neither may gain an entry the other lacks.
+        out to `COL4A1` on the way to an external database. Both derive from
+        `geneAliases` in disease/pipeline.json, one forward and one inverted,
+        rather than one importing the other -- `pipeline.annotations` imports
+        nothing from the pipeline, which is what keeps the row contract free
+        of the merge's dependencies -- so this test guards that neither stops
+        deriving from that map and gains an entry the other lacks.
         """
         from pipeline.data_merger import _CANONICAL_GENE_SYMBOLS
 

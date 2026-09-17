@@ -11,14 +11,19 @@ from collections.abc import Collection
 from dataclasses import dataclass
 from typing import Final
 
+from pipeline.disease import load_disease
+
 logger = logging.getLogger(__name__)
 
 # Curated keys that are not gene symbols, and the symbols to look them up by.
+# Read from `geneAliases` in disease/pipeline.json -- a stdlib-only import,
+# so this module's promise to import nothing from the rest of the pipeline
+# still holds in spirit.
 #
 # Two of the 63 curated rows name something no external database carries.
 # `COL4A1/2` is a curator label for the pair -- the two collagen IV alpha
-# chains form one heterotrimer and the cSVD literature reports them together
-# -- and `C6orf195` is a symbol NCBI has retired in favour of `LINC01600`.
+# chains form one heterotrimer and the literature reports them together --
+# and `C6orf195` is a symbol NCBI has retired in favour of `LINC01600`.
 # Queried literally, both return nothing from ClinVar, Orphadata and Open
 # Targets alike, and a zero-count status row is written; the dashboard then
 # shows no disease at all for the pair that causes Gould syndrome, PADMAL,
@@ -40,10 +45,7 @@ logger = logging.getLogger(__name__)
 # within the pair, and the curated key already asserts the pair is one entity.
 # Recording the member gene means a migration, and is the upgrade if the
 # distinction is ever wanted.
-_LOOKUP_ALIASES: Final[dict[str, tuple[str, ...]]] = {
-    "COL4A1/2": ("COL4A1", "COL4A2"),
-    "C6orf195": ("LINC01600",),
-}
+_LOOKUP_ALIASES: Final[dict[str, tuple[str, ...]]] = dict(load_disease().gene_aliases)
 
 
 def lookup_symbols(curated_symbol: str) -> tuple[str, ...]:

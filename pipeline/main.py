@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # PYTHON_ARGCOMPLETE_OK
 """
-Main entry point for the SVD Dashboard data pipeline.
+Main entry point for the Disease dashboard data pipeline.
 
 Runs one or more of three independently-selectable pipelines:
 
@@ -34,7 +34,7 @@ DEFAULT_DAYS_BACK = 7
 
 def _build_parser() -> argparse.ArgumentParser:
     """Build the CLI argument parser (stdlib-only, no heavy imports)."""
-    parser = argparse.ArgumentParser(description="SVD Dashboard data pipeline")
+    parser = argparse.ArgumentParser(description="Disease dashboard data pipeline")
     parser.add_argument(
         "--days-back",
         type=int,
@@ -212,6 +212,7 @@ from pipeline.database import (
     record_sync_run,
     reset_gene_sequence,
 )
+from pipeline.disease import load_disease
 from pipeline.event_log import EventLog
 from pipeline.extraction_models import GeneEntry
 from pipeline.http_client import AsyncHttpClientManager
@@ -1323,7 +1324,10 @@ async def _discover_new_pmids(
 ) -> tuple[list[str], list[str]]:
     """Search PubMed and filter previously processed identifiers."""
     progress.report(0)
-    logger.info("Step 1: Searching PubMed for recent SVD genetic papers...")
+    logger.info(
+        f"Step 1: Searching PubMed for recent {load_disease().short} genetic "
+        "papers..."
+    )
 
     def truncated(retrieved: int, total: int) -> None:
         # The search returns what it did retrieve -- a pagination failure,
@@ -1348,7 +1352,10 @@ async def _discover_new_pmids(
         )
 
     all_pmids = await search_recent_papers(days_back, on_truncated=truncated)
-    logger.info(f"  Found {len(all_pmids)} papers matching SVD genetic criteria")
+    logger.info(
+        f"  Found {len(all_pmids)} papers matching "
+        f"{load_disease().short} genetic criteria"
+    )
     progress.action(
         f"Searched PubMed over the last {days_back} days: "
         f"{len(all_pmids)} papers matched"
@@ -2272,7 +2279,10 @@ async def run_pipeline(
 
     pipeline_start_time = time.monotonic()
 
-    logger.info(f"Starting SVD Dashboard pipeline (looking back {days_back} days)")
+    logger.info(
+        f"Starting {load_disease().short} Dashboard pipeline "
+        f"(looking back {days_back} days)"
+    )
     logger.info(
         f"Config: model={config.llm_model}, "
         f"concurrency={config.max_concurrent_papers}, "
@@ -2707,7 +2717,7 @@ async def run_clinical_trials_pipeline(
 ) -> dict[str, Any]:
     """Run the ClinicalTrials.gov discovery pipeline.
 
-    Fetches cSVD-relevant drug trials from the ClinicalTrials.gov v2 API
+    Fetches disease-relevant drug trials from the ClinicalTrials.gov v2 API
     and upserts them into the ``clinical_trials`` table. Curator-owned
     columns are preserved; only API-sourced columns are written.
 

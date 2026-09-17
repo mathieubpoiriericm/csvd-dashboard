@@ -198,18 +198,7 @@ SAFE_XML_PARSER: Final[etree.XMLParser] = etree.XMLParser(
 
 # Default ClinicalTrials.gov condition/keyword terms for cSVD relevance.
 # Override via PIPELINE_CT_SEARCH_TERMS (comma-separated).
-DEFAULT_CT_SEARCH_TERMS: Final[tuple[str, ...]] = (
-    "cerebral small vessel disease",
-    "lacunar stroke",
-    "lacunar infarction",
-    "CADASIL",
-    "CARASIL",
-    "cerebral microbleeds",
-    "white matter hyperintensities",
-    "vascular cognitive impairment",
-    "vascular dementia",
-    "cerebral amyloid angiopathy",
-)
+DEFAULT_CT_SEARCH_TERMS: Final[tuple[str, ...]] = load_disease().ct_search_terms
 
 
 def get_ncbi_params(base_params: dict[str, str]) -> dict[str, str]:

@@ -670,8 +670,8 @@ counts a removed trial moves are in the `sync-clinical-trials` skill
 the only filter was `DRUG_INTERVENTION_TYPES`. Ten terms return 1,423 studies
 whose most common stated condition is **Fabry disease** (215), beside cancer,
 ANCA vasculitis, Parkinson's and MS -- 594 rows in a curator's queue, Ebola
-vaccine trials among them. `is_csvd_study` keeps a study only if a condition it
-_states_ names a cSVD entity. `_CSVD_CONDITIONS` is that vocabulary and
+vaccine trials among them. `is_disease_study` keeps a study only if a condition
+it _states_ names a cSVD entity. `_CONDITIONS` is that vocabulary and
 deliberately excludes the systemic diseases that _cause_ cSVD, because the
 curated table has never held a Fabry or mitochondrial trial. MeSH inverts the
 phrase, so "Dementia, Vascular" is matched as a co-occurrence inside **one**

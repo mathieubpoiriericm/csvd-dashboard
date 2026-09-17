@@ -27,6 +27,7 @@ import httpx
 
 from pipeline.cache_utils import SyncResult
 from pipeline.config import PROJECT_ROOT, PipelineConfig
+from pipeline.disease import load_disease
 from pipeline.drug_names import normalize_drug_name
 from pipeline.http_client import AsyncHttpClientManager
 from pipeline.rate_limiter import compute_backoff, resolve_retry_delay
@@ -51,50 +52,29 @@ DRUG_INTERVENTION_TYPES: Final[frozenset[str]] = frozenset(
 
 # `query.cond` expands a term into CT.gov's own concept graph, and nothing
 # downstream narrowed it again: the only gate was DRUG_INTERVENTION_TYPES, so
-# every study the expansion reached was written as a cSVD discovery. Measured
+# every study the expansion reached was written as a discovery. Measured
 # against the live registry, ten terms returned 1,423 studies of which the
 # most common stated condition was **Fabry disease** (215), followed by
 # cancer, leukaemia, ANCA-associated vasculitis, Parkinson's and MS. That is
 # what put 594 rows in front of a curator.
 #
-# A study is kept only if one of the conditions it *states* names a cSVD
-# entity. The vocabulary is the scope the curated rows already describe --
-# lacunar stroke, SVS, CMB, WMH, CAA, CADASIL and vascular cognitive
-# impairment -- and deliberately excludes the systemic diseases that can
-# cause cSVD: a Fabry enzyme-replacement trial is a Fabry trial, and the
-# curated table has never held one. Validated against the eight curated NCT
-# trials: the filter drops none of them, and 1,045 of the 1,423 studies.
-_CSVD_CONDITIONS: Final[tuple[str, ...]] = (
-    "small vessel disease",
-    "small vascular disease",  # live CT.gov spelling on at least one trial
-    "lacunar",
-    "lacune",
-    "cadasil",
-    "carasil",
-    "microbleed",
-    "white matter hyperintensit",
-    "white matter lesion",
-    "white matter disease",
-    "leukoaraiosis",
-    "amyloid angiopathy",
-    "binswanger",
-    "perivascular space",
-    "subcortical infarct",
-    "subcortical ischemi",
-    "covert brain infarct",
-    "silent brain infarct",
-    "silent cerebral infarct",
-)
+# A study is kept only if one of the conditions it *states* names an entity
+# of the disease. The vocabulary is the scope the curated rows already
+# describe -- lacunar stroke, SVS, CMB, WMH, CAA, CADASIL and vascular
+# cognitive impairment -- and deliberately excludes the systemic diseases
+# that can cause the disease: a Fabry enzyme-replacement trial is a Fabry
+# trial, and the curated table has never held one. Validated against the
+# eight curated NCT trials: the filter drops none of them, and 1,045 of the
+# 1,423 studies.
+_DISEASE = load_disease()
+_CONDITIONS: Final[tuple[str, ...]] = _DISEASE.ct_condition_substrings
 
 # MeSH inverts the phrase -- "Dementia, Vascular" beside "Vascular Dementia",
 # 64 and 87 times in one fetch -- so these are matched as a co-occurrence
 # inside a single condition string rather than as a phrase. Both words must
 # sit in the *same* condition: "Cardiovascular Diseases" listed beside
-# "Cognitive Decline" is two conditions and neither is cSVD.
-_CSVD_CONDITION_PAIRS: Final[tuple[tuple[str, str], ...]] = (
-    ("vascular", "dementia"),
-    ("vascular", "cognitive"),
-)
+# "Cognitive Decline" is two conditions and neither names the disease.
+_CONDITION_PAIRS: Final[tuple[tuple[str, str], ...]] = _DISEASE.ct_condition_pairs
 
 _CONDITION_NOISE: Final[re.Pattern[str]] = re.compile(r"[^a-z0-9 ]+")
 
@@ -113,8 +93,8 @@ def _stated_conditions(study: dict[str, Any]) -> list[str]:
     ) else []
 
 
-def is_csvd_study(study: dict[str, Any]) -> bool:
-    """Whether a study states a condition naming a cSVD entity.
+def is_disease_study(study: dict[str, Any]) -> bool:
+    """Whether a study states a condition naming an entity of the disease.
 
     A study stating no condition at all is kept: the absence is CT.gov's,
     not evidence that the trial is off-topic, and a curator can read it.
@@ -124,10 +104,10 @@ def is_csvd_study(study: dict[str, Any]) -> bool:
         return True
     for condition in conditions:
         normalised = _CONDITION_NOISE.sub(" ", condition.lower())
-        if any(term in normalised for term in _CSVD_CONDITIONS):
+        if any(term in normalised for term in _CONDITIONS):
             return True
         if any(a in normalised and b in normalised
-               for a, b in _CSVD_CONDITION_PAIRS):
+               for a, b in _CONDITION_PAIRS):
             return True
     return False
 
@@ -655,7 +635,7 @@ async def _search_condition_term(
     return collected, error
 
 
-async def fetch_csvd_studies(
+async def fetch_disease_studies(
     search_terms: tuple[str, ...] | list[str],
     page_size: int,
     max_retries: int,
@@ -692,12 +672,13 @@ async def fetch_csvd_studies(
             if (nct := _nct_id(study)) is not None:
                 deduped.setdefault(nct, study)
 
-    relevant = {nct: s for nct, s in deduped.items() if is_csvd_study(s)}
+    relevant = {nct: s for nct, s in deduped.items() if is_disease_study(s)}
     if (skipped := len(deduped) - len(relevant)):
         logger.info(
-            "CTG: %d/%d studies state no cSVD condition (skipped)",
+            "CTG: %d/%d studies state no %s condition (skipped)",
             skipped,
             len(deduped),
+            _DISEASE.abbreviation,
         )
 
     logger.info(
@@ -777,7 +758,7 @@ async def fetch_trial_statuses(
 ) -> tuple[dict[str, str], list[str]]:
     """Overall status for every NCT id given, in batches, keyed by id.
 
-    The search cannot supply this. `is_csvd_study` and the interventional
+    The search cannot supply this. `is_disease_study` and the interventional
     and drug-type gates all drop trials a curator nonetheless published --
     the terminated rows in the committed data are exactly the old,
     off-vocabulary trials the ten `query.cond` terms are least likely to
@@ -922,7 +903,7 @@ async def sync_clinical_trials(config: PipelineConfig) -> ClinicalTrialSyncResul
     init_ctg_fetch_state(config)
 
     try:
-        studies, term_errors = await fetch_csvd_studies(
+        studies, term_errors = await fetch_disease_studies(
             search_terms=config.ct_search_terms,
             page_size=config.ct_page_size,
             max_retries=config.ct_max_retries,
@@ -977,7 +958,7 @@ async def sync_clinical_trials(config: PipelineConfig) -> ClinicalTrialSyncResul
             aborted=True,
         )
 
-    # The search cannot cover the curated set -- `is_csvd_study` and the
+    # The search cannot cover the curated set -- `is_disease_study` and the
     # interventional and drug-type gates all drop trials a curator
     # nonetheless published -- so every NCT id in the table is swept by id,
     # whether the search reached it or not. It is best effort by

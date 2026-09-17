@@ -15,6 +15,8 @@ import jinja2
 from apprise import NotifyFormat, NotifyType
 from tenacity import retry, stop_after_attempt, wait_exponential
 
+from pipeline.disease import load_disease
+
 if TYPE_CHECKING:
     from pipeline.config import PipelineConfig
     from pipeline.report import PipelineRunData
@@ -97,6 +99,7 @@ def _build_template_context(run_data: PipelineRunData) -> dict[str, Any]:
     cost_str = f"${cost:.2f}" if cost is not None else "N/A"
 
     return {
+        "run_label": load_disease().run_label,
         "mode_label": mode_label,
         "model": cfg.get("model", "N/A"),
         "duration": _format_duration(run_data.get("total_processing_time", 0.0)),
@@ -182,7 +185,9 @@ def send_pipeline_notification(
     # UTC matches the report body's `timestamp` field \u2014 otherwise the
     # notification title can show a different date than the run's own log.
     date_str = datetime.now(UTC).strftime("%Y-%m-%d")
-    title = f"[SVD Pipeline] Run Summary \u2014 {mode_label} ({date_str})"
+    title = (
+        f"[{load_disease().run_label}] Run Summary \u2014 {mode_label} ({date_str})"
+    )
 
     # The render is inside the try because this runs after the `completed`
     # pipeline_runs row is written: a template error escaping here turned
