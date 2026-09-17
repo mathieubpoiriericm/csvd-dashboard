@@ -30,6 +30,7 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_GENES = _PROJECT_ROOT / "data" / "table1.json"
 DEFAULT_CYTOBANDS = _PROJECT_ROOT / "data" / "cytobands_hg38.json"
 DEFAULT_ENCODING = _PROJECT_ROOT / "lib" / "phenogram_encoding.json"
+DEFAULT_FAMILIES = _PROJECT_ROOT / "disease" / "phenogram.json"
 DEFAULT_VOCABULARY = _PROJECT_ROOT / "disease" / "vocabulary.json"
 DEFAULT_OUT = _PROJECT_ROOT / "figures"
 FORMATS = ("svg", "pdf", "png")
@@ -187,15 +188,18 @@ def load_cytobands(path: Path = DEFAULT_CYTOBANDS) -> dict[str, Any]:
 
 def load_encoding(
     path: Path = DEFAULT_ENCODING,
+    families: Path = DEFAULT_FAMILIES,
     vocabulary: Path = DEFAULT_VOCABULARY,
 ) -> dict[str, Any]:
-    """Appearance from the encoding, trait identity from the vocabulary.
+    """Appearance from the encoding, families and trait identity from disease/.
 
-    Composed so the rest of this module keeps reading one ``encoding["traits"]``,
+    Composed so the rest of this module keeps reading one ``encoding``,
     matching ``lib/phenogram.ts``.
     """
     with path.open(encoding="utf-8") as handle:
         encoding = json.load(handle)
+    with families.open(encoding="utf-8") as handle:
+        encoding["families"] = json.load(handle)["families"]
     with vocabulary.open(encoding="utf-8") as handle:
         encoding["traits"] = json.load(handle)["traits"]
     return encoding

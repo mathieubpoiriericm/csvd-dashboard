@@ -3,6 +3,8 @@ paths:
   - "islands/Phenogram.tsx"
   - "lib/phenogram.ts"
   - "lib/phenogram_encoding.json"
+  - "disease/phenogram.json"
+  - "lib/disease/citation.ts"
   - "lib/cytobands.ts"
   - "disease/vocabulary.json"
   - "scripts/phenogram_figure.py"
@@ -49,13 +51,16 @@ Two renderers, one contract, as for the timeline:
   records `source: "prompt"` or `"curated"`; only the first is reconciled,
   because a curated spelling comes from the source spreadsheet and the prompt
   has never asked for it.
-- `lib/phenogram_encoding.json` holds appearance only: the seven phenotype
-  families and their hues and tints, the evidence glyphs, the band-stain greys
-  and the geometry constants. `tests/phenogram_encoding_test.ts` fails when the
-  data carries a GWAS trait the vocabulary does not, when the filter choices
-  stop being derived from it, when the two renderers stop composing the same
-  identity, or when a family hue leaves the lightness band or sits within OKLab
-  ΔE 15 of its legend neighbour. Add the entry; do not widen the test.
+- `lib/phenogram_encoding.json` holds appearance only: the evidence glyphs, the
+  band-stain greys and the geometry constants. The seven phenotype families and
+  their hues and tints are the disease's and live in `disease/phenogram.json`;
+  the citation standard the STRIVE-2 definitions are quoted from is
+  `citationStandard` in `disease/manifest.json`, read on the TypeScript side
+  through `lib/disease/citation.ts`. `tests/phenogram_encoding_test.ts` fails
+  when the data carries a GWAS trait the vocabulary does not, when the filter
+  choices stop being derived from it, when the two renderers stop composing the
+  same identity, or when a family hue leaves the lightness band or sits within
+  OKLab ΔE 15 of its legend neighbour. Add the entry; do not widen the test.
 
   **The `viewBox` is not derived, and both dimensions have overflowed.** A
   chromosome's label stack needs `blocks * (height + blockGap)` and a row needs

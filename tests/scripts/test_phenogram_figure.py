@@ -11,7 +11,6 @@ from pathlib import Path
 import pytest
 from scripts.phenogram_figure import (
     DEFAULT_CYTOBANDS,
-    DEFAULT_ENCODING,
     DEFAULT_GENES,
     block_height,
     compute_layout,
@@ -67,7 +66,7 @@ def cytobands() -> dict:
 
 @pytest.fixture(scope="module")
 def encoding() -> dict:
-    return load_encoding(DEFAULT_ENCODING)
+    return load_encoding()
 
 
 @pytest.fixture(scope="module")
