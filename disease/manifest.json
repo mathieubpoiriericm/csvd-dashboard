@@ -1,0 +1,140 @@
+{
+  "schemaVersion": 1,
+  "disease": {
+    "key": "csvd",
+    "name": "cerebral small vessel disease",
+    "short": "SVD",
+    "abbreviation": "cSVD",
+    "adjective": "Cerebral SVD"
+  },
+  "site": {
+    "title": "ICM Cerebral SVD Dashboard",
+    "heading": "Putative Causal Genes and Clinical Trial Drugs for Cerebral Small Vessel Disease",
+    "metaDescription": "Interactive dashboard of putative causal genes and clinical trial drugs for cerebral small vessel disease, from the Paris Brain Institute (ICM).",
+    "aboutTitle": "Welcome to the Paris Brain Institute's Cerebral SVD Dashboard",
+    "aboutLede": "This dashboard provides up-to-date and standardized information on putative cerebral small vessel disease (SVD) causal genes and drugs tested in planned or ongoing cerebral SVD clinical trials.",
+    "loginLede": "Putative causal genes and clinical trial drugs for cerebral small vessel disease (SVD).",
+    "pages": {
+      "genes": "Genes implicated in cerebral small vessel disease (SVD), with the GWAS, omics and monogenic evidence supporting each one.",
+      "trials": "Drugs tested in planned or ongoing cerebral small vessel disease (SVD) trials, grouped by drug.",
+      "timeline": "Planned and ongoing cerebral small vessel disease (SVD) trials, arranged by target population and trial phase.",
+      "map": "Facility locations for the registered cerebral small vessel disease (SVD) trials."
+    }
+  },
+  "institute": {
+    "name": "Paris Brain Institute",
+    "short": "ICM",
+    "url": "https://institutducerveau-icm.org",
+    "copyright": "Paris Brain Institute (ICM)",
+    "logo": {
+      "src": "/institute/logo-light.svg",
+      "srcOnDark": "/institute/logo-dark.svg",
+      "alt": "Paris Brain Institute"
+    }
+  },
+  "contact": {
+    "maintainer": {
+      "name": "Mathieu B. Poirier",
+      "email": "mathieu.poirier@icm-institute.org"
+    }
+  },
+  "about": {
+    "citation": null,
+    "board": null,
+    "contactUs": null,
+    "acknowledgements": null,
+    "additionalSources": []
+  },
+  "hosting": {
+    "url": "https://csvd-dashboard.mathieubpoiriericm.deno.net"
+  },
+  "search": {
+    "pubmed": {
+      "diseaseTerms": ["cerebral small vessel disease"],
+      "markerTerms": [
+        "stroke",
+        "dementia",
+        "lacunes",
+        "lacunar stroke",
+        "white matter hyperintensities",
+        "perivascular spaces",
+        "cerebral microbleeds"
+      ],
+      "meshTerms": ["Cerebral Small Vessel Diseases", "White Matter"]
+    },
+    "clinicalTrials": {
+      "searchTerms": [
+        "cerebral small vessel disease",
+        "lacunar stroke",
+        "lacunar infarction",
+        "CADASIL",
+        "CARASIL",
+        "cerebral microbleeds",
+        "white matter hyperintensities",
+        "vascular cognitive impairment",
+        "vascular dementia",
+        "cerebral amyloid angiopathy"
+      ],
+      "conditions": [
+        "small vessel disease",
+        "small vascular disease",
+        "lacunar",
+        "lacune",
+        "cadasil",
+        "carasil",
+        "microbleed",
+        "white matter hyperintensit",
+        "white matter lesion",
+        "white matter disease",
+        "leukoaraiosis",
+        "amyloid angiopathy",
+        "binswanger",
+        "perivascular space",
+        "subcortical infarct",
+        "subcortical ischemi",
+        "covert brain infarct",
+        "silent brain infarct",
+        "silent cerebral infarct"
+      ],
+      "conditionPairs": [["vascular", "dementia"], ["vascular", "cognitive"]]
+    }
+  },
+  "populations": [
+    { "key": "CAA", "label": "CAA" },
+    { "key": "Cognitive Impairment", "label": "Cognitive Impairment" },
+    { "key": "Stroke", "label": "Stroke" },
+    { "key": "SVD", "label": "SVD" }
+  ],
+  "populationField": {
+    "label": "SVD Population",
+    "detailsLabel": "SVD Population Details"
+  },
+  "cellTypes": {
+    "label": "Brain Cell Types",
+    "glossary": {
+      "EC": "Endothelial Cells",
+      "SMC": "Smooth Muscle Cells",
+      "VSMC": "Vascular Smooth Muscle Cells",
+      "AC": "Astrocytes",
+      "MG": "Microglia",
+      "OL": "Oligodendrocytes",
+      "PC": "Pericytes",
+      "FB": "Fibroblasts"
+    }
+  },
+  "citationStandard": {
+    "name": "STRIVE-2",
+    "label": "Duering, M. et al. Neuroimaging standards for research into small vessel disease—advances since 2013. The Lancet Neurology 22, 602–618 (2023).",
+    "doi": "10.1016/S1474-4422(23)00131-X",
+    "linkLabel": "View STRIVE-2 (Lancet Neurol 2023)"
+  },
+  "monogenicGenes": ["NOTCH3", "COL4A1", "COL4A2", "HTRA1", "TREX1", "GLA"],
+  "geneAliases": {
+    "COL4A1/2": ["COL4A1", "COL4A2"],
+    "C6orf195": ["LINC01600"]
+  },
+  "pipeline": {
+    "runLabel": "SVD Pipeline",
+    "maxGenesPerPaper": 20
+  }
+}
