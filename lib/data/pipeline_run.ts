@@ -59,6 +59,8 @@ function normalizeConfig(value: unknown): RunConfig {
     model: nullableText(source.model),
     effort: nullableText(source.effort),
     promptVersion: nullableText(source.promptVersion),
+    disease: nullableText(source.disease),
+    promptSha256: nullableText(source.promptSha256),
     mode: nullableText(source.mode),
     skipValidation: source.skipValidation === true,
     dryRun: source.dryRun === true,

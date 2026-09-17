@@ -12,6 +12,7 @@ from pathlib import Path
 
 from pipeline import checkpoint
 from pipeline.config import PipelineConfig
+from pipeline.prompts import prompt_sha256
 
 
 def _path(tmp_path: Path) -> str:
@@ -29,6 +30,15 @@ class TestFingerprint:
         assert base != other
         assert base["model"] == "claude-opus-5"
         assert base["prompt_version"] == "v7"
+
+    def test_it_covers_the_rendered_prompt_bytes(self) -> None:
+        # The prompt version name alone stopped being enough once half the
+        # prompt moved into disease/prompt.md: an edit there changes the
+        # method without changing the version string.
+        config = PipelineConfig()
+        assert checkpoint.fingerprint(config)["prompt_sha256"] == prompt_sha256(
+            config.prompt_version
+        )
 
     def test_the_verbatim_quote_gate_is_part_of_the_method(self) -> None:
         # `report_provenance` drops unverified genes *inside* extraction, so

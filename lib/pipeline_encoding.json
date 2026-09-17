@@ -160,6 +160,10 @@
       "label": "Prompt",
       "icon": "documentText"
     },
+    "promptSha256": {
+      "label": "Prompt bytes",
+      "icon": "documentText"
+    },
     "papersFound": {
       "label": "Found",
       "icon": "magnifyingGlass"

@@ -31,6 +31,8 @@ const RUN: PipelineRun = {
     model: "claude-opus-5",
     effort: "high",
     promptVersion: "v6",
+    disease: null,
+    promptSha256: null,
     mode: "standard",
     skipValidation: false,
     dryRun: false,
@@ -294,6 +296,20 @@ Deno.test("the header states the method, not only the model", () => {
   const markup = html();
   assertStringIncludes(markup, "high effort");
   assertStringIncludes(markup, "Prompt v6");
+});
+
+Deno.test("the disease and prompt hash appear only once both are set", () => {
+  assertNotMatch(html(), /csvd/);
+  const withProvenance = {
+    ...RUN,
+    config: {
+      ...RUN.config,
+      disease: "csvd",
+      promptSha256: "70908abc0302" + "0".repeat(52),
+    },
+  };
+  const markup = renderToString(<PipelineRunView run={withProvenance} />);
+  assertStringIncludes(markup, "csvd 70908abc0302");
 });
 
 Deno.test("the API inventory names the service, method and endpoint", () => {

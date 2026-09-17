@@ -209,6 +209,8 @@ export interface RunConfig {
   model: string | null;
   effort: string | null;
   promptVersion: string | null;
+  disease: string | null;
+  promptSha256: string | null;
   mode: string | null;
   skipValidation: boolean;
   dryRun: boolean;

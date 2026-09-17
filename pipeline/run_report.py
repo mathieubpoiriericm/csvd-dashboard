@@ -63,6 +63,8 @@ class RunConfigRecord(WireModel):
     model: str | None = None
     effort: str | None = None
     prompt_version: str | None = None
+    disease: str | None = None
+    prompt_sha256: str | None = None
     mode: str | None = None
     skip_validation: bool = False
     dry_run: bool = False

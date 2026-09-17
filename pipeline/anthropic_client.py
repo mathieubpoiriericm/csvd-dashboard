@@ -20,13 +20,14 @@ from pipeline.api_telemetry import (
 )
 from pipeline.citations import collect_spans, report_provenance
 from pipeline.config import EXTRACTION_TOOL_NAME, PipelineConfig
+from pipeline.disease import load_disease
 from pipeline.event_log import EventLog
 from pipeline.extraction_models import (
     ExtractionFailedError,
     ExtractionResult,
     GeneEntry,
 )
-from pipeline.prompts import build_extraction_prompt
+from pipeline.prompts import build_extraction_prompt, prompt_sha256
 from pipeline.quality_metrics import TokenUsage, accumulate_usage
 from pipeline.rate_limiter import AsyncRateLimiter, compute_backoff, resolve_retry_delay
 
@@ -607,6 +608,8 @@ class AnthropicClient:
             "thinking_mode": config.thinking_mode,
             "effort": config.llm_effort,
             "prompt_version": config.prompt_version,
+            "disease": load_disease().key,
+            "prompt_sha256": prompt_sha256(config.prompt_version),
         }
 
     def estimate_cost(self, usage: TokenUsage, *, batched: bool = False) -> float:

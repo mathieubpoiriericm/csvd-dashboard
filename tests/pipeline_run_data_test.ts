@@ -38,6 +38,8 @@ Deno.test("a fully populated report keeps every value it was given", () => {
       model: "claude-opus-5",
       effort: "high",
       promptVersion: "v6",
+      disease: "csvd",
+      promptSha256: "70908abc0302" + "0".repeat(52),
       mode: "pmid_list",
       skipValidation: true,
       dryRun: true,
@@ -122,6 +124,8 @@ Deno.test("a fully populated report keeps every value it was given", () => {
   assert(result !== null);
   assertEquals(result.config.model, "claude-opus-5");
   assertEquals(result.config.promptVersion, "v6");
+  assertEquals(result.config.disease, "csvd");
+  assertEquals(result.config.promptSha256, "70908abc0302" + "0".repeat(52));
   assertEquals(result.config.skipValidation, true);
   assertEquals(result.config.dryRun, true);
   assertEquals(result.config.confidenceThresholdInsert, 0.65);
@@ -291,6 +295,8 @@ Deno.test("blocks a later pipeline added arrive defaulted, not missing", () => {
   assertEquals(result.steps, []);
   assertEquals(result.apis, []);
   assertEquals(result.config.model, null);
+  assertEquals(result.config.disease, null);
+  assertEquals(result.config.promptSha256, null);
   assertEquals(result.config.skipValidation, false);
 });
 

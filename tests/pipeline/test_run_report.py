@@ -12,6 +12,7 @@ from pipeline.run_report import (
     CappedList,
     GeneRecord,
     PipelineRunReport,
+    RunConfigRecord,
     build_run_report,
     derive_status,
 )
@@ -108,6 +109,16 @@ def _report(
         run_mode="pmid_list",
         provenance=provenance,
     )
+
+
+def test_run_config_record_carries_disease_and_prompt_hash() -> None:
+    record = RunConfigRecord.model_validate(
+        {"prompt_version": "v7", "disease": "csvd", "prompt_sha256": "ab" * 32}
+    )
+    assert record.model_dump(by_alias=True)["promptSha256"] == "ab" * 32
+    assert record.model_dump(by_alias=True)["disease"] == "csvd"
+    # A row written before the fields existed still validates.
+    assert RunConfigRecord.model_validate({"prompt_version": "v6"}).disease is None
 
 
 class TestWireShape:

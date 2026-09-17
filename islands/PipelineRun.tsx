@@ -522,6 +522,12 @@ function PipelineRunContent({ run }: { run: PipelineRun }) {
             <span class="pipeline-head-meta">
               <Icon name={prompt.icon} />
               {prompt.label} {run.config.promptVersion}
+              {run.config.disease && run.config.promptSha256 && (
+                <>
+                  {" · "}
+                  {run.config.disease} {run.config.promptSha256.slice(0, 12)}
+                </>
+              )}
             </span>
           )}
         </div>

@@ -41,6 +41,7 @@ from pathlib import Path
 from typing import Any
 
 from pipeline.config import PipelineConfig
+from pipeline.prompts import prompt_sha256
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +65,7 @@ def fingerprint(config: PipelineConfig) -> dict[str, Any]:
         "thinking_mode": config.thinking_mode,
         "effort": config.llm_effort,
         "prompt_version": config.prompt_version,
+        "prompt_sha256": prompt_sha256(config.prompt_version),
         "confidence_threshold_update": config.confidence_threshold_update,
         "confidence_threshold_insert": config.confidence_threshold_insert,
         "require_verified_quotes": config.require_verified_quotes,
