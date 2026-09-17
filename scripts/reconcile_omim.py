@@ -5,7 +5,7 @@ for as long as it has existed. The curated way is `gene_monogenic_links`, one
 row per value since migration 006 split it out of the free-text
 `genes.link_to_monogenetic_disease` column; the export publishes those rows
 verbatim into `linkToMonogenicDisease` and the browser joins them against
-`pipeline/export/data/omim_info.csv` -- a 49-row UTF-8 file maintained by hand.
+`disease/omim_info.csv` -- a 49-row UTF-8 file maintained by hand.
 The machine way is `data/gene_annotations.json`, where the same number arrives
 from ClinVar as a typed field beside MONDO, Orphanet and MedGen identifiers.
 

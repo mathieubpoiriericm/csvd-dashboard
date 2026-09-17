@@ -646,21 +646,21 @@ JSON and `lib/data/` into a single authenticated, non-cacheable client chunk;
 the build fails if one of those modules lands in a public chunk. Other assets
 stay public so the signed-out login page can render normally.
 
-| File                    | Rows         | Source                               |
-| ----------------------- | ------------ | ------------------------------------ |
-| `table1.json`           | 79           | `genes` table (+ three join tables)  |
-| `table2.json`           | 111          | `clinical_trials` table (curated)    |
-| `gene_info.json`        | 79           | `ncbi_gene_info` cache               |
-| `gene_info_table2.json` | 26           | `ncbi_gene_info` cache               |
-| `protein_info.json`     | 79           | `uniprot_info` cache                 |
-| `refs.json`             | 111          | `pubmed_citations` cache             |
-| `omim_info.json`        | 49           | `pipeline/export/data/omim_info.csv` |
-| `gene_annotations.json` | 171          | `gene_annotations` table (pivoted)   |
-| `pipeline_status.json`  | 1 or `null`  | `pipeline_runs` table                |
-| `pipeline_run.json`     | 1 or `null`  | `pipeline_runs.run_report`           |
-| `pipeline_syncs.json`   | one per mode | `sync_runs` table                    |
-| `geocoded_trials.json`  | 378 sites    | ClinicalTrials.gov                   |
-| `cytobands_hg38.json`   | 862 bands    | UCSC Genome Browser                  |
+| File                    | Rows         | Source                              |
+| ----------------------- | ------------ | ----------------------------------- |
+| `table1.json`           | 79           | `genes` table (+ three join tables) |
+| `table2.json`           | 111          | `clinical_trials` table (curated)   |
+| `gene_info.json`        | 79           | `ncbi_gene_info` cache              |
+| `gene_info_table2.json` | 26           | `ncbi_gene_info` cache              |
+| `protein_info.json`     | 79           | `uniprot_info` cache                |
+| `refs.json`             | 111          | `pubmed_citations` cache            |
+| `omim_info.json`        | 49           | `disease/omim_info.csv`             |
+| `gene_annotations.json` | 171          | `gene_annotations` table (pivoted)  |
+| `pipeline_status.json`  | 1 or `null`  | `pipeline_runs` table               |
+| `pipeline_run.json`     | 1 or `null`  | `pipeline_runs.run_report`          |
+| `pipeline_syncs.json`   | one per mode | `sync_runs` table                   |
+| `geocoded_trials.json`  | 378 sites    | ClinicalTrials.gov                  |
+| `cytobands_hg38.json`   | 862 bands    | UCSC Genome Browser                 |
 
 Four of these behave differently from the rest:
 
