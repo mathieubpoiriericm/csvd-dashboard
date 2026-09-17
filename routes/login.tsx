@@ -4,6 +4,7 @@ import { define } from "../utils.ts";
 import { IcmLogo } from "../components/IcmLogo.tsx";
 import ThemeToggle from "../islands/ThemeToggle.tsx";
 import { SITE_TITLE } from "../lib/constants.ts";
+import { LOGIN_LEDE } from "../lib/disease/site.ts";
 import {
   LOGIN_PATH,
   loginConfig,
@@ -66,9 +67,9 @@ export function LoginCard({ next, error }: LoginData) {
         <IcmLogo />
         <h1 id="login-title">{SITE_TITLE}</h1>
         <p class="login-lede">
-          Putative causal genes and clinical trial drugs for cerebral small
-          vessel disease (SVD). This preview is shared with collaborators; enter
-          the passphrase to continue.
+          {LOGIN_LEDE}{" "}
+          This preview is shared with collaborators; enter the passphrase to
+          continue.
         </p>
         <form method="post" action={LOGIN_PATH} class="login-form">
           <label class="login-label">

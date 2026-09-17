@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { ABOUT_HEADING, SITE_TITLE } from "../fixtures/expected-data.ts";
 
 /** Several nav links duplicate their page's heading text ("Clinical Trials" is
  * both), so these tests always disambiguate by role rather than using getByText.
@@ -7,7 +8,7 @@ const ROUTES = [
   {
     href: "/",
     label: "About",
-    heading: "Welcome to the Paris Brain Institute's Cerebral SVD Dashboard",
+    heading: ABOUT_HEADING,
   },
   { href: "/genes", label: "Genes", heading: "Putative Causal Genes" },
   { href: "/phenogram", label: "Phenogram", heading: "Phenogram" },
@@ -24,7 +25,7 @@ for (const route of ROUTES) {
     await expect(page.getByRole("heading", { level: 1, name: route.heading }))
       .toBeVisible();
     await expect(page).toHaveTitle(
-      `${route.label} | ICM Cerebral SVD Dashboard`,
+      `${route.label} | ${SITE_TITLE}`,
     );
 
     const nav = page.getByRole("navigation", { name: "Main" });

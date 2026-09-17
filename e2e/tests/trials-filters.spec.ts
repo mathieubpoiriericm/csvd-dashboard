@@ -6,6 +6,7 @@ import {
   filterCount,
   filterGroup,
 } from "../helpers.ts";
+import { POPULATION_LABEL } from "../fixtures/expected-data.ts";
 
 const TOTAL = 102;
 /** Default-visible rows: every status but Completed (35 of 102 hidden). */
@@ -22,7 +23,7 @@ const SHOWN = 67;
 const EVIDENCE = "Genetic evidence";
 const REGISTRY = "Clinical Trial Registry";
 const PHASE = "Clinical Trial Phase";
-const POPULATION = "SVD Population";
+const POPULATION = POPULATION_LABEL;
 const SPONSOR = "Sponsor Type";
 const STATUS = "Study status";
 

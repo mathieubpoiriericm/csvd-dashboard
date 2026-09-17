@@ -4,6 +4,7 @@
  * (`lib/disease/site.ts`, `populations.ts`, `cell_types.ts`, `citation.ts`).
  */
 export * from "./disease/manifest.ts";
+export * from "./disease/site.ts";
 export * from "./disease/citation.ts";
 export * from "./disease/populations.ts";
 export * from "./disease/cell_types.ts";

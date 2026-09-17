@@ -20,7 +20,7 @@ import { parseMonthYear } from "./sorting.ts";
 import { STATUS_NOT_STATED, TRIAL_STATUSES } from "./trial_status.ts";
 
 /** The name in the tab title, on the login card and in the page footer. */
-export const SITE_TITLE = "ICM Cerebral SVD Dashboard";
+export { SITE_TITLE } from "./disease/site.ts";
 
 export const SHOW_ALL = "all";
 // The sentinels are declared once, in lib/sentinels.ts; NONE_FOUND is

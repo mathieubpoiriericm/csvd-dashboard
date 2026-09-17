@@ -23,6 +23,21 @@ const vocabulary = JSON.parse(
 
 export const TRAIT_COUNT = vocabulary.traits.length;
 
+const manifest = JSON.parse(
+  readFileSync(
+    join(__dirname, "..", "..", "disease", "manifest.json"),
+    "utf8",
+  ),
+) as {
+  disease: { adjective: string };
+  site: { title: string; aboutTitle: string };
+  populationField: { label: string };
+};
+
+export const SITE_TITLE = manifest.site.title;
+export const ABOUT_HEADING = manifest.site.aboutTitle;
+export const POPULATION_LABEL = manifest.populationField.label;
+
 export const EXPECTED = {
   genes: 79,
   drugs: 65,

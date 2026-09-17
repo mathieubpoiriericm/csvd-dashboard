@@ -2,12 +2,13 @@ import { define } from "../utils.ts";
 import TrialsView from "../islands/TrialsView.tsx";
 import { TipBox } from "../components/TipBox.tsx";
 import { Page } from "../components/Page.tsx";
+import { PAGE_DESCRIPTIONS } from "../lib/disease/site.ts";
 
 export default define.page(function Trials() {
   return (
     <Page
       title="Clinical Trials"
-      description="Drugs tested in planned or ongoing cerebral small vessel disease (SVD) trials, grouped by drug."
+      description={PAGE_DESCRIPTIONS.trials}
     >
       <div class="tip-row">
         <TipBox>

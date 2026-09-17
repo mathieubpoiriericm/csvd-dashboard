@@ -7,8 +7,14 @@ import {
   CELL_TYPES_LABEL,
   manifest,
   normalizeManifest,
+  RADAR_TITLE,
+  SITE_TITLE,
 } from "../lib/disease.ts";
-import { POPULATION_CHOICES, SHOW_ALL } from "../lib/constants.ts";
+import {
+  POPULATION_CHOICES,
+  SHOW_ALL,
+  SITE_TITLE as CONSTANTS_SITE_TITLE,
+} from "../lib/constants.ts";
 import { genes } from "../lib/data/genes.ts";
 import { splitCellTypes } from "../lib/tooltips.ts";
 import { ABSENT_SENTINELS } from "../lib/sentinels.ts";
@@ -91,4 +97,13 @@ Deno.test("the cell-type glossary is the manifest's and covers the committed row
       !(abbr in CELL_TYPE_NAMES),
   );
   assertEquals(missing, []);
+});
+
+Deno.test("site strings derive from the manifest", () => {
+  assertEquals(SITE_TITLE, manifest.site.title);
+  assertEquals(CONSTANTS_SITE_TITLE, SITE_TITLE);
+  assertEquals(
+    RADAR_TITLE,
+    "Cerebral SVD clinical trials by population and phase",
+  );
 });

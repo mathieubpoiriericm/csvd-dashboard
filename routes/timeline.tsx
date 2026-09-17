@@ -2,6 +2,7 @@ import { define } from "../utils.ts";
 import TrialsTimeline from "../islands/TrialsTimeline.tsx";
 import { TipBox } from "../components/TipBox.tsx";
 import { Page } from "../components/Page.tsx";
+import { PAGE_DESCRIPTIONS } from "../lib/disease/site.ts";
 
 /**
  * The trials radar, drawn in-app from data/table2.json. It replaced a
@@ -13,7 +14,7 @@ export default define.page(function Timeline() {
   return (
     <Page
       title="Trials Radar"
-      description="Planned and ongoing cerebral small vessel disease (SVD) trials, arranged by target population and trial phase."
+      description={PAGE_DESCRIPTIONS.timeline}
     >
       <div class="tip-row">
         <TipBox>

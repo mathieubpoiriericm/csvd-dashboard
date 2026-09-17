@@ -2,12 +2,13 @@ import { define } from "../utils.ts";
 import TrialsMap from "../islands/TrialsMap.tsx";
 import { TipBox } from "../components/TipBox.tsx";
 import { Page } from "../components/Page.tsx";
+import { PAGE_DESCRIPTIONS } from "../lib/disease/site.ts";
 
 export default define.page(function Map() {
   return (
     <Page
       title="Trials Map"
-      description="Facility locations for the registered cerebral small vessel disease (SVD) trials."
+      description={PAGE_DESCRIPTIONS.map}
     >
       <div class="tip-row">
         {

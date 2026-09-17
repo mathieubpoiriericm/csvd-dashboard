@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
 import { PASSPHRASE } from "../fixtures/auth.ts";
+import { SITE_TITLE } from "../fixtures/expected-data.ts";
 
 /**
  * The unauthenticated flow. Every other spec starts from the session the
@@ -18,9 +19,9 @@ test("a gated page redirects to the login page and remembers where to return", a
   );
   expect(response!.headers()["x-frame-options"]).toBe("DENY");
   await expect(page).toHaveURL("/login?next=%2Fgenes");
-  await expect(page).toHaveTitle("Sign in | ICM Cerebral SVD Dashboard");
+  await expect(page).toHaveTitle(`Sign in | ${SITE_TITLE}`);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "ICM Cerebral SVD Dashboard",
+    SITE_TITLE,
   );
   await expect(page.getByRole("img", { name: "Paris Brain Institute" }))
     .toBeVisible();

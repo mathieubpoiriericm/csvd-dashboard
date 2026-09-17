@@ -7,6 +7,7 @@ import { IcmLogo } from "../components/IcmLogo.tsx";
 import ThemeToggle from "../islands/ThemeToggle.tsx";
 import { LOGIN_PATH, LOGOUT_PATH } from "../lib/auth.ts";
 import { SITE_TITLE, TABS } from "../lib/constants.ts";
+import { HEADING, INSTITUTE, META_DESCRIPTION } from "../lib/disease/site.ts";
 import { THEME_STORAGE_KEY } from "../lib/theme.ts";
 
 // Vite resolves the same assets as CSS in both build environments. Plain Deno
@@ -45,9 +46,6 @@ const NO_FLASH = `try{var t=localStorage.getItem(${
   JSON.stringify(THEME_COLORS.light)
 };document.querySelectorAll('meta[name="theme-color"]').forEach(function(m){m.setAttribute("content",c)})}}catch(e){}`;
 
-const HEADING =
-  "Putative Causal Genes and Clinical Trial Drugs for Cerebral Small Vessel Disease";
-
 function isActiveTab(pathname: string, href: string): boolean {
   return href === "/"
     ? pathname === href
@@ -73,7 +71,7 @@ export default define.page(function App({ Component, url, state }) {
         <title>{pageTitle(url.pathname)}</title>
         <meta
           name="description"
-          content="Interactive dashboard of putative causal genes and clinical trial drugs for cerebral small vessel disease, from the Paris Brain Institute (ICM)."
+          content={META_DESCRIPTION}
         />
         {
           /*
@@ -206,7 +204,7 @@ export default define.page(function App({ Component, url, state }) {
           <footer class="page-footer">
             <div class="page-footer-inner">
               <span>
-                &copy; {year} Paris Brain Institute (ICM). All rights reserved.
+                &copy; {year} {INSTITUTE.copyright}. All rights reserved.
               </span>
               <span aria-hidden="true">|</span>
               <a
