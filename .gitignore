@@ -1,0 +1,94 @@
+# dotenv environment variable files
+.env
+.dashboard.env
+
+# Fresh build directory
+_fresh/
+
+# Raw profiles written by `deno task test:coverage`.
+coverage/
+
+# Coverage data written by `uv run pytest --cov`, as CI does.
+.coverage
+
+# npm + other dependencies
+node_modules
+
+# Playwright end-to-end suite (npm-managed, isolated from Deno's node_modules)
+.playwright-mcp/
+e2e/node_modules/
+e2e/test-results/
+e2e/playwright-report/
+# The session cookie the setup project saves for the chromium project.
+e2e/.auth/
+# Traces, Tracy captures and reports written by `deno task perf`. They are
+# machine- and run-specific; the findings doc is what gets committed.
+e2e/perf/artifacts/
+
+# The Tracy profiler distribution `deno task perf` shells out to. Local
+# macOS ARM64 binaries, not ours to redistribute.
+tracy-profiler-0.14.1
+
+# Python
+__pycache__/
+.venv/
+.pytest_cache/
+.ruff_cache/
+# Print figures written by `deno task figure`; regenerate rather than commit.
+figures/
+
+# Pipeline run artifacts. pipeline/main.py creates logs/ at import time.
+logs/
+
+# Publisher PDFs fetched by `--local-pdfs PATH` (pipeline/main.py). They are
+# licensed content, not ours to redistribute, and they are inputs to the
+# pipeline rather than outputs of it.
+data/test_data/pdf/
+
+# The same rule for the golden extraction suite's inputs: seven full-text
+# paper fixtures and the VCR cassettes that embed them. The fixtures are
+# fetched by `uv run python -m scripts.fetch_paper_fixtures` against the
+# tracked manifest.json; the cassettes are recorded locally (see the docstring
+# of tests/pipeline/test_extraction_golden.py). The three abstract-only
+# fixtures are short enough to stay tracked.
+tests/pipeline/fixtures/papers/*.txt
+!tests/pipeline/fixtures/papers/15905468.txt
+!tests/pipeline/fixtures/papers/31430377.txt
+!tests/pipeline/fixtures/papers/34358307.txt
+tests/pipeline/cassettes/test_extraction_golden/
+
+# Database dumps and SQLite files never belong in the tree; the regenerate-data
+# skill writes `pg_dump` output under `~/`.
+*.dump
+*.sqlite
+*.sqlite3
+
+# Staging created inside the tracked data/ directory by the export.
+# pipeline/export/main.py stages into a .dashboard-export-* tempdir and
+# pipeline/export/publish.py snapshots into .previous-export; both are
+# removed on a normal run, but a SIGKILL leaves them behind in a tracked
+# path.
+data/.dashboard-export-*/
+data/.previous-export/
+# pipeline/export/geocode.py writes through a same-directory tempfile for
+# the same reason, and leaves one behind on the same kind of kill.
+data/.geocoded_trials-*.json
+
+# Other
+# Local Claude Code state stays out; the checked-in skills do not.
+.claude/*
+!.claude/skills/
+!.claude/rules/
+.DS_Store
+.vscode/
+.zed/
+*.log
+
+# Subagent-driven-development workspace (scratch: ledger, briefs, review packages)
+.superpowers/
+
+# Misc
+.ipynb_checkpoints/
+tracy-profiler-0.14.1
+to-do-list.md
+ui-touch-ups.md

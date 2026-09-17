@@ -1,0 +1,397 @@
+[
+  {
+    "gene": "LAMB1",
+    "accession": "P07942",
+    "url": "https://www.uniprot.org/uniprotkb/P07942/entry"
+  },
+  {
+    "gene": "LOX",
+    "accession": "P28300",
+    "url": "https://www.uniprot.org/uniprotkb/P28300/entry"
+  },
+  {
+    "gene": "VWA2",
+    "accession": "Q5GFL6",
+    "url": "https://www.uniprot.org/uniprotkb/Q5GFL6/entry"
+  },
+  {
+    "gene": "NBEAL1",
+    "accession": "Q6ZS30",
+    "url": "https://www.uniprot.org/uniprotkb/Q6ZS30/entry"
+  },
+  {
+    "gene": "ICA1L",
+    "accession": "Q8NDH6",
+    "url": "https://www.uniprot.org/uniprotkb/Q8NDH6/entry"
+  },
+  {
+    "gene": "LAMC1",
+    "accession": "P11047",
+    "url": "https://www.uniprot.org/uniprotkb/P11047/entry"
+  },
+  {
+    "gene": "SMG6",
+    "accession": "Q86US8",
+    "url": "https://www.uniprot.org/uniprotkb/Q86US8/entry"
+  },
+  {
+    "gene": "JAK1",
+    "accession": "P23458",
+    "url": "https://www.uniprot.org/uniprotkb/P23458/entry"
+  },
+  {
+    "gene": "TRIM47",
+    "accession": "Q96LD4",
+    "url": "https://www.uniprot.org/uniprotkb/Q96LD4/entry"
+  },
+  {
+    "gene": "ITGB5",
+    "accession": "P18084",
+    "url": "https://www.uniprot.org/uniprotkb/P18084/entry"
+  },
+  {
+    "gene": "LPAR1",
+    "accession": "Q92633",
+    "url": "https://www.uniprot.org/uniprotkb/Q92633/entry"
+  },
+  {
+    "gene": "LRRC25",
+    "accession": "Q8N386",
+    "url": "https://www.uniprot.org/uniprotkb/Q8N386/entry"
+  },
+  {
+    "gene": "SMIM19",
+    "accession": "Q96E16",
+    "url": "https://www.uniprot.org/uniprotkb/Q96E16/entry"
+  },
+  {
+    "gene": "UMPS",
+    "accession": "P11172",
+    "url": "https://www.uniprot.org/uniprotkb/P11172/entry"
+  },
+  {
+    "gene": "NMT1",
+    "accession": "P30419",
+    "url": "https://www.uniprot.org/uniprotkb/P30419/entry"
+  },
+  {
+    "gene": "CCDC88C",
+    "accession": "Q9P219",
+    "url": "https://www.uniprot.org/uniprotkb/Q9P219/entry"
+  },
+  {
+    "gene": "DEGS2",
+    "accession": "Q6QHC5",
+    "url": "https://www.uniprot.org/uniprotkb/Q6QHC5/entry"
+  },
+  {
+    "gene": "KLHL24",
+    "accession": "Q6TFL4",
+    "url": "https://www.uniprot.org/uniprotkb/Q6TFL4/entry"
+  },
+  {
+    "gene": "SLC13A3",
+    "accession": "Q8WWT9",
+    "url": "https://www.uniprot.org/uniprotkb/Q8WWT9/entry"
+  },
+  {
+    "gene": "WNT7A",
+    "accession": "O00755",
+    "url": "https://www.uniprot.org/uniprotkb/O00755/entry"
+  },
+  {
+    "gene": "PLEKHG1",
+    "accession": "Q9ULL1",
+    "url": "https://www.uniprot.org/uniprotkb/Q9ULL1/entry"
+  },
+  {
+    "gene": "NID2",
+    "accession": "Q14112",
+    "url": "https://www.uniprot.org/uniprotkb/Q14112/entry"
+  },
+  {
+    "gene": "KCNK2",
+    "accession": "O95069",
+    "url": "https://www.uniprot.org/uniprotkb/O95069/entry"
+  },
+  {
+    "gene": "SH3YL1",
+    "accession": "Q96HL8",
+    "url": "https://www.uniprot.org/uniprotkb/Q96HL8/entry"
+  },
+  {
+    "gene": "SH3PXD2A",
+    "accession": "Q5TCZ1",
+    "url": "https://www.uniprot.org/uniprotkb/Q5TCZ1/entry"
+  },
+  {
+    "gene": "EFEMP1",
+    "accession": "Q12805",
+    "url": "https://www.uniprot.org/uniprotkb/Q12805/entry"
+  },
+  {
+    "gene": "FBN2",
+    "accession": "P35556",
+    "url": "https://www.uniprot.org/uniprotkb/P35556/entry"
+  },
+  {
+    "gene": "FOXF2",
+    "accession": "Q12947",
+    "url": "https://www.uniprot.org/uniprotkb/Q12947/entry"
+  },
+  {
+    "gene": "HTRA1",
+    "accession": "Q92743",
+    "url": "https://www.uniprot.org/uniprotkb/Q92743/entry"
+  },
+  {
+    "gene": "C6orf195",
+    "accession": "Q96MT4",
+    "url": "https://www.uniprot.org/uniprotkb/Q96MT4/entry"
+  },
+  {
+    "gene": "GFAP",
+    "accession": "P14136",
+    "url": "https://www.uniprot.org/uniprotkb/P14136/entry"
+  },
+  {
+    "gene": "CENPF",
+    "accession": "P49454",
+    "url": "https://www.uniprot.org/uniprotkb/P49454/entry"
+  },
+  {
+    "gene": "ADAMTSL4",
+    "accession": "Q6UY14",
+    "url": "https://www.uniprot.org/uniprotkb/Q6UY14/entry"
+  },
+  {
+    "gene": "APOE",
+    "accession": "P02649",
+    "url": "https://www.uniprot.org/uniprotkb/P02649/entry"
+  },
+  {
+    "gene": "VCAN",
+    "accession": "P13611",
+    "url": "https://www.uniprot.org/uniprotkb/P13611/entry"
+  },
+  {
+    "gene": "HBEGF",
+    "accession": "Q99075",
+    "url": "https://www.uniprot.org/uniprotkb/Q99075/entry"
+  },
+  {
+    "gene": "CALCRL",
+    "accession": "Q16602",
+    "url": "https://www.uniprot.org/uniprotkb/Q16602/entry"
+  },
+  {
+    "gene": "CARF",
+    "accession": "Q8N187",
+    "url": "https://www.uniprot.org/uniprotkb/Q8N187/entry"
+  },
+  {
+    "gene": "COL4A1/2",
+    "accession": null,
+    "url": null
+  },
+  {
+    "gene": "NOTCH3",
+    "accession": "Q9UM47",
+    "url": "https://www.uniprot.org/uniprotkb/Q9UM47/entry"
+  },
+  {
+    "gene": "CTSA",
+    "accession": "P10619",
+    "url": "https://www.uniprot.org/uniprotkb/P10619/entry"
+  },
+  {
+    "gene": "TREX1",
+    "accession": "Q9NSU2",
+    "url": "https://www.uniprot.org/uniprotkb/Q9NSU2/entry"
+  },
+  {
+    "gene": "ARSB",
+    "accession": "P15848",
+    "url": "https://www.uniprot.org/uniprotkb/P15848/entry"
+  },
+  {
+    "gene": "GP1BA",
+    "accession": "P07359",
+    "url": "https://www.uniprot.org/uniprotkb/P07359/entry"
+  },
+  {
+    "gene": "LAMC2",
+    "accession": "Q13753",
+    "url": "https://www.uniprot.org/uniprotkb/Q13753/entry"
+  },
+  {
+    "gene": "BTN2A1",
+    "accession": "Q7KYR7",
+    "url": "https://www.uniprot.org/uniprotkb/Q7KYR7/entry"
+  },
+  {
+    "gene": "BTN3A2",
+    "accession": "P78410",
+    "url": "https://www.uniprot.org/uniprotkb/P78410/entry"
+  },
+  {
+    "gene": "BTN3A3",
+    "accession": "O00478",
+    "url": "https://www.uniprot.org/uniprotkb/O00478/entry"
+  },
+  {
+    "gene": "COL6A1",
+    "accession": "P12109",
+    "url": "https://www.uniprot.org/uniprotkb/P12109/entry"
+  },
+  {
+    "gene": "CTSB",
+    "accession": "P07858",
+    "url": "https://www.uniprot.org/uniprotkb/P07858/entry"
+  },
+  {
+    "gene": "CTSS",
+    "accession": "P25774",
+    "url": "https://www.uniprot.org/uniprotkb/P25774/entry"
+  },
+  {
+    "gene": "CST6",
+    "accession": "Q15828",
+    "url": "https://www.uniprot.org/uniprotkb/Q15828/entry"
+  },
+  {
+    "gene": "EPHB4",
+    "accession": "P54760",
+    "url": "https://www.uniprot.org/uniprotkb/P54760/entry"
+  },
+  {
+    "gene": "EPO",
+    "accession": "P01588",
+    "url": "https://www.uniprot.org/uniprotkb/P01588/entry"
+  },
+  {
+    "gene": "IL6",
+    "accession": "P05231",
+    "url": "https://www.uniprot.org/uniprotkb/P05231/entry"
+  },
+  {
+    "gene": "LTF",
+    "accession": "P02788",
+    "url": "https://www.uniprot.org/uniprotkb/P02788/entry"
+  },
+  {
+    "gene": "PCSK9",
+    "accession": "Q8NBP7",
+    "url": "https://www.uniprot.org/uniprotkb/Q8NBP7/entry"
+  },
+  {
+    "gene": "PILRA",
+    "accession": "Q9UKJ1",
+    "url": "https://www.uniprot.org/uniprotkb/Q9UKJ1/entry"
+  },
+  {
+    "gene": "PRSS8",
+    "accession": "Q16651",
+    "url": "https://www.uniprot.org/uniprotkb/Q16651/entry"
+  },
+  {
+    "gene": "TFPI",
+    "accession": "P10646",
+    "url": "https://www.uniprot.org/uniprotkb/P10646/entry"
+  },
+  {
+    "gene": "TIMP3",
+    "accession": "P35625",
+    "url": "https://www.uniprot.org/uniprotkb/P35625/entry"
+  },
+  {
+    "gene": "TLR1",
+    "accession": "Q15399",
+    "url": "https://www.uniprot.org/uniprotkb/Q15399/entry"
+  },
+  {
+    "gene": "ABO",
+    "accession": "P16442",
+    "url": "https://www.uniprot.org/uniprotkb/P16442/entry"
+  },
+  {
+    "gene": "ABCC6",
+    "accession": "O95255",
+    "url": "https://www.uniprot.org/uniprotkb/O95255/entry"
+  },
+  {
+    "gene": "MYH11",
+    "accession": "P35749",
+    "url": "https://www.uniprot.org/uniprotkb/P35749/entry"
+  },
+  {
+    "gene": "NOTCH1",
+    "accession": "P46531",
+    "url": "https://www.uniprot.org/uniprotkb/P46531/entry"
+  },
+  {
+    "gene": "GLA",
+    "accession": "Q9UHE5",
+    "url": "https://www.uniprot.org/uniprotkb/Q9UHE5/entry"
+  },
+  {
+    "gene": "AQP4",
+    "accession": "P55087",
+    "url": "https://www.uniprot.org/uniprotkb/P55087/entry"
+  },
+  {
+    "gene": "CST3",
+    "accession": "P01034",
+    "url": "https://www.uniprot.org/uniprotkb/P01034/entry"
+  },
+  {
+    "gene": "ADA2",
+    "accession": "Q9NZK5",
+    "url": "https://www.uniprot.org/uniprotkb/Q9NZK5/entry"
+  },
+  {
+    "gene": "APP",
+    "accession": "P05067",
+    "url": "https://www.uniprot.org/uniprotkb/P05067/entry"
+  },
+  {
+    "gene": "TRIM65",
+    "accession": "Q6PJ69",
+    "url": "https://www.uniprot.org/uniprotkb/Q6PJ69/entry"
+  },
+  {
+    "gene": "FBF1",
+    "accession": "Q8TES7",
+    "url": "https://www.uniprot.org/uniprotkb/Q8TES7/entry"
+  },
+  {
+    "gene": "FMNL1",
+    "accession": "O95466",
+    "url": "https://www.uniprot.org/uniprotkb/O95466/entry"
+  },
+  {
+    "gene": "SLC12A2",
+    "accession": "P55011",
+    "url": "https://www.uniprot.org/uniprotkb/P55011/entry"
+  },
+  {
+    "gene": "CTC1",
+    "accession": "Q2NKJ3",
+    "url": "https://www.uniprot.org/uniprotkb/Q2NKJ3/entry"
+  },
+  {
+    "gene": "MAPK7",
+    "accession": "Q13164",
+    "url": "https://www.uniprot.org/uniprotkb/Q13164/entry"
+  },
+  {
+    "gene": "ZCCHC14",
+    "accession": "Q8WYQ9",
+    "url": "https://www.uniprot.org/uniprotkb/Q8WYQ9/entry"
+  },
+  {
+    "gene": "ULK4",
+    "accession": "Q96C45",
+    "url": "https://www.uniprot.org/uniprotkb/Q96C45/entry"
+  }
+]

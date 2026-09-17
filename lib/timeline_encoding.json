@@ -1,0 +1,319 @@
+{
+  "$comment": "boundary.color and every evidenceStates[].ring below that reads #14172b is --svd-figure-ink (assets/app.css) -- chrome cut from the plate, not a data colour, which is why it may be hard-coded here at all. Keep it byte-identical to that token if it ever moves.",
+  "populations": [
+    {
+      "key": "CAA",
+      "label": [
+        "CAA"
+      ],
+      "color": "#bf68ae",
+      "band": "#913f82"
+    },
+    {
+      "key": "Cognitive Impairment",
+      "label": [
+        "Cognitive",
+        "Impairment"
+      ],
+      "color": "#1a95d8",
+      "band": "#006a9e"
+    },
+    {
+      "key": "Stroke",
+      "label": [
+        "Stroke"
+      ],
+      "color": "#16a56e",
+      "band": "#00774c"
+    },
+    {
+      "key": "SVD",
+      "label": [
+        "Any SVD",
+        "(including monogenic)"
+      ],
+      "color": "#c5770f",
+      "band": "#8d5406"
+    }
+  ],
+  "rings": [
+    {
+      "phase": "IV",
+      "innerRadius": 0.0,
+      "outerRadius": 0.4,
+      "opacity": 1.0
+    },
+    {
+      "phase": "III",
+      "innerRadius": 0.4,
+      "outerRadius": 0.49,
+      "opacity": 0.85
+    },
+    {
+      "phase": "II/III",
+      "innerRadius": 0.49,
+      "outerRadius": 0.58,
+      "opacity": 0.72
+    },
+    {
+      "phase": "II",
+      "innerRadius": 0.58,
+      "outerRadius": 0.67,
+      "opacity": 0.6
+    },
+    {
+      "phase": "I/II",
+      "innerRadius": 0.67,
+      "outerRadius": 0.76,
+      "opacity": 0.47
+    },
+    {
+      "phase": "I",
+      "innerRadius": 0.76,
+      "outerRadius": 0.85,
+      "opacity": 0.34
+    },
+    {
+      "phase": "(unknown)",
+      "innerRadius": 0.85,
+      "outerRadius": 1.0,
+      "opacity": 0.22
+    }
+  ],
+  "rimBand": {
+    "gap": 0.0125,
+    "width": 0.04375
+  },
+  "boundary": {
+    "color": "#14172b",
+    "opacity": 0.22,
+    "width": 0.75
+  },
+  "emptyCell": {
+    "opacity": 0.1
+  },
+  "evidenceStates": [
+    {
+      "key": "supported",
+      "ring": "#14172b",
+      "dash": null,
+      "field": "Yes \u2014 evidence for the target",
+      "legend": "Solid ring \u2014 genetic evidence for the target"
+    },
+    {
+      "key": "unsupported",
+      "ring": "#14172b",
+      "dash": "3 2",
+      "field": "No \u2014 assessed, none found",
+      "legend": "Dashed ring \u2014 assessed, no genetic evidence found"
+    },
+    {
+      "key": "unassessed",
+      "ring": null,
+      "dash": null,
+      "field": "Not assessed \u2014 no target named",
+      "legend": "No ring \u2014 genetics not assessed for this drug"
+    }
+  ],
+  "recordFlag": {
+    "label": "Incomplete record",
+    "legend": "Hollow centre \u2014 record incomplete",
+    "gapRadius": 0.4,
+    "reasons": {
+      "mechanism-uncharacterised": "Mechanism of action not characterised",
+      "enrolment-unstated": "Target enrolment not stated",
+      "completion-unstated": "Estimated completion date not stated"
+    }
+  },
+  "mechanisms": {
+    "Cholinesterase inhibition (acetylcholinesterase inhibitor)": "#472c6d",
+    "Cholinesterase inhibition (acetylcholinesterase inhibitor, nicotinic modulator)": "#67409d",
+    "Cholinesterase inhibition (acetyl- and butyrylcholinesterase inhibitor)": "#8962bf",
+    "Cholinergic precursor (choline donor)": "#ad92d3",
+    "Glutamatergic modulation (NMDA receptor antagonist)": "#226277",
+    "Monoaminergic challenge (dopamine and noradrenaline reuptake inhibitor)": "#88c8dd",
+    "Neuroprotective, antioxidant (multiple mechanisms)": "#234f99",
+    "Neuroprotective, antioxidant (free radical scavenger)": "#4270bd",
+    "Neuroprotective, antioxidant (vitamin E analogs)": "#6692db",
+    "Neuroprotective, neurotrophic (neuropeptide drug)": "#88b2f7",
+    "Neurotrophic (nerve growth factor)": "#83a4e2",
+    "Antioxidant (glutathione precursor)": "#267360",
+    "Neuroprotective, antioxidant (succinate-based membrane protector)": "#37a68a",
+    "Neuroprotective (release-active antibody to S100 protein)": "#59c8ac",
+    "Endothelial function (omega-3 polyunsaturated fatty acids)": "#8cd9c6",
+    "Antiplatelet, vasodilator (phosphodiesterase 3 inhibitor)": "#be4a1b",
+    "Vasodilator (nitrate)": "#f28058",
+    "Vasodilator, antiplatelet (nitrate with phosphodiesterase 3 inhibitor)": "#b64b1e",
+    "Vasodilator (phosphodiesterase 5 inhibitor)": "#cf5622",
+    "Haemorheological agent (nonselective phosphodiesterase inhibitor)": "#dd6430",
+    "Cerebral vasodilation (sympathetic ganglion blockade)": "#e17749",
+    "Vasodilator, endothelial protection (adrenomedullin receptor agonist)": "#e58a62",
+    "Neuroprotective, vasoactive (ergot alkaloid mixture)": "#ea9c7b",
+    "Blood pressure lowering (calcium channel blocker)": "#7a5f1f",
+    "Blood pressure lowering (calcium channel blocker with folate)": "#967425",
+    "Blood pressure lowering (fixed-dose triple combination)": "#b1892c",
+    "Blood pressure lowering (angiotensin II receptor blocker)": "#cc9e33",
+    "Blood pressure lowering (ACE inhibitor)": "#d3ab4e",
+    "Blood pressure lowering (beta blocker)": "#dab869",
+    "Blood pressure lowering (thiazide diuretic)": "#e0c585",
+    "Lipid lowering (HMG-CoA reductase inhibitor)": "#5a8627",
+    "Anti-fibrin (humanized monoclonal antibody)": "#0c7b60",
+    "Antifibrinolytic (plasminogen inhibitor)": "#32b08d",
+    "Antiplatelet (cyclooxygenase inhibitor)": "#16c792",
+    "Antiplatelet (P2Y12 receptor antagonist)": "#19e6a8",
+    "Anticoagulant (direct thrombin inhibitor)": "#38e9b4",
+    "Thrombolytic (tissue plasminogen activator)": "#57ecbf",
+    "Fibrinolytic (Lumbricus rubellus protein extract)": "#75f0cb",
+    "Anti-inflammatory (tubulin beta chain inhibitor)": "#b24393",
+    "Anti-inflammatory (tetracycline antibiotic, microglial inhibitor)": "#b94696",
+    "Anti-inflammatory, endothelial (TSPO ligand)": "#d590c0",
+    "Blood glucose lowering agent (GLP-1 agonist)": "#909c00",
+    "Blood glucose lowering agent (SGLT2 inhibitor)": "#effe67",
+    "APP mRNA reduction (RNA interference therapy)": "#82207e",
+    "Amyloid-beta clearance (humanized monoclonal antibody)": "#cc33c4",
+    "Glymphatic amyloid clearance (sodium oxybate, slow-wave sleep)": "#e085dc",
+    "Hormone therapy (oestrogen receptor agonist)": "#77223e",
+    "Hormone therapy (progesterone receptor agonist)": "#dd88a4",
+    "Multi-component herbal preparation (mechanism not characterised)": "#564b43",
+    "Investigational agent (mechanism not disclosed)": "#bcb1a9",
+    "Migraine prophylaxis (CGRP monoclonal antibody)": "#3d3d71"
+  },
+  "unknownMechanism": "#888888",
+  "families": [
+    {
+      "key": "cholinergic",
+      "label": "Cholinergic",
+      "mechanisms": [
+        "Cholinesterase inhibition (acetylcholinesterase inhibitor)",
+        "Cholinesterase inhibition (acetylcholinesterase inhibitor, nicotinic modulator)",
+        "Cholinesterase inhibition (acetyl- and butyrylcholinesterase inhibitor)",
+        "Cholinergic precursor (choline donor)"
+      ]
+    },
+    {
+      "key": "neurotransmitter",
+      "label": "Other neurotransmitter",
+      "mechanisms": [
+        "Glutamatergic modulation (NMDA receptor antagonist)",
+        "Monoaminergic challenge (dopamine and noradrenaline reuptake inhibitor)"
+      ]
+    },
+    {
+      "key": "neuroprotective",
+      "label": "Neuroprotective",
+      "mechanisms": [
+        "Neuroprotective, antioxidant (multiple mechanisms)",
+        "Neuroprotective, antioxidant (free radical scavenger)",
+        "Neuroprotective, antioxidant (vitamin E analogs)",
+        "Neuroprotective, neurotrophic (neuropeptide drug)",
+        "Neurotrophic (nerve growth factor)"
+      ]
+    },
+    {
+      "key": "antioxidant",
+      "label": "Antioxidant & endothelial",
+      "mechanisms": [
+        "Antioxidant (glutathione precursor)",
+        "Neuroprotective, antioxidant (succinate-based membrane protector)",
+        "Neuroprotective (release-active antibody to S100 protein)",
+        "Endothelial function (omega-3 polyunsaturated fatty acids)"
+      ]
+    },
+    {
+      "key": "vasodilator",
+      "label": "Vasodilator / antiplatelet",
+      "mechanisms": [
+        "Antiplatelet, vasodilator (phosphodiesterase 3 inhibitor)",
+        "Vasodilator (nitrate)",
+        "Vasodilator, antiplatelet (nitrate with phosphodiesterase 3 inhibitor)",
+        "Vasodilator (phosphodiesterase 5 inhibitor)",
+        "Haemorheological agent (nonselective phosphodiesterase inhibitor)",
+        "Cerebral vasodilation (sympathetic ganglion blockade)",
+        "Vasodilator, endothelial protection (adrenomedullin receptor agonist)",
+        "Neuroprotective, vasoactive (ergot alkaloid mixture)"
+      ]
+    },
+    {
+      "key": "bloodpressure",
+      "label": "Blood pressure lowering",
+      "mechanisms": [
+        "Blood pressure lowering (calcium channel blocker)",
+        "Blood pressure lowering (calcium channel blocker with folate)",
+        "Blood pressure lowering (fixed-dose triple combination)",
+        "Blood pressure lowering (angiotensin II receptor blocker)",
+        "Blood pressure lowering (ACE inhibitor)",
+        "Blood pressure lowering (beta blocker)",
+        "Blood pressure lowering (thiazide diuretic)"
+      ]
+    },
+    {
+      "key": "lipid",
+      "label": "Lipid lowering",
+      "mechanisms": [
+        "Lipid lowering (HMG-CoA reductase inhibitor)"
+      ]
+    },
+    {
+      "key": "fibrin",
+      "label": "Fibrin & clotting",
+      "mechanisms": [
+        "Anti-fibrin (humanized monoclonal antibody)",
+        "Antifibrinolytic (plasminogen inhibitor)",
+        "Antiplatelet (cyclooxygenase inhibitor)",
+        "Antiplatelet (P2Y12 receptor antagonist)",
+        "Anticoagulant (direct thrombin inhibitor)",
+        "Thrombolytic (tissue plasminogen activator)",
+        "Fibrinolytic (Lumbricus rubellus protein extract)"
+      ]
+    },
+    {
+      "key": "anti-inflammatory",
+      "label": "Anti-inflammatory",
+      "mechanisms": [
+        "Anti-inflammatory (tubulin beta chain inhibitor)",
+        "Anti-inflammatory (tetracycline antibiotic, microglial inhibitor)",
+        "Anti-inflammatory, endothelial (TSPO ligand)"
+      ]
+    },
+    {
+      "key": "metabolic",
+      "label": "Metabolic",
+      "mechanisms": [
+        "Blood glucose lowering agent (GLP-1 agonist)",
+        "Blood glucose lowering agent (SGLT2 inhibitor)"
+      ]
+    },
+    {
+      "key": "amyloid",
+      "label": "Amyloid-directed",
+      "mechanisms": [
+        "APP mRNA reduction (RNA interference therapy)",
+        "Amyloid-beta clearance (humanized monoclonal antibody)",
+        "Glymphatic amyloid clearance (sodium oxybate, slow-wave sleep)"
+      ]
+    },
+    {
+      "key": "hormonal",
+      "label": "Hormone therapy",
+      "mechanisms": [
+        "Hormone therapy (oestrogen receptor agonist)",
+        "Hormone therapy (progesterone receptor agonist)"
+      ]
+    },
+    {
+      "key": "uncharacterised",
+      "label": "Mechanism not characterised",
+      "mechanisms": [
+        "Multi-component herbal preparation (mechanism not characterised)",
+        "Investigational agent (mechanism not disclosed)"
+      ]
+    },
+    {
+      "key": "other",
+      "label": "Other targeted",
+      "mechanisms": [
+        "Migraine prophylaxis (CGRP monoclonal antibody)"
+      ]
+    }
+  ]
+}

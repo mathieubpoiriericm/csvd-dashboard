@@ -1,0 +1,323 @@
+{
+  "$comment": "Appearance and wording for the About page's pipeline-run widget. This is the single source of truth: nothing in islands/PipelineRun.tsx or lib/pipeline_display.ts restates a label, glyph or tint. tests/pipeline_encoding_test.ts fails when a run status, step key, step status, error kind or warning kind the pipeline can emit has no entry here, and when a glyph named here does not resolve in components/Icon.tsx. Add the entry; do not widen the test. Icon names are the camelCase keys of that component's PATHS. A glyph is a category cue, never the meaning: every row it decorates carries its own words, which is what keeps the widget readable in a colour-vision check and to a screen reader.",
+  "runStatus": {
+    "completed": {
+      "label": "Completed",
+      "icon": "checkCircle",
+      "tint": "ok"
+    },
+    "completed_with_warnings": {
+      "label": "Completed with warnings",
+      "icon": "exclamationTriangle",
+      "tint": "ember"
+    },
+    "failed": {
+      "label": "Failed",
+      "icon": "xCircle",
+      "tint": "danger"
+    }
+  },
+  "stepStatus": {
+    "ok": {
+      "label": "Passed",
+      "icon": "checkCircle",
+      "tint": "ok"
+    },
+    "warning": {
+      "label": "Passed with warnings",
+      "icon": "exclamationTriangle",
+      "tint": "ember"
+    },
+    "failed": {
+      "label": "Failed",
+      "icon": "xCircle",
+      "tint": "danger"
+    },
+    "skipped": {
+      "label": "Not reached",
+      "icon": "minusCircle",
+      "tint": "muted"
+    }
+  },
+  "steps": {
+    "searching_pubmed": {
+      "icon": "magnifyingGlass"
+    },
+    "filtering_pmids": {
+      "icon": "funnel"
+    },
+    "processing_papers": {
+      "icon": "documentText"
+    },
+    "batch_validation": {
+      "icon": "checkBadge"
+    },
+    "merging_database": {
+      "icon": "circleStack"
+    },
+    "finalizing": {
+      "icon": "checkCircle"
+    }
+  },
+  "runModes": {
+    "standard": "PubMed search",
+    "pmid_list": "PMID list",
+    "local_pdf": "Local PDFs"
+  },
+  "syncModes": {
+    "$comment": "The reference-data refreshes, as `sync_runs.mode` names them. Separate from `runModes` because a refresh is not a run: it has no papers, genes or steps, and it records its own smaller document in its own table. The labels name what each one refreshes rather than the flag that starts it, because that is what the reader is looking at.",
+    "clinical_trials": "Clinical trials",
+    "external_sync": "Gene & citation metadata",
+    "annotation_sync": "Disease annotations"
+  },
+  "paperSources": {
+    "$comment": "Where a paper's text came from, as the pipeline names it in `PaperResult.source`. `none` is retrieval that succeeded and found nothing; `unknown` is a paper that errored before retrieval said either way.",
+    "europepmc": "Full text from Europe PMC",
+    "pmc": "Full text from PMC",
+    "unpaywall": "Full text from Unpaywall",
+    "local_pdf": "Full text from a local PDF",
+    "abstract": "Abstract only",
+    "none": "No text retrieved",
+    "unknown": "Not retrieved"
+  },
+  "errorKinds": {
+    "http_error": {
+      "icon": "circleStack",
+      "hint": "The service answered, but with an error status."
+    },
+    "timeout": {
+      "icon": "clock",
+      "hint": "The service did not answer in time, so the run stopped rather than waiting indefinitely."
+    },
+    "rate_limited": {
+      "icon": "clock",
+      "hint": "The service asked us to slow down. Runs back off and retry; a stop here means the request rate needs lowering."
+    },
+    "database_error": {
+      "icon": "circleStack",
+      "hint": "The database could not be used. Nothing was published."
+    },
+    "interrupted": {
+      "icon": "minusCircle",
+      "hint": "Someone stopped the run. Whatever had already been written stands."
+    },
+    "unknown": {
+      "icon": "info",
+      "hint": "The failure matched no known category. The detail below is the exception the run raised."
+    }
+  },
+  "warningKinds": {
+    "search_truncated": {
+      "icon": "magnifyingGlass"
+    },
+    "paper_retrieval_failed": {
+      "icon": "documentMinus"
+    },
+    "genes_rejected": {
+      "icon": "funnel"
+    },
+    "api_retried": {
+      "icon": "arrowPath"
+    },
+    "api_errored": {
+      "icon": "exclamationTriangle"
+    },
+    "model_truncated": {
+      "icon": "exclamationTriangle"
+    },
+    "quote_unverified": {
+      "icon": "chatQuote"
+    },
+    "batch_validation": {
+      "icon": "exclamationTriangle"
+    },
+    "paper_truncated": {
+      "icon": "documentMinus"
+    }
+  },
+  "fields": {
+    "runDate": {
+      "label": "Run date",
+      "icon": "calendar"
+    },
+    "duration": {
+      "label": "Duration",
+      "icon": "clock"
+    },
+    "runMode": {
+      "label": "Mode",
+      "icon": "beaker"
+    },
+    "model": {
+      "label": "Model",
+      "icon": "cube"
+    },
+    "effort": {
+      "label": "Effort",
+      "icon": "chartBar"
+    },
+    "promptVersion": {
+      "label": "Prompt",
+      "icon": "documentText"
+    },
+    "papersFound": {
+      "label": "Found",
+      "icon": "magnifyingGlass"
+    },
+    "papersProcessed": {
+      "label": "Processed",
+      "icon": "documentText"
+    },
+    "papersFulltext": {
+      "label": "Full text",
+      "icon": "documentText"
+    },
+    "papersAbstract": {
+      "label": "Abstract only",
+      "icon": "documentMinus"
+    },
+    "papersNoText": {
+      "label": "No text",
+      "icon": "documentMinus"
+    },
+    "papersFailed": {
+      "label": "Failed",
+      "icon": "xCircle"
+    },
+    "genesExtracted": {
+      "label": "Extracted",
+      "icon": "dna"
+    },
+    "genesAccepted": {
+      "label": "Accepted",
+      "icon": "checkBadge"
+    },
+    "genesRejected": {
+      "label": "Rejected",
+      "icon": "xCircle"
+    },
+    "genesHeld": {
+      "label": "Held (new gene)",
+      "icon": "minusCircle"
+    },
+    "confidence": {
+      "label": "Confidence",
+      "icon": "chartBar"
+    },
+    "gwasTrait": {
+      "label": "GWAS trait",
+      "icon": "tag"
+    },
+    "omicsEvidence": {
+      "label": "Omics evidence",
+      "icon": "beaker"
+    },
+    "mendelian": {
+      "label": "Mendelian randomization",
+      "icon": "arrowsRightLeft"
+    },
+    "causalEvidence": {
+      "label": "Causal evidence",
+      "icon": "info"
+    },
+    "sourceQuote": {
+      "label": "Source quote",
+      "icon": "chatQuote"
+    },
+    "quotesVerbatim": {
+      "label": "Quotes found in the paper",
+      "icon": "chatQuote"
+    },
+    "quotesCited": {
+      "label": "Quotes the API attested",
+      "icon": "checkBadge"
+    },
+    "protein": {
+      "label": "Protein",
+      "icon": "molecule"
+    },
+    "pmid": {
+      "label": "PMID",
+      "icon": "identification"
+    },
+    "apiService": {
+      "label": "Service",
+      "icon": "arrowsRightLeft"
+    },
+    "apiCalls": {
+      "label": "Calls",
+      "icon": "arrowsRightLeft"
+    },
+    "apiRetries": {
+      "label": "Retries",
+      "icon": "arrowPath"
+    },
+    "tokens": {
+      "label": "Tokens",
+      "icon": "cube"
+    },
+    "cost": {
+      "label": "Cost",
+      "icon": "currencyDollar"
+    },
+    "inserted": {
+      "label": "Inserted",
+      "icon": "circleStack"
+    },
+    "updated": {
+      "label": "Updated",
+      "icon": "arrowPath"
+    },
+    "reason": {
+      "label": "Reason",
+      "icon": "info"
+    },
+    "source": {
+      "label": "Source",
+      "icon": "documentText"
+    }
+  },
+  "rejectionReasons": {
+    "$comment": "Why a gene the model extracted did not reach the database, as the pipeline words it. The reason is a finished English sentence built in Python -- `pipeline/validation.py`, `pipeline/main.py` and `pipeline/run_report.py` -- and the run report is written by a live run, so it cannot be re-cut into fields without re-running the pipeline. These entries classify it here instead, and `tests/pipeline_encoding_test.ts` reconciles both ways: every `match` below must occur verbatim in one of those three files, and every reason in `data/pipeline_run.json` must reach a kind other than the fallback. `match` is tested as a substring, in order, first hit wins. `strip` marks the prefixes worth removing once the chip says the same thing -- a reason matched mid-sentence keeps its words.",
+    "kinds": [
+      {
+        "kind": "low_confidence",
+        "match": "Low confidence:",
+        "strip": true,
+        "label": "Low confidence",
+        "icon": "chartBar",
+        "tint": "highlight"
+      },
+      {
+        "kind": "not_in_ncbi",
+        "match": "not found in NCBI Gene",
+        "strip": false,
+        "label": "Not in NCBI Gene",
+        "icon": "xCircle",
+        "tint": "danger"
+      },
+      {
+        "kind": "quote_unverified",
+        "match": "Quote not found in the paper",
+        "strip": false,
+        "label": "Quote not in paper",
+        "icon": "chatQuote",
+        "tint": "highlight"
+      },
+      {
+        "kind": "insert_floor",
+        "match": "Held below the insert floor:",
+        "strip": true,
+        "label": "Below insert floor",
+        "icon": "minusCircle",
+        "tint": "muted"
+      }
+    ],
+    "fallback": {
+      "kind": "error",
+      "label": "Error",
+      "icon": "exclamationTriangle",
+      "tint": "danger"
+    }
+  }
+}

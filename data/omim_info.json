@@ -1,0 +1,394 @@
+[
+  {
+    "omimNum": 617168,
+    "omimLink": "https://www.omim.org/entry/617168?search=617168&highlight=617168",
+    "phenotype": "Aortic aneurysm, familial thoracic 10",
+    "inheritance": "AD",
+    "geneOrLocus": "LOX",
+    "geneOrLocusMimNumber": "153455"
+  },
+  {
+    "omimNum": 618999,
+    "omimLink": "https://www.omim.org/entry/618999?search=618999&highlight=618999",
+    "phenotype": "Autoinflammation, immune dysregulation, and eosinophilia",
+    "inheritance": "AD",
+    "geneOrLocus": "JAK1",
+    "geneOrLocusMimNumber": "147795"
+  },
+  {
+    "omimNum": 258900,
+    "omimLink": "https://www.omim.org/entry/258900?search=258900&highlight=258900",
+    "phenotype": "Orotic aciduria",
+    "inheritance": "AR",
+    "geneOrLocus": "UMPS",
+    "geneOrLocusMimNumber": "613891"
+  },
+  {
+    "omimNum": 236600,
+    "omimLink": "https://www.omim.org/entry/236600?search=236600&highlight=236600",
+    "phenotype": "Hydrocephalus, congenital, 1",
+    "inheritance": "AR",
+    "geneOrLocus": "CCDC88C",
+    "geneOrLocusMimNumber": "611204"
+  },
+  {
+    "omimNum": 616053,
+    "omimLink": "https://www.omim.org/entry/616053?search=616053&highlight=616053",
+    "phenotype": "Spinocerebellar ataxia 40",
+    "inheritance": "AD",
+    "geneOrLocus": "CCDC88C",
+    "geneOrLocusMimNumber": "611204"
+  },
+  {
+    "omimNum": 617294,
+    "omimLink": "https://www.omim.org/entry/617294?search=617294&highlight=617294",
+    "phenotype": "Epidermolysis bullosa simplex 6, generalized intermediate, with or without cardiomyopathy",
+    "inheritance": "AD",
+    "geneOrLocus": "KLHL24",
+    "geneOrLocusMimNumber": "611295"
+  },
+  {
+    "omimNum": 620236,
+    "omimLink": "https://www.omim.org/entry/620236?search=620236&highlight=620236",
+    "phenotype": "Cardiomyopathy, familial hypertrophic, 29, with polyglucosan bodies",
+    "inheritance": "AR",
+    "geneOrLocus": "KLHL24",
+    "geneOrLocusMimNumber": "611295"
+  },
+  {
+    "omimNum": 618384,
+    "omimLink": "https://www.omim.org/entry/618384?search=618384&highlight=618384",
+    "phenotype": "Leukoencephalopathy, acute reversible, with increased urinary alpha-ketoglutarate",
+    "inheritance": "AR",
+    "geneOrLocus": "SLC13A3",
+    "geneOrLocusMimNumber": "606411"
+  },
+  {
+    "omimNum": 228930,
+    "omimLink": "https://www.omim.org/entry/228930?search=228930&highlight=228930",
+    "phenotype": "Fuhrmann syndrome",
+    "inheritance": "AR",
+    "geneOrLocus": "WNT7A",
+    "geneOrLocusMimNumber": "601570"
+  },
+  {
+    "omimNum": 276820,
+    "omimLink": "https://www.omim.org/entry/276820?search=276820&highlight=276820",
+    "phenotype": "Ulna and fibula, absence of, with severe limb deficiency",
+    "inheritance": "AR",
+    "geneOrLocus": "WNT7A",
+    "geneOrLocusMimNumber": "601570"
+  },
+  {
+    "omimNum": 613005,
+    "omimLink": "https://www.omim.org/entry/613005?search=613005&highlight=613005",
+    "phenotype": "Santos syndrome",
+    "inheritance": "AR",
+    "geneOrLocus": "WNT7A",
+    "geneOrLocusMimNumber": "601570"
+  },
+  {
+    "omimNum": 126600,
+    "omimLink": "https://www.omim.org/entry/126600?search=126600&highlight=126600",
+    "phenotype": "Doyne honeycomb degeneration of retina",
+    "inheritance": "AD",
+    "geneOrLocus": "EFEMP1",
+    "geneOrLocusMimNumber": "601548"
+  },
+  {
+    "omimNum": 611276,
+    "omimLink": "https://www.omim.org/entry/611276?search=611276&highlight=611276",
+    "phenotype": "Glaucoma 1, open angle, H",
+    "inheritance": "AD",
+    "geneOrLocus": "EFEMP1",
+    "geneOrLocusMimNumber": "601548"
+  },
+  {
+    "omimNum": 620780,
+    "omimLink": "https://www.omim.org/entry/620780?search=620780&highlight=620780",
+    "phenotype": "Cutis laxa, autosomal recessive, type ID",
+    "inheritance": "AR",
+    "geneOrLocus": "EFEMP1",
+    "geneOrLocusMimNumber": "601548"
+  },
+  {
+    "omimNum": 121050,
+    "omimLink": "https://www.omim.org/entry/121050?search=121050&highlight=121050",
+    "phenotype": "Contractural arachnodactyly, congenital",
+    "inheritance": "AD",
+    "geneOrLocus": "FBN2",
+    "geneOrLocusMimNumber": "612570"
+  },
+  {
+    "omimNum": 616118,
+    "omimLink": "https://www.omim.org/entry/616118?search=616118&highlight=616118",
+    "phenotype": "Macular degeneration, early-onset",
+    "inheritance": "AD",
+    "geneOrLocus": "FBN2",
+    "geneOrLocusMimNumber": "612570"
+  },
+  {
+    "omimNum": 600142,
+    "omimLink": "https://www.omim.org/entry/600142?search=600142&highlight=600142",
+    "phenotype": "Cerebral arteriopathy, autosomal recessive, with subcortical infarcts and leukoencephalopathy 2",
+    "inheritance": "AR",
+    "geneOrLocus": "HTRA1",
+    "geneOrLocusMimNumber": "602194"
+  },
+  {
+    "omimNum": 616779,
+    "omimLink": "https://www.omim.org/entry/616779?search=616779&highlight=616779",
+    "phenotype": "Cerebral arteriopathy, autosomal dominant, with subcortical infarcts and leukoencephalopathy 2",
+    "inheritance": "AD",
+    "geneOrLocus": "HTRA1",
+    "geneOrLocusMimNumber": "602194"
+  },
+  {
+    "omimNum": 203450,
+    "omimLink": "https://www.omim.org/entry/203450?search=203450&highlight=203450",
+    "phenotype": "Alexander disease",
+    "inheritance": "AD",
+    "geneOrLocus": "GFAP",
+    "geneOrLocusMimNumber": "137780"
+  },
+  {
+    "omimNum": 243605,
+    "omimLink": "https://www.omim.org/entry/243605?search=243605&highlight=243605",
+    "phenotype": "Stromme syndrome",
+    "inheritance": "AR",
+    "geneOrLocus": "CENPF",
+    "geneOrLocusMimNumber": "600236"
+  },
+  {
+    "omimNum": 225100,
+    "omimLink": "https://www.omim.org/entry/225100?search=225100&highlight=225100",
+    "phenotype": "Ectopia lentis, isolated, autosomal recessive",
+    "inheritance": "AR",
+    "geneOrLocus": "ADAMTSL4",
+    "geneOrLocusMimNumber": "610113"
+  },
+  {
+    "omimNum": 617347,
+    "omimLink": "https://www.omim.org/entry/617347?search=617347&highlight=617347",
+    "phenotype": "Coronary artery disease, severe, susceptibility to;Hyperlipoproteinemia, type III",
+    "inheritance": "",
+    "geneOrLocus": "APOE;APOE",
+    "geneOrLocusMimNumber": "107741;107741"
+  },
+  {
+    "omimNum": 269600,
+    "omimLink": "https://www.omim.org/entry/269600?search=269600&highlight=269600",
+    "phenotype": "Sea-blue histiocyte disease",
+    "inheritance": "AR",
+    "geneOrLocus": "APOE",
+    "geneOrLocusMimNumber": "107741"
+  },
+  {
+    "omimNum": 611771,
+    "omimLink": "https://www.omim.org/entry/611771?search=611771&highlight=611771",
+    "phenotype": "Lipoprotein glomerulopathy",
+    "inheritance": "",
+    "geneOrLocus": "APOE",
+    "geneOrLocusMimNumber": "107741"
+  },
+  {
+    "omimNum": 104310,
+    "omimLink": "https://www.omim.org/entry/104310?search=104310&highlight=104310",
+    "phenotype": "Alzheimer disease 2",
+    "inheritance": "AD",
+    "geneOrLocus": "APOE",
+    "geneOrLocusMimNumber": "107741"
+  },
+  {
+    "omimNum": 143200,
+    "omimLink": "https://www.omim.org/entry/143200?search=143200&highlight=143200",
+    "phenotype": "Wagner syndrome 1",
+    "inheritance": "AD",
+    "geneOrLocus": "VCAN",
+    "geneOrLocusMimNumber": "118661"
+  },
+  {
+    "omimNum": 618773,
+    "omimLink": "https://www.omim.org/entry/618773?search=618773&highlight=618773",
+    "phenotype": "Lymphatic malformation 8",
+    "inheritance": "AR",
+    "geneOrLocus": "CALCRL",
+    "geneOrLocusMimNumber": "114190"
+  },
+  {
+    "omimNum": 175780,
+    "omimLink": "https://www.omim.org/entry/175780?search=175780&highlight=175780",
+    "phenotype": "Brain small vessel disease with or without ocular anomalies",
+    "inheritance": "AD",
+    "geneOrLocus": "COL4A1",
+    "geneOrLocusMimNumber": "120130"
+  },
+  {
+    "omimNum": 611773,
+    "omimLink": "https://www.omim.org/entry/611773?search=611773&highlight=611773",
+    "phenotype": "Angiopathy, hereditary, with nephropathy, aneurysms, and muscle cramps",
+    "inheritance": "AD",
+    "geneOrLocus": "COL4A1",
+    "geneOrLocusMimNumber": "120130"
+  },
+  {
+    "omimNum": 180000,
+    "omimLink": "https://www.omim.org/entry/180000?search=180000&highlight=180000",
+    "phenotype": "Retinal arteries, tortuosity of",
+    "inheritance": "AD",
+    "geneOrLocus": "COL4A1",
+    "geneOrLocusMimNumber": "120130"
+  },
+  {
+    "omimNum": 618564,
+    "omimLink": "https://www.omim.org/entry/618564?search=618564&highlight=618564",
+    "phenotype": "Microangiopathy and leukoencephalopathy, pontine, autosomal dominant",
+    "inheritance": "AD",
+    "geneOrLocus": "COL4A1",
+    "geneOrLocusMimNumber": "120130"
+  },
+  {
+    "omimNum": 614483,
+    "omimLink": "https://www.omim.org/entry/614483?search=614483&highlight=614483",
+    "phenotype": "Brain small vessel disease 2",
+    "inheritance": "AD",
+    "geneOrLocus": "COL4A2",
+    "geneOrLocusMimNumber": "120090"
+  },
+  {
+    "omimNum": 125310,
+    "omimLink": "https://www.omim.org/entry/125310?search=125310&highlight=125310",
+    "phenotype": "Cerebral arteriopathy, autosomal dominant, with subcortical infarcts and leukoencephalopathy 1",
+    "inheritance": "AD, AR",
+    "geneOrLocus": "NOTCH3",
+    "geneOrLocusMimNumber": "600276"
+  },
+  {
+    "omimNum": 621295,
+    "omimLink": "https://www.omim.org/entry/621295?search=621295&highlight=621295",
+    "phenotype": "Cerebral arteriopathy, autosomal recessive, with subcortical infarcts and leukoencephalopathy 1",
+    "inheritance": "AR",
+    "geneOrLocus": "NOTCH3",
+    "geneOrLocusMimNumber": "600276"
+  },
+  {
+    "omimNum": 615293,
+    "omimLink": "https://www.omim.org/entry/615293?search=615293&highlight=615293",
+    "phenotype": "Myofibromatosis, infantile 2",
+    "inheritance": "AD",
+    "geneOrLocus": "NOTCH3",
+    "geneOrLocusMimNumber": "600276"
+  },
+  {
+    "omimNum": 130720,
+    "omimLink": "https://www.omim.org/entry/130720?search=130720&highlight=130720",
+    "phenotype": "Lateral meningocele syndrome",
+    "inheritance": "AD",
+    "geneOrLocus": "NOTCH3",
+    "geneOrLocusMimNumber": "600276"
+  },
+  {
+    "omimNum": 608600,
+    "omimLink": "https://www.omim.org/entry/608600?search=608600&highlight=608600",
+    "phenotype": "Lipodystrophy, familial partial, type 1",
+    "inheritance": "AD",
+    "geneOrLocus": "NOTCH3",
+    "geneOrLocusMimNumber": "600276"
+  },
+  {
+    "omimNum": 575553,
+    "omimLink": "https://www.omim.org/entry/575553?search=575553&highlight=575553",
+    "phenotype": "",
+    "inheritance": "",
+    "geneOrLocus": "",
+    "geneOrLocusMimNumber": ""
+  },
+  {
+    "omimNum": 192315,
+    "omimLink": "https://www.omim.org/entry/192315?search=192315&highlight=192315",
+    "phenotype": "Vasculopathy, retinal, with cerebral leukoencephalopathy and systemic manifestations",
+    "inheritance": "AD",
+    "geneOrLocus": "TREX1",
+    "geneOrLocusMimNumber": "606609"
+  },
+  {
+    "omimNum": 253200,
+    "omimLink": "https://www.omim.org/entry/253200?search=253200&highlight=253200",
+    "phenotype": "Mucopolysaccharidosis type VI (Maroteaux-Lamy)",
+    "inheritance": "AR",
+    "geneOrLocus": "ARSB",
+    "geneOrLocusMimNumber": "611542"
+  },
+  {
+    "omimNum": 231200,
+    "omimLink": "https://www.omim.org/entry/231200?search=231200&highlight=231200",
+    "phenotype": "Bernard-Soulier syndrome, type C;Bernard-Soulier syndrome, type A1 (recessive);Giant platelet disorder, isolated;Bernard-Soulier syndrome, type B",
+    "inheritance": "AR;AR;AR;AR",
+    "geneOrLocus": "GP9;GP1BA;GP1BB;GP1BB",
+    "geneOrLocusMimNumber": "173515;606672;138720;138720"
+  },
+  {
+    "omimNum": 177820,
+    "omimLink": "https://www.omim.org/entry/177820?search=177820&highlight=177820",
+    "phenotype": "von Willebrand disease, platelet-type",
+    "inheritance": "AD",
+    "geneOrLocus": "GP1BA",
+    "geneOrLocusMimNumber": "606672"
+  },
+  {
+    "omimNum": 619785,
+    "omimLink": "https://www.omim.org/entry/619785?search=619785&highlight=619785",
+    "phenotype": "Epidermolysis bullosa, junctional 3A, intermediate",
+    "inheritance": "AR",
+    "geneOrLocus": "LAMC2",
+    "geneOrLocusMimNumber": "150292"
+  },
+  {
+    "omimNum": 617907,
+    "omimLink": "https://www.omim.org/entry/617907?search=617907&highlight=617907",
+    "phenotype": "Erythrocytosis, familial, 5",
+    "inheritance": "AD",
+    "geneOrLocus": "EPO",
+    "geneOrLocusMimNumber": "133170"
+  },
+  {
+    "omimNum": 617911,
+    "omimLink": "https://www.omim.org/entry/617911?search=617911&highlight=617911",
+    "phenotype": "Diamond-Blackfan anemia-like",
+    "inheritance": "AR",
+    "geneOrLocus": "EPO",
+    "geneOrLocusMimNumber": "133170"
+  },
+  {
+    "omimNum": 604302,
+    "omimLink": "https://www.omim.org/entry/604302?search=604302&highlight=604302",
+    "phenotype": "Rheumatoid arthritis, systemic juvenile;Rheumatoid arthritis, systemic juvenile, susceptibility to",
+    "inheritance": "",
+    "geneOrLocus": "IL6;MIF",
+    "geneOrLocusMimNumber": "147620;153620"
+  },
+  {
+    "omimNum": 108010,
+    "omimLink": "https://www.omim.org/entry/108010?search=108010&highlight=108010",
+    "phenotype": "Intracranial hemorrhage in brain cerebrovascular malformations, susceptibility to;Arteriovenous malformation of the brain, somatic",
+    "inheritance": "Smu;",
+    "geneOrLocus": "IL6;KRAS",
+    "geneOrLocusMimNumber": "147620;190070"
+  },
+  {
+    "omimNum": 603776,
+    "omimLink": "https://www.omim.org/entry/603776?search=603776&highlight=603776",
+    "phenotype": "Hypercholesterolemia, familial, 3;Low density lipoprotein cholesterol level QTL 1",
+    "inheritance": "AD;AD",
+    "geneOrLocus": "PCSK9;PCSK9",
+    "geneOrLocusMimNumber": "607786;607786"
+  },
+  {
+    "omimNum": 136900,
+    "omimLink": "https://www.omim.org/entry/136900?search=136900&highlight=136900",
+    "phenotype": "Sorsby fundus dystrophy",
+    "inheritance": "AD",
+    "geneOrLocus": "TIMP3",
+    "geneOrLocusMimNumber": "188826"
+  }
+]

@@ -1,0 +1,13 @@
+{
+  "name": "csvd-dashboard-e2e",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Playwright end-to-end suite for the CSVD dashboard. Kept in its own directory with its own node_modules so npm never touches the Deno-managed node_modules at the repo root.",
+  "scripts": {
+    "test": "playwright test",
+    "test:ui": "playwright test --ui"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.1"
+  }
+}

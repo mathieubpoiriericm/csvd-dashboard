@@ -1,0 +1,4868 @@
+[
+  {
+    "geneSymbol": "ABCC6",
+    "groupKey": "MONDO:0003608",
+    "diseaseName": "Optic atrophy",
+    "omimId": null,
+    "mondoId": "MONDO:0003608",
+    "orphacode": null,
+    "medgenId": "C0029124",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "ABCC6",
+    "groupKey": "MONDO:0008333",
+    "diseaseName": "Pseudoxanthoma elasticum, forme fruste",
+    "omimId": "177850",
+    "mondoId": "MONDO:0008333",
+    "orphacode": "758",
+    "medgenId": "C1867450",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 64,
+    "relatedXrefs": [
+      {
+        "id": "MONDO:0009925",
+        "relation": "E"
+      },
+      {
+        "id": "MeSH:D011561",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:264800",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C0033847",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "ABCC6",
+    "groupKey": "MONDO:0009925",
+    "diseaseName": "Autosomal recessive inherited pseudoxanthoma elasticum",
+    "omimId": "264800",
+    "mondoId": "MONDO:0009925",
+    "orphacode": "758",
+    "medgenId": "CN032334",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 136,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:D011561",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:177850",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C0033847",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "ABCC6",
+    "groupKey": "MONDO:0013768",
+    "diseaseName": "Arterial calcification, generalized, of infancy, 2",
+    "omimId": "614473",
+    "mondoId": "MONDO:0013768",
+    "orphacode": "51608",
+    "medgenId": "C3276161",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 74,
+    "relatedXrefs": [
+      {
+        "id": "MONDO:0018870",
+        "relation": "E"
+      },
+      {
+        "id": "MeSH:C537440",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:208000",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C1859727",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "ABCC6",
+    "groupKey": "MONDO:0016175",
+    "diseaseName": "Cutis laxa",
+    "omimId": null,
+    "mondoId": "MONDO:0016175",
+    "orphacode": "209",
+    "medgenId": "C0010495",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:D003483",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C0010495",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "ABCC6",
+    "groupKey": "MONDO:0019118",
+    "diseaseName": "Retinal dystrophy",
+    "omimId": null,
+    "mondoId": "MONDO:0019118",
+    "orphacode": "71862",
+    "medgenId": "C0854723",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 3,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:D058499",
+        "relation": null
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "ABCC6",
+    "groupKey": "MONDO:0024308",
+    "diseaseName": "Pseudoxanthoma elasticum",
+    "omimId": null,
+    "mondoId": "MONDO:0024308",
+    "orphacode": null,
+    "medgenId": "C0033847",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 2,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "ABCC6",
+    "groupKey": "MONDO:0100091",
+    "diseaseName": "Inherited pseudoxanthoma elasticum",
+    "omimId": null,
+    "mondoId": "MONDO:0100091",
+    "orphacode": null,
+    "medgenId": "C1274225",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "ABCC6",
+    "groupKey": "MONDO:0100097",
+    "diseaseName": "Congenital alveolar dysplasia due to TBX4",
+    "omimId": null,
+    "mondoId": "MONDO:0100097",
+    "orphacode": null,
+    "medgenId": "CN305465",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "ADA2",
+    "groupKey": "MONDO:0008436",
+    "diseaseName": "Sneddon syndrome",
+    "omimId": "182410",
+    "mondoId": "MONDO:0008436",
+    "orphacode": "820",
+    "medgenId": "C0282492",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 25,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:D018860",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C0282492",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "ADA2",
+    "groupKey": "MONDO:0014306",
+    "diseaseName": "Deficiency of adenosine deaminase 2",
+    "omimId": "615688",
+    "mondoId": "MONDO:0014306",
+    "orphacode": "404553",
+    "medgenId": "C3887654",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 81,
+    "relatedXrefs": [
+      {
+        "id": "UMLS:C4749403",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "ADA2",
+    "groupKey": "MONDO:0019751",
+    "diseaseName": "Autoinflammatory syndrome",
+    "omimId": null,
+    "mondoId": "MONDO:0019751",
+    "orphacode": "93665",
+    "medgenId": "C3890737",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 6,
+    "relatedXrefs": [
+      {
+        "id": "UMLS:C3890737",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "ADAMTSL4",
+    "groupKey": "MONDO:0009152",
+    "diseaseName": "Ectopia lentis 2, isolated, autosomal recessive",
+    "omimId": "225100",
+    "mondoId": "MONDO:0009152",
+    "orphacode": "1885",
+    "medgenId": "C3541474",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 23,
+    "relatedXrefs": [
+      {
+        "id": "MONDO:0015998",
+        "relation": "E"
+      },
+      {
+        "id": "MeSH:D004479",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:129600",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:225200",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C1851286",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "ADAMTSL4",
+    "groupKey": "MONDO:0009153",
+    "diseaseName": "Ectopia lentis et pupillae",
+    "omimId": "225200",
+    "mondoId": "MONDO:0009153",
+    "orphacode": "1885",
+    "medgenId": "C1644196",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 20,
+    "relatedXrefs": [
+      {
+        "id": "MONDO:0015998",
+        "relation": "E"
+      },
+      {
+        "id": "MeSH:D004479",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:129600",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:225100",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C1851286",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "ADAMTSL4",
+    "groupKey": "MONDO:0011347",
+    "diseaseName": "Craniosynostosis with ectopia lentis",
+    "omimId": "603595",
+    "mondoId": "MONDO:0011347",
+    "orphacode": null,
+    "medgenId": "C1863678",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "ADAMTSL4",
+    "groupKey": "MONDO:0015998",
+    "diseaseName": "Isolated ectopia lentis",
+    "omimId": null,
+    "mondoId": "MONDO:0015998",
+    "orphacode": "1885",
+    "medgenId": "C1851286",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 2,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:D004479",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:129600",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:225100",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:225200",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C1851286",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "APOE",
+    "groupKey": "MONDO:0005439",
+    "diseaseName": "Familial hypercholesterolemia",
+    "omimId": null,
+    "mondoId": "MONDO:0005439",
+    "orphacode": null,
+    "medgenId": "C0020445",
+    "omimSeries": ["PS143890"],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 3,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "APOE",
+    "groupKey": "MONDO:0007089",
+    "diseaseName": "Alzheimer disease 2",
+    "omimId": "104310",
+    "mondoId": "MONDO:0007089",
+    "orphacode": "1020",
+    "medgenId": "C1863051",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [
+      {
+        "id": "MONDO:0015140",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:104300",
+        "relation": "NTBT"
+      },
+      {
+        "id": "OMIM:602096",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:604154",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:605055",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:605526",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:606187",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:606889",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:607116",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:607822",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:609636",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:609790",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:611073",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:611152",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:611154",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C0276496",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "APOE",
+    "groupKey": "MONDO:0010017",
+    "diseaseName": "Sea-blue histiocyte syndrome",
+    "omimId": "269600",
+    "mondoId": "MONDO:0010017",
+    "orphacode": "158029",
+    "medgenId": "C0036489",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "APOE",
+    "groupKey": "MONDO:0011285",
+    "diseaseName": "Age related macular degeneration 1",
+    "omimId": "603075",
+    "mondoId": "MONDO:0011285",
+    "orphacode": null,
+    "medgenId": "C1864205",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "APOE",
+    "groupKey": "MONDO:0011743",
+    "diseaseName": "Alzheimer disease 4",
+    "omimId": "606889",
+    "mondoId": "MONDO:0011743",
+    "orphacode": "1020",
+    "medgenId": "C1847200",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [
+      {
+        "id": "MONDO:0015140",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:104300",
+        "relation": "NTBT"
+      },
+      {
+        "id": "OMIM:104310",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:602096",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:604154",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:605055",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:605526",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:606187",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:607116",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:607822",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:609636",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:609790",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:611073",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:611152",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:611154",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C0276496",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "APOE",
+    "groupKey": "MONDO:0011913",
+    "diseaseName": "Alzheimer disease 3",
+    "omimId": "607822",
+    "mondoId": "MONDO:0011913",
+    "orphacode": "1020",
+    "medgenId": "C1843013",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [
+      {
+        "id": "MONDO:0015140",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:104300",
+        "relation": "NTBT"
+      },
+      {
+        "id": "OMIM:104310",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:602096",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:604154",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:605055",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:605526",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:606187",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:606889",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:607116",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:609636",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:609790",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:611073",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:611152",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:611154",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C0276496",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "APOE",
+    "groupKey": "MONDO:0012725",
+    "diseaseName": "Lipoprotein glomerulopathy",
+    "omimId": "611771",
+    "mondoId": "MONDO:0012725",
+    "orphacode": "329481",
+    "medgenId": "C2673196",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 3,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:C567089",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C2673196",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "APOE",
+    "groupKey": "MONDO:0018473",
+    "diseaseName": "Familial type 3 hyperlipoproteinemia",
+    "omimId": "617347",
+    "mondoId": "MONDO:0018473",
+    "orphacode": "412",
+    "medgenId": "C0020479",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 9,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:D006952",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C0020479",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "APP",
+    "groupKey": "MONDO:0004975",
+    "diseaseName": "Alzheimer disease",
+    "omimId": null,
+    "mondoId": "MONDO:0004975",
+    "orphacode": "1020",
+    "medgenId": "C0002395",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 14,
+    "relatedXrefs": [
+      {
+        "id": "MONDO:0015140",
+        "relation": "E"
+      },
+      {
+        "id": "MeSH:D000544",
+        "relation": null
+      },
+      {
+        "id": "OMIM:104300",
+        "relation": "NTBT"
+      },
+      {
+        "id": "OMIM:104310",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:602096",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:604154",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:605055",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:605526",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:606187",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:606889",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:607116",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:607822",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:609636",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:609790",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:611073",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:611152",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:611154",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C0276496",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "APP",
+    "groupKey": "MONDO:0007088",
+    "diseaseName": "Alzheimer disease type 1",
+    "omimId": "104300",
+    "mondoId": "MONDO:0007088",
+    "orphacode": null,
+    "medgenId": "C1863052",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 7,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "APP",
+    "groupKey": "MONDO:0011583",
+    "diseaseName": "Cerebral amyloid angiopathy, APP-related",
+    "omimId": "605714",
+    "mondoId": "MONDO:0011583",
+    "orphacode": "100006",
+    "medgenId": "C2751536",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 5,
+    "relatedXrefs": [
+      {
+        "id": "MONDO:0005620",
+        "relation": "E"
+      },
+      {
+        "id": "MONDO:0015033",
+        "relation": "E"
+      },
+      {
+        "id": "MONDO:0017945",
+        "relation": "E"
+      },
+      {
+        "id": "MONDO:0017946",
+        "relation": "E"
+      },
+      {
+        "id": "MONDO:0017947",
+        "relation": "E"
+      },
+      {
+        "id": "MONDO:0017948",
+        "relation": "E"
+      },
+      {
+        "id": "MONDO:0017949",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:105150",
+        "relation": "BTNT"
+      },
+      {
+        "id": "Orphanet:324703",
+        "relation": null
+      },
+      {
+        "id": "Orphanet:324708",
+        "relation": null
+      },
+      {
+        "id": "Orphanet:324713",
+        "relation": null
+      },
+      {
+        "id": "Orphanet:324718",
+        "relation": null
+      },
+      {
+        "id": "Orphanet:324723",
+        "relation": null
+      },
+      {
+        "id": "Orphanet:85458",
+        "relation": null
+      },
+      {
+        "id": "UMLS:C1510489",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C2931672",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C5679878",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C5679879",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C5679880",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C5679881",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C5679882",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "APP",
+    "groupKey": "MONDO:0017948",
+    "diseaseName": "ABetaA21G amyloidosis",
+    "omimId": null,
+    "mondoId": "MONDO:0017948",
+    "orphacode": "324718",
+    "medgenId": "C3888307",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [
+      {
+        "id": "OMIM:605714",
+        "relation": "NTBT"
+      },
+      {
+        "id": "UMLS:C5679878",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "APP",
+    "groupKey": "MONDO:0017949",
+    "diseaseName": "ABeta amyloidosis, Arctic type",
+    "omimId": null,
+    "mondoId": "MONDO:0017949",
+    "orphacode": "324723",
+    "medgenId": "C2751494",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [
+      {
+        "id": "OMIM:605714",
+        "relation": "NTBT"
+      },
+      {
+        "id": "UMLS:C5679880",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "AQP4",
+    "groupKey": "MONDO:0957534",
+    "diseaseName": "Megalencephalic leukoencephalopathy with subcortical cysts 4, remitting",
+    "omimId": "620448",
+    "mondoId": "MONDO:0957534",
+    "orphacode": null,
+    "medgenId": "C5830628",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "ARSB",
+    "groupKey": "MONDO:0001586",
+    "diseaseName": "Mucopolysaccharidosis type 1",
+    "omimId": null,
+    "mondoId": "MONDO:0001586",
+    "orphacode": "579",
+    "medgenId": "C0023786",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 2,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:D008059",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:607014",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:607015",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:607016",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C0023786",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "ARSB",
+    "groupKey": "MONDO:0009661",
+    "diseaseName": "Mucopolysaccharidosis type 6",
+    "omimId": "253200",
+    "mondoId": "MONDO:0009661",
+    "orphacode": "583",
+    "medgenId": "C0026709",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 161,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:D009087",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C0026709",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "ARSB",
+    "groupKey": "MONDO:0018868",
+    "diseaseName": "Metachromatic leukodystrophy",
+    "omimId": "250100",
+    "mondoId": "MONDO:0018868",
+    "orphacode": "512",
+    "medgenId": "C0023522",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 2,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:D007966",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:156310",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:249900",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C0023522",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "CALCRL",
+    "groupKey": "MONDO:0032907",
+    "diseaseName": "Lymphatic malformation 8",
+    "omimId": "618773",
+    "mondoId": "MONDO:0032907",
+    "orphacode": null,
+    "medgenId": "C5231496",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "CCDC88C",
+    "groupKey": "MONDO:0009360",
+    "diseaseName": "Hydrocephalus, nonsyndromic, autosomal recessive 1",
+    "omimId": "236600",
+    "mondoId": "MONDO:0009360",
+    "orphacode": "2185",
+    "medgenId": "C3887608",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 10,
+    "relatedXrefs": [
+      {
+        "id": "MONDO:0016349",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:615219",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:617967",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618570",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C0020256",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "CCDC88C",
+    "groupKey": "MONDO:0014475",
+    "diseaseName": "Spinocerebellar ataxia type 40",
+    "omimId": "616053",
+    "mondoId": "MONDO:0014475",
+    "orphacode": "423275",
+    "medgenId": "C4518336",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 4,
+    "relatedXrefs": [
+      {
+        "id": "UMLS:C4518336",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "CENPF",
+    "groupKey": "MONDO:0009477",
+    "diseaseName": "Stromme syndrome",
+    "omimId": "243605",
+    "mondoId": "MONDO:0009477",
+    "orphacode": "444069",
+    "medgenId": "C1855705",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 18,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:C565460",
+        "relation": "E"
+      },
+      {
+        "id": "Orphanet:506307",
+        "relation": null
+      },
+      {
+        "id": "UMLS:C1855705",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C5681197",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "COL4A1/2",
+    "groupKey": "MONDO:0001071",
+    "diseaseName": "Intellectual disability",
+    "omimId": null,
+    "mondoId": "MONDO:0001071",
+    "orphacode": null,
+    "medgenId": "C3714756",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:D008607",
+        "relation": null
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "COL4A1/2",
+    "groupKey": "MONDO:0006497",
+    "diseaseName": "Cerebral palsy",
+    "omimId": null,
+    "mondoId": "MONDO:0006497",
+    "orphacode": null,
+    "medgenId": "C0007789",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "COL4A1/2",
+    "groupKey": "MONDO:0008289",
+    "diseaseName": "Brain small vessel disease 1 with or without ocular anomalies",
+    "omimId": "175780",
+    "mondoId": "MONDO:0008289",
+    "orphacode": "2940",
+    "medgenId": "C4755307",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 56,
+    "relatedXrefs": [
+      {
+        "id": "MONDO:0017410",
+        "relation": "E"
+      },
+      {
+        "id": "MONDO:0020496",
+        "relation": "E"
+      },
+      {
+        "id": "MeSH:C536850",
+        "relation": "E"
+      },
+      {
+        "id": "MeSH:D065708",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:614483",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618360",
+        "relation": "BTNT"
+      },
+      {
+        "id": "Orphanet:36383",
+        "relation": null
+      },
+      {
+        "id": "Orphanet:99810",
+        "relation": null
+      },
+      {
+        "id": "UMLS:C0302892",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C1867983",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C4755307",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "COL4A1/2",
+    "groupKey": "MONDO:0008373",
+    "diseaseName": "Retinal arterial tortuosity",
+    "omimId": "180000",
+    "mondoId": "MONDO:0008373",
+    "orphacode": "75326",
+    "medgenId": "C0423401",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 9,
+    "relatedXrefs": [
+      {
+        "id": "UMLS:C5779553",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "COL4A1/2",
+    "groupKey": "MONDO:0009022",
+    "diseaseName": "Corpus callosum, agenesis of",
+    "omimId": "217990",
+    "mondoId": "MONDO:0009022",
+    "orphacode": "200",
+    "medgenId": "C0175754",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [
+      {
+        "id": "MONDO:0026419",
+        "relation": "E"
+      },
+      {
+        "id": "MeSH:D061085",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C0175754",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "COL4A1/2",
+    "groupKey": "MONDO:0011414",
+    "diseaseName": "Irido-corneo-trabecular dysgenesis",
+    "omimId": "604229",
+    "mondoId": "MONDO:0011414",
+    "orphacode": "708",
+    "medgenId": "C0344559",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:C537884",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:612968",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C0344559",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "COL4A1/2",
+    "groupKey": "MONDO:0012726",
+    "diseaseName": "Autosomal dominant familial hematuria-retinal arteriolar tortuosity-contractures syndrome",
+    "omimId": "611773",
+    "mondoId": "MONDO:0012726",
+    "orphacode": "73229",
+    "medgenId": "C2673195",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 22,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:C567088",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C2673195",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "COL4A1/2",
+    "groupKey": "MONDO:0013773",
+    "diseaseName": "Brain small vessel disease 2A, autosomal dominant",
+    "omimId": "614483",
+    "mondoId": "MONDO:0013773",
+    "orphacode": "2940",
+    "medgenId": "C3280970",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 8,
+    "relatedXrefs": [
+      {
+        "id": "MONDO:0017410",
+        "relation": "E"
+      },
+      {
+        "id": "MONDO:0020496",
+        "relation": "E"
+      },
+      {
+        "id": "MeSH:C536850",
+        "relation": "E"
+      },
+      {
+        "id": "MeSH:D065708",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:175780",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618360",
+        "relation": "BTNT"
+      },
+      {
+        "id": "Orphanet:99810",
+        "relation": null
+      },
+      {
+        "id": "UMLS:C0302892",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C1867983",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "COL4A1/2",
+    "groupKey": "MONDO:0017410",
+    "diseaseName": "Porencephaly",
+    "omimId": null,
+    "mondoId": "MONDO:0017410",
+    "orphacode": "2940",
+    "medgenId": "C4082173",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:D065708",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:175780",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:614483",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C0302892",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "COL4A1/2",
+    "groupKey": "MONDO:0022236",
+    "diseaseName": "Colpocephaly",
+    "omimId": null,
+    "mondoId": "MONDO:0022236",
+    "orphacode": null,
+    "medgenId": "C0431384",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "COL4A1/2",
+    "groupKey": "MONDO:0032814",
+    "diseaseName": "Microangiopathy and leukoencephalopathy, pontine, autosomal dominant",
+    "omimId": "618564",
+    "mondoId": "MONDO:0032814",
+    "orphacode": "477749",
+    "medgenId": "C5231411",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 13,
+    "relatedXrefs": [
+      {
+        "id": "UMLS:C5231411",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "COL4A1/2",
+    "groupKey": "MONDO:0100533",
+    "diseaseName": "Hemorrhage, intracerebral, susceptibility to",
+    "omimId": "614519",
+    "mondoId": "MONDO:0100533",
+    "orphacode": null,
+    "medgenId": "C3281105",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 8,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "COL4A1/2",
+    "groupKey": "MONDO:0800461",
+    "diseaseName": "COL4A1-related disorder",
+    "omimId": null,
+    "mondoId": "MONDO:0800461",
+    "orphacode": null,
+    "medgenId": "CN376119",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 9,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "COL4A1/2",
+    "groupKey": "MONDO:0980747",
+    "diseaseName": "Brain small vessel disease 2B, autosomal recessive",
+    "omimId": "621414",
+    "mondoId": "MONDO:0980747",
+    "orphacode": null,
+    "medgenId": "C6065929",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 2,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "COL4A1/2",
+    "groupKey": "Orphanet:477759",
+    "diseaseName": "COL4A1 or COL4A2-related cerebral small vessel disease",
+    "omimId": null,
+    "mondoId": "MONDO:0018788",
+    "orphacode": "477759",
+    "medgenId": "C5680103",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 2,
+    "relatedXrefs": [
+      {
+        "id": "UMLS:C5680103",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "COL6A1",
+    "groupKey": "MONDO:0005336",
+    "diseaseName": "Myopathy",
+    "omimId": null,
+    "mondoId": "MONDO:0005336",
+    "orphacode": null,
+    "medgenId": "C0026848",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:D009135",
+        "relation": null
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "COL6A1",
+    "groupKey": "MONDO:0009681",
+    "diseaseName": "Ullrich congenital muscular dystrophy 1A",
+    "omimId": "254090",
+    "mondoId": "MONDO:0009681",
+    "orphacode": "75840",
+    "medgenId": "C0410179",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 25,
+    "relatedXrefs": [
+      {
+        "id": "MONDO:0000355",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:616470",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:620727",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:620728",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C4551860",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "COL6A1",
+    "groupKey": "MONDO:0024530",
+    "diseaseName": "Bethlem myopathy 1A",
+    "omimId": "158810",
+    "mondoId": "MONDO:0024530",
+    "orphacode": "610",
+    "medgenId": "CN029274",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 125,
+    "relatedXrefs": [
+      {
+        "id": "MONDO:0008029",
+        "relation": "E"
+      },
+      {
+        "id": "MeSH:C535436",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:616471",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:620725",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:620726",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C1834674",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "COL6A1",
+    "groupKey": "MONDO:0100225",
+    "diseaseName": "Collagen 6-related myopathy",
+    "omimId": null,
+    "mondoId": "MONDO:0100225",
+    "orphacode": null,
+    "medgenId": "CN117976",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 4,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "CST3",
+    "groupKey": "MONDO:0007098",
+    "diseaseName": "Hereditary cerebral amyloid angiopathy, Icelandic type",
+    "omimId": "105150",
+    "mondoId": "MONDO:0007098",
+    "orphacode": "100008",
+    "medgenId": "C1527338",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [
+      {
+        "id": "MONDO:0005620",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:605714",
+        "relation": "BTNT"
+      },
+      {
+        "id": "Orphanet:85458",
+        "relation": null
+      },
+      {
+        "id": "UMLS:C1510489",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C1527338",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "CST3",
+    "groupKey": "MONDO:0979226",
+    "diseaseName": "Leukodystrophy, adult-onset, autosomal dominant, without amyloid angiopathy",
+    "omimId": "621214",
+    "mondoId": "MONDO:0979226",
+    "orphacode": null,
+    "medgenId": "C6012728",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "CST6",
+    "groupKey": "MONDO:0032804",
+    "diseaseName": "Ectodermal dysplasia 15, hypohidrotic/hair type",
+    "omimId": "618535",
+    "mondoId": "MONDO:0032804",
+    "orphacode": null,
+    "medgenId": "C5193145",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "CTC1",
+    "groupKey": "MONDO:0005283",
+    "diseaseName": "Retinal disorder",
+    "omimId": null,
+    "mondoId": "MONDO:0005283",
+    "orphacode": null,
+    "medgenId": "C0035309",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "CTC1",
+    "groupKey": "MONDO:0012815",
+    "diseaseName": "Coats plus syndrome",
+    "omimId": "612199",
+    "mondoId": "MONDO:0012815",
+    "orphacode": "313838",
+    "medgenId": "C2677299",
+    "omimSeries": ["PS612199"],
+    "classification": "Pathogenic",
+    "recordCount": 4,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:C567401",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:617341",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C2677299",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "CTC1",
+    "groupKey": "MONDO:0015780",
+    "diseaseName": "Dyskeratosis congenita",
+    "omimId": "127550",
+    "mondoId": "MONDO:0015780",
+    "orphacode": "1775",
+    "medgenId": "C0265965",
+    "omimSeries": ["PS127550"],
+    "classification": "Pathogenic",
+    "recordCount": 98,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:D019871",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:224230",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:305000",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:613987",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:613988",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:613989",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:613990",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:615190",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616353",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616553",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:620040",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:620133",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C0265965",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "CTC1",
+    "groupKey": "MONDO:0024564",
+    "diseaseName": "Cerebroretinal microangiopathy with calcifications and cysts 1",
+    "omimId": "612199",
+    "mondoId": "MONDO:0024564",
+    "orphacode": "313838",
+    "medgenId": "C4552029",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 29,
+    "relatedXrefs": [
+      {
+        "id": "MONDO:0012815",
+        "relation": "E"
+      },
+      {
+        "id": "MeSH:C567401",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:617341",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C2677299",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "CTSA",
+    "groupKey": "MONDO:0007356",
+    "diseaseName": "Lynch syndrome 1",
+    "omimId": "120435",
+    "mondoId": "MONDO:0007356",
+    "orphacode": "144",
+    "medgenId": "C2936783",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [
+      {
+        "id": "MONDO:0005835",
+        "relation": "E"
+      },
+      {
+        "id": "MeSH:D003123",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:609310",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:613244",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:614331",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:614337",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:614350",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:614385",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C4552100",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "CTSA",
+    "groupKey": "MONDO:0009737",
+    "diseaseName": "Combined deficiency of sialidase AND beta galactosidase",
+    "omimId": "256540",
+    "mondoId": "MONDO:0009737",
+    "orphacode": "351",
+    "medgenId": "C0268233",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 49,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:C536411",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C0268233",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "EFEMP1",
+    "groupKey": "MONDO:0005283",
+    "diseaseName": "Retinal disorder",
+    "omimId": null,
+    "mondoId": "MONDO:0005283",
+    "orphacode": null,
+    "medgenId": "C0035309",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "EFEMP1",
+    "groupKey": "MONDO:0005392",
+    "diseaseName": "Scoliosis",
+    "omimId": null,
+    "mondoId": "MONDO:0005392",
+    "orphacode": null,
+    "medgenId": "C0036439",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 2,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "EFEMP1",
+    "groupKey": "MONDO:0007197",
+    "diseaseName": "Diverticulum of bladder",
+    "omimId": "109820",
+    "mondoId": "MONDO:0007197",
+    "orphacode": null,
+    "medgenId": "C0156273",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 2,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "EFEMP1",
+    "groupKey": "MONDO:0007471",
+    "diseaseName": "Doyne honeycomb retinal dystrophy",
+    "omimId": "126600",
+    "mondoId": "MONDO:0007471",
+    "orphacode": "75376",
+    "medgenId": "C1832174",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:C535602",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:126700",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C1832174",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "EFEMP1",
+    "groupKey": "MONDO:0016175",
+    "diseaseName": "Cutis laxa",
+    "omimId": null,
+    "mondoId": "MONDO:0016175",
+    "orphacode": "209",
+    "medgenId": "C0010495",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:D003483",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C0010495",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "EFEMP1",
+    "groupKey": "MONDO:0019118",
+    "diseaseName": "Retinal dystrophy",
+    "omimId": null,
+    "mondoId": "MONDO:0019118",
+    "orphacode": "71862",
+    "medgenId": "C0854723",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:D058499",
+        "relation": null
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "EFEMP1",
+    "groupKey": "MONDO:0020367",
+    "diseaseName": "Glaucoma of childhood",
+    "omimId": null,
+    "mondoId": "MONDO:0020367",
+    "orphacode": "98977",
+    "medgenId": "C2981140",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [
+      {
+        "id": "OMIM:137750",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:231300",
+        "relation": "NTBT"
+      },
+      {
+        "id": "OMIM:608695",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:608696",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:610535",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:611274",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C2981140",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "EFEMP1",
+    "groupKey": "OMIM:611276",
+    "diseaseName": "Glaucoma 1, open angle, H",
+    "omimId": "611276",
+    "mondoId": null,
+    "orphacode": null,
+    "medgenId": "C1969811",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "EPHB4",
+    "groupKey": "MONDO:0007919",
+    "diseaseName": "Hereditary lymphedema type I",
+    "omimId": "153100",
+    "mondoId": "MONDO:0007919",
+    "orphacode": "79452",
+    "medgenId": "C1704423",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [
+      {
+        "id": "OMIM:611944",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C1704423",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "EPHB4",
+    "groupKey": "MONDO:0012016",
+    "diseaseName": "Capillary malformation-arteriovenous malformation syndrome",
+    "omimId": null,
+    "mondoId": "MONDO:0012016",
+    "orphacode": "137667",
+    "medgenId": "C1842180",
+    "omimSeries": ["PS608354"],
+    "classification": "Pathogenic",
+    "recordCount": 3,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:C564254",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:608354",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618196",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C1842180",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "EPHB4",
+    "groupKey": "MONDO:0015009",
+    "diseaseName": "Lymphatic malformation 7",
+    "omimId": "617300",
+    "mondoId": "MONDO:0015009",
+    "orphacode": null,
+    "medgenId": "C4310629",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 9,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "EPHB4",
+    "groupKey": "MONDO:0020785",
+    "diseaseName": "Capillary malformation-arteriovenous malformation 2",
+    "omimId": "618196",
+    "mondoId": "MONDO:0020785",
+    "orphacode": "693912",
+    "medgenId": "C4748670",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 21,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "EPHB4",
+    "groupKey": "MONDO:0700080",
+    "diseaseName": "EPHB4-associated vascular malformation spectrum",
+    "omimId": null,
+    "mondoId": "MONDO:0700080",
+    "orphacode": null,
+    "medgenId": "CN315656",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "EPO",
+    "groupKey": "MONDO:0033483",
+    "diseaseName": "Erythrocytosis, familial, 5",
+    "omimId": "617907",
+    "mondoId": "MONDO:0033483",
+    "orphacode": null,
+    "medgenId": "C4693552",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 2,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "EPO",
+    "groupKey": "MONDO:0060662",
+    "diseaseName": "Diamond-Blackfan anemia-like",
+    "omimId": "617911",
+    "mondoId": "MONDO:0060662",
+    "orphacode": null,
+    "medgenId": "C4693556",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "FBN2",
+    "groupKey": "MONDO:0007363",
+    "diseaseName": "Congenital contractural arachnodactyly",
+    "omimId": "121050",
+    "mondoId": "MONDO:0007363",
+    "orphacode": "115",
+    "medgenId": "C0220668",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 44,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:C536211",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C0220668",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "FBN2",
+    "groupKey": "MONDO:0014501",
+    "diseaseName": "Macular degeneration, early-onset",
+    "omimId": "616118",
+    "mondoId": "MONDO:0014501",
+    "orphacode": null,
+    "medgenId": "C4015286",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "FBN2",
+    "groupKey": "MONDO:0019625",
+    "diseaseName": "Familial thoracic aortic aneurysm and aortic dissection",
+    "omimId": null,
+    "mondoId": "MONDO:0019625",
+    "orphacode": "91387",
+    "medgenId": "C4707243",
+    "omimSeries": ["PS607086"],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 4,
+    "relatedXrefs": [
+      {
+        "id": "OMIM:132900",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:607086",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:607087",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:609192",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:610168",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:611788",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:613780",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:614816",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:615436",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:615582",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616166",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:617168",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619656",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619657",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619825",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C4707243",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "GFAP",
+    "groupKey": "MONDO:0008752",
+    "diseaseName": "Alexander disease",
+    "omimId": "203450",
+    "mondoId": "MONDO:0008752",
+    "orphacode": "58",
+    "medgenId": "C0270726",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 37,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:D038261",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C0270726",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "GFAP",
+    "groupKey": "MONDO:0015007",
+    "diseaseName": "Spastic paraplegia, intellectual disability, nystagmus, and obesity",
+    "omimId": "617296",
+    "mondoId": "MONDO:0015007",
+    "orphacode": "521390",
+    "medgenId": "C4284592",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [
+      {
+        "id": "UMLS:C4284592",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "GLA",
+    "groupKey": "MONDO:0007369",
+    "diseaseName": "Hereditary coproporphyria",
+    "omimId": "121300",
+    "mondoId": "MONDO:0007369",
+    "orphacode": "79273",
+    "medgenId": "C0162531",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:D046349",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C0162531",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "GLA",
+    "groupKey": "MONDO:0010526",
+    "diseaseName": "Fabry disease",
+    "omimId": "301500",
+    "mondoId": "MONDO:0010526",
+    "orphacode": "324",
+    "medgenId": "C0002986",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 469,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:D000795",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C0002986",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "GP1BA",
+    "groupKey": "MONDO:0002049",
+    "diseaseName": "Thrombocytopenia",
+    "omimId": null,
+    "mondoId": "MONDO:0002049",
+    "orphacode": null,
+    "medgenId": "C0040034",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 3,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:D013921",
+        "relation": null
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "GP1BA",
+    "groupKey": "MONDO:0007930",
+    "diseaseName": "Bernard-Soulier syndrome, type A2, autosomal dominant",
+    "omimId": "153670",
+    "mondoId": "MONDO:0007930",
+    "orphacode": "274",
+    "medgenId": "C3277076",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 6,
+    "relatedXrefs": [
+      {
+        "id": "MONDO:0009276",
+        "relation": "E"
+      },
+      {
+        "id": "MeSH:D001606",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:231200",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C0005129",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "GP1BA",
+    "groupKey": "MONDO:0008332",
+    "diseaseName": "Pseudo von Willebrand disease",
+    "omimId": "177820",
+    "mondoId": "MONDO:0008332",
+    "orphacode": "52530",
+    "medgenId": "C1280798",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 8,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:C536458",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C1280798",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "GP1BA",
+    "groupKey": "MONDO:0009276",
+    "diseaseName": "Bernard Soulier syndrome",
+    "omimId": "231200",
+    "mondoId": "MONDO:0009276",
+    "orphacode": "274",
+    "medgenId": "C0005129",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 12,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:D001606",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:153670",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C0005129",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "GP1BA",
+    "groupKey": "MONDO:0009789",
+    "diseaseName": "Nonarteritic anterior ischemic optic neuropathy, susceptibility to",
+    "omimId": "258660",
+    "mondoId": "MONDO:0009789",
+    "orphacode": null,
+    "medgenId": "C1847711",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "HTRA1",
+    "groupKey": "MONDO:0006693",
+    "diseaseName": "Cerebral arterial disease",
+    "omimId": null,
+    "mondoId": "MONDO:0006693",
+    "orphacode": null,
+    "medgenId": "C0007774",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "HTRA1",
+    "groupKey": "MONDO:0010829",
+    "diseaseName": "CARASIL syndrome",
+    "omimId": "600142",
+    "mondoId": "MONDO:0010829",
+    "orphacode": "199354",
+    "medgenId": "C6022615",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 6,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:C563990",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C1838577",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "HTRA1",
+    "groupKey": "MONDO:0012419",
+    "diseaseName": "Age related macular degeneration 7",
+    "omimId": "610149",
+    "mondoId": "MONDO:0012419",
+    "orphacode": null,
+    "medgenId": "C1857813",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "HTRA1",
+    "groupKey": "MONDO:0014768",
+    "diseaseName": "Cerebral arteriopathy, autosomal dominant, with subcortical infarcts and leukoencephalopathy, type 2",
+    "omimId": "616779",
+    "mondoId": "MONDO:0014768",
+    "orphacode": null,
+    "medgenId": "C4225211",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 14,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "HTRA1",
+    "groupKey": "MONDO:0018832",
+    "diseaseName": "HTRA1-related autosomal dominant cerebral small vessel disease",
+    "omimId": "616779",
+    "mondoId": "MONDO:0018832",
+    "orphacode": "482077",
+    "medgenId": "C5568568",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 2,
+    "relatedXrefs": [
+      {
+        "id": "UMLS:C5568568",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "HTRA1",
+    "groupKey": "Orphanet:482072",
+    "diseaseName": "HTRA1-related cerebral small vessel disease",
+    "omimId": null,
+    "mondoId": "MONDO:0018831",
+    "orphacode": "482072",
+    "medgenId": "C5680099",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 3,
+    "relatedXrefs": [
+      {
+        "id": "UMLS:C5680099",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "JAK1",
+    "groupKey": "MONDO:0033558",
+    "diseaseName": "Autoinflammation, immune dysregulation, and eosinophilia",
+    "omimId": "618999",
+    "mondoId": "MONDO:0033558",
+    "orphacode": null,
+    "medgenId": "C5436572",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 2,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "KLHL24",
+    "groupKey": "MONDO:0007554",
+    "diseaseName": "Epidermolysis bullosa simplex, Koebner type",
+    "omimId": "131900",
+    "mondoId": "MONDO:0007554",
+    "orphacode": "79399",
+    "medgenId": "C5561924",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 4,
+    "relatedXrefs": [
+      {
+        "id": "OMIM:619588",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C0079299",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "KLHL24",
+    "groupKey": "MONDO:0015006",
+    "diseaseName": "Epidermolysis bullosa simplex 6, generalized, with scarring and hair loss",
+    "omimId": "617294",
+    "mondoId": "MONDO:0015006",
+    "orphacode": "508529",
+    "medgenId": "C4310631",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 4,
+    "relatedXrefs": [
+      {
+        "id": "UMLS:C5555869",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "KLHL24",
+    "groupKey": "MONDO:0859372",
+    "diseaseName": "Cardiomyopathy, familial hypertrophic, 29, with polyglucosan bodies",
+    "omimId": "620236",
+    "mondoId": "MONDO:0859372",
+    "orphacode": null,
+    "medgenId": "C5774308",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 3,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "LAMB1",
+    "groupKey": "MONDO:0014077",
+    "diseaseName": "Cobblestone lissencephaly without muscular or ocular involvement",
+    "omimId": "615191",
+    "mondoId": "MONDO:0014077",
+    "orphacode": "352682",
+    "medgenId": "C3554657",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 13,
+    "relatedXrefs": [
+      {
+        "id": "OMIM:617255",
+        "relation": "NTBT"
+      },
+      {
+        "id": "UMLS:C5191415",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "LAMB1",
+    "groupKey": "MONDO:0015146",
+    "diseaseName": "Classic lissencephaly",
+    "omimId": null,
+    "mondoId": "MONDO:0015146",
+    "orphacode": "102009",
+    "medgenId": "C0431375",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 3,
+    "relatedXrefs": [
+      {
+        "id": "UMLS:C0431375",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "LAMB1",
+    "groupKey": "MONDO:0980752",
+    "diseaseName": "Leukoencephalopathy without lacunae, adult-onset",
+    "omimId": "621424",
+    "mondoId": "MONDO:0980752",
+    "orphacode": null,
+    "medgenId": "C6065932",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 3,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "LAMC2",
+    "groupKey": "MONDO:0009180",
+    "diseaseName": "Junctional epidermolysis bullosa, non-Herlitz type",
+    "omimId": "226650",
+    "mondoId": "MONDO:0009180",
+    "orphacode": "251393",
+    "medgenId": "C0268374",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 4,
+    "relatedXrefs": [
+      {
+        "id": "MONDO:0016673",
+        "relation": "E"
+      },
+      {
+        "id": "MONDO:0019307",
+        "relation": "E"
+      },
+      {
+        "id": "MONDO:0019308",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:619783",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619785",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619787",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619816",
+        "relation": "BTNT"
+      },
+      {
+        "id": "Orphanet:79402",
+        "relation": null
+      },
+      {
+        "id": "Orphanet:79405",
+        "relation": null
+      },
+      {
+        "id": "Orphanet:89840",
+        "relation": null
+      },
+      {
+        "id": "UMLS:C0432326",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C0474889",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C2673609",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "LAMC2",
+    "groupKey": "MONDO:0009182",
+    "diseaseName": "Junctional epidermolysis bullosa gravis of Herlitz",
+    "omimId": "226700",
+    "mondoId": "MONDO:0009182",
+    "orphacode": "79404",
+    "medgenId": "C0079683",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 7,
+    "relatedXrefs": [
+      {
+        "id": "OMIM:619786",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C0079683",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "LAMC2",
+    "groupKey": "MONDO:0017612",
+    "diseaseName": "Junctional epidermolysis bullosa",
+    "omimId": null,
+    "mondoId": "MONDO:0017612",
+    "orphacode": "305",
+    "medgenId": "C0079301",
+    "omimSeries": ["PS226650"],
+    "classification": "Pathogenic",
+    "recordCount": 14,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:D016109",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C0079301",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "LAMC2",
+    "groupKey": "MONDO:0030748",
+    "diseaseName": "Epidermolysis bullosa, junctional 3A, intermediate",
+    "omimId": "619785",
+    "mondoId": "MONDO:0030748",
+    "orphacode": null,
+    "medgenId": "C5676938",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 13,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "LAMC2",
+    "groupKey": "MONDO:0030749",
+    "diseaseName": "Epidermolysis bullosa, junctional 3B, severe",
+    "omimId": "619786",
+    "mondoId": "MONDO:0030749",
+    "orphacode": null,
+    "medgenId": "C5676939",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 18,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "LOX",
+    "groupKey": "MONDO:0004994",
+    "diseaseName": "Cardiomyopathy",
+    "omimId": null,
+    "mondoId": "MONDO:0004994",
+    "orphacode": "167848",
+    "medgenId": "C0878544",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:D009202",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C5680467",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "LOX",
+    "groupKey": "MONDO:0014950",
+    "diseaseName": "Aortic aneurysm, familial thoracic 10",
+    "omimId": "617168",
+    "mondoId": "MONDO:0014950",
+    "orphacode": null,
+    "medgenId": "C4284414",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 13,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "LOX",
+    "groupKey": "MONDO:0019625",
+    "diseaseName": "Familial thoracic aortic aneurysm and aortic dissection",
+    "omimId": null,
+    "mondoId": "MONDO:0019625",
+    "orphacode": "91387",
+    "medgenId": "C4707243",
+    "omimSeries": ["PS607086"],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 2,
+    "relatedXrefs": [
+      {
+        "id": "OMIM:132900",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:607086",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:607087",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:609192",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:610168",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:611788",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:613780",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:614816",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:615436",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:615582",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616166",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:617168",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619656",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619657",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619825",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C4707243",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "LOX",
+    "groupKey": "MONDO:0024559",
+    "diseaseName": "Congenital aneurysm of ascending aorta",
+    "omimId": "607086",
+    "mondoId": "MONDO:0024559",
+    "orphacode": "229",
+    "medgenId": "C0345050",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 2,
+    "relatedXrefs": [
+      {
+        "id": "UMLS:C0345050",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "MAPK7",
+    "groupKey": "MONDO:0005148",
+    "diseaseName": "Type 2 diabetes mellitus",
+    "omimId": "125853",
+    "mondoId": "MONDO:0005148",
+    "orphacode": null,
+    "medgenId": "C0011860",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:D003924",
+        "relation": null
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "MAPK7",
+    "groupKey": "MONDO:0008419",
+    "diseaseName": "Scoliosis, isolated, susceptibility to, 1",
+    "omimId": "181800",
+    "mondoId": "MONDO:0008419",
+    "orphacode": null,
+    "medgenId": "C2700406",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 3,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "MYH11",
+    "groupKey": "MONDO:0007568",
+    "diseaseName": "Aortic aneurysm, familial thoracic 4",
+    "omimId": "132900",
+    "mondoId": "MONDO:0007568",
+    "orphacode": null,
+    "medgenId": "C1851504",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 39,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "MYH11",
+    "groupKey": "MONDO:0019625",
+    "diseaseName": "Familial thoracic aortic aneurysm and aortic dissection",
+    "omimId": null,
+    "mondoId": "MONDO:0019625",
+    "orphacode": "91387",
+    "medgenId": "C4707243",
+    "omimSeries": ["PS607086"],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 2,
+    "relatedXrefs": [
+      {
+        "id": "OMIM:132900",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:607086",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:607087",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:609192",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:610168",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:611788",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:613780",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:614816",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:615436",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:615582",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616166",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:617168",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619656",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619657",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619825",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C4707243",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "MYH11",
+    "groupKey": "MONDO:0020754",
+    "diseaseName": "Visceral myopathy 1",
+    "omimId": "155310",
+    "mondoId": "MONDO:0020754",
+    "orphacode": "2604",
+    "medgenId": "C5542197",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [
+      {
+        "id": "MONDO:0016829",
+        "relation": "E"
+      },
+      {
+        "id": "MeSH:C562574",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:619350",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C0266833",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "MYH11",
+    "groupKey": "MONDO:0025708",
+    "diseaseName": "Megacystis-microcolon-intestinal hypoperistalsis syndrome 2",
+    "omimId": "619351",
+    "mondoId": "MONDO:0025708",
+    "orphacode": null,
+    "medgenId": "C5543476",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 5,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "NOTCH1",
+    "groupKey": "MONDO:0002527",
+    "diseaseName": "Keratoacanthoma",
+    "omimId": null,
+    "mondoId": "MONDO:0002527",
+    "orphacode": null,
+    "medgenId": "C0022572",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 2,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:D007636",
+        "relation": null
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "NOTCH1",
+    "groupKey": "MONDO:0005453",
+    "diseaseName": "Congenital heart disease",
+    "omimId": null,
+    "mondoId": "MONDO:0005453",
+    "orphacode": null,
+    "medgenId": "C0152021",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "NOTCH1",
+    "groupKey": "MONDO:0007034",
+    "diseaseName": "Adams-Oliver syndrome",
+    "omimId": "100300",
+    "mondoId": "MONDO:0007034",
+    "orphacode": "974",
+    "medgenId": "C0265268",
+    "omimSeries": ["PS100300"],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:C538225",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:614219",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:614814",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:615297",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616028",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616589",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C0265268",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "NOTCH1",
+    "groupKey": "MONDO:0008542",
+    "diseaseName": "Tetralogy of Fallot",
+    "omimId": "187500",
+    "mondoId": "MONDO:0008542",
+    "orphacode": "3303",
+    "medgenId": "C0039685",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:D013771",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:617912",
+        "relation": "NTBT"
+      },
+      {
+        "id": "OMIM:618780",
+        "relation": "NTBT"
+      },
+      {
+        "id": "UMLS:C0039685",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "NOTCH1",
+    "groupKey": "MONDO:0014459",
+    "diseaseName": "Adams-Oliver syndrome 5",
+    "omimId": "616028",
+    "mondoId": "MONDO:0014459",
+    "orphacode": "974",
+    "medgenId": "C4014970",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 67,
+    "relatedXrefs": [
+      {
+        "id": "MONDO:0007034",
+        "relation": "E"
+      },
+      {
+        "id": "MeSH:C538225",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:100300",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:614219",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:614814",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:615297",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616589",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C0265268",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "NOTCH1",
+    "groupKey": "MONDO:0019625",
+    "diseaseName": "Familial thoracic aortic aneurysm and aortic dissection",
+    "omimId": null,
+    "mondoId": "MONDO:0019625",
+    "orphacode": "91387",
+    "medgenId": "C4707243",
+    "omimSeries": ["PS607086"],
+    "classification": "Pathogenic",
+    "recordCount": 8,
+    "relatedXrefs": [
+      {
+        "id": "OMIM:132900",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:607086",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:607087",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:609192",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:610168",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:611788",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:613780",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:614816",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:615436",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:615582",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616166",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:617168",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619656",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619657",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619825",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C4707243",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "NOTCH1",
+    "groupKey": "MONDO:0019719",
+    "diseaseName": "Congenital anomaly of kidney and urinary tract",
+    "omimId": null,
+    "mondoId": "MONDO:0019719",
+    "orphacode": "93545",
+    "medgenId": "C1968949",
+    "omimSeries": ["PS610805"],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:C566906",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C1968949",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "NOTCH1",
+    "groupKey": "MONDO:0024523",
+    "diseaseName": "Aortic valve disease 1",
+    "omimId": "109730",
+    "mondoId": "MONDO:0024523",
+    "orphacode": null,
+    "medgenId": "C3887892",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 8,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "NOTCH1",
+    "groupKey": "MONDO:0100291",
+    "diseaseName": "Early T cell progenitor acute lymphoblastic leukemia",
+    "omimId": null,
+    "mondoId": "MONDO:0100291",
+    "orphacode": null,
+    "medgenId": "C4329780",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "NOTCH3",
+    "groupKey": "MONDO:0000914",
+    "diseaseName": "Cerebral arteriopathy, autosomal dominant, with subcortical infarcts and leukoencephalopathy, type 1",
+    "omimId": "125310",
+    "mondoId": "MONDO:0000914",
+    "orphacode": "136",
+    "medgenId": "C4551768",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 96,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:D046589",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C0751587",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "NOTCH3",
+    "groupKey": "MONDO:0002050",
+    "diseaseName": "Depression",
+    "omimId": null,
+    "mondoId": "MONDO:0002050",
+    "orphacode": null,
+    "medgenId": "C0011581",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:D003866",
+        "relation": null
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "NOTCH3",
+    "groupKey": "MONDO:0005264",
+    "diseaseName": "Transient ischemic attack",
+    "omimId": null,
+    "mondoId": "MONDO:0005264",
+    "orphacode": null,
+    "medgenId": "C0007787",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "NOTCH3",
+    "groupKey": "MONDO:0005277",
+    "diseaseName": "Migraine",
+    "omimId": null,
+    "mondoId": "MONDO:0005277",
+    "orphacode": null,
+    "medgenId": "C0149931",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "NOTCH3",
+    "groupKey": "MONDO:0005475",
+    "diseaseName": "Migraine with aura",
+    "omimId": null,
+    "mondoId": "MONDO:0005475",
+    "orphacode": null,
+    "medgenId": "C0154723",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "NOTCH3",
+    "groupKey": "MONDO:0006693",
+    "diseaseName": "Cerebral arterial disease",
+    "omimId": null,
+    "mondoId": "MONDO:0006693",
+    "orphacode": null,
+    "medgenId": "C0007774",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "NOTCH3",
+    "groupKey": "MONDO:0007432",
+    "diseaseName": "Cerebral arteriopathy with subcortical infarcts and leukoencephalopathy",
+    "omimId": null,
+    "mondoId": "MONDO:0007432",
+    "orphacode": null,
+    "medgenId": "C0751587",
+    "omimSeries": ["PS125310"],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "NOTCH3",
+    "groupKey": "MONDO:0007537",
+    "diseaseName": "Lateral meningocele syndrome",
+    "omimId": "130720",
+    "mondoId": "MONDO:0007537",
+    "orphacode": "2789",
+    "medgenId": "C1851710",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 22,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:C537878",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C1851710",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "NOTCH3",
+    "groupKey": "MONDO:0012072",
+    "diseaseName": "Familial partial lipodystrophy, Kobberling type",
+    "omimId": "608600",
+    "mondoId": "MONDO:0012072",
+    "orphacode": "79084",
+    "medgenId": "C1720859",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 2,
+    "relatedXrefs": [
+      {
+        "id": "UMLS:C1720859",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "NOTCH3",
+    "groupKey": "MONDO:0014122",
+    "diseaseName": "Myofibromatosis, infantile, 2",
+    "omimId": "615293",
+    "mondoId": "MONDO:0014122",
+    "orphacode": "2591",
+    "medgenId": "C3809084",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 15,
+    "relatedXrefs": [
+      {
+        "id": "MONDO:0016824",
+        "relation": "E"
+      },
+      {
+        "id": "MeSH:C562978",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:228550",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C0432284",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "NOTCH3",
+    "groupKey": "MONDO:0014459",
+    "diseaseName": "Adams-Oliver syndrome 5",
+    "omimId": "616028",
+    "mondoId": "MONDO:0014459",
+    "orphacode": "974",
+    "medgenId": "C4014970",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [
+      {
+        "id": "MONDO:0007034",
+        "relation": "E"
+      },
+      {
+        "id": "MeSH:C538225",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:100300",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:614219",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:614814",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:615297",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616589",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C0265268",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "NOTCH3",
+    "groupKey": "MONDO:0979867",
+    "diseaseName": "Cerebral arteriopathy, autosomal recessive, with subcortical infarcts and leukoencephalopathy 1",
+    "omimId": "621295",
+    "mondoId": "MONDO:0979867",
+    "orphacode": null,
+    "medgenId": "C6065897",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 6,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "NOTCH3",
+    "groupKey": "MONDO:1060198",
+    "diseaseName": "Ischemic stroke",
+    "omimId": "601367",
+    "mondoId": "MONDO:1060198",
+    "orphacode": null,
+    "medgenId": "C0948008",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 2,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "PCSK9",
+    "groupKey": "MONDO:0005439",
+    "diseaseName": "Familial hypercholesterolemia",
+    "omimId": null,
+    "mondoId": "MONDO:0005439",
+    "orphacode": null,
+    "medgenId": "C0020445",
+    "omimSeries": ["PS143890"],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 4,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "PCSK9",
+    "groupKey": "MONDO:0007750",
+    "diseaseName": "Hypercholesterolemia, familial, 1",
+    "omimId": "143890",
+    "mondoId": "MONDO:0007750",
+    "orphacode": "391665",
+    "medgenId": "C0745103",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 10,
+    "relatedXrefs": [
+      {
+        "id": "MONDO:0018328",
+        "relation": "E"
+      },
+      {
+        "id": "MeSH:D000090542",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:144010",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:602247",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:603776",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:603813",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C0342881",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "PCSK9",
+    "groupKey": "MONDO:0011369",
+    "diseaseName": "Hypercholesterolemia, autosomal dominant, 3",
+    "omimId": "603776",
+    "mondoId": "MONDO:0011369",
+    "orphacode": null,
+    "medgenId": "C1863551",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 6,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "PCSK9",
+    "groupKey": "MONDO:0018328",
+    "diseaseName": "Homozygous familial hypercholesterolemia",
+    "omimId": null,
+    "mondoId": "MONDO:0018328",
+    "orphacode": "391665",
+    "medgenId": "C0342881",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 2,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:D000090542",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:143890",
+        "relation": "NTBT"
+      },
+      {
+        "id": "OMIM:144010",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:602247",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:603776",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:603813",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C0342881",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "SLC12A2",
+    "groupKey": "MONDO:0020678",
+    "diseaseName": "Sensorineural hearing loss disorder",
+    "omimId": null,
+    "mondoId": "MONDO:0020678",
+    "orphacode": null,
+    "medgenId": "C0018784",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:D006319",
+        "relation": null
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "SLC12A2",
+    "groupKey": "MONDO:0033664",
+    "diseaseName": "Kilquist syndrome",
+    "omimId": "619080",
+    "mondoId": "MONDO:0033664",
+    "orphacode": "633021",
+    "medgenId": "C5436756",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 6,
+    "relatedXrefs": [
+      {
+        "id": "MONDO:0859761",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C5436756",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "SLC12A2",
+    "groupKey": "MONDO:0033665",
+    "diseaseName": "Hearing loss, autosomal dominant 78",
+    "omimId": "619081",
+    "mondoId": "MONDO:0033665",
+    "orphacode": null,
+    "medgenId": "C5436768",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 4,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "SLC12A2",
+    "groupKey": "MONDO:0033667",
+    "diseaseName": "Delpire-McNeill syndrome",
+    "omimId": "619083",
+    "mondoId": "MONDO:0033667",
+    "orphacode": "633024",
+    "medgenId": "C5436771",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 4,
+    "relatedXrefs": [
+      {
+        "id": "MONDO:0859762",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C5436771",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "SLC13A3",
+    "groupKey": "MONDO:0032716",
+    "diseaseName": "Leukoencephalopathy, acute reversible, with increased urinary alpha-ketoglutarate",
+    "omimId": "618384",
+    "mondoId": "MONDO:0032716",
+    "orphacode": "615964",
+    "medgenId": "C5193068",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 2,
+    "relatedXrefs": [
+      {
+        "id": "UMLS:C5193068",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "TIMP3",
+    "groupKey": "MONDO:0005283",
+    "diseaseName": "Retinal disorder",
+    "omimId": null,
+    "mondoId": "MONDO:0005283",
+    "orphacode": null,
+    "medgenId": "C0035309",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "TIMP3",
+    "groupKey": "MONDO:0007640",
+    "diseaseName": "Sorsby fundus dystrophy",
+    "omimId": "136900",
+    "mondoId": "MONDO:0007640",
+    "orphacode": "59181",
+    "medgenId": "C1850938",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:C564992",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C1850938",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "TIMP3",
+    "groupKey": "MONDO:0019118",
+    "diseaseName": "Retinal dystrophy",
+    "omimId": null,
+    "mondoId": "MONDO:0019118",
+    "orphacode": "71862",
+    "medgenId": "C0854723",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 4,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:D058499",
+        "relation": null
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "TLR1",
+    "groupKey": "MONDO:0008383",
+    "diseaseName": "Rheumatoid arthritis",
+    "omimId": "180300",
+    "mondoId": "MONDO:0008383",
+    "orphacode": null,
+    "medgenId": "C0003873",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 2,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "TREX1",
+    "groupKey": "MONDO:0007915",
+    "diseaseName": "Systemic lupus erythematosus",
+    "omimId": "152700",
+    "mondoId": "MONDO:0007915",
+    "orphacode": "536",
+    "medgenId": "C0024141",
+    "omimSeries": ["PS601744"],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 9,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:D008180",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:301080",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:614420",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C0024141",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "TREX1",
+    "groupKey": "MONDO:0008641",
+    "diseaseName": "Retinal vasculopathy with cerebral leukoencephalopathy and systemic manifestations",
+    "omimId": "192315",
+    "mondoId": "MONDO:0008641",
+    "orphacode": "247691",
+    "medgenId": "C1860518",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 57,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:C566007",
+        "relation": "E"
+      },
+      {
+        "id": "Orphanet:3421",
+        "relation": null
+      },
+      {
+        "id": "Orphanet:63261",
+        "relation": null
+      },
+      {
+        "id": "Orphanet:71291",
+        "relation": null
+      },
+      {
+        "id": "UMLS:C1860518",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "TREX1",
+    "groupKey": "MONDO:0009165",
+    "diseaseName": "Aicardi-Goutieres syndrome 1",
+    "omimId": "225750",
+    "mondoId": "MONDO:0009165",
+    "orphacode": "51",
+    "medgenId": "C0796126",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 64,
+    "relatedXrefs": [
+      {
+        "id": "MONDO:0018866",
+        "relation": "E"
+      },
+      {
+        "id": "MeSH:C535607",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:610181",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:610329",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:610333",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:612952",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:615010",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:615846",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619486",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619487",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C0393591",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "TREX1",
+    "groupKey": "MONDO:0012500",
+    "diseaseName": "Chilblain lupus 1",
+    "omimId": "610448",
+    "mondoId": "MONDO:0012500",
+    "orphacode": null,
+    "medgenId": "C0024145",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 52,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "TREX1",
+    "groupKey": "MONDO:0018866",
+    "diseaseName": "Aicardi Goutieres syndrome",
+    "omimId": null,
+    "mondoId": "MONDO:0018866",
+    "orphacode": "51",
+    "medgenId": "C0393591",
+    "omimSeries": ["PS225750"],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:C535607",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:225750",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:610181",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:610329",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:610333",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:612952",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:615010",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:615846",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619486",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619487",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C0393591",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "UMPS",
+    "groupKey": "MONDO:0004994",
+    "diseaseName": "Cardiomyopathy",
+    "omimId": null,
+    "mondoId": "MONDO:0004994",
+    "orphacode": "167848",
+    "medgenId": "C0878544",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:D009202",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C5680467",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "UMPS",
+    "groupKey": "Orphanet:30",
+    "diseaseName": "Oroticaciduria",
+    "omimId": "258900",
+    "mondoId": "MONDO:0009797",
+    "orphacode": "30",
+    "medgenId": "C0268128",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 3,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:C537136",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C0220987",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "VCAN",
+    "groupKey": "MONDO:0007740",
+    "diseaseName": "Wagner disease",
+    "omimId": "143200",
+    "mondoId": "MONDO:0007740",
+    "orphacode": "898",
+    "medgenId": "C1840452",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 6,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:C536075",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C1840452",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "VCAN",
+    "groupKey": "MONDO:0019118",
+    "diseaseName": "Retinal dystrophy",
+    "omimId": null,
+    "mondoId": "MONDO:0019118",
+    "orphacode": "71862",
+    "medgenId": "C0854723",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:D058499",
+        "relation": null
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "VCAN",
+    "groupKey": "MONDO:0019354",
+    "diseaseName": "Stickler syndrome",
+    "omimId": null,
+    "mondoId": "MONDO:0019354",
+    "orphacode": "828",
+    "medgenId": "C0265253",
+    "omimSeries": ["PS108300"],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [
+      {
+        "id": "OMIM:108300",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:604841",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:609508",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:614134",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:614284",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C0265253",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "WNT7A",
+    "groupKey": "MONDO:0004946",
+    "diseaseName": "Hypoglycemia",
+    "omimId": null,
+    "mondoId": "MONDO:0004946",
+    "orphacode": null,
+    "medgenId": "C0020615",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "WNT7A",
+    "groupKey": "MONDO:0005030",
+    "diseaseName": "Fetal growth restriction",
+    "omimId": null,
+    "mondoId": "MONDO:0005030",
+    "orphacode": null,
+    "medgenId": "C0015934",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "WNT7A",
+    "groupKey": "MONDO:0006040",
+    "diseaseName": "Lactic acidosis",
+    "omimId": null,
+    "mondoId": "MONDO:0006040",
+    "orphacode": null,
+    "medgenId": "C0001125",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "WNT7A",
+    "groupKey": "MONDO:0009232",
+    "diseaseName": "Fuhrmann syndrome",
+    "omimId": "228930",
+    "mondoId": "MONDO:0009232",
+    "orphacode": "2854",
+    "medgenId": "C1856728",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:C538189",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C1856728",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "WNT7A",
+    "groupKey": "MONDO:0010164",
+    "diseaseName": "Schinzel phocomelia syndrome",
+    "omimId": "276820",
+    "mondoId": "MONDO:0010164",
+    "orphacode": "2879",
+    "medgenId": "C1848651",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 6,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:C535612",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C1848651",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "WNT7A",
+    "groupKey": "MONDO:0013077",
+    "diseaseName": "Santos syndrome",
+    "omimId": "613005",
+    "mondoId": "MONDO:0013077",
+    "orphacode": null,
+    "medgenId": "C2751698",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  }
+]
