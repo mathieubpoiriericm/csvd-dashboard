@@ -18,6 +18,7 @@ import {
 import { useCheckboxFilters } from "../components/useCheckboxFilters.ts";
 import { useEscapeKey } from "../components/useEscapeKey.ts";
 import { DEFAULT_TRIAL_STATUSES, STATUS_CHOICES } from "../lib/constants.ts";
+import { POPULATION_FIELD } from "../lib/disease/populations.ts";
 import { trials } from "../lib/data/trials.ts";
 import { defaultTrialFilters, filterTrials } from "../lib/filters.ts";
 import { resolveTrialStatus } from "../lib/trials.ts";
@@ -140,7 +141,7 @@ const DRUG_FIELDS: readonly TrialField[] = [
   // glance, and a status is not what identifies a trial at one.
   { key: "overallStatus", label: "Study Status" },
   { key: "clinicalTrialPhase", label: "Clinical Trial Phase" },
-  { key: "svdPopulationDetails", label: "SVD Population Details" },
+  { key: "svdPopulationDetails", label: POPULATION_FIELD.detailsLabel },
   { key: "targetSampleSize", label: "Target Sample Size", icon: "userGroup" },
   {
     key: "estimatedCompletionDate",

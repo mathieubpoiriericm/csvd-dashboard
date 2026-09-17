@@ -25,6 +25,7 @@ import {
   STATUS_CHOICES,
   YES_NO_CHOICES,
 } from "../lib/constants.ts";
+import { POPULATION_FIELD } from "../lib/disease/populations.ts";
 import { countBy, uniqueCount } from "../lib/collections.ts";
 import { trials } from "../lib/data/trials.ts";
 import { filterTrials, normalize } from "../lib/filters.ts";
@@ -157,12 +158,12 @@ const COLUMNS = column.columns([
     cell: plainCell,
   }),
   column.accessor("svdPopulation", {
-    header: "SVD Population",
+    header: POPULATION_FIELD.label,
     spanRows: spanWithinDrug,
     cell: plainCell,
   }),
   column.accessor("svdPopulationDetails", {
-    header: "SVD Population Details",
+    header: POPULATION_FIELD.detailsLabel,
     cell: plainCell,
   }),
   column.accessor("targetSampleSize", {
@@ -219,7 +220,7 @@ const FILTERS = {
     choices: PHASE_CHOICES,
   },
   populations: {
-    label: "SVD Population",
+    label: POPULATION_FIELD.label,
     choices: POPULATION_CHOICES,
   },
   sponsors: {

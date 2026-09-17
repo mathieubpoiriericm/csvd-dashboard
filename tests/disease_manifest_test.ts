@@ -2,8 +2,16 @@ import { assert, assertEquals, assertThrows } from "@std/assert";
 
 import manifestJson from "../disease/manifest.json" with { type: "json" };
 import diseaseTimeline from "../disease/timeline.json" with { type: "json" };
-import { manifest, normalizeManifest } from "../lib/disease.ts";
+import {
+  CELL_TYPE_NAMES,
+  CELL_TYPES_LABEL,
+  manifest,
+  normalizeManifest,
+} from "../lib/disease.ts";
 import { POPULATION_CHOICES, SHOW_ALL } from "../lib/constants.ts";
+import { genes } from "../lib/data/genes.ts";
+import { splitCellTypes } from "../lib/tooltips.ts";
+import { ABSENT_SENTINELS } from "../lib/sentinels.ts";
 
 Deno.test("the manifest normalizes to the committed values", () => {
   assertEquals(manifest.schemaVersion, 1);
@@ -68,4 +76,19 @@ Deno.test("POPULATION_CHOICES is Show All followed by the manifest's populations
     "Show All",
     ...manifest.populations.map((p) => p.label),
   ]);
+});
+
+Deno.test("the cell-type glossary is the manifest's and covers the committed rows", () => {
+  assertEquals(CELL_TYPE_NAMES, manifest.cellTypes.glossary);
+  assertEquals(CELL_TYPES_LABEL, "Brain Cell Types");
+  const used = new Set(
+    genes.flatMap((g) => splitCellTypes(g.brainCellTypes).parts),
+  );
+  const missing = [...used].filter(
+    (abbr) =>
+      !ABSENT_SENTINELS.has(abbr) &&
+      /^[A-Z]+$/.test(abbr) &&
+      !(abbr in CELL_TYPE_NAMES),
+  );
+  assertEquals(missing, []);
 });

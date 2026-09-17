@@ -214,21 +214,12 @@ export const DEFAULT_TRIAL_STATUSES: readonly string[] = STATUS_CHOICES
 export const NCBI_GENE_BASE_URL = "https://www.ncbi.nlm.nih.gov/gene/";
 export const PUBMED_BASE_URL = "https://pubmed.ncbi.nlm.nih.gov/";
 
+// Re-exported from the disease manifest:
+export { CELL_TYPE_NAMES } from "./disease/cell_types.ts";
+
 // -----------------------------------------------------------------------------
 // ABBREVIATION EXPANSIONS
 // -----------------------------------------------------------------------------
-
-/** Brain cell type abbreviations shown in the "Brain Cell Types" column. */
-export const CELL_TYPE_NAMES: Record<string, string> = {
-  EC: "Endothelial Cells",
-  SMC: "Smooth Muscle Cells",
-  VSMC: "Vascular Smooth Muscle Cells",
-  AC: "Astrocytes",
-  MG: "Microglia",
-  OL: "Oligodendrocytes",
-  PC: "Pericytes",
-  FB: "Fibroblasts",
-};
 
 /** Omics study-type abbreviations. */
 export const OMICS_FULL_NAMES: Record<string, string> = {
