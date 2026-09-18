@@ -231,3 +231,131 @@ Deno.test("definitionLabel names the standard when one is given", () => {
     "STRIVE-2 definition",
   );
 });
+
+/**
+ * A structural check of each disease document against its committed JSON
+ * Schema.
+ *
+ * No validator is in the import map and neither document is worth adding
+ * one for, so this walks the schema beside the value and reports only the
+ * keywords these two schemas actually use. It is a test helper, not a
+ * library: a keyword it does not handle is silently satisfied, which is
+ * fine here and would not be in a validator.
+ */
+type Schema = Record<string, unknown>;
+
+function schemaErrors(
+  node: Schema,
+  value: unknown,
+  root: Schema,
+  path: string,
+): string[] {
+  const ref = node.$ref as string | undefined;
+  if (ref) {
+    const defs = root.$defs as Record<string, Schema>;
+    return schemaErrors(defs[ref.replace("#/$defs/", "")], value, root, path);
+  }
+  if (Array.isArray(node.oneOf)) {
+    const branches = (node.oneOf as Schema[]).map((branch) =>
+      schemaErrors(branch, value, root, path)
+    );
+    return branches.some((errors) => errors.length === 0)
+      ? []
+      : [`${path}: matches no oneOf branch`];
+  }
+  const errors: string[] = [];
+  const types = node.type === undefined
+    ? []
+    : Array.isArray(node.type)
+    ? node.type as string[]
+    : [node.type as string];
+  const actual = value === null
+    ? "null"
+    : Array.isArray(value)
+    ? "array"
+    : Number.isInteger(value)
+    ? "integer"
+    : typeof value;
+  if (types.length > 0 && !types.includes(actual)) {
+    return [`${path}: expected ${types.join("|")}, got ${actual}`];
+  }
+  if ("const" in node && value !== node.const) {
+    errors.push(`${path}: must be ${JSON.stringify(node.const)}`);
+  }
+  if (typeof value === "string") {
+    const pattern = node.pattern as string | undefined;
+    if (pattern && !new RegExp(pattern).test(value)) {
+      errors.push(`${path}: does not match ${pattern}`);
+    }
+    const minLength = node.minLength as number | undefined;
+    if (minLength !== undefined && value.length < minLength) {
+      errors.push(`${path}: shorter than ${minLength}`);
+    }
+  }
+  if (Array.isArray(value)) {
+    const minItems = node.minItems as number | undefined;
+    if (minItems !== undefined && value.length < minItems) {
+      errors.push(`${path}: fewer than ${minItems} items`);
+    }
+    const items = node.items as Schema | undefined;
+    if (items) {
+      value.forEach((entry, index) =>
+        errors.push(...schemaErrors(items, entry, root, `${path}[${index}]`))
+      );
+    }
+  }
+  if (actual === "object") {
+    const record = value as Record<string, unknown>;
+    const properties = (node.properties ?? {}) as Record<string, Schema>;
+    const extra = node.additionalProperties;
+    for (const key of (node.required ?? []) as string[]) {
+      if (!(key in record)) errors.push(`${path}.${key}: required, missing`);
+    }
+    for (const [key, entry] of Object.entries(record)) {
+      const child = properties[key] ??
+        (typeof extra === "object" ? extra as Schema : null);
+      if (child) {
+        errors.push(...schemaErrors(child, entry, root, `${path}.${key}`));
+      } else if (extra === false) {
+        errors.push(`${path}.${key}: not allowed`);
+      }
+    }
+  }
+  return errors;
+}
+
+/**
+ * `disease/pipeline.json` is read rather than imported: an `import … with
+ * { type: "json" }` inlines a file into whatever pulls it in, and the
+ * pipeline document is the half of the seam that holds gene symbols.
+ */
+async function readDiseaseJson(name: string): Promise<Schema> {
+  return JSON.parse(
+    await Deno.readTextFile(new URL(`../disease/${name}`, import.meta.url)),
+  );
+}
+
+const SCHEMA_PAIRS: readonly (readonly [string, string])[] = [
+  ["manifest.json", "manifest.schema.json"],
+  ["pipeline.json", "pipeline.schema.json"],
+];
+
+Deno.test("both disease documents validate against their schemas", async () => {
+  for (const [document, schema] of SCHEMA_PAIRS) {
+    const root = await readDiseaseJson(schema);
+    assertEquals(
+      schemaErrors(root, await readDiseaseJson(document), root, document),
+      [],
+    );
+  }
+});
+
+Deno.test("an unknown key at the root of either document is reported", async () => {
+  for (const [document, schema] of SCHEMA_PAIRS) {
+    const root = await readDiseaseJson(schema);
+    const value = { ...await readDiseaseJson(document), strayKey: "x" };
+    assertEquals(schemaErrors(root, value, root, document), [
+      `${document}.strayKey: not allowed`,
+    ]);
+  }
+});

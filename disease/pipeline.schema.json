@@ -12,6 +12,7 @@
   "additionalProperties": false,
   "properties": {
     "schemaVersion": { "const": 1 },
+    "$comment": { "type": "string" },
     "search": {
       "type": "object",
       "required": ["pubmed", "clinicalTrials"],

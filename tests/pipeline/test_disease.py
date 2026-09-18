@@ -7,6 +7,11 @@ from pathlib import Path
 
 import pytest
 
+# jsonschema ships no py.typed marker, so `ty` cannot resolve its types;
+# `unresolved-import` is a warning in pyproject.toml and this import is
+# test-only, which is why the dependency sits in the `dev` group.
+from jsonschema import Draft202012Validator
+
 from pipeline import disease as disease_module
 from pipeline.disease import (
     DISEASE_DIR,
@@ -31,6 +36,27 @@ def test_the_pipeline_document_lives_beside_the_manifest() -> None:
     assert PIPELINE_PATH.is_file()
     for key in ("search", "monogenicGenes", "geneAliases", "pipeline"):
         assert key not in _MANIFEST_RAW
+
+
+def test_both_documents_validate_against_their_schemas() -> None:
+    """Each document keeps the contract its own schema states.
+
+    `additionalProperties: false` at the root of both is what keeps a gene
+    symbol from being dropped into the web-facing manifest by hand, so the
+    negative case is the point of the test as much as the positive one.
+    """
+    for document, schema_name in (
+        (_MANIFEST_RAW, "manifest.schema.json"),
+        (_PIPELINE_RAW, "pipeline.schema.json"),
+    ):
+        schema = json.loads((DISEASE_DIR / schema_name).read_text(encoding="utf-8"))
+        validator = Draft202012Validator(schema)
+        assert list(validator.iter_errors(document)) == [], schema_name
+
+        stray = copy.deepcopy(document)
+        stray["strayKey"] = "x"
+        messages = [error.message for error in validator.iter_errors(stray)]
+        assert any("strayKey" in message for message in messages), schema_name
 
 
 def test_load_disease_is_cached() -> None:

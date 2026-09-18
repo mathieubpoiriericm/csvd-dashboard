@@ -163,17 +163,23 @@ hosting, populations, populationField, cell-type glossary, citation standard);
 `pipeline.json` holds the pipeline-only keys (search terms, monogenic genes,
 gene aliases, run label, gene cap) and is read only by `pipeline/disease.py`.
 Both have a JSON Schema beside them (`manifest.schema.json`,
-`pipeline.schema.json`). Also in `disease/`: `vocabulary.json`, `prompt.md` (the
-disease half of the extraction prompt; the methodology is the v7 template in
-`pipeline/prompts.py`), `phenogram.json` (families), `timeline.json`
-(populations, mechanisms, families) and `omim_info.csv`. `prompt.md` is excluded
-from `deno fmt` in `deno.json` because `deno fmt` rewraps Markdown prose and
-every inserted newline would reach the model;
-`tests/pipeline/test_prompt_assembly.py` pins the cSVD rendering byte-identical
-to the v6 literals. TypeScript reads the manifest through the narrow modules
-under `lib/disease/` — `site.ts`, `populations.ts`, `cell_types.ts`,
-`citation.ts` — and Python through `pipeline/disease.py`, which is stdlib-only
-so `config.py` and `extraction_models.py` can both import it.
+`pipeline.schema.json`). `lib/disease/manifest.ts` imports the raw JSON, so
+**every key of `disease/manifest.json` — not only the ones a page renders —
+ships inside a public client chunk that is served before login**, which is why
+gene symbols live in `disease/pipeline.json` and why each schema's
+`additionalProperties: false` is enforced by a test on both sides of the seam
+(`tests/pipeline/test_disease.py`'s `Draft202012Validator` pass,
+`tests/disease_manifest_test.ts`'s structural checker). Also in `disease/`:
+`vocabulary.json`, `prompt.md` (the disease half of the extraction prompt; the
+methodology is the v7 template in `pipeline/prompts.py`), `phenogram.json`
+(families), `timeline.json` (populations, mechanisms, families) and
+`omim_info.csv`. `prompt.md` is excluded from `deno fmt` in `deno.json` because
+`deno fmt` rewraps Markdown prose and every inserted newline would reach the
+model; `tests/pipeline/test_prompt_assembly.py` pins the cSVD rendering
+byte-identical to the v6 literals. TypeScript reads the manifest through the
+narrow modules under `lib/disease/` — `site.ts`, `populations.ts`,
+`cell_types.ts`, `citation.ts` — and Python through `pipeline/disease.py`, which
+is stdlib-only so `config.py` and `extraction_models.py` can both import it.
 `tests/no_disease_literals_test.ts` and
 `tests/pipeline/test_no_disease_literals.py` scan the code for the manifest's
 own terms and fail on any hit outside a reasoned allow-list. Every measurement

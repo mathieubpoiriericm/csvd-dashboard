@@ -18,6 +18,7 @@
   "additionalProperties": false,
   "properties": {
     "schemaVersion": { "const": 1 },
+    "$comment": { "type": "string" },
     "disease": {
       "type": "object",
       "required": ["key", "name", "short", "abbreviation", "adjective"],
