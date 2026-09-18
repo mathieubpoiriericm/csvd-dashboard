@@ -21,7 +21,9 @@
         "pubmed": {
           "type": "object",
           "required": ["diseaseTerms", "markerTerms", "meshTerms"],
+          "additionalProperties": false,
           "properties": {
+            "$comment": { "type": "string" },
             "diseaseTerms": { "$ref": "#/$defs/terms" },
             "markerTerms": { "$ref": "#/$defs/terms" },
             "meshTerms": { "$ref": "#/$defs/terms" }

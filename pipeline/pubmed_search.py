@@ -64,9 +64,9 @@ _DISEASE = load_disease()
 
 # The disease's anchor phrases, markers and MeSH headings come from
 # disease/pipeline.json; the genetics vocabulary below is the method's and
-# stays in code. The comments that used to sit here about which MeSH
-# headings were tried and dropped now live beside the terms in the manifest's
-# git history and in disease/README.md.
+# stays in code. Which MeSH headings were tried and dropped, and what that
+# measured, is a `$comment` on `search.pubmed` in that file -- beside the
+# terms it is about rather than a file away from them.
 DISEASE_TERMS: Final[tuple[str, ...]] = _DISEASE.pubmed_disease_terms
 MARKER_TERMS: Final[tuple[str, ...]] = _DISEASE.pubmed_marker_terms
 MESH_TERMS: Final[tuple[str, ...]] = _DISEASE.pubmed_mesh_terms
