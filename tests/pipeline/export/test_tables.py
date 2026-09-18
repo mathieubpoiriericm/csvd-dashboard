@@ -23,8 +23,8 @@ _TRIAL = {
     "trial_name": "Isosorbide Mononitrate and Butylphthalide",
     "registry_id": "ChiCTR2500109773",
     "clinical_trial_phase": "III",
-    "svd_population": "CAA",
-    "svd_population_details": "CAA-related ICH",
+    "target_population": "CAA",
+    "target_population_details": "CAA-related ICH",
     "target_sample_size": 3156,
     "estimated_completion_date": "7/2028",
     "primary_outcome": "Post-stroke disability at 6 months",
@@ -100,7 +100,7 @@ def _filter_choice_values() -> set[str]:
     """The omics values lib/constants.ts offers, normalized as the filter is.
 
     Read from the TypeScript rather than restated, the way
-    tests/pipeline/test_prompt_vocabulary.py reads lib/vocabulary.json: a
+    tests/pipeline/test_prompt_vocabulary.py reads disease/vocabulary.json: a
     choice added there has to reach the export, or the export publishes a
     value the UI cannot select.
     """

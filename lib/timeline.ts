@@ -4,16 +4,18 @@
  * the server, in the island, and under `deno test`.
  *
  * `scripts/timeline_figure.py` implements this rule a second time for print.
- * Both read `timeline_encoding.json`, which is the only place colours, ring
- * radii and population order live — keep the *rule* here in step with the
- * Python twin (same names, same constants) if either changes.
+ * Both read `lib/timeline_encoding.json` for the rings and chrome and
+ * `disease/timeline.json` for populations, mechanisms and families — keep the
+ * *rule* here in step with the Python twin (same names, same constants) if
+ * either changes.
  *
  * Angles are degrees clockwise from 12 o'clock. Cartesian conversion uses
  * `x = cx + r·sin θ`, `y = cy − r·cos θ`, so θ = 0 is straight up on an SVG
  * canvas whose y axis points down. pyCirclize shares this convention.
  */
 
-import encodingJson from "./timeline_encoding.json" with { type: "json" };
+import appearanceJson from "./timeline_encoding.json" with { type: "json" };
+import diseaseJson from "../disease/timeline.json" with { type: "json" };
 import { groupBy, uniqueCount } from "./collections.ts";
 import type { Trial } from "./types.ts";
 import { NONE, UNKNOWN } from "./sentinels.ts";
@@ -98,7 +100,7 @@ export interface TimelineEncoding {
   families: FamilyEncoding[];
 }
 
-export const encoding: TimelineEncoding = encodingJson;
+export const encoding: TimelineEncoding = { ...appearanceJson, ...diseaseJson };
 
 /**
  * SVG user units. The plate is 1.3x the radius of the retired static figure
@@ -397,7 +399,7 @@ export function computeTimelineLayout(
   rows: readonly Trial[],
   enc: TimelineEncoding = encoding,
 ): TimelineLayout {
-  const rowsByPopulation = groupBy(rows, (row) => row.svdPopulation);
+  const rowsByPopulation = groupBy(rows, (row) => row.targetPopulation);
 
   const counts = enc.populations.map((p) =>
     uniqueDrugCount(rowsByPopulation.get(p.key) ?? [])
@@ -786,8 +788,8 @@ class ObstacleGrid {
  * Where each label box has to go to come clear of its neighbours, one shift
  * per `movable` box. The stagger keeps markers that share a cell apart, but
  * labels from neighbouring cells still meet — two Isosorbide trials in Stroke
- * III, THN391 against Tranexamic acid at the SVD rim — so renderers measure
- * their boxes and run this over them.
+ * III, THN391 against Tranexamic acid at another sector's outer rim — so
+ * renderers measure their boxes and run this over them.
  *
  * Two passes, and the second is why a shift has a `dx`. The first relaxes
  * the boxes vertically: two movable boxes split the overlap between them, the

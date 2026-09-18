@@ -225,7 +225,7 @@ def _joined_text(parent: Any, path: str) -> str:
     element, and PubMed marks gene symbols up as ``<i>`` inside titles, so
     a title was cut off at the gene it was about (the committed refs.json
     carried "Extension of the Clinicoradiologic Spectrum of Newly Described
-    End-Truncating" with the NOTCH3 that followed missing).
+    End-Truncating" with the gene name that followed missing).
     """
     element = parent.find(path)
     return "".join(element.itertext()) if element is not None else ""

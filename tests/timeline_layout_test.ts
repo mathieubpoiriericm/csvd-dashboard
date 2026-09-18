@@ -230,7 +230,7 @@ Deno.test("a rim band frames each populated sector just outside the rings", () =
   }
 
   // Nothing to frame around a population without trials.
-  const stroke = trials.filter((t) => t.svdPopulation === "Stroke");
+  const stroke = trials.filter((t) => t.targetPopulation === "Stroke");
   const partial = computeTimelineLayout(stroke) as WithBands;
   assertEquals(partial.rimBands?.map((b) => b.population), ["Stroke"]);
 });
@@ -421,7 +421,7 @@ Deno.test("record-flag rules fire on the exact values and nothing near them", ()
 });
 
 Deno.test("a population with no trials still gets its sector and grey cells", () => {
-  const stroke = trials.filter((t) => t.svdPopulation === "Stroke");
+  const stroke = trials.filter((t) => t.targetPopulation === "Stroke");
   const partial = computeTimelineLayout(stroke);
   assertEquals(partial.sectors.length, 4);
   assertEquals(partial.sectors.filter((s) => s.drugCount === 0).length, 3);

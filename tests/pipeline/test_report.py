@@ -10,6 +10,7 @@ import pytest
 from pipeline.anthropic_client import AnthropicClient
 from pipeline.config import PipelineConfig
 from pipeline.llm_extraction import GeneEntry
+from pipeline.prompts import prompt_sha256
 from pipeline.quality_metrics import PipelineMetrics, TokenUsage
 from pipeline.report import (
     PipelineRunData,
@@ -86,6 +87,12 @@ class TestAnthropicClientReportMetadata:
         assert fields["model"] == "claude-opus-5"
         assert fields["thinking_mode"] != "none"
         assert fields["effort"] is not None
+
+    def test_report_metadata_carries_disease_and_prompt_hash(self):
+        config = PipelineConfig()
+        fields = AnthropicClient().report_metadata(config)
+        assert fields["disease"] == "csvd"
+        assert fields["prompt_sha256"] == prompt_sha256(config.prompt_version)
 
 
 # ---------------------------------------------------------------------------

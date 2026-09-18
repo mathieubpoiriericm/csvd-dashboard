@@ -20,6 +20,7 @@ import {
   OMICS_CHOICES,
   YES_NO_CHOICES,
 } from "../lib/constants.ts";
+import { CELL_TYPES_LABEL } from "../lib/disease/cell_types.ts";
 import { countBy } from "../lib/collections.ts";
 import { shortCitation, toCitation } from "../lib/citations.ts";
 import { referenceByPmid } from "../lib/data/references.ts";
@@ -288,7 +289,7 @@ const COLUMNS = column.columns([
     ),
   }),
   column.accessor("brainCellTypes", {
-    header: "Brain Cell Types",
+    header: CELL_TYPES_LABEL,
     cell: ({ row }) => (
       <BrainCellTypesCell value={row.original.brainCellTypes} />
     ),

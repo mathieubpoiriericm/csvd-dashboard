@@ -6,7 +6,7 @@
       "label": "BG-PVS",
       "family": "pvs",
       "name": "Basal ganglia perivascular spaces",
-      "strive": true,
+      "standard": true,
       "definition": "Fluid-filled space, which follows the typical course of a vessel penetrating the brain through grey or white matter; has signal intensity similar to CSF on all sequences; has a round, ovoid, or linear shape (depending on the slice direction) with a diameter commonly not exceeding 2 mm when imaged perpendicular to the course of the vessel.",
       "xref": null,
       "xrefNote": "EFO:0803382 'perivascular space measurement' is the generic parent; no basal-ganglia-specific term exists"
@@ -72,7 +72,7 @@
       "label": "WMH",
       "family": "wmh",
       "name": "White matter hyperintensities (of presumed vascular origin)",
-      "strive": true,
+      "standard": true,
       "definition": "Signal abnormality of variable size in the white matter that is hyperintense on T2-weighted images, such as fluid-attenuated inversion recovery (FLAIR), without cavitation (signal different from CSF). Lesions in the subcortical grey matter or brainstem are not included in this category unless explicitly stated. Where deep grey matter and brainstem hyperintensities are included as well, the collective name should be subcortical hyperintensities.",
       "xref": "EFO:0005665",
       "xrefLabel": "white matter hyperintensity measurement"
@@ -122,7 +122,7 @@
       "label": "CMB",
       "family": "cmb",
       "name": "Cerebral microbleeds",
-      "strive": true,
+      "standard": true,
       "definition": "Small (usually 2–5 mm or sometimes 10 mm in size) areas of signal void with associated blooming artifact on T2* or other MRI sequences sensitive to susceptibility effects.",
       "xref": "EFO:0010059",
       "xrefLabel": "cerebral microbleeds"
@@ -132,7 +132,7 @@
       "label": "Lacunes",
       "family": "lacunes",
       "name": "Lacunes (of presumed vascular origin)",
-      "strive": true,
+      "standard": true,
       "definition": "Round or ovoid, subcortical, fluid filled (similar signal to CSF) cavity up to 15 mm in diameter that is likely to be end tissue damage from a recent small subcortical infarct, small subcortical haemorrhage, incidental diffusion-weighted imaging-positive lesion, or end-stage cavitation in a white matter hyperintensity.",
       "xref": null,
       "xrefNote": "no exact term: HP:0032570 is 'Pontine ischemic lacunes' (anatomically narrower) and HP:0007858 is 'Chorioretinal lacunae' (a retinal finding, not cerebral)"

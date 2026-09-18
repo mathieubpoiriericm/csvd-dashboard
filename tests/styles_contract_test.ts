@@ -858,7 +858,6 @@ Deno.test("every declared --svd- token is used", () => {
   // are read through getComputedStyle rather than var() in the stylesheet.
   referenced.add("--svd-map-marker-stroke");
   referenced.add("--svd-map-marker-fill");
-  referenced.add("--svd-icm-mark");
 
   const unused = [...declared].filter((token) => !referenced.has(token)).sort();
   assertEquals(unused, [], `unused tokens declared: ${unused}`);

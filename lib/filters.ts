@@ -239,7 +239,7 @@ export function filterTrials(
     }
 
     if (
-      wantedPopulations && !matches(trial.svdPopulation, wantedPopulations)
+      wantedPopulations && !matches(trial.targetPopulation, wantedPopulations)
     ) {
       return false;
     }

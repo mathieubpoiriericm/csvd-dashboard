@@ -1,4 +1,4 @@
-"""PubMed search module for cSVD/SVD genetic research papers.
+"""PubMed search module for the disease's genetic research papers.
 
 Uses NCBI Entrez API to search PubMed for recent publications.
 Requires ENTREZ_EMAIL environment variable (NCBI policy).
@@ -17,6 +17,7 @@ from typing import Any, Final, Protocol, TypedDict, cast
 from Bio import Entrez
 
 from pipeline.api_telemetry import record_service_call
+from pipeline.disease import load_disease
 
 logger = logging.getLogger(__name__)
 
@@ -59,32 +60,16 @@ MIN_DAYS_BACK: Final[int] = 1
 MAX_DAYS_BACK: Final[int] = 365 * 10  # 10 years
 DEFAULT_RETMAX: Final[int] = 500
 
-# Primary disease terms for cSVD/SVD - canonical names used in literature
-DISEASE_TERMS: Final[tuple[str, ...]] = ("cerebral small vessel disease",)
+_DISEASE = load_disease()
 
-# cSVD imaging markers and clinical phenotypes
-MARKER_TERMS: Final[tuple[str, ...]] = (
-    "stroke",
-    "dementia",
-    "lacunes",
-    "lacunar stroke",
-    "white matter hyperintensities",
-    "perivascular spaces",
-    "cerebral microbleeds",
-)
-
-# Indexed headings that reach papers never writing "cerebral small vessel
-# disease" out in the title or abstract. Both Title/Abstract branches AND on
-# that phrase, so nothing else in this module can retrieve such a paper --
-# measured at 10 of the 28 the dashboard cites.
-#
-# Two terms rather than the five that were tried. "Leukoaraiosis", "CADASIL"
-# and "Stroke, Lacunar" are each fully subsumed by these: adding them changes
-# recall not at all and widens the all-time result set by 23 papers.
-MESH_TERMS: Final[tuple[str, ...]] = (
-    "Cerebral Small Vessel Diseases",
-    "White Matter",
-)
+# The disease's anchor phrases, markers and MeSH headings come from
+# disease/pipeline.json; the genetics vocabulary below is the method's and
+# stays in code. Which MeSH headings were tried and dropped, and what that
+# measured, is a `$comment` on `search.pubmed` in that file -- beside the
+# terms it is about rather than a file away from them.
+DISEASE_TERMS: Final[tuple[str, ...]] = _DISEASE.pubmed_disease_terms
+MARKER_TERMS: Final[tuple[str, ...]] = _DISEASE.pubmed_marker_terms
+MESH_TERMS: Final[tuple[str, ...]] = _DISEASE.pubmed_mesh_terms
 
 # Terms to capture genetic/omics research methodologies
 GENETIC_TERMS: Final[tuple[str, ...]] = (
@@ -137,7 +122,7 @@ OnTruncated = Callable[[int, int], None]
 
 
 def _build_query() -> str:
-    """Build the PubMed query for cSVD/SVD genetic research."""
+    """Build the PubMed query for the disease's genetic research."""
     disease_clause = " OR ".join(f'"{t}"[Title/Abstract]' for t in DISEASE_TERMS)
     research_clause = " OR ".join(f'"{t}"[Title/Abstract]' for t in GENETIC_TERMS)
     main_query = f"(({disease_clause}) AND ({research_clause}))"

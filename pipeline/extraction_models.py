@@ -6,18 +6,17 @@ from typing import Annotated, Final
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, WithJsonSchema
 
+from pipeline.disease import VOCABULARY_PATH
 from pipeline.quality_metrics import TokenUsage
 
 # ---------------------------------------------------------------------------
 # VOCABULARY
 # ---------------------------------------------------------------------------
 
-# Resolved from this file rather than imported from config.PROJECT_ROOT:
-# config imports ExtractionResult from here to build the tool schema, so
-# importing config back would be a cycle.
-_VOCABULARY: Final[Path] = (
-    Path(__file__).resolve().parent.parent / "lib" / "vocabulary.json"
-)
+# Resolved through `pipeline.disease`, which is stdlib-only: config imports
+# ExtractionResult from here to build the tool schema, so importing config
+# back would be a cycle.
+_VOCABULARY: Final[Path] = VOCABULARY_PATH
 
 
 def _load_trait_vocabulary() -> tuple[tuple[str, ...], dict[str, str], frozenset[str]]:

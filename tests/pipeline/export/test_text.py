@@ -44,7 +44,7 @@ def test_normalize_yes_no_folds_both_variants() -> None:
 def test_clean_column_name_preserves_acronyms() -> None:
     assert clean_column_name("gwas_trait") == "GWAS Trait"
     assert clean_column_name("registry_id") == "Registry ID"
-    assert clean_column_name("svd_population") == "SVD Population"
+    assert clean_column_name("target_population") == "Target Population"
     assert clean_column_name("evidence_from_other_omics_studies") == (
         "Evidence from Other Omics Studies"
     )
@@ -239,8 +239,8 @@ _CLINICAL_TRIALS_COLUMNS = [
     "trial_name",
     "registry_id",
     "clinical_trial_phase",
-    "svd_population",
-    "svd_population_details",
+    "target_population",
+    "target_population_details",
     "target_sample_size",
     "estimated_completion_date",
     "primary_outcome",
@@ -281,8 +281,8 @@ def test_clean_column_name_then_to_camel_reproduces_table1_wire_keys() -> None:
 def test_clean_column_name_then_to_camel_reproduces_table2_wire_keys() -> None:
     """Same chain over the clinical_trials columns. No exceptions here, so
     this is a full-match check against data/table2.json -- including
-    registry_id -> registryId (never registryID) and svd_population ->
-    svdPopulation, the two cases the brief calls out by name, and
+    registry_id -> registryId (never registryID) and target_population ->
+    targetPopulation, the two cases the brief calls out by name, and
     overall_status -> overallStatus, migration 013's column (Task 5)."""
     produced = {
         to_camel(clean_column_name(column)) for column in _CLINICAL_TRIALS_COLUMNS
@@ -322,6 +322,31 @@ def test_clean_column_name_then_to_camel_reproduces_table2_wire_keys() -> None:
 _TSX_ACCESSOR_HEADER = re.compile(r'accessor\("(\w+)",\s*\{\s*header:\s*"([^"]+)"')
 _TSX_ID_HEADER = re.compile(r'id:\s*"(\w+)",\s*\n\s*header:\s*"([^"]+)"')
 
+# Task 6 moved three headers -- the cell-type column and the two SVD
+# Population ones -- off their string literals and onto manifest-derived
+# constants, so `header:` there is an identifier rather than a `"..."`
+# literal and the two regexes above no longer see it. This regex captures
+# that identifier (dotted, for `POPULATION_FIELD.label`); _MANIFEST_HEADERS
+# below is where it gets resolved back to the string this test still checks
+# against the tsx file's own accessor key. An identifier missing from that
+# table raises rather than silently reporting no header at all, so a future
+# manifest-sourced column has to be added here on purpose.
+_TSX_ACCESSOR_HEADER_IDENTIFIER = re.compile(
+    r'accessor\("(\w+)",\s*\{\s*header:\s*([A-Za-z_][\w.]*),'
+)
+
+_MANIFEST = json.loads(
+    (Path(__file__).resolve().parents[3] / "disease" / "manifest.json").read_text(
+        encoding="utf-8"
+    )
+)
+
+_MANIFEST_HEADERS = {
+    "CELL_TYPES_LABEL": _MANIFEST["cellTypes"]["label"],
+    "POPULATION_FIELD.label": _MANIFEST["populationField"]["label"],
+    "POPULATION_FIELD.detailsLabel": _MANIFEST["populationField"]["detailsLabel"],
+}
+
 # clean_table1.R renames these two names *after* clean_column_name runs (see
 # its final gsub() calls), so the raw helper output is transformed before
 # comparing it to the committed header.
@@ -342,6 +367,14 @@ def _tsx_headers(relative_path: str) -> dict[str, str]:
     text = (repo_root / relative_path).read_text(encoding="utf-8")
     headers = dict(_TSX_ACCESSOR_HEADER.findall(text))
     headers.update(_TSX_ID_HEADER.findall(text))
+    for accessor_key, identifier in _TSX_ACCESSOR_HEADER_IDENTIFIER.findall(text):
+        if identifier not in _MANIFEST_HEADERS:
+            raise KeyError(
+                f"{relative_path}: accessor {accessor_key!r} has a header "
+                f"identifier {identifier!r} not in _MANIFEST_HEADERS -- add "
+                "it there deliberately"
+            )
+        headers[accessor_key] = _MANIFEST_HEADERS[identifier]
     return headers
 
 
@@ -352,8 +385,21 @@ def _tsx_headers(relative_path: str) -> dict[str, str]:
 # Task 8 gave the column the matching "Study Status" header rather than the
 # raw database name. This is a dashboard naming choice, not an R-port
 # artifact like the genes renames above, so it gets its own map.
+#
+# target_population and target_population_details are here for a different
+# reason: migration 014 renamed the column so the wire key does not spell
+# the disease, but the header text a reader sees still comes from
+# populationField in disease/manifest.json (Task 6), read through the same
+# _MANIFEST_HEADERS table _tsx_headers resolves POPULATION_FIELD.label /
+# .detailsLabel against. clean_column_name("target_population") now yields
+# "Target Population", which is not what the manifest ships, so the rename
+# reads the manifest label rather than hard-coding it.
 _TRIALS_RENAMED_AFTER_CLEAN_COLUMN_NAME = {
     "overall_status": lambda s: "Study Status",
+    "target_population": lambda s: _MANIFEST["populationField"]["label"],
+    "target_population_details": lambda s: _MANIFEST["populationField"][
+        "detailsLabel"
+    ],
 }
 
 

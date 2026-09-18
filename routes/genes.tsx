@@ -2,12 +2,13 @@ import { define } from "../utils.ts";
 import GenesView from "../islands/GenesView.tsx";
 import { TipBox } from "../components/TipBox.tsx";
 import { Page } from "../components/Page.tsx";
+import { PAGE_DESCRIPTIONS } from "../lib/disease/site.ts";
 
 export default define.page(function Genes() {
   return (
     <Page
       title="Putative Causal Genes"
-      description="Genes implicated in cerebral small vessel disease (SVD), with the GWAS, omics and monogenic evidence supporting each one."
+      description={PAGE_DESCRIPTIONS.genes}
     >
       <div class="tip-row">
         <TipBox>

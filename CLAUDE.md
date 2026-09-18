@@ -39,7 +39,11 @@ in `pipeline/CLAUDE.md`.
 Regenerating `data/*.json` needs PostgreSQL reachable and `.env` populated. The
 commands, the hardened `dhi.io/postgres:18.6` container with its three
 load-bearing details, and the print-figure and cytoband tasks are in the
-`regenerate-data` skill (`.claude/skills/regenerate-data/SKILL.md`).
+`regenerate-data` skill (`.claude/skills/regenerate-data/SKILL.md`). **Migration
+014 renames `clinical_trials.svd_population` to `target_population`, and the
+export, the merge and the clinical-trials sync all read the new name, so run
+`cd pipeline && uv run alembic upgrade head` before the first `deno task data`
+after merging the `disease-reuse` branch.**
 
 `--export` does that same work at the end of a live run, so the figures, the
 About page's date and the run widget track the database without a second
@@ -154,6 +158,39 @@ One pipeline, one language, meeting the web app at a JSON file boundary.
 PubMed / Europe PMC / CT.gov ──> pipeline/ ──> PostgreSQL ──> pipeline/export/ ──> data/*.json ──> islands
 ```
 
+**The disease seam is `disease/`.** Everything that names the disease lives
+there and nowhere else, split across two manifests for one reason:
+`server/protected_data_build.ts` lists `COL4A1/2` as a leak canary and every
+island bundle embeds the web-facing manifest, so no gene symbol may live in it.
+`manifest.json` holds the web-facing keys (prose, institute, contact, about,
+hosting, populations, populationField, cell-type glossary, citation standard);
+`pipeline.json` holds the pipeline-only keys (search terms, monogenic genes,
+gene aliases, run label, gene cap) and is read only by `pipeline/disease.py`.
+Both have a JSON Schema beside them (`manifest.schema.json`,
+`pipeline.schema.json`). `lib/disease/manifest.ts` imports the raw JSON, so
+**every key of `disease/manifest.json` — not only the ones a page renders —
+ships inside a public client chunk that is served before login**, which is why
+gene symbols live in `disease/pipeline.json` and why each schema's
+`additionalProperties: false` is enforced by a test on both sides of the seam
+(`tests/pipeline/test_disease.py`'s `Draft202012Validator` pass,
+`tests/disease_manifest_test.ts`'s structural checker). Also in `disease/`:
+`vocabulary.json`, `prompt.md` (the disease half of the extraction prompt; the
+methodology is the v7 template in `pipeline/prompts.py`), `phenogram.json`
+(families), `timeline.json` (populations, mechanisms, families) and
+`omim_info.csv`. `prompt.md` is excluded from `deno fmt` in `deno.json` because
+`deno fmt` rewraps Markdown prose and every inserted newline would reach the
+model; `tests/pipeline/test_prompt_assembly.py` pins the cSVD rendering
+byte-identical to the v6 literals. TypeScript reads the manifest through the
+narrow modules under `lib/disease/` — `site.ts`, `populations.ts`,
+`cell_types.ts`, `citation.ts` — and Python through `pipeline/disease.py`, which
+is stdlib-only so `config.py` and `extraction_models.py` can both import it.
+`tests/no_disease_literals_test.ts` and
+`tests/pipeline/test_no_disease_literals.py` scan the code for the manifest's
+own terms and fail on any hit outside a reasoned allow-list. Every measurement
+in this file and in `pipeline/CLAUDE.md` is of the cSVD dataset this repository
+was built on. The design is
+`docs/superpowers/specs/2026-09-17-disease-reuse-design.md`.
+
 **Nothing queries a database at request time, and nothing fetches JSON at
 runtime.** The modules under `lib/data/` use `import … with { type: "json" }`,
 so each file is bundled into whatever imports it. **Import the narrow module,
@@ -238,7 +275,7 @@ complete boundary. Consequences worth remembering:
 - **`data/table2.json` publishes only curated trial rows.** `--clinical-trials`
   writes ClinicalTrials.gov discoveries into the same table, with every curator
   column NULL; `_read_curated_trials` in `pipeline/export/main.py` skips any row
-  with no `svd_population` and logs the count, so a discovery no one has read
+  with no `target_population` and logs the count, so a discovery no one has read
   cannot reach the dashboard as `(unknown)` mechanism, population and evidence —
   values no filter choice offers and the radar draws nowhere. See
   "ClinicalTrials.gov rows must read like the curated ones" in
@@ -517,7 +554,7 @@ derived record-confidence channels, the seven rings and the key.
 ### Phenogram
 
 `.claude/rules/phenogram.md` loads with `islands/Phenogram.tsx`,
-`lib/phenogram*`, `lib/vocabulary.json`, `lib/cytobands.ts`,
+`lib/phenogram*`, `disease/vocabulary.json`, `lib/cytobands.ts`,
 `scripts/phenogram_figure.py` and their tests — the vocabulary as single source
 of truth, the reconciled prompt, the non-derived `viewBox`, and the two
 renderers.

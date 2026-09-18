@@ -156,8 +156,8 @@ Filters:
 
 - Mendelian randomization performed (Yes / No)
 - GWAS traits — the 16 canonical cSVD phenotypes declared in
-  `lib/vocabulary.json`: WMH, PVWMH, DWMH, SVS, BG-PVS, WM-PVS, HIP-PVS, PSMD,
-  MD, FA, NODDI, extreme-cSVD, lacunes, lacunar stroke, stroke, CMB
+  `disease/vocabulary.json`: WMH, PVWMH, DWMH, SVS, BG-PVS, WM-PVS, HIP-PVS,
+  PSMD, MD, FA, NODDI, extreme-cSVD, lacunes, lacunar stroke, stroke, CMB
 - Evidence from other omics studies (EWAS, TWAS, PWAS, Proteomics, WES/WGS,
   MENTR)
 
@@ -646,21 +646,21 @@ JSON and `lib/data/` into a single authenticated, non-cacheable client chunk;
 the build fails if one of those modules lands in a public chunk. Other assets
 stay public so the signed-out login page can render normally.
 
-| File                    | Rows         | Source                               |
-| ----------------------- | ------------ | ------------------------------------ |
-| `table1.json`           | 79           | `genes` table (+ three join tables)  |
-| `table2.json`           | 111          | `clinical_trials` table (curated)    |
-| `gene_info.json`        | 79           | `ncbi_gene_info` cache               |
-| `gene_info_table2.json` | 26           | `ncbi_gene_info` cache               |
-| `protein_info.json`     | 79           | `uniprot_info` cache                 |
-| `refs.json`             | 111          | `pubmed_citations` cache             |
-| `omim_info.json`        | 49           | `pipeline/export/data/omim_info.csv` |
-| `gene_annotations.json` | 171          | `gene_annotations` table (pivoted)   |
-| `pipeline_status.json`  | 1 or `null`  | `pipeline_runs` table                |
-| `pipeline_run.json`     | 1 or `null`  | `pipeline_runs.run_report`           |
-| `pipeline_syncs.json`   | one per mode | `sync_runs` table                    |
-| `geocoded_trials.json`  | 378 sites    | ClinicalTrials.gov                   |
-| `cytobands_hg38.json`   | 862 bands    | UCSC Genome Browser                  |
+| File                    | Rows         | Source                              |
+| ----------------------- | ------------ | ----------------------------------- |
+| `table1.json`           | 79           | `genes` table (+ three join tables) |
+| `table2.json`           | 111          | `clinical_trials` table (curated)   |
+| `gene_info.json`        | 79           | `ncbi_gene_info` cache              |
+| `gene_info_table2.json` | 26           | `ncbi_gene_info` cache              |
+| `protein_info.json`     | 79           | `uniprot_info` cache                |
+| `refs.json`             | 111          | `pubmed_citations` cache            |
+| `omim_info.json`        | 49           | `disease/omim_info.csv`             |
+| `gene_annotations.json` | 171          | `gene_annotations` table (pivoted)  |
+| `pipeline_status.json`  | 1 or `null`  | `pipeline_runs` table               |
+| `pipeline_run.json`     | 1 or `null`  | `pipeline_runs.run_report`          |
+| `pipeline_syncs.json`   | one per mode | `sync_runs` table                   |
+| `geocoded_trials.json`  | 378 sites    | ClinicalTrials.gov                  |
+| `cytobands_hg38.json`   | 862 bands    | UCSC Genome Browser                 |
 
 Four of these behave differently from the rest:
 
@@ -686,10 +686,10 @@ Four of these behave differently from the rest:
 
 **`table2.json` publishes only curated trial rows.** `--clinical-trials` writes
 ClinicalTrials.gov discoveries into the same table with every curator column
-NULL; `_read_curated_trials` skips any row with no `svd_population` and logs the
-count, so a discovery no one has read cannot reach the dashboard as `(unknown)`
-mechanism, population and evidence — values no filter choice offers and the
-radar draws nowhere.
+NULL; `_read_curated_trials` skips any row with no `target_population` and logs
+the count, so a discovery no one has read cannot reach the dashboard as
+`(unknown)` mechanism, population and evidence — values no filter choice offers
+and the radar draws nowhere.
 
 ### Regenerating
 
@@ -993,10 +993,11 @@ Two gaps worth knowing before you trust a green run.
 
   **Quote the 88%** — the clean subset is the one that measures extraction
   rather than recall of the prompt. 13 of the 36 gold genes are named verbatim
-  in the v6 prompt, six inside `<example>` blocks with their expected trait and
-  confidence, and `test_the_prompt_names_part_of_its_own_answer_key` pins that
-  count so a prompt edit naming another gold gene fails instead of quietly
-  inflating the figure.
+  in the rendered v7 prompt — the `<example>` blocks that name them live in the
+  disease half, `disease/prompt.md`, not the template in `pipeline/prompts.py` —
+  six of them with their expected trait and confidence, and
+  `test_the_prompt_names_part_of_its_own_answer_key` pins that count so a prompt
+  edit naming another gold gene fails instead of quietly inflating the figure.
 
   These figures are from the 2026-09-11 re-record, against fixtures refetched
   through the current Europe PMC parser. The recording before it measured two
@@ -1040,9 +1041,9 @@ Behaviour matches the Shiny app except where it was demonstrably wrong.
   from the committed JSON. The last iframe, the phenogram, was a PhenoGram
   raster with pixel-colour hit-testing that had drifted from the data — ABO
   labelled APOE, C6orf195 and COL4A1/2 missing.
-- **The trait vocabulary has one home.** `lib/vocabulary.json` defines all 16
-  traits — label, family, long name, STRIVE-2 definition, ontology xref (or an
-  explicit `null` with the reason), synonyms and the 9 deliberately untracked
+- **The trait vocabulary has one home.** `disease/vocabulary.json` defines all
+  16 traits — label, family, long name, STRIVE-2 definition, ontology xref (or
+  an explicit `null` with the reason), synonyms and the 9 deliberately untracked
   prompt terms. Restating it is what let `PVWMH` — the second most extracted
   trait — have no filter choice and no phenogram entry.
 - **The extraction prompt is reconciled, not generated.**

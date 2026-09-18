@@ -1,14 +1,15 @@
 import { assert, assertEquals } from "@std/assert";
 
-import encoding from "../lib/phenogram_encoding.json" with { type: "json" };
-import vocabulary from "../lib/vocabulary.json" with { type: "json" };
+import appearance from "../lib/phenogram_encoding.json" with { type: "json" };
+import families from "../disease/phenogram.json" with { type: "json" };
+import vocabulary from "../disease/vocabulary.json" with { type: "json" };
 import { encoding as composed } from "../lib/phenogram.ts";
 import { GWAS_TRAIT_CHOICES, NONE_FOUND, SHOW_ALL } from "../lib/constants.ts";
 import { STAINS } from "../lib/cytobands.ts";
 import { genes } from "../lib/data.ts";
 
 /**
- * `lib/vocabulary.json` is the one place a GWAS trait gets its key, label,
+ * `disease/vocabulary.json` is the one place a GWAS trait gets its key, label,
  * family and definition; `lib/phenogram_encoding.json` carries appearance only.
  * Two renderers compose them — `lib/phenogram.ts` for the island and
  * `scripts/phenogram_figure.py` for print. These assertions make the committed
@@ -18,15 +19,9 @@ import { genes } from "../lib/data.ts";
  */
 
 const HEX = /^#[0-9a-f]{6}$/;
-const FAMILY_ORDER = [
-  "pvs",
-  "diffusion",
-  "extreme",
-  "wmh",
-  "stroke",
-  "cmb",
-  "lacunes",
-];
+// Order is the disease's, read from its file; the assertions below check the
+// vocabulary groups into exactly these families in exactly this order.
+const FAMILY_ORDER = families.families.map((f) => f.key);
 
 const linear = (c: number) =>
   c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
@@ -77,7 +72,7 @@ Deno.test("trait keys are exactly the GWAS filter values, grouped in family orde
   assertEquals([...keys].sort(), [...choices].sort());
   assertEquals(new Set(keys).size, keys.length, "trait keys repeat");
 
-  const familyKeys = encoding.families.map((f) => f.key);
+  const familyKeys = families.families.map((f) => f.key);
   assertEquals(familyKeys, FAMILY_ORDER);
   for (const trait of vocabulary.traits) {
     assert(familyKeys.includes(trait.family), `${trait.key}: unknown family`);
@@ -91,12 +86,17 @@ Deno.test("trait keys are exactly the GWAS filter values, grouped in family orde
       `${vocabulary.traits[i].key} is out of family order`,
     );
   }
-  for (const family of encoding.families) {
+  for (const family of families.families) {
     assert(
       vocabulary.traits.some((t) => t.family === family.key),
       `${family.key} has no traits`,
     );
   }
+});
+
+Deno.test("the family keys equal the set of vocabulary families", () => {
+  const used = new Set(vocabulary.traits.map((t) => t.family));
+  assertEquals(new Set(FAMILY_ORDER), used);
 });
 
 Deno.test("every GWAS trait in the committed data has an entry", () => {
@@ -107,8 +107,8 @@ Deno.test("every GWAS trait in the committed data has an entry", () => {
 });
 
 Deno.test("family hues pass the lightness band and the adjacent normal-vision floor", () => {
-  const hues = encoding.families.map((f) => f.hue);
-  for (const family of encoding.families) {
+  const hues = families.families.map((f) => f.hue);
+  for (const family of families.families) {
     assert(HEX.test(family.hue), `${family.key}: bad hue`);
     assert(HEX.test(family.tint), `${family.key}: bad tint`);
     const [l] = oklab(family.hue);
@@ -124,7 +124,7 @@ Deno.test("family hues pass the lightness band and the adjacent normal-vision fl
     const distance = deltaE(hues[i - 1], hues[i]);
     assert(
       distance >= 15,
-      `${encoding.families[i - 1].key}/${encoding.families[i].key}: ΔE ${
+      `${families.families[i - 1].key}/${families.families[i].key}: ΔE ${
         distance.toFixed(1)
       }`,
     );
@@ -141,25 +141,25 @@ Deno.test("family hues pass the lightness band and the adjacent normal-vision fl
  * measurably different stars and nothing here could see it.
  */
 Deno.test("every evidence glyph carries geometry both renderers can read", () => {
-  assertEquals(Object.keys(encoding.glyphs).sort(), [
+  assertEquals(Object.keys(appearance.glyphs).sort(), [
     "square",
     "star",
     "triangle",
   ]);
-  for (const [shape, geometry] of Object.entries(encoding.glyphs)) {
+  for (const [shape, geometry] of Object.entries(appearance.glyphs)) {
     assert(
       geometry.scale > 0 && geometry.scale <= 1,
       `${shape}: scale ${geometry.scale} outside (0, 1]`,
     );
   }
-  const star = encoding.glyphs.star;
+  const star = appearance.glyphs.star;
   assert("innerRatio" in star, "star: no innerRatio");
   assert(
     star.innerRatio >= 0.3 && star.innerRatio <= 0.7,
     `star: innerRatio ${star.innerRatio} stops reading as a star`,
   );
   // The composed encoding is what both renderers actually consume.
-  assertEquals(composed.glyphs, encoding.glyphs);
+  assertEquals(composed.glyphs, appearance.glyphs);
 });
 
 /**
@@ -169,14 +169,14 @@ Deno.test("every evidence glyph carries geometry both renderers can read", () =>
  * 1.75 because that is the gap this encoding exists to close.
  */
 Deno.test("the three glyphs carry comparable ink", () => {
-  const box = encoding.layout.symbolLine; // any constant; ratios are scale-free
+  const box = appearance.layout.symbolLine; // any constant; ratios are scale-free
   const areaOf = (shape: string): number => {
-    const g = encoding.glyphs[shape as keyof typeof encoding.glyphs];
+    const g = appearance.glyphs[shape as keyof typeof appearance.glyphs];
     const size = box * g.scale;
     if (shape === "square") return size * size;
     if (shape === "triangle") return (size * size) / 2;
     const outer = size / 2;
-    const inner = outer * encoding.glyphs.star.innerRatio;
+    const inner = outer * appearance.glyphs.star.innerRatio;
     return 5 * outer * inner * Math.sin(Math.PI / 5);
   };
   const areas = ["square", "triangle", "star"].map(areaOf);
@@ -187,30 +187,33 @@ Deno.test("the three glyphs carry comparable ink", () => {
   );
 });
 
-Deno.test("evidence glyphs, the citation and the stains are complete", () => {
-  assertEquals(encoding.evidence.map((e) => e.key), [
+Deno.test("evidence glyphs and the stains are complete", () => {
+  assertEquals(appearance.evidence.map((e) => e.key), [
     "omics",
     "monogenic",
     "mr",
   ]);
-  for (const entry of encoding.evidence) {
+  for (const entry of appearance.evidence) {
     assert(["triangle", "square", "star"].includes(entry.shape), entry.key);
     assert(
-      entry.shape in encoding.glyphs,
+      entry.shape in appearance.glyphs,
       `${entry.key}: shape has no geometry`,
     );
   }
-  assert(encoding.citation.label.includes("Duering"));
-  assertEquals(encoding.citation.doi, "10.1016/S1474-4422(23)00131-X");
-  assertEquals(Object.keys(encoding.stains).sort(), [...STAINS].sort());
-  for (const value of Object.values(encoding.stains)) assert(HEX.test(value));
-  for (const trait of vocabulary.traits.filter((t) => "strive" in t)) {
-    assert("definition" in trait, `${trait.key}: strive without a definition`);
+  assertEquals(Object.keys(appearance.stains).sort(), [...STAINS].sort());
+  for (const value of Object.values(appearance.stains)) {
+    assert(HEX.test(value));
+  }
+  for (const trait of vocabulary.traits.filter((t) => "standard" in t)) {
+    assert(
+      "definition" in trait,
+      `${trait.key}: standard without a definition`,
+    );
   }
 });
 
 Deno.test("the layout constants fit ten columns and two rows on the canvas", () => {
-  const L = encoding.layout;
+  const L = appearance.layout;
   const pitch = L.chromosomeWidth + L.leaderGap + L.labelColumn;
   assert(
     2 * L.margin + 10 * pitch <= L.viewBox[0],

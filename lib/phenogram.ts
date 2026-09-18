@@ -7,16 +7,18 @@
  * under `deno test`.
  *
  * `scripts/phenogram_figure.py` implements this rule a second time for print.
- * Both read `phenogram_encoding.json` for appearance and `vocabulary.json`
- * for trait identity -- together the only place colours, labels,
- * definitions, band stains and the geometry constants live — keep the *rule*
- * here in step with the Python twin (same names, same order of operations).
+ * Both read `lib/phenogram_encoding.json` for appearance, `disease/phenogram.json`
+ * for the families and `disease/vocabulary.json` for trait identity --
+ * together the only place colours, labels, definitions, band stains and the
+ * geometry constants live — keep the *rule* here in step with the Python
+ * twin (same names, same order of operations).
  *
  * Coordinates are SVG user units in the encoding's `viewBox`; y grows down.
  */
 
-import encodingJson from "./phenogram_encoding.json" with { type: "json" };
-import vocabulary from "./vocabulary.json" with { type: "json" };
+import appearanceJson from "./phenogram_encoding.json" with { type: "json" };
+import familiesJson from "../disease/phenogram.json" with { type: "json" };
+import vocabulary from "../disease/vocabulary.json" with { type: "json" };
 import {
   type BandHit,
   cytobands as defaultCytobands,
@@ -42,7 +44,8 @@ export interface TraitEncoding {
   family: string;
   name: string;
   definition?: string;
-  strive?: boolean;
+  /** Has a definition quoted from the manifest's citation standard. */
+  standard?: boolean;
   /** Ontology term, or null where no exact one exists. Internal, never published. */
   xref?: string | null;
   xrefLabel?: string;
@@ -92,16 +95,17 @@ export interface PhenogramEncoding {
   traits: TraitEncoding[];
   evidence: EvidenceEncoding[];
   glyphs: Record<string, GlyphGeometry>;
-  citation: { label: string; doi: string };
   stains: Record<string, string>;
   layout: LayoutConstants;
 }
 
-// Appearance from the encoding, identity from the vocabulary. Composed here so
-// every downstream consumer -- pills, legend, both renderers -- keeps reading one
-// `encoding.traits`, while a trait is still defined in exactly one file.
+// Appearance from the encoding, families from disease/, identity from the
+// vocabulary. Composed here so every downstream consumer -- pills, legend,
+// both renderers -- keeps reading one `encoding.families` / `encoding.traits`,
+// while a family and a trait are each still defined in exactly one file.
 export const encoding: PhenogramEncoding = {
-  ...encodingJson,
+  ...appearanceJson,
+  families: familiesJson.families,
   traits: vocabulary.traits,
 };
 

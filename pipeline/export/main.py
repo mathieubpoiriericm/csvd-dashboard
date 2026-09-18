@@ -135,19 +135,21 @@ async def _read_table(name: str) -> list[dict[str, object]]:
 def _is_curated_trial(row: Mapping[str, object]) -> bool:
     """Whether a `clinical_trials` row has been through a curator.
 
-    `svd_population` is the test because it is the first thing a curator
+    `target_population` is the test because it is the first thing a curator
     decides about a trial and the only curator column the dashboard makes
     structural use of: `lib/timeline.ts` groups the radar's sectors by it,
     and `POPULATION_CHOICES` filters on it. A row that has none is a
-    ClinicalTrials.gov discovery nobody has read yet.
+    ClinicalTrials.gov discovery nobody has read yet. (Renamed from
+    `svd_population` by migration 014 so the wire key does not spell the
+    disease.)
     """
-    population = row.get("svd_population")
+    population = row.get("target_population")
     return population is not None and bool(str(population).strip())
 
 
 # ClinicalTrials.gov's words for a trial that produced no completed result:
 # TERMINATED stopped early, WITHDRAWN never enrolled a participant. Neither
-# belongs in a picture of the cSVD trial landscape.
+# belongs in a picture of the trial landscape.
 #
 # **A denylist, not an allowlist**, and the two rejected members say why:
 # SUSPENDED intends to resume, and UNKNOWN is CT.gov reporting that a
@@ -182,7 +184,7 @@ def _is_running_trial(row: Mapping[str, object]) -> bool:
 
 
 async def _read_curated_trials() -> list[dict[str, object]]:
-    """The clinical trial rows a curator has placed in an SVD population.
+    """The clinical trial rows a curator has placed in a target population.
 
     `--clinical-trials` writes discoveries straight into the curated table:
     ten broad search terms against ClinicalTrials.gov match hundreds of
@@ -209,7 +211,7 @@ async def _read_curated_trials() -> list[dict[str, object]]:
     curated = [row for row in rows if _is_curated_trial(row)]
     if uncurated := len(rows) - len(curated):
         logger.warning(
-            "Skipping %d of %d clinical trial row(s) with no curated SVD "
+            "Skipping %d of %d clinical trial row(s) with no curated target "
             "population: they are ClinicalTrials.gov discoveries and are not "
             "published until a curator fills in the population, mechanism and "
             "genetic evidence",

@@ -41,8 +41,8 @@ export interface Trial {
   trialName: string;
   registryId: string;
   clinicalTrialPhase: string;
-  svdPopulation: string;
-  svdPopulationDetails: string;
+  targetPopulation: string;
+  targetPopulationDetails: string;
   /** Stored as a string: the source column is nullable and mixes formats. */
   targetSampleSize: string;
   estimatedCompletionDate: string;
@@ -209,11 +209,82 @@ export interface RunConfig {
   model: string | null;
   effort: string | null;
   promptVersion: string | null;
+  disease: string | null;
+  promptSha256: string | null;
   mode: string | null;
   skipValidation: boolean;
   dryRun: boolean;
   confidenceThresholdUpdate: number | null;
   confidenceThresholdInsert: number | null;
+}
+
+/** One trial population of the radar and the population filter. */
+export interface Population {
+  key: string;
+  label: string;
+}
+
+export interface CitationStandard {
+  name: string;
+  label: string;
+  doi: string;
+  linkLabel: string;
+}
+
+export interface AboutCitation {
+  authors: string;
+  title: string;
+  journal: string;
+  year: number;
+  doi: string;
+}
+
+export interface AdditionalSource {
+  name: string;
+  href: string;
+  licence: { label: string; href: string | null };
+  provides: string;
+}
+
+/** `disease/manifest.json`, normalized. See docs/superpowers/specs/2026-09-17-disease-reuse-design.md §3.1. */
+export interface DiseaseManifest {
+  schemaVersion: 1;
+  disease: {
+    key: string;
+    name: string;
+    short: string;
+    abbreviation: string;
+    adjective: string;
+  };
+  site: {
+    title: string;
+    heading: string;
+    metaDescription: string;
+    aboutTitle: string;
+    aboutLede: string;
+    loginLede: string;
+    pages: { genes: string; trials: string; timeline: string; map: string };
+  };
+  institute: {
+    name: string;
+    short: string;
+    url: string | null;
+    copyright: string;
+    logo: { src: string; srcOnDark: string | null; alt: string };
+  };
+  contact: { maintainer: { name: string; email: string } };
+  about: {
+    citation: AboutCitation | null;
+    board: string | null;
+    contactUs: string | null;
+    acknowledgements: string | null;
+    additionalSources: AdditionalSource[];
+  };
+  hosting: { url: string | null };
+  populations: Population[];
+  populationField: { label: string; detailsLabel: string };
+  cellTypes: { label: string; glossary: Record<string, string> };
+  citationStandard: CitationStandard | null;
 }
 
 export interface PaperCounts {

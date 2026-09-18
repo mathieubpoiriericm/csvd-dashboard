@@ -480,6 +480,7 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "basedpyright" },
+    { name = "jsonschema" },
     { name = "lxml-stubs" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
@@ -524,6 +525,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "basedpyright", specifier = "==1.39.10" },
+    { name = "jsonschema", specifier = "==4.26.0" },
     { name = "lxml-stubs", specifier = "==0.5.1" },
     { name = "pytest", specifier = "==9.1.1" },
     { name = "pytest-asyncio", specifier = "==1.4.0" },

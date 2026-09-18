@@ -11,14 +11,19 @@ from collections.abc import Collection
 from dataclasses import dataclass
 from typing import Final
 
+from pipeline.disease import load_disease
+
 logger = logging.getLogger(__name__)
 
 # Curated keys that are not gene symbols, and the symbols to look them up by.
+# Read from `geneAliases` in disease/pipeline.json -- a stdlib-only import,
+# so this module's promise to import nothing from the rest of the pipeline
+# still holds in spirit.
 #
 # Two of the 63 curated rows name something no external database carries.
-# `COL4A1/2` is a curator label for the pair -- the two collagen IV alpha
-# chains form one heterotrimer and the cSVD literature reports them together
-# -- and `C6orf195` is a symbol NCBI has retired in favour of `LINC01600`.
+# One alias key is a curator label for a two-gene pair -- the pair's members
+# form one heterotrimer and the literature reports them together -- and
+# `C6orf195` is a symbol NCBI has retired in favour of `LINC01600`.
 # Queried literally, both return nothing from ClinVar, Orphadata and Open
 # Targets alike, and a zero-count status row is written; the dashboard then
 # shows no disease at all for the pair that causes Gould syndrome, PADMAL,
@@ -29,21 +34,19 @@ logger = logging.getLogger(__name__)
 # the curated key, which is the key `genes.gene` holds and therefore the key
 # the export asks for. This is the same correspondence
 # `data_merger._CANONICAL_GENE_SYMBOLS` applies in the other direction when a
-# run extracts `COL4A1`; `tests/pipeline/test_annotations.py` reconciles the
-# two so neither can gain an entry the other lacks.
+# run extracts one of the pair's own member symbols;
+# `tests/pipeline/test_annotations.py` reconciles the two so neither can gain
+# an entry the other lacks.
 #
 # What it costs: `gene_annotations` has no column naming which member gene
-# supplied a row, so a COL4A2 disease and a COL4A1 disease are published side
-# by side under `COL4A1/2` with nothing saying which chain carries which.
-# Every row still carries its own OMIM, MONDO and Orphanet identifiers, so no
-# identifier is transferred between diseases -- the loss is the attribution
-# within the pair, and the curated key already asserts the pair is one entity.
-# Recording the member gene means a migration, and is the upgrade if the
-# distinction is ever wanted.
-_LOOKUP_ALIASES: Final[dict[str, tuple[str, ...]]] = {
-    "COL4A1/2": ("COL4A1", "COL4A2"),
-    "C6orf195": ("LINC01600",),
-}
+# supplied a row, so a disease from each member gene is published side by
+# side under the shared alias key with nothing saying which chain carries
+# which. Every row still carries its own OMIM, MONDO and Orphanet
+# identifiers, so no identifier is transferred between diseases -- the loss
+# is the attribution within the pair, and the curated key already asserts
+# the pair is one entity. Recording the member gene means a migration, and
+# is the upgrade if the distinction is ever wanted.
+_LOOKUP_ALIASES: Final[dict[str, tuple[str, ...]]] = dict(load_disease().gene_aliases)
 
 
 def lookup_symbols(curated_symbol: str) -> tuple[str, ...]:
@@ -62,8 +65,9 @@ def expand_lookup_symbols(
 
     Returns the query symbols in curated order, and the map back from each
     to the curated key its rows are stored under. The map is what keeps a
-    fanned-out row joinable: `genes.gene` holds `COL4A1/2`, so a row filed
-    under `COL4A1` would reach the export and match nothing.
+    fanned-out row joinable: `genes.gene` holds the curated alias key, so a
+    row filed under one member symbol would reach the export and match
+    nothing.
     """
     queries: list[str] = []
     curated_by_query: dict[str, str] = {}

@@ -18,6 +18,8 @@ import {
 import { useCheckboxFilters } from "../components/useCheckboxFilters.ts";
 import { useEscapeKey } from "../components/useEscapeKey.ts";
 import { DEFAULT_TRIAL_STATUSES, STATUS_CHOICES } from "../lib/constants.ts";
+import { POPULATION_FIELD } from "../lib/disease/populations.ts";
+import { RADAR_TITLE } from "../lib/disease/site.ts";
 import { trials } from "../lib/data/trials.ts";
 import { defaultTrialFilters, filterTrials } from "../lib/filters.ts";
 import { resolveTrialStatus } from "../lib/trials.ts";
@@ -140,7 +142,7 @@ const DRUG_FIELDS: readonly TrialField[] = [
   // glance, and a status is not what identifies a trial at one.
   { key: "overallStatus", label: "Study Status" },
   { key: "clinicalTrialPhase", label: "Clinical Trial Phase" },
-  { key: "svdPopulationDetails", label: "SVD Population Details" },
+  { key: "targetPopulationDetails", label: POPULATION_FIELD.detailsLabel },
   { key: "targetSampleSize", label: "Target Sample Size", icon: "userGroup" },
   {
     key: "estimatedCompletionDate",
@@ -1218,7 +1220,7 @@ export default function TrialsTimeline() {
               aria-labelledby="timeline-title timeline-desc"
             >
               <title id="timeline-title">
-                Cerebral SVD clinical trials by population and phase
+                {RADAR_TITLE}
               </title>
               <desc id="timeline-desc">
                 Rings are trial phases, Phase III innermost; sectors are target

@@ -11,9 +11,11 @@ deno task data      # then, and only then:
 deno task geocode
 ```
 
-The discovery gate (`is_csvd_study`, `ct_max_retries`, and why `trial_name` and
-`primary_outcome` are curator-owned once `svd_population` is filled in) is under
-"The discovery is gated on a stated cSVD condition" in `pipeline/CLAUDE.md`.
+The discovery gate (`is_disease_study`, `ct_max_retries`, and why `trial_name` and
+`primary_outcome` are curator-owned once `target_population` is filled in --
+renamed from `svd_population` by migration 014 so the wire key does not spell
+the disease) is under "The discovery is gated on a stated cSVD condition" in
+`pipeline/CLAUDE.md`.
 
 Table 2 is curated, and `--clinical-trials` writes beside it under the same
 filter vocabulary, so every API-sourced column has to arrive in the spelling the
@@ -101,15 +103,16 @@ table has one column and no place to say which kind of date it holds.
 search terms match hundreds of interventional drug studies
 (`cerebral small
 vessel disease` alone returns ~200), and each arrives with
-`mechanism_of_action`, `svd_population`, `svd_population_details` and
+`mechanism_of_action`, `target_population`, `target_population_details` and
 `genetic_evidence` NULL. Those publish as `(unknown)`, a value no
 `POPULATION_CHOICES` entry offers and `lib/timeline_encoding.json` does not
-carry, so the radar -- which groups by `svdPopulation` and iterates only the
+carry, so the radar -- which groups by `targetPopulation` and iterates only the
 four encoded populations -- draws them nowhere while Table 2 lists them.
 `_read_curated_trials` in `pipeline/export/main.py` is the gate: a row with no
-`svd_population` is not exported, and the count of skipped rows is logged.
-`svd_population` is the test because it is the one curator column the dashboard
-makes structural use of. The sync reports the same number as `discovered` on
+`target_population` is not exported, and the count of skipped rows is logged.
+`target_population` is the test because it is the one curator column the
+dashboard makes structural use of. The sync reports the same number as
+`discovered` on
 `ClinicalTrialSyncResult`, so the write is visible in the run's metrics rather
 than only in the table.
 
@@ -129,12 +132,12 @@ arrangement are load-bearing:
 - **The status is captured in two places because the search cannot reach the
   curated set.** Reading it in `_map_study_to_records` is free -- the search
   sends no `fields` list, so `overallStatus` is already in every payload -- but
-  `is_csvd_study` and the interventional and drug-type gates all drop trials a
+  `is_disease_study` and the interventional and drug-type gates all drop trials a
   curator nonetheless published, and the terminated rows in the committed data
   are exactly the old, off-vocabulary trials the ten `query.cond` terms are
   least likely to reach. `fetch_trial_statuses` sweeps every NCT id the _table_
-  holds, uncurated discoveries included: gating that on `svd_population` would
-  save a request and cost the status of every trial a curator publishes
+  holds, uncurated discoveries included: gating that on `target_population`
+  would save a request and cost the status of every trial a curator publishes
   tomorrow, which would then ship NULL until the next sync.
 - **The sweep fails open, which is the exact inverse of `export/geocode.py`.**
   `fetch_trial_locations` **raises** when a requested id comes back with no
@@ -193,7 +196,7 @@ a `None` phase never overwrites a curated one.
 
 **A term whose pagination stopped short is an error, not a log line.**
 `_search_condition_term` keeps the pages it reached and returns the truncation
-beside them; `fetch_csvd_studies` appends it to the sync's `errors`, so a 503 on
+beside them; `fetch_disease_studies` appends it to the sync's `errors`, so a 503 on
 page 2 reaches the run record instead of badging a partial result set as the
 whole registry. **It is not a `failed` count, though.** `failed` used to be
 `len(errors)`, so a truncated term -- a hundred studies never fetched -- was

@@ -437,6 +437,7 @@ function PipelineRunContent({ run }: { run: PipelineRun }) {
   const wrote = run.database;
   const effort = field("effort");
   const prompt = field("promptVersion");
+  const promptBytes = field("promptSha256");
   // Whether there is anything for the drawer to show. A run that failed
   // before it processed a paper records no detail at all, and a trigger
   // reading "View everything this run recorded" over an empty panel is
@@ -524,6 +525,19 @@ function PipelineRunContent({ run }: { run: PipelineRun }) {
               {prompt.label} {run.config.promptVersion}
             </span>
           )}
+          {
+            /* The version names the method; the hash names the bytes, which
+              is the half that moved into a data file. Both are read out of
+              lib/pipeline_encoding.json so neither label lives in two
+              places, and both are chips for the same reason. */
+          }
+          {run.config.disease && run.config.promptSha256 && (
+            <span class="pipeline-head-meta">
+              <Icon name={promptBytes.icon} />
+              {promptBytes.label} {run.config.disease}{" "}
+              {run.config.promptSha256.slice(0, 12)}
+            </span>
+          )}
         </div>
 
         {run.steps.length > 0 && (
@@ -586,9 +600,9 @@ function PipelineRunContent({ run }: { run: PipelineRun }) {
               own total -- exact even when the list itself is capped.
               `validated - rejectedAtInsertFloor` was not the same number:
               `validated` counts one per paper and a hold counts one per
-              merged gene, so COL4A1 and COL4A2 validated from two papers
-              and held once as COL4A1/2 read as one gene accepted when
-              none was. */
+              merged gene, so two genes sharing an alias validated from
+              two papers and held once as that alias read as one gene
+              accepted when none was. */
           }
           <Stat
             name="genesAccepted"

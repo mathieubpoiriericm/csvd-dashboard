@@ -1,9 +1,11 @@
 """Draw the trials radar (population sectors x phase rings) for print.
 
 The dashboard draws the same figure in the browser (islands/TrialsTimeline.tsx
-from lib/timeline.ts). Both renderers read lib/timeline_encoding.json -- the
-one place the colours, ring radii and population order live -- and both apply
-the same layout rule: sector span proportional to unique drugs per population,
+from lib/timeline.ts). Both renderers read lib/timeline_encoding.json for the
+rings and chrome and disease/timeline.json for the populations, mechanisms and
+families -- together the one place the colours, ring radii and population
+order live -- and both apply the same layout rule: sector span proportional to
+unique drugs per population,
 markers at (j+1)/(m+1) of the sector in table order, radius staggered by 18 %
 of the ring thickness, alternating, when a cell holds more than one marker.
 Angles are degrees clockwise from 12 o'clock; pyCirclize shares that
@@ -27,6 +29,7 @@ from typing import Any
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_TRIALS = _PROJECT_ROOT / "data" / "table2.json"
 DEFAULT_ENCODING = _PROJECT_ROOT / "lib" / "timeline_encoding.json"
+DEFAULT_DISEASE_ENCODING = _PROJECT_ROOT / "disease" / "timeline.json"
 DEFAULT_OUT = _PROJECT_ROOT / "figures"
 FORMATS = ("svg", "pdf", "png")
 
@@ -179,9 +182,16 @@ def load_trials(path: Path = DEFAULT_TRIALS) -> list[dict[str, str]]:
     ]
 
 
-def load_encoding(path: Path = DEFAULT_ENCODING) -> dict[str, Any]:
+def load_encoding(
+    path: Path = DEFAULT_ENCODING,
+    disease: Path = DEFAULT_DISEASE_ENCODING,
+) -> dict[str, Any]:
+    """Rings and chrome from lib/, populations and mechanisms from disease/."""
     with path.open(encoding="utf-8") as handle:
-        return json.load(handle)
+        encoding = json.load(handle)
+    with disease.open(encoding="utf-8") as handle:
+        encoding.update(json.load(handle))
+    return encoding
 
 
 # ---------------------------------------------------------------------------
@@ -194,7 +204,7 @@ def _unique_drug_count(rows: list[dict[str, str]]) -> int:
 
 
 def _rows_for(trials: list[dict[str, str]], population: str) -> list[dict[str, str]]:
-    return [row for row in trials if row["svdPopulation"] == population]
+    return [row for row in trials if row["targetPopulation"] == population]
 
 
 def sector_spans(

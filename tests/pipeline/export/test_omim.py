@@ -88,6 +88,13 @@ def test_default_path_points_at_the_committed_csv() -> None:
     assert DEFAULT_OMIM_CSV.is_file()
 
 
+def test_the_csv_lives_in_the_disease_directory() -> None:
+    from pipeline.disease import OMIM_CSV_PATH
+
+    assert DEFAULT_OMIM_CSV == OMIM_CSV_PATH
+    assert DEFAULT_OMIM_CSV.parent.name == "disease"
+
+
 def test_missing_fields_become_empty_strings_not_a_sentinel(tmp_path: Path) -> None:
     """Mirrors the real CSV's row 575553: an OMIM number with no
     associated phenotype/inheritance/gene data yet. export.R's

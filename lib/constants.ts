@@ -7,19 +7,20 @@
  * strings included, so they must stay byte-identical to what
  * `pipeline/export/tables.py` emits.
  *
- * `GWAS_TRAIT_CHOICES` is derived from `lib/vocabulary.json`, the single source
- * of truth for the trait vocabulary. Add a trait there, not here.
+ * `GWAS_TRAIT_CHOICES` is derived from `disease/vocabulary.json`, the single
+ * source of truth for the trait vocabulary. Add a trait there, not here.
  */
 
-import vocabulary from "./vocabulary.json" with { type: "json" };
+import vocabulary from "../disease/vocabulary.json" with { type: "json" };
 import type { FilterChoice } from "./types.ts";
 import type { IconName } from "../components/Icon.tsx";
+import { POPULATIONS } from "./disease/populations.ts";
 import { NONE_FOUND, UNKNOWN } from "./sentinels.ts";
 import { parseMonthYear } from "./sorting.ts";
 import { STATUS_NOT_STATED, TRIAL_STATUSES } from "./trial_status.ts";
 
 /** The name in the tab title, on the login card and in the page footer. */
-export const SITE_TITLE = "ICM Cerebral SVD Dashboard";
+export { SITE_TITLE } from "./disease/site.ts";
 
 export const SHOW_ALL = "all";
 // The sentinels are declared once, in lib/sentinels.ts; NONE_FOUND is
@@ -102,7 +103,7 @@ export const YES_NO_CHOICES: readonly FilterChoice[] = [
 export const GWAS_TRAIT_CHOICES: readonly FilterChoice[] = [
   { label: "Show All", value: SHOW_ALL },
   { label: "None Found", value: NONE_FOUND },
-  // Derived, never listed: `lib/vocabulary.json` is the one place a trait's
+  // Derived, never listed: `disease/vocabulary.json` is the one place a trait's
   // key and label live. Listing them here too is what let "Lacunar Stroke"
   // and the phenogram's "Lacunar stroke" drift apart unnoticed.
   ...vocabulary.traits.map((trait) => ({
@@ -165,10 +166,11 @@ export const PHASE_CHOICES: readonly FilterChoice[] = [
 
 export const POPULATION_CHOICES: readonly FilterChoice[] = [
   { label: "Show All", value: SHOW_ALL },
-  { label: "CAA", value: "CAA" },
-  { label: "Cognitive Impairment", value: "Cognitive Impairment" },
-  { label: "Stroke", value: "Stroke" },
-  { label: "SVD", value: "SVD" },
+  // Derived, never listed: `disease/manifest.json` is the one place a
+  // population's key and label live, and `disease/timeline.json` gives the
+  // same keys their sector colours. tests/disease_manifest_test.ts holds the
+  // two in the same order.
+  ...POPULATIONS.map((p) => ({ label: p.label, value: p.key })),
 ];
 
 export const SPONSOR_CHOICES: readonly FilterChoice[] = [
@@ -212,21 +214,12 @@ export const DEFAULT_TRIAL_STATUSES: readonly string[] = STATUS_CHOICES
 export const NCBI_GENE_BASE_URL = "https://www.ncbi.nlm.nih.gov/gene/";
 export const PUBMED_BASE_URL = "https://pubmed.ncbi.nlm.nih.gov/";
 
+// Re-exported from the disease manifest:
+export { CELL_TYPE_NAMES } from "./disease/cell_types.ts";
+
 // -----------------------------------------------------------------------------
 // ABBREVIATION EXPANSIONS
 // -----------------------------------------------------------------------------
-
-/** Brain cell type abbreviations shown in the "Brain Cell Types" column. */
-export const CELL_TYPE_NAMES: Record<string, string> = {
-  EC: "Endothelial Cells",
-  SMC: "Smooth Muscle Cells",
-  VSMC: "Vascular Smooth Muscle Cells",
-  AC: "Astrocytes",
-  MG: "Microglia",
-  OL: "Oligodendrocytes",
-  PC: "Pericytes",
-  FB: "Fibroblasts",
-};
 
 /** Omics study-type abbreviations. */
 export const OMICS_FULL_NAMES: Record<string, string> = {

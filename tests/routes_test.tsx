@@ -15,6 +15,7 @@ import PhenogramPage from "../routes/phenogram.tsx";
 import TimelinePage from "../routes/timeline.tsx";
 import Trials from "../routes/trials.tsx";
 import { genes, trialLocations, trials } from "../lib/data.ts";
+import { RADAR_TITLE, SITE_TITLE } from "../lib/disease.ts";
 import { DEFAULT_TRIAL_STATUSES } from "../lib/constants.ts";
 import { filterLocationsByStatus, visibleTrials } from "../lib/filters.ts";
 import type { PipelineRun, SyncRun } from "../lib/types.ts";
@@ -233,10 +234,7 @@ Deno.test("Phenogram route server-renders every placed gene and both legends", (
 
 Deno.test("Timeline route server-renders the visible trial markers and its legends", () => {
   const html = render(TimelinePage);
-  assertStringIncludes(
-    html,
-    "Cerebral SVD clinical trials by population and phase",
-  );
+  assertStringIncludes(html, RADAR_TITLE);
   assertStringIncludes(html, "Mechanism of action");
   assertStringIncludes(html, "Genetic evidence");
   assertStringIncludes(html, "Study status");
@@ -281,10 +279,7 @@ Deno.test("application shell derives nested-route titles and active navigation",
     }),
   );
 
-  assertStringIncludes(
-    html,
-    "<title>Genes | ICM Cerebral SVD Dashboard</title>",
-  );
+  assertStringIncludes(html, `<title>Genes | ${SITE_TITLE}</title>`);
   assertStringIncludes(html, "Route body");
   assertStringIncludes(html, 'href="/genes" aria-current="page"');
   // Scoped to an anchor tag's own attributes, not a bare substring match:
@@ -308,7 +303,7 @@ Deno.test("application shell falls back to the site title for unknown routes", (
       url: new URL("https://example.test/unknown"),
     }),
   );
-  assertStringIncludes(html, "<title>ICM Cerebral SVD Dashboard</title>");
+  assertStringIncludes(html, `<title>${SITE_TITLE}</title>`);
   assertEquals(
     (html.match(/<a\b[^>]*\baria-current="page"/g) ?? []).length,
     0,

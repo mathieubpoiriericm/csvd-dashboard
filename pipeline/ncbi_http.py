@@ -80,7 +80,7 @@ async def get_with_retry(
         url: NCBI E-utility URL.
         params: Query parameters (api_key added when the key is set).
         config: Pipeline config for retry settings.
-        context: Description for log messages (e.g. "esearch for NOTCH3").
+        context: Description for log messages (e.g. "esearch for a gene symbol").
 
     Returns:
         httpx.Response on any non-429 answer, including a non-200 the

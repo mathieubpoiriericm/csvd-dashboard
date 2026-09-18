@@ -1,14 +1,15 @@
-"""The prompt's trait vocabulary is reconciled against lib/vocabulary.json.
+"""The prompt's trait vocabulary is reconciled against disease/vocabulary.json.
 
-`pipeline/prompts.py` names the canonical GWAS trait abbreviations in prose, and
-that sentence stays a frozen literal on purpose: it is compared across runs,
-recorded in cassettes, and treated as part of the method, so generating it from a
-mutable file would let an edit silently change what the model is asked. The
-reconciliation happens here instead.
+The canonical GWAS trait abbreviations are named in prose, and that sentence is
+prose in `disease/prompt.md`, rendered into the v7 template; the cSVD rendering
+is pinned byte-for-byte by `test_prompt_assembly.py`, so an edit is a visible
+fixture change rather than a silent one. Deriving the sentence from
+`disease/vocabulary.json` instead would let an edit there change what the model
+is asked with nothing to show it. The reconciliation happens here instead.
 
 Two artifacts fix what a run may report, and only one of them is frozen. The
 sentence is what the model is *asked* for; the tool schema's `gwas_trait` enum
--- `CANONICAL_TRAITS`, generated from `lib/vocabulary.json` at import time and
+-- `CANONICAL_TRAITS`, generated from `disease/vocabulary.json` at import time and
 sent on every request -- is what it is *allowed* to say, and it is the half the
 API enforces. So the enum is part of the method too: a `traits[*].key` added or
 renamed changes what a run may report with no prompt edit and no re-recorded
@@ -34,7 +35,7 @@ from pipeline.config import PROJECT_ROOT
 from pipeline.extraction_models import CANONICAL_TRAITS
 from pipeline.prompts import _PROMPTS, PROMPT_VERSIONS_WITHOUT_PROVENANCE
 
-_VOCABULARY: Final[Path] = PROJECT_ROOT / "lib" / "vocabulary.json"
+_VOCABULARY: Final[Path] = PROJECT_ROOT / "disease" / "vocabulary.json"
 
 # The one sentence in the instructions that fixes the output vocabulary.
 _CANONICAL: Final[re.Pattern[str]] = re.compile(
@@ -127,7 +128,7 @@ def test_every_prompt_term_has_a_recorded_disposition(version: str) -> None:
     known = declared["tracked"] | declared["synonym"] | declared["untracked"]
     orphans = sorted(_prompt_terms(version) - known)
     assert not orphans, (
-        f"{version} asks the model for {orphans}, which lib/vocabulary.json does "
+        f"{version} asks the model for {orphans}, which disease/vocabulary.json does "
         "not declare. Such a term reaches data/table1.json with no filter choice "
         "and no phenogram entry. Add it to `traits`, fold it in `synonyms`, or "
         "record it in `untracked` with a reason."
@@ -156,7 +157,7 @@ def test_every_prompt_term_is_admitted_by_the_schema(version: str) -> None:
 def test_the_schema_admits_nothing_the_prompt_does_not_ask_for(version: str) -> None:
     """The other direction, and the one that was missing.
 
-    The enum is generated from lib/vocabulary.json at import time and is
+    The enum is generated from disease/vocabulary.json at import time and is
     what the API enforces, so a trait key added or renamed there changes
     what the model may emit with no prompt edit, no cassette re-record and
     -- until this test -- no failure. `lacunar stroke` reached
@@ -207,7 +208,7 @@ def test_synonyms_and_untracked_terms_earn_their_place(version: str) -> None:
     prompt = _prompt_terms(version)
     stale = sorted((declared["synonym_from_prompt"] | declared["untracked"]) - prompt)
     assert not stale, (
-        f"lib/vocabulary.json accounts for {stale}, which {version} no longer "
+        f"disease/vocabulary.json accounts for {stale}, which {version} no longer "
         "asks for. Delete the entry, or promote it to a tracked trait if the "
         "dashboard should carry it."
     )

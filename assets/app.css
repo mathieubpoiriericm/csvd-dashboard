@@ -175,8 +175,6 @@
   --svd-on-primary: var(--svd-slate-100);
   --svd-on-ok: var(--svd-slate-100);
 
-  --svd-icm-mark: #e94e14;
-
   /* OSM ships one raster set. Inverting the tile pane alone keeps the vector
      markers and popups drawn on top untouched. */
   --svd-tile-filter: none;
@@ -935,7 +933,9 @@ svg {
 }
 
 /*
- * The wordmark inherits currentColor; the mark keeps the institute orange.
+ * The mark and wordmark are two static files under static/institute/ rather
+ * than one inline SVG recoloured through currentColor; InstituteLogo picks
+ * the file, this only sizes it.
  *
  * `max-width: none` opts out of the global `img, svg` cap: inside a grid track
  * that cap resolves against the track, the track's own minimum then resolves
@@ -943,11 +943,42 @@ svg {
  * heading takes the width. Opting out makes the intrinsic width (the 826×235
  * viewBox at 36px tall) the track's floor, so the heading wraps instead.
  */
-.icm-logo {
+.institute-logo {
   height: var(--svd-navbar-logo-height);
   width: auto;
   max-width: none;
   flex: none;
+}
+
+/*
+ * InstituteLogo's `auto` mode renders both files and this shows one. The
+ * navbar is dark in both themes and asks for one file outright, so these two
+ * classes reach only the login card, whose surface follows the theme. Like the
+ * tokens above, the swap is declared twice — the media query for the system
+ * default, [data-theme='dark'] for the toggle — because `light-dark()` needs
+ * Firefox 120 and the build targets 114. Neither block declares a token, so
+ * neither is part of the pair tests/styles_contract_test.ts compares.
+ */
+.institute-logo-dark {
+  display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .institute-logo-light {
+    display: none;
+  }
+
+  :root:not([data-theme='light']) .institute-logo-dark {
+    display: block;
+  }
+}
+
+:root[data-theme='dark'] .institute-logo-light {
+  display: none;
+}
+
+:root[data-theme='dark'] .institute-logo-dark {
+  display: block;
 }
 
 /* The opacity the design draws this at is expressed as a mix on the bar's
@@ -2504,7 +2535,7 @@ a.pipeline-chip:focus-visible {
   }
 
   /* The glyph now has one row rather than the whole bar to span. */
-  .icm-logo {
+  .institute-logo {
     height: 3rem;
   }
 }
@@ -2587,7 +2618,7 @@ a.pipeline-chip:focus-visible {
     gap: var(--svd-space-2) var(--svd-space-3);
   }
 
-  .icm-logo {
+  .institute-logo {
     height: 2.5rem;
   }
 
@@ -5167,10 +5198,9 @@ details.pipeline-apis:not([open]) > ul {
   gap: var(--svd-space-4);
 }
 
-.login-card .icm-logo {
+.login-card .institute-logo {
   height: calc(var(--svd-navbar-logo-height) * 1.25);
   max-width: 100%;
-  color: var(--svd-ink);
 }
 
 .login-card h1 {

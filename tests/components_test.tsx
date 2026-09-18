@@ -19,7 +19,7 @@ import {
 } from "../components/DensityReadout.tsx";
 import GenesView, { BrainCellTypesCell } from "../islands/GenesView.tsx";
 import TrialsView, { GeneticTargets } from "../islands/TrialsView.tsx";
-import { IcmLogo } from "../components/IcmLogo.tsx";
+import { InstituteLogo } from "../components/InstituteLogo.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { MapPopup } from "../components/MapPopup.tsx";
 import { Page } from "../components/Page.tsx";
@@ -37,7 +37,7 @@ import { ValueBox } from "../components/ValueBox.tsx";
 import { SHOW_ALL, YES_NO_CHOICES } from "../lib/constants.ts";
 import { trials } from "../lib/data.ts";
 import type { TrialLocation } from "../lib/types.ts";
-import vocabulary from "../lib/vocabulary.json" with { type: "json" };
+import vocabulary from "../disease/vocabulary.json" with { type: "json" };
 
 const render = (node: preact.VNode) => renderToString(node);
 
@@ -185,7 +185,7 @@ Deno.test("presentational shells render their optional variants", () => {
       <TipBox>Default guidance</TipBox>
       <TipBox label="Note:">Specific guidance</TipBox>
       <ValueBox label="Records" value={12345} />
-      <IcmLogo />
+      <InstituteLogo />
       <Icon name="info" />
       <Icon name="dna" />
     </Page>,
@@ -196,9 +196,47 @@ Deno.test("presentational shells render their optional variants", () => {
   assertStringIncludes(html, "<strong>Tip:</strong>");
   assertStringIncludes(html, "<strong>Note:</strong>");
   assertStringIncludes(html, "12,345");
-  assertStringIncludes(html, 'aria-label="Paris Brain Institute"');
+  assertStringIncludes(html, 'alt="Paris Brain Institute"');
   assertEquals((html.match(/class="icon"/g) ?? []).length, 2);
-  assertEquals((html.match(/<path/g) ?? []).length > 5, true);
+  // InstituteLogo is an <img>, so every <path> here comes from the two
+  // Icon glyphs: "info" (one) and the multi-path "dna" (three).
+  assertEquals((html.match(/<path/g) ?? []).length, 4);
+});
+
+Deno.test("InstituteLogo renders one file for a named theme", () => {
+  const light = renderToString(<InstituteLogo theme="light" />);
+  assertStringIncludes(light, 'src="/institute/logo-light.svg"');
+  assertStringIncludes(light, 'alt="Paris Brain Institute"');
+  assertEquals((light.match(/<img/g) ?? []).length, 1);
+
+  const dark = renderToString(<InstituteLogo theme="dark" />);
+  assertStringIncludes(dark, 'src="/institute/logo-dark.svg"');
+  assertEquals((dark.match(/<img/g) ?? []).length, 1);
+
+  const decorative = renderToString(<InstituteLogo theme="dark" decorative />);
+  // preact-render-to-string serialises an empty string attribute as the
+  // bare attribute name rather than `alt=""` -- valid HTML5 parses `<img
+  // alt>` as `alt=""` either way, so this checks the same emptiness the
+  // literal form would.
+  assertStringIncludes(decorative, 'alt aria-hidden="true"');
+});
+
+Deno.test("InstituteLogo defaults to the pair the stylesheet picks between", () => {
+  // The login card's surface follows the theme, and the theme is only known
+  // in the browser, so both files are rendered and app.css shows one.
+  const html = renderToString(<InstituteLogo />);
+  assertStringIncludes(
+    html,
+    'class="institute-logo institute-logo-light" src="/institute/logo-light.svg"',
+  );
+  assertStringIncludes(
+    html,
+    'class="institute-logo institute-logo-dark" src="/institute/logo-dark.svg"',
+  );
+  assertEquals((html.match(/alt="Paris Brain Institute"/g) ?? []).length, 2);
+
+  const decorative = renderToString(<InstituteLogo decorative />);
+  assertEquals((decorative.match(/aria-hidden="true"/g) ?? []).length, 2);
 });
 
 Deno.test("DensityReadout renders totals and zero-height buckets safely", () => {

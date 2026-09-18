@@ -152,9 +152,17 @@ Three things are load-bearing beyond the tokens:
 - **`--svd-z-sticky` must clear 1000.** Leaflet puts `.leaflet-top` at 1000 and
   `.leaflet-container` creates no stacking context, so those values compete at
   the root. A lower navbar gets painted over by the map controls.
-- **The ICM logo is inlined** (`components/IcmLogo.tsx`) rather than an `<img>`,
-  so the wordmark can inherit `currentColor` on the dark navbar. The mark keeps
-  the institute orange through `--svd-icm-mark`.
+- **The institute's logo is two static files under `static/institute/`**, named
+  by `disease/manifest.json` and served as `<img>` by
+  `components/InstituteLogo.tsx` — a fork replaces the files and touches no
+  component. It used to be one inline SVG recoloured through `currentColor`,
+  which is why `--svd-icm-mark` existed; nothing inherits a colour now, so both
+  are gone. The component's `theme` prop says which file: the navbar is dark in
+  both themes and asks for `"dark"`, while the login card follows the theme and
+  takes the default `"auto"`, which renders both files and lets
+  `.institute-logo-light` / `.institute-logo-dark` show one. That swap is
+  declared twice for the same reason the tokens are, and beside the sizing rule
+  rather than inside either token block.
 
 ## Typography and figure colour
 

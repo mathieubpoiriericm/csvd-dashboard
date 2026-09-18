@@ -24,6 +24,7 @@ _SQL_CASES: list[tuple[str, str, str]] = [
     ("011_add_sync_runs.py", "CREATE TABLE", "DROP TABLE"),
     ("012_add_ncbi_map_location.py", "ADD COLUMN", "DROP COLUMN"),
     ("013_add_trial_overall_status.py", "ADD COLUMN", "DROP COLUMN"),
+    ("014_rename_trial_population.py", "RENAME COLUMN", "RENAME COLUMN"),
 ]
 
 

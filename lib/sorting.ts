@@ -76,8 +76,8 @@ export const CHROMOSOMES: readonly string[] = [
  *
  * `sortFn_alphanumeric` compares the leading chunk of each value and puts a
  * string chunk before a numeric one, so "Xq22.1" sorted *above* chromosome 1
- * -- which stayed invisible until the 365-day run added GLA, the table's
- * first X-linked gene. An unrecognised value ranks last rather than first,
+ * -- which stayed invisible until a run added the table's first X-linked
+ * gene. An unrecognised value ranks last rather than first,
  * so a sentinel cannot head the column.
  */
 export function chromosomeRank(location: string): number {

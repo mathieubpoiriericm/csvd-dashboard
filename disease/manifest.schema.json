@@ -1,0 +1,206 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Disease manifest",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "disease",
+    "site",
+    "institute",
+    "contact",
+    "about",
+    "hosting",
+    "populations",
+    "populationField",
+    "cellTypes",
+    "citationStandard"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "$comment": { "type": "string" },
+    "disease": {
+      "type": "object",
+      "required": ["key", "name", "short", "abbreviation", "adjective"],
+      "additionalProperties": false,
+      "properties": {
+        "key": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "name": { "type": "string", "minLength": 1 },
+        "short": { "type": "string", "minLength": 1 },
+        "abbreviation": { "type": "string", "minLength": 1 },
+        "adjective": { "type": "string", "minLength": 1 }
+      }
+    },
+    "site": {
+      "type": "object",
+      "required": [
+        "title",
+        "heading",
+        "metaDescription",
+        "aboutTitle",
+        "aboutLede",
+        "loginLede",
+        "pages"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "title": { "type": "string" },
+        "heading": { "type": "string" },
+        "metaDescription": { "type": "string" },
+        "aboutTitle": { "type": "string" },
+        "aboutLede": { "type": "string" },
+        "loginLede": { "type": "string" },
+        "pages": {
+          "type": "object",
+          "required": ["genes", "trials", "timeline", "map"],
+          "additionalProperties": false,
+          "properties": {
+            "genes": { "type": "string" },
+            "trials": { "type": "string" },
+            "timeline": { "type": "string" },
+            "map": { "type": "string" }
+          }
+        }
+      }
+    },
+    "institute": {
+      "type": "object",
+      "required": ["name", "short", "copyright", "logo"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "short": { "type": "string" },
+        "url": { "type": ["string", "null"] },
+        "copyright": { "type": "string" },
+        "logo": {
+          "type": "object",
+          "required": ["src", "alt"],
+          "additionalProperties": false,
+          "properties": {
+            "src": { "type": "string" },
+            "srcOnDark": { "type": ["string", "null"] },
+            "alt": { "type": "string" }
+          }
+        }
+      }
+    },
+    "contact": {
+      "type": "object",
+      "required": ["maintainer"],
+      "additionalProperties": false,
+      "properties": {
+        "maintainer": {
+          "type": "object",
+          "required": ["name", "email"],
+          "properties": {
+            "name": { "type": "string" },
+            "email": { "type": "string" }
+          }
+        }
+      }
+    },
+    "about": {
+      "type": "object",
+      "required": [
+        "citation",
+        "board",
+        "contactUs",
+        "acknowledgements",
+        "additionalSources"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "citation": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "required": ["authors", "title", "journal", "year", "doi"],
+              "properties": {
+                "authors": { "type": "string" },
+                "title": { "type": "string" },
+                "journal": { "type": "string" },
+                "year": { "type": "integer" },
+                "doi": { "type": "string" }
+              }
+            }
+          ]
+        },
+        "board": { "type": ["string", "null"] },
+        "contactUs": { "type": ["string", "null"] },
+        "acknowledgements": { "type": ["string", "null"] },
+        "additionalSources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "href", "licence", "provides"],
+            "properties": {
+              "name": { "type": "string" },
+              "href": { "type": "string" },
+              "provides": { "type": "string" },
+              "licence": {
+                "type": "object",
+                "required": ["label"],
+                "properties": {
+                  "label": { "type": "string" },
+                  "href": { "type": ["string", "null"] }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "hosting": {
+      "type": "object",
+      "required": ["url"],
+      "properties": { "url": { "type": ["string", "null"] } }
+    },
+    "populations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["key", "label"],
+        "properties": {
+          "key": { "type": "string" },
+          "label": { "type": "string" }
+        }
+      }
+    },
+    "populationField": {
+      "type": "object",
+      "required": ["label", "detailsLabel"],
+      "properties": {
+        "label": { "type": "string" },
+        "detailsLabel": { "type": "string" }
+      }
+    },
+    "cellTypes": {
+      "type": "object",
+      "required": ["label", "glossary"],
+      "properties": {
+        "label": { "type": "string" },
+        "glossary": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    },
+    "citationStandard": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["name", "label", "doi", "linkLabel"],
+          "properties": {
+            "name": { "type": "string" },
+            "label": { "type": "string" },
+            "doi": { "type": "string" },
+            "linkLabel": { "type": "string" }
+          }
+        }
+      ]
+    }
+  }
+}

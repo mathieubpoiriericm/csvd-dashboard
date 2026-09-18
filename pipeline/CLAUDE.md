@@ -4,6 +4,12 @@ Guidance for `pipeline/` and `tests/pipeline/`. The repo-wide contracts — the
 JSON wire format, the filtering rules, the islands and the two figures — stay in
 the root `CLAUDE.md`.
 
+The disease the pipeline serves is read from `disease/pipeline.json` (search
+terms, monogenic genes, gene aliases, run label, gene cap) and
+`disease/manifest.json` (name, populations, cell types and the rest of the
+web-facing prose) through `pipeline/disease.py`; see the root `CLAUDE.md`, "The
+disease seam".
+
 ## Extraction
 
 **The extraction model is pinned in code, not configured.** `EXTRACTION_MODEL`
@@ -18,14 +24,14 @@ code change with a re-recorded harness.
 **The prompt version is pinned the same way, by refusal rather than by
 fallback.** `PIPELINE_PROMPT_VERSION` still selects one, but `__post_init__`
 refuses a name `prompts.py` does not carry, and `build_extraction_prompt` raises
-instead of falling back to v6. The fallback was safe for the prompt and false
-for every record of the run: `report_metadata`, `pipeline_runs.report`,
+instead of falling back to the default. The fallback was safe for the prompt and
+false for every record of the run: `report_metadata`, `pipeline_runs.report`,
 `data/pipeline_run.json` and the checkpoint fingerprint all publish
-`config.prompt_version` verbatim, so `PIPELINE_PROMPT_VERSION=v7` named a
-version that never existed as the method behind rows extracted with v6 — on the
-public About page — and correcting the typo afterwards changed the fingerprint,
-discarding a checkpoint whose papers had been extracted with the very same
-prompt. A run reports the prompt it ran.
+`config.prompt_version` verbatim, so a typo'd `PIPELINE_PROMPT_VERSION` named a
+version that never existed as the method behind the rows it was extracting — on
+the public About page — and correcting the typo afterwards changed the
+fingerprint, discarding a checkpoint whose papers had been extracted with the
+very same prompt. A run reports the prompt it ran.
 
 What went with it: `LEGACY_THINKING_MODELS`, `EFFORT_INCAPABLE_MODELS`,
 `uses_adaptive_thinking()`, `supports_effort()`, `THINKING_OUTPUT_RESERVE`, the
@@ -87,7 +93,7 @@ publish as four clean calls beside three retries.
 
 **The schema admits the prompt's own spellings.** The tool's `gwas_trait` enum
 is `CANONICAL_TRAITS`: the tracked keys, the `untracked` terms, and the
-prompt-sourced `synonyms` from `lib/vocabulary.json`. The prompt's frozen
+prompt-sourced `synonyms` from `disease/vocabulary.json`. The prompt's frozen
 canonical sentence asks for `cerebral-microbleeds` while the tracked key is
 `CMB`, and with the spelling refused a model that obeyed the prompt failed the
 paper after two paid calls -- which instruction it followed decided whether the
@@ -99,8 +105,8 @@ prompt against the enum as well as against the vocabulary.
 **The enum is part of the method, and it is the half that constrains the
 model.** The frozen canonical sentence in `prompts.py` is what the model is
 _asked_ for; the tool schema's `gwas_trait` enum is what it is _allowed_ to say,
-and it is generated from `lib/vocabulary.json` at import time. So an edit to a
-`traits[*].key` changes what a run may report with no prompt edit and no
+and it is generated from `disease/vocabulary.json` at import time. So an edit to
+a `traits[*].key` changes what a run may report with no prompt edit and no
 re-recorded cassette — the drift the frozen sentence is documented to prevent,
 arriving through the other door. It is not hypothetical: the enum admits `CMB`,
 `NODDI` and `lacunar stroke`, none of which the sentence names, and the recorded
@@ -143,7 +149,19 @@ a re-run could land either side. **`medium` is the lever** if cost or latency
 ever binds: 34% cheaper, 55% of the wall-clock, quote fidelity if anything
 better. `low` is not: 13 points, and it stops producing prose.
 
-### The prompt is v6, and v4's guards were measured rather than assumed
+### The prompt is v7: a template plus `disease/prompt.md`, and v4's guards were measured rather than assumed
+
+`pipeline/prompts.py` holds the methodology as a template with
+`{{ section.id }}` slots and `disease/prompt.md` holds the disease prose, one
+`## id` per slot. `render_prompt` refuses an unknown slot, an unreferenced
+section and a residual `{{`, and `tests/pipeline/test_prompt_assembly.py` pins
+the cSVD rendering byte-identical to the v6 literals (sha256 `70908abc…`), which
+is why the recall baseline and the golden cassettes carried over without
+re-recording. `prompt_sha256()` hashes the rendered system prompt and
+instructions together, because the version name stopped being enough the moment
+half the prompt moved into a data file. `deno fmt` is excluded from
+`disease/prompt.md` in `deno.json`: reflowing its prose would rewrap the very
+lines the model reads, and byte identity is the whole contract.
 
 `pipeline/prompts.py` holds one prompt, and its module docstring records why
 v4's stricter exclusion guards were measured and ruled out rather than assumed
@@ -658,8 +676,8 @@ counts a removed trial moves are in the `sync-clinical-trials` skill
 the only filter was `DRUG_INTERVENTION_TYPES`. Ten terms return 1,423 studies
 whose most common stated condition is **Fabry disease** (215), beside cancer,
 ANCA vasculitis, Parkinson's and MS -- 594 rows in a curator's queue, Ebola
-vaccine trials among them. `is_csvd_study` keeps a study only if a condition it
-_states_ names a cSVD entity. `_CSVD_CONDITIONS` is that vocabulary and
+vaccine trials among them. `is_disease_study` keeps a study only if a condition
+it _states_ names a cSVD entity. `_CONDITIONS` is that vocabulary and
 deliberately excludes the systemic diseases that _cause_ cSVD, because the
 curated table has never held a Fabry or mitochondrial trial. MeSH inverts the
 phrase, so "Dementia, Vascular" is matched as a co-occurrence inside **one**
@@ -674,14 +692,14 @@ page and fetched 382 studies. Six truncates no term and fetches 1,423. CTG
 states no `Retry-After` -- the header path in `_fetch_page_with_retry` has never
 fired -- so the curve is what paces this client.
 
-**`trial_name` and `primary_outcome` are curator-owned once `svd_population` is
-filled in.** Refreshing them API-first replaced curator prose with registry
+**`trial_name` and `primary_outcome` are curator-owned once `target_population`
+is filled in.** Refreshing them API-first replaced curator prose with registry
 verbatim on five of the eight curated NCT trials the first time the sync ran. A
 discovery inserts on the run that finds it and _refreshes_ on every run after,
 so "refreshed" stops meaning "curated" the second time -- the same proxy made
 `_unplaceable_phases` report 35 uncurated rows as publishing in Table 2. Gate on
-`svd_population` -- `TrialUpsertResult.curated_ids` is the set that carries it
--- never on refresh status.
+`target_population` -- `TrialUpsertResult.curated_ids` is the set that carries
+it -- never on refresh status.
 
 ## Database tests
 
@@ -750,7 +768,7 @@ in `_MISSED`, and the anchor-only and MeSH-branch figures are pinned so widening
 a term list in the belief that it helps recall fails loudly).
 `tests/pipeline/test_extraction_golden.py` replays ten cassettes and asserts
 recall over the gold genes a paper's retrieved text actually names, reported
-apart for the 13 gold genes the v6 prompt itself names -- **quote the clean 88%,
+apart for the 13 gold genes the prompt itself names -- **quote the clean 88%,
 not the pooled 91%**. Its `_RECALL_BASELINE` is raised when the prompt is
 widened, never to turn a red run green. What neither proves:
 

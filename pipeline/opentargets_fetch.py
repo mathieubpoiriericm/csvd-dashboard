@@ -16,8 +16,9 @@ traps were hit live on 2026-08-31 and are pinned by test:
   ``status`` / ``drugType``). Neither is queried here; mechanisms come from
   ``Drug.mechanismsOfAction`` in ``opentargets_drugs``.
 
-``dbXrefs`` is filtered rather than stored whole -- HTRA1's 30-odd entries are
-mostly PDB structure accessions, which say nothing about gene identity.
+``dbXrefs`` is filtered rather than stored whole -- one gene's entries ran to
+30-odd, mostly PDB structure accessions, which say nothing about gene
+identity.
 """
 
 import asyncio
@@ -205,8 +206,9 @@ class _Resolution:
 async def resolve_target(gene_symbol: str) -> _Resolution | None:
     """Resolve a bare symbol to its Ensembl gene ID.
 
-    Exact ``approvedSymbol`` match only. A substring search for HTRA1 also
-    returns HTRA1-AS1, an antisense lncRNA that is a different gene.
+    Exact ``approvedSymbol`` match only. A substring search for a gene
+    symbol can also return its ``-AS1`` namesake, an antisense lncRNA that
+    is a different gene.
     """
     data = await graphql(_SEARCH_QUERY, {"q": gene_symbol})
     if data is None:

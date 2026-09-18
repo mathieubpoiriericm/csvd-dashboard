@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { filterGroup } from "../helpers.ts";
+import { POPULATION_LABEL } from "../fixtures/expected-data.ts";
 
 /**
  * The filter panel folds to a rail so the table gets the freed column.
@@ -13,7 +14,7 @@ import { filterGroup } from "../helpers.ts";
  */
 const PAGES = [
   { path: "/genes", group: "Mendelian randomization performed" },
-  { path: "/trials", group: "SVD Population" },
+  { path: "/trials", group: POPULATION_LABEL },
 ];
 
 const HIDE = "Hide filters";

@@ -230,7 +230,7 @@ class TestLayout:
             assert band.outer == pytest.approx(100 * (1 + rim["gap"] + rim["width"]))
             assert band.color == colours[band.population]
 
-        stroke = [t for t in trials if t["svdPopulation"] == "Stroke"]
+        stroke = [t for t in trials if t["targetPopulation"] == "Stroke"]
         only = tf.rim_bands(sector_spans(stroke, encoding), encoding)
         assert [b.population for b in only] == ["Stroke"]
 

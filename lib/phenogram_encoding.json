@@ -1,49 +1,5 @@
 {
-  "$comment": "Appearance only. Trait identity -- key, label, family, name and the STRIVE-2 definitions -- lives in lib/vocabulary.json.",
-  "families": [
-    {
-      "key": "pvs",
-      "label": "Perivascular spaces",
-      "hue": "#2a78d6",
-      "tint": "#d8edff"
-    },
-    {
-      "key": "diffusion",
-      "label": "Diffusion MRI",
-      "hue": "#eb6834",
-      "tint": "#ffe2d5"
-    },
-    {
-      "key": "extreme",
-      "label": "Extreme cSVD",
-      "hue": "#1baf7a",
-      "tint": "#d2f5e2"
-    },
-    {
-      "key": "wmh",
-      "label": "White matter hyperintensities",
-      "hue": "#008300",
-      "tint": "#dbf3d8"
-    },
-    {
-      "key": "stroke",
-      "label": "Stroke",
-      "hue": "#e87ba4",
-      "tint": "#ffdfeb"
-    },
-    {
-      "key": "cmb",
-      "label": "Cerebral microbleeds",
-      "hue": "#4a3aa7",
-      "tint": "#e7e8ff"
-    },
-    {
-      "key": "lacunes",
-      "label": "Lacunes",
-      "hue": "#e34948",
-      "tint": "#ffe0dc"
-    }
-  ],
+  "$comment": "Appearance only. Trait identity -- key, label, family, name and the STRIVE-2 definitions -- lives in disease/vocabulary.json. The families and their hues live in disease/phenogram.json; the citation standard is citationStandard in disease/manifest.json.",
   "evidence": [
     {
       "key": "omics",
@@ -73,10 +29,6 @@
       "scale": 1,
       "innerRatio": 0.55
     }
-  },
-  "citation": {
-    "label": "Duering, M. et al. Neuroimaging standards for research into small vessel disease\u2014advances since 2013. The Lancet Neurology 22, 602\u2013618 (2023).",
-    "doi": "10.1016/S1474-4422(23)00131-X"
   },
   "stains": {
     "gneg": "#ffffff",

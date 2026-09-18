@@ -5,15 +5,19 @@ import {
   assertMatch,
 } from "@std/assert";
 
-import encoding from "../lib/timeline_encoding.json" with { type: "json" };
+import appearance from "../lib/timeline_encoding.json" with { type: "json" };
+import diseaseTimeline from "../disease/timeline.json" with { type: "json" };
 import { trials } from "../lib/data.ts";
-import { FLAG_REASONS, OUTER_RADIUS } from "../lib/timeline.ts";
+import { encoding, FLAG_REASONS, OUTER_RADIUS } from "../lib/timeline.ts";
+import { manifest } from "../lib/disease.ts";
 
 /**
- * `lib/timeline_encoding.json` is read by two renderers — `lib/timeline.ts`
- * for the island and `scripts/timeline_figure.py` for print — so it is the
- * one place a new mechanism, population or phase has to be given a colour.
- * These assertions make the committed data and the encoding fail together.
+ * `lib/timeline_encoding.json` carries rings and chrome; `disease/timeline.json`
+ * carries the disease's populations, mechanisms and families. Two renderers
+ * compose them — `lib/timeline.ts` for the island and `scripts/timeline_figure.py`
+ * for print — so together they are the one place a new mechanism, population or
+ * phase has to be given a colour. These assertions make the committed data and
+ * the encoding fail together.
  */
 
 const HEX = /^#[0-9a-f]{6}$/;
@@ -53,14 +57,16 @@ interface ExpectedEncoding {
   families: { key: string; label: string; mechanisms: string[] }[];
 }
 
-const raw = encoding as unknown as Partial<ExpectedEncoding>;
+const raw = { ...appearance, ...diseaseTimeline } as unknown as Partial<
+  ExpectedEncoding
+>;
 
-Deno.test("every population in the data has an encoding entry, in a fixed order", () => {
+Deno.test("every population in the data has an encoding entry, in the manifest's order", () => {
   const keys = encoding.populations.map((p) => p.key);
-  assertEquals(keys, ["CAA", "Cognitive Impairment", "Stroke", "SVD"]);
+  assertEquals(keys, manifest.populations.map((p) => p.key));
   assertEquals(unique(keys).size, keys.length, "population keys repeat");
 
-  const missing = [...unique(trials.map((t) => t.svdPopulation))]
+  const missing = [...unique(trials.map((t) => t.targetPopulation))]
     .filter((key) => !keys.includes(key));
   assertEquals(missing, [], `populations without an encoding: ${missing}`);
 

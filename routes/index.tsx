@@ -16,9 +16,13 @@ import { pipelineRun } from "../lib/data/pipeline_run.ts";
 import PipelineRunView from "../islands/PipelineRun.tsx";
 import { PipelineSyncs } from "../components/PipelineSyncs.tsx";
 import { pipelineSyncs } from "../lib/data/pipeline_syncs.ts";
+import {
+  ABOUT,
+  ABOUT_LEDE,
+  ABOUT_TITLE,
+  MAINTAINER,
+} from "../lib/disease/site.ts";
 import type { PipelineRun, PipelineStatus, SyncRun } from "../lib/types.ts";
-
-const TITLE = "Welcome to the Paris Brain Institute's Cerebral SVD Dashboard";
 
 const INFO_ROWS: ReadonlyArray<{
   icon: IconName;
@@ -27,29 +31,43 @@ const INFO_ROWS: ReadonlyArray<{
   /** Rendered muted and italic: a placeholder, not a value. */
   pending?: boolean;
 }> = [
-  {
-    icon: "chatQuote",
-    label: "How to Cite:",
-    value: (
-      <>
-        Last Name, Initial. <i>et al.</i> Publication Title. <i>Journal.</i>
-        {" "}
-        (Publication Year) DOI
-      </>
-    ),
-    pending: true,
-  },
+  ABOUT.citation === null
+    ? {
+      icon: "chatQuote",
+      label: "How to Cite:",
+      value: (
+        <>
+          Last Name, Initial. <i>et al.</i> Publication Title. <i>Journal.</i>
+          {" "}
+          (Publication Year) DOI
+        </>
+      ),
+      pending: true,
+    }
+    : {
+      icon: "chatQuote",
+      label: "How to Cite:",
+      value: (
+        <>
+          {ABOUT.citation.authors} {ABOUT.citation.title}.{" "}
+          <i>{ABOUT.citation.journal}.</i> ({ABOUT.citation.year}){" "}
+          <a href={`https://doi.org/${ABOUT.citation.doi}`}>
+            {ABOUT.citation.doi}
+          </a>
+        </>
+      ),
+    },
   {
     icon: "userGroup",
     label: "Scientific Board:",
-    value: "To be confirmed",
-    pending: true,
+    value: ABOUT.board ?? "To be confirmed",
+    pending: ABOUT.board === null,
   },
   {
     icon: "identification",
     label: "Contact Us:",
-    value: "To be confirmed",
-    pending: true,
+    value: ABOUT.contactUs ?? "To be confirmed",
+    pending: ABOUT.contactUs === null,
   },
   {
     icon: "arrowPath",
@@ -57,19 +75,19 @@ const INFO_ROWS: ReadonlyArray<{
     value: (
       <a
         class="about-contact"
-        href="mailto:mathieu.poirier@icm-institute.org"
-        aria-label="Email Mathieu B. Poirier at mathieu.poirier@icm-institute.org"
+        href={`mailto:${MAINTAINER.email}`}
+        aria-label={`Email ${MAINTAINER.name} at ${MAINTAINER.email}`}
       >
         <Icon name="envelope" />
-        Mathieu B. Poirier
+        {MAINTAINER.name}
       </a>
     ),
   },
   {
     icon: "checkBadge",
     label: "Acknowledgements:",
-    value: "To be confirmed",
-    pending: true,
+    value: ABOUT.acknowledgements ?? "To be confirmed",
+    pending: ABOUT.acknowledgements === null,
   },
 ];
 
@@ -129,6 +147,22 @@ const DATA_SOURCES: ReadonlyArray<{
       "Gene identity anchors, ranked disease associations, Gene Ontology " +
       "terms, and the ChEMBL mechanisms the trial drugs are checked against.",
   },
+];
+
+const ALL_SOURCES = [
+  ...DATA_SOURCES,
+  ...ABOUT.additionalSources.map((s) => ({
+    name: s.name,
+    href: s.href,
+    licence: s.licence.href
+      ? (
+        <a href={s.licence.href} target="_blank" rel="noopener noreferrer">
+          {s.licence.label}
+        </a>
+      )
+      : s.licence.label,
+    provides: s.provides,
+  })),
 ];
 
 /** The four headline totals, in the order they read across the hero. */
@@ -194,15 +228,9 @@ export function AboutContent(
                   </span>
                 )}
 
-              <h1>{TITLE}</h1>
+              <h1>{ABOUT_TITLE}</h1>
             </div>
-            <p class="about-lede">
-              This dashboard provides <b>up-to-date</b> and <b>standardized</b>
-              {" "}
-              information on putative cerebral small vessel disease (SVD) causal
-              genes and drugs tested in planned or ongoing cerebral SVD clinical
-              trials.
-            </p>
+            <p class="about-lede">{ABOUT_LEDE}</p>
 
             {
               /* A <section> rather than a <div>: the accessible name only
@@ -299,7 +327,7 @@ export function AboutContent(
               databases and stored separately, so a curated value is never
               overwritten by a machine-fetched one.
             </p>
-            {DATA_SOURCES.map((source) => (
+            {ALL_SOURCES.map((source) => (
               <div class="about-source-card" key={source.name}>
                 <div class="about-source-head">
                   <Icon name="circleStack" />

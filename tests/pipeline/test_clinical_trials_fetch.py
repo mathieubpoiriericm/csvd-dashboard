@@ -22,9 +22,9 @@ from pipeline.clinical_trials_fetch import (
     _sponsor_label,
     _unplaceable_phases,
     close_ctg_client,
-    fetch_csvd_studies,
+    fetch_disease_studies,
     fetch_trial_statuses,
-    is_csvd_study,
+    is_disease_study,
     sync_clinical_trials,
 )
 from pipeline.config import PipelineConfig
@@ -642,7 +642,7 @@ class TestMapStudyToRecords:
 
 
 # ---------------------------------------------------------------------------
-# fetch_csvd_studies (pagination + dedup)
+# fetch_disease_studies (pagination + dedup)
 # ---------------------------------------------------------------------------
 
 
@@ -692,7 +692,7 @@ class TestIsCsvdStudy:
         ],
     )
     def test_a_csvd_condition_is_kept(self, condition):
-        assert is_csvd_study(self._study(condition))
+        assert is_disease_study(self._study(condition))
 
     @pytest.mark.parametrize(
         "condition",
@@ -710,11 +710,11 @@ class TestIsCsvdStudy:
         ],
     )
     def test_an_unrelated_condition_is_dropped(self, condition):
-        assert not is_csvd_study(self._study(condition))
+        assert not is_disease_study(self._study(condition))
 
     def test_one_matching_condition_carries_the_study(self):
         """A mixed-dementia trial listing both is in scope."""
-        assert is_csvd_study(self._study("Alzheimer Disease", "Vascular Dementia"))
+        assert is_disease_study(self._study("Alzheimer Disease", "Vascular Dementia"))
 
     def test_the_pair_must_sit_in_one_condition(self):
         """"Cardiovascular Diseases" beside "Cognitive Decline" is not cSVD.
@@ -722,14 +722,14 @@ class TestIsCsvdStudy:
         The words are matched inside a single condition string precisely so
         two unrelated entries cannot combine into a false positive.
         """
-        assert not is_csvd_study(
+        assert not is_disease_study(
             self._study("Cardiovascular Diseases", "Cognitive Decline")
         )
 
     def test_a_study_stating_no_condition_is_kept(self):
         """The absence is CT.gov's, not evidence the trial is off-topic."""
-        assert is_csvd_study({"protocolSection": {}})
-        assert is_csvd_study(self._study())
+        assert is_disease_study({"protocolSection": {}})
+        assert is_disease_study(self._study())
 
 
 class TestFetchCSVDStudies:
@@ -749,7 +749,7 @@ class TestFetchCSVDStudies:
             return_value=mock_client,
         )
 
-        studies, errors = await fetch_csvd_studies(
+        studies, errors = await fetch_disease_studies(
             search_terms=("lacunar stroke",),
             page_size=100,
             max_retries=0,
@@ -780,7 +780,7 @@ class TestFetchCSVDStudies:
             return_value=mock_client,
         )
 
-        studies, errors = await fetch_csvd_studies(
+        studies, errors = await fetch_disease_studies(
             search_terms=("lacunar stroke",),
             page_size=100,
             max_retries=0,
@@ -813,7 +813,7 @@ class TestFetchCSVDStudies:
             return_value=mock_client,
         )
 
-        studies, errors = await fetch_csvd_studies(
+        studies, errors = await fetch_disease_studies(
             search_terms=("term1", "term2"),
             page_size=100,
             max_retries=0,
@@ -826,7 +826,7 @@ class TestFetchCSVDStudies:
         assert errors == []
 
     async def test_empty_terms_returns_empty(self):
-        studies, errors = await fetch_csvd_studies(
+        studies, errors = await fetch_disease_studies(
             search_terms=(),
             page_size=100,
             max_retries=0,
@@ -850,7 +850,7 @@ class TestFetchCSVDStudies:
         )
         mocker.patch("pipeline.clinical_trials_fetch.asyncio.sleep", new=AsyncMock())
 
-        studies, errors = await fetch_csvd_studies(
+        studies, errors = await fetch_disease_studies(
             search_terms=("term",),
             page_size=100,
             max_retries=2,
@@ -872,7 +872,7 @@ class TestFetchCSVDStudies:
 
         mocker.patch.object(ctg, "_search_condition_term", side_effect=fake_search)
 
-        studies, errors = await fetch_csvd_studies(
+        studies, errors = await fetch_disease_studies(
             search_terms=("good", "bad"),
             page_size=100,
             max_retries=0,
@@ -915,7 +915,7 @@ class TestFetchCSVDStudies:
         )
         mocker.patch("pipeline.clinical_trials_fetch.asyncio.sleep", new=AsyncMock())
 
-        studies, errors = await fetch_csvd_studies(
+        studies, errors = await fetch_disease_studies(
             search_terms=("term",),
             page_size=100,
             max_retries=1,
@@ -959,7 +959,7 @@ class TestFetchCSVDStudies:
             return_value=mock_client,
         )
 
-        assert await fetch_csvd_studies(("term",), 100, 0) == ([], [])
+        assert await fetch_disease_studies(("term",), 100, 0) == ([], [])
 
     async def test_studies_without_nct_are_not_deduped(self, mocker):
         from pipeline import clinical_trials_fetch as ctg
@@ -976,7 +976,7 @@ class TestFetchCSVDStudies:
             ),
         )
 
-        studies, errors = await fetch_csvd_studies(("term",), 100, 0)
+        studies, errors = await fetch_disease_studies(("term",), 100, 0)
 
         assert len(studies) == 1
         assert errors == []
@@ -1121,7 +1121,7 @@ def _status_page(*pairs: tuple[str, str | None]) -> dict:
 class TestFetchTrialStatuses:
     """The sweep asks CT.gov by id, because the search cannot cover Table 2.
 
-    `is_csvd_study` and the interventional and drug-type gates all drop
+    `is_disease_study` and the interventional and drug-type gates all drop
     trials a curator nonetheless published, so the ids come from the table.
     """
 
@@ -1343,7 +1343,7 @@ class TestSyncClinicalTrials:
             ),
         ]
         mocker.patch(
-            "pipeline.clinical_trials_fetch.fetch_csvd_studies",
+            "pipeline.clinical_trials_fetch.fetch_disease_studies",
             return_value=(studies, []),
         )
         mock_upsert = mocker.patch(
@@ -1387,12 +1387,12 @@ class TestSyncClinicalTrials:
     ):
         """Every id, not just the search's hits and not just curated rows.
 
-        Gating on `svd_population` would cost the status of every trial a
+        Gating on `target_population` would cost the status of every trial a
         curator publishes tomorrow, which would then ship NULL until the
         next sync.
         """
         mocker.patch(
-            "pipeline.clinical_trials_fetch.fetch_csvd_studies",
+            "pipeline.clinical_trials_fetch.fetch_disease_studies",
             return_value=([], []),
         )
         mocker.patch(
@@ -1429,7 +1429,7 @@ class TestSyncClinicalTrials:
         than a trial silently vanishing from Table 2.
         """
         mocker.patch(
-            "pipeline.clinical_trials_fetch.fetch_csvd_studies",
+            "pipeline.clinical_trials_fetch.fetch_disease_studies",
             return_value=([], []),
         )
         mocker.patch(
@@ -1456,7 +1456,7 @@ class TestSyncClinicalTrials:
         puts it in Table 2 and on no ring of the figure, silently.
         """
         mocker.patch(
-            "pipeline.clinical_trials_fetch.fetch_csvd_studies",
+            "pipeline.clinical_trials_fetch.fetch_disease_studies",
             return_value=(self._unplaceable_study(), []),
         )
         mocker.patch(
@@ -1489,7 +1489,7 @@ class TestSyncClinicalTrials:
         curation gate skips.
         """
         mocker.patch(
-            "pipeline.clinical_trials_fetch.fetch_csvd_studies",
+            "pipeline.clinical_trials_fetch.fetch_disease_studies",
             return_value=(self._unplaceable_study(), []),
         )
         mocker.patch(
@@ -1517,7 +1517,7 @@ class TestSyncClinicalTrials:
             )
         ]
         mocker.patch(
-            "pipeline.clinical_trials_fetch.fetch_csvd_studies",
+            "pipeline.clinical_trials_fetch.fetch_disease_studies",
             return_value=(studies, []),
         )
         mocker.patch(
@@ -1542,7 +1542,7 @@ class TestSyncClinicalTrials:
 
     async def test_fetch_failure_returns_error(self, mocker):
         mocker.patch(
-            "pipeline.clinical_trials_fetch.fetch_csvd_studies",
+            "pipeline.clinical_trials_fetch.fetch_disease_studies",
             side_effect=RuntimeError("boom"),
         )
         config = PipelineConfig()
@@ -1560,7 +1560,7 @@ class TestSyncClinicalTrials:
             )
         ]
         mocker.patch(
-            "pipeline.clinical_trials_fetch.fetch_csvd_studies",
+            "pipeline.clinical_trials_fetch.fetch_disease_studies",
             return_value=(studies, []),
         )
         mocker.patch(
@@ -1586,7 +1586,7 @@ class TestSyncClinicalTrials:
             ),
         ]
         mocker.patch(
-            "pipeline.clinical_trials_fetch.fetch_csvd_studies",
+            "pipeline.clinical_trials_fetch.fetch_disease_studies",
             return_value=(studies, []),
         )
         mock_upsert = mocker.patch(
@@ -1604,7 +1604,7 @@ class TestSyncClinicalTrials:
         assert args[0][0].registry_id == "NCT1"
 
     async def test_term_failures_surfaced_in_errors(self, mocker):
-        # fetch_csvd_studies returns (studies, term_errors); the term errors
+        # fetch_disease_studies returns (studies, term_errors); the term errors
         # must propagate into SyncResult.errors.
         studies = [
             _make_study(
@@ -1614,7 +1614,7 @@ class TestSyncClinicalTrials:
         ]
         term_errors = ["CTG term 'bad': boom"]
         mocker.patch(
-            "pipeline.clinical_trials_fetch.fetch_csvd_studies",
+            "pipeline.clinical_trials_fetch.fetch_disease_studies",
             return_value=(studies, term_errors),
         )
         mocker.patch(
@@ -1643,7 +1643,7 @@ class TestSyncClinicalTrials:
             ),
         ]
         mocker.patch(
-            "pipeline.clinical_trials_fetch.fetch_csvd_studies",
+            "pipeline.clinical_trials_fetch.fetch_disease_studies",
             return_value=(studies, []),
         )
         mocker.patch(
@@ -1666,7 +1666,7 @@ class TestSyncClinicalTrials:
             nct_id="NCT_BAD", interventions=[{"type": "DRUG", "name": "drug"}]
         )
         mocker.patch(
-            "pipeline.clinical_trials_fetch.fetch_csvd_studies",
+            "pipeline.clinical_trials_fetch.fetch_disease_studies",
             return_value=([study], []),
         )
         mocker.patch(
@@ -1749,8 +1749,8 @@ class TestUpsertClinicalTrialsBatchSQL:
             "mechanism_of_action",
             "genetic_target",
             "genetic_evidence",
-            "svd_population",
-            "svd_population_details",
+            "target_population",
+            "target_population_details",
         ):
             assert curator_col not in set_clause, (
                 f"Curator column {curator_col!r} leaked into UPDATE SET — "

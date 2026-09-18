@@ -48,8 +48,8 @@ const TRIAL_STRING_FIELDS = [
   "trialName",
   "registryId",
   "clinicalTrialPhase",
-  "svdPopulation",
-  "svdPopulationDetails",
+  "targetPopulation",
+  "targetPopulationDetails",
   "targetSampleSize",
   "estimatedCompletionDate",
   "primaryOutcome",
@@ -137,8 +137,8 @@ const PER_TRIAL_FIELDS = [
   "estimatedCompletionDate",
   "primaryOutcome",
   "sponsorType",
-  "svdPopulation",
-  "svdPopulationDetails",
+  "targetPopulation",
+  "targetPopulationDetails",
 ] as const;
 
 Deno.test("rows of one registered trial agree on every per-trial column", () => {

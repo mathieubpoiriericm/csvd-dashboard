@@ -18,6 +18,8 @@ import io
 from pathlib import Path
 from typing import Any, Final
 
+from pipeline.disease import OMIM_CSV_PATH
+
 _COLUMNS: Final[tuple[str, ...]] = (
     "omim_num",
     "omim_link",
@@ -27,7 +29,7 @@ _COLUMNS: Final[tuple[str, ...]] = (
     "gene_or_locus_mim_number",
 )
 
-DEFAULT_OMIM_CSV: Final[Path] = Path(__file__).parent / "data" / "omim_info.csv"
+DEFAULT_OMIM_CSV: Final[Path] = OMIM_CSV_PATH
 
 
 def read_omim_csv(path: Path = DEFAULT_OMIM_CSV) -> list[dict[str, Any]]:

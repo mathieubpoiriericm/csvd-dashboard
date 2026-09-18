@@ -76,7 +76,7 @@ def test_empty_object_value_is_encoded_as_object(tmp_path: Path) -> None:
 
     assert json.loads(path.read_text()) == [{"metadata": {}}]
     assert to_camel("GWAS Trait") == "gwasTrait"
-    assert to_camel("SVD Population Details") == "svdPopulationDetails"
+    assert to_camel("Target Population Details") == "targetPopulationDetails"
     assert to_camel("Gene") == "gene"
     assert to_camel("Link to Monogenic Disease") == "linkToMonogenicDisease"
 

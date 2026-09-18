@@ -43,8 +43,8 @@ logger = logging.getLogger(__name__)
 # The columns a curator owns. Two rows sharing a registry id and a normalised
 # drug are the same record only if they agree on all of them.
 _CURATED = (
-    "svd_population",
-    "svd_population_details",
+    "target_population",
+    "target_population_details",
     "mechanism_of_action",
     "genetic_target",
     "genetic_evidence",
