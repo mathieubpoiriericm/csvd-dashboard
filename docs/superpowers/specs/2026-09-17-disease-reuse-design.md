@@ -98,6 +98,13 @@ bind later sub-projects same as the decisions above.
   reads `config.promptVersion: "v6"` with no `disease` or `promptSha256` key;
   both are nullable additions to `RunConfigRecord` and will appear, non-null,
   once a run using this branch's code produces a new report.
+- **The About lede lost its two `<b>` spans, by design.** It read
+  "<b>up-to-date</b> and <b>standardized</b>" as JSX; the sentence is
+  `site.aboutLede` in `disease/manifest.json` now, and the manifest holds text
+  rather than markup. Emphasis inside a manifest string would mean either a
+  markup dialect to parse or `dangerouslySetInnerHTML` over an authored file —
+  both larger than the two bold words are worth. A disease that wants emphasis
+  back adds a rendered field, not a tag in the string.
 
 ## 3. The `disease/` directory
 

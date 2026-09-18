@@ -92,6 +92,14 @@ Deno.test("the cell-type glossary is the manifest's and covers the committed row
   const used = new Set(
     genes.flatMap((g) => splitCellTypes(g.brainCellTypes).parts),
   );
+  // `brainCellTypes` is a curated free-text column, so `splitCellTypes`
+  // returns qualifiers as well as abbreviations -- "all<40", "EC (arterial)"
+  // and similar prose the glossary was never meant to define. The filter
+  // keeps only what looks like an abbreviation: an uppercase-alphabetic
+  // token, which every glossary key is (EC, SMC, VSMC, AC, MG, OL, PC, FB)
+  // and no free-text cell is, because each of those carries a digit, a
+  // lowercase letter or a symbol. So this asserts that every abbreviation
+  // the rows use is defined, and says nothing about the prose beside them.
   const missing = [...used].filter(
     (abbr) =>
       !ABSENT_SENTINELS.has(abbr) &&

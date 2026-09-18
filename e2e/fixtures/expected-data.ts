@@ -29,7 +29,6 @@ const manifest = JSON.parse(
     "utf8",
   ),
 ) as {
-  disease: { adjective: string };
   site: { title: string; aboutTitle: string };
   populationField: { label: string };
 };

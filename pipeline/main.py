@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # PYTHON_ARGCOMPLETE_OK
 """
-Main entry point for the Disease dashboard data pipeline.
+Main entry point for the dashboard's data pipeline.
 
 Runs one or more of three independently-selectable pipelines:
 
@@ -34,7 +34,7 @@ DEFAULT_DAYS_BACK = 7
 
 def _build_parser() -> argparse.ArgumentParser:
     """Build the CLI argument parser (stdlib-only, no heavy imports)."""
-    parser = argparse.ArgumentParser(description="Disease dashboard data pipeline")
+    parser = argparse.ArgumentParser(description="Dashboard data pipeline")
     parser.add_argument(
         "--days-back",
         type=int,
