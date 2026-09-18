@@ -154,6 +154,33 @@ One pipeline, one language, meeting the web app at a JSON file boundary.
 PubMed / Europe PMC / CT.gov ──> pipeline/ ──> PostgreSQL ──> pipeline/export/ ──> data/*.json ──> islands
 ```
 
+**The disease seam is `disease/`.** Everything that names the disease lives
+there and nowhere else, split across two manifests for one reason:
+`server/protected_data_build.ts` lists `COL4A1/2` as a leak canary and every
+island bundle embeds the web-facing manifest, so no gene symbol may live in it.
+`manifest.json` holds the web-facing keys (prose, institute, contact, about,
+hosting, populations, populationField, cell-type glossary, citation standard);
+`pipeline.json` holds the pipeline-only keys (search terms, monogenic genes,
+gene aliases, run label, gene cap) and is read only by `pipeline/disease.py`.
+Both have a JSON Schema beside them (`manifest.schema.json`,
+`pipeline.schema.json`). Also in `disease/`: `vocabulary.json`, `prompt.md` (the
+disease half of the extraction prompt; the methodology is the v7 template in
+`pipeline/prompts.py`), `phenogram.json` (families), `timeline.json`
+(populations, mechanisms, families) and `omim_info.csv`. `prompt.md` is excluded
+from `deno fmt` in `deno.json` because `deno fmt` rewraps Markdown prose and
+every inserted newline would reach the model;
+`tests/pipeline/test_prompt_assembly.py` pins the cSVD rendering byte-identical
+to the v6 literals. TypeScript reads the manifest through the narrow modules
+under `lib/disease/` — `site.ts`, `populations.ts`, `cell_types.ts`,
+`citation.ts` — and Python through `pipeline/disease.py`, which is stdlib-only
+so `config.py` and `extraction_models.py` can both import it.
+`tests/no_disease_literals_test.ts` and
+`tests/pipeline/test_no_disease_literals.py` scan the code for the manifest's
+own terms and fail on any hit outside a reasoned allow-list. Every measurement
+in this file and in `pipeline/CLAUDE.md` is of the cSVD dataset this repository
+was built on. The design is
+`docs/superpowers/specs/2026-09-17-disease-reuse-design.md`.
+
 **Nothing queries a database at request time, and nothing fetches JSON at
 runtime.** The modules under `lib/data/` use `import … with { type: "json" }`,
 so each file is bundled into whatever imports it. **Import the narrow module,

@@ -4,6 +4,12 @@ Guidance for `pipeline/` and `tests/pipeline/`. The repo-wide contracts — the
 JSON wire format, the filtering rules, the islands and the two figures — stay in
 the root `CLAUDE.md`.
 
+The disease the pipeline serves is read from `disease/pipeline.json` (search
+terms, monogenic genes, gene aliases, run label, gene cap) and
+`disease/manifest.json` (name, populations, cell types and the rest of the
+web-facing prose) through `pipeline/disease.py`; see the root `CLAUDE.md`, "The
+disease seam".
+
 ## Extraction
 
 **The extraction model is pinned in code, not configured.** `EXTRACTION_MODEL`

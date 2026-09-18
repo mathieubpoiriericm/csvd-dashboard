@@ -72,14 +72,44 @@ These were made with the maintainer before the design was drawn.
    from fields either drops them or turns the manifest into a prompt in JSON
    clothing).
 
+### Amendments (2026-09-17)
+
+Rulings made during implementation that this design did not anticipate; they
+bind later sub-projects same as the decisions above.
+
+- **The manifest is two files, not one.** `disease/manifest.json` carries the
+  web-facing keys; `disease/pipeline.json` carries `search`, `monogenicGenes`,
+  `geneAliases` and `pipeline`, and is read only by `pipeline/disease.py`.
+  Reason: `server/protected_data_build.ts` lists `COL4A1/2` as a leak canary,
+  and every island bundle embeds the web-facing manifest, so no gene symbol may
+  live in the file TypeScript reads. See §3 and §3.1.
+- **`disease/prompt.md` is excluded from `deno fmt`** (`deno.json`'s
+  `fmt.exclude`), because `deno fmt` rewraps Markdown prose and every inserted
+  newline would reach the model; `tests/pipeline/test_prompt_assembly.py` still
+  pins the cSVD rendering byte-identical to the v6 literals.
+- **Migration 014 is written by the seam work; applying it to the production
+  database is the maintainer's job at merge time**, not something this branch
+  does. The committed `data/table2.json` already carries the renamed
+  `targetPopulation` key because it was regenerated against a database migration
+  014 had already been run against during development — that run is separate
+  from, and does not stand in for, applying the migration in production.
+- **`data/pipeline_run.json` keeps its pre-seam shape until the next real run.**
+  It is the last recorded run's report rather than derived data, so it still
+  reads `config.promptVersion: "v6"` with no `disease` or `promptSha256` key;
+  both are nullable additions to `RunConfigRecord` and will appear, non-null,
+  once a run using this branch's code produces a new report.
+
 ## 3. The `disease/` directory
 
 ```
 disease/
-  manifest.json         names, prose, institute, contact, search terms,
-                        populations, cell types, citation standard,
-                        monogenic genes, gene aliases, pipeline knobs
+  manifest.json         web-facing: names, prose, institute, contact, about,
+                        hosting, populations, cell types, citation standard
   manifest.schema.json  JSON Schema for the above
+  pipeline.json         pipeline-only: search terms, monogenic genes, gene
+                        aliases, pipeline knobs — read only by
+                        pipeline/disease.py
+  pipeline.schema.json  JSON Schema for the above
   vocabulary.json       moved from lib/; `strive` renamed `standard`
   prompt.md             the disease sections of the extraction prompt
   phenogram.json        families (key, label, hue, tint)
@@ -89,6 +119,13 @@ disease/
   recall_baseline.json  written by scripts/measure_recall.py --write-baseline
   README.md             the disease-specific half of the README
 ```
+
+The manifest is two files rather than one, for a reason a directory listing
+can't carry on its own: `server/protected_data_build.ts` lists `COL4A1/2` as a
+leak canary, and every island bundle embeds the web-facing manifest, so no gene
+symbol — nor anything else the pipeline alone needs — may live in it.
+`manifest.json` is the file TypeScript reads; `pipeline.json` is the file only
+`pipeline/disease.py` reads.
 
 Appearance stays in `lib/`. `lib/phenogram_encoding.json` keeps `evidence`,
 `glyphs`, `stains` and `layout`; `lib/timeline_encoding.json` keeps `rings`,
@@ -106,10 +143,10 @@ unknownMechanism, families }`. The
 `TimelineEncoding` type is unchanged, so every test that hands
 `computeTimelineLayout` a hand-built encoding keeps working.
 
-### 3.1 manifest.json
+### 3.1 manifest.json and pipeline.json
 
-`schemaVersion` is `1`. Every string is trimmed at the boundary; `null` on an
-optional key means absent, never `""`. Values shown are cSVD's.
+`schemaVersion` is `1` in both files. Every string is trimmed at the boundary;
+`null` on an optional key means absent, never `""`. Values shown are cSVD's.
 
 ```jsonc
 {
@@ -155,6 +192,44 @@ optional key means absent, never `""`. Values shown are cSVD's.
     "additionalSources": [] // [{name, href, licence:{label, href?}, provides}], rendered after the three fixed sources
   },
   "hosting": { "url": "https://csvd-dashboard.mathieubpoiriericm.deno.net" },
+  "populations": [
+    { "key": "CAA", "label": "CAA" },
+    { "key": "Cognitive Impairment", "label": "Cognitive Impairment" },
+    { "key": "Stroke", "label": "Stroke" },
+    { "key": "SVD", "label": "SVD" }
+  ],
+  "populationField": {
+    "label": "SVD Population",
+    "detailsLabel": "SVD Population Details"
+  },
+  "cellTypes": {
+    "label": "Brain Cell Types",
+    "glossary": {
+      "EC": "Endothelial Cells",
+      "SMC": "Smooth Muscle Cells",
+      "VSMC": "Vascular Smooth Muscle Cells",
+      "AC": "Astrocytes",
+      "MG": "Microglia",
+      "OL": "Oligodendrocytes",
+      "PC": "Pericytes",
+      "FB": "Fibroblasts"
+    }
+  },
+  "citationStandard": {
+    "name": "STRIVE-2",
+    "label": "Duering, M. et al. Neuroimaging standards for research into small vessel disease—advances since 2013. The Lancet Neurology 22, 602–618 (2023).",
+    "doi": "10.1016/S1474-4422(23)00131-X",
+    "linkLabel": "View STRIVE-2 (Lancet Neurol 2023)"
+  } // nullable
+}
+```
+
+`pipeline.json`:
+
+```jsonc
+{
+  "schemaVersion": 1,
+  "$comment": "Read only by pipeline/disease.py. Gene symbols and search terms belong here, never in disease/manifest.json, because every island bundle embeds that file.",
   "search": {
     "pubmed": {
       "diseaseTerms": ["cerebral small vessel disease"],
@@ -206,35 +281,6 @@ optional key means absent, never `""`. Values shown are cSVD's.
       "conditionPairs": [["vascular", "dementia"], ["vascular", "cognitive"]]
     }
   },
-  "populations": [
-    { "key": "CAA", "label": "CAA" },
-    { "key": "Cognitive Impairment", "label": "Cognitive Impairment" },
-    { "key": "Stroke", "label": "Stroke" },
-    { "key": "SVD", "label": "SVD" }
-  ],
-  "populationField": {
-    "label": "SVD Population",
-    "detailsLabel": "SVD Population Details"
-  },
-  "cellTypes": {
-    "label": "Brain Cell Types",
-    "glossary": {
-      "EC": "Endothelial Cells",
-      "SMC": "Smooth Muscle Cells",
-      "VSMC": "Vascular Smooth Muscle Cells",
-      "AC": "Astrocytes",
-      "MG": "Microglia",
-      "OL": "Oligodendrocytes",
-      "PC": "Pericytes",
-      "FB": "Fibroblasts"
-    }
-  },
-  "citationStandard": {
-    "name": "STRIVE-2",
-    "label": "Duering, M. et al. Neuroimaging standards for research into small vessel disease—advances since 2013. The Lancet Neurology 22, 602–618 (2023).",
-    "doi": "10.1016/S1474-4422(23)00131-X",
-    "linkLabel": "View STRIVE-2 (Lancet Neurol 2023)"
-  }, // nullable
   "monogenicGenes": ["NOTCH3", "COL4A1", "COL4A2", "HTRA1", "TREX1", "GLA"],
   "geneAliases": {
     "COL4A1/2": ["COL4A1", "COL4A2"],
@@ -312,7 +358,7 @@ Sections and their v6 origin:
 | `rubric.cell_types`                | phrase                                    | :143     |
 | `rubric.neighbour_gwas_gene`       | phrase                                    | :147     |
 | `rubric.modifiers`                 | block (both bullets)                      | :153-154 |
-| `examples`                         | block (the 14 `<example>` elements)       | :157-243 |
+| `examples`                         | block (the 15 `<example>` elements)       | :157-243 |
 
 `disease.name` and `disease.abbreviation` come from the manifest, not from
 `prompt.md`, so nothing is spelled twice. The `task_instruction` and the tool

@@ -9,7 +9,9 @@ Page routes live in `routes/`, browser state in `islands/`, reusable UI in
 
 `pipeline/` ingests records into PostgreSQL, owns Alembic migrations, and
 exports the committed `data/*.json` inputs. `scripts/` contains generators.
-Tests live in `tests/` (Deno and pytest) and `e2e/` (Playwright). Treat
+`disease/` is the disease seam — the manifests, prompt and reference files that
+name the disease this deployment serves; see the root `CLAUDE.md`, "The disease
+seam". Tests live in `tests/` (Deno and pytest) and `e2e/` (Playwright). Treat
 `_fresh/`, `figures/`, and `logs/` as generated output.
 
 ## Build, Test, and Development Commands

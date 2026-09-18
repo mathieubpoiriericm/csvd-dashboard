@@ -993,10 +993,11 @@ Two gaps worth knowing before you trust a green run.
 
   **Quote the 88%** — the clean subset is the one that measures extraction
   rather than recall of the prompt. 13 of the 36 gold genes are named verbatim
-  in the v6 prompt, six inside `<example>` blocks with their expected trait and
-  confidence, and `test_the_prompt_names_part_of_its_own_answer_key` pins that
-  count so a prompt edit naming another gold gene fails instead of quietly
-  inflating the figure.
+  in the rendered v7 prompt — the `<example>` blocks that name them live in the
+  disease half, `disease/prompt.md`, not the template in `pipeline/prompts.py` —
+  six of them with their expected trait and confidence, and
+  `test_the_prompt_names_part_of_its_own_answer_key` pins that count so a prompt
+  edit naming another gold gene fails instead of quietly inflating the figure.
 
   These figures are from the 2026-09-11 re-record, against fixtures refetched
   through the current Europe PMC parser. The recording before it measured two
