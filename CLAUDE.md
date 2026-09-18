@@ -39,7 +39,11 @@ in `pipeline/CLAUDE.md`.
 Regenerating `data/*.json` needs PostgreSQL reachable and `.env` populated. The
 commands, the hardened `dhi.io/postgres:18.6` container with its three
 load-bearing details, and the print-figure and cytoband tasks are in the
-`regenerate-data` skill (`.claude/skills/regenerate-data/SKILL.md`).
+`regenerate-data` skill (`.claude/skills/regenerate-data/SKILL.md`). **Migration
+014 renames `clinical_trials.svd_population` to `target_population`, and the
+export, the merge and the clinical-trials sync all read the new name, so run
+`cd pipeline && uv run alembic upgrade head` before the first `deno task data`
+after merging the `disease-reuse` branch.**
 
 `--export` does that same work at the end of a live run, so the figures, the
 About page's date and the run widget track the database without a second

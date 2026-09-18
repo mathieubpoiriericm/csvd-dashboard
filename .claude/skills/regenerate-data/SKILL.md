@@ -133,6 +133,11 @@ scripted; the data is not.
 cd pipeline && uv run alembic upgrade head
 ```
 
+Run it on an existing database too before the first `deno task data` after the
+`disease-reuse` branch merges: migration 014 renames
+`clinical_trials.svd_population` to `target_population`, and the export, the
+merge and the clinical-trials sync all read the new name.
+
 From nothing, that is preceded by `createuser -s csvd_user` and
 `createdb -O csvd_user csvd_dashboard`. Note that `csvd_user` is **not** a
 superuser and cannot create databases, so those two run as the macOS user.
