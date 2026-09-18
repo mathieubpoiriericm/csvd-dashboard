@@ -5,6 +5,8 @@ import diseaseTimeline from "../disease/timeline.json" with { type: "json" };
 import {
   CELL_TYPE_NAMES,
   CELL_TYPES_LABEL,
+  citationLink,
+  definitionLabel,
   manifest,
   normalizeManifest,
   RADAR_TITLE,
@@ -105,5 +107,127 @@ Deno.test("site strings derive from the manifest", () => {
   assertEquals(
     RADAR_TITLE,
     "Cerebral SVD clinical trials by population and phase",
+  );
+});
+
+Deno.test("about.citation normalizes a full citation object", () => {
+  const raw = structuredClone(manifestJson) as Record<string, unknown>;
+  (raw.about as Record<string, unknown>).citation = {
+    authors: "Duering, M. et al.",
+    title: "Neuroimaging standards for research into small vessel disease",
+    journal: "The Lancet Neurology",
+    year: 2023,
+    doi: "10.1016/S1474-4422(23)00131-X",
+  };
+  const normalized = normalizeManifest(raw);
+  assertEquals(normalized.about.citation, {
+    authors: "Duering, M. et al.",
+    title: "Neuroimaging standards for research into small vessel disease",
+    journal: "The Lancet Neurology",
+    year: 2023,
+    doi: "10.1016/S1474-4422(23)00131-X",
+  });
+});
+
+Deno.test("about.citation.year must be an integer", () => {
+  const raw = structuredClone(manifestJson) as Record<string, unknown>;
+  (raw.about as Record<string, unknown>).citation = {
+    authors: "Duering, M. et al.",
+    title: "Neuroimaging standards",
+    journal: "The Lancet Neurology",
+    year: 2023.5,
+    doi: "10.1016/S1474-4422(23)00131-X",
+  };
+  assertThrows(
+    () => normalizeManifest(raw),
+    Error,
+    "about.citation.year must be an integer",
+  );
+});
+
+Deno.test("about.additionalSources normalizes entries with and without a licence href", () => {
+  const raw = structuredClone(manifestJson) as Record<string, unknown>;
+  (raw.about as Record<string, unknown>).additionalSources = [
+    {
+      name: "ClinVar",
+      href: "https://www.ncbi.nlm.nih.gov/clinvar/",
+      licence: {
+        label: "Public Domain",
+        href: "https://www.ncbi.nlm.nih.gov/home/about/policies/",
+      },
+      provides: "Curated variant-disease relationships",
+    },
+    {
+      name: "Orphadata",
+      href: "https://www.orphadata.com/",
+      licence: { label: "CC-BY 4.0" },
+      provides: "Rare disease nomenclature",
+    },
+  ];
+  const normalized = normalizeManifest(raw);
+  assertEquals(normalized.about.additionalSources, [
+    {
+      name: "ClinVar",
+      href: "https://www.ncbi.nlm.nih.gov/clinvar/",
+      licence: {
+        label: "Public Domain",
+        href: "https://www.ncbi.nlm.nih.gov/home/about/policies/",
+      },
+      provides: "Curated variant-disease relationships",
+    },
+    {
+      name: "Orphadata",
+      href: "https://www.orphadata.com/",
+      licence: { label: "CC-BY 4.0", href: null },
+      provides: "Rare disease nomenclature",
+    },
+  ]);
+});
+
+Deno.test("an empty populations list throws", () => {
+  const raw = structuredClone(manifestJson) as Record<string, unknown>;
+  raw.populations = [];
+  assertThrows(
+    () => normalizeManifest(raw),
+    Error,
+    "populations must not be empty",
+  );
+});
+
+Deno.test("citationStandard normalizes to null when absent", () => {
+  const raw = structuredClone(manifestJson) as Record<string, unknown>;
+  raw.citationStandard = null;
+  const normalized = normalizeManifest(raw);
+  assertEquals(normalized.citationStandard, null);
+});
+
+Deno.test("institute.logo.srcOnDark normalizes to null when absent", () => {
+  const raw = structuredClone(manifestJson) as Record<string, unknown>;
+  delete (raw.institute as Record<string, unknown> & {
+    logo: Record<string, unknown>;
+  }).logo.srcOnDark;
+  const normalized = normalizeManifest(raw);
+  assertEquals(normalized.institute.logo.srcOnDark, null);
+});
+
+Deno.test("citationLink returns undefined for a null standard", () => {
+  assertEquals(citationLink(null), undefined);
+});
+
+Deno.test("citationLink builds the DOI link for a given standard", () => {
+  assertEquals(citationLink(manifest.citationStandard), {
+    href: "https://doi.org/10.1016/S1474-4422(23)00131-X",
+    label: "View STRIVE-2 (Lancet Neurol 2023)",
+  });
+});
+
+Deno.test('definitionLabel falls back to "Definition" for a null standard', () => {
+  assertEquals(definitionLabel(null), "Definition");
+});
+
+Deno.test("definitionLabel names the standard when one is given", () => {
+  assertEquals(
+    definitionLabel(manifest.citationStandard),
+    "STRIVE-2 definition",
   );
 });

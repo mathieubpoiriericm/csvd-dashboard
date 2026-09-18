@@ -7,17 +7,19 @@ export const CITATION_STANDARD: CitationStandard | null =
   manifest.citationStandard;
 
 /** The tooltip link for a trait whose definition comes from the standard. */
-export function citationLink(): { href: string; label: string } | undefined {
-  if (CITATION_STANDARD === null) return undefined;
+export function citationLink(
+  standard: CitationStandard | null = CITATION_STANDARD,
+): { href: string; label: string } | undefined {
+  if (standard === null) return undefined;
   return {
-    href: `https://doi.org/${CITATION_STANDARD.doi}`,
-    label: CITATION_STANDARD.linkLabel,
+    href: `https://doi.org/${standard.doi}`,
+    label: standard.linkLabel,
   };
 }
 
 /** Row label for a definition, e.g. "STRIVE-2 definition". */
-export function definitionLabel(): string {
-  return CITATION_STANDARD === null
-    ? "Definition"
-    : `${CITATION_STANDARD.name} definition`;
+export function definitionLabel(
+  standard: CitationStandard | null = CITATION_STANDARD,
+): string {
+  return standard === null ? "Definition" : `${standard.name} definition`;
 }
