@@ -132,12 +132,12 @@ _RAW_GENES: list[dict[str, object]] = [
     {"gene": "g2"},
     {"gene": "g3"},
 ]
-# svd_population is what makes a trial row publishable -- an uncurated
+# target_population is what makes a trial row publishable -- an uncurated
 # ClinicalTrials.gov discovery has none, and run_export drops it before the
 # cleaner ever sees it -- so every row here carries one.
 _RAW_TRIALS: list[dict[str, object]] = [
-    {"drug": "d1", "svd_population": "SVD"},
-    {"drug": "d2", "svd_population": "Stroke"},
+    {"drug": "d1", "target_population": "SVD"},
+    {"drug": "d2", "target_population": "Stroke"},
 ]
 
 # Duplicate "LAMB1" (rows 0 and 2) and a duplicate PMID ("37063705" in rows
@@ -524,25 +524,25 @@ class TestReadCuratedTrials:
             return_value=rows,
         )
 
-    async def test_a_row_with_no_svd_population_is_not_published(
+    async def test_a_row_with_no_target_population_is_not_published(
         self, mocker, caplog
     ) -> None:
         self._rows(
             mocker,
             [
-                {"drug": "Cilostazol", "svd_population": "Stroke"},
-                {"drug": "Discovered", "svd_population": None},
+                {"drug": "Cilostazol", "target_population": "Stroke"},
+                {"drug": "Discovered", "target_population": None},
             ],
         )
 
         with caplog.at_level(logging.WARNING, logger="pipeline.export.main"):
             rows = await _read_curated_trials()
 
-        assert rows == [{"drug": "Cilostazol", "svd_population": "Stroke"}]
+        assert rows == [{"drug": "Cilostazol", "target_population": "Stroke"}]
         assert "Skipping 1 of 2 clinical trial row(s)" in caplog.text
 
     async def test_a_blank_population_counts_as_uncurated(self, mocker) -> None:
-        self._rows(mocker, [{"drug": "Discovered", "svd_population": "   "}])
+        self._rows(mocker, [{"drug": "Discovered", "target_population": "   "}])
 
         assert await _read_curated_trials() == []
 
@@ -550,8 +550,8 @@ class TestReadCuratedTrials:
         self, mocker, caplog
     ) -> None:
         rows = [
-            {"drug": "Cilostazol", "svd_population": "Stroke"},
-            {"drug": "Cerebrolysin", "svd_population": "SVD"},
+            {"drug": "Cilostazol", "target_population": "Stroke"},
+            {"drug": "Cerebrolysin", "target_population": "SVD"},
         ]
         self._rows(mocker, rows)
 
@@ -673,7 +673,7 @@ class TestStoppedTrialsAreNotPublished:
         row: dict[str, object] = {
             "drug": "Cilostazol",
             "registry_id": "NCT01011011",
-            "svd_population": "Stroke",
+            "target_population": "Stroke",
             "overall_status": "RECRUITING",
         }
         row.update(overrides)
@@ -743,10 +743,10 @@ class TestStoppedTrialsAreNotPublished:
         downstream. That is the loud failure the export wants on a database
         below migration 013, rather than a silently absent column.
         """
-        self._rows(mocker, [{"drug": "Cilostazol", "svd_population": "Stroke"}])
+        self._rows(mocker, [{"drug": "Cilostazol", "target_population": "Stroke"}])
 
         assert await _read_curated_trials() == [
-            {"drug": "Cilostazol", "svd_population": "Stroke"}
+            {"drug": "Cilostazol", "target_population": "Stroke"}
         ]
 
     async def test_a_blank_status_publishes(self, mocker) -> None:
@@ -803,7 +803,7 @@ class TestStoppedTrialsAreNotPublished:
                 self._trial(),
                 self._trial(
                     drug="Discovered",
-                    svd_population=None,
+                    target_population=None,
                     overall_status="TERMINATED",
                 ),
             ],

@@ -686,10 +686,10 @@ Four of these behave differently from the rest:
 
 **`table2.json` publishes only curated trial rows.** `--clinical-trials` writes
 ClinicalTrials.gov discoveries into the same table with every curator column
-NULL; `_read_curated_trials` skips any row with no `svd_population` and logs the
-count, so a discovery no one has read cannot reach the dashboard as `(unknown)`
-mechanism, population and evidence — values no filter choice offers and the
-radar draws nowhere.
+NULL; `_read_curated_trials` skips any row with no `target_population` and logs
+the count, so a discovery no one has read cannot reach the dashboard as
+`(unknown)` mechanism, population and evidence — values no filter choice offers
+and the radar draws nowhere.
 
 ### Regenerating
 

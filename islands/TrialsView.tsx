@@ -157,12 +157,12 @@ const COLUMNS = column.columns([
     spanRows: spanWithinDrug,
     cell: plainCell,
   }),
-  column.accessor("svdPopulation", {
+  column.accessor("targetPopulation", {
     header: POPULATION_FIELD.label,
     spanRows: spanWithinDrug,
     cell: plainCell,
   }),
-  column.accessor("svdPopulationDetails", {
+  column.accessor("targetPopulationDetails", {
     header: POPULATION_FIELD.detailsLabel,
     cell: plainCell,
   }),

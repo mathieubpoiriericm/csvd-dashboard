@@ -135,13 +135,15 @@ async def _read_table(name: str) -> list[dict[str, object]]:
 def _is_curated_trial(row: Mapping[str, object]) -> bool:
     """Whether a `clinical_trials` row has been through a curator.
 
-    `svd_population` is the test because it is the first thing a curator
+    `target_population` is the test because it is the first thing a curator
     decides about a trial and the only curator column the dashboard makes
     structural use of: `lib/timeline.ts` groups the radar's sectors by it,
     and `POPULATION_CHOICES` filters on it. A row that has none is a
-    ClinicalTrials.gov discovery nobody has read yet.
+    ClinicalTrials.gov discovery nobody has read yet. (Renamed from
+    `svd_population` by migration 014 so the wire key does not spell the
+    disease.)
     """
-    population = row.get("svd_population")
+    population = row.get("target_population")
     return population is not None and bool(str(population).strip())
 
 

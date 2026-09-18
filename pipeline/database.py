@@ -1062,7 +1062,7 @@ class TrialUpsertResult:
     curates it (see the export's curation gate).
 
     ``curated_ids`` names the registry ids that already carry an
-    ``svd_population``. A discovery is an insert on the run that finds it
+    ``target_population``. A discovery is an insert on the run that finds it
     and a refresh on every run after, so refresh status does not imply
     curation.
     """
@@ -1091,7 +1091,7 @@ _CURATED_MONTH_YEAR: Final[str] = r"^[0-9]{1,2}/[0-9]{4}$"
 _REFRESH_TRIAL_SQL: Final[str] = f"""
     UPDATE clinical_trials SET
         trial_name = CASE
-            WHEN clinical_trials.svd_population IS NOT NULL
+            WHEN clinical_trials.target_population IS NOT NULL
             THEN clinical_trials.trial_name
             ELSE COALESCE($1, clinical_trials.trial_name)
         END,
@@ -1104,7 +1104,7 @@ _REFRESH_TRIAL_SQL: Final[str] = f"""
             ELSE COALESCE($4, clinical_trials.estimated_completion_date)
         END,
         primary_outcome = CASE
-            WHEN clinical_trials.svd_population IS NOT NULL
+            WHEN clinical_trials.target_population IS NOT NULL
             THEN clinical_trials.primary_outcome
             ELSE COALESCE($5, clinical_trials.primary_outcome)
         END,
@@ -1161,12 +1161,12 @@ async def upsert_clinical_trials_batch(trials: list[Any]) -> TrialUpsertResult:
     * a registry id new to the table is inserted, curator columns NULL.
 
     Curator-owned columns (``mechanism_of_action``, ``genetic_target``,
-    ``genetic_evidence``, ``svd_population``, ``svd_population_details``)
+    ``genetic_evidence``, ``target_population``, ``target_population_details``)
     appear in neither write. On INSERT they default to NULL; a refresh never
     names them.
 
     ``trial_name`` and ``primary_outcome`` are API-sourced on INSERT and on
-    a refresh of an *uncurated* row, and curator-owned once ``svd_population``
+    a refresh of an *uncurated* row, and curator-owned once ``target_population``
     is filled in. The curated rows normalize both: the registry's brief title
     drops the trial acronym the curator keeps ("CERebrolysin In CADASIL"
     against "CERebrolysin In CADASIL (CERICA)"), and every curated outcome
@@ -1211,7 +1211,7 @@ async def upsert_clinical_trials_batch(trials: list[Any]) -> TrialUpsertResult:
     registry_ids = list(dict.fromkeys(t.registry_id for t in filtered))
     async with Database.connection() as conn:
         existing = await conn.fetch(
-            "SELECT registry_id, drug, svd_population FROM clinical_trials "
+            "SELECT registry_id, drug, target_population FROM clinical_trials "
             "WHERE registry_id = ANY($1::text[])",
             registry_ids,
         )
@@ -1219,7 +1219,7 @@ async def upsert_clinical_trials_batch(trials: list[Any]) -> TrialUpsertResult:
         curated: set[str] = set()
         for row in existing:
             known.setdefault(row["registry_id"], set()).add(row["drug"])
-            if row["svd_population"] is not None:
+            if row["target_population"] is not None:
                 curated.add(row["registry_id"])
 
         refreshes: list[tuple[Any, ...]] = []
@@ -1312,7 +1312,7 @@ _UPDATE_TRIAL_STATUS_SQL: Final[str] = """
 async def read_nct_registry_ids() -> list[str]:
     """Every distinct ClinicalTrials.gov id the trials table holds.
 
-    Uncurated discoveries are included. Gating on ``svd_population`` would
+    Uncurated discoveries are included. Gating on ``target_population`` would
     save a request or two and cost the status of every trial a curator
     publishes tomorrow, which would then ship NULL until the next sync.
     """

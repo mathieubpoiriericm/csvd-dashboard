@@ -399,7 +399,7 @@ export function computeTimelineLayout(
   rows: readonly Trial[],
   enc: TimelineEncoding = encoding,
 ): TimelineLayout {
-  const rowsByPopulation = groupBy(rows, (row) => row.svdPopulation);
+  const rowsByPopulation = groupBy(rows, (row) => row.targetPopulation);
 
   const counts = enc.populations.map((p) =>
     uniqueDrugCount(rowsByPopulation.get(p.key) ?? [])

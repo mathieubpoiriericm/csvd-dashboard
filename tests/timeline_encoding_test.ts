@@ -66,7 +66,7 @@ Deno.test("every population in the data has an encoding entry, in the manifest's
   assertEquals(keys, manifest.populations.map((p) => p.key));
   assertEquals(unique(keys).size, keys.length, "population keys repeat");
 
-  const missing = [...unique(trials.map((t) => t.svdPopulation))]
+  const missing = [...unique(trials.map((t) => t.targetPopulation))]
     .filter((key) => !keys.includes(key));
   assertEquals(missing, [], `populations without an encoding: ${missing}`);
 

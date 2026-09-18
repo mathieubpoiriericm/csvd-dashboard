@@ -204,7 +204,7 @@ def _unique_drug_count(rows: list[dict[str, str]]) -> int:
 
 
 def _rows_for(trials: list[dict[str, str]], population: str) -> list[dict[str, str]]:
-    return [row for row in trials if row["svdPopulation"] == population]
+    return [row for row in trials if row["targetPopulation"] == population]
 
 
 def sector_spans(

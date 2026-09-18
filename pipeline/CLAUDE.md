@@ -686,14 +686,14 @@ page and fetched 382 studies. Six truncates no term and fetches 1,423. CTG
 states no `Retry-After` -- the header path in `_fetch_page_with_retry` has never
 fired -- so the curve is what paces this client.
 
-**`trial_name` and `primary_outcome` are curator-owned once `svd_population` is
-filled in.** Refreshing them API-first replaced curator prose with registry
+**`trial_name` and `primary_outcome` are curator-owned once `target_population`
+is filled in.** Refreshing them API-first replaced curator prose with registry
 verbatim on five of the eight curated NCT trials the first time the sync ran. A
 discovery inserts on the run that finds it and _refreshes_ on every run after,
 so "refreshed" stops meaning "curated" the second time -- the same proxy made
 `_unplaceable_phases` report 35 uncurated rows as publishing in Table 2. Gate on
-`svd_population` -- `TrialUpsertResult.curated_ids` is the set that carries it
--- never on refresh status.
+`target_population` -- `TrialUpsertResult.curated_ids` is the set that carries
+it -- never on refresh status.
 
 ## Database tests
 

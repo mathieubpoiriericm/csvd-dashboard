@@ -238,7 +238,7 @@ complete boundary. Consequences worth remembering:
 - **`data/table2.json` publishes only curated trial rows.** `--clinical-trials`
   writes ClinicalTrials.gov discoveries into the same table, with every curator
   column NULL; `_read_curated_trials` in `pipeline/export/main.py` skips any row
-  with no `svd_population` and logs the count, so a discovery no one has read
+  with no `target_population` and logs the count, so a discovery no one has read
   cannot reach the dashboard as `(unknown)` mechanism, population and evidence —
   values no filter choice offers and the radar draws nowhere. See
   "ClinicalTrials.gov rows must read like the curated ones" in

@@ -41,8 +41,8 @@ export interface Trial {
   trialName: string;
   registryId: string;
   clinicalTrialPhase: string;
-  svdPopulation: string;
-  svdPopulationDetails: string;
+  targetPopulation: string;
+  targetPopulationDetails: string;
   /** Stored as a string: the source column is nullable and mixes formats. */
   targetSampleSize: string;
   estimatedCompletionDate: string;

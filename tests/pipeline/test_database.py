@@ -813,18 +813,18 @@ class TestCacheOperations:
 
 
 def _stored(
-    drug: str, *, registry_id: str = "NCT123", svd_population: str | None = "CAA"
+    drug: str, *, registry_id: str = "NCT123", target_population: str | None = "CAA"
 ) -> dict[str, object]:
     """One row as the upsert's own SELECT returns it.
 
-    `svd_population` is read alongside the drug because it is what tells a
+    `target_population` is read alongside the drug because it is what tells a
     curated row from a discovery the sync has already written once, and
     "refreshed" stops meaning "curated" on the second run.
     """
     return {
         "registry_id": registry_id,
         "drug": drug,
-        "svd_population": svd_population,
+        "target_population": target_population,
     }
 
 
@@ -996,20 +996,20 @@ class TestClinicalTrialUpsert:
         # curated one keeps the curator's wording.
         for column, placeholder in (("trial_name", "$1"), ("primary_outcome", "$5")):
             assert (
-                f"{column} = CASE WHEN clinical_trials.svd_population IS NOT NULL "
+                f"{column} = CASE WHEN clinical_trials.target_population IS NOT NULL "
                 f"THEN clinical_trials.{column} "
                 f"ELSE COALESCE({placeholder}, clinical_trials.{column}) END"
                 in statement
             )
-        # Curator columns are assigned in neither write. `svd_population` is
+        # Curator columns are assigned in neither write. `target_population` is
         # read as the gate above, so this asks whether the column is written
         # rather than whether it is mentioned.
         for curator_column in (
             "mechanism_of_action",
             "genetic_target",
             "genetic_evidence",
-            "svd_population",
-            "svd_population_details",
+            "target_population",
+            "target_population_details",
         ):
             assert f"{curator_column} =" not in statement
 

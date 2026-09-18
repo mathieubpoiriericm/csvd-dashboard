@@ -142,7 +142,7 @@ const DRUG_FIELDS: readonly TrialField[] = [
   // glance, and a status is not what identifies a trial at one.
   { key: "overallStatus", label: "Study Status" },
   { key: "clinicalTrialPhase", label: "Clinical Trial Phase" },
-  { key: "svdPopulationDetails", label: POPULATION_FIELD.detailsLabel },
+  { key: "targetPopulationDetails", label: POPULATION_FIELD.detailsLabel },
   { key: "targetSampleSize", label: "Target Sample Size", icon: "userGroup" },
   {
     key: "estimatedCompletionDate",

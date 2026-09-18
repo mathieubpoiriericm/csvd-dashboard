@@ -5,7 +5,7 @@ records, and upserts them into the ``clinical_trials`` Postgres table.
 
 The upsert is intentionally write-only for API-sourced columns. Curator-owned
 columns (mechanism_of_action, genetic_target, genetic_evidence,
-svd_population, svd_population_details) are never populated here — they
+target_population, target_population_details) are never populated here — they
 default to NULL on INSERT and are omitted from the update set, so existing
 curator edits are preserved across runs. ``trial_name`` and
 ``primary_outcome`` are refreshed only while a row is uncurated, because the
@@ -832,7 +832,7 @@ def _unplaceable_phases(
     whose phase is None is not reported either: a refresh never overwrites
     a curated value with nothing, so nothing moved.
 
-    The gate is `svd_population`, not `refreshed_ids`. The two agree only
+    The gate is `target_population`, not `refreshed_ids`. The two agree only
     on the run that first discovers a trial: after that the discovery is
     an existing row, so it refreshes rather than inserts, and gating on
     "refreshed" reported all 131 uncurated discoveries as publishing in
@@ -992,7 +992,7 @@ async def sync_clinical_trials(config: PipelineConfig) -> ClinicalTrialSyncResul
     if written.discovered:
         logger.info(
             "CTG: %d row(s) written for trials no curator has seen; they stay "
-            "out of data/table2.json until svd_population is filled in",
+            "out of data/table2.json until target_population is filled in",
             written.discovered,
         )
     logger.info(

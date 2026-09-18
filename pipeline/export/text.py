@@ -9,7 +9,7 @@ from collections.abc import Iterable
 from typing import Final
 
 _ACRONYMS: Final[dict[str, str]] = {
-    acronym.lower(): acronym for acronym in ("GWAS", "SVD", "ID", "Omics")
+    acronym.lower(): acronym for acronym in ("GWAS", "ID", "Omics")
 }
 
 # toTitleCase in R lower-cases these short words. Reproduced so column

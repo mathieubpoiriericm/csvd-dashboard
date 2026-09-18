@@ -20,8 +20,8 @@ export function normalizeTrial(row: unknown): Trial {
     trialName: text(source.trialName, UNKNOWN),
     registryId: text(source.registryId, UNKNOWN),
     clinicalTrialPhase: text(source.clinicalTrialPhase, UNKNOWN),
-    svdPopulation: text(source.svdPopulation, UNKNOWN),
-    svdPopulationDetails: text(source.svdPopulationDetails, UNKNOWN),
+    targetPopulation: text(source.targetPopulation, UNKNOWN),
+    targetPopulationDetails: text(source.targetPopulationDetails, UNKNOWN),
     targetSampleSize: text(source.targetSampleSize, UNKNOWN),
     estimatedCompletionDate: text(
       source.estimatedCompletionDate,

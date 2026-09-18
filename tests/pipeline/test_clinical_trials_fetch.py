@@ -1387,7 +1387,7 @@ class TestSyncClinicalTrials:
     ):
         """Every id, not just the search's hits and not just curated rows.
 
-        Gating on `svd_population` would cost the status of every trial a
+        Gating on `target_population` would cost the status of every trial a
         curator publishes tomorrow, which would then ship NULL until the
         next sync.
         """
@@ -1749,8 +1749,8 @@ class TestUpsertClinicalTrialsBatchSQL:
             "mechanism_of_action",
             "genetic_target",
             "genetic_evidence",
-            "svd_population",
-            "svd_population_details",
+            "target_population",
+            "target_population_details",
         ):
             assert curator_col not in set_clause, (
                 f"Curator column {curator_col!r} leaked into UPDATE SET — "

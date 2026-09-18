@@ -98,7 +98,7 @@ async def test_the_container_is_migrated_to_a_single_head() -> None:
         )
 
     names = {row["column_name"] for row in columns}
-    assert version == "013"
+    assert version == "014"
     # The three migration 009 adds. Their absence is not a schema detail:
     # without them the run report has nowhere to be stored and the About
     # page silently falls back to its summary card.
@@ -633,7 +633,7 @@ async def _insert_curated_trial(**overrides: Any) -> None:
         "primary_outcome": "Curated outcome",
         "sponsor_type": "Industry (Alnylam Pharmaceuticals)",
         "mechanism_of_action": "APP mRNA reduction",
-        "svd_population": "CAA",
+        "target_population": "CAA",
     }
     values.update(overrides)
     columns = ", ".join(values)
@@ -701,7 +701,7 @@ async def test_a_curated_trial_is_refreshed_rather_than_duplicated() -> None:
         assert row["estimated_completion_date"] == "Completed unpublish"
         assert row["sponsor_type"] == "Industry (Alnylam Pharmaceuticals)"
         assert row["mechanism_of_action"] == "APP mRNA reduction"
-        assert row["svd_population"] == "CAA"
+        assert row["target_population"] == "CAA"
     finally:
         await _clear_trial(_CURATED_NCT)
 
@@ -712,14 +712,14 @@ async def test_an_uncurated_row_still_tracks_the_registry_title() -> None:
     A discovery no curator has read carries the registry's own wording and
     nothing else, so there is no prose to protect and freezing it at the
     first sync would leave the row stale for as long as it stays uncurated.
-    The gate is `svd_population`, the same column `_read_curated_trials`
+    The gate is `target_population`, the same column `_read_curated_trials`
     publishes on.
     """
     from pipeline.database import upsert_clinical_trials_batch
 
     try:
         await _insert_curated_trial(
-            svd_population=None,
+            target_population=None,
             mechanism_of_action=None,
             trial_name="Discovered title",
             primary_outcome="Discovered outcome",
@@ -771,7 +771,7 @@ async def test_a_refresh_does_not_erase_a_column_ctgov_stopped_stating() -> None
     from pipeline.database import upsert_clinical_trials_batch
 
     try:
-        await _insert_curated_trial(svd_population=None)
+        await _insert_curated_trial(target_population=None)
 
         await upsert_clinical_trials_batch(
             [_api_record(primary_outcome=None, target_sample_size=None)]
@@ -807,7 +807,7 @@ async def test_a_registry_id_new_to_the_table_is_inserted_uncurated() -> None:
             )
         assert row is not None
         assert row["drug"] == "ALN-APP"
-        assert row["svd_population"] is None
+        assert row["target_population"] is None
         assert row["mechanism_of_action"] is None
     finally:
         await _clear_trial(_CURATED_NCT)
