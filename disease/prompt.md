@@ -5,6 +5,10 @@ slot; the body is the text between headings with surrounding blank lines
 stripped. `disease.name` and `disease.abbreviation` come from manifest.json.
 tests/pipeline/test_prompt_assembly.py pins the cSVD rendering to the v6 bytes.
 
+Lines in this file are deliberately not wrapped. Every newline inside a section reaches the model verbatim, so a reflow is a change to the prompt; `deno.json` excludes this file from `deno fmt` for that reason. Only the text above the first `## ` heading is ignored by the parser, which is what makes this note safe to edit.
+
+`## strategy.disease_steps` is the one section with a shape of its own: one step per paragraph, paragraphs separated by a blank line, each rendered as its own numbered step in the extraction strategy. A disease contributing no step leaves the list at the template's own length; a disease contributing three lengthens it by three.
+
 ## persona.specificity
 
 You carefully distinguish cSVD-specific evidence (small vessel stroke, WMH, lacunes, PVS, microbleeds) from general stroke or neurodegeneration findings.

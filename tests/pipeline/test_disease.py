@@ -130,3 +130,11 @@ def test_the_prompt_parser_refuses_a_file_with_no_headings() -> None:
 def test_the_prompt_parser_refuses_a_duplicate_section() -> None:
     with pytest.raises(ValueError, match="duplicate section a.b"):
         disease_module._parse_prompt_sections("## a.b\n\none\n\n## a.b\n\ntwo\n")
+
+
+def test_the_prompt_parser_refuses_a_heading_that_is_not_a_section_id() -> None:
+    """Absorbing it into the section above would render it into the prompt."""
+    with pytest.raises(ValueError, match="'## Provenance' is not a"):
+        disease_module._parse_prompt_sections(
+            "## a.b\n\none\n\n## Provenance\n\nwritten by hand\n"
+        )

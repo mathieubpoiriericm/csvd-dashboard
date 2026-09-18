@@ -175,13 +175,24 @@ _STRATEGY_STEPS: Final[tuple[str | type[_DiseaseSteps], ...]] = (
 
 
 def _render_steps(disease_steps: str) -> str:
-    """Number the template's steps and the disease's own as one list."""
+    """Number the template's steps and the disease's own as one list.
+
+    Every item is stripped. One step per line is the whole shape of this
+    list, so a disease step carrying a leading blank line or a trailing
+    space would put whitespace between its number and its first word, or
+    an empty line inside the numbering -- neither of which any reader of
+    `disease/prompt.md` intended to write.
+    """
     items: list[str] = []
     for step in _STRATEGY_STEPS:
         if isinstance(step, str):
-            items.append(step)
+            items.append(step.strip())
         else:  # the _DiseaseSteps sentinel
-            items.extend(s for s in disease_steps.split("\n\n") if s.strip())
+            items.extend(
+                stripped
+                for s in disease_steps.split("\n\n")
+                if (stripped := s.strip())
+            )
     return "\n".join(f"{n}. {body}" for n, body in enumerate(items, 1))
 
 

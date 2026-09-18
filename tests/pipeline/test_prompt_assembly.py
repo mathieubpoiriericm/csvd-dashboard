@@ -16,6 +16,7 @@ from pipeline.prompts import (
     _PROMPTS,
     PROMPT_VERSIONS,
     _refuse_orphan_sections,
+    _render_steps,
     build_extraction_prompt,
     prompt_sha256,
     render_prompt,
@@ -89,6 +90,17 @@ class TestOrphanSections:
     def test_refuses_a_section_no_template_reads(self) -> None:
         with pytest.raises(ValueError, match="a.b"):
             _refuse_orphan_sections(["a.b"], set())
+
+
+def test_every_rendered_step_is_stripped() -> None:
+    """One step per line is the shape; padding would break the numbering."""
+    rendered = _render_steps("\n  padded disease step  \n\n\n  a second one\n")
+    assert "10. padded disease step" in rendered
+    assert "11. a second one" in rendered
+    for line in rendered.split("\n"):
+        number, body = line.split(". ", 1)
+        assert number.isdigit()
+        assert body == body.strip()
 
 
 def test_the_monogenic_list_in_the_prompt_matches_the_manifest() -> None:

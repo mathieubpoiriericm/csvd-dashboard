@@ -43,6 +43,13 @@ _HEADING: Final[re.Pattern[str]] = re.compile(
     r"^## (?P<id>[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*)\s*$", re.M
 )
 
+# Every `## ` line, so one that is not a section id can be refused rather
+# than swallowed. A body runs to the next *matching* heading, so `##
+# Provenance` or `## Examples` -- ordinary Markdown, and the first thing
+# an author reaches for -- would be pasted into the middle of the section
+# above it and rendered into the prompt with no error anywhere.
+_ANY_HEADING: Final[re.Pattern[str]] = re.compile(r"^## .*$", re.M)
+
 
 @dataclass(frozen=True, slots=True)
 class Disease:
@@ -107,6 +114,13 @@ def _check_schema_version(raw: Mapping[str, Any], filename: str) -> None:
 def _parse_prompt_sections(text: str) -> dict[str, str]:
     """``## id`` headings to bodies, blank lines at either end stripped."""
     matches = list(_HEADING.finditer(text))
+    starts = {match.start() for match in matches}
+    for line in _ANY_HEADING.finditer(text):
+        if line.start() not in starts:
+            raise ValueError(
+                f"{_PROMPT}: {line.group().strip()!r} is not a "
+                "'## <section.id>' heading"
+            )
     if not matches:
         raise ValueError(f"{_PROMPT}: no '## <section.id>' headings")
     sections: dict[str, str] = {}
