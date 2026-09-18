@@ -167,7 +167,11 @@ Deno.test("the gate fails closed when a secret is missing", async () => {
 
 Deno.test("the login card shows the ICM logo, the form and the return path", () => {
   const html = renderToString(<LoginCard next="/genes" error={false} />);
-  assertStringIncludes(html, 'class="institute-logo"');
+  // The card takes InstituteLogo's default `auto`: both files render and
+  // app.css shows the one the theme calls for, because the card's surface is
+  // dark under the toggle and under prefers-color-scheme alike.
+  assertStringIncludes(html, 'class="institute-logo institute-logo-light"');
+  assertStringIncludes(html, 'class="institute-logo institute-logo-dark"');
   assertStringIncludes(html, 'alt="Paris Brain Institute"');
   assertStringIncludes(html, "ICM Cerebral SVD Dashboard");
   assertStringIncludes(html, 'method="post" action="/login"');

@@ -175,8 +175,6 @@
   --svd-on-primary: var(--svd-slate-100);
   --svd-on-ok: var(--svd-slate-100);
 
-  --svd-icm-mark: #e94e14;
-
   /* OSM ships one raster set. Inverting the tile pane alone keeps the vector
      markers and popups drawn on top untouched. */
   --svd-tile-filter: none;
@@ -950,6 +948,37 @@ svg {
   width: auto;
   max-width: none;
   flex: none;
+}
+
+/*
+ * InstituteLogo's `auto` mode renders both files and this shows one. The
+ * navbar is dark in both themes and asks for one file outright, so these two
+ * classes reach only the login card, whose surface follows the theme. Like the
+ * tokens above, the swap is declared twice — the media query for the system
+ * default, [data-theme='dark'] for the toggle — because `light-dark()` needs
+ * Firefox 120 and the build targets 114. Neither block declares a token, so
+ * neither is part of the pair tests/styles_contract_test.ts compares.
+ */
+.institute-logo-dark {
+  display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .institute-logo-light {
+    display: none;
+  }
+
+  :root:not([data-theme='light']) .institute-logo-dark {
+    display: block;
+  }
+}
+
+:root[data-theme='dark'] .institute-logo-light {
+  display: none;
+}
+
+:root[data-theme='dark'] .institute-logo-dark {
+  display: block;
 }
 
 /* The opacity the design draws this at is expressed as a mix on the bar's

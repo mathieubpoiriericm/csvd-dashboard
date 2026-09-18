@@ -130,7 +130,7 @@ export default define.page(function App({ Component, url, state }) {
             <header class="navbar">
               <div class="navbar-inner">
                 <a class="navbar-brand" href="/" aria-label="Home">
-                  <InstituteLogo dark decorative />
+                  <InstituteLogo theme="dark" decorative />
                 </a>
                 {
                   /* Outside the brand link: the heading is centred against the

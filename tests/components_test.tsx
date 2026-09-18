@@ -203,18 +203,40 @@ Deno.test("presentational shells render their optional variants", () => {
   assertEquals((html.match(/<path/g) ?? []).length, 4);
 });
 
-Deno.test("InstituteLogo renders the manifest's logo and swaps the file on dark", () => {
-  const light = renderToString(<InstituteLogo />);
+Deno.test("InstituteLogo renders one file for a named theme", () => {
+  const light = renderToString(<InstituteLogo theme="light" />);
   assertStringIncludes(light, 'src="/institute/logo-light.svg"');
   assertStringIncludes(light, 'alt="Paris Brain Institute"');
-  const dark = renderToString(<InstituteLogo dark />);
+  assertEquals((light.match(/<img/g) ?? []).length, 1);
+
+  const dark = renderToString(<InstituteLogo theme="dark" />);
   assertStringIncludes(dark, 'src="/institute/logo-dark.svg"');
-  const decorative = renderToString(<InstituteLogo decorative />);
+  assertEquals((dark.match(/<img/g) ?? []).length, 1);
+
+  const decorative = renderToString(<InstituteLogo theme="dark" decorative />);
   // preact-render-to-string serialises an empty string attribute as the
   // bare attribute name rather than `alt=""` -- valid HTML5 parses `<img
   // alt>` as `alt=""` either way, so this checks the same emptiness the
   // literal form would.
   assertStringIncludes(decorative, 'alt aria-hidden="true"');
+});
+
+Deno.test("InstituteLogo defaults to the pair the stylesheet picks between", () => {
+  // The login card's surface follows the theme, and the theme is only known
+  // in the browser, so both files are rendered and app.css shows one.
+  const html = renderToString(<InstituteLogo />);
+  assertStringIncludes(
+    html,
+    'class="institute-logo institute-logo-light" src="/institute/logo-light.svg"',
+  );
+  assertStringIncludes(
+    html,
+    'class="institute-logo institute-logo-dark" src="/institute/logo-dark.svg"',
+  );
+  assertEquals((html.match(/alt="Paris Brain Institute"/g) ?? []).length, 2);
+
+  const decorative = renderToString(<InstituteLogo decorative />);
+  assertEquals((decorative.match(/aria-hidden="true"/g) ?? []).length, 2);
 });
 
 Deno.test("DensityReadout renders totals and zero-height buckets safely", () => {
