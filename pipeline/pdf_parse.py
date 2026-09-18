@@ -3,7 +3,7 @@
 Docling rather than a raw text dump: on scientific papers a plain
 page.get_text() loses all table structure, interleaves two-column layouts
 into false adjacency, and fuses reference superscripts onto tokens
-("COL4A1" + ref 12 -> "COL4A112") — poison when the extracted output *is*
+("SYMBOL" + ref 12 -> "SYMBOL12") — poison when the extracted output *is*
 gene symbols.
 
 OCR is on, and it is a fallback rather than a mode. Docling's default

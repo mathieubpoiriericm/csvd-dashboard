@@ -788,8 +788,8 @@ class ObstacleGrid {
  * Where each label box has to go to come clear of its neighbours, one shift
  * per `movable` box. The stagger keeps markers that share a cell apart, but
  * labels from neighbouring cells still meet — two Isosorbide trials in Stroke
- * III, THN391 against Tranexamic acid at the SVD rim — so renderers measure
- * their boxes and run this over them.
+ * III, THN391 against Tranexamic acid at another sector's outer rim — so
+ * renderers measure their boxes and run this over them.
  *
  * Two passes, and the second is why a shift has a `dx`. The first relaxes
  * the boxes vertically: two movable boxes split the overlap between them, the

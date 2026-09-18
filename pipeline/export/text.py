@@ -82,10 +82,13 @@ _ANY_NUMBER = re.compile(r"\b[1-9][0-9]*\b")
 # "12345, 67890" untouched -- its groups are not comma-delimited triples.
 _THOUSANDS_RUN = re.compile(r"\b[1-9][0-9]{0,2}(?:,[0-9]{3})+\b")
 _TARGET_SPLIT = re.compile(r"[,;/]")
-# The curated label for the collagen pair is "COL4A1/2" (data_merger.py's
-# canonical map and the genes table both spell it so). Slash is a delimiter
-# because "COL4A1/COL4A2" occurs too, and split alone read the shorthand as
-# COL4A1 and a gene named "2". The stem is the symbol up to its trailing digits.
+# The curated label for a collagen-pair gene group spells the shared symbol
+# stem once, with each member's trailing digit joined by a slash
+# (data_merger.py's canonical map and the genes table both spell it so).
+# Slash is a delimiter because the fully spelled-out two-symbol form occurs
+# too, and splitting on slash alone read the shorthand as the first member's
+# full symbol and a gene named by the trailing digit alone. The stem is the
+# symbol up to its trailing digits.
 _PAIR_SHORTHAND = re.compile(r"\b([A-Z][A-Z0-9]*[A-Z])(\d+)/(\d+)\b")
 _NA_WORD = re.compile(r"\bN\s*/\s*A\b", re.IGNORECASE)
 _TARGET_SENTINELS: Final[frozenset[str]] = frozenset(
@@ -200,7 +203,7 @@ def split_genetic_targets(targets: Iterable[str | None]) -> list[str]:
 
     The N/A sentinel is removed before splitting: slash is also a delimiter,
     so "N/A" would otherwise yield two bogus symbols. The curated pair
-    shorthand ("COL4A1/2") is expanded first for the same reason.
+    shorthand is expanded first for the same reason.
     """
     seen: dict[str, None] = {}
     for target in targets:

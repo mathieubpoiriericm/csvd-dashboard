@@ -47,8 +47,9 @@ class NcbiUnavailableError(RuntimeError):
 
     Distinct from a lookup that answered "no such gene": that answer is
     cached and turns into a rejection, while this must do neither. It was
-    the same None as a miss, so one timeout on NOTCH3 rejected every later
-    NOTCH3 in the run as "not found in NCBI Gene" without another request.
+    the same None as a miss, so one timeout on a gene symbol rejected every
+    later occurrence of that same symbol in the run as "not found in NCBI
+    Gene" without another request.
     """
 
 

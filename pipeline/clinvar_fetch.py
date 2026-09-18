@@ -17,7 +17,7 @@ every locus a variant overlaps, readthrough transcripts and antisense RNAs
 included, so an ordinary SNV in TREX1 is filed under ('ATRIP', 'ATRIP-TREX1',
 'TREX1'). Of TREX1's 61 pathogenic records (2026-09-02) *none* named TREX1
 alone, so the gene was published with no disease at all -- RVCL-S, a monogenic
-cSVD and the dashboard's own subject, among them. TIMP3 (Sorsby fundus
+form of the disease the dashboard covers, among them. TIMP3 (Sorsby fundus
 dystrophy, under 'SYN3'), VCAN (Wagner disease, under 'VCAN-AS1') and LOX
 (under 'SRFBP1') were lost the same way. ``_describes_gene`` recognises a
 region event from the record instead: the copy-number types ClinVar reports in
@@ -34,8 +34,8 @@ Both filters are needed, not either: "Distal 10q deletion syndrome" carries a
 real Orphanet/MONDO/OMIM triple and is removed only by the region rule.
 
 With both, HTRA1 returns exactly its real diseases, ranked by supporting-record
-count -- CADASIL type 2 (11), CARASIL (5), the two HTRA1-related cSVD entries
-(2 each), AMD7 (1) and cerebral arterial disease (1).
+count -- CADASIL type 2 (11), CARASIL (5), two more HTRA1-related small-vessel
+entries (2 each), AMD7 (1) and cerebral arterial disease (1).
 """
 
 import asyncio
@@ -489,7 +489,8 @@ async def _search_uids(
         # is a frozen literal, so its failing to parse is NCBI's side, and
         # treating the zero as genuine would negative-cache every gene as
         # "no pathogenic records" for DB_CACHE_TTL_DAYS. The gene term alone
-        # not being found is the genuine zero: COL4A1/2 is not a symbol.
+        # not being found is the genuine zero: a curated alias key is not a
+        # symbol.
         not_found = (result.get("errorlist") or {}).get("phrasesnotfound") or []
         unparsed = [p for p in not_found if _PROPERTIES_FIELD in str(p)]
         if unparsed:

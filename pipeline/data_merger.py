@@ -17,20 +17,20 @@ from pipeline.extraction_models import TRACKED_TRAITS, TRAIT_SYNONYMS, GeneEntry
 
 logger = logging.getLogger(__name__)
 
-# The curated dataset records some gene groups (the COL4A1/COL4A2 pair, say)
-# under one combined symbol, and NCBI has retired some symbols the curated
-# table keeps the literature's name for. `geneAliases` in
+# The curated dataset records some gene groups (a collagen heterotrimer
+# pair, say) under one combined symbol, and NCBI has retired some symbols
+# the curated table keeps the literature's name for. `geneAliases` in
 # disease/pipeline.json is that correspondence, curated key to member
 # symbols; this is the reverse map, member symbol to curated key. An
 # extraction names whichever member its own paper discusses, so without this
-# a run adds "COL4A1" as a *new* gene beside the curated "COL4A1/2" row --
-# genes.gene is UNIQUE, so nothing collapses them and the published table
-# gains a duplicate. Observed on the first live run, which extracted COL4A1
-# from PMID 42437605.
+# a run adds one pair member as a *new* gene beside the curated
+# combined-symbol row -- genes.gene is UNIQUE, so nothing collapses them and
+# the published table gains a duplicate. Observed on the first live run,
+# which extracted one pair member from PMID 42437605.
 #
-# Canonicalisation is deliberately after NCBI validation, not before:
-# COL4A1 and COL4A2 are real symbols and must validate as themselves. Only
-# the stored key is combined.
+# Canonicalisation is deliberately after NCBI validation, not before: both
+# pair members are real symbols and must validate as themselves. Only the
+# stored key is combined.
 #
 # C6orf195/LINC01600 is the same bug in a second form. The curated table
 # keeps the symbol the literature uses, and the prompt asks for it by that
@@ -252,7 +252,7 @@ async def merge_gene_entries(
     # omics / protein from the first occurrence.
     grouped: dict[str, list[GeneEntry]] = {}
     for entry in new_entries:
-        # Group on the curated key so COL4A1 and COL4A2 in one batch
+        # Group on the curated key so a pair's two members in one batch
         # collapse into a single row rather than fighting over it.
         key = canonical_gene_symbol(entry.gene_symbol).upper()
         grouped.setdefault(key, []).append(entry)

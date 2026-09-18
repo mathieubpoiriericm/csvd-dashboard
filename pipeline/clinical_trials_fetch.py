@@ -1,6 +1,6 @@
 """ClinicalTrials.gov (CTG) v2 discovery and refresh module.
 
-Searches CTG for cSVD-relevant drug trials, maps the JSON studies to flat
+Searches CTG for disease-relevant drug trials, maps the JSON studies to flat
 records, and upserts them into the ``clinical_trials`` Postgres table.
 
 The upsert is intentionally write-only for API-sourced columns. Curator-owned
@@ -640,7 +640,7 @@ async def fetch_disease_studies(
     page_size: int,
     max_retries: int,
 ) -> tuple[list[dict[str, Any]], list[str]]:
-    """Search CTG across all cSVD-relevant terms and deduplicate by NCT ID.
+    """Search CTG across all disease-relevant terms and deduplicate by NCT ID.
 
     Returns (studies, errors). A failure in one term does not abort the rest;
     failed terms appear in the errors list while successful terms contribute
@@ -682,7 +682,7 @@ async def fetch_disease_studies(
         )
 
     logger.info(
-        f"CTG: {len(relevant)} unique cSVD-relevant studies "
+        f"CTG: {len(relevant)} unique {_DISEASE.abbreviation}-relevant studies "
         f"across {len(search_terms)} search terms "
         f"({len(term_errors)} term failures)"
     )
@@ -873,7 +873,7 @@ class ClinicalTrialSyncResult(SyncResult):
 
 
 async def sync_clinical_trials(config: PipelineConfig) -> ClinicalTrialSyncResult:
-    """Discover + refresh cSVD trials in the clinical_trials table.
+    """Discover + refresh disease trials in the clinical_trials table.
 
     1. Search CTG for each configured term, paginated, deduplicated by NCT ID.
     2. Map studies to one record per therapeutic-agent intervention

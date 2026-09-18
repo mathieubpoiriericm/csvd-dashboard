@@ -1,4 +1,4 @@
-"""Async PostgreSQL database operations for the SVD pipeline.
+"""Async PostgreSQL database operations for the pipeline.
 
 Provides connection pooling, batch operations, and safe SQL execution.
 """
@@ -672,8 +672,9 @@ async def fill_missing_chromosomal_locations() -> int:
 
     Matching is on `upper(gene)`, the index migration 002 added, because the
     sync fetched each symbol under the spelling `genes.gene` holds. A curated
-    row like "COL4A1/2" names two genes and matches no NCBI symbol; it already
-    has a location, so the empty-only guard excludes it before that matters.
+    row filed under a combined alias key names two genes and matches no NCBI
+    symbol; it already has a location, so the empty-only guard excludes it
+    before that matters.
 
     Returns:
         The number of rows filled.

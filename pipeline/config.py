@@ -1,4 +1,4 @@
-"""Centralized configuration for the SVD pipeline.
+"""Centralized configuration for the pipeline.
 
 All tunable constants live here. Every setting can be overridden via
 environment variable (prefixed with ``PIPELINE_``).  Modules accept a
@@ -196,7 +196,7 @@ SAFE_XML_PARSER: Final[etree.XMLParser] = etree.XMLParser(
     resolve_entities=False, no_network=True, load_dtd=False
 )
 
-# Default ClinicalTrials.gov condition/keyword terms for cSVD relevance.
+# Default ClinicalTrials.gov condition/keyword terms for disease relevance.
 # Override via PIPELINE_CT_SEARCH_TERMS (comma-separated).
 DEFAULT_CT_SEARCH_TERMS: Final[tuple[str, ...]] = load_disease().ct_search_terms
 

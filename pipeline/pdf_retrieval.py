@@ -48,9 +48,9 @@ DOI_PATTERN: Final[re.Pattern[str]] = re.compile(r"^10\.\d{4,}/[^\s]+$")
 # The words are matched with the section number journals put in front of
 # them and the variants they are titled with: "<h2>5. References</h2>",
 # "<h2>References and Notes</h2>" and "<h2>Literature Cited</h2>" all left
-# the bibliography in the text, where a cited title ("NOTCH3 mutations in
-# CADASIL...") names genes the paper never studied and the quote check
-# passes because the quote really is in the document.
+# the bibliography in the text, where a cited title ("Gene mutations in a
+# hereditary disorder...") names genes the paper never studied and the
+# quote check passes because the quote really is in the document.
 _BIBLIOGRAPHY_WORDS: Final[str] = (
     r"References?(?:\s+and\s+Notes)?|Bibliography|Literature\s+Cited|"
     r"Works\s+Cited|Reference\s+List"
@@ -215,7 +215,7 @@ def _drop_citation_markers(paragraph: Any) -> None:
 
     A citation is ``<xref ref-type="bibr">12</xref>`` placed directly after
     the word it supports, so joining the paragraph's text verbatim turns
-    ``<italic>COL4A1</italic><xref …>12</xref>`` into ``COL4A112`` -- an
+    ``<italic>GENE1</italic><xref …>12</xref>`` into ``GENE112`` -- an
     invented gene symbol handed to the extraction model. Only bibliographic
     markers go; a figure or table xref is the sentence's own text. The
     tail after each removed element is the prose that follows it, so it is

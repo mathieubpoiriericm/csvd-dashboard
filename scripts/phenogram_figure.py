@@ -555,8 +555,8 @@ def _draw_block(ax: Any, block: GeneBlock, encoding: dict[str, Any]) -> None:
         fontweight="bold",
         color=INK,
     )
-    # `/` and friends are valid in a gene symbol (COL4A1/2) but not in an XML
-    # Name, which `id` must be.
+    # `/` and friends are valid in a gene symbol (a curated pair label, say)
+    # but not in an XML Name, which `id` must be.
     gid_symbol = re.sub(r"[^A-Za-z0-9._-]", "-", block.symbol)
     text.set_gid(f"gene-{gid_symbol}")
     glyph_y = block.y + pad + symbol_line / 2

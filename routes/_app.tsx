@@ -75,7 +75,7 @@ export default define.page(function App({ Component, url, state }) {
         />
         {
           /*
-          The ICM brain mark, cropped square. This was the full 1430x354
+          The institute's brain mark, cropped square. This was the full 1430x354
           wordmark lockup, which a browser letterboxes into a ~16x4 sliver.
           `favicon.ico` is not redundant: browsers, feed readers and
           link-preview scrapers request that path directly, whatever is

@@ -2849,8 +2849,9 @@ def _published_lookup_keys(run_data: PipelineRunData) -> tuple[list[str], list[s
     cache for the PMIDs in `gene_references`, so a paper that attached no
     reference reaches no lookup. The symbols go through
     ``canonical_gene_symbol`` because that is the key the merge stored and
-    therefore the key the export requests -- caching `COL4A1` would leave
-    the row published under `COL4A1/2` looking up nothing.
+    therefore the key the export requests -- caching a pair member's own
+    symbol would leave the row published under the shared alias key looking
+    up nothing.
 
     A gene the insert floor refused is named here too: the report says what
     the run extracted, not what the merge kept. Caching it costs one lookup

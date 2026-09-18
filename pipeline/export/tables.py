@@ -69,8 +69,9 @@ def _load_trait_vocabulary() -> tuple[
 
 # The merge drops these before storing (pipeline/data_merger.py), but rows
 # written before it did are still in gene_gwas_traits -- the 2026-09-01 run
-# left COL4A1/2 carrying ICH-non-lobar -- and a stored term with no filter
-# choice fails tests/data_contract_test.ts. The export is the second layer.
+# left a curated alias-key row carrying ICH-non-lobar -- and a stored term
+# with no filter choice fails tests/data_contract_test.ts. The export is the
+# second layer.
 _TRAIT_REWRITES, _UNTRACKED_TRAITS = _load_trait_vocabulary()
 
 

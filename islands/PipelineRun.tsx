@@ -592,9 +592,9 @@ function PipelineRunContent({ run }: { run: PipelineRun }) {
               own total -- exact even when the list itself is capped.
               `validated - rejectedAtInsertFloor` was not the same number:
               `validated` counts one per paper and a hold counts one per
-              merged gene, so COL4A1 and COL4A2 validated from two papers
-              and held once as COL4A1/2 read as one gene accepted when
-              none was. */
+              merged gene, so two genes sharing an alias validated from
+              two papers and held once as that alias read as one gene
+              accepted when none was. */
           }
           <Stat
             name="genesAccepted"

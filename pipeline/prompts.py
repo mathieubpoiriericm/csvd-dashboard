@@ -21,8 +21,8 @@ identifiers and an antisense RNA. The guards are ruled out rather than
 assumed, so v4 is gone with them.
 
 v7 is v6 with every disease noun moved to `disease/prompt.md`;
-`tests/pipeline/test_prompt_assembly.py` pins the cSVD rendering to the v6
-bytes, so the recall baseline and the golden cassettes are v7's too. What
+`tests/pipeline/test_prompt_assembly.py` pins the disease's rendering to the
+v6 bytes, so the recall baseline and the golden cassettes are v7's too. What
 stays here is the method -- the inclusion rule, the strategy, the rubric's
 tiers -- and what moved is the disease it is aimed at.
 
@@ -153,10 +153,10 @@ class _DiseaseSteps:
 
 
 # The numbered strategy list is assembled rather than substituted, because
-# the numbers have to stay contiguous: cSVD contributes one step and keeps
-# v6's 11-13 at their numbers, while a disease contributing none gets 1-12
-# and a disease contributing three gets 1-15. A `{{ }}` slot could only
-# ever paste a fixed block of text at a fixed number.
+# the numbers have to stay contiguous: this disease contributes one step
+# and keeps v6's 11-13 at their numbers, while a disease contributing none
+# gets 1-12 and a disease contributing three gets 1-15. A `{{ }}` slot could
+# only ever paste a fixed block of text at a fixed number.
 _STRATEGY_STEPS: Final[tuple[str | type[_DiseaseSteps], ...]] = (
     "Identify all passages that mention specific genes in the context of {{ disease.abbreviation }} causality.",
     "Verify that each gene was tested in a {{ disease.abbreviation }}-specific analysis ({{ strategy.phenotype_shortlist }}, or another {{ disease.abbreviation }} phenotype) — not just {{ strategy.neighbouring_conditions }}.",

@@ -1,4 +1,4 @@
-"""PubMed search module for cSVD/SVD genetic research papers.
+"""PubMed search module for the disease's genetic research papers.
 
 Uses NCBI Entrez API to search PubMed for recent publications.
 Requires ENTREZ_EMAIL environment variable (NCBI policy).
@@ -122,7 +122,7 @@ OnTruncated = Callable[[int, int], None]
 
 
 def _build_query() -> str:
-    """Build the PubMed query for cSVD/SVD genetic research."""
+    """Build the PubMed query for the disease's genetic research."""
     disease_clause = " OR ".join(f'"{t}"[Title/Abstract]' for t in DISEASE_TERMS)
     research_clause = " OR ".join(f'"{t}"[Title/Abstract]' for t in GENETIC_TERMS)
     main_query = f"(({disease_clause}) AND ({research_clause}))"

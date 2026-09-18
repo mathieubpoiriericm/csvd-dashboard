@@ -301,10 +301,10 @@ def _gene_records(
         )
         for paper in papers_detail
         for gene in paper.get("genes", [])
-        # Through the same mapping the merge grouped on: `held` says
-        # `COL4A1/2`, the paper says `COL4A1`, and without it the gene
-        # was listed as accepted *and* rejected -- the double count this
-        # exclusion exists to remove.
+        # Through the same mapping the merge grouped on: `held` says the
+        # shared alias key, the paper says one pair member's own symbol,
+        # and without it the gene was listed as accepted *and* rejected --
+        # the double count this exclusion exists to remove.
         if canonical_gene_symbol(str(gene.get("gene_symbol", ""))).upper()
         not in held
     ]
@@ -314,10 +314,10 @@ def _held_keys(held: list[dict[str, Any]]) -> set[str]:
     """The curated keys the insert floor refused, for exclusion.
 
     `held` carries the canonical uppercase key `merge_gene_entries`
-    groups on, so an extracted `COL4A1` has to go through the same
-    mapping to be recognised as the held `COL4A1/2`. Both sides go
-    through `canonical_gene_symbol` -- a no-op on a key that is already
-    canonical -- so the comparison is in one key space whichever shape
+    groups on, so an extracted pair member's own symbol has to go through
+    the same mapping to be recognised as the held shared alias key. Both
+    sides go through `canonical_gene_symbol` -- a no-op on a key that is
+    already canonical -- so the comparison is in one key space whichever shape
     arrives.
     """
     return {
