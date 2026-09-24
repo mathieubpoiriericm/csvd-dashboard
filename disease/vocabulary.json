@@ -1,0 +1,195 @@
+{
+  "$comment": "Single source of truth for the GWAS trait vocabulary. lib/constants.ts (GWAS_TRAIT_CHOICES), pipeline/export/tables.py (_TRAIT_REWRITES) and both phenogram renderers derive from this file; pipeline/prompts.py is reconciled against it by tests/pipeline/test_prompt_vocabulary.py. Add a trait here and nowhere else. xref is internal -- a curation aid and drift check, never published.",
+  "traits": [
+    {
+      "key": "BG-PVS",
+      "label": "BG-PVS",
+      "family": "pvs",
+      "name": "Basal ganglia perivascular spaces",
+      "standard": true,
+      "definition": "Fluid-filled space, which follows the typical course of a vessel penetrating the brain through grey or white matter; has signal intensity similar to CSF on all sequences; has a round, ovoid, or linear shape (depending on the slice direction) with a diameter commonly not exceeding 2 mm when imaged perpendicular to the course of the vessel.",
+      "xref": null,
+      "xrefNote": "EFO:0803382 'perivascular space measurement' is the generic parent; no basal-ganglia-specific term exists"
+    },
+    {
+      "key": "WM-PVS",
+      "label": "WM-PVS",
+      "family": "pvs",
+      "name": "White matter perivascular spaces",
+      "xref": null,
+      "xrefNote": "EFO:0803382 'perivascular space measurement' is the generic parent; no white-matter-specific term exists"
+    },
+    {
+      "key": "HIP-PVS",
+      "label": "HIP-PVS",
+      "family": "pvs",
+      "name": "Hippocampal perivascular spaces",
+      "xref": null,
+      "xrefNote": "EFO:0803382 'perivascular space measurement' is the generic parent; no hippocampal-specific term exists"
+    },
+    {
+      "key": "PSMD",
+      "label": "PSMD",
+      "family": "diffusion",
+      "name": "Peak width of skeletonized mean diffusivity",
+      "xref": null,
+      "xrefNote": "no term in any OLS4 ontology"
+    },
+    {
+      "key": "FA",
+      "label": "FA",
+      "family": "diffusion",
+      "name": "Fractional anisotropy",
+      "xref": "EFO:0008399",
+      "xrefLabel": "mean fractional anisotropy measurement"
+    },
+    {
+      "key": "MD",
+      "label": "MD",
+      "family": "diffusion",
+      "name": "Mean diffusivity",
+      "xref": "EFO:0920012",
+      "xrefLabel": "mean diffusivity measurement"
+    },
+    {
+      "key": "NODDI",
+      "label": "NODDI",
+      "family": "diffusion",
+      "name": "Neurite orientation dispersion and density imaging",
+      "xref": null,
+      "xrefNote": "no term in any OLS4 ontology"
+    },
+    {
+      "key": "extreme-cSVD",
+      "label": "Extreme-cSVD",
+      "family": "extreme",
+      "name": "Extreme cerebral small vessel disease",
+      "xref": null,
+      "xrefNote": "no term in any OLS4 ontology"
+    },
+    {
+      "key": "WMH",
+      "label": "WMH",
+      "family": "wmh",
+      "name": "White matter hyperintensities (of presumed vascular origin)",
+      "standard": true,
+      "definition": "Signal abnormality of variable size in the white matter that is hyperintense on T2-weighted images, such as fluid-attenuated inversion recovery (FLAIR), without cavitation (signal different from CSF). Lesions in the subcortical grey matter or brainstem are not included in this category unless explicitly stated. Where deep grey matter and brainstem hyperintensities are included as well, the collective name should be subcortical hyperintensities.",
+      "xref": "EFO:0005665",
+      "xrefLabel": "white matter hyperintensity measurement"
+    },
+    {
+      "key": "PVWMH",
+      "label": "PVWMH",
+      "family": "wmh",
+      "name": "Periventricular white matter hyperintensities",
+      "xref": "HP:0030891",
+      "xrefLabel": "Periventricular white matter hyperintensities"
+    },
+    {
+      "key": "DWMH",
+      "label": "DWMH",
+      "family": "wmh",
+      "name": "Deep white matter hyperintensities",
+      "xref": "HP:0030892",
+      "xrefLabel": "Deep cerebral white matter hyperintensities"
+    },
+    {
+      "key": "SVS",
+      "label": "SVS",
+      "family": "stroke",
+      "name": "Small vessel stroke",
+      "xref": "EFO:1001504",
+      "xrefLabel": "small vessel stroke"
+    },
+    {
+      "key": "stroke",
+      "label": "Stroke",
+      "family": "stroke",
+      "name": "Stroke",
+      "xref": "HP:0001297",
+      "xrefLabel": "Stroke"
+    },
+    {
+      "key": "lacunar stroke",
+      "label": "Lacunar stroke",
+      "family": "stroke",
+      "name": "Lacunar stroke",
+      "xref": "HP:0032325",
+      "xrefLabel": "Lacunar stroke"
+    },
+    {
+      "key": "CMB",
+      "label": "CMB",
+      "family": "cmb",
+      "name": "Cerebral microbleeds",
+      "standard": true,
+      "definition": "Small (usually 2–5 mm or sometimes 10 mm in size) areas of signal void with associated blooming artifact on T2* or other MRI sequences sensitive to susceptibility effects.",
+      "xref": "EFO:0010059",
+      "xrefLabel": "cerebral microbleeds"
+    },
+    {
+      "key": "lacunes",
+      "label": "Lacunes",
+      "family": "lacunes",
+      "name": "Lacunes (of presumed vascular origin)",
+      "standard": true,
+      "definition": "Round or ovoid, subcortical, fluid filled (similar signal to CSF) cavity up to 15 mm in diameter that is likely to be end tissue damage from a recent small subcortical infarct, small subcortical haemorrhage, incidental diffusion-weighted imaging-positive lesion, or end-stage cavitation in a white matter hyperintensity.",
+      "xref": null,
+      "xrefNote": "no exact term: HP:0032570 is 'Pontine ischemic lacunes' (anatomically narrower) and HP:0007858 is 'Chorioretinal lacunae' (a retinal finding, not cerebral)"
+    }
+  ],
+  "synonyms": [
+    {
+      "from": "small vessel stroke",
+      "to": "SVS",
+      "note": "Long-standing curator spelling from the source spreadsheet; the prompt has never asked for it, so it is not reconciled against the canonical list.",
+      "source": "curated"
+    },
+    {
+      "from": "cerebral-microbleeds",
+      "to": "CMB",
+      "note": "Canonical prompt abbreviation, folded onto the curated CMB code. Arrived from an LLM extraction on the first live --pubmed run.",
+      "source": "prompt"
+    }
+  ],
+  "untracked": [
+    {
+      "term": "ICH-lobar",
+      "reason": "Intracerebral haemorrhage is haemorrhagic stroke rather than a cSVD imaging marker; the dashboard's axis is imaging phenotypes and ischaemic stroke subtypes. Lobar ICH is the CAA-associated pattern -- revisit if the dataset takes on haemorrhagic manifestations.",
+      "xref": "EFO:0010177"
+    },
+    {
+      "term": "ICH-non-lobar",
+      "reason": "As ICH-lobar; the deep/hypertensive-arteriopathy pattern. Emitted three times to date and deliberately not carried.",
+      "xref": "EFO:0010178"
+    },
+    {
+      "term": "ICVF",
+      "reason": "NODDI component metric; the dashboard tracks the parent NODDI trait. Not folded as a synonym: _TRAIT_REWRITES applies substring replacement and 'OD' occurs inside 'NODDI', so the fold would rewrite NODDI to NNODDIDI."
+    },
+    {
+      "term": "ISOVF",
+      "reason": "NODDI component metric; the dashboard tracks the parent NODDI trait. Not folded as a synonym: _TRAIT_REWRITES applies substring replacement and 'OD' occurs inside 'NODDI', so the fold would rewrite NODDI to NNODDIDI."
+    },
+    {
+      "term": "OD",
+      "reason": "NODDI component metric; the dashboard tracks the parent NODDI trait. Not folded as a synonym: _TRAIT_REWRITES applies substring replacement and 'OD' occurs inside 'NODDI', so the fold would rewrite NODDI to NNODDIDI."
+    },
+    {
+      "term": "DTI-ALPS",
+      "reason": "Glymphatic function marker. In the prompt for recall breadth; no term in any OLS4 ontology and never yet emitted."
+    },
+    {
+      "term": "WM-BAG",
+      "reason": "White matter brain age gap -- a derived composite, not a STRIVE-2 imaging feature. No ontology term; never yet emitted."
+    },
+    {
+      "term": "retinal-vessels",
+      "reason": "Retinal vessel tortuosity and caliber: a different organ from the cerebral imaging axis. No ontology term; never yet emitted."
+    },
+    {
+      "term": "WMH-cortical-atrophy",
+      "reason": "A composite of two measures rather than a single phenotype; HP:0002120 'Cerebral cortical atrophy' covers only the second half. Never yet emitted."
+    }
+  ]
+}

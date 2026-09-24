@@ -1,0 +1,47 @@
+{
+  "$comment": "The phenogram's pill families: one per `family` value in disease/vocabulary.json, in legend order, with the hue and tint lib/phenogram.ts and scripts/phenogram_figure.py draw. Appearance that is not the disease's (evidence glyphs, cytoband stains, layout) stays in lib/phenogram_encoding.json.",
+  "families": [
+    {
+      "key": "pvs",
+      "label": "Perivascular spaces",
+      "hue": "#2a78d6",
+      "tint": "#d8edff"
+    },
+    {
+      "key": "diffusion",
+      "label": "Diffusion MRI",
+      "hue": "#eb6834",
+      "tint": "#ffe2d5"
+    },
+    {
+      "key": "extreme",
+      "label": "Extreme cSVD",
+      "hue": "#1baf7a",
+      "tint": "#d2f5e2"
+    },
+    {
+      "key": "wmh",
+      "label": "White matter hyperintensities",
+      "hue": "#008300",
+      "tint": "#dbf3d8"
+    },
+    {
+      "key": "stroke",
+      "label": "Stroke",
+      "hue": "#e87ba4",
+      "tint": "#ffdfeb"
+    },
+    {
+      "key": "cmb",
+      "label": "Cerebral microbleeds",
+      "hue": "#4a3aa7",
+      "tint": "#e7e8ff"
+    },
+    {
+      "key": "lacunes",
+      "label": "Lacunes",
+      "hue": "#e34948",
+      "tint": "#ffe0dc"
+    }
+  ]
+}

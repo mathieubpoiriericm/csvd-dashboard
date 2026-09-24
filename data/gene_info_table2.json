@@ -1,0 +1,158 @@
+[
+  {
+    "name": "PDE3A",
+    "uid": "5139",
+    "description": "phosphodiesterase 3A",
+    "otheraliases": "CGI-PDE, CGI-PDE A, CGI-PDE-A, HTNB"
+  },
+  {
+    "name": "TUBB4B",
+    "uid": "10383",
+    "description": "tubulin beta 4B class IVb",
+    "otheraliases": "Beta2, LCAEOD, TUBB2, TUBB2C"
+  },
+  {
+    "name": "TUBB1",
+    "uid": "81027",
+    "description": "tubulin beta 1 class VI",
+    "otheraliases": "MACTHC1"
+  },
+  {
+    "name": "TUBA3C",
+    "uid": "7278",
+    "description": "tubulin alpha 3c",
+    "otheraliases": "TUBA2, bA408E5.3"
+  },
+  {
+    "name": "TUBA4A",
+    "uid": "7277",
+    "description": "tubulin alpha 4a",
+    "otheraliases": "ALS22, CMYO26, FTDALS9, H2-ALPHA, OZEMA23, SPAX11, TUBA1"
+  },
+  {
+    "name": "TUBB3",
+    "uid": "10381",
+    "description": "tubulin beta 3 class III",
+    "otheraliases": "CDCBM, CDCBM1, CFEOM3, CFEOM3A, CFEOM3A1, FEOM3, TUBB4, beta-4"
+  },
+  {
+    "name": "TUBA1A",
+    "uid": "7846",
+    "description": "tubulin alpha 1a",
+    "otheraliases": "B-ALPHA-1, CDCBM16, LIS3, TUBA3"
+  },
+  {
+    "name": "TUBB4A",
+    "uid": "10382",
+    "description": "tubulin beta 4A class IVa",
+    "otheraliases": "DYT4, TUBB4, beta-5"
+  },
+  {
+    "name": "TUBB8",
+    "uid": "347688",
+    "description": "tubulin beta 8 class VIII",
+    "otheraliases": "OOMD, OOMD2, OZEMA2, bA631M21.2"
+  },
+  {
+    "name": "TUBB",
+    "uid": "203068",
+    "description": "tubulin beta class I",
+    "otheraliases": "CDCBM6, CSCSC1, M40, OK/SW-cl.56, TUBB1, TUBB5"
+  },
+  {
+    "name": "TUBA1B",
+    "uid": "10376",
+    "description": "tubulin alpha 1b",
+    "otheraliases": "K-ALPHA-1"
+  },
+  {
+    "name": "TUBA1C",
+    "uid": "84790",
+    "description": "tubulin alpha 1c",
+    "otheraliases": "OZEMA24, TUBA6, bcm948"
+  },
+  {
+    "name": "TUBA3E",
+    "uid": "112714",
+    "description": "tubulin alpha 3e",
+    "otheraliases": ""
+  },
+  {
+    "name": "TUBB2A",
+    "uid": "7280",
+    "description": "tubulin beta 2A class IIa",
+    "otheraliases": "CDCBM5, TUBB, TUBB2"
+  },
+  {
+    "name": "TUBB2B",
+    "uid": "347733",
+    "description": "tubulin beta 2B class IIb",
+    "otheraliases": "CDCBM7, PMGYSA, bA506K6.1"
+  },
+  {
+    "name": "TUBB6",
+    "uid": "84617",
+    "description": "tubulin beta 6 class V",
+    "otheraliases": "FPVEPD, HsT1601, TUBB-5"
+  },
+  {
+    "name": "GLP1R",
+    "uid": "2740",
+    "description": "glucagon like peptide 1 receptor",
+    "otheraliases": "GLP-1, GLP-1-R, GLP-1R"
+  },
+  {
+    "name": "GUCY1B1",
+    "uid": "2983",
+    "description": "guanylate cyclase 1 soluble subunit beta 1",
+    "otheraliases": "GC-S-beta-1, GC-SB3, GUC1B3, GUCB3, GUCSB3, GUCY1B3"
+  },
+  {
+    "name": "GUCY1B2",
+    "uid": "2974",
+    "description": "guanylate cyclase 1 soluble subunit beta 2 (pseudogene)",
+    "otheraliases": "GC-SB2, GUCY1B2P"
+  },
+  {
+    "name": "GUCY1A2",
+    "uid": "2977",
+    "description": "guanylate cyclase 1 soluble subunit alpha 2",
+    "otheraliases": "GC-SA2, GUC1A2"
+  },
+  {
+    "name": "GUCY1A1",
+    "uid": "2982",
+    "description": "guanylate cyclase 1 soluble subunit alpha 1",
+    "otheraliases": "GC-S-alpha-1, GC-SA3, GCS-alpha-3, GUC1A3, GUCA3, GUCSA3, GUCY1A3, MYMY6"
+  },
+  {
+    "name": "APP",
+    "uid": "351",
+    "description": "amyloid beta precursor protein",
+    "otheraliases": "AAA, ABETA, ABPP, AD1, APPI, CTFgamma, CVAP, PN-II, PN2, alpha-sAPP, preA4"
+  },
+  {
+    "name": "FGA",
+    "uid": "2243",
+    "description": "fibrinogen alpha chain",
+    "otheraliases": "AMYLD2, Fib2"
+  },
+  {
+    "name": "FGB",
+    "uid": "2244",
+    "description": "fibrinogen beta chain",
+    "otheraliases": "HEL-S-78p"
+  },
+  {
+    "name": "FGG",
+    "uid": "2266",
+    "description": "fibrinogen gamma chain",
+    "otheraliases": ""
+  },
+  {
+    "name": "PLG",
+    "uid": "5340",
+    "description": "plasminogen",
+    "otheraliases": "HAE4"
+  }
+]

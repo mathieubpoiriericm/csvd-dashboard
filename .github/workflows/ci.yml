@@ -1,0 +1,303 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Nothing here writes to the repository; a read-only token is what a fork's
+# pull request should be able to reach.
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Format, lint, type-check, unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      # nodeModulesDir is "manual", so node_modules must be populated
+      # explicitly before anything type-checks.
+      - name: Install dependencies
+        run: deno install
+
+      - name: Check
+        run: deno task check
+
+      # Browser-only effects are exercised by Playwright below. Deno coverage
+      # gates the full SSR/unit graph and requires 100% in shared lib/ logic.
+      - name: Unit tests and coverage
+        run: deno task test:coverage
+
+      - name: Profiling metric contract tests
+        run: deno task test:perf
+
+  python:
+    name: Pipeline lint, type-check, unit tests
+    runs-on: ubuntu-latest
+
+    # The database-integration suite needs a real PostgreSQL, and the
+    # local fixture brings one up under Apple's `container` runtime, which
+    # is macOS-only -- so every one of those tests used to skip here and
+    # column types, the JSON report round trip and `--export` from the
+    # live pool were verified on a developer Mac or nowhere. This service
+    # is what `CSVD_TEST_DB_URL` below points the fixture at. It is
+    # created and destroyed with the job, and holds nothing.
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: csvd_ci
+          POSTGRES_PASSWORD: csvd_ci
+          POSTGRES_DB: csvd_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      CSVD_TEST_DB_URL: postgresql://csvd_ci:csvd_ci@localhost:5432/csvd_ci
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # The pipeline is a uv project. pyproject.toml pins requires-python, so
+      # uv fetches the interpreter itself; --locked fails the build if uv.lock
+      # has drifted from pyproject.toml rather than silently re-resolving.
+      # Docling is a core dependency, so this installs it — which is what lets
+      # tests/pipeline/test_pdf_parse.py exercise the real converter
+      # configuration rather than skipping it, as it did while docling sat
+      # behind an optional extra. torch comes from the PyTorch CPU index (see
+      # [tool.uv.sources]), so the runner pulls roughly 200 MB instead of the
+      # ~2.5 GB of CUDA wheels PyPI's default torch would drag in.
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked --group dev --group figure
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Type-check
+        run: uv run ty check
+
+      # Measure both the importable package and Alembic's non-package scripts.
+      # pyproject enforces the 99.5% line+branch coverage floor.
+      - name: Unit tests and coverage
+        run: >-
+          uv run pytest
+          --cov=pipeline
+          --cov=pipeline/alembic
+          --cov-branch
+          --cov-report=term-missing:skip-covered
+
+      # testpaths is tests/pipeline, so the print-figure suites are not
+      # collected by the run above and have to be named. They pin the two
+      # figures' layout against the committed data -- the same numbers
+      # tests/phenogram_layout_test.ts and tests/timeline_layout_test.ts pin
+      # on the island side -- so without this step a change to either script
+      # reaches main unrun. The figure group installed above is what they
+      # importorskip on; no database, no network.
+      - name: Print-figure tests
+        run: uv run pytest tests/scripts
+
+  e2e:
+    name: End-to-end
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      # Playwright's runner is a Node program and lives in e2e/ with its own
+      # package.json, deliberately isolated from the Deno-managed node_modules
+      # at the repo root.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+
+      - name: Install dependencies
+        run: deno install
+
+      - name: Install Playwright
+        working-directory: e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      # playwright.config.ts builds the app and serves it with `deno serve`
+      # via its webServer block, so there is no separate build step here.
+      - name: Run end-to-end tests
+        working-directory: e2e
+        run: npx playwright test
+
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: e2e/playwright-report/
+          retention-days: 7
+
+  # The check that a repository generated for another disease starts green:
+  # what the new-disease skill does to a fresh fork -- empty data, the
+  # four csvd/ test trees removed -- and then every gate the three jobs above
+  # run. `git rm` rather than `rm -rf` because it is the command the skill
+  # runs, and a tracked file it left behind is what the greplists would find.
+  # `--ignore-unmatch` is for the fork itself: there the trees are already
+  # gone, and this job goes on proving its own tests hold on empty data.
+  empty-data:
+    name: A fork starts green (empty data, no cSVD tests)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: csvd_ci
+          POSTGRES_PASSWORD: csvd_ci
+          POSTGRES_DB: csvd_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      CSVD_TEST_DB_URL: postgresql://csvd_ci:csvd_ci@localhost:5432/csvd_ci
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          deno install
+          uv sync --locked --group dev --group figure
+
+      - name: Empty the data and remove the cSVD test trees
+        run: |
+          deno task data:empty
+          git rm -r -q --ignore-unmatch tests/csvd e2e/tests/csvd tests/pipeline/csvd tests/scripts/csvd
+
+      - name: Check
+        run: deno task check
+
+      - name: Unit tests and coverage
+        run: deno task test:coverage
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Type-check
+        run: uv run ty check
+
+      - name: Pipeline tests and coverage
+        run: >-
+          uv run pytest
+          --cov=pipeline
+          --cov=pipeline/alembic
+          --cov-branch
+          --cov-report=term-missing:skip-covered
+
+      - name: Print-figure tests
+        run: uv run pytest tests/scripts
+
+      - name: Install Playwright
+        working-directory: e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: End-to-end tests on empty data
+        working-directory: e2e
+        run: npx playwright test
+
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report-empty-data
+          path: e2e/playwright-report/
+          retention-days: 7
+
+  adapt-fork:
+    name: A fork the adapt wizard starts is green
+    runs-on: ubuntu-latest
+
+    # The empty-data job keeps this repository's disease/, so a failure only
+    # a fork meets -- an escaped manifest string, one disease's glossary
+    # pinned in a generic test, a two-letter abbreviation in the literal
+    # scans, one trial population -- cannot surface there. This unpacks two
+    # wizard bundles over copies of the tree and runs every check on each.
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: csvd_ci
+          POSTGRES_PASSWORD: csvd_ci
+          POSTGRES_DB: csvd_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      CSVD_TEST_DB_URL: postgresql://csvd_ci:csvd_ci@localhost:5432/csvd_ci
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          deno install
+          uv sync --locked --group dev --group figure
+          npm ci --prefix e2e
+          npx --prefix e2e playwright install --with-deps chromium
+
+      - name: Run the checks on two wizard-made forks
+        run: deno run -A scripts/adapt_fork_check.ts --e2e

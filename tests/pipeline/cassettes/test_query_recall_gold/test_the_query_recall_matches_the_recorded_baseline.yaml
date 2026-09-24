@@ -1,0 +1,321 @@
+interactions:
+- request:
+    body: db=pubmed&term=%28%28%28%22cerebral+small+vessel+disease%22%5BTitle%2FAbstract%5D%29+AND+%28%22gene%22%5BTitle%2FAbstract%5D+OR+%22genetic%22%5BTitle%2FAbstract%5D+OR+%22GWAS%22%5BTitle%2FAbstract%5D+OR+%22EWAS%22%5BTitle%2FAbstract%5D+OR+%22TWAS%22%5BTitle%2FAbstract%5D+OR+%22PWAS%22%5BTitle%2FAbstract%5D+OR+%22genome-wide%22%5BTitle%2FAbstract%5D+OR+%22variant%22%5BTitle%2FAbstract%5D+OR+%22mutation%22%5BTitle%2FAbstract%5D+OR+%22polymorphism%22%5BTitle%2FAbstract%5D%29%29+OR+%28%28%22stroke%22%5BTitle%2FAbstract%5D+OR+%22dementia%22%5BTitle%2FAbstract%5D+OR+%22lacunes%22%5BTitle%2FAbstract%5D+OR+%22lacunar+stroke%22%5BTitle%2FAbstract%5D+OR+%22white+matter+hyperintensities%22%5BTitle%2FAbstract%5D+OR+%22perivascular+spaces%22%5BTitle%2FAbstract%5D+OR+%22cerebral+microbleeds%22%5BTitle%2FAbstract%5D%29+AND+%28%22cerebral+small+vessel+disease%22%5BTitle%2FAbstract%5D%29%29+OR+%28%28%22Cerebral+Small+Vessel+Diseases%22%5BMeSH+Terms%5D+OR+%22White+Matter%22%5BMeSH+Terms%5D%29+AND+%28%22gene%22%5BTitle%2FAbstract%5D+OR+%22genetic%22%5BTitle%2FAbstract%5D+OR+%22GWAS%22%5BTitle%2FAbstract%5D+OR+%22EWAS%22%5BTitle%2FAbstract%5D+OR+%22TWAS%22%5BTitle%2FAbstract%5D+OR+%22PWAS%22%5BTitle%2FAbstract%5D+OR+%22genome-wide%22%5BTitle%2FAbstract%5D+OR+%22variant%22%5BTitle%2FAbstract%5D+OR+%22mutation%22%5BTitle%2FAbstract%5D+OR+%22polymorphism%22%5BTitle%2FAbstract%5D%29%29%29+AND+%2815905468%5Buid%5D+OR+19539236%5Buid%5D+OR+23649698%5Buid%5D+OR+26063658%5Buid%5D+OR+27664989%5Buid%5D+OR+30651383%5Buid%5D+OR+30859180%5Buid%5D+OR+31430377%5Buid%5D+OR+32358547%5Buid%5D+OR+32913026%5Buid%5D+OR+33293549%5Buid%5D+OR+33773636%5Buid%5D+OR+33773637%5Buid%5D+OR+34358307%5Buid%5D+OR+34606115%5Buid%5D+OR+35325079%5Buid%5D+OR+35328582%5Buid%5D+OR+35511193%5Buid%5D+OR+35943854%5Buid%5D+OR+36180795%5Buid%5D+OR+37063705%5Buid%5D+OR+37069360%5Buid%5D+OR+37684694%5Buid%5D+OR+38811690%5Buid%5D+OR+39114924%5Buid%5D+OR+39216230%5Buid%5D+OR+39805841%5Buid%5D+OR+40898560%5Buid%5D+OR+40908978%5Buid%5D+OR+40982447%5Buid%5D+OR+40999599%5Buid%5D+OR+41001161%5Buid%5D+OR+41018180%5Buid%5D+OR+41052699%5Buid%5D+OR+41062325%5Buid%5D+OR+41074918%5Buid%5D+OR+41089070%5Buid%5D+OR+41110835%5Buid%5D+OR+41139503%5Buid%5D+OR+41142321%5Buid%5D+OR+41196431%5Buid%5D+OR+41200916%5Buid%5D+OR+41204227%5Buid%5D+OR+41222721%5Buid%5D+OR+41266628%5Buid%5D+OR+41300806%5Buid%5D+OR+41311701%5Buid%5D+OR+41312509%5Buid%5D+OR+41327223%5Buid%5D+OR+41371679%5Buid%5D+OR+41395713%5Buid%5D+OR+41398476%5Buid%5D+OR+41398477%5Buid%5D+OR+41400577%5Buid%5D+OR+41413740%5Buid%5D+OR+41457966%5Buid%5D+OR+41480674%5Buid%5D+OR+41499643%5Buid%5D+OR+41512030%5Buid%5D+OR+41554616%5Buid%5D+OR+41554961%5Buid%5D+OR+41566527%5Buid%5D+OR+41577745%5Buid%5D+OR+41592617%5Buid%5D+OR+41595517%5Buid%5D+OR+41596592%5Buid%5D+OR+41614465%5Buid%5D+OR+41645213%5Buid%5D+OR+41667829%5Buid%5D+OR+41669348%5Buid%5D+OR+41669960%5Buid%5D+OR+41751611%5Buid%5D+OR+41776534%5Buid%5D+OR+41784710%5Buid%5D+OR+41789880%5Buid%5D+OR+41806331%5Buid%5D+OR+41841652%5Buid%5D+OR+41870654%5Buid%5D+OR+41895274%5Buid%5D+OR+41900914%5Buid%5D+OR+41947304%5Buid%5D+OR+41951984%5Buid%5D+OR+42002114%5Buid%5D+OR+42006602%5Buid%5D+OR+42012365%5Buid%5D+OR+42039925%5Buid%5D+OR+42040931%5Buid%5D+OR+42065832%5Buid%5D+OR+42103335%5Buid%5D+OR+42116316%5Buid%5D+OR+42147988%5Buid%5D+OR+42169653%5Buid%5D+OR+42177738%5Buid%5D+OR+42225261%5Buid%5D+OR+42236496%5Buid%5D+OR+42237372%5Buid%5D+OR+42243880%5Buid%5D+OR+42246940%5Buid%5D+OR+42249339%5Buid%5D+OR+42253958%5Buid%5D+OR+42403363%5Buid%5D+OR+42421401%5Buid%5D+OR+42437605%5Buid%5D+OR+42438399%5Buid%5D+OR+42481886%5Buid%5D+OR+42533185%5Buid%5D+OR+42607872%5Buid%5D+OR+42621038%5Buid%5D+OR+42626038%5Buid%5D+OR+42650130%5Buid%5D+OR+42684564%5Buid%5D%29&retmax=111&retmode=xml&tool=biopython&email=REDACTED
+    headers:
+      Connection:
+      - close
+      Content-Length:
+      - '3798'
+      Content-Type:
+      - application/x-www-form-urlencoded
+      Host:
+      - eutils.ncbi.nlm.nih.gov
+      User-Agent:
+      - Python-urllib/3.14
+    method: POST
+    uri: https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi
+  response:
+    body:
+      string: '<?xml version="1.0" encoding="UTF-8" ?>
+
+        <!DOCTYPE eSearchResult PUBLIC "-//NLM//DTD esearch 20060628//EN" "https://eutils.ncbi.nlm.nih.gov/eutils/dtd/20060628/esearch.dtd">
+
+        <eSearchResult><Count>106</Count><RetMax>106</RetMax><RetStart>0</RetStart><IdList>
+
+        <Id>42684564</Id>
+
+        <Id>42650130</Id>
+
+        <Id>42626038</Id>
+
+        <Id>42621038</Id>
+
+        <Id>42607872</Id>
+
+        <Id>42533185</Id>
+
+        <Id>42481886</Id>
+
+        <Id>42438399</Id>
+
+        <Id>42437605</Id>
+
+        <Id>42421401</Id>
+
+        <Id>42403363</Id>
+
+        <Id>42253958</Id>
+
+        <Id>42249339</Id>
+
+        <Id>42246940</Id>
+
+        <Id>42243880</Id>
+
+        <Id>42237372</Id>
+
+        <Id>42236496</Id>
+
+        <Id>42225261</Id>
+
+        <Id>42177738</Id>
+
+        <Id>42169653</Id>
+
+        <Id>42147988</Id>
+
+        <Id>42116316</Id>
+
+        <Id>42103335</Id>
+
+        <Id>42065832</Id>
+
+        <Id>42040931</Id>
+
+        <Id>42039925</Id>
+
+        <Id>42012365</Id>
+
+        <Id>42006602</Id>
+
+        <Id>42002114</Id>
+
+        <Id>41951984</Id>
+
+        <Id>41947304</Id>
+
+        <Id>41900914</Id>
+
+        <Id>41895274</Id>
+
+        <Id>41870654</Id>
+
+        <Id>41841652</Id>
+
+        <Id>41806331</Id>
+
+        <Id>41789880</Id>
+
+        <Id>41784710</Id>
+
+        <Id>41776534</Id>
+
+        <Id>41751611</Id>
+
+        <Id>41669960</Id>
+
+        <Id>41669348</Id>
+
+        <Id>41667829</Id>
+
+        <Id>41645213</Id>
+
+        <Id>41614465</Id>
+
+        <Id>41596592</Id>
+
+        <Id>41595517</Id>
+
+        <Id>41592617</Id>
+
+        <Id>41577745</Id>
+
+        <Id>41566527</Id>
+
+        <Id>41554961</Id>
+
+        <Id>41554616</Id>
+
+        <Id>41512030</Id>
+
+        <Id>41499643</Id>
+
+        <Id>41480674</Id>
+
+        <Id>41457966</Id>
+
+        <Id>41413740</Id>
+
+        <Id>41400577</Id>
+
+        <Id>41398477</Id>
+
+        <Id>41398476</Id>
+
+        <Id>41395713</Id>
+
+        <Id>41371679</Id>
+
+        <Id>41327223</Id>
+
+        <Id>41312509</Id>
+
+        <Id>41311701</Id>
+
+        <Id>41300806</Id>
+
+        <Id>41266628</Id>
+
+        <Id>41222721</Id>
+
+        <Id>41204227</Id>
+
+        <Id>41200916</Id>
+
+        <Id>41196431</Id>
+
+        <Id>41142321</Id>
+
+        <Id>41139503</Id>
+
+        <Id>41110835</Id>
+
+        <Id>41089070</Id>
+
+        <Id>41074918</Id>
+
+        <Id>41062325</Id>
+
+        <Id>41052699</Id>
+
+        <Id>41018180</Id>
+
+        <Id>41001161</Id>
+
+        <Id>40999599</Id>
+
+        <Id>40982447</Id>
+
+        <Id>40908978</Id>
+
+        <Id>40898560</Id>
+
+        <Id>39216230</Id>
+
+        <Id>39114924</Id>
+
+        <Id>38811690</Id>
+
+        <Id>37684694</Id>
+
+        <Id>37069360</Id>
+
+        <Id>35943854</Id>
+
+        <Id>35511193</Id>
+
+        <Id>35328582</Id>
+
+        <Id>35325079</Id>
+
+        <Id>34606115</Id>
+
+        <Id>34358307</Id>
+
+        <Id>33773637</Id>
+
+        <Id>33773636</Id>
+
+        <Id>33293549</Id>
+
+        <Id>32913026</Id>
+
+        <Id>32358547</Id>
+
+        <Id>31430377</Id>
+
+        <Id>30859180</Id>
+
+        <Id>27664989</Id>
+
+        <Id>26063658</Id>
+
+        <Id>19539236</Id>
+
+        <Id>15905468</Id>
+
+        </IdList><TranslationSet/><QueryTranslation>(("cerebral small vessel disease"[Title/Abstract]
+        AND ("gene"[Title/Abstract] OR "genetic"[Title/Abstract] OR "GWAS"[Title/Abstract]
+        OR "EWAS"[Title/Abstract] OR "TWAS"[Title/Abstract] OR "PWAS"[Title/Abstract]
+        OR "genome-wide"[Title/Abstract] OR "variant"[Title/Abstract] OR "mutation"[Title/Abstract]
+        OR "polymorphism"[Title/Abstract])) OR (("stroke"[Title/Abstract] OR "dementia"[Title/Abstract]
+        OR "lacunes"[Title/Abstract] OR "lacunar stroke"[Title/Abstract] OR "white
+        matter hyperintensities"[Title/Abstract] OR "perivascular spaces"[Title/Abstract]
+        OR "cerebral microbleeds"[Title/Abstract]) AND "cerebral small vessel disease"[Title/Abstract])
+        OR (("Cerebral Small Vessel Diseases"[MeSH Terms] OR "White Matter"[MeSH Terms])
+        AND ("gene"[Title/Abstract] OR "genetic"[Title/Abstract] OR "GWAS"[Title/Abstract]
+        OR "EWAS"[Title/Abstract] OR "TWAS"[Title/Abstract] OR "PWAS"[Title/Abstract]
+        OR "genome-wide"[Title/Abstract] OR "variant"[Title/Abstract] OR "mutation"[Title/Abstract]
+        OR "polymorphism"[Title/Abstract]))) AND (15905468[UID] OR 19539236[UID] OR
+        23649698[UID] OR 26063658[UID] OR 27664989[UID] OR 30651383[UID] OR 30859180[UID]
+        OR 31430377[UID] OR 32358547[UID] OR 32913026[UID] OR 33293549[UID] OR 33773636[UID]
+        OR 33773637[UID] OR 34358307[UID] OR 34606115[UID] OR 35325079[UID] OR 35328582[UID]
+        OR 35511193[UID] OR 35943854[UID] OR 36180795[UID] OR 37063705[UID] OR 37069360[UID]
+        OR 37684694[UID] OR 38811690[UID] OR 39114924[UID] OR 39216230[UID] OR 39805841[UID]
+        OR 40898560[UID] OR 40908978[UID] OR 40982447[UID] OR 40999599[UID] OR 41001161[UID]
+        OR 41018180[UID] OR 41052699[UID] OR 41062325[UID] OR 41074918[UID] OR 41089070[UID]
+        OR 41110835[UID] OR 41139503[UID] OR 41142321[UID] OR 41196431[UID] OR 41200916[UID]
+        OR 41204227[UID] OR 41222721[UID] OR 41266628[UID] OR 41300806[UID] OR 41311701[UID]
+        OR 41312509[UID] OR 41327223[UID] OR 41371679[UID] OR 41395713[UID] OR 41398476[UID]
+        OR 41398477[UID] OR 41400577[UID] OR 41413740[UID] OR 41457966[UID] OR 41480674[UID]
+        OR 41499643[UID] OR 41512030[UID] OR 41554616[UID] OR 41554961[UID] OR 41566527[UID]
+        OR 41577745[UID] OR 41592617[UID] OR 41595517[UID] OR 41596592[UID] OR 41614465[UID]
+        OR 41645213[UID] OR 41667829[UID] OR 41669348[UID] OR 41669960[UID] OR 41751611[UID]
+        OR 41776534[UID] OR 41784710[UID] OR 41789880[UID] OR 41806331[UID] OR 41841652[UID]
+        OR 41870654[UID] OR 41895274[UID] OR 41900914[UID] OR 41947304[UID] OR 41951984[UID]
+        OR 42002114[UID] OR 42006602[UID] OR 42012365[UID] OR 42039925[UID] OR 42040931[UID]
+        OR 42065832[UID] OR 42103335[UID] OR 42116316[UID] OR 42147988[UID] OR 42169653[UID]
+        OR 42177738[UID] OR 42225261[UID] OR 42236496[UID] OR 42237372[UID] OR 42243880[UID]
+        OR 42246940[UID] OR 42249339[UID] OR 42253958[UID] OR 42403363[UID] OR 42421401[UID]
+        OR 42437605[UID] OR 42438399[UID] OR 42481886[UID] OR 42533185[UID] OR 42607872[UID]
+        OR 42621038[UID] OR 42626038[UID] OR 42650130[UID] OR 42684564[UID])</QueryTranslation></eSearchResult>
+
+        '
+    headers:
+      Access-Control-Allow-Origin:
+      - '*'
+      Access-Control-Expose-Headers:
+      - X-RateLimit-Limit,X-RateLimit-Remaining
+      Alt-Svc:
+      - clear
+      Cache-Control:
+      - private
+      Connection:
+      - close
+      Content-Security-Policy:
+      - upgrade-insecure-requests
+      Content-Type:
+      - text/xml; charset=UTF-8
+      Date:
+      - Thu, 03 Sep 2026 19:43:48 GMT
+      Ncbi-Phid:
+      - 1D32F7E767B30F350000604609324A4A.1.1.m_1
+      Ncbi-Sid:
+      - 4EB9F165AA38A47E_83D9SID
+      Referrer-Policy:
+      - origin-when-cross-origin
+      Server:
+      - Finatra
+      Set-Cookie:
+      - ncbi_sid=4EB9F165AA38A47E_83D9SID; domain=.nih.gov; path=/; expires=Fri, 03
+        Sep 2027 19:43:48 GMT
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains; preload
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Accept-Encoding
+      Via:
+      - 1.1 google
+      X-Ratelimit-Limit:
+      - '3'
+      X-Ratelimit-Remaining:
+      - '1'
+      X-Ua-Compatible:
+      - IE=Edge
+      X-Xss-Protection:
+      - 1; mode=block
+    status:
+      code: 200
+      message: OK
+version: 1

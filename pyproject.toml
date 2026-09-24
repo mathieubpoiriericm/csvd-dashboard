@@ -1,0 +1,148 @@
+[project]
+name = "csvd-dashboard-pipeline"
+version = "1.0.0"
+description = "Data pipeline for the cSVD dashboard: PubMed ingest, LLM gene extraction, and external-data sync into PostgreSQL."
+requires-python = ">=3.14"
+license = "MIT"
+dependencies = [
+    "alembic>=1.19.1",
+    "anthropic>=1.2.0",
+    "apprise>=1.13.0",
+    "argcomplete>=3.7.2",
+    "asyncpg>=0.31.0",
+    "biopython>=1.88",
+    "certifi>=2026.7.22",
+    # Docling serves the PDF fallback -- the ~15% of papers Europe PMC's JATS
+    # XML does not reach. The [rapidocr] extra adds onnxruntime so the OCR
+    # backend is real: rapidocr already ships inside docling-slim[standard],
+    # but without a runtime docling logs "No OCR engine found" once and then
+    # silently emits no OCR text at all. It is a hard requirement because a
+    # fallback path CI cannot import is a fallback path nobody has proven.
+    # For the torch footprint this pulls, see [tool.uv.sources] below.
+    "docling[rapidocr]>=2.123.1",
+    "httpx>=0.28.1",
+    "jinja2>=3.1.6",
+    "lxml>=6.1.2",
+    "pandas>=3.0.5",
+    "pandera>=0.33.0",
+    "psycopg2-binary>=2.9.12",
+    "pydantic>=2.13.5",
+    "python-dotenv>=1.2.3",
+    "rich>=15.0.0",
+    "sqlalchemy>=2.0.52",
+    "tenacity>=9.1.4",
+    # torch and torchvision arrive transitively, through
+    # docling-slim[standard] -> models-local. They are named here only so
+    # [tool.uv.sources] can reach them: uv applies a source override to direct
+    # dependencies, never to transitive ones, so without these two lines the
+    # pytorch-cpu index below is silently ignored and Linux resolves the CUDA
+    # wheel anyway. Versions must stay inside docling-ibm-models' own range
+    # (torch>=2.2.2,<3.0.0) -- bump them with docling, not on their own.
+    "torch>=2.13.0",
+    "torchvision>=0.28.0",
+]
+
+[dependency-groups]
+dev = [
+    "basedpyright>=1.39.10",
+    "jsonschema>=4.26.0",
+    "lxml-stubs>=0.5.1",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "pytest-cov>=7.1.0",
+    "pytest-mock>=3.15.1",
+    "pytest-recording>=0.13.4",
+    "ruff>=0.16.5",
+    "ty>=0.0.75",
+    "types-pyyaml>=6.0.12.20260815",
+]
+# Print renderers for both figures: scripts/timeline_figure.py (pyCirclize)
+# and scripts/phenogram_figure.py (matplotlib). matplotlib is not a base
+# dependency -- it arrives transitively through pyCirclize -- so this group is
+# what `deno task figure` and tests/scripts/ need. CI installs it alongside
+# --group dev for exactly that reason.
+figure = [
+    "pycirclize>=1.10.1",
+]
+
+# Linux CI would otherwise take PyPI's default torch wheel: 526 MB, plus
+# nvidia-cudnn/nccl/nvshmem/cusparselt and triton -- roughly 2.5 GB of CUDA a
+# GitHub runner never uses. The PyTorch CPU index serves the identical pinned
+# versions (torch 2.13.0+cpu, torchvision 0.28.0+cpu; PEP 440 ignores the
+# local segment, so `>=2.13.0` still matches), making this a wheel swap rather
+# than a downgrade. macOS is deliberately excluded: its arm64 wheels are
+# already CPU/MPS-only and carry no nvidia dependencies.
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform >= 'linux'" }]
+torchvision = [{ index = "pytorch-cpu", marker = "sys_platform >= 'linux'" }]
+
+[tool.basedpyright]
+include = ["."]
+typeCheckingMode = "standard"
+pythonVersion = "3.14"
+venvPath = "."
+venv = ".venv"
+
+[tool.ruff]
+target-version = "py314"
+line-length = 88
+src = ["pipeline"]
+extend-exclude = ["pipeline/alembic"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+# E = pycodestyle errors, F = pyflakes, I = isort
+# UP = pyupgrade, B = flake8-bugbear, SIM = flake8-simplify
+
+[tool.ruff.lint.per-file-ignores]
+# LLM prompt strings — line wrapping breaks readability
+"pipeline/prompts.py" = ["E501"]
+# Fast-path for shell tab-completion requires heavy imports to load lazily
+# after argparse parsing, so module-level imports appear mid-file by design.
+"pipeline/main.py" = ["E402"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["pipeline"]
+known-third-party = ["alembic"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests/pipeline"]
+# The repo root must be on sys.path so `pipeline` resolves as a top-level
+# package. tests/pipeline/ deliberately carries no __init__.py: that would
+# make pytest put tests/ on sys.path ahead of the root and shadow the real
+# package with the test package of the same name.
+pythonpath = ["."]
+# Most async tests carry no explicit @pytest.mark.asyncio marker.
+asyncio_mode = "auto"
+markers = [
+    "slow: marks tests as slow",
+    "integration: marks integration tests",
+    "live: hits the real Anthropic API; requires ANTHROPIC_API_KEY",
+    "paper_fixtures: reads the gitignored full-text fixtures under tests/pipeline/fixtures/papers/",
+    "golden_cassettes: reads the gitignored cassettes under tests/pipeline/cassettes/test_extraction_golden/",
+]
+
+[tool.coverage.report]
+# main() is tested directly; the module-execution guards themselves contain no
+# application behavior and cannot run during an imported pytest session.
+exclude_also = ["if __name__ == .__main__.:"]
+fail_under = 99.5
+precision = 2
+show_missing = true
+skip_covered = true
+
+[tool.ty.environment]
+python-version = "3.14"
+
+[tool.ty.rules]
+# Third-party packages may not have type stubs available
+unresolved-import = "warn"
+
+[tool.pyrefly]
+project-includes = ["**/*.py"]
+python-version = "3.14"

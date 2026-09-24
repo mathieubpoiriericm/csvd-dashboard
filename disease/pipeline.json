@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "$comment": "Read only by pipeline/disease.py. Gene symbols and search terms belong here, never in disease/manifest.json, because every island bundle embeds that file.",
+  "search": {
+    "pubmed": {
+      "$comment": "meshTerms: Indexed headings that reach papers never writing the disease name out in the title or abstract -- measured at 10 of the 28 the dashboard cites. Two terms rather than the five that were tried. \"Leukoaraiosis\", \"CADASIL\" and \"Stroke, Lacunar\" are each fully subsumed by these: adding them changes recall not at all and widens the all-time result set by 23 papers.",
+      "diseaseTerms": ["cerebral small vessel disease"],
+      "markerTerms": [
+        "stroke",
+        "dementia",
+        "lacunes",
+        "lacunar stroke",
+        "white matter hyperintensities",
+        "perivascular spaces",
+        "cerebral microbleeds"
+      ],
+      "meshTerms": ["Cerebral Small Vessel Diseases", "White Matter"]
+    },
+    "clinicalTrials": {
+      "searchTerms": [
+        "cerebral small vessel disease",
+        "lacunar stroke",
+        "lacunar infarction",
+        "CADASIL",
+        "CARASIL",
+        "cerebral microbleeds",
+        "white matter hyperintensities",
+        "vascular cognitive impairment",
+        "vascular dementia",
+        "cerebral amyloid angiopathy"
+      ],
+      "conditions": [
+        "small vessel disease",
+        "small vascular disease",
+        "lacunar",
+        "lacune",
+        "cadasil",
+        "carasil",
+        "microbleed",
+        "white matter hyperintensit",
+        "white matter lesion",
+        "white matter disease",
+        "leukoaraiosis",
+        "amyloid angiopathy",
+        "binswanger",
+        "perivascular space",
+        "subcortical infarct",
+        "subcortical ischemi",
+        "covert brain infarct",
+        "silent brain infarct",
+        "silent cerebral infarct"
+      ],
+      "conditionPairs": [["vascular", "dementia"], ["vascular", "cognitive"]]
+    }
+  },
+  "monogenicGenes": ["NOTCH3", "COL4A1", "COL4A2", "HTRA1", "TREX1", "GLA"],
+  "geneAliases": {
+    "COL4A1/2": ["COL4A1", "COL4A2"],
+    "C6orf195": ["LINC01600"]
+  },
+  "pipeline": {
+    "runLabel": "SVD Pipeline",
+    "maxGenesPerPaper": 20
+  }
+}

@@ -1,0 +1,50 @@
+omim_num,omim_link,location,phenotype,phenotype_mim_number,inheritance,phenotype_mapping_key,gene_or_locus,gene_or_locus_mim_number
+617168,https://www.omim.org/entry/617168?search=617168&highlight=617168,5q23.1,"Aortic aneurysm, familial thoracic 10",617168,AD,3,LOX,153455
+618999,https://www.omim.org/entry/618999?search=618999&highlight=618999,1p31.3,"Autoinflammation, immune dysregulation, and eosinophilia",618999,AD,3,JAK1,147795
+258900,https://www.omim.org/entry/258900?search=258900&highlight=258900,3q21.2,Orotic aciduria,258900,AR,3,UMPS,613891
+236600,https://www.omim.org/entry/236600?search=236600&highlight=236600,14q32.11-q32.12,"Hydrocephalus, congenital, 1",236600,AR,3,CCDC88C,611204
+616053,https://www.omim.org/entry/616053?search=616053&highlight=616053,14q32.11-q32.12,Spinocerebellar ataxia 40,616053,AD,3,CCDC88C,611204
+617294,https://www.omim.org/entry/617294?search=617294&highlight=617294,3q27.1,"Epidermolysis bullosa simplex 6, generalized intermediate, with or without cardiomyopathy",617294,AD,3,KLHL24,611295
+620236,https://www.omim.org/entry/620236?search=620236&highlight=620236,3q27.1,"Cardiomyopathy, familial hypertrophic, 29, with polyglucosan bodies",620236,AR,3,KLHL24,611295
+618384,https://www.omim.org/entry/618384?search=618384&highlight=618384,20q13.12,"Leukoencephalopathy, acute reversible, with increased urinary alpha-ketoglutarate",618384,AR,3,SLC13A3,606411
+228930,https://www.omim.org/entry/228930?search=228930&highlight=228930,3p25.1,Fuhrmann syndrome,228930,AR,3,WNT7A,601570
+276820,https://www.omim.org/entry/276820?search=276820&highlight=276820,3p25.1,"Ulna and fibula, absence of, with severe limb deficiency",276820,AR,3,WNT7A,601570
+613005,https://www.omim.org/entry/613005?search=613005&highlight=613005,3p25.1,Santos syndrome,613005,AR,3,WNT7A,601570
+126600,https://www.omim.org/entry/126600?search=126600&highlight=126600,2p16.1,Doyne honeycomb degeneration of retina,126600,AD,3,EFEMP1,601548
+611276,https://www.omim.org/entry/611276?search=611276&highlight=611276,2p16.1,"Glaucoma 1, open angle, H",611276,AD,3,EFEMP1,601548
+620780,https://www.omim.org/entry/620780?search=620780&highlight=620780,2p16.1,"Cutis laxa, autosomal recessive, type ID",620780,AR,3,EFEMP1,601548
+121050,https://www.omim.org/entry/121050?search=121050&highlight=121050,5q23.3,"Contractural arachnodactyly, congenital",121050,AD,3,FBN2,612570
+616118,https://www.omim.org/entry/616118?search=616118&highlight=616118,5q23.3,"Macular degeneration, early-onset",616118,AD,3,FBN2,612570
+600142,https://www.omim.org/entry/600142?search=600142&highlight=600142,10q26.13,"Cerebral arteriopathy, autosomal recessive, with subcortical infarcts and leukoencephalopathy 2",600142,AR,3,HTRA1,602194
+616779,https://www.omim.org/entry/616779?search=616779&highlight=616779,10q26.13,"Cerebral arteriopathy, autosomal dominant, with subcortical infarcts and leukoencephalopathy 2",616779,AD,3,HTRA1,602194
+203450,https://www.omim.org/entry/203450?search=203450&highlight=203450,17q21.31,Alexander disease,203450,AD,3,GFAP,137780
+243605,https://www.omim.org/entry/243605?search=243605&highlight=243605,1q41,Stromme syndrome,243605,AR,3,CENPF,600236
+225100,https://www.omim.org/entry/225100?search=225100&highlight=225100,1q21.2,"Ectopia lentis, isolated, autosomal recessive",225100,AR,3,ADAMTSL4,610113
+617347,https://www.omim.org/entry/617347?search=617347&highlight=617347,19q13.32;19q13.32,"Coronary artery disease, severe, susceptibility to;Hyperlipoproteinemia, type III",617347;617347,,3;3,APOE;APOE,107741;107741
+269600,https://www.omim.org/entry/269600?search=269600&highlight=269600,19q13.32,Sea-blue histiocyte disease,269600,AR,3,APOE,107741
+611771,https://www.omim.org/entry/611771?search=611771&highlight=611771,19q13.32,Lipoprotein glomerulopathy,611771,,3,APOE,107741
+104310,https://www.omim.org/entry/104310?search=104310&highlight=104310,19q13.32,Alzheimer disease 2,104310,AD,3,APOE,107741
+143200,https://www.omim.org/entry/143200?search=143200&highlight=143200,5q14.2-q14.3,Wagner syndrome 1,143200,AD,3,VCAN,118661
+618773,https://www.omim.org/entry/618773?search=618773&highlight=618773,2q32.1,Lymphatic malformation 8,618773,AR,3,CALCRL,114190
+175780,https://www.omim.org/entry/175780?search=175780&highlight=175780,13q34,Brain small vessel disease with or without ocular anomalies,175780,AD,3,COL4A1,120130
+611773,https://www.omim.org/entry/611773?search=611773&highlight=611773,13q34,"Angiopathy, hereditary, with nephropathy, aneurysms, and muscle cramps",611773,AD,3,COL4A1,120130
+180000,https://www.omim.org/entry/180000?search=180000&highlight=180000,13q34,"Retinal arteries, tortuosity of",180000,AD,3,COL4A1,120130
+618564,https://www.omim.org/entry/618564?search=618564&highlight=618564,13q34,"Microangiopathy and leukoencephalopathy, pontine, autosomal dominant",618564,AD,3,COL4A1,120130
+614483,https://www.omim.org/entry/614483?search=614483&highlight=614483,13q34,Brain small vessel disease 2,614483,AD,3,COL4A2,120090
+125310,https://www.omim.org/entry/125310?search=125310&highlight=125310,19p13.12,"Cerebral arteriopathy, autosomal dominant, with subcortical infarcts and leukoencephalopathy 1",125310,"AD, AR",3,NOTCH3,600276
+621295,https://www.omim.org/entry/621295?search=621295&highlight=621295,19p13.12,"Cerebral arteriopathy, autosomal recessive, with subcortical infarcts and leukoencephalopathy 1",621295,AR,3,NOTCH3,600276
+615293,https://www.omim.org/entry/615293?search=615293&highlight=615293,19p13.12,"Myofibromatosis, infantile 2",615293,AD,3,NOTCH3,600276
+130720,https://www.omim.org/entry/130720?search=130720&highlight=130720,19p13.12,Lateral meningocele syndrome,130720,AD,3,NOTCH3,600276
+608600,https://www.omim.org/entry/608600?search=608600&highlight=608600,19p13.12,"Lipodystrophy, familial partial, type 1",608600,AD,3,NOTCH3,600276
+575553,https://www.omim.org/entry/575553?search=575553&highlight=575553,,,,,,,
+192315,https://www.omim.org/entry/192315?search=192315&highlight=192315,3p21.31,"Vasculopathy, retinal, with cerebral leukoencephalopathy and systemic manifestations",192315,AD,3,TREX1,606609
+253200,https://www.omim.org/entry/253200?search=253200&highlight=253200,5q14.1,Mucopolysaccharidosis type VI (Maroteaux-Lamy),253200,AR,3,ARSB,611542
+231200,https://www.omim.org/entry/231200?search=231200&highlight=231200,3q21.3;17p13.2;22q11.21;22q11.21,"Bernard-Soulier syndrome, type C;Bernard-Soulier syndrome, type A1 (recessive);Giant platelet disorder, isolated;Bernard-Soulier syndrome, type B",231200;231200;231200;231200,AR;AR;AR;AR,3;3;3;3,GP9;GP1BA;GP1BB;GP1BB,173515;606672;138720;138720
+177820,https://www.omim.org/entry/177820?search=177820&highlight=177820,17p13.2,"von Willebrand disease, platelet-type",177820,AD,3,GP1BA,606672
+619785,https://www.omim.org/entry/619785?search=619785&highlight=619785,1q25.3,"Epidermolysis bullosa, junctional 3A, intermediate",619785,AR,3,LAMC2,150292
+617907,https://www.omim.org/entry/617907?search=617907&highlight=617907,7q22.1,"Erythrocytosis, familial, 5",617907,AD,3,EPO,133170
+617911,https://www.omim.org/entry/617911?search=617911&highlight=617911,7q22.1,Diamond-Blackfan anemia-like,617911,AR,3,EPO,133170
+604302,https://www.omim.org/entry/604302?search=604302&highlight=604302,7p15.3;22q11.23,"Rheumatoid arthritis, systemic juvenile;Rheumatoid arthritis, systemic juvenile, susceptibility to",604302;604302,,3;3,IL6;MIF,147620;153620
+108010,https://www.omim.org/entry/108010?search=108010&highlight=108010,7p15.3;12p12.1,"Intracranial hemorrhage in brain cerebrovascular malformations, susceptibility to;Arteriovenous malformation of the brain, somatic",108010;108010,Smu;,3;3,IL6;KRAS,147620;190070
+603776,https://www.omim.org/entry/603776?search=603776&highlight=603776,1p32.3;1p32.3,"Hypercholesterolemia, familial, 3;Low density lipoprotein cholesterol level QTL 1",603776;603776,AD;AD,3;3,PCSK9;PCSK9,607786;607786
+136900,https://www.omim.org/entry/136900?search=136900&highlight=136900,22q12.3,Sorsby fundus dystrophy,136900,AD,3,TIMP3,188826

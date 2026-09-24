@@ -1,0 +1,92 @@
+{
+  "$comment": "Rings, rim band, boundary, empty-cell style, evidence states and the record flag are registry facts, not the disease's -- populations, mechanisms and mechanism families live in disease/timeline.json. boundary.color and every evidenceStates[].ring below that reads #14172b is --svd-figure-ink (assets/app.css) -- chrome cut from the plate, not a data colour, which is why it may be hard-coded here at all. Keep it byte-identical to that token if it ever moves.",
+  "rings": [
+    {
+      "phase": "IV",
+      "innerRadius": 0.0,
+      "outerRadius": 0.4,
+      "opacity": 1.0
+    },
+    {
+      "phase": "III",
+      "innerRadius": 0.4,
+      "outerRadius": 0.49,
+      "opacity": 0.85
+    },
+    {
+      "phase": "II/III",
+      "innerRadius": 0.49,
+      "outerRadius": 0.58,
+      "opacity": 0.72
+    },
+    {
+      "phase": "II",
+      "innerRadius": 0.58,
+      "outerRadius": 0.67,
+      "opacity": 0.6
+    },
+    {
+      "phase": "I/II",
+      "innerRadius": 0.67,
+      "outerRadius": 0.76,
+      "opacity": 0.47
+    },
+    {
+      "phase": "I",
+      "innerRadius": 0.76,
+      "outerRadius": 0.85,
+      "opacity": 0.34
+    },
+    {
+      "phase": "(unknown)",
+      "innerRadius": 0.85,
+      "outerRadius": 1.0,
+      "opacity": 0.22
+    }
+  ],
+  "rimBand": {
+    "gap": 0.0125,
+    "width": 0.04375
+  },
+  "boundary": {
+    "color": "#14172b",
+    "opacity": 0.22,
+    "width": 0.75
+  },
+  "emptyCell": {
+    "opacity": 0.1
+  },
+  "evidenceStates": [
+    {
+      "key": "supported",
+      "ring": "#14172b",
+      "dash": null,
+      "field": "Yes — evidence for the target",
+      "legend": "Solid ring — genetic evidence for the target"
+    },
+    {
+      "key": "unsupported",
+      "ring": "#14172b",
+      "dash": "3 2",
+      "field": "No — assessed, none found",
+      "legend": "Dashed ring — assessed, no genetic evidence found"
+    },
+    {
+      "key": "unassessed",
+      "ring": null,
+      "dash": null,
+      "field": "Not assessed — no target named",
+      "legend": "No ring — genetics not assessed for this drug"
+    }
+  ],
+  "recordFlag": {
+    "label": "Incomplete record",
+    "legend": "Hollow centre — record incomplete",
+    "gapRadius": 0.4,
+    "reasons": {
+      "mechanism-uncharacterised": "Mechanism of action not characterised",
+      "enrolment-unstated": "Target enrolment not stated",
+      "completion-unstated": "Estimated completion date not stated"
+    }
+  }
+}
