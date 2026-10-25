@@ -140,6 +140,12 @@ def test_a_prompt_spelling_of_a_tracked_trait_is_admitted() -> None:
         assert TRAIT_SYNONYMS[synonym["from"]] == synonym["to"]
 
 
+def test_the_synonym_table_cannot_be_edited_at_runtime() -> None:
+    """The fold is part of the method, like the tuple and frozenset beside it."""
+    with pytest.raises(TypeError):
+        TRAIT_SYNONYMS["new-spelling"] = "CMB"  # ty: ignore[invalid-assignment]
+
+
 def test_a_curated_spelling_is_not_admitted() -> None:
     """A spreadsheet spelling the prompt never asks for is refused."""
     curated = [s for s in _vocabulary()["synonyms"] if s["source"] == "curated"]

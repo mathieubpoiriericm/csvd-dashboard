@@ -797,22 +797,24 @@ class TestPmcFulltext:
 
 class TestPatterns:
     def test_pmid_pattern_valid(self):
-        assert PMID_PATTERN.match("12345678")
-        assert PMID_PATTERN.match("123456789")
-        assert PMID_PATTERN.match("1")
+        assert PMID_PATTERN.fullmatch("12345678")
+        assert PMID_PATTERN.fullmatch("123456789")
+        assert PMID_PATTERN.fullmatch("1")
 
     def test_pmid_pattern_invalid(self):
-        assert not PMID_PATTERN.match("1234567890")  # 10 digits
-        assert not PMID_PATTERN.match("abc")
-        assert not PMID_PATTERN.match("")
+        assert not PMID_PATTERN.fullmatch("1234567890")  # 10 digits
+        assert not PMID_PATTERN.fullmatch("abc")
+        assert not PMID_PATTERN.fullmatch("")
+        assert not PMID_PATTERN.fullmatch("12345678\n")  # `$` alone admits it
 
     def test_doi_pattern_valid(self):
-        assert DOI_PATTERN.match("10.1234/test")
-        assert DOI_PATTERN.match("10.12345/test.v1")
+        assert DOI_PATTERN.fullmatch("10.1234/test")
+        assert DOI_PATTERN.fullmatch("10.12345/test.v1")
 
     def test_doi_pattern_invalid(self):
-        assert not DOI_PATTERN.match("not-a-doi")
-        assert not DOI_PATTERN.match("")
+        assert not DOI_PATTERN.fullmatch("not-a-doi")
+        assert not DOI_PATTERN.fullmatch("")
+        assert not DOI_PATTERN.fullmatch("10.1234/test\n")
 
 
 # ---------------------------------------------------------------------------

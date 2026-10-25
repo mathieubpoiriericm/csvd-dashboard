@@ -7,7 +7,7 @@ writes SQL and the database layer never learns an API's envelope.
 """
 
 import logging
-from collections.abc import Collection
+from collections.abc import Collection, Mapping
 from dataclasses import dataclass
 from typing import Final
 
@@ -46,7 +46,7 @@ logger = logging.getLogger(__name__)
 # is the attribution within the pair, and the curated key already asserts
 # the pair is one entity. Recording the member gene means a migration, and
 # is the upgrade if the distinction is ever wanted.
-_LOOKUP_ALIASES: Final[dict[str, tuple[str, ...]]] = dict(load_disease().gene_aliases)
+_LOOKUP_ALIASES: Final[Mapping[str, tuple[str, ...]]] = load_disease().gene_aliases
 
 
 def lookup_symbols(curated_symbol: str) -> tuple[str, ...]:

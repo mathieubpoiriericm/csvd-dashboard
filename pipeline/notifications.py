@@ -5,10 +5,11 @@ Jinja2-rendered Markdown body.
 """
 
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from types import MappingProxyType
+from typing import TYPE_CHECKING, Any, Final
 
 import apprise
 import jinja2
@@ -58,12 +59,14 @@ def _format_duration(seconds: float) -> str:
     return f"{minutes}m {secs}s"
 
 
-_MODE_LABELS: dict[str | None, str] = {
-    "local_pdf": "Local PDF",
-    "pmid_list": "PMID List",
-    "combined": "Combined",
-    None: "Standard",
-}
+_MODE_LABELS: Final[Mapping[str | None, str]] = MappingProxyType(
+    {
+        "local_pdf": "Local PDF",
+        "pmid_list": "PMID List",
+        "combined": "Combined",
+        None: "Standard",
+    }
+)
 
 
 def _mode_label(cfg: dict[str, Any]) -> str:

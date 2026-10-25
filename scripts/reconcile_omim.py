@@ -139,8 +139,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--annotations", type=Path, default=DEFAULT_ANNOTATIONS)
     args = parser.parse_args(argv)
 
-    curated = curated_omim_ids(json.loads(args.table1.read_text()))
-    fetched = fetched_omim_ids(json.loads(args.annotations.read_text()))
+    curated = curated_omim_ids(json.loads(args.table1.read_text(encoding="utf-8")))
+    fetched = fetched_omim_ids(json.loads(args.annotations.read_text(encoding="utf-8")))
     curated_only, fetched_only, differing = reconcile(curated, fetched)
 
     print("OMIM reconciliation: curated column vs machine-fetched annotations")

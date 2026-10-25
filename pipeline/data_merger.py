@@ -5,7 +5,10 @@ Handles merging new gene entries into PostgreSQL with batch operations.
 
 import logging
 from collections.abc import Iterable, Mapping, Sequence
-from typing import Any, Final, NotRequired, TypedDict
+from types import MappingProxyType
+from typing import Any, Final, NotRequired
+
+from typing_extensions import TypedDict
 
 from pipeline.config import PipelineConfig
 from pipeline.database import (
@@ -55,9 +58,9 @@ def reverse_aliases(aliases: Mapping[str, Iterable[str]]) -> dict[str, str]:
     }
 
 
-_CANONICAL_GENE_SYMBOLS: Final[dict[str, str]] = reverse_aliases(
+_CANONICAL_GENE_SYMBOLS: Final[Mapping[str, str]] = MappingProxyType(reverse_aliases(
     load_disease().gene_aliases
-)
+))
 
 
 def canonical_gene_symbol(symbol: str) -> str:
@@ -69,14 +72,14 @@ def canonical_gene_symbol(symbol: str) -> str:
     return _CANONICAL_GENE_SYMBOLS.get(symbol.strip().upper(), symbol)
 
 
-class HeldGene(TypedDict):
+class HeldGene(TypedDict, closed=True):
     """A new gene the insert floor refused, and the score it refused."""
 
     gene_symbol: str
     confidence: float
 
 
-class MergeResult(TypedDict):
+class MergeResult(TypedDict, closed=True):
     """Result of merge operation.
 
     ``held_below_insert_floor`` is reported rather than only logged: a

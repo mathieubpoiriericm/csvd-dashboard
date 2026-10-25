@@ -23,7 +23,9 @@ verbatim because that inventory is the whole point, and `CappedList` for
 the errors.
 """
 
+from collections.abc import Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import Any, Final
 
 from pydantic import Field
@@ -96,76 +98,78 @@ class _SourceSpec:
 
 # One entry per upstream each mode consults, in the order the sync runs
 # them, which is the order they are published in.
-_SOURCES: Final[dict[str, tuple[_SourceSpec, ...]]] = {
-    "clinical_trials": (
-        _SourceSpec(
-            "clinicaltrials",
-            "ClinicalTrials.gov",
-            fetched="fetched",
-            cached="cached",
-            failed="failed",
+_SOURCES: Final[Mapping[str, tuple[_SourceSpec, ...]]] = MappingProxyType(
+    {
+        "clinical_trials": (
+            _SourceSpec(
+                "clinicaltrials",
+                "ClinicalTrials.gov",
+                fetched="fetched",
+                cached="cached",
+                failed="failed",
+            ),
         ),
-    ),
-    "external_sync": (
-        _SourceSpec(
-            "ncbi_gene",
-            "NCBI Gene",
-            fetched="ncbi_fetched",
-            cached="ncbi_cached",
-            failed="ncbi_failed",
+        "external_sync": (
+            _SourceSpec(
+                "ncbi_gene",
+                "NCBI Gene",
+                fetched="ncbi_fetched",
+                cached="ncbi_cached",
+                failed="ncbi_failed",
+            ),
+            _SourceSpec(
+                "uniprot",
+                "UniProt",
+                fetched="uniprot_fetched",
+                cached="uniprot_cached",
+                failed="uniprot_failed",
+            ),
+            _SourceSpec(
+                "pubmed_citations",
+                "PubMed citations",
+                fetched="pubmed_fetched",
+                cached="pubmed_cached",
+                failed="pubmed_failed",
+            ),
         ),
-        _SourceSpec(
-            "uniprot",
-            "UniProt",
-            fetched="uniprot_fetched",
-            cached="uniprot_cached",
-            failed="uniprot_failed",
+        "annotation_sync": (
+            _SourceSpec(
+                "clinvar",
+                "ClinVar",
+                fetched="clinvar_fetched",
+                cached="clinvar_cached",
+                failed="clinvar_failed",
+            ),
+            _SourceSpec(
+                "orphadata",
+                "Orphadata",
+                fetched="orphadata_fetched",
+                cached="orphadata_cached",
+                failed="orphadata_failed",
+            ),
+            _SourceSpec(
+                "opentargets",
+                "Open Targets",
+                fetched="opentargets_fetched",
+                cached="opentargets_cached",
+                failed="opentargets_failed",
+            ),
+            # Fetched, with no cache at all: `sync_trial_drug_annotations`
+            # issues one GraphQL search per drug on every run -- there is no
+            # status row and no TTL for them -- and writes what comes back to
+            # `trial_drug_annotations`. `drugs_written` was published in the
+            # `cached` field, which told a reader the mechanisms were served
+            # from cache beside an API row counting the very POSTs that
+            # fetched them.
+            _SourceSpec(
+                "opentargets_drugs",
+                "Open Targets drug records",
+                fetched="drugs_written",
+                failed="drugs_failed",
+            ),
         ),
-        _SourceSpec(
-            "pubmed_citations",
-            "PubMed citations",
-            fetched="pubmed_fetched",
-            cached="pubmed_cached",
-            failed="pubmed_failed",
-        ),
-    ),
-    "annotation_sync": (
-        _SourceSpec(
-            "clinvar",
-            "ClinVar",
-            fetched="clinvar_fetched",
-            cached="clinvar_cached",
-            failed="clinvar_failed",
-        ),
-        _SourceSpec(
-            "orphadata",
-            "Orphadata",
-            fetched="orphadata_fetched",
-            cached="orphadata_cached",
-            failed="orphadata_failed",
-        ),
-        _SourceSpec(
-            "opentargets",
-            "Open Targets",
-            fetched="opentargets_fetched",
-            cached="opentargets_cached",
-            failed="opentargets_failed",
-        ),
-        # Fetched, with no cache at all: `sync_trial_drug_annotations`
-        # issues one GraphQL search per drug on every run -- there is no
-        # status row and no TTL for them -- and writes what comes back to
-        # `trial_drug_annotations`. `drugs_written` was published in the
-        # `cached` field, which told a reader the mechanisms were served
-        # from cache beside an API row counting the very POSTs that
-        # fetched them.
-        _SourceSpec(
-            "opentargets_drugs",
-            "Open Targets drug records",
-            fetched="drugs_written",
-            failed="drugs_failed",
-        ),
-    ),
-}
+    }
+)
 
 
 def _count(metrics: dict[str, Any], name: str) -> int:

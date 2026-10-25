@@ -1,7 +1,9 @@
 """Shared Pydantic models and parsing for LLM gene extraction."""
 
 import json
+from collections.abc import Mapping
 from pathlib import Path
+from types import MappingProxyType
 from typing import Annotated, Final
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, WithJsonSchema
@@ -68,7 +70,7 @@ CANONICAL_TRAITS: Final[tuple[str, ...]] = _TRAIT_VOCABULARY[0]
 # What the merge folds before it filters: the prompt's `cerebral-microbleeds`
 # becomes CMB rather than being dropped as untracked. Exact keys only; the
 # export's ordered substring rewrites serve curated prose and are not this.
-TRAIT_SYNONYMS: Final[dict[str, str]] = _TRAIT_VOCABULARY[1]
+TRAIT_SYNONYMS: Final[Mapping[str, str]] = MappingProxyType(_TRAIT_VOCABULARY[1])
 
 # The subset of CANONICAL_TRAITS that may be stored. Every entry is a filter
 # choice and a phenogram pill; an `untracked` term stored beside them reaches

@@ -108,7 +108,7 @@ allow-list in the test, one entry per term with the reason it is admitted
 unasked. Add the entry with its reason; do not widen the test.
 
 **The SDK streams over `httpx2`, not `httpx`.** The pipeline pins `httpx` 0.28
-for its own clients, and `anthropic` 1.x is built on the separate `httpx2`
+for its own clients, and `anthropic` 2.x is built on the separate `httpx2`
 package; the two exception hierarchies are unrelated. `client.send()` wraps a
 failure to _open_ a request in `APIConnectionError`, but with `stream=True` it
 returns once the headers arrive and the body is read by `get_final_message()`,
@@ -542,9 +542,11 @@ floats-groups, back-matter headings, Unpaywall preprints, Docling
 ## PDF fallback
 
 `pipeline/pdf_parse.py` is the only module that imports Docling, and every
-import inside it is local — not an optionality guard (Docling is a core
+runtime import inside it is local — not an optionality guard (Docling is a core
 dependency) but a startup-cost one, keeping torch out of the import graph the
-argcomplete fast path at the top of `main.py` exists to protect.
+argcomplete fast path at the top of `main.py` exists to protect. Its annotations
+name Docling's classes through `TYPE_CHECKING`, which deferred annotations never
+evaluate.
 
 - **OCR is a fallback, not a mode.** It is on by default (`PIPELINE_PDF_OCR`),
   and `PDF_AWARE_LAYOUT_REGIONS` plus `PDF_FIRST` priority mean it never alters
@@ -582,6 +584,18 @@ argcomplete fast path at the top of `main.py` exists to protect.
   broken environment as a corpus of unreadable papers. An `ImportError` raised
   later, inside `export_to_html`, is still handled as a bad-PDF failure --
   Docling imported fine there.
+
+**On Python 3.15 the startup imports are lazy, and the tests see them
+resolved.** `__lazy_modules__` in `main.py` and `config.py` (PEP 810; 3.14
+ignores the name) took `import pipeline.main` from 994 ms to 165 ms, most of it
+the SDK `config.py` imported for `transform_schema` alone. A module only needs
+listing to be lazy, but one used at import time — a module-level constant, a
+dataclass default — loads eagerly regardless. `_resolve_lazy_imports` in
+`tests/pipeline/conftest.py` binds every lazy name before the first test:
+`mock.patch` reads a still-lazy name as its proxy and builds a `MagicMock` where
+the function is async, which failed four tests on 3.15 before it existed.
+Docling's imports stay local rather than lazy, because 3.14 would import a
+module-scope one eagerly.
 
 ### Machine-fetched annotations
 

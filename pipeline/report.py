@@ -9,12 +9,13 @@ import logging
 from datetime import UTC, datetime
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
-from typing import Any, NotRequired, TypedDict
+from typing import Any, NotRequired
 
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
+from typing_extensions import TypedDict
 
 from pipeline.anthropic_client import AnthropicClient
 from pipeline.config import PipelineConfig
@@ -24,7 +25,7 @@ from pipeline.quality_metrics import PipelineMetrics, TokenUsage
 logger = logging.getLogger(__name__)
 
 
-class PaperSummary(TypedDict):
+class PaperSummary(TypedDict, closed=True):
     """Serialisable summary for one processed paper."""
 
     pmid: str
@@ -40,7 +41,7 @@ class PaperSummary(TypedDict):
     validation_time: NotRequired[float]
 
 
-class PipelineRunData(TypedDict):
+class PipelineRunData(TypedDict, closed=True):
     """Full run data used by both JSON writer and rich printer."""
 
     timestamp: str
@@ -304,7 +305,7 @@ def write_comprehensive_report(data: PipelineRunData, log_dir: Path) -> Path:
     # History shows two mismatched times for the same run.
     stamp = datetime.now(UTC).strftime("%Y-%m-%d_%Hh%Mm%Ss")
     path = log_dir / f"pipeline_report_{stamp}.json"
-    path.write_text(json.dumps(data, indent=2, default=str) + "\n")
+    path.write_text(json.dumps(data, indent=2, default=str) + "\n", encoding="utf-8")
     return path
 
 

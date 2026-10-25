@@ -5,12 +5,13 @@ name the defect; do not "simplify" a rule without checking the test first.
 """
 
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
+from types import MappingProxyType
 from typing import Final
 
-_ACRONYMS: Final[dict[str, str]] = {
-    acronym.lower(): acronym for acronym in ("GWAS", "ID", "Omics")
-}
+_ACRONYMS: Final[Mapping[str, str]] = MappingProxyType(
+    {acronym.lower(): acronym for acronym in ("GWAS", "ID", "Omics")}
+)
 
 # toTitleCase in R lower-cases these short words. Reproduced so column
 # names — and therefore JSON keys — match the committed files exactly.
@@ -190,7 +191,7 @@ def extract_pmids(value: str | None) -> list[str]:
     remainder = _DOI_LABEL.sub(" ", remainder)
     remainder = _DOI_BARE.sub(" ", remainder)
 
-    pattern = _ANY_NUMBER if _NUMERIC_LIST.match(remainder) else _MARKED_OR_LONG
+    pattern = _ANY_NUMBER if _NUMERIC_LIST.fullmatch(remainder) else _MARKED_OR_LONG
     return list(
         dict.fromkeys(
             candidate.removeprefix(_MARKER) for candidate in pattern.findall(remainder)

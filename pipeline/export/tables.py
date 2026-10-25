@@ -9,8 +9,9 @@ deleted, so it cannot be reordered or merged.
 import json
 import logging
 import re
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any, Final
 
 from pipeline.disease import VOCABULARY_PATH
@@ -230,10 +231,12 @@ def _publishable_omics(entries: list[str], gene: str | None) -> list[str]:
 # the end of the dict instead of relabeling it in place, and
 # pipeline/export/writer.py's write_rows preserves dict insertion order
 # verbatim into the emitted JSON.
-_RENAMES: Final[dict[str, str]] = {
-    "Evidence from Other Omics Studies": "Evidence From Other Omics Studies",
-    "Link to Monogenetic Disease": "Link to Monogenic Disease",
-}
+_RENAMES: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        "Evidence from Other Omics Studies": "Evidence From Other Omics Studies",
+        "Link to Monogenetic Disease": "Link to Monogenic Disease",
+    }
+)
 
 # The clinical_trials columns that fall back to "(unknown)" rather than a
 # field-specific sentinel. Every name here -- like "Genetic Target" handled

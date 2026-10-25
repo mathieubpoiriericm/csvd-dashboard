@@ -471,6 +471,13 @@ class TestPdfFallbackSettings:
         with pytest.raises(ValueError, match="pdf_device must be"):
             PipelineConfig()
 
+    def test_a_device_with_a_trailing_newline_fails_at_construction(self):
+        """`$` also matches before a final newline, so `match` let "cpu\\n"
+        through to the converter -- the late failure this check exists to
+        bring forward."""
+        with pytest.raises(ValueError, match="pdf_device must be"):
+            PipelineConfig(pdf_device="cpu\n")
+
     @pytest.mark.parametrize(
         ("name", "value", "message"),
         [

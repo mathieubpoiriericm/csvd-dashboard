@@ -7,8 +7,9 @@ files are asserted row-for-row against their request lists.
 
 import json
 import logging
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
+from types import MappingProxyType
 from typing import Any, Final
 
 import asyncpg
@@ -317,12 +318,14 @@ async def read_sync_runs() -> list[dict[str, Any]]:
 # Which authority fills which published column. Everything else Orphadata
 # returns -- MeSH, UMLS -- has no column of its own and reaches the reader
 # through ``related_xrefs``.
-_XREF_COLUMNS: Final[dict[str, str]] = {
-    "OMIM": "omim_id",
-    "MONDO": "mondo_id",
-    "Orphanet": "orphacode",
-    "MedGen": "medgen_id",
-}
+_XREF_COLUMNS: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        "OMIM": "omim_id",
+        "MONDO": "mondo_id",
+        "Orphanet": "orphacode",
+        "MedGen": "medgen_id",
+    }
+)
 
 # Sources whose rows are published. Open Targets' associatedDiseases is a
 # ranked association list rather than a monogenic-disease claim -- 1513 rows

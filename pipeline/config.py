@@ -5,6 +5,12 @@ environment variable (prefixed with ``PIPELINE_``).  Modules accept a
 ``PipelineConfig`` instance instead of defining their own constants.
 """
 
+# On Python 3.15 (PEP 810) this import is lazy. Only `extraction_tool` reads
+# `transform_schema`, and the SDK is half a second of import, so it now loads
+# with the first extraction rather than with every config -- a refresh or an
+# export never pays for it. 3.14 ignores the name and imports it eagerly.
+__lazy_modules__ = frozenset({"anthropic"})
+
 import os
 import re
 import subprocess
@@ -147,6 +153,7 @@ def default_pdf_threads() -> int:
                 ["sysctl", "-n", "hw.perflevel0.logicalcpu"],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
                 timeout=5,
                 check=True,
             )
@@ -226,7 +233,7 @@ def validate_pmid(pmid: str) -> str:
         ValueError: If the PMID format is invalid.
     """
     pmid = pmid.strip()
-    if not PMID_PATTERN.match(pmid):
+    if not PMID_PATTERN.fullmatch(pmid):
         raise ValueError(f"Invalid PMID format: {pmid!r}")
     return pmid
 
@@ -641,7 +648,7 @@ class PipelineConfig:
 
         # Docling validates the device too, but only when the converter is
         # built -- which is the first PDF, potentially an hour into a run.
-        if not _PDF_DEVICE_PATTERN.match(self.pdf_device):
+        if not _PDF_DEVICE_PATTERN.fullmatch(self.pdf_device):
             raise ValueError(
                 "pdf_device must be auto, cpu, mps, xpu, cuda or cuda:N, got "
                 f"{self.pdf_device!r}"

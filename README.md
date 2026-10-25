@@ -140,7 +140,7 @@ merges later upstream changes into a fork.
 | Database          | [PostgreSQL 18.6](https://www.postgresql.org/), [Alembic](https://alembic.sqlalchemy.org/) migrations; containers run [Docker Hardened Images](https://docs.docker.com/dhi/)                                                                                                     |
 | Print figures     | [pyCirclize](https://github.com/moshi4/pyCirclize) (trials radar), [matplotlib](https://matplotlib.org/) (phenogram)                                                                                                                                                             |
 | Testing           | `deno test`, [pytest](https://github.com/pytest-dev/pytest), [Playwright](https://playwright.dev/)                                                                                                                                                                               |
-| Lint & type-check | `deno fmt` / `deno lint` / `deno check`, [Ruff](https://github.com/astral-sh/ruff), [ty](https://github.com/astral-sh/ty), [basedpyright](https://github.com/DetachHead/basedpyright)                                                                                            |
+| Lint & type-check | `deno fmt` / `deno lint` / `deno check`, [Ruff](https://github.com/astral-sh/ruff), [ty](https://github.com/astral-sh/ty)                                                                                                                                                        |
 
 Vite is pinned to 7.x because `@fresh/plugin-vite` requires `vite@^7.1.4`.
 

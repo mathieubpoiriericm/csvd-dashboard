@@ -46,10 +46,11 @@ floor and what it was measured against.
 
 import logging
 import re
-from collections.abc import Generator, Sequence
+from collections.abc import Generator, Mapping, Sequence
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
+from types import MappingProxyType
 from typing import Any, Final, Protocol
 
 logger = logging.getLogger(__name__)
@@ -367,12 +368,14 @@ class ProvenanceTally:
         self.dropped_by_paper.pop(pmid, None)
 
 
-_NO_QUOTES: dict[str, int] = {
-    "genes": 0,
-    "verbatim": 0,
-    "cited": 0,
-    "dropped_unverified": 0,
-}
+_NO_QUOTES: Final[Mapping[str, int]] = MappingProxyType(
+    {
+        "genes": 0,
+        "verbatim": 0,
+        "cited": 0,
+        "dropped_unverified": 0,
+    }
+)
 
 _current_paper: ContextVar[str | None] = ContextVar("provenance_paper", default=None)
 

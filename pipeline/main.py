@@ -25,6 +25,48 @@ Usage:
     python pipeline/main.py --pmids FILE [--skip-validation]
 """
 
+# On Python 3.15 (PEP 810) the module-scope imports of these modules are lazy:
+# each loads on first use, so `--help`, an argparse error or a refresh that
+# never extracts no longer pays for every dependency at startup. With
+# `pipeline.config` deferring the SDK too, importing this module measured
+# 994 ms eager and 165 ms lazy. 3.14 ignores the name and imports them
+# eagerly, which is why the argcomplete fast path below stays.
+# `_resolve_lazy_imports` in tests/pipeline/conftest.py binds them all before
+# the first test, because `mock.patch` cannot see through a name still lazy.
+__lazy_modules__ = frozenset(
+    {
+        "asyncpg",
+        "httpx",
+        "lxml",
+        "pipeline",
+        "pipeline.api_telemetry",
+        "pipeline.batch_extraction",
+        "pipeline.batch_validation",
+        "pipeline.citations",
+        "pipeline.clinical_trials_fetch",
+        "pipeline.config",
+        "pipeline.data_merger",
+        "pipeline.database",
+        "pipeline.disease",
+        "pipeline.event_log",
+        "pipeline.extraction_models",
+        "pipeline.http_client",
+        "pipeline.llm_extraction",
+        "pipeline.notifications",
+        "pipeline.pdf_retrieval",
+        "pipeline.prompts",
+        "pipeline.pubmed_search",
+        "pipeline.quality_metrics",
+        "pipeline.rate_limiter",
+        "pipeline.report",
+        "pipeline.run_errors",
+        "pipeline.run_report",
+        "pipeline.steps",
+        "pipeline.sync_report",
+        "pipeline.validation",
+    }
+)
+
 import argparse
 import sys
 from pathlib import Path
@@ -153,13 +195,14 @@ import traceback
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
-from typing import Any, Final, Literal, TypedDict, cast
+from typing import Any, Final, Literal, cast
 
 ProgressStatus = Literal["running", "completed", "error"]
 
 import asyncpg
 import httpx
 from lxml import etree  # type: ignore[import-untyped]
+from typing_extensions import TypedDict
 
 # Add project root to path for imports when running as script
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -374,7 +417,7 @@ def _write_progress(
         "error_message": error_message,
     }
     try:
-        tmp_path.write_text(json.dumps(data) + "\n")
+        tmp_path.write_text(json.dumps(data) + "\n", encoding="utf-8")
         tmp_path.replace(progress_path)
     except OSError:
         logger.debug("Failed to write progress file %s", progress_path, exc_info=True)
@@ -477,7 +520,7 @@ class _ProgressReporter:
 
 
 # --- Type definitions ---
-class MetadataResult(TypedDict):
+class MetadataResult(TypedDict, closed=True):
     """Result from metadata fetch."""
 
     doi: str | None
@@ -491,7 +534,7 @@ class RejectedGene:
     reasons: list[str]
 
 
-class PaperProcessResult(TypedDict):
+class PaperProcessResult(TypedDict, closed=True):
     """Result from processing a single paper."""
 
     genes: list[GeneEntry]
@@ -720,7 +763,7 @@ def _load_pmids(path: Path) -> list[str]:
         raise FileNotFoundError(f"PMID file not found: {path}")
 
     pmids: list[str] = []
-    for line in path.read_text().splitlines():
+    for line in path.read_text(encoding="utf-8").splitlines():
         value = line.strip()
         if not value or value.startswith("#"):
             continue

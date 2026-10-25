@@ -20,7 +20,9 @@ requests; the widget wants one row per service and endpoint.
 
 import re
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass, field
+from types import MappingProxyType
 from typing import Any, Final
 from urllib.parse import urlsplit
 
@@ -101,7 +103,9 @@ SERVICES: Final[tuple[ApiService, ...]] = (
     ApiService("jstage", "J-STAGE", "www.jstage.jst.go.jp"),
 )
 
-_BY_KEY: Final[dict[str, ApiService]] = {service.key: service for service in SERVICES}
+_BY_KEY: Final[Mapping[str, ApiService]] = MappingProxyType(
+    {service.key: service for service in SERVICES}
+)
 
 
 def display_label(service_key: str, endpoint: str) -> str:
@@ -179,7 +183,7 @@ def normalize_path(path: str) -> str:
     for segment in path.split("/"):
         if not segment:
             continue
-        if _HAS_DIGIT.search(segment) and not _VERSION_SEGMENT.match(segment):
+        if _HAS_DIGIT.search(segment) and not _VERSION_SEGMENT.fullmatch(segment):
             segments.append(":id")
         else:
             segments.append(segment)

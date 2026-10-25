@@ -36,6 +36,7 @@ import logging
 import re
 from collections.abc import Container, Iterable, Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import Final
 
 from pipeline.disease import Disease, load_disease
@@ -338,7 +339,7 @@ def _assemble_v7() -> tuple[str, str]:
     return _assemble(load_disease())
 
 
-_PROMPTS: Final[dict[str, tuple[str, str]]] = {"v7": _assemble_v7()}
+_PROMPTS: Final[Mapping[str, tuple[str, str]]] = MappingProxyType({"v7": _assemble_v7()})
 
 
 _PROVENANCE_HEADING: Final[str] = "## Provenance"

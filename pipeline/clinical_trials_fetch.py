@@ -19,9 +19,10 @@ import json
 import logging
 import re
 import unicodedata
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any, Final
 
 import httpx
@@ -183,14 +184,16 @@ _ISO_DATE: Final[re.Pattern[str]] = re.compile(r"^(\d{4})-(\d{2})(?:-\d{2})?$")
 # ("I", "II", "III") and the curated rows in data/table2.json are spelled
 # that way; "Phase 2" carries no such token, so a row labelled that way is
 # invisible under any phase filter. Unmapped values pass through verbatim.
-_PHASE_DISPLAY_MAP: Final[dict[str, str]] = {
-    "EARLY_PHASE1": "Early Phase I",
-    "PHASE1": "I",
-    "PHASE2": "II",
-    "PHASE3": "III",
-    "PHASE4": "IV",
-    "NA": "N/A",
-}
+_PHASE_DISPLAY_MAP: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        "EARLY_PHASE1": "Early Phase I",
+        "PHASE1": "I",
+        "PHASE2": "II",
+        "PHASE3": "III",
+        "PHASE4": "IV",
+        "NA": "N/A",
+    }
+)
 
 # The radar has one ring per phase and places a trial by comparing the
 # published label to the ring's phase for equality -- lib/timeline.ts and
@@ -363,7 +366,7 @@ def _completion_label(date: str | None) -> str | None:
     """
     if date is None:
         return None
-    match = _ISO_DATE.match(date)
+    match = _ISO_DATE.fullmatch(date)
     if match is None:
         return date
     year, month = match.groups()

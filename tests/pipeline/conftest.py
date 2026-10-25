@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import sys
 import time
+import types
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
@@ -26,6 +27,35 @@ from pipeline.config import PipelineConfig  # noqa: E402
 from pipeline.extraction_models import TRACKED_TRAITS  # noqa: E402
 from pipeline.llm_extraction import GeneEntry  # noqa: E402
 from pipeline.quality_metrics import PipelineMetrics, TokenUsage  # noqa: E402
+
+# ---------------------------------------------------------------------------
+# Lazy imports, resolved before the first test
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _resolve_lazy_imports() -> None:
+    """Bind every name a `__lazy_modules__` declaration left lazy.
+
+    On Python 3.15 `mock.patch` reads the original out of the module's
+    `__dict__`, which for a name not yet used is the lazy proxy rather than
+    the function: it then builds a `MagicMock` where the target is async, and
+    restores the proxy afterwards, so the name never resolves. Patching a
+    name at its source module would instead bind the mock here for the rest
+    of the session, at whichever use came first. Resolving them all up front
+    gives 3.15 the eager semantics every test was written against; on 3.14
+    there is nothing to resolve.
+    """
+    lazy_import_type = getattr(types, "LazyImportType", None)
+    if lazy_import_type is None:
+        return
+    for module_name, module in list(sys.modules.items()):
+        if module_name.split(".")[0] not in {"pipeline", "scripts"}:
+            continue
+        for name, value in list(vars(module).items()):
+            if isinstance(value, lazy_import_type):
+                getattr(module, name)
+
 
 # ---------------------------------------------------------------------------
 # The trait vocabulary and the gene aliases, made independent of the disease

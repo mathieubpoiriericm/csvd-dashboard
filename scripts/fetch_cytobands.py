@@ -18,7 +18,8 @@ import json
 import sys
 import urllib.request
 from pathlib import Path
-from typing import TypedDict
+
+from typing_extensions import TypedDict
 
 SOURCE = "https://hgdownload.soe.ucsc.edu/goldenPath/hg38/database/cytoBandIdeo.txt.gz"
 ASSEMBLY = "hg38"
@@ -26,20 +27,20 @@ CHROMOSOMES = [str(n) for n in range(1, 23)] + ["X", "Y"]
 OUTPUT = Path(__file__).resolve().parent.parent / "data" / "cytobands_hg38.json"
 
 
-class Band(TypedDict):
+class Band(TypedDict, closed=True):
     name: str
     start: int
     end: int
     stain: str
 
 
-class Chromosome(TypedDict):
+class Chromosome(TypedDict, closed=True):
     name: str
     length: int
     bands: list[Band]
 
 
-class CytobandTable(TypedDict):
+class CytobandTable(TypedDict, closed=True):
     assembly: str
     source: str
     chromosomes: list[Chromosome]

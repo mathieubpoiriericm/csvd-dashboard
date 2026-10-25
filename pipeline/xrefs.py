@@ -15,33 +15,39 @@ the annotations table look richer than it is.
 
 import logging
 import re
+from collections.abc import Mapping
+from types import MappingProxyType
 from typing import Final
 
 logger = logging.getLogger(__name__)
 
 # Output capitalisation for each prefix this pipeline stores. Lookup is
 # case-insensitive; the value is what gets written.
-_PREFIXES: Final[dict[str, str]] = {
-    "efo": "EFO",
-    "ensembl": "Ensembl",
-    "hgnc": "HGNC",
-    "go": "GO",
-    "hp": "HP",
-    "medgen": "MedGen",
-    "mesh": "MeSH",
-    "mondo": "MONDO",
-    "omim": "OMIM",
-    "orphanet": "Orphanet",
-    "umls": "UMLS",
-}
+_PREFIXES: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        "efo": "EFO",
+        "ensembl": "Ensembl",
+        "hgnc": "HGNC",
+        "go": "GO",
+        "hp": "HP",
+        "medgen": "MedGen",
+        "mesh": "MeSH",
+        "mondo": "MONDO",
+        "omim": "OMIM",
+        "orphanet": "Orphanet",
+        "umls": "UMLS",
+    }
+)
 
 # Orphadata calls it an ORPHAcode, ClinVar's db_source is "Orphanet", and OMIM
 # is "MIM" in some payloads. All three name the same authority.
-_PREFIX_ALIASES: Final[dict[str, str]] = {
-    "orpha": "orphanet",
-    "orphacode": "orphanet",
-    "mim": "omim",
-}
+_PREFIX_ALIASES: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        "orpha": "orphanet",
+        "orphacode": "orphanet",
+        "mim": "omim",
+    }
+)
 
 # ClinVar separates with ":", Open Targets with "_".
 _SEPARATOR: Final[re.Pattern[str]] = re.compile(r"[:_]")
@@ -52,12 +58,14 @@ _SEPARATOR: Final[re.Pattern[str]] = re.compile(r"[:_]")
 # resolves to nothing at all if it is published. Six of the 575 MONDO
 # identifiers in the live table arrive short. ORPHAcodes and HGNC ids are
 # genuinely unpadded and are deliberately absent from this table.
-_ZERO_PADDED_WIDTH: Final[dict[str, int]] = {
-    "EFO": 7,
-    "GO": 7,
-    "HP": 7,
-    "MONDO": 7,
-}
+_ZERO_PADDED_WIDTH: Final[Mapping[str, int]] = MappingProxyType(
+    {
+        "EFO": 7,
+        "GO": 7,
+        "HP": 7,
+        "MONDO": 7,
+    }
+)
 
 # The shape each authority's local id takes. A prefix this pipeline stores
 # carrying a value it cannot interpret is rejected rather than stored, for the
@@ -67,19 +75,21 @@ _ZERO_PADDED_WIDTH: Final[dict[str, int]] = {
 # series alongside its six-digit entries.
 _PADDED_NUMERIC_ID: Final[re.Pattern[str]] = re.compile(r"\d{1,7}$")
 _NUMERIC_ID: Final[re.Pattern[str]] = re.compile(r"\d+$")
-_LOCAL_ID_SHAPES: Final[dict[str, re.Pattern[str]]] = {
-    "EFO": _PADDED_NUMERIC_ID,
-    "Ensembl": re.compile(r"ENSG\d+$"),
-    "GO": _PADDED_NUMERIC_ID,
-    "HGNC": _NUMERIC_ID,
-    "HP": _PADDED_NUMERIC_ID,
-    "MONDO": _PADDED_NUMERIC_ID,
-    "MedGen": re.compile(r"CN?\d+$"),
-    "MeSH": re.compile(r"[CD]\d+$"),
-    "OMIM": re.compile(r"(?:PS)?\d{6}$"),
-    "Orphanet": _NUMERIC_ID,
-    "UMLS": re.compile(r"C\d+$"),
-}
+_LOCAL_ID_SHAPES: Final[Mapping[str, re.Pattern[str]]] = MappingProxyType(
+    {
+        "EFO": _PADDED_NUMERIC_ID,
+        "Ensembl": re.compile(r"ENSG\d+$"),
+        "GO": _PADDED_NUMERIC_ID,
+        "HGNC": _NUMERIC_ID,
+        "HP": _PADDED_NUMERIC_ID,
+        "MONDO": _PADDED_NUMERIC_ID,
+        "MedGen": re.compile(r"CN?\d+$"),
+        "MeSH": re.compile(r"[CD]\d+$"),
+        "OMIM": re.compile(r"(?:PS)?\d{6}$"),
+        "Orphanet": _NUMERIC_ID,
+        "UMLS": re.compile(r"C\d+$"),
+    }
+)
 
 # An OMIM phenotypic series names a *group* of phenotypes, not one entry.
 # ClinVar returns them beside six-digit entry numbers, and they are kept --

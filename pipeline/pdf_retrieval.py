@@ -12,10 +12,11 @@ import logging
 import os
 import re
 from pathlib import Path
-from typing import Any, Final, Literal, TypedDict
+from typing import Any, Final, Literal
 
 import httpx
 from lxml import etree  # type: ignore[import-untyped]
+from typing_extensions import TypedDict
 
 from pipeline import ncbi_http
 from pipeline.api_telemetry import record_transport_failure
@@ -127,7 +128,7 @@ class RetrievalError(RuntimeError):
     """
 
 
-class FulltextResult(TypedDict):
+class FulltextResult(TypedDict, closed=True):
     """Result from fulltext retrieval attempt."""
 
     text: str | None

@@ -31,7 +31,8 @@ and leaves every judgement about what an agent *is* to a curator.
 
 import re
 from collections import Counter, defaultdict
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
+from types import MappingProxyType
 from typing import Final
 
 # Dose ("40 Mg", "2.5mg", "5.8mg"), including the bare unit left behind when a
@@ -75,11 +76,13 @@ _CO_INTERVENTION_HEAD: Final[re.Pattern[str]] = re.compile(
 # population -- so the radar drew one agent under two labels in one sector.
 # DAPT is deliberately absent: "dual antiplatelet therapy" is a drug class
 # rather than an agent, and expanding it would dress a class up as one.
-_ABBREVIATIONS: Final[dict[str, str]] = {
-    "ismn": "isosorbide mononitrate",
-    "asa": "acetylsalicylic acid",
-    "nbp": "butylphthalide",
-}
+_ABBREVIATIONS: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        "ismn": "isosorbide mononitrate",
+        "asa": "acetylsalicylic acid",
+        "nbp": "butylphthalide",
+    }
+)
 
 # A row naming both a brand and its own generic keeps the generic. Nothing is
 # invented -- the generic is already in the string -- which is what separates
@@ -88,11 +91,13 @@ _ABBREVIATIONS: Final[dict[str, str]] = {
 # text rule. It cannot be a pattern either: "(Udenafil)" is the generic and
 # "(Aricept)" the brand, both parenthesised and both lower-case, so which
 # half to keep is knowledge and belongs in a list.
-_BRAND_FOLDS: Final[dict[str, str]] = {
-    "zydena (udenafil)": "Udenafil",  # Dong-A's brand for udenafil
-    "akatinol memantine": "Memantine",  # Merz's brand for memantine
-    "donepezil hydrochloride (aricept)": "Donepezil",  # Eisai's, plus the salt
-}
+_BRAND_FOLDS: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        "zydena (udenafil)": "Udenafil",  # Dong-A's brand for udenafil
+        "akatinol memantine": "Memantine",  # Merz's brand for memantine
+        "donepezil hydrochloride (aricept)": "Donepezil",  # Eisai's, plus the salt
+    }
+)
 
 # Salt forms folded to the ingredient, each one confirmed by an exact RxNorm
 # lookup and accepted by a curator. The registry drops nothing here but a
@@ -105,14 +110,16 @@ _BRAND_FOLDS: Final[dict[str, str]] = {
 # "Donepezil hydrochloride (Aricept)" is not here but in `_BRAND_FOLDS`: the
 # salt fold alone would leave "Donepezil (Aricept)", which is neither
 # spelling, so dropping the brand has to happen in the same step.
-_SALT_FOLDS: Final[dict[str, str]] = {
-    "donepezil hydrochloride": "Donepezil",  # RxNorm 135447
-    "donepezil hcl": "Donepezil",  # RxNorm 135447
-    "lidocaine hydrochloride": "Lidocaine",  # RxNorm 142440
-    "atorvastatin calcium": "Atorvastatin",  # RxNorm 83366
-    "galantamine hydrobromide": "Galantamine",  # RxNorm 860693
-    "n acetylcysteine": "Acetylcysteine",  # RxNorm 197
-}
+_SALT_FOLDS: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        "donepezil hydrochloride": "Donepezil",  # RxNorm 135447
+        "donepezil hcl": "Donepezil",  # RxNorm 135447
+        "lidocaine hydrochloride": "Lidocaine",  # RxNorm 142440
+        "atorvastatin calcium": "Atorvastatin",  # RxNorm 83366
+        "galantamine hydrobromide": "Galantamine",  # RxNorm 860693
+        "n acetylcysteine": "Acetylcysteine",  # RxNorm 197
+    }
+)
 
 # Adjectives that describe an arm rather than name an agent. A remainder made
 # only of these is a comparator label ("Regular treatment", "the control

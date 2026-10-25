@@ -31,9 +31,15 @@ import logging
 from dataclasses import dataclass
 from functools import cache
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pipeline.config import PipelineConfig
+
+if TYPE_CHECKING:
+    # Types only: deferred annotations never evaluate these at runtime, so
+    # Docling stays out of the import graph (see `_converter`).
+    from docling.document_converter import DocumentConverter
+    from docling_core.types.doc import DoclingDocument
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +74,7 @@ class _ConverterSettings:
 
 
 @cache
-def _converter(settings: _ConverterSettings) -> Any:
+def _converter(settings: _ConverterSettings) -> DocumentConverter:
     """Build the Docling converter once; model loading is expensive.
 
     Every docling import is deliberately local. Docling is a hard
@@ -142,7 +148,7 @@ def _rapidocr_params(settings: _ConverterSettings) -> dict[str, Any]:
     }
 
 
-def _convert(data: bytes, settings: _ConverterSettings) -> Any:
+def _convert(data: bytes, settings: _ConverterSettings) -> DoclingDocument | None:
     """Run Docling over PDF bytes, returning its document object.
 
     Returns None for a conversion Docling did not finish. A

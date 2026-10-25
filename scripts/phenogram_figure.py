@@ -241,7 +241,7 @@ def glyph_lift(shape: str, glyphs: dict[str, Any]) -> float:
 
 def place_gene(location: str, table: dict[str, Any]) -> BandHit | None:
     """The band a location names, or None. Exact match only, as lib/cytobands.ts."""
-    match = LOCATION.match(location.strip())
+    match = LOCATION.fullmatch(location.strip())
     if not match:
         return None
     chromosome, band_name = match.groups()
