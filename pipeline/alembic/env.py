@@ -50,7 +50,12 @@ def _get_database_url() -> str:
     safe_user = quote(user, safe="")
     safe_password = quote(password, safe="")
     safe_name = quote(name, safe="")
-    return f"postgresql://{safe_user}:{safe_password}@{host}:{port}/{safe_name}"
+    # Name the driver: SQLAlchemy 2.1 maps a bare postgresql:// to psycopg 3,
+    # and psycopg2-binary is the one pyproject.toml installs.
+    return (
+        f"postgresql+psycopg2://{safe_user}:{safe_password}"
+        f"@{host}:{port}/{safe_name}"
+    )
 
 
 def run_migrations_offline() -> None:

@@ -71,7 +71,7 @@ def test_alembic_offline_mode_configures_encoded_url(monkeypatch, mocker) -> Non
     file_config.assert_called_once_with("alembic.ini")
     context.configure.assert_called_once_with(
         url=(
-            "postgresql://pipeline%40example:p%40ss%2F%23word"
+            "postgresql+psycopg2://pipeline%40example:p%40ss%2F%23word"
             "@db.example:6543/cSVD%2Fdata"
         ),
         target_metadata=None,
@@ -96,7 +96,7 @@ def test_alembic_online_mode_uses_engine_connection(monkeypatch, mocker) -> None
     runpy.run_path(str(_ALEMBIC / "env.py"))
 
     create_engine.assert_called_once_with(
-        "postgresql://pipeline%40example:p%40ss%2F%23word"
+        "postgresql+psycopg2://pipeline%40example:p%40ss%2F%23word"
         "@db.example:6543/cSVD%2Fdata"
     )
     context.configure.assert_called_once_with(
