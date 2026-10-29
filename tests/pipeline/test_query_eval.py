@@ -236,7 +236,7 @@ async def test_fetch_titles_reads_esummary_in_chunks(
 ) -> None:
     calls: list[dict[str, str]] = []
 
-    async def fake_get(client, url, params, *, config=None, context=""):  # noqa: ANN001
+    async def fake_get(client, url, params, *, config=None, context=""):
         calls.append(params)
         ids = params["id"].split(",")
         return _Response(200, {"result": {i: {"title": f"T{i}"} for i in ids}})
@@ -262,7 +262,7 @@ async def test_fetch_titles_skips_a_chunk_ncbi_did_not_answer(
         [None, _Response(503, {}), _Response(200, {"result": {"5": {"title": "T5"}}})]
     )
 
-    async def fake_get(client, url, params, *, config=None, context=""):  # noqa: ANN001
+    async def fake_get(client, url, params, *, config=None, context=""):
         return next(answers)
 
     async def fake_client() -> object:
@@ -282,7 +282,7 @@ async def test_fetch_titles_skips_a_chunk_ncbi_did_not_answer(
 async def test_fetch_titles_ignores_an_entry_without_a_title(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    async def fake_get(client, url, params, *, config=None, context=""):  # noqa: ANN001
+    async def fake_get(client, url, params, *, config=None, context=""):
         return _Response(200, {"result": {"1": {"error": "gone"}, "uids": ["1"]}})
 
     async def fake_client() -> object:

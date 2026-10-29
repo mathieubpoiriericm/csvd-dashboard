@@ -102,7 +102,7 @@ def resolve(name: str) -> dict[str, str] | None:
     for lookup in (rxnorm_match, chembl_match):
         try:
             hit = lookup(name)
-        except Exception as error:  # noqa: BLE001 - a report, not a pipeline
+        except Exception as error:  # a report, not a pipeline
             logger.debug("%s lookup failed for %r: %s", lookup.__name__, name, error)
             continue
         if hit:

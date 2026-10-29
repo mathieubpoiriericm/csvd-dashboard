@@ -83,7 +83,7 @@ async def backfill(dry_run: bool = False) -> dict[str, int]:
             written = 0
             async with conn.transaction():
                 if not dry_run:
-                    await conn.execute(f"DELETE FROM {table}")  # noqa: S608
+                    await conn.execute(f"DELETE FROM {table}")
                 for row in rows:
                     # normalize_text mirrors clean_gene_row's first step
                     # (tables.py:146): the export has always parsed the
@@ -92,7 +92,7 @@ async def backfill(dry_run: bool = False) -> dict[str, int]:
                         written += 1
                         if not dry_run:
                             await conn.execute(
-                                f"INSERT INTO {table} (gene_id, ordinal, {column}) "  # noqa: S608
+                                f"INSERT INTO {table} (gene_id, ordinal, {column}) "
                                 "VALUES ($1, $2, $3)",
                                 row["id"],
                                 ordinal,

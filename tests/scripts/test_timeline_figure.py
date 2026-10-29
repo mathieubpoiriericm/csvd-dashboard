@@ -17,8 +17,8 @@ import pytest
 
 pytest.importorskip("pycirclize")
 
-import scripts.timeline_figure as tf  # noqa: E402
-from scripts.timeline_figure import (  # noqa: E402
+import scripts.timeline_figure as tf
+from scripts.timeline_figure import (
     DEFAULT_ENCODING,
     DEFAULT_TRIALS,
     cells,

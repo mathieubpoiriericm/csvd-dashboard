@@ -881,7 +881,7 @@ def _wait_until_ready(
         try:
             asyncio.run(_probe())
             return
-        except Exception as exc:  # noqa: BLE001 - any failure means "not yet"
+        except Exception as exc:  # any failure means "not yet"
             last = exc
             time.sleep(0.3)
     tail = ""
