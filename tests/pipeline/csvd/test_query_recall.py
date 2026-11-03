@@ -94,10 +94,12 @@ def _entrez_contact(monkeypatch: pytest.MonkeyPatch) -> None:
 # test_extraction_golden.py: re-measure and update when the query changes on
 # purpose; do not edit a figure to turn a red run green.
 
-# SVD_QUERY retrieves 173 of the 178 papers this dashboard cites. It was 18
-# of 29 before the MeSH branch: the two Title/Abstract branches both AND on
-# the phrase "cerebral small vessel disease", so a paper that never writes it
-# out was unreachable however many genetic or marker terms were added.
+# SVD_QUERY retrieves 173 of the 178 gold papers: the 159 this dashboard cites
+# and 19 it cited before the 2026-11-03 reset, kept in disease/recall_gold.csv
+# so the figure stays comparable. It was 18 of 29 before the MeSH branch:
+# the two Title/Abstract branches both AND on the phrase "cerebral small
+# vessel disease", so a paper that never writes it out was unreachable
+# however many genetic or marker terms were added.
 #
 # The gold set was 28 until run 6 added PMID 42650130 to NOTCH3's references
 # -- a CADASIL case report that names neither the phrase nor a genetic term
@@ -108,20 +110,22 @@ def _entrez_contact(monkeypatch: pytest.MonkeyPatch) -> None:
 # It was 29 until the first 30-day run added 42607872 to COL4A1/2 and
 # 42621038 / 42626038 to APOE, taking it to 32. The 365-day run then took it
 # to 111: 795 papers, sixteen new genes and ~79 new references. Re-measured
-# against live PubMed rather than adjusted -- and the striking part is that
-# **the missed set did not change at all**. Every one of the new references
-# is reachable, so recall rose from 27/32 to 106/111 while the same five
-# papers stayed out; the anchor-only figure moved 21 -> 74 with the
-# denominator. A query that held its five known blind spots across a
-# 3.5x larger gold set is the strongest evidence this suite has produced
-# that those five are properties of the papers rather than of the query.
+# against live PubMed rather than adjusted: recall rose from 27/32 to 106/111
+# with the same five papers out, and the anchor-only figure moved 21 -> 74
+# with the denominator. **That rise is not evidence of recall.** Every
+# reference a run adds came from a paper SVD_QUERY itself retrieved, so it is
+# found by construction, and the missed set could not have moved: none of the
+# new papers was ever a candidate to be missed. The evidence is the 28
+# hand-curated references of the 31 August baseline, which the query did not
+# choose -- 23 of them retrieved, and all five misses among them.
 #
 # On 2026-11-03 the gene table was reset to its curated 31 August baseline and
 # two years of papers were re-extracted under Claude Opus 5.5 with prompt v7
 # (1,533 of 1,570 extracted; 37 refused by the bio classifier), taking the gold
-# set to 178. Re-measured against live PubMed: 173/178, and again the same five
-# missed. The anchor-only figure moved 74 -> 113, so the MeSH branch now
-# recovers 60 papers.
+# set to 178. Re-measured against live PubMed: 173/178 with the same five
+# missed -- which, for the reason above, says nothing new about recall. The
+# anchor-only figure moved 74 -> 113, so the MeSH branch now recovers 60
+# papers.
 #
 # Re-recorded against live PubMed each time: the committed cassettes are
 # POSTed bodies, which VCR's default matchers do not compare, so a stale one
