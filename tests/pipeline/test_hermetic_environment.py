@@ -24,3 +24,23 @@ def test_the_process_holds_no_database_credentials_from_dotenv() -> None:
         f"{', '.join(leaked)} came into the test process from .env; a pool "
         "opened outside a test would reach that database"
     )
+
+
+def test_a_dotenv_load_inside_a_test_cannot_restore_the_credentials() -> None:
+    """What a lazy import does: `_publish_export` imports pipeline.export.main
+    inside a test, and that module calls `load_dotenv()` at import.
+
+    `load_dotenv` fills any variable that is *absent*. `_isolate_credentials`
+    used to delete these four, so the import put production's values back
+    mid-test, and the dispatcher test that ran next recorded its sync row in
+    production: rows 21-24 of `sync_runs` on 2026-11-03, from partial runs of
+    test_main_orchestration.py (a full run imports the module at collection,
+    under the hermetic guard, which is why it never showed there).
+    """
+    from dotenv import load_dotenv
+
+    from pipeline.config import PROJECT_ROOT
+
+    load_dotenv(PROJECT_ROOT / ".env")
+    leaked = sorted(name for name in _CREDENTIALS if os.environ.get(name))
+    assert leaked == [], f"{', '.join(leaked)} refilled from .env inside a test"
