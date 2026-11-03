@@ -7,12 +7,14 @@ description: Use when CI jobs queue and never start, when moving CI between the 
 
 The five test jobs in `.github/workflows/ci.yml` (`check`, `python`, `e2e`,
 `empty-data`, both `adapt-fork` legs) run on
-`${{ vars.CI_RUNNER || 'ubuntu-latest' }}`. The private repository
-(`mathieubpoiriericm/csvd-dashboard-private`) sets the repository variable
-`CI_RUNNER=csvd-ci`, which sends them to six runners, `ryzen-1` to `ryzen-6`, in
-an Ubuntu VM on a dedicated mini PC at home (Proxmox VE on a Ryzen 9 9955HX, 32
-GB). The public repository and every fork have no such variable and stay on
-`ubuntu-latest`. `container` and `deploy` are hosted everywhere.
+`${{ vars.CI_RUNNER || 'ubuntu-latest' }}`. Setting the repository variable
+`CI_RUNNER=csvd-ci` on the private repository
+(`mathieubpoiriericm/csvd-dashboard-private`) sends them to six runners,
+`ryzen-1` to `ryzen-6`, in an Ubuntu VM on a dedicated mini PC at home (Proxmox
+VE on a Ryzen 9 9955HX, 32 GB). **As of 2026-11-03 it is not set and no runner
+is registered** -- the rollout paused before the VM was provisioned -- so the
+private repository runs on `ubuntu-latest` like the public one and every fork.
+Provision the VM with `provision.sh` first, then set the variable. `container` and `deploy` are hosted everywhere.
 
 On GitHub's two-core private runners a push took about ten minutes to go green,
 `adapt-fork` alone 8m45 (run 41546971078, 2 November 2026).

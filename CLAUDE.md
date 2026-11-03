@@ -112,11 +112,15 @@ with made-up credentials, so an older build cannot be captured as current. The
 images show the committed data as the build bundles it, so rerun it after a data
 regeneration or a visible change to a page, and commit them with that change.
 
-**CI's five test jobs run on `${{ vars.CI_RUNNER || 'ubuntu-latest' }}`.** The
-private repository sets `CI_RUNNER` to `csvd-ci`, the label of six self-hosted
-runners in an Ubuntu VM on a home mini PC, registered to that repository alone;
-the public repository and every fork leave it unset and stay on GitHub's
-runners. One host runs several jobs at once, so no job may take a fixed host
+**CI's five test jobs run on `${{ vars.CI_RUNNER || 'ubuntu-latest' }}`.**
+Setting `CI_RUNNER` to `csvd-ci` on the private repository sends them to six
+self-hosted runners in an Ubuntu VM on a home mini PC, registered to that
+repository alone. **It is not set yet**: the rollout paused before the VM was
+provisioned, no runner is registered, and every job runs on GitHub's
+`ubuntu-latest`, as it does in the public repository and every fork. That unset
+variable is also why the GitHub Actions extension for VS Code warns "Context
+access might be invalid: CI_RUNNER" on each `runs-on` line; the fallback is
+deliberate. One host runs several jobs at once, so no job may take a fixed host
 port -- the postgres services publish on a free one and each runner sets its own
 `E2E_PORT` -- and `container` and `deploy` stay hosted. When the machine is
 down, `gh variable delete CI_RUNNER` is the fallback. The `ci-runner` skill
