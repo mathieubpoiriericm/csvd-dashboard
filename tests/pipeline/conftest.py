@@ -18,7 +18,10 @@ if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
 # Before anything imports the pipeline, which loads .env: see tests/hermetic_env.py.
-from tests.hermetic_env import shut_out_dotenv_database_credentials  # noqa: E402
+from tests.hermetic_env import (  # noqa: E402
+    DATABASE_CREDENTIALS,
+    shut_out_dotenv_database_credentials,
+)
 
 shut_out_dotenv_database_credentials()
 
@@ -647,13 +650,18 @@ def _isolate_credentials(monkeypatch):
         # the *newest* row, so a suite run could put a fabricated empty
         # run on the About page. Clearing these makes the local run
         # behave exactly as CI's does.
-        "DB_HOST",
         "DB_PORT",
-        "DB_NAME",
-        "DB_USER",
-        "DB_PASSWORD",
     ):
         monkeypatch.delenv(name, raising=False)
+    # Emptied, not deleted. `load_dotenv` fills any variable that is absent,
+    # and `_publish_export` imports pipeline.export.main -- which calls it at
+    # import -- inside a test: deleted, these four came back from .env with
+    # production's values mid-test, and partial runs of
+    # test_main_orchestration.py wrote sync rows into production (2026-11-03).
+    # Empty reads as missing to `Database.get_pool`, exactly as absent does.
+    # `database_env` sets the throwaway database's values over these.
+    for name in DATABASE_CREDENTIALS:
+        monkeypatch.setenv(name, "")
 
 
 @pytest.fixture(autouse=True)

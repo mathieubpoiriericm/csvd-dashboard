@@ -811,21 +811,30 @@ it -- never on refresh status.
 
 **No test may reach the production database.** `_isolate_credentials` in
 `tests/pipeline/conftest.py` clears the `DB_*` variables for exactly that
-reason; see "Commands" in the root `CLAUDE.md`. **The fixture alone was not
-enough.** monkeypatch restores what it cleared, and `pipeline/main.py` loads
-`.env` at import, so between tests -- in fixture setup and teardown, or in work
-still pending on the event loop -- production's credentials were back in
-`os.environ`; on 2026-11-03 a suite run wrote a zero-filled `external_sync` row
-into production's `sync_runs`, which the export publishes as the newest refresh.
-Both test trees' conftests now call `tests/hermetic_env.py`'s
-`shut_out_dotenv_database_credentials()` before anything imports the pipeline:
-it sets `DB_HOST`, `DB_NAME`, `DB_USER` and `DB_PASSWORD` to empty when they are
-unset, and `load_dotenv` never overrides a set variable, so `.env`'s values
-cannot enter a test process at all. A value exported in the shell is kept, and
-the hermetic test then fails loudly by design: a production credential exported
-by hand is the same hazard. `test_hermetic_environment.py` (and
-`test_scripts_hermetic_environment.py`) fail if any of the four is set.
-`tests/scripts` had no isolation of its own before this.
+reason; see "Commands" in the root `CLAUDE.md`. **Clearing them was not enough,
+twice over.** On 2026-11-03 test runs wrote four zero-filled `external_sync`
+rows into production's `sync_runs` (ids 21-24), which the export publishes as
+the newest refresh. `load_dotenv` fills any variable that is _absent_, and two
+modules call it at import: `pipeline/main.py`, and `pipeline/export/main.py`,
+which `_publish_export` imports lazily -- so in a partial run of
+`test_main_orchestration.py` the first import happened _inside_ a test, refilled
+the four credentials the fixture had just deleted, and the next dispatcher test
+recorded its sync row in production. A full run never showed it, because the
+export tests import the module at collection. The fixture now **empties**
+`DB_HOST`, `DB_NAME`, `DB_USER` and `DB_PASSWORD` rather than deleting them
+(empty reads as missing to `Database.get_pool`, and `database_env` sets the
+throwaway database's values over them), and
+`test_a_dotenv_load_inside_a_test_cannot_restore_the_credentials` loads `.env`
+mid-test to prove it. Outside a test, both test trees' conftests call
+`tests/hermetic_env.py`'s `shut_out_dotenv_database_credentials()` before
+anything imports the pipeline: it sets `DB_HOST`, `DB_NAME`, `DB_USER` and
+`DB_PASSWORD` to empty when they are unset, and `load_dotenv` never overrides a
+set variable, so `.env`'s values cannot enter a test process at all. A value
+exported in the shell is kept, and the hermetic test then fails loudly by
+design: a production credential exported by hand is the same hazard.
+`test_hermetic_environment.py` (and `test_scripts_hermetic_environment.py`) fail
+if any of the four is set. `tests/scripts` had no isolation of its own before
+this.
 
 A test that wants real SQL asks for the `database_env` fixture, which brings up
 **`dhi.io/postgres:18-alpine3.23`** as a container named `csvd-pg-pytest`,
