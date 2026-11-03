@@ -64,7 +64,12 @@ jobs:
     # is what `CSVD_TEST_DB_URL` points the fixture at. It is created and
     # destroyed with the job, and holds nothing. It publishes on whatever
     # host port is free, because the self-hosted runners share one host and
-    # a second job asking for 5432 would fail to start.
+    # a second job asking for 5432 would fail to start. Docker probes it every
+    # second while it starts: with only the 10-second interval, the first
+    # probe came 10 s in and the runner's back-off noticed "healthy" at 15 s,
+    # though PostgreSQL accepts connections within two. Failures inside the
+    # start period do not count against the retries, so a slow first start
+    # cannot mark it unhealthy. --health-start-interval needs Docker 25.
     services:
       postgres:
         image: postgres:18
@@ -77,6 +82,8 @@ jobs:
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
+          --health-start-period 30s
+          --health-start-interval 1s
           --health-timeout 5s
           --health-retries 5
 
@@ -202,6 +209,8 @@ jobs:
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
+          --health-start-period 30s
+          --health-start-interval 1s
           --health-timeout 5s
           --health-retries 5
 
@@ -307,6 +316,8 @@ jobs:
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
+          --health-start-period 30s
+          --health-start-interval 1s
           --health-timeout 5s
           --health-retries 5
 
