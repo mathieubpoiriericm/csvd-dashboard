@@ -1,5 +1,5 @@
 /**
- * The cSVD karyogram, pinned: 88 genes on 20 chromosomes, CENPF's row, the
+ * The cSVD karyogram, pinned: 87 genes on 20 chromosomes, CENPF's row, the
  * pills the runs have added, the seven families.
  *
  * The rules that hold for any dataset are in tests/phenogram_layout_test.ts;
@@ -52,8 +52,8 @@ const DRAWN = [
 // carried on either. The 2026-11-03 re-extraction under Opus 5.5 started
 // again from the curated 31 August table and found GLA but not AQP4, so 18
 // left the list again.
-Deno.test("88 genes are placed, none unplaced, on 20 chromosomes including X", () => {
-  assertEquals(layout.blocks.length, 88);
+Deno.test("87 genes are placed, none unplaced, on 20 chromosomes including X", () => {
+  assertEquals(layout.blocks.length, 87);
   assertEquals(layout.unplaced, []);
   assertEquals(layout.chromosomes.map((c) => c.name), DRAWN);
   assertEquals(layout.rows.map((row) => row.map((c) => c.name)), [
@@ -61,7 +61,7 @@ Deno.test("88 genes are placed, none unplaced, on 20 chromosomes including X", (
     DRAWN.slice(10),
   ]);
   assertEquals(layout.canvas, { width: 1732, height: 1640 });
-  assertEquals(layout.blocks.map((b) => b.index), [...Array(88).keys()]);
+  assertEquals(layout.blocks.map((b) => b.index), [...Array(87).keys()]);
 });
 
 Deno.test("chromosome 1 heads the first row and 13 the second", () => {

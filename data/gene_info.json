@@ -520,11 +520,5 @@
     "uid": "1969",
     "description": "EPH receptor A2",
     "otheraliases": "ARCC2, CTPA, CTPP1, CTRCT6, ECK"
-  },
-  {
-    "name": "CDKN2A",
-    "uid": "1029",
-    "description": "cyclin dependent kinase inhibitor 2A",
-    "otheraliases": "ARF, CAI2, CDK4I, CDKN2, CMM2, INK4, INK4A, MLM, MTS-1, MTS1, P14, P14ARF, P16, P16INK4, P16INK4A, P19, P19ARF, TP16"
   }
 ]
