@@ -176,6 +176,18 @@ The pipeline half is in `pipeline/CLAUDE.md`. On this side:
   front of the reader. `tests/pipeline_encoding_test.ts` reads the literals out
   of `pipeline/pdf_retrieval.py` and `pipeline/main.py`, so a new source fails
   the test rather than rendering raw.
+- **A paper row names a model only when it is not the run's.** The header
+  carries the run's model and, when one was requested, its fallback
+  (`config.fallbackModel`); a paper Claude Opus 4.8 extracted after Opus 5.5
+  declined it adds an "Extracted by" pill, and the requested model is never
+  repeated on every row. A refusal is a verdict pill under "Declined by" --
+  "Biology safety classifier" -- whether the paper then failed or the fallback
+  served it, labelled from `refusalCategories` in the encoding, which
+  `tests/pipeline_encoding_test.ts` reconciles with `RefusalCategory` in
+  `pipeline/run_errors.py`. It takes the `highlight` tint, as the quote gate's
+  verdict does: a classifier declining a paper is a filter, not a failure of the
+  run. A category the encoding has never seen reads as "Safety classifier",
+  never as a blank chip.
 
 ## Reference data refreshes
 

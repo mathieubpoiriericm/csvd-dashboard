@@ -13,7 +13,10 @@ output is compared across runs, against the recorded cassettes in
 `tests/pipeline/cassettes/`, and against a gold standard, so the model is part
 of the method rather than a deployment knob; a per-machine override would make
 two runs of the same code incomparable with nothing saying so. Changing it is a
-code change with a re-recorded harness.
+code change with a re-recorded harness. The one model a declined paper falls
+back to, `EXTRACTION_FALLBACK_MODEL` (`claude-opus-4-8`), is pinned the same way
+and behind the read-only `PipelineConfig.fallback_model`; see "A refusal names
+its classifier" below.
 
 **The prompt version is pinned the same way, by refusal rather than by
 fallback.** `PIPELINE_PROMPT_VERSION` still selects one, but `__post_init__`
@@ -55,13 +58,53 @@ log — because a `--batch` run otherwise published `thinkingTokens: 0` beside t
 batch's real output count and left an auditor no trace to read for any paper the
 batch extracted.
 
-**A refusal names its classifier, and nothing retries it on another model.**
-Both paths log the `stop_details.category` (`_refusal_category`): Opus 5.5 runs
-a biology classifier Opus 5 did not, and on a corpus of genetics papers `bio` is
-the category a false positive would carry. The streaming path deliberately has
-no `fallbacks` opt-in either, although the API offers one there: a fallback
-would extract the refused paper with a different model under a run report that
-names this one, which is what pinning the model exists to prevent.
+**A refusal names its classifier, and the streaming path falls back to Claude
+Opus 4.8.** Opus 5.5 runs a biology classifier Opus 5 did not, and on this
+corpus it is the one that fires: the 2026-11-03 re-extraction lost 37 of 1,570
+papers to `bio`. Both paths read the category through `_refusal_category` --
+from the first `fallback` block's `trigger.category` when the fallback ran and
+declined too (the final `stop_details` are then the fallback model's), else from
+`stop_details` -- and carry it as data, `ExtractionRefusedError.category`, which
+the run report groups by.
+
+`_stream_and_parse` requests `fallbacks=[{"model": EXTRACTION_FALLBACK_MODEL}]`
+under `FALLBACK_BETA` (`server-side-fallback-2026-06-01`, the array form's own
+header; the scalar form's `-2026-07-01` rejects it), so a paper Opus 5.5
+declines is re-run on `claude-opus-4-8` in the same round trip. The fallback
+rides on the stream call, not in `_build_message_params`, because the Batches
+API rejects the field and the golden cassettes' recorded bodies are compared
+against those params; the beta stream posts to the same `/v1/messages`, so the
+cassettes replay. **It is named, never `"default"`.** The default routes by
+refusal category, server-side and unpublished, and Opus 5 is one of Opus 5.5's
+two permitted targets (`allowed_fallback_models` on its `/v1/models` entry) -- a
+model whose extractions this dataset no longer admits. Opus 4.8 runs no biology
+classifier, and accepts the request unchanged (adaptive thinking, every effort
+level, citations, 128,000 output tokens), so the entry needs no overrides.
+
+This used to be refused outright, because a fallback would extract a paper with
+a model the run report did not name, which is what pinning the model exists to
+prevent. It is allowed now because every record names it, per paper: the
+response's own top-level `model` (never assumed) becomes
+`PaperResult.extraction_model`, then `pubmed_refs.extraction_model` (migration
+015; NULL when no model ran, or for a row written before 015),
+`papersDetail[*].extractionModel` and a `model_fallback` warning naming the
+PMIDs, and the run's `config.fallbackModel` names what was requested. Joining
+`pubmed_refs` to `gene_references` finds every gene an Opus 4.8 extraction
+contributed to. The served-by signal is a `fallback_message` entry in
+`usage.iterations`, not the block (a sticky-served turn has none). Because
+top-level `usage` covers only the attempt that served the message,
+`accumulate_usage` sums `iterations` instead -- the declined Opus 5.5 attempt is
+billed too -- and keeps the fallback's share in `TokenUsage.fallback_*`, which
+`estimate_cost` prices at Opus 4.8's rates ($5 / $25 per MTok, cache reads
+0.1×). The checkpoint fingerprint names the fallback model, since a refused
+paper's extraction depends on it.
+
+`--batch` has no fallback: the Batches API rejects `fallbacks`. A refused batch
+entry is handed back through `results_by_custom_id`'s `refusals` and fails with
+the same sentence and category as a streaming refusal, and the next run retries
+it.
+
+<!-- opus-4-8-golden: the measured figures go here -->
 
 **A failed entry is logged with the API's own reason.** A non-succeeded result
 was logged as its bare type (`Batch entry 37063705: errored`), and the `error`
@@ -70,10 +113,11 @@ A request-level rejection applies to _every_ entry, so that read as an
 unexplained "errored" over every paper in the batch with the cause nowhere, and
 the operator's only move was to re-submit and pay for the same rejection.
 `_error_detail` reads it through `getattr`, because an expired or canceled
-result genuinely carries none. The per-paper string the run report publishes is
-still the generic "no result returned by the batch": `results_by_custom_id`
-signals a failed entry by _absence_ from its result map, so carrying the cause
-that far would mean changing what it returns.
+result genuinely carries none. A refusal is the exception, carried in the
+`refusals` map beside the result; for every other failure the per-paper string
+the run report publishes is still the generic "no result returned by the batch":
+`results_by_custom_id` signals a failed entry by _absence_ from its result map,
+so carrying the cause that far would mean changing what it returns.
 
 **The batch path runs the provenance check too.** `report_provenance` lives in
 `pipeline/citations.py` and both callers hand it the same entries: the streaming
@@ -325,11 +369,11 @@ losses visible, and a green badge over 24 rejected genes would be the silence it
 replaces. Warnings are raised as one row carrying a count, never one row per
 occurrence, and from three steps rather than one:
 
-| Step                | Warns on                                                                                                                                                                                                                                              |
-| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `processing_papers` | papers with no retrievable text, papers that failed outright, papers cut short at `max_paper_text_chars`, genes below the validation floor, genes dropped for an unverifiable quote, truncated model responses, services that errored or were retried |
-| `batch_validation`  | anything `batch_validate` flagged (over-extraction, say)                                                                                                                                                                                              |
-| `merging_database`  | new genes the insert floor refused                                                                                                                                                                                                                    |
+| Step                | Warns on                                                                                                                                                                                                                                                                                                                                                                                         |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `processing_papers` | papers with no retrievable text, papers that failed outright, papers a safety classifier declined (`paper_refused`, one warning per classifier), papers the fallback model extracted (`model_fallback`), papers cut short at `max_paper_text_chars`, genes below the validation floor, genes dropped for an unverifiable quote, truncated model responses, services that errored or were retried |
+| `batch_validation`  | anything `batch_validate` flagged (over-extraction, say)                                                                                                                                                                                                                                                                                                                                         |
+| `merging_database`  | new genes the insert floor refused                                                                                                                                                                                                                                                                                                                                                               |
 
 Two of those are easy to lose. Genes removed for an unverifiable quote
 (`require_verified_quotes`) are dropped _inside_ extraction, so `extracted`
