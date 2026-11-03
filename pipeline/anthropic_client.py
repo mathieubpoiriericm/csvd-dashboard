@@ -24,6 +24,7 @@ from pipeline.disease import load_disease
 from pipeline.event_log import EventLog
 from pipeline.extraction_models import (
     ExtractionFailedError,
+    ExtractionRefusedError,
     ExtractionResult,
     GeneEntry,
 )
@@ -34,6 +35,7 @@ from pipeline.quality_metrics import (
     reported_thinking_tokens,
 )
 from pipeline.rate_limiter import AsyncRateLimiter, compute_backoff, resolve_retry_delay
+from pipeline.run_errors import refusal_category
 
 # Pricing per 1M tokens (input, output) for EXTRACTION_MODEL. Bump when
 # Anthropic changes published rates.
@@ -74,17 +76,36 @@ _MAX_THINKING_CHARS_LOGGED: Final[int] = 20_000
 logger = logging.getLogger(__name__)
 
 
+def _declining_hop_category(response: Any) -> str | None:
+    """The category of the first `fallback` block's trigger, if there is one.
+
+    One block marks each hop where a model ran and declined; the first is
+    the requested model's. None when no model handed over this turn.
+    """
+    for block in getattr(response, "content", None) or []:
+        if getattr(block, "type", None) == "fallback":
+            trigger = getattr(block, "trigger", None)
+            return refusal_category(getattr(trigger, "category", None))
+    return None
+
+
 def _refusal_category(response: Any) -> str:
-    """The classifier category a refusal names, for the log line.
+    """The classifier category a refusal names.
 
     Claude Opus 5.5 runs a biology classifier beside the cyber one Opus 5
     had, and this pipeline reads biology papers, so which classifier
     declined is the first thing an operator needs to tell a false positive
-    from a prompt problem. `stop_details` is informational and may be
-    null, so a missing category reads as "unspecified" rather than failing.
+    from a prompt problem. When the fallback ran and declined too, the
+    requested model's reason is the one reported: it is in the fallback
+    block's trigger, while the final `stop_details` belong to the fallback
+    model. `stop_details` is informational and may be null, so a missing
+    category reads as "unspecified" rather than failing.
     """
+    declined = _declining_hop_category(response)
+    if declined is not None:
+        return declined
     details = getattr(response, "stop_details", None)
-    return getattr(details, "category", None) or "unspecified"
+    return refusal_category(getattr(details, "category", None))
 
 
 def _extract_response_text(response: Any) -> tuple[str, str]:
@@ -332,9 +353,10 @@ async def _stream_and_parse(
             f"Request refused by safety classifier for PMID {pmid} "
             f"(category: {category})"
         )
-        raise ExtractionFailedError(
+        raise ExtractionRefusedError(
             f"Refused by safety classifier for PMID {pmid} (category: {category})",
             usage,
+            category=category,
         )
 
     # Truncation is a deterministic token-budget problem, so retrying the

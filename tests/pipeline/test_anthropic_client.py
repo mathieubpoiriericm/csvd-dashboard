@@ -28,7 +28,10 @@ from pipeline.config import (
     PROJECT_ROOT,
     PipelineConfig,
 )
-from pipeline.extraction_models import ExtractionFailedError
+from pipeline.extraction_models import (
+    ExtractionFailedError,
+    ExtractionRefusedError,
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -481,6 +484,79 @@ class TestAnthropicClientExtract:
 
         with pytest.raises(ExtractionFailedError, match=r"category: unspecified"):
             await client.extract("paper text", "12345678", PipelineConfig(), None)
+
+    async def test_a_refusal_raises_extraction_refused_error_with_its_category(
+        self, mocker, mock_anthropic_response
+    ):
+        """The category travels as data, not only inside the sentence.
+
+        The run report groups refused papers by classifier, and parsing the
+        category back out of a log message is the coupling that breaks.
+        """
+        response = mock_anthropic_response(text="")
+        response.stop_reason = "refusal"
+        response.stop_details = SimpleNamespace(category="bio")
+        mock_client = _make_mock_client(response)
+
+        client = AnthropicClient()
+        mocker.patch.object(client, "_get_client", return_value=mock_client)
+
+        from pipeline.config import PipelineConfig
+
+        with pytest.raises(ExtractionRefusedError) as raised:
+            await client.extract("paper text", "12345678", PipelineConfig(), None)
+        assert isinstance(raised.value, ExtractionFailedError)
+        assert raised.value.category == "bio"
+        assert str(raised.value) == (
+            "Refused by safety classifier for PMID 12345678 (category: bio)"
+        )
+
+    async def test_a_chain_refusal_names_the_first_hop_category(
+        self, mocker, mock_anthropic_response
+    ):
+        """Both models declined: report why the requested model did.
+
+        The fallback block's trigger names the classifier that declined Opus
+        5.5; the final stop_details belong to the fallback model, which runs
+        no biology classifier and may say nothing at all.
+        """
+        response = mock_anthropic_response(text="", omit_tool_call=True)
+        response.content.insert(
+            0,
+            SimpleNamespace(
+                type="fallback",
+                trigger=SimpleNamespace(type="refusal", category="bio"),
+            ),
+        )
+        response.stop_reason = "refusal"
+        response.stop_details = SimpleNamespace(category=None)
+        mock_client = _make_mock_client(response)
+
+        client = AnthropicClient()
+        mocker.patch.object(client, "_get_client", return_value=mock_client)
+
+        from pipeline.config import PipelineConfig
+
+        with pytest.raises(ExtractionRefusedError) as raised:
+            await client.extract("paper text", "12345678", PipelineConfig(), None)
+        assert raised.value.category == "bio"
+
+    async def test_a_refusal_with_no_category_is_unspecified(
+        self, mocker, mock_anthropic_response
+    ):
+        response = mock_anthropic_response(text="")
+        response.stop_reason = "refusal"
+        response.stop_details = None
+        mock_client = _make_mock_client(response)
+
+        client = AnthropicClient()
+        mocker.patch.object(client, "_get_client", return_value=mock_client)
+
+        from pipeline.config import PipelineConfig
+
+        with pytest.raises(ExtractionRefusedError) as raised:
+            await client.extract("paper text", "12345678", PipelineConfig(), None)
+        assert raised.value.category == "unspecified"
 
     async def test_unverified_quotes_are_kept_by_default(
         self, mocker, mock_anthropic_response, caplog

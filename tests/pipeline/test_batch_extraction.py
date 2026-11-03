@@ -394,6 +394,18 @@ class TestBatchResultsAreAccountedLikeStreamedOnes:
             results_by_custom_id([entry], usage=TokenUsage())
         assert "category: bio" in caplog.text
 
+    def test_a_refused_entry_is_reported_with_its_category(self) -> None:
+        """A refused entry is still absent from the map -- the caller fails it
+        -- but its classifier is handed back, so the run report can say the
+        batch refused it rather than "no result returned by the batch"."""
+        bio = _fake_batch_entry("1", None, stop_reason="refusal")
+        bio.result.message.stop_details = SimpleNamespace(category="bio")
+        silent = _fake_batch_entry("2", None, stop_reason="refusal")
+        refusals: dict[str, str] = {}
+        out = results_by_custom_id([bio, silent], usage=TokenUsage(), refusals=refusals)
+        assert out == {}
+        assert refusals == {"1": "bio", "2": "unspecified"}
+
     def test_a_truncated_entry_counts_toward_the_ceiling_warning(self) -> None:
         usage = TokenUsage()
         out = results_by_custom_id(

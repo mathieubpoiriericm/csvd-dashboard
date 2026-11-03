@@ -133,6 +133,12 @@
     },
     "paper_truncated": {
       "icon": "documentMinus"
+    },
+    "paper_refused": {
+      "icon": "minusCircle"
+    },
+    "model_fallback": {
+      "icon": "arrowsRightLeft"
     }
   },
   "fields": {
