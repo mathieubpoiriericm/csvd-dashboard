@@ -85,7 +85,9 @@ psql -h /tmp -d postgres -XAtc "SELECT rolname FROM pg_roles WHERE rolname !~ '^
 
 A `PG_VERSION` born at the reinstall, and the macOS user as the only role, mean
 the cluster is new: restore it from a dump, or from the committed JSON (both
-below). A dump kept under `/opt/homebrew` goes with it, so keep dumps in `~/`.
+below). A dump kept under `/opt/homebrew` goes with it, so keep dumps in
+`~/Documents/csvd-dashboard-dumps/` -- outside `/opt/homebrew`, and outside
+the repository, where `git clean` could reach them.
 
 ## The test container image
 
@@ -205,8 +207,9 @@ papers already paid for:
 
 ```bash
 export PATH="/opt/homebrew/opt/postgresql@18/bin:$PATH"
-pg_dump -h localhost -U csvd_user -Fc csvd_dashboard > ~/csvd_dashboard_$(date +%F).dump
-pg_restore -h localhost -U csvd_user -d csvd_dashboard --clean ~/csvd_dashboard_<date>.dump
+DUMPS=~/Documents/csvd-dashboard-dumps
+pg_dump -h localhost -U csvd_user -Fc csvd_dashboard > "$DUMPS/csvd_dashboard_$(date +%F).dump"
+pg_restore -h localhost -U csvd_user -d csvd_dashboard --clean "$DUMPS/csvd_dashboard_<date>.dump"
 ```
 
 Verify a dump rather than trusting it — restore into a scratch database and
