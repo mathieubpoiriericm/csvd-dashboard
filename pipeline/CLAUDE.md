@@ -870,7 +870,7 @@ unnoticed -- `009_add_run_report` was applied to no database any test could see.
 
 Retrieval recall and extraction recall are both measured and pinned.
 `tests/pipeline/csvd/test_query_recall.py` intersects `SVD_QUERY` with a gold
-set of 178 PMIDs, every one the dashboard cites among them (173 retrieved; the
+set of 183 PMIDs, every one the dashboard cites among them (178 retrieved; the
 five misses and the reason for each are in `_MISSED`, and the anchor-only and
 MeSH-branch figures are pinned so widening a term list in the belief that it
 helps recall fails loudly). `tests/pipeline/csvd/test_extraction_golden.py`
@@ -936,10 +936,13 @@ pre-output refusal is billed), and `pipeline/checkpoint.py` is what makes a
 crash at hour two survivable. `--test-mode` gives a window's count for free;
 multiply before starting, and check the API credit balance covers it with room
 to spare -- see the `run-long-window` skill for what an exhausted balance does.
-The resume semantics, the `--batch` exception and `scripts.backfill_pubmed` are
-in "Commands" in the root `CLAUDE.md`; the checkpoint's own invariants (the
-fingerprint, the `flock`, the request-order merge) are in the `run-long-window`
-skill (`.claude/skills/run-long-window/SKILL.md`).
+A paper the Opus 4.8 fallback serves costs about three times the average: the
+same-day retry of the 37 refused papers cost $8.38 for 38 (34 served by Opus
+4.8, 3 by Opus 5.5, 1 declined by both). The resume semantics, the `--batch`
+exception and `scripts.backfill_pubmed` are in "Commands" in the root
+`CLAUDE.md`; the checkpoint's own invariants (the fingerprint, the `flock`, the
+request-order merge) are in the `run-long-window` skill
+(`.claude/skills/run-long-window/SKILL.md`).
 
 `scripts/backfill_pubmed.py` is the other half, optional rather than the
 default: cumulative chunks committed as each finishes, at the cost of narrowing

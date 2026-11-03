@@ -405,6 +405,15 @@
     "formattedRef": "<b>Ando S, Saito R, Kitahara S, et al.<\/b><br><i>\"Chocolate Chip Sign\" on Susceptibility-Weighted Imaging: A Novel Neuroimaging Biomarker for HTRA1-Related Cerebral Small Vessel Disease.<\/i><br>Neurology. Genetics (Apr 2025)<br>DOI: 10.1212/NXG.0000000000200237"
   },
   {
+    "pmid": "39613464",
+    "authors": "Song SN, Li HJ, Liang JL, et al.",
+    "title": "Lentivirus-Mediated Missense Mutation in HtrA1 Leads to Activation of the TGF-β/Smads Pathway and Increased Apoptosis of Mouse Brain Microvascular Endothelial Cells via the Oxidative Stress Pathway.",
+    "journal": "Journal of integrative neuroscience",
+    "publicationDate": "Oct 2024",
+    "doi": "10.31083/j.jin2311201",
+    "formattedRef": "<b>Song SN, Li HJ, Liang JL, et al.<\/b><br><i>Lentivirus-Mediated Missense Mutation in HtrA1 Leads to Activation of the TGF-β/Smads Pathway and Increased Apoptosis of Mouse Brain Microvascular Endothelial Cells via the Oxidative Stress Pathway.<\/i><br>Journal of integrative neuroscience (Oct 2024)<br>DOI: 10.31083/j.jin2311201"
+  },
+  {
     "pmid": "32913026",
     "authors": "Knol MJ, Lu D, Traylor M, et al.",
     "title": "Association of common genetic variants with brain microbleeds: A genome-wide association study.",
@@ -664,6 +673,24 @@
     "publicationDate": "Dec 2024",
     "doi": "10.1111/nan.13015",
     "formattedRef": "<b>Deshpande T, Hannocks MJ, Kapupara K, et al.<\/b><br><i>Microglial activation without peripheral immune cell infiltration characterises mouse and human cerebral small vessel disease.<\/i><br>Neuropathology and applied neurobiology (Dec 2024)<br>DOI: 10.1111/nan.13015"
+  },
+  {
+    "pmid": "42856351",
+    "authors": "Lavanderos B, Yamasaki E, Sanchez-Solano A, et al.",
+    "title": "Ryanodine receptor cluster remodeling links COL4A2 mutation to cerebral artery dysfunction.",
+    "journal": "bioRxiv : the preprint server for biology",
+    "publicationDate": "Oct 2026",
+    "doi": "10.64898/2026.09.25.754477",
+    "formattedRef": "<b>Lavanderos B, Yamasaki E, Sanchez-Solano A, et al.<\/b><br><i>Ryanodine receptor cluster remodeling links COL4A2 mutation to cerebral artery dysfunction.<\/i><br>bioRxiv : the preprint server for biology (Oct 2026)<br>DOI: 10.64898/2026.09.25.754477"
+  },
+  {
+    "pmid": "42225261",
+    "authors": "Kim H, Seo Y, Kho H, et al.",
+    "title": "A novel mouse model of cerebral microbleeds by targeted Col4a1 editing in adult brain microvessels.",
+    "journal": "Brain : a journal of neurology",
+    "publicationDate": "Jun 2026",
+    "doi": "10.1093/brain/awag048",
+    "formattedRef": "<b>Kim H, Seo Y, Kho H, et al.<\/b><br><i>A novel mouse model of cerebral microbleeds by targeted Col4a1 editing in adult brain microvessels.<\/i><br>Brain : a journal of neurology (Jun 2026)<br>DOI: 10.1093/brain/awag048"
   },
   {
     "pmid": "19539236",
@@ -1215,6 +1242,42 @@
     "formattedRef": "<b>Sukhonpanich N, Koohi F, Jolly AA, et al.<\/b><br><i>Changes in the prognosis of CADASIL over time: a 23-year study in 555 individuals.<\/i><br>Journal of neurology, neurosurgery, and psychiatry (Jun 2025)<br>DOI: 10.1136/jnnp-2024-334823"
   },
   {
+    "pmid": "42002114",
+    "authors": "Ping S, Hu B, Wu D, et al.",
+    "title": "NOTCH3 R545C mutation drives vascular-neuronal dysfunction and cognitive impairment in CADASIL pathogenesis.",
+    "journal": "Neurobiology of disease",
+    "publicationDate": "Jun 2026",
+    "doi": "10.1016/j.nbd.2026.107404",
+    "formattedRef": "<b>Ping S, Hu B, Wu D, et al.<\/b><br><i>NOTCH3 R545C mutation drives vascular-neuronal dysfunction and cognitive impairment in CADASIL pathogenesis.<\/i><br>Neurobiology of disease (Jun 2026)<br>DOI: 10.1016/j.nbd.2026.107404"
+  },
+  {
+    "pmid": "41806331",
+    "authors": "Wang H, Liu X, Gravesteijn G, et al.",
+    "title": "NOTCH3 CADASIL Variant Receptor Aggregation Requires NOTCH3 Wild-Type Receptors: Identification of Highly Selective Inhibitors That Block the Process.",
+    "journal": "FASEB journal : official publication of the Federation of American Societies for Experimental Biology",
+    "publicationDate": "Mar 2026",
+    "doi": "10.1096/fj.202504022R",
+    "formattedRef": "<b>Wang H, Liu X, Gravesteijn G, et al.<\/b><br><i>NOTCH3 CADASIL Variant Receptor Aggregation Requires NOTCH3 Wild-Type Receptors: Identification of Highly Selective Inhibitors That Block the Process.<\/i><br>FASEB journal : official publication of the Federation of American Societies for Experimental Biology (Mar 2026)<br>DOI: 10.1096/fj.202504022R"
+  },
+  {
+    "pmid": "41327223",
+    "authors": "Long L, Wu D, Xiong X, et al.",
+    "title": "Reduced SUMOylation impairs NOTCH3 signaling and cell survival in the pathogenesis of CADASIL.",
+    "journal": "Cell communication and signaling : CCS",
+    "publicationDate": "Dec 2025",
+    "doi": "10.1186/s12964-025-02556-7",
+    "formattedRef": "<b>Long L, Wu D, Xiong X, et al.<\/b><br><i>Reduced SUMOylation impairs NOTCH3 signaling and cell survival in the pathogenesis of CADASIL.<\/i><br>Cell communication and signaling : CCS (Dec 2025)<br>DOI: 10.1186/s12964-025-02556-7"
+  },
+  {
+    "pmid": "39853935",
+    "authors": "Li C, Li H, Men X, et al.",
+    "title": "NOTCH3 Mutation Causes Glymphatic Impairment and Promotes Brain Senescence in CADASIL.",
+    "journal": "CNS neuroscience & therapeutics",
+    "publicationDate": "Jan 2025",
+    "doi": "10.1111/cns.70140",
+    "formattedRef": "<b>Li C, Li H, Men X, et al.<\/b><br><i>NOTCH3 Mutation Causes Glymphatic Impairment and Promotes Brain Senescence in CADASIL.<\/i><br>CNS neuroscience &amp; therapeutics (Jan 2025)<br>DOI: 10.1111/cns.70140"
+  },
+  {
     "pmid": "27664989",
     "authors": "Bugiani M, Kevelam SH, Bakels HS, et al.",
     "title": "Cathepsin A-related arteriopathy with strokes and leukoencephalopathy (CARASAL).",
@@ -1231,6 +1294,15 @@
     "publicationDate": "Mar 2026",
     "doi": "10.1212/WNL.0000000000214703",
     "formattedRef": "<b>Ford AL, Kang P, Fellah S, et al.<\/b><br><i>Neuroimaging Biomarkers of Disease Progression and Cognitive Change in Patients With Retinal Vasculopathy With Cerebral Leukoencephalopathy.<\/i><br>Neurology (Mar 2026)<br>DOI: 10.1212/WNL.0000000000214703"
+  },
+  {
+    "pmid": "40476824",
+    "authors": "McGlasson S, Reid K, Klingseisen A, et al.",
+    "title": "Misdirected yet intact TREX1 exonuclease activity causes human cerebral and systemic small vessel disease.",
+    "journal": "Brain : a journal of neurology",
+    "publicationDate": "Aug 2025",
+    "doi": "10.1093/brain/awaf085",
+    "formattedRef": "<b>McGlasson S, Reid K, Klingseisen A, et al.<\/b><br><i>Misdirected yet intact TREX1 exonuclease activity causes human cerebral and systemic small vessel disease.<\/i><br>Brain : a journal of neurology (Aug 2025)<br>DOI: 10.1093/brain/awaf085"
   },
   {
     "pmid": "42885481",
@@ -1429,5 +1501,14 @@
     "publicationDate": "Dec 2025",
     "doi": "10.1007/s10072-025-08676-9",
     "formattedRef": "<b>Zhou Y, Shen M, Jiang N, et al.<\/b><br><i>Decoding neurovascular signatures: advanced imaging insights in DADA2-Related Cerebral Microangiopathy.<\/i><br>Neurological sciences : official journal of the Italian Neurological Society and of the Italian Society of Clinical Neurophysiology (Dec 2025)<br>DOI: 10.1007/s10072-025-08676-9"
+  },
+  {
+    "pmid": "40796891",
+    "authors": "Kawatani K, Aikawa T, Tabrizi Z, et al.",
+    "title": "Cerebrovascular p16INK4A expression induces cerebral small vessel disease-related phenotypes.",
+    "journal": "Acta neuropathologica communications",
+    "publicationDate": "Aug 2025",
+    "doi": "10.1186/s40478-025-02085-x",
+    "formattedRef": "<b>Kawatani K, Aikawa T, Tabrizi Z, et al.<\/b><br><i>Cerebrovascular p16INK4A expression induces cerebral small vessel disease-related phenotypes.<\/i><br>Acta neuropathologica communications (Aug 2025)<br>DOI: 10.1186/s40478-025-02085-x"
   }
 ]

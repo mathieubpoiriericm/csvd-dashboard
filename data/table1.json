@@ -530,7 +530,8 @@
       "40343074",
       "40141087",
       "40017561",
-      "39965059"
+      "39965059",
+      "39613464"
     ],
     "sourceQuote": "METHODS: We identified 21 unrelated Taiwanese subjects carrying 15 heterozygous HTRA1 variants, all functionally validated as pathogenic through in vitro protease activity assays.",
     "confidence": 1.0
@@ -762,7 +763,9 @@
       "39976879",
       "39965059",
       "39743006",
-      "39543785"
+      "39543785",
+      "42856351",
+      "42225261"
     ],
     "sourceQuote": "The studies revealed that Col4a1+/Svc mice have reduced myelinating oligodendrocyte pools, axonal myelination defects, and altered white matter structural integrity as well as cognitive impairments.",
     "confidence": 0.95
@@ -866,7 +869,11 @@
       "39610302",
       "39588856",
       "39547790",
-      "39543785"
+      "39543785",
+      "42002114",
+      "41806331",
+      "41327223",
+      "39853935"
     ],
     "sourceQuote": "Thus, we show that pathogenic NOTCH3 variants lead to phenotypic changes in VSMCs upon interaction with ECs, which can be reversed by targeting NOTCH3 cleavage.",
     "confidence": 1.0
@@ -891,11 +898,11 @@
     "chromosomalLocation": "3p21.31",
     "gwasTrait": ["WMH", "MD", "lacunes"],
     "mendelianRandomization": "No",
-    "evidenceFromOtherOmicsStudies": ["(none found)"],
+    "evidenceFromOtherOmicsStudies": ["WES/WGS"],
     "linkToMonogenicDisease": ["192315"],
     "brainCellTypes": "MG>FB>EC",
     "affectedPathway": "cell death",
-    "references": ["30859180", "41719494", "40343074"],
+    "references": ["30859180", "41719494", "40343074", "40476824"],
     "sourceQuote": "It is unclear how mutations in TREX1 result in vascular dementia, but neuropathologic studies implicate chronic ischemia via arteriolar wall thickening, luminal narrowing and vessel destruction.",
     "confidence": 0.8
   },
@@ -1552,5 +1559,19 @@
     "references": ["39818967"],
     "sourceQuote": "We found the most consistent evidence for EPHA2 and APOE with the support of both MR and conventional epidemiological analyses (Figure 5 A).",
     "confidence": 0.65
+  },
+  {
+    "gene": "CDKN2A",
+    "protein": "Cyclin-dependent kinase inhibitor 2A (p16INK4A)",
+    "chromosomalLocation": "9p21.3",
+    "gwasTrait": ["(none found)"],
+    "mendelianRandomization": "No",
+    "evidenceFromOtherOmicsStudies": ["(none found)"],
+    "linkToMonogenicDisease": ["(none found)"],
+    "brainCellTypes": "(unknown)",
+    "affectedPathway": "(unknown)",
+    "references": ["40796891"],
+    "sourceQuote": "Here, we demonstrate that a single intraperitoneal injection of modified adeno-associated virus (AAV) harboring CDKN2A/p16 INK4A leads to cSVD phenotypes accompanied by altered neurobehaviors and cerebrovascular transcriptomes in mice.",
+    "confidence": 0.75
   }
 ]
