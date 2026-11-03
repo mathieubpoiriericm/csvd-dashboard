@@ -53,6 +53,12 @@ GitHub's runners. Set it again once `actions/runners` lists the instances
   GitHub's runners, because a self-hosted one has no sudo. A newer Chromium
   needing a package the VM lacks fails to launch, with Playwright's "Host
   system is missing dependencies" or a missing `.so`.
+- **Every action in `ci.yml` runs on `node24`**, the newest runtime GitHub
+  offers actions (`astral-sh/setup-uv` was the last on `node20`, until it moved
+  to `v10.3.3` on 2026-11-03; it publishes exact versions only, so there is no
+  `v10` tag to float on). A self-hosted runner too old for `node24` fails every
+  job at its first action, so keep the runners updating themselves. The tests
+  themselves run on Node 26, from `actions/setup-node`'s `node-version: 26`.
 - **Caches live on the VM's disk.** `setup-uv` and `setup-node` cache through
   GitHub's service only on hosted runners; here uv, npm, Deno and Playwright
   keep their caches under `/home/runner`. `actions/checkout` still cleans the
