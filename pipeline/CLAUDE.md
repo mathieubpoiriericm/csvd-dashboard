@@ -65,7 +65,10 @@ papers to `bio`. Both paths read the category through `_refusal_category` --
 from the first `fallback` block's `trigger.category` when the fallback ran and
 declined too (the final `stop_details` are then the fallback model's), else from
 `stop_details` -- and carry it as data, `ExtractionRefusedError.category`, which
-the run report groups by.
+the run report groups by. When both models declined, the message also names the
+fallback's own reason (`_fallback_declined_too`: the last block's `to.model` and
+the final `stop_details.category`), so a paper Opus 4.8 declined under another
+classifier does not read as one classifier's verdict.
 
 `_stream_and_parse` requests `fallbacks=[{"model": EXTRACTION_FALLBACK_MODEL}]`
 under `FALLBACK_BETA` (`server-side-fallback-2026-06-01`, the array form's own
@@ -94,13 +97,21 @@ response's own top-level `model` (never assumed) becomes
 PMIDs, and the run's `config.fallbackModel` names what was requested. Joining
 `pubmed_refs` to `gene_references` finds every gene an Opus 4.8 extraction
 contributed to. The served-by signal is a `fallback_message` entry in
-`usage.iterations`, not the block (a sticky-served turn has none). Because
-top-level `usage` covers only the attempt that served the message,
+`usage.iterations`, not the block. **A sticky-served turn has no block**: once a
+paper falls back, the API answers its next requests from Opus 4.8 directly for
+about an hour, so a validation retry never runs Opus 5.5 and names no
+classifier. `_PaperCalls` in `anthropic_client.py` carries the category the
+paper's first fallback named into its retries; a paper that fell back before the
+run reads "unspecified", and the `model_fallback` warning's detail says why.
+Because top-level `usage` covers only the attempt that served the message,
 `accumulate_usage` sums `iterations` instead -- the declined Opus 5.5 attempt is
 billed too -- and keeps the fallback's share in `TokenUsage.fallback_*`, which
 `estimate_cost` prices at Opus 4.8's rates ($5 / $25 per MTok, cache reads
-0.1×). The checkpoint fingerprint names the fallback model, since a refused
-paper's extraction depends on it.
+0.1×). That share is counted by the entry's `model` as well as its type: only
+the attempt that served is a `fallback_message`, so when both models decline,
+Opus 4.8's attempt is a plain `message` entry naming it, and counting by type
+alone priced it at Opus 5.5's rates. The checkpoint fingerprint names the
+fallback model, since a refused paper's extraction depends on it.
 
 `--batch` has no fallback: the Batches API rejects `fallbacks`. A refused batch
 entry is handed back through `results_by_custom_id`'s `refusals` and fails with
@@ -124,7 +135,9 @@ paper it serves is otherwise not extracted at all. It is a record, not a gate.
 **One of its seven answers double-encoded the tool input** -- the gene-densest
 paper, PMID 37069360, came back as `{"genes": "<JSON of the whole object>"}` --
 which validation refused into a paid retry until `_decoded_input` in
-`anthropic_client.py` learned to decode that shape. Nothing else about the
+`anthropic_client.py` learned to decode that shape. Each decode logs "Decoded a
+JSON-encoded genes value from <model> for PMID <pmid>", so how often either
+model does it in production is a count of that line. Nothing else about the
 request needed changing: Opus 4.8 wrote cited prose before the tool call on five
 of the seven papers (one short text block and no citation on the other two), and
 its high-effort output ran 3,100-34,600 tokens a paper.

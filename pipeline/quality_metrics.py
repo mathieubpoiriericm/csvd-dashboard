@@ -27,7 +27,8 @@ class TokenUsage:
     # extractions were silently cut short by an undersized token budget.
     truncated_responses: int = 0
     # The subset of the four counts above that the fallback model ran, from
-    # the `fallback_message` entries of `usage.iterations`. The totals stay
+    # its entries in `usage.iterations` -- the attempt that served, and one
+    # that declined as well (see `accumulate_usage`). The totals stay
     # totals across both models, so every panel reading them is unchanged;
     # these exist so `estimate_cost` can price each model's share at its own
     # rates. A batch never falls back, so they stay 0 there.
@@ -95,7 +96,24 @@ def _counts(entry: Any) -> tuple[int, int, int, int]:
     )
 
 
-def accumulate_usage(usage: TokenUsage, response: Any) -> TokenUsage:
+def _is_fallback_attempt(entry: Any, fallback_model: str | None) -> bool:
+    """Whether one `usage.iterations` entry is the fallback model's attempt.
+
+    A `fallback_message` entry always is: it is the fallback attempt that
+    served the message. An attempt that *declined* is a plain `message`
+    entry whatever model ran it, so the fallback's declined attempt -- both
+    models declining -- is told apart only by the `model` it names, which
+    the API marks optional. An entry naming no model is the requested one's.
+    """
+    if getattr(entry, "type", None) == "fallback_message":
+        return True
+    model = getattr(entry, "model", None)
+    return fallback_model is not None and model == fallback_model
+
+
+def accumulate_usage(
+    usage: TokenUsage, response: Any, *, fallback_model: str | None = None
+) -> TokenUsage:
     """Accumulate an Anthropic response's token counts into *usage*.
 
     Returns what this one response added, for the TPM reservation.
@@ -109,9 +127,11 @@ def accumulate_usage(usage: TokenUsage, response: Any) -> TokenUsage:
     `usage.iterations` lists every attempt -- the declined Opus 5.5 one as a
     `message` entry, the Opus 4.8 one that served it as `fallback_message`.
     So a non-empty `iterations` is summed instead of the top level, never as
-    well, and its `fallback_message` entries are also counted on their own
-    for `estimate_cost`. Thinking stays top-level: only the served attempt
-    reports it.
+    well, and the *fallback_model*'s attempts are also counted on their own
+    for `estimate_cost`: the one that served, and one that declined too,
+    which is a `message` entry naming that model (see
+    `_is_fallback_attempt`). Thinking stays top-level: only the served
+    attempt reports it.
     """
     response_usage = getattr(response, "usage", None)
     if response_usage is None:
@@ -125,7 +145,7 @@ def accumulate_usage(usage: TokenUsage, response: Any) -> TokenUsage:
         delta.output_tokens += out
         delta.cache_creation_input_tokens += write
         delta.cache_read_input_tokens += read
-        if entries is not None and getattr(entry, "type", None) == "fallback_message":
+        if entries is not None and _is_fallback_attempt(entry, fallback_model):
             delta.fallback_input_tokens += inp
             delta.fallback_output_tokens += out
             delta.fallback_cache_creation_input_tokens += write

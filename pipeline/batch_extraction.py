@@ -76,7 +76,9 @@ def _parse_batch_genes(message: Any, *, custom_id: str) -> list[GeneEntry] | Non
     try:
         # Every block, not the first: parallel tool use can split the
         # genes across two calls in one turn.
-        return _merge_tool_blocks(tool_blocks, pmid=custom_id)
+        return _merge_tool_blocks(
+            tool_blocks, pmid=custom_id, model=getattr(message, "model", None)
+        )
     # One malformed row must not discard the rest of the batch.
     except Exception as exc:
         logger.warning("Could not parse batch entry %s: %s", custom_id, exc)

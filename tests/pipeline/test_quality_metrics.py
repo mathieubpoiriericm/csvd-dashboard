@@ -274,6 +274,53 @@ class TestFallbackIterations:
         assert delta.input_tokens == 2200
         assert delta.output_tokens == 3000
 
+    def test_a_declining_fallback_attempt_is_counted_as_the_fallbacks(self) -> None:
+        """Both models declined: every attempt is a plain `message` entry.
+
+        Only a *serving* fallback attempt is a `fallback_message`; one that
+        declines is a `message` entry naming its model. Counted by type
+        alone, Opus 4.8's declined attempt was priced at Opus 5.5's rates.
+        """
+        response = SimpleNamespace(
+            usage=SimpleNamespace(
+                input_tokens=1100,
+                output_tokens=200,
+                cache_creation_input_tokens=0,
+                cache_read_input_tokens=0,
+                output_tokens_details=None,
+                iterations=[
+                    _iteration("message", "claude-opus-5-5", 1000, 0, 5000, 0),
+                    _iteration("message", "claude-opus-4-8", 1100, 200, 5000, 0),
+                ],
+            )
+        )
+        usage = TokenUsage()
+        accumulate_usage(usage, response, fallback_model="claude-opus-4-8")
+        assert (usage.input_tokens, usage.output_tokens) == (2100, 200)
+        assert (
+            usage.fallback_input_tokens,
+            usage.fallback_output_tokens,
+            usage.fallback_cache_creation_input_tokens,
+        ) == (1100, 200, 5000)
+
+    def test_an_entry_naming_no_model_stays_the_requested_models(self) -> None:
+        """`model` is optional on a `message` entry; one without it is the
+        requested model's, as before."""
+        entry = _iteration("message", None, 1000, 10, 0, 0)  # ty: ignore[invalid-argument-type]
+        response = SimpleNamespace(
+            usage=SimpleNamespace(
+                input_tokens=1000,
+                output_tokens=10,
+                cache_creation_input_tokens=0,
+                cache_read_input_tokens=0,
+                output_tokens_details=None,
+                iterations=[entry],
+            )
+        )
+        usage = TokenUsage()
+        accumulate_usage(usage, response, fallback_model="claude-opus-4-8")
+        assert usage.fallback_input_tokens == 0
+
     def test_accumulate_usage_reads_top_level_without_iterations(self) -> None:
         response = SimpleNamespace(
             usage=SimpleNamespace(

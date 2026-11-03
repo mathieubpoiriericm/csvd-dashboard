@@ -10,6 +10,7 @@ import json
 import logging
 import os
 import time
+from dataclasses import dataclass
 from typing import Any, Final
 
 import anthropic
@@ -139,9 +140,10 @@ def _refusal_category(response: Any) -> str:
     had, and this pipeline reads biology papers, so which classifier
     declined is the first thing an operator needs to tell a false positive
     from a prompt problem. When the fallback ran and declined too, the
-    requested model's reason is the one reported: it is in the fallback
-    block's trigger, while the final `stop_details` belong to the fallback
-    model. `stop_details` is informational and may be null, so a missing
+    requested model's reason is the one the run groups by: it is in the
+    fallback block's trigger, while the final `stop_details` belong to the
+    fallback model, whose reason `_fallback_declined_too` adds to the
+    message. `stop_details` is informational and may be null, so a missing
     category reads as "unspecified" rather than failing.
     """
     declined = _declining_hop_category(response)
@@ -149,6 +151,32 @@ def _refusal_category(response: Any) -> str:
         return declined
     details = getattr(response, "stop_details", None)
     return refusal_category(getattr(details, "category", None))
+
+
+def _fallback_declined_too(response: Any) -> str:
+    """The clause naming the fallback's own reason, on a chain refusal.
+
+    `_refusal_category` reports the requested model's reason, because that
+    decline is what sent the paper on; but the fallback ran and declined as
+    well, and its reason -- the final `stop_details`, which are the last
+    model's to run -- was dropped, so a paper Opus 4.8 declined under a
+    different classifier read as one classifier's verdict. The last
+    `fallback` block's `to` names that model. Empty when no model handed
+    over: then the one refusal is the whole story.
+    """
+    blocks = [
+        block
+        for block in getattr(response, "content", None) or []
+        if getattr(block, "type", None) == "fallback"
+    ]
+    if not blocks:
+        return ""
+    model = getattr(getattr(blocks[-1], "to", None), "model", None)
+    details = getattr(response, "stop_details", None)
+    category = refusal_category(getattr(details, "category", None))
+    return (
+        f"; {model or 'the fallback model'} declined it too (category: {category})"
+    )
 
 
 def _extract_response_text(response: Any) -> tuple[str, str]:
@@ -351,6 +379,25 @@ def _document_text(stream_kwargs: dict[str, Any]) -> str:
     return stream_kwargs["messages"][0]["content"][0]["source"]["data"]
 
 
+@dataclass(slots=True)
+class _PaperCalls:
+    """What the calls `extract` has sent for one paper established.
+
+    `sent` labels each response's reasoning trace in the audit log.
+    `declined` is the classifier that declined the requested model on an
+    earlier call: once a paper falls back, the API answers its next
+    requests from the fallback model directly for about an hour (sticky
+    routing), with no `fallback` block, because the requested model never
+    ran. So a validation retry Opus 4.8 serves learns why the paper is on
+    Opus 4.8 from here or not at all -- read off that response alone, a
+    paper Opus 5.5 declined as `bio` was recorded as declined by "a safety
+    classifier".
+    """
+
+    sent: int = 0
+    declined: str | None = None
+
+
 async def _stream_and_parse(
     client: anthropic.AsyncAnthropic,
     stream_kwargs: dict[str, Any],
@@ -360,7 +407,7 @@ async def _stream_and_parse(
     config: PipelineConfig,
     rate_limiter: AsyncRateLimiter | None,
     request_id: int | None,
-    attempt: int,
+    calls: _PaperCalls,
 ) -> tuple[list[GeneEntry], ServedBy]:
     """Consume one streamed response, account for it, and parse its genes.
 
@@ -368,8 +415,11 @@ async def _stream_and_parse(
     -- when a `fallback_message` iteration shows the fallback served it --
     the category of the classifier that declined the requested model.
 
-    ``attempt`` is 1-based over the calls ``extract`` has made for this
-    PMID, and only labels the audit event -- see _record_thinking_trace.
+    ``calls.sent`` is 1-based over the calls ``extract`` has made for
+    this PMID, and only labels the audit event -- see
+    _record_thinking_trace. ``calls.declined`` carries a decline this call
+    learns of to the paper's next one, and supplies the one a sticky answer
+    cannot name (see _PaperCalls).
     """
     stream_start = time.monotonic()
     # The fallback rides on this call rather than in the shared params: the
@@ -397,7 +447,7 @@ async def _stream_and_parse(
 
     # Every attempt, the declined one included: top-level usage covers only
     # the attempt that served the message (see accumulate_usage).
-    delta = accumulate_usage(usage, response)
+    delta = accumulate_usage(usage, response, fallback_model=config.fallback_model)
     if rate_limiter is not None and request_id is not None and response.usage:
         actual = delta.input_tokens + delta.output_tokens
         await rate_limiter.record_actual_usage(request_id, actual)
@@ -423,13 +473,20 @@ async def _stream_and_parse(
             if isinstance(recommended, str) and recommended
             else ""
         )
+        also = _fallback_declined_too(response)
+        # The message gives each model its own reason. `category` is what
+        # the run groups by, and with no category on the first hop it falls
+        # through to the fallback's, which `also` already names.
+        first = (
+            (_declining_hop_category(response) or "unspecified") if also else category
+        )
         logger.error(
             f"Request refused by safety classifier for PMID {pmid} "
-            f"(category: {category}){skipped}"
+            f"(category: {first}){also}{skipped}"
         )
         raise ExtractionRefusedError(
             f"Refused by safety classifier for PMID {pmid} "
-            f"(category: {category}){skipped}",
+            f"(category: {first}){also}{skipped}",
             usage,
             category=category,
         )
@@ -449,7 +506,9 @@ async def _stream_and_parse(
 
     # Who served it is read off the whole response (the iterations and the
     # fallback blocks); what it said, off the serving hop alone.
-    served = _served_by(response)
+    served = _served_by(response, declined_earlier=calls.declined)
+    if served.declined is not None:
+        calls.declined = served.declined
     response = _serving_hop(response, pmid=pmid)
     text_content, thinking_text = _account_reasoning(response, usage)
 
@@ -488,14 +547,14 @@ async def _stream_and_parse(
         if not text_content.strip():
             logger.warning(f"Empty text response for PMID {pmid}")
 
-        genes = _merge_tool_blocks(tool_blocks, pmid=pmid)
+        genes = _merge_tool_blocks(tool_blocks, pmid=pmid, model=response.model)
         accepted = True
     finally:
         _record_thinking_trace(
             config,
             pmid=pmid,
             thinking=thinking_text,
-            attempt=attempt,
+            attempt=calls.sent,
             accepted=accepted,
             model=response.model,
         )
@@ -519,14 +578,17 @@ async def _stream_and_parse(
     return genes, served
 
 
-def _served_by(response: Any) -> ServedBy:
+def _served_by(response: Any, *, declined_earlier: str | None = None) -> ServedBy:
     """Who produced a response that was not a refusal.
 
     The served-by signal is a `fallback_message` entry in
     `usage.iterations`, not the `fallback` block (a sticky-served turn has
     none); the model is the response's top-level `model`, which names the
     model that produced the message. Only a fallback-served response has a
-    declined hop to report.
+    declined hop to report: its block's category, or -- on a sticky turn,
+    which has no block -- *declined_earlier*, the category an earlier call
+    for the same paper saw. With neither, "unspecified": the paper fell
+    back before this run, and nothing here saw why.
     """
     iterations = getattr(getattr(response, "usage", None), "iterations", None)
     fell_back = isinstance(iterations, list) and any(
@@ -534,7 +596,7 @@ def _served_by(response: Any) -> ServedBy:
     )
     declined = _declining_hop_category(response) if fell_back else None
     if fell_back and declined is None:
-        declined = "unspecified"
+        declined = declined_earlier or "unspecified"
     return ServedBy(model=response.model, declined=declined)
 
 
@@ -573,7 +635,9 @@ def _decoded_input(raw: Any) -> Any:
     return raw
 
 
-def _merge_tool_blocks(tool_blocks: list[Any], *, pmid: str) -> list[GeneEntry]:
+def _merge_tool_blocks(
+    tool_blocks: list[Any], *, pmid: str, model: str | None
+) -> list[GeneEntry]:
     """Parse every report_genes call in the turn into one gene list.
 
     tool_choice is "auto" and parallel tool use is on by default, so one
@@ -581,12 +645,20 @@ def _merge_tool_blocks(tool_blocks: list[Any], *, pmid: str) -> list[GeneEntry]:
     a supplementary table's in another. Reading only the first silently
     dropped the rest. Each block is validated on its own so a malformed
     second block still fails the whole turn into the validation retry.
+
+    *model* is the response's own, named only in the log line a decoded
+    input leaves: how often each model double-encodes is a measurement,
+    and an input repaired without a trace measured nothing.
     """
-    genes = [
-        gene
-        for block in tool_blocks
-        for gene in ExtractionResult.model_validate(_decoded_input(block.input)).genes
-    ]
+    genes: list[GeneEntry] = []
+    for block in tool_blocks:
+        tool_input = _decoded_input(block.input)
+        if tool_input is not block.input:
+            logger.warning(
+                f"  Decoded a JSON-encoded genes value from "
+                f"{model or 'an unnamed model'} for PMID {pmid}"
+            )
+        genes.extend(ExtractionResult.model_validate(tool_input).genes)
     # Ignore any PMID supplied by the model in favor of the caller's value.
     for gene in genes:
         gene.pmid = pmid
@@ -879,10 +951,9 @@ class AnthropicClient:
         rate_limit_retries = 0
         validation_retries = 0
         connection_retries = 0
-        # Every call sent for this paper, whatever sent it again. It labels
-        # the reasoning trace each response leaves in the audit log, so a
-        # retried paper's two traces are told apart.
-        attempts = 0
+        # Every call sent for this paper, whatever sent it again, and the
+        # decline the first fallback named (see _PaperCalls).
+        calls = _PaperCalls()
 
         while True:
             request_id: int | None = None
@@ -891,7 +962,7 @@ class AnthropicClient:
                     request_id = await rate_limiter.acquire(
                         estimated_tokens=config.estimated_tokens_per_call
                     )
-                attempts += 1
+                calls.sent += 1
                 genes, served = await _stream_and_parse(
                     client,
                     stream_kwargs,
@@ -900,7 +971,7 @@ class AnthropicClient:
                     config=config,
                     rate_limiter=rate_limiter,
                     request_id=request_id,
-                    attempt=attempts,
+                    calls=calls,
                 )
                 return genes, usage, served
 

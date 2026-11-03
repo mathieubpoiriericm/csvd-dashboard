@@ -251,6 +251,7 @@ from pipeline.database import (
     Database,
     DatabaseConfigError,
     get_existing_pmids,
+    merge_window,
     record_pipeline_run,
     record_processed_pmids_batch,
     record_sync_run,
@@ -1333,6 +1334,18 @@ def _record_processing_actions(
                     f"{'it' if count == 1 else 'them'}"
                 ),
                 count=count,
+                # The title is true of the paper, not of every request: a
+                # retry of a paper that fell back goes straight to the
+                # fallback (sticky routing), and a paper that fell back
+                # before this run reaches it with no decline this run saw.
+                detail=(
+                    f"A paper that falls back stays on {fallback} for about "
+                    "an hour (sticky routing), so a retry of it is served "
+                    f"without {primary_model} running again. Each paper "
+                    "names the classifier that declined it in this run, or a "
+                    "safety classifier when it was declined before the run "
+                    "began."
+                ),
                 subjects=served_by_fallback,
             )
         )
@@ -2027,27 +2040,30 @@ async def _merge_processed_batch(
     logger.info("Step 4: Merging validated data into database...")
     await reset_gene_sequence()
 
-    # The run's config, not a fresh PipelineConfig(): the report names
-    # this config's insert floor, so the merge has to apply the same one.
-    gene_result = await merge_gene_entries(batch.genes, config)
-    if on_merged is not None:
-        on_merged(gene_result)
-    logger.info(
-        f"  Genes: {gene_result['inserted']} inserted, "
-        f"{gene_result['updated']} updated"
-    )
-
-    pmid_records = [
-        (
-            result.pmid,
-            result.fulltext,
-            result.source,
-            len(result.genes),
-            result.extraction_model,
+    # One window around both writes, so a reset cannot land between the
+    # genes this merges and the papers that record them (see merge_window).
+    async with merge_window():
+        # The run's config, not a fresh PipelineConfig(): the report names
+        # this config's insert floor, so the merge has to apply the same one.
+        gene_result = await merge_gene_entries(batch.genes, config)
+        if on_merged is not None:
+            on_merged(gene_result)
+        logger.info(
+            f"  Genes: {gene_result['inserted']} inserted, "
+            f"{gene_result['updated']} updated"
         )
-        for result in batch.successful_results
-    ]
-    recorded = await record_processed_pmids_batch(pmid_records)
+
+        pmid_records = [
+            (
+                result.pmid,
+                result.fulltext,
+                result.source,
+                len(result.genes),
+                result.extraction_model,
+            )
+            for result in batch.successful_results
+        ]
+        recorded = await record_processed_pmids_batch(pmid_records)
     logger.info(f"  Recorded {recorded} processed PMIDs")
     _record_merge_actions(progress, gene_result, recorded)
     progress.report(5)

@@ -136,6 +136,37 @@ async def get_existing_pmids() -> set[str]:
         return {row["pmid"] for row in rows}
 
 
+# The advisory lock a run's merge window holds, shared, and
+# `scripts.reset_to_baseline` takes, exclusive. Any fixed bigint will do;
+# it names nothing but this agreement. ("csvd" in ASCII.)
+MERGE_WINDOW_LOCK: Final[int] = 0x63737664
+
+
+@asynccontextmanager
+async def merge_window() -> AsyncGenerator[None]:
+    """Hold the merge-window lock from a run's gene merge to its ledger write.
+
+    The merge and `record_processed_pmids_batch` are two transactions, on
+    purpose (the run has to own merged rows the instant they commit; see
+    `_merge_processed_batch`), so a reset that landed between them deleted
+    the genes the run had just merged and emptied the ledger, and the run
+    then recorded the papers as processed: papers no later run retries,
+    with none of their genes left. The lock spans both. It is *shared*, so
+    two runs never wait on each other here, and session-level, on a
+    connection of its own, because no one transaction covers the window;
+    `pg_advisory_unlock_shared` releases it, and the pool's reset on release
+    (`pg_advisory_unlock_all`) or the connection closing would too.
+    """
+    async with Database.connection() as conn:
+        await conn.execute("SELECT pg_advisory_lock_shared($1)", MERGE_WINDOW_LOCK)
+        try:
+            yield
+        finally:
+            await conn.execute(
+                "SELECT pg_advisory_unlock_shared($1)", MERGE_WINDOW_LOCK
+            )
+
+
 async def reset_gene_sequence() -> None:
     """Reset the genes table sequence to avoid primary key conflicts."""
     async with Database.connection() as conn:

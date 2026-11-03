@@ -418,6 +418,7 @@ class TestRunPipeline:
             ),
         )
         mocker.patch("pipeline.main.reset_gene_sequence", new_callable=AsyncMock)
+        mocker.patch("pipeline.main.merge_window")
         mocker.patch("pipeline.main.merge_gene_entries", new_callable=AsyncMock)
         mock_record_pmids = mocker.patch(
             "pipeline.main.record_processed_pmids_batch",
@@ -515,6 +516,7 @@ class TestRunPipelineBatchMode:
             ),
         )
         mocker.patch("pipeline.main.reset_gene_sequence", new_callable=AsyncMock)
+        mocker.patch("pipeline.main.merge_window")
         mocker.patch("pipeline.main.merge_gene_entries", new_callable=AsyncMock)
         mock_record_pmids = mocker.patch(
             "pipeline.main.record_processed_pmids_batch",
@@ -577,6 +579,7 @@ class TestRunPipelineBatchMode:
             "pipeline.main.submit_and_collect", new_callable=AsyncMock
         )
         mocker.patch("pipeline.main.reset_gene_sequence", new_callable=AsyncMock)
+        mocker.patch("pipeline.main.merge_window")
         mocker.patch("pipeline.main.merge_gene_entries", new_callable=AsyncMock)
         mock_record_pmids = mocker.patch(
             "pipeline.main.record_processed_pmids_batch",
@@ -644,6 +647,7 @@ class TestRunPipelineBatchMode:
             ),
         )
         mocker.patch("pipeline.main.reset_gene_sequence", new_callable=AsyncMock)
+        mocker.patch("pipeline.main.merge_window")
         mocker.patch("pipeline.main.merge_gene_entries", new_callable=AsyncMock)
         mock_record_pmids = mocker.patch(
             "pipeline.main.record_processed_pmids_batch",
@@ -708,6 +712,7 @@ class TestRunPipelineBatchMode:
             return_value={"222": []},
         )
         mocker.patch("pipeline.main.reset_gene_sequence", new_callable=AsyncMock)
+        mocker.patch("pipeline.main.merge_window")
         mocker.patch("pipeline.main.merge_gene_entries", new_callable=AsyncMock)
         mock_record_pmids = mocker.patch(
             "pipeline.main.record_processed_pmids_batch",

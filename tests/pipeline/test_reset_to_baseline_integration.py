@@ -8,6 +8,7 @@ and a failure leaves the database exactly as it was. These run against the
 empty tables for the same reason (see that module's docstring).
 """
 
+import asyncio
 import json
 import os
 from pathlib import Path
@@ -26,7 +27,7 @@ from scripts.reset_to_baseline import (
 )
 from scripts.restore_from_json import build_plan, write_plan
 
-from pipeline.database import Database
+from pipeline.database import Database, merge_window, record_processed_pmids_batch
 from pipeline.export.main import read_published_genes, run_export
 
 pytestmark = pytest.mark.usefixtures("database_env")
@@ -287,6 +288,31 @@ async def test_a_merge_cannot_land_while_the_reset_decides(
     await reset_database(BASELINE)
 
     assert outcome == {"merge": "blocked"}
+
+
+async def test_the_reset_waits_for_a_run_between_its_merge_and_its_ledger(
+    tmp_path: Path,
+) -> None:
+    """A run's merge and its ledger write are two transactions.
+
+    A reset landing between them deleted the genes the run had just merged
+    and emptied the ledger, and the run then recorded its papers as
+    processed: papers no later run retries, with none of their genes left.
+    The run holds `merge_window()` from the merge through the ledger write,
+    and the reset waits for it, so the papers it records are emptied with
+    the rest.
+    """
+    await _seed_current(tmp_path)
+    async with merge_window():
+        reset = asyncio.create_task(reset_database(BASELINE))
+        await asyncio.sleep(0.5)
+        assert not reset.done(), "the reset ran inside the run's merge window"
+        await record_processed_pmids_batch(
+            [("55555555", True, "europepmc", 1, "claude-opus-5-5")]
+        )
+    counts = await asyncio.wait_for(reset, timeout=10)
+
+    assert counts["pubmed_refs"] == 0
 
 
 async def test_without_write_it_names_the_environment_target_and_writes_nothing(
