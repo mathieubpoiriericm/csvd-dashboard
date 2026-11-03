@@ -92,7 +92,7 @@ class GeneRestore:
 
 
 # (pmid, processed_at, fulltext_available, source, genes_extracted)
-LedgerRow = tuple[str, datetime, bool, str, int]
+LedgerRow = tuple[str, datetime, bool, str, int, str | None]
 # (run_timestamp, papers_processed, fulltext_retrieved, genes_extracted,
 #  genes_validated, run_mode, status, duration_seconds, report)
 RunRow = tuple[
@@ -281,6 +281,9 @@ def ledger_from_logs(logs_dir: Path) -> list[LedgerRow]:
                 bool(paper["fulltext"]),
                 paper["source"],
                 int(paper["gene_count"]),
+                # Reports written since migration 015 name it; older ones
+                # leave the column NULL rather than guessing a model.
+                paper.get("extraction_model"),
             )
     return list(ledger.values())
 
@@ -534,7 +537,7 @@ async def write_plan(plan: RestorePlan) -> dict[str, int]:
             _insert(
                 "pubmed_refs",
                 ["pmid", "processed_at", "fulltext_available", "source",
-                 "genes_extracted"],
+                 "genes_extracted", "extraction_model"],
             ),
             [
                 (pmid, when.astimezone().replace(tzinfo=None), *rest)

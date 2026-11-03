@@ -400,12 +400,15 @@ async def merge_genes_transactional(
 
 
 async def record_processed_pmids_batch(
-    records: list[tuple[str, bool, str, int]],
+    records: list[tuple[str, bool, str, int, str | None]],
 ) -> int:
     """Batch record processed PMIDs to avoid reprocessing.
 
     Args:
-        records: List of (pmid, fulltext_available, source, genes_extracted) tuples.
+        records: List of (pmid, fulltext_available, source, genes_extracted,
+            extraction_model) tuples. ``extraction_model`` is the model whose
+            response the genes came from -- Claude Opus 4.8 for a paper the
+            fallback served -- and None when no model ran (no text).
 
     Returns:
         Number of PMIDs recorded.
@@ -417,12 +420,14 @@ async def record_processed_pmids_batch(
         await conn.executemany(
             """
             INSERT INTO pubmed_refs (
-                pmid, fulltext_available, source, genes_extracted
-            ) VALUES ($1, $2, $3, $4)
+                pmid, fulltext_available, source, genes_extracted,
+                extraction_model
+            ) VALUES ($1, $2, $3, $4, $5)
             ON CONFLICT (pmid) DO UPDATE SET
                 fulltext_available = EXCLUDED.fulltext_available,
                 source = EXCLUDED.source,
                 genes_extracted = EXCLUDED.genes_extracted,
+                extraction_model = EXCLUDED.extraction_model,
                 processed_at = CURRENT_TIMESTAMP
             """,
             records,

@@ -236,6 +236,7 @@ from pipeline.batch_validation import batch_validate
 from pipeline.citations import current_tally, paper_scope, reset_tally
 from pipeline.clinical_trials_fetch import close_ctg_client, sync_clinical_trials
 from pipeline.config import (
+    EXTRACTION_MODEL,
     NCBI_EFETCH_URL,
     SAFE_XML_PARSER,
     PipelineConfig,
@@ -257,7 +258,7 @@ from pipeline.database import (
 )
 from pipeline.disease import load_disease
 from pipeline.event_log import EventLog
-from pipeline.extraction_models import GeneEntry
+from pipeline.extraction_models import ExtractionRefusedError, GeneEntry, ServedBy
 from pipeline.http_client import AsyncHttpClientManager
 from pipeline.llm_extraction import (
     ExtractionFailedError,
@@ -282,7 +283,7 @@ from pipeline.report import (
     print_rich_summary,
     write_comprehensive_report,
 )
-from pipeline.run_errors import RunWarning, classify
+from pipeline.run_errors import RunWarning, classifier_phrase, classify
 from pipeline.run_report import build_run_report
 from pipeline.steps import (
     STEP_KEYS,
@@ -542,6 +543,9 @@ class PaperProcessResult(TypedDict, closed=True):
     fulltext: bool
     source: str
     text_truncated: bool
+    # None when no model ran (no text). See PaperResult.
+    extraction_model: str | None
+    refusal: str | None
 
 
 @dataclass(slots=True)
@@ -565,6 +569,15 @@ class PaperResult:
     # the report has to say so rather than leave it to a log line.
     text_truncated: bool = False
     error: str | None = None
+    # The model whose response the genes came from -- the response's own
+    # `model`, so Claude Opus 4.8 when the server-side fallback served the
+    # paper. None when no model ran: no text, or a paper that failed before
+    # an answer. It reaches pubmed_refs.extraction_model and the report.
+    extraction_model: str | None = None
+    # The classifier category that declined the requested model: on a
+    # failed paper, why it failed; on one the fallback served, why the
+    # fallback ran. See pipeline.run_errors.RefusalCategory.
+    refusal: str | None = None
     processing_time: float = 0.0
     pdf_parse_time: float = 0.0
     llm_time: float = 0.0
@@ -585,6 +598,20 @@ class ExtractionOutcome:
     llm_time: float
     validation_time: float
     text_truncated: bool = False
+    served: ServedBy | None = None
+
+    @property
+    def extraction_model(self) -> str | None:
+        return self.served.model if self.served is not None else None
+
+    @property
+    def refusal(self) -> str | None:
+        return self.served.declined if self.served is not None else None
+
+
+def _refusal_of(exc: BaseException) -> str | None:
+    """The classifier category, when *exc* is a refusal."""
+    return exc.category if isinstance(exc, ExtractionRefusedError) else None
 
 
 async def _validate_genes(
@@ -686,7 +713,7 @@ async def _extract_and_validate(
     """Run the LLM and the validation policy shared by all pipeline modes."""
     llm_start = time.monotonic()
     try:
-        genes, token_usage, _served = await extract_from_paper(
+        genes, token_usage, served = await extract_from_paper(
             text,
             paper_id,
             config=config,
@@ -724,6 +751,7 @@ async def _extract_and_validate(
         llm_time=llm_time,
         validation_time=time.monotonic() - validation_start,
         text_truncated=paper_text_truncated(text, config.max_paper_text_chars),
+        served=served,
     )
 
 
@@ -970,6 +998,8 @@ async def process_paper(
             "fulltext": False,
             "source": "none",
             "text_truncated": False,
+            "extraction_model": None,
+            "refusal": None,
         }
 
     if text_result["fulltext"]:
@@ -1004,6 +1034,8 @@ async def process_paper(
         "fulltext": text_result["fulltext"],
         "source": text_result["source"],
         "text_truncated": outcome.text_truncated,
+        "extraction_model": outcome.extraction_model,
+        "refusal": outcome.refusal,
     }
 
 
@@ -1045,6 +1077,8 @@ async def process_paper_safe(
                 fulltext=result["fulltext"],
                 source=result["source"],
                 text_truncated=result["text_truncated"],
+                extraction_model=result.get("extraction_model"),
+                refusal=result.get("refusal"),
                 processing_time=time.monotonic() - start_time,
             )
         except Exception as e:
@@ -1052,6 +1086,7 @@ async def process_paper_safe(
             return PaperResult(
                 pmid=pmid,
                 error=str(e),
+                refusal=_refusal_of(e),
                 processing_time=time.monotonic() - start_time,
             )
 
@@ -1215,6 +1250,8 @@ def _record_processing_actions(
     progress: _ProgressReporter,
     results: list[PaperResult],
     metrics: PipelineMetrics,
+    *,
+    primary_model: str = EXTRACTION_MODEL,
 ) -> None:
     """Describe what the retrieve-and-extract step did, for the widget.
 
@@ -1224,7 +1261,21 @@ def _record_processing_actions(
     them rather than showing a clean pass over real losses.
     """
     no_text = [r.pmid for r in results if r.succeeded and r.source == "none"]
-    failed = [r.pmid for r in results if not r.succeeded]
+    # A refusal is its own finding, not a paper that "could not be
+    # processed": it names a classifier, and it is retried by the next run
+    # like any failure. Both still count in `papers.failed`.
+    failed = [r.pmid for r in results if not r.succeeded and r.refusal is None]
+    refused: dict[str, list[str]] = {}
+    for r in results:
+        if not r.succeeded and r.refusal is not None:
+            refused.setdefault(r.refusal, []).append(r.pmid)
+    served_by_fallback = [
+        r.pmid
+        for r in results
+        if r.succeeded
+        and r.extraction_model is not None
+        and r.extraction_model != primary_model
+    ]
 
     progress.action(
         f"Retrieved full text for {metrics.fulltext_retrieved}, "
@@ -1244,6 +1295,22 @@ def _record_processing_actions(
                 subjects=no_text,
             )
         )
+    for category, pmids in refused.items():
+        progress.warn(
+            RunWarning(
+                kind="paper_refused",
+                title=(
+                    f"{_count(len(pmids), 'paper')} {_were(len(pmids))} declined "
+                    f"by {classifier_phrase(category)}"
+                ),
+                count=len(pmids),
+                detail=(
+                    "A declined paper is not recorded as processed, so the "
+                    "next run retries it."
+                ),
+                subjects=pmids,
+            )
+        )
     if failed:
         progress.warn(
             RunWarning(
@@ -1251,6 +1318,22 @@ def _record_processing_actions(
                 title=f"{_count(len(failed), 'paper')} could not be processed",
                 count=len(failed),
                 subjects=failed,
+            )
+        )
+    if served_by_fallback:
+        count = len(served_by_fallback)
+        models = {r.extraction_model for r in results if r.pmid in served_by_fallback}
+        fallback = ", ".join(sorted(str(m) for m in models))
+        progress.warn(
+            RunWarning(
+                kind="model_fallback",
+                title=(
+                    f"{_count(count, 'paper')} {_were(count)} extracted by "
+                    f"{fallback} after {primary_model} declined "
+                    f"{'it' if count == 1 else 'them'}"
+                ),
+                count=count,
+                subjects=served_by_fallback,
             )
         )
     if metrics.genes_rejected:
@@ -1345,12 +1428,14 @@ def _finalize_processed_batch(
     results: list[PaperResult],
     metrics: PipelineMetrics,
     progress: _ProgressReporter,
+    *,
+    primary_model: str = EXTRACTION_MODEL,
 ) -> _ProcessedBatch:
     """Log, validate, and package results shared by both extraction paths."""
     genes = _collect_successful_genes(results)
     logger.info(f"  Processed {metrics.papers_processed} papers")
     logger.info(f"  Validated: {metrics.genes_validated} genes")
-    _record_processing_actions(progress, results, metrics)
+    _record_processing_actions(progress, results, metrics, primary_model=primary_model)
 
     progress.report(3)
     warnings = _run_batch_validation(genes)
@@ -1480,6 +1565,8 @@ def _checkpoint_record(
             "fulltext": result.fulltext,
             "source": result.source,
             "text_truncated": result.text_truncated,
+            "extraction_model": result.extraction_model,
+            "refusal": result.refusal,
             "processing_time": result.processing_time,
             "pdf_parse_time": result.pdf_parse_time,
             "llm_time": result.llm_time,
@@ -1513,6 +1600,11 @@ def _restored_paper(
         fulltext=stored.get("fulltext", False),
         source=stored.get("source", "unknown"),
         text_truncated=stored.get("text_truncated", False),
+        # Read as recorded. A record without them cannot reach here: the
+        # fingerprint names the fallback model, and one written before it
+        # did fails the fingerprint and is discarded with its file.
+        extraction_model=stored.get("extraction_model"),
+        refusal=stored.get("refusal"),
         processing_time=stored.get("processing_time", 0.0),
         pdf_parse_time=stored.get("pdf_parse_time", 0.0),
         llm_time=stored.get("llm_time", 0.0),
@@ -1695,7 +1787,10 @@ async def _process_new_pmids(
         ),
     )
     return _finalize_processed_batch(
-        _in_request_order(pmids, results), metrics, progress
+        _in_request_order(pmids, results),
+        metrics,
+        progress,
+        primary_model=config.llm_model,
     )
 
 
@@ -1747,6 +1842,9 @@ async def _validate_batch_paper(
         fulltext=fulltext,
         source=source,
         text_truncated=truncated,
+        # A batch cannot fall back (the Batches API rejects `fallbacks`), so
+        # the model it was sent to is the model that answered.
+        extraction_model=config.llm_model,
     )
 
 
@@ -1827,8 +1925,13 @@ async def _process_new_pmids_via_batch(
 
     logger.info(f"  Submitting {len(papers)} papers to the Batch API...")
     batch_usage = TokenUsage()
+    refusals: dict[str, str] = {}
     genes_by_pmid = (
-        await submit_and_collect(papers, config, usage=batch_usage) if papers else {}
+        await submit_and_collect(
+            papers, config, usage=batch_usage, refusals=refusals
+        )
+        if papers
+        else {}
     )
     metrics.token_usage += batch_usage
 
@@ -1861,17 +1964,36 @@ async def _process_new_pmids_via_batch(
 
     await asyncio.gather(*(validate_one(pmid) for pmid in extracted_pmids))
     for pmid in papers:
-        if pmid not in genes_by_pmid:
-            logger.warning(f"  No batch result for PMID {pmid}, marking as failed")
+        if pmid in genes_by_pmid:
+            continue
+        if pmid in refusals:
+            # The same sentence the streaming path raises, so a refusal
+            # reads alike whichever path declined it.
+            category = refusals[pmid]
             collected.append(
-                PaperResult(pmid=pmid, error="no result returned by the batch")
+                PaperResult(
+                    pmid=pmid,
+                    error=(
+                        f"Refused by safety classifier for PMID {pmid} "
+                        f"(category: {category})"
+                    ),
+                    refusal=category,
+                )
             )
+            continue
+        logger.warning(f"  No batch result for PMID {pmid}, marking as failed")
+        collected.append(
+            PaperResult(pmid=pmid, error="no result returned by the batch")
+        )
 
     # The same record the streaming path makes. Without it a --batch run
     # published step 3 with no actions, no warnings and a green badge over
     # papers the batch returned nothing for or validation refused.
     return _finalize_processed_batch(
-        _in_request_order(pmids, collected), metrics, progress
+        _in_request_order(pmids, collected),
+        metrics,
+        progress,
+        primary_model=config.llm_model,
     )
 
 
@@ -1916,7 +2038,13 @@ async def _merge_processed_batch(
     )
 
     pmid_records = [
-        (result.pmid, result.fulltext, result.source, len(result.genes))
+        (
+            result.pmid,
+            result.fulltext,
+            result.source,
+            len(result.genes),
+            result.extraction_model,
+        )
         for result in batch.successful_results
     ]
     recorded = await record_processed_pmids_batch(pmid_records)
@@ -2138,6 +2266,8 @@ async def _process_local_pdf_file(
             fulltext=True,
             source="local_pdf",
             text_truncated=outcome.text_truncated,
+            extraction_model=outcome.extraction_model,
+            refusal=outcome.refusal,
             processing_time=time.monotonic() - started_at,
             pdf_parse_time=parse_time,
             llm_time=outcome.llm_time,
@@ -2155,6 +2285,7 @@ async def _process_local_pdf_file(
         return PaperResult(
             pmid=file_id,
             error=str(exc),
+            refusal=_refusal_of(exc),
             processing_time=time.monotonic() - started_at,
         )
 
@@ -2218,6 +2349,8 @@ async def _process_pmid_item(
             fulltext=is_fulltext,
             source=source,
             text_truncated=outcome.text_truncated,
+            extraction_model=outcome.extraction_model,
+            refusal=outcome.refusal,
             processing_time=time.monotonic() - started_at,
             llm_time=outcome.llm_time,
             validation_time=outcome.validation_time,
@@ -2227,6 +2360,7 @@ async def _process_pmid_item(
         return PaperResult(
             pmid=pmid,
             error=str(exc),
+            refusal=_refusal_of(exc),
             processing_time=time.monotonic() - started_at,
         )
 

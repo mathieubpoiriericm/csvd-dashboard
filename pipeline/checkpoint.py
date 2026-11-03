@@ -61,6 +61,9 @@ def fingerprint(config: PipelineConfig) -> dict[str, Any]:
     """
     return {
         "model": config.llm_model,
+        # A refused paper is extracted by this model instead, so it is part
+        # of the method as much as the primary is.
+        "fallback_model": config.fallback_model,
         "model_version": config.model_version,
         "thinking_mode": config.thinking_mode,
         "effort": config.llm_effort,

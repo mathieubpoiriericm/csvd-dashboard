@@ -507,3 +507,73 @@ class TestSearchWarnings:
         assert warning.kind == "search_truncated"
         assert warning.count == 500
         assert warning.title == "500 of 1000 matching papers could not be retrieved"
+
+
+class TestRefusalWarnings:
+    """A refusal is its own warning, per classifier, not a retrieval loss."""
+
+    def setup_method(self) -> None:
+        reset_recorder()
+        reset_tally()
+
+    def test_refused_papers_get_one_warning_per_classifier(self, tmp_path) -> None:
+        reporter = _progress(tmp_path)
+        refused = "Refused by safety classifier for PMID {} (category: {})"
+        _record_processing_actions(
+            reporter,
+            [
+                PaperResult(pmid="11", error=refused.format(11, "bio"), refusal="bio"),
+                PaperResult(
+                    pmid="12", error=refused.format(12, "cyber"), refusal="cyber"
+                ),
+                PaperResult(pmid="13", error=refused.format(13, "bio"), refusal="bio"),
+                PaperResult(pmid="14", error="Claude API error for PMID 14: boom"),
+            ],
+            PipelineMetrics(),
+        )
+        warnings = _warnings(reporter)
+        assert [(w.kind, w.title, w.count, w.subjects) for w in warnings[:3]] == [
+            (
+                "paper_refused",
+                "2 papers were declined by the biology safety classifier",
+                2,
+                ["11", "13"],
+            ),
+            (
+                "paper_refused",
+                "1 paper was declined by the cybersecurity safety classifier",
+                1,
+                ["12"],
+            ),
+            ("paper_retrieval_failed", "1 paper could not be processed", 1, ["14"]),
+        ]
+        assert "next run retries" in (warnings[0].detail or "")
+
+    def test_a_fallback_served_paper_raises_model_fallback(self, tmp_path) -> None:
+        reporter = _progress(tmp_path)
+        _record_processing_actions(
+            reporter,
+            [
+                PaperResult(
+                    pmid="21",
+                    fulltext=True,
+                    source="europepmc",
+                    extraction_model="claude-opus-4-8",
+                    refusal="bio",
+                ),
+                PaperResult(
+                    pmid="22",
+                    fulltext=True,
+                    source="europepmc",
+                    extraction_model="claude-opus-5-5",
+                ),
+            ],
+            PipelineMetrics(),
+            primary_model="claude-opus-5-5",
+        )
+        (warning,) = _warnings(reporter)
+        assert warning.kind == "model_fallback"
+        assert warning.title == (
+            "1 paper was extracted by claude-opus-4-8 after claude-opus-5-5 declined it"
+        )
+        assert warning.subjects == ["21"]

@@ -55,6 +55,12 @@ class TestFingerprint:
             PipelineConfig(max_paper_text_chars=50_000)
         ) != checkpoint.fingerprint(PipelineConfig(max_paper_text_chars=400_000))
 
+    def test_the_fingerprint_names_the_fallback_model(self) -> None:
+        """A refused paper's extraction depends on who it falls back to."""
+        assert checkpoint.fingerprint(PipelineConfig())["fallback_model"] == (
+            "claude-opus-4-8"
+        )
+
     def test_it_ignores_the_search_window(self) -> None:
         # Papers are keyed by PMID, so a checkpoint written by --days-back 30
         # is valid for the --days-back 60 run that resumes it. That is exactly

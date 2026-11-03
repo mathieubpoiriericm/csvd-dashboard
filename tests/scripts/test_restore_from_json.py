@@ -411,8 +411,21 @@ def test_the_ledger_replays_the_merged_runs_oldest_first(tmp_path: Path) -> None
     )
 
     assert ledger_from_logs(logs) == [
-        ("10000001", datetime(2026, 1, 2, tzinfo=UTC), False, "europepmc", 3)
+        ("10000001", datetime(2026, 1, 2, tzinfo=UTC), False, "europepmc", 3, None)
     ]
+
+
+def test_ledger_from_logs_carries_the_extraction_model(tmp_path: Path) -> None:
+    """A report written since migration 015 names the model per paper; an
+    older one does not, and the column stays NULL rather than guessed."""
+    logs = tmp_path / "logs"
+    (logs / "json").mkdir(parents=True)
+    served = {**_paper("10000001"), "extraction_model": "claude-opus-4-8"}
+    older = _paper("10000002")
+    report = _report("2026-01-01T00:00:00+00:00", [served, older], dry_run=False)
+    (logs / "json" / "pipeline_report_a.json").write_text(json.dumps(report))
+    rows = {row[0]: row[-1] for row in ledger_from_logs(logs)}
+    assert rows == {"10000001": "claude-opus-4-8", "10000002": None}
 
 
 def test_no_logs_is_an_empty_ledger(tmp_path: Path) -> None:

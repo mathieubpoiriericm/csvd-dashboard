@@ -544,7 +544,9 @@ class TestRunPipelineBatchMode:
         assert run_data is not None
         assert run_data["papers"]["processed"] == 1
         assert run_data["genes"]["validated"] == 1
-        mock_record_pmids.assert_awaited_once_with([("111", False, "abstract", 1)])
+        mock_record_pmids.assert_awaited_once_with(
+            [("111", False, "abstract", 1, "claude-opus-5-5")]
+        )
 
     async def test_batch_mode_no_text_is_recorded_as_processed_not_retried(
         self, mocker
@@ -599,7 +601,8 @@ class TestRunPipelineBatchMode:
         assert run_data is not None
         assert run_data["papers"]["failed"] == 0
         assert run_data["papers"]["processed"] == 1
-        mock_record_pmids.assert_awaited_once_with([("111", False, "none", 0)])
+        # No text: processed, and no model ran.
+        mock_record_pmids.assert_awaited_once_with([("111", False, "none", 0, None)])
 
     async def test_batch_mode_one_fetch_failure_does_not_abort_the_run(
         self, mocker, make_gene_entry
