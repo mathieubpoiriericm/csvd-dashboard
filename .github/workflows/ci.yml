@@ -12,9 +12,9 @@ permissions:
 
 # Where the five test jobs run. A repository that sets the CI_RUNNER variable
 # sends them to the self-hosted runners carrying that label -- this project's
-# private repository does, and the `ci-runner` skill has the machine. Every
-# other repository -- the public one, a disease fork, a fork's pull request --
-# has no such variable and stays on ubuntu-latest. The runners are registered
+# private repository will, once the `ci-runner` skill's VM is provisioned; until
+# then it is unset there too. Every repository without it -- the public one, a
+# disease fork, a fork's pull request -- stays on ubuntu-latest. The runners are registered
 # to the private repository alone, so no other repository's job can reach them
 # whatever its workflow file says. Deleting the variable is the fallback when
 # the machine is down; a job waiting for an offline runner queues for a day.
