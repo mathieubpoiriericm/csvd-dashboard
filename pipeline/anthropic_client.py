@@ -5,6 +5,7 @@ outputs (JSON Schema constrained decoding), and prompt caching.
 """
 
 import asyncio
+import json
 import logging
 import os
 import time
@@ -494,6 +495,31 @@ def _extraction_tool_blocks(response: Any) -> list[Any]:
     ]
 
 
+def _decoded_input(raw: Any) -> Any:
+    """The tool input, with a JSON-encoded `genes` value decoded.
+
+    Claude Opus 4.8 -- the fallback model -- answered the golden fixtures'
+    first paper with `{"genes": "<JSON string>"}`, the whole object
+    encoded into its one field (2026-11-03). The tool is deliberately not
+    strict (see `extraction_tool` in config.py), so the decoder does not
+    stop it, and validating it raw sent the paper into the validation
+    retry, which paid for the same shape again. A string that decodes to
+    the object, or to the list, is exactly what the schema asks for; any
+    other string is left alone to fail validation as before.
+    """
+    if not isinstance(raw, dict) or not isinstance(raw.get("genes"), str):
+        return raw
+    try:
+        decoded = json.loads(raw["genes"])
+    except json.JSONDecodeError:
+        return raw
+    if isinstance(decoded, dict) and set(decoded) == {"genes"}:
+        return decoded
+    if isinstance(decoded, list):
+        return {**raw, "genes": decoded}
+    return raw
+
+
 def _merge_tool_blocks(tool_blocks: list[Any], *, pmid: str) -> list[GeneEntry]:
     """Parse every report_genes call in the turn into one gene list.
 
@@ -506,7 +532,7 @@ def _merge_tool_blocks(tool_blocks: list[Any], *, pmid: str) -> list[GeneEntry]:
     genes = [
         gene
         for block in tool_blocks
-        for gene in ExtractionResult.model_validate(block.input).genes
+        for gene in ExtractionResult.model_validate(_decoded_input(block.input)).genes
     ]
     # Ignore any PMID supplied by the model in favor of the caller's value.
     for gene in genes:

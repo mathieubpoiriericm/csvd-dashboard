@@ -18,6 +18,7 @@ from pipeline.anthropic_client import (
     AnthropicClient,
     _build_message_params,
     _extract_response_text,
+    _merge_tool_blocks,
     _record_thinking_trace,
     build_async_client,
 )
@@ -1722,3 +1723,42 @@ class TestTransportErrorsAndAccounting:
         )
 
         assert [g.gene_symbol for g in genes] == ["NOTCH3", "HTRA1"]
+
+
+class TestAToolInputWithItsGenesEncodedAsAString:
+    """Claude Opus 4.8 -- the fallback -- double-encodes the tool input.
+
+    Its first answer on the golden fixtures (PMID 37069360, 2026-11-03) was
+    `{"genes": "{\\"genes\\": [...]}"}`: the whole object as a JSON string in
+    the one field. The tool is deliberately not strict, so nothing stops
+    it, and it failed validation into the retry, which paid Opus 4.8 again
+    for the same shape. Decoding it loses nothing: the string is exactly the
+    object the schema asks for.
+    """
+
+    _GENE = {
+        "gene_symbol": "SLC13A3",
+        "gwas_trait": ["WM-PVS"],
+        "mendelian_randomization": False,
+        "omics_evidence": [],
+        "confidence": 0.8,
+        "source_quote": "SLC13A3 was associated with WM-PVS.",
+    }
+
+    def _block(self, value):
+        return SimpleNamespace(type="tool_use", name="report_genes", input=value)
+
+    def test_the_whole_object_as_a_string_is_decoded(self) -> None:
+        block = self._block({"genes": json.dumps({"genes": [self._GENE]})})
+        (gene,) = _merge_tool_blocks([block], pmid="37069360")
+        assert (gene.gene_symbol, gene.pmid) == ("SLC13A3", "37069360")
+
+    def test_the_list_as_a_string_is_decoded(self) -> None:
+        block = self._block({"genes": json.dumps([self._GENE])})
+        (gene,) = _merge_tool_blocks([block], pmid="37069360")
+        assert gene.gene_symbol == "SLC13A3"
+
+    def test_a_string_that_is_not_the_object_still_fails_validation(self) -> None:
+        for value in ("not json", json.dumps({"other": []}), json.dumps(3)):
+            with pytest.raises(ValueError):
+                _merge_tool_blocks([self._block({"genes": value})], pmid="1")
