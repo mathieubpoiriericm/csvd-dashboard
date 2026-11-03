@@ -1736,13 +1736,16 @@ class TestAToolInputWithItsGenesEncodedAsAString:
     object the schema asks for.
     """
 
+    # No trait: the trait vocabulary is the disease's, and this module runs
+    # unchanged in every fork (scripts/adapt_fork_check.ts), whose
+    # vocabulary does not carry cSVD's.
     _GENE = {
         "gene_symbol": "SLC13A3",
-        "gwas_trait": ["WM-PVS"],
+        "gwas_trait": [],
         "mendelian_randomization": False,
         "omics_evidence": [],
         "confidence": 0.8,
-        "source_quote": "SLC13A3 was associated with WM-PVS.",
+        "source_quote": "SLC13A3 was associated with the trait.",
     }
 
     def _block(self, value):
