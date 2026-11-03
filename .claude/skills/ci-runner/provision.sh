@@ -22,7 +22,7 @@ RUNNERS=${RUNNERS:-6}
 LABEL=${LABEL:-csvd-ci}
 # e2e/package.json's @playwright/test. Re-run this script with the new one
 # after an upgrade: the workflow skips --with-deps on a self-hosted runner.
-PLAYWRIGHT_VERSION=${PLAYWRIGHT_VERSION:-1.62.1}
+PLAYWRIGHT_VERSION=${PLAYWRIGHT_VERSION:-1.64.1}
 RUNNER_USER=runner
 RUNNER_HOME=/home/$RUNNER_USER
 
