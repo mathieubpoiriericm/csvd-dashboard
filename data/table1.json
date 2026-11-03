@@ -1559,19 +1559,5 @@
     "references": ["39818967"],
     "sourceQuote": "We found the most consistent evidence for EPHA2 and APOE with the support of both MR and conventional epidemiological analyses (Figure 5 A).",
     "confidence": 0.65
-  },
-  {
-    "gene": "CDKN2A",
-    "protein": "Cyclin-dependent kinase inhibitor 2A (p16INK4A)",
-    "chromosomalLocation": "9p21.3",
-    "gwasTrait": ["(none found)"],
-    "mendelianRandomization": "No",
-    "evidenceFromOtherOmicsStudies": ["(none found)"],
-    "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "(unknown)",
-    "affectedPathway": "(unknown)",
-    "references": ["40796891"],
-    "sourceQuote": "Here, we demonstrate that a single intraperitoneal injection of modified adeno-associated virus (AAV) harboring CDKN2A/p16 INK4A leads to cSVD phenotypes accompanied by altered neurobehaviors and cerebrovascular transcriptomes in mice.",
-    "confidence": 0.75
   }
 ]

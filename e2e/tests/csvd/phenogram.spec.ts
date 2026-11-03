@@ -4,7 +4,7 @@ import { tooltip } from "../../helpers.ts";
 
 /**
  * The karyogram over the committed cSVD genes, by name: 20 chromosomes and
- * 88 blocks, ABO on 9, LAMB1's tooltip, EPHA2 first and GLA last, SLK's band
+ * 87 blocks, ABO on 9, LAMB1's tooltip, EPHA2 first and GLA last, SLK's band
  * range, WMH's STRIVE-2 definition. The figure's behaviour is tested over derived counts
  * in ../phenogram.spec.ts; a fork deletes the whole e2e/tests/csvd/ tree.
  */
@@ -17,13 +17,13 @@ async function figureSettled(page: Page) {
   await page.evaluate(() => document.fonts.ready);
 }
 
-test("draws 20 chromosomes and 88 gene blocks under seven families", async ({ page }) => {
+test("draws 20 chromosomes and 87 gene blocks under seven families", async ({ page }) => {
   await figureSettled(page);
   const figure = page.locator(FIGURE);
   await expect(figure.locator("g.phenogram-chromosome")).toHaveCount(20);
   await expect(figure.locator('g.phenogram-chromosome[data-chromosome="13"]'))
     .toHaveCount(1);
-  await expect(figure.locator("g.phenogram-block")).toHaveCount(88);
+  await expect(figure.locator("g.phenogram-block")).toHaveCount(87);
   await expect(page.locator(".phenogram-legend-family")).toHaveCount(7);
 });
 

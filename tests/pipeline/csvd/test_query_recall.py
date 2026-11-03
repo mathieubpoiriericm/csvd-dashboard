@@ -94,9 +94,12 @@ def _entrez_contact(monkeypatch: pytest.MonkeyPatch) -> None:
 # test_extraction_golden.py: re-measure and update when the query changes on
 # purpose; do not edit a figure to turn a red run green.
 
-# SVD_QUERY retrieves 178 of the 183 gold papers: the 168 this dashboard cites
-# and 15 it cited before the 2026-11-03 reset, kept in disease/recall_gold.csv
-# so the figure stays comparable. It was 18 of 29 before the MeSH branch:
+# SVD_QUERY retrieves 178 of the 183 gold papers: the 167 this dashboard cites
+# and 16 it no longer does, kept in disease/recall_gold.csv so the figure stays
+# comparable -- 15 cited before the 2026-11-03 reset, and PMID 40796891, whose
+# one gene, CDKN2A, curation removed the same day (a mouse AAV-p16
+# overexpression study, not a human genetic association; the paper is still a
+# cSVD paper the query should retrieve). It was 18 of 29 before the MeSH branch:
 # the two Title/Abstract branches both AND on the phrase "cerebral small
 # vessel disease", so a paper that never writes it out was unreachable
 # however many genetic or marker terms were added.
