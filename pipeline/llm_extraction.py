@@ -4,7 +4,7 @@ import logging
 
 from pipeline.anthropic_client import AnthropicClient
 from pipeline.config import PipelineConfig
-from pipeline.extraction_models import ExtractionFailedError, GeneEntry
+from pipeline.extraction_models import ExtractionFailedError, GeneEntry, ServedBy
 from pipeline.quality_metrics import TokenUsage
 from pipeline.rate_limiter import AsyncRateLimiter
 
@@ -25,12 +25,16 @@ async def extract_from_paper(
     pmid: str,
     config: PipelineConfig | None = None,
     rate_limiter: AsyncRateLimiter | None = None,
-) -> tuple[list[GeneEntry], TokenUsage]:
-    """Extract genes from paper text. Caches one client for the process."""
+) -> tuple[list[GeneEntry], TokenUsage, ServedBy | None]:
+    """Extract genes from paper text. Caches one client for the process.
+
+    The third value says which model served the extraction, and is None
+    when no call was made (empty text): no model ran.
+    """
     global _client
     if not text or not text.strip():
         logger.warning("Empty text provided for PMID %s", pmid)
-        return [], TokenUsage()
+        return [], TokenUsage(), None
 
     config = config or PipelineConfig()
     if _client is None:

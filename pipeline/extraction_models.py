@@ -2,6 +2,7 @@
 
 import json
 from collections.abc import Mapping
+from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
 from typing import Annotated, Final
@@ -134,6 +135,20 @@ class ExtractionResult(BaseModel):
     """Wrapper model for structured extraction."""
 
     genes: list[GeneEntry] = Field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class ServedBy:
+    """Which model produced an extraction, and why another one did not.
+
+    `model` is the response's own top-level `model`, never assumed: under
+    the server-side fallback it names Opus 4.8 when Opus 5.5 declined.
+    `declined` is the category of the hop that declined -- set only when a
+    fallback model served the paper.
+    """
+
+    model: str
+    declined: str | None = None
 
 
 class ExtractionFailedError(RuntimeError):

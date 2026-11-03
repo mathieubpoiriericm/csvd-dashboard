@@ -53,6 +53,22 @@ class TestEstimateCost:
         cost = _cost(1000, 500)
         assert 0 < cost < 0.1
 
+    def test_estimate_cost_prices_the_fallback_at_opus_4_8_rates(self):
+        usage = TokenUsage(
+            input_tokens=2_000_000,
+            output_tokens=1_000_000,
+            cache_creation_input_tokens=2_000_000,
+            cache_read_input_tokens=2_000_000,
+            fallback_input_tokens=1_000_000,
+            fallback_output_tokens=1_000_000,
+            fallback_cache_creation_input_tokens=1_000_000,
+            fallback_cache_read_input_tokens=1_000_000,
+        )
+        # Opus 5.5 on what it ran: 1M in $4 + 0 out + 1M 1h writes $8 +
+        # 1M reads $0.20 = 12.2. Opus 4.8 on what it ran: $5 + $25 + $10 +
+        # 1M reads at 0.1x = $0.50 -> 40.5.
+        assert AnthropicClient().estimate_cost(usage) == pytest.approx(52.7)
+
 
 # ---------------------------------------------------------------------------
 # Mock PaperResult for testing
@@ -88,6 +104,13 @@ class TestAnthropicClientReportMetadata:
         assert fields["model"] == "claude-opus-5-5"
         assert fields["thinking_mode"] != "none"
         assert fields["effort"] is not None
+
+    def test_report_metadata_names_the_fallback_except_under_batch(self):
+        config = PipelineConfig()
+        client = AnthropicClient()
+        assert client.report_metadata(config)["fallback_model"] == "claude-opus-4-8"
+        # The Batches API rejects `fallbacks`, so a batch run had none.
+        assert client.report_metadata(config, batched=True)["fallback_model"] is None
 
     def test_report_metadata_carries_disease_and_prompt_hash(self):
         config = PipelineConfig()

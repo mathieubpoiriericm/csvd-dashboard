@@ -18,7 +18,7 @@ from pipeline.api_telemetry import reset_recorder
 from pipeline.citations import current_tally, reset_tally
 from pipeline.config import PipelineConfig
 from pipeline.database import DatabaseConfigError
-from pipeline.extraction_models import ExtractionFailedError, GeneEntry
+from pipeline.extraction_models import ExtractionFailedError, GeneEntry, ServedBy
 from pipeline.main import PaperResult, _ProcessedBatch, _ProgressReporter
 from pipeline.quality_metrics import PipelineMetrics, TokenUsage
 from pipeline.validation import NcbiUnavailableError
@@ -606,7 +606,11 @@ class TestAFailedPaperContributesOnlyItsSpend:
         mocker.patch(
             "pipeline.main.extract_from_paper",
             new=AsyncMock(
-                return_value=(genes, TokenUsage(input_tokens=4, output_tokens=2))
+                return_value=(
+                    genes,
+                    TokenUsage(input_tokens=4, output_tokens=2),
+                    ServedBy(model="claude-opus-5-5"),
+                )
             ),
         )
         mocker.patch(

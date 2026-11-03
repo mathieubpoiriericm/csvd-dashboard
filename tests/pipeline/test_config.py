@@ -6,7 +6,9 @@ import subprocess
 import pytest
 
 from pipeline.config import (
+    EXTRACTION_FALLBACK_MODEL,
     EXTRACTION_MODEL,
+    FALLBACK_BETA,
     MODEL_MAX_OUTPUT_TOKENS,
     PROJECT_ROOT,
     PipelineConfig,
@@ -722,3 +724,18 @@ class TestExtractionConfigGuards:
     def test_every_documented_effort_is_accepted(self, monkeypatch, value):
         monkeypatch.setenv("PIPELINE_LLM_EFFORT", value)
         assert PipelineConfig().llm_effort == value
+
+
+def test_the_fallback_model_is_pinned_to_opus_4_8(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Pinned as the primary is: no variable selects it.
+
+    The array form names one target, so a refused paper can only ever be
+    extracted by Opus 4.8 -- `"default"` routes server-side, unpublished,
+    and Opus 5 is one of its two targets.
+    """
+    monkeypatch.setenv("PIPELINE_FALLBACK_MODEL", "claude-opus-5")
+    assert EXTRACTION_FALLBACK_MODEL == "claude-opus-4-8"
+    assert FALLBACK_BETA == "server-side-fallback-2026-06-01"
+    assert PipelineConfig().fallback_model == "claude-opus-4-8"

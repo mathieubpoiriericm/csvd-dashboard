@@ -686,7 +686,7 @@ async def _extract_and_validate(
     """Run the LLM and the validation policy shared by all pipeline modes."""
     llm_start = time.monotonic()
     try:
-        genes, token_usage = await extract_from_paper(
+        genes, token_usage, _served = await extract_from_paper(
             text,
             paper_id,
             config=config,

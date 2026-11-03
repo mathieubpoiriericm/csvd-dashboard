@@ -199,6 +199,7 @@ def results_by_custom_id(
             thinking=thinking_text,
             attempt=1,
             accepted=genes is not None,
+            model=getattr(message, "model", None),
         )
         if genes is None:
             continue

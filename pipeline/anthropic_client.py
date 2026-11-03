@@ -19,7 +19,7 @@ from pipeline.api_telemetry import (
     record_service_failure,
 )
 from pipeline.citations import collect_spans, report_provenance
-from pipeline.config import EXTRACTION_TOOL_NAME, PipelineConfig
+from pipeline.config import EXTRACTION_TOOL_NAME, FALLBACK_BETA, PipelineConfig
 from pipeline.disease import load_disease
 from pipeline.event_log import EventLog
 from pipeline.extraction_models import (
@@ -27,6 +27,7 @@ from pipeline.extraction_models import (
     ExtractionRefusedError,
     ExtractionResult,
     GeneEntry,
+    ServedBy,
 )
 from pipeline.prompts import build_extraction_prompt, prompt_sha256
 from pipeline.quality_metrics import (
@@ -40,6 +41,9 @@ from pipeline.run_errors import refusal_category
 # Pricing per 1M tokens (input, output) for EXTRACTION_MODEL. Bump when
 # Anthropic changes published rates.
 MODEL_PRICING: Final[tuple[float, float]] = (4.0, 20.0)
+# The same for EXTRACTION_FALLBACK_MODEL, Claude Opus 4.8. A fallback attempt
+# is billed at the fallback model's rates (usage.iterations is per attempt).
+FALLBACK_MODEL_PRICING: Final[tuple[float, float]] = (5.0, 25.0)
 
 # Where the SDK's calls land in the run report's External services panel.
 # The SDK owns its own transport, so no httpx event hook fires for it and
@@ -62,6 +66,8 @@ _MESSAGES_ENDPOINT: Final[str] = "/v1/messages"
 # earlier Opus models charged.
 _CACHE_WRITE_MULTIPLIER: float = 2.0  # 1h TTL
 _CACHE_READ_MULTIPLIER: float = 0.05
+# Claude Opus 4.8 reads its cache at the 0.1x earlier Opus models charged.
+_FALLBACK_CACHE_READ_MULTIPLIER: float = 0.1
 # The Message Batches API bills every token at half the streaming rate.
 _BATCH_MULTIPLIER: float = 0.5
 
@@ -137,6 +143,7 @@ def _record_thinking_trace(
     thinking: str,
     attempt: int,
     accepted: bool,
+    model: str | None = None,
 ) -> None:
     """Persist the reasoning trace to the audit event log, capped in size.
 
@@ -174,6 +181,8 @@ def _record_thinking_trace(
                 "truncated": thinking_chars > _MAX_THINKING_CHARS_LOGGED,
                 "attempt": attempt,
                 "accepted": accepted,
+                # Under the fallback this is Opus 4.8's reasoning, not 5.5's.
+                "model": model,
             },
         )
 
@@ -315,14 +324,27 @@ async def _stream_and_parse(
     rate_limiter: AsyncRateLimiter | None,
     request_id: int | None,
     attempt: int,
-) -> list[GeneEntry]:
+) -> tuple[list[GeneEntry], ServedBy]:
     """Consume one streamed response, account for it, and parse its genes.
+
+    Returns the genes and who served them: the response's own `model`, and
+    -- when a `fallback_message` iteration shows the fallback served it --
+    the category of the classifier that declined the requested model.
 
     ``attempt`` is 1-based over the calls ``extract`` has made for this
     PMID, and only labels the audit event -- see _record_thinking_trace.
     """
     stream_start = time.monotonic()
-    async with client.messages.stream(**stream_kwargs) as stream:
+    # The fallback rides on this call rather than in the shared params: the
+    # Batches API rejects `fallbacks`, so `_build_message_params` -- shared
+    # with it, and what the golden cassettes' recorded bodies are compared
+    # against -- must not carry it. The beta stream posts to the same
+    # /v1/messages, so the cassettes, matched on method and URI, replay.
+    async with client.beta.messages.stream(
+        **stream_kwargs,
+        betas=[FALLBACK_BETA],
+        fallbacks=[{"model": config.fallback_model}],
+    ) as stream:
         response = await stream.get_final_message()
     stream_elapsed = time.monotonic() - stream_start
     # The SDK owns its own transport, so no event hook fires for it. Without
@@ -336,17 +358,20 @@ async def _stream_and_parse(
         elapsed_ms=stream_elapsed * 1000.0,
     )
 
-    accumulate_usage(usage, response)
+    # Every attempt, the declined one included: top-level usage covers only
+    # the attempt that served the message (see accumulate_usage).
+    delta = accumulate_usage(usage, response)
     if rate_limiter is not None and request_id is not None and response.usage:
-        actual = response.usage.input_tokens + response.usage.output_tokens
+        actual = delta.input_tokens + delta.output_tokens
         await rate_limiter.record_actual_usage(request_id, actual)
 
     # A declined request is a normal 200 whose content is not an
     # extraction. Treating it as one would burn the validation-retry budget
     # reporting a missing tool call, so the check has to come before
-    # _extract_response_text. The server-side
-    # `fallbacks` parameter is not available on the Message Batches API, so
-    # this path stays client-side for both callers.
+    # _extract_response_text. With the server-side fallback on, a refusal
+    # here means every model in the chain declined -- Opus 5.5, then Opus
+    # 4.8 -- or that the fallback could not be attempted (rate-limited), and
+    # the paper fails so that the next run retries it.
     if response.stop_reason == "refusal":
         category = _refusal_category(response)
         logger.error(
@@ -418,6 +443,7 @@ async def _stream_and_parse(
             thinking=thinking_text,
             attempt=attempt,
             accepted=accepted,
+            model=response.model,
         )
     if len(tool_blocks) > 1:
         logger.warning(
@@ -429,13 +455,33 @@ async def _stream_and_parse(
     # Read back out of the request rather than from the caller's `text`:
     # that one is the untruncated paper, and offsets are only meaningful
     # against the bytes the document block actually carried.
-    return report_provenance(
+    genes = report_provenance(
         genes,
         spans=collect_spans(response),
         document=_document_text(stream_kwargs),
         pmid=pmid,
         require_verified_quotes=config.require_verified_quotes,
     )
+    return genes, _served_by(response)
+
+
+def _served_by(response: Any) -> ServedBy:
+    """Who produced a response that was not a refusal.
+
+    The served-by signal is a `fallback_message` entry in
+    `usage.iterations`, not the `fallback` block (a sticky-served turn has
+    none); the model is the response's top-level `model`, which names the
+    model that produced the message. Only a fallback-served response has a
+    declined hop to report.
+    """
+    iterations = getattr(getattr(response, "usage", None), "iterations", None)
+    fell_back = isinstance(iterations, list) and any(
+        getattr(entry, "type", None) == "fallback_message" for entry in iterations
+    )
+    declined = _declining_hop_category(response) if fell_back else None
+    if fell_back and declined is None:
+        declined = "unspecified"
+    return ServedBy(model=response.model, declined=declined)
 
 
 def _extraction_tool_blocks(response: Any) -> list[Any]:
@@ -633,6 +679,24 @@ def build_async_client() -> anthropic.AsyncAnthropic:
     )
 
 
+def _priced(
+    pricing: tuple[float, float],
+    cache_read_multiplier: float,
+    input_tokens: int,
+    output_tokens: int,
+    cache_write_tokens: int,
+    cache_read_tokens: int,
+) -> float:
+    """USD for one model's share of a run's tokens."""
+    input_price, output_price = pricing
+    return (
+        input_tokens * input_price
+        + cache_write_tokens * input_price * _CACHE_WRITE_MULTIPLIER
+        + cache_read_tokens * input_price * cache_read_multiplier
+        + output_tokens * output_price
+    ) / 1_000_000
+
+
 class AnthropicClient:
     """Streaming Claude client for gene extraction."""
 
@@ -656,9 +720,13 @@ class AnthropicClient:
             await self._client.close()
             self._client = None
 
-    def report_metadata(self, config: PipelineConfig) -> dict[str, Any]:
+    def report_metadata(
+        self, config: PipelineConfig, *, batched: bool = False
+    ) -> dict[str, Any]:
         return {
             "model": config.llm_model,
+            # A batch run requested none: the Batches API rejects `fallbacks`.
+            "fallback_model": None if batched else config.fallback_model,
             "model_version": config.model_version,
             "thinking_mode": config.thinking_mode,
             "effort": config.llm_effort,
@@ -679,13 +747,26 @@ class AnthropicClient:
         is the whole reason ``--batch`` exists and which the report could
         not show while the cost model did not know which path had run.
         """
-        input_price, output_price = MODEL_PRICING
-        cost = (
-            usage.input_tokens * input_price
-            + usage.cache_creation_input_tokens * input_price * _CACHE_WRITE_MULTIPLIER
-            + usage.cache_read_input_tokens * input_price * _CACHE_READ_MULTIPLIER
-            + usage.output_tokens * output_price
-        ) / 1_000_000
+        primary = _priced(
+            MODEL_PRICING,
+            _CACHE_READ_MULTIPLIER,
+            usage.input_tokens - usage.fallback_input_tokens,
+            usage.output_tokens - usage.fallback_output_tokens,
+            usage.cache_creation_input_tokens
+            - usage.fallback_cache_creation_input_tokens,
+            usage.cache_read_input_tokens - usage.fallback_cache_read_input_tokens,
+        )
+        # The totals hold both models; the fallback_* counts are Opus 4.8's
+        # share, billed at its own rates. A batch never falls back.
+        fallback = _priced(
+            FALLBACK_MODEL_PRICING,
+            _FALLBACK_CACHE_READ_MULTIPLIER,
+            usage.fallback_input_tokens,
+            usage.fallback_output_tokens,
+            usage.fallback_cache_creation_input_tokens,
+            usage.fallback_cache_read_input_tokens,
+        )
+        cost = primary + fallback
         return cost * _BATCH_MULTIPLIER if batched else cost
 
     async def extract(
@@ -694,7 +775,7 @@ class AnthropicClient:
         pmid: str,
         config: PipelineConfig,
         rate_limiter: AsyncRateLimiter | None,
-    ) -> tuple[list[GeneEntry], TokenUsage]:
+    ) -> tuple[list[GeneEntry], TokenUsage, ServedBy]:
         """Extract genes using Claude API with streaming and Pydantic validation.
 
         Uses the Anthropic streaming API (required for adaptive thinking
@@ -708,7 +789,9 @@ class AnthropicClient:
             rate_limiter: Optional rate limiter for coordinated throttling.
 
         Returns:
-            Tuple of (gene_entries, token_usage).
+            Tuple of (gene_entries, token_usage, served_by). ``served_by``
+            names Claude Opus 4.8 when Opus 5.5 declined and the server-side
+            fallback extracted the paper instead.
         """
         usage = TokenUsage()
         client = self._get_client()
@@ -730,7 +813,7 @@ class AnthropicClient:
                         estimated_tokens=config.estimated_tokens_per_call
                     )
                 attempts += 1
-                genes = await _stream_and_parse(
+                genes, served = await _stream_and_parse(
                     client,
                     stream_kwargs,
                     usage,
@@ -740,7 +823,7 @@ class AnthropicClient:
                     request_id=request_id,
                     attempt=attempts,
                 )
-                return genes, usage
+                return genes, usage, served
 
             except anthropic.RateLimitError as e:
                 await _release_reservation(rate_limiter, request_id)

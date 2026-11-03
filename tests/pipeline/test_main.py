@@ -7,6 +7,7 @@ import httpx
 import pytest
 
 from pipeline.config import PipelineConfig
+from pipeline.extraction_models import ServedBy
 from pipeline.main import (
     ExtractionFailedError,
     PaperResult,
@@ -93,7 +94,13 @@ class TestSharedPipelineHelpers:
         usage = TokenUsage(input_tokens=100, output_tokens=20)
         mocker.patch(
             "pipeline.main.extract_from_paper",
-            new=AsyncMock(return_value=([accepted_gene, rejected_gene], usage)),
+            new=AsyncMock(
+                return_value=(
+                    [accepted_gene, rejected_gene],
+                    usage,
+                    ServedBy(model="claude-opus-5-5"),
+                )
+            ),
         )
         metrics = PipelineMetrics()
         config = PipelineConfig(confidence_threshold_update=0.65)

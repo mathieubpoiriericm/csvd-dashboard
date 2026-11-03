@@ -19,7 +19,7 @@ from pipeline.citations import current_tally, report_provenance, reset_tally
 from pipeline.config import PipelineConfig
 from pipeline.database import DatabaseConfigError
 from pipeline.external_data_sync import ExternalDataSyncResult
-from pipeline.extraction_models import ExtractionFailedError, GeneEntry
+from pipeline.extraction_models import ExtractionFailedError, GeneEntry, ServedBy
 from pipeline.main import (
     ExtractionOutcome,
     PaperResult,
@@ -180,7 +180,9 @@ class TestExtractionOrchestration:
         usage = TokenUsage(input_tokens=4, output_tokens=2)
         mocker.patch(
             "pipeline.main.extract_from_paper",
-            new=AsyncMock(return_value=([gene], usage)),
+            new=AsyncMock(
+                return_value=([gene], usage, ServedBy(model="claude-opus-5-5"))
+            ),
         )
         validate = mocker.patch(
             "pipeline.main._validate_genes",
@@ -321,7 +323,7 @@ class TestTheQuoteGateNamesWhatItDropped:
                 pmid=pmid,
                 require_verified_quotes=True,
             )
-            return genes, TokenUsage()
+            return genes, TokenUsage(), ServedBy(model="claude-opus-5-5")
 
         return fake
 
@@ -369,7 +371,7 @@ class TestTheQuoteGateNamesWhatItDropped:
                 pmid=pmid,
                 require_verified_quotes=False,
             )
-            return genes, TokenUsage()
+            return genes, TokenUsage(), ServedBy(model="claude-opus-5-5")
 
         mocker.patch("pipeline.main.extract_from_paper", new=fake)
         mocker.patch(
@@ -469,7 +471,9 @@ class TestPaperProcessing:
         )
         mocker.patch(
             "pipeline.main.extract_from_paper",
-            new=AsyncMock(return_value=([], TokenUsage())),
+            new=AsyncMock(
+                return_value=([], TokenUsage(), ServedBy(model="claude-opus-5-5"))
+            ),
         )
 
         result = await pipeline_main.process_paper(
@@ -491,7 +495,9 @@ class TestPaperProcessing:
         )
         mocker.patch(
             "pipeline.main.extract_from_paper",
-            new=AsyncMock(return_value=([], TokenUsage())),
+            new=AsyncMock(
+                return_value=([], TokenUsage(), ServedBy(model="claude-opus-5-5"))
+            ),
         )
 
         result = await pipeline_main.process_paper(

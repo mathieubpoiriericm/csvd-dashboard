@@ -353,6 +353,8 @@ class MockAnthropicResponse:
     stop_reason: str = "end_turn"
     # Populated by the API only when stop_reason is "refusal".
     stop_details: Any = None
+    # The model that produced the message -- the fallback's id when it served.
+    model: str = "claude-opus-5-5"
 
     def __post_init__(self):
         if self.usage is None:

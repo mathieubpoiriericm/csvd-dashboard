@@ -1,5 +1,7 @@
 """Tests for pipeline.quality_metrics — TokenUsage, PipelineMetrics."""
 
+from types import SimpleNamespace
+
 from pipeline.quality_metrics import (
     PipelineMetrics,
     TokenUsage,
@@ -224,3 +226,76 @@ class TestPipelineMetrics:
 
 
 import pytest  # noqa: E402
+
+
+def _iteration(kind: str, model: str, inp: int, out: int, write: int, read: int):
+    return SimpleNamespace(
+        type=kind,
+        model=model,
+        input_tokens=inp,
+        output_tokens=out,
+        cache_creation_input_tokens=write,
+        cache_read_input_tokens=read,
+    )
+
+
+class TestFallbackIterations:
+    def test_accumulate_usage_sums_iterations_without_double_counting(self) -> None:
+        """Top-level usage repeats only the attempt that served the message;
+        `iterations` holds every attempt, the declined one included."""
+        response = SimpleNamespace(
+            usage=SimpleNamespace(
+                input_tokens=1200,
+                output_tokens=3000,
+                cache_creation_input_tokens=5000,
+                cache_read_input_tokens=0,
+                output_tokens_details=None,
+                iterations=[
+                    _iteration("message", "claude-opus-5-5", 1000, 0, 5000, 0),
+                    _iteration(
+                        "fallback_message", "claude-opus-4-8", 1200, 3000, 5000, 0
+                    ),
+                ],
+            )
+        )
+        usage = TokenUsage()
+        delta = accumulate_usage(usage, response)
+        assert (
+            usage.input_tokens,
+            usage.output_tokens,
+            usage.cache_creation_input_tokens,
+        ) == (2200, 3000, 10000)
+        assert (
+            usage.fallback_input_tokens,
+            usage.fallback_output_tokens,
+            usage.fallback_cache_creation_input_tokens,
+            usage.fallback_cache_read_input_tokens,
+        ) == (1200, 3000, 5000, 0)
+        assert delta.input_tokens == 2200
+        assert delta.output_tokens == 3000
+
+    def test_accumulate_usage_reads_top_level_without_iterations(self) -> None:
+        response = SimpleNamespace(
+            usage=SimpleNamespace(
+                input_tokens=10,
+                output_tokens=20,
+                cache_creation_input_tokens=0,
+                cache_read_input_tokens=0,
+                output_tokens_details=None,
+                iterations=None,
+            )
+        )
+        usage = TokenUsage()
+        delta = accumulate_usage(usage, response)
+        assert (usage.input_tokens, usage.output_tokens) == (10, 20)
+        assert usage.fallback_input_tokens == 0
+        assert delta.output_tokens == 20
+
+    def test_fallback_counts_add_up(self) -> None:
+        usage = TokenUsage(fallback_input_tokens=1, fallback_output_tokens=2)
+        usage += TokenUsage(fallback_input_tokens=3, fallback_cache_read_input_tokens=4)
+        assert (
+            usage.fallback_input_tokens,
+            usage.fallback_output_tokens,
+            usage.fallback_cache_read_input_tokens,
+        ) == (4, 2, 4)
