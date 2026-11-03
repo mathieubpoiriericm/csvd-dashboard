@@ -1,12 +1,12 @@
-"""No test process may hold the developer's database credentials.
+"""No scripts test may run with the developer's database credentials.
 
-`_isolate_credentials` clears the `DB_*` variables for the length of each
-test, and monkeypatch puts back afterwards whatever was there -- which, with
-.env populated, is production: `pipeline/main.py` calls `load_dotenv()` at
-import. So between tests, in fixture setup and teardown and in work still
-pending on the event loop, a pool opened against production could and did
-write to it: on 2026-11-03 a suite run left a zero-filled `external_sync` row
-in production's `sync_runs`, which the export publishes as the newest refresh.
+The scripts import the pipeline, which loads .env at import, and this tree
+has no per-test isolation fixture of its own -- so before tests/scripts/
+conftest.py called `shut_out_dotenv_database_credentials()`, every test here
+ran with production's `DB_*` in `os.environ`. The twin in tests/pipeline is
+`test_hermetic_environment.py`; the basenames differ because the two trees
+carry no `__init__.py`, and pytest refuses two test modules of one name when
+both trees are collected together.
 """
 
 import os

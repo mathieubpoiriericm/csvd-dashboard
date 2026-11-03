@@ -77,9 +77,12 @@ against those params; the beta stream posts to the same `/v1/messages`, so the
 cassettes replay. **It is named, never `"default"`.** The default routes by
 refusal category, server-side and unpublished, and Opus 5 is one of Opus 5.5's
 two permitted targets (`allowed_fallback_models` on its `/v1/models` entry) -- a
-model whose extractions this dataset no longer admits. Opus 4.8 runs no biology
-classifier, and accepts the request unchanged (adaptive thinking, every effort
-level, citations, 128,000 output tokens), so the entry needs no overrides.
+model whose extractions this dataset no longer admits. Opus 4.8 is not
+documented to run the biology classifier Opus 5.5 added, and it is not immune
+either: on 2026-11-03 it served 34 of the 35 papers Opus 5.5 declined as `bio`
+and declined the 35th itself. It accepts the request unchanged (adaptive
+thinking, every effort level, citations, 128,000 output tokens), so the entry
+needs no overrides.
 
 This used to be refused outright, because a fallback would extract a paper with
 a model the run report did not name, which is what pinning the model exists to
@@ -101,8 +104,8 @@ paper's extraction depends on it.
 
 `--batch` has no fallback: the Batches API rejects `fallbacks`. A refused batch
 entry is handed back through `results_by_custom_id`'s `refusals` and fails with
-the same sentence and category as a streaming refusal, and the next run retries
-it.
+the same sentence and category as a streaming refusal, and the next run whose
+window still covers it retries it.
 
 **Opus 4.8 was measured on the golden fixtures before it served a paper**
 (2026-11-03, one call per scorable paper, the pipeline's own request with only
@@ -816,10 +819,13 @@ still pending on the event loop -- production's credentials were back in
 into production's `sync_runs`, which the export publishes as the newest refresh.
 Both test trees' conftests now call `tests/hermetic_env.py`'s
 `shut_out_dotenv_database_credentials()` before anything imports the pipeline:
-it sets `DB_HOST`, `DB_NAME`, `DB_USER` and `DB_PASSWORD` to empty, and
-`load_dotenv` never overrides a set variable, so `.env`'s values cannot enter a
-test process at all. `test_hermetic_environment.py` in each tree fails if they
-do. `tests/scripts` had no isolation of its own before this.
+it sets `DB_HOST`, `DB_NAME`, `DB_USER` and `DB_PASSWORD` to empty when they are
+unset, and `load_dotenv` never overrides a set variable, so `.env`'s values
+cannot enter a test process at all. A value exported in the shell is kept, and
+the hermetic test then fails loudly by design: a production credential exported
+by hand is the same hazard. `test_hermetic_environment.py` (and
+`test_scripts_hermetic_environment.py`) fail if any of the four is set.
+`tests/scripts` had no isolation of its own before this.
 
 A test that wants real SQL asks for the `database_env` fixture, which brings up
 **`dhi.io/postgres:18-alpine3.23`** as a container named `csvd-pg-pytest`,

@@ -258,7 +258,9 @@ EXTRACTION_TOOL_NAME: Final[str] = "report_genes"
 # claude-opus-5), and `fallbacks: "default"` routes between them by refusal
 # category, server-side and unpublished -- so it could hand a paper to Opus 5,
 # whose extractions this dataset no longer admits. The array form names one.
-# It runs no biology classifier, which is what Opus 5.5's refusals here are.
+# It is not documented to run the biology classifier Opus 5.5 added, which is
+# what Opus 5.5's refusals here are -- though it declined 1 of the 35 papers
+# Opus 5.5 declined as `bio` on 2026-11-03.
 EXTRACTION_FALLBACK_MODEL: Final[str] = "claude-opus-4-8"
 
 # The array form of `fallbacks` requires exactly this header; the scalar
