@@ -1,16 +1,19 @@
 #!/usr/bin/env bash
-# Provisions the self-hosted CI runners on a dedicated Ubuntu VM: Docker for
-# the postgres service containers, Chromium's system packages, and RUNNERS
-# instances of GitHub's runner, each a systemd service with its own E2E_PORT.
+# Provisions the self-hosted CI runners on a dedicated Ubuntu Server machine:
+# Docker for the postgres service containers, Chromium's system packages, and
+# RUNNERS instances of GitHub's runner, each a systemd service with its own
+# E2E_PORT.
 #
-# Run it as root on the VM, with a registration token fetched on a machine
-# where `gh` is signed in (the token lasts an hour and registers every
-# instance):
+# Run it as root on that machine, with a registration token fetched where `gh`
+# is signed in (the token lasts an hour and registers every instance). sudo
+# asks for a password there, so copy the script over and run it with a
+# terminal attached; piped into ssh, it leaves sudo no terminal to ask on:
 #
 #   token=$(gh api -X POST \
 #     repos/mathieubpoiriericm/csvd-dashboard-private/actions/runners/registration-token \
 #     --jq .token)
-#   ssh <vm> "sudo RUNNER_TOKEN=$token bash -s" < .claude/skills/ci-runner/provision.sh
+#   scp .claude/skills/ci-runner/provision.sh minipc:
+#   ssh -t minipc "sudo RUNNER_TOKEN=$token bash ~/provision.sh"
 #
 # Re-running it is safe: an instance that is already configured is left alone,
 # so raising RUNNERS adds the missing ones. Never point REPO_URL at the public
@@ -39,9 +42,8 @@ apt-get update
 # from actions/setup-node. unzip and xz-utils are what the setup actions
 # extract their downloads with.
 apt-get install -y docker.io git curl jq unzip xz-utils ca-certificates \
-  nodejs npm qemu-guest-agent unattended-upgrades
+  nodejs npm unattended-upgrades
 systemctl enable --now docker
-systemctl enable --now qemu-guest-agent || true
 
 echo "== the runner user (docker, no sudo)"
 id "$RUNNER_USER" &>/dev/null || useradd --create-home --shell /bin/bash "$RUNNER_USER"

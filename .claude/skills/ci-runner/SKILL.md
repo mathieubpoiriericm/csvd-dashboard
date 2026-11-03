@@ -1,23 +1,25 @@
 ---
 name: ci-runner
-description: Use when CI jobs queue and never start, when moving CI between the home mini PC and GitHub's runners, after upgrading @playwright/test, when adding a job that serves on a port, or when provisioning, re-registering or cleaning up the self-hosted runners - the CI_RUNNER variable and its fallback, why the runners belong to the private repository alone, the per-runner E2E_PORT, and the VM's housekeeping.
+description: Use when CI jobs queue and never start, when moving CI between the home mini PC and GitHub's runners, after upgrading @playwright/test, when adding a job that serves on a port, or when provisioning, re-registering or cleaning up the self-hosted runners - the CI_RUNNER variable and its fallback, why the runners belong to the private repository alone, the per-runner E2E_PORT, and the machine's housekeeping.
 ---
 
 # The self-hosted CI runners
 
 The five test jobs in `.github/workflows/ci.yml` (`check`, `python`, `e2e`,
 `empty-data`, both `adapt-fork` legs) run on
-`${{ vars.CI_RUNNER || 'ubuntu-latest' }}`. Setting the repository variable
-`CI_RUNNER=csvd-ci` on the private repository
-(`mathieubpoiriericm/csvd-dashboard-private`) sends them to six runners,
-`ryzen-1` to `ryzen-6`, in an Ubuntu VM on a dedicated mini PC at home (Proxmox
-VE on a Ryzen 9 9955HX, 32 GB). **As of 2026-11-03 it is not set and no runner
-is registered** -- the rollout paused before the VM was provisioned -- so the
-private repository runs on `ubuntu-latest` like the public one and every fork.
-Provision the VM with `provision.sh` first, then set the variable. `container` and `deploy` are hosted everywhere.
+`${{ vars.CI_RUNNER || 'ubuntu-latest' }}`. The private repository
+(`mathieubpoiriericm/csvd-dashboard-private`) has set the repository variable
+`CI_RUNNER=csvd-ci` since 3 November 2026, which sends them to six runners,
+`ryzen-1` to `ryzen-6`, on a dedicated mini PC at home: Ubuntu Server 26.04 on
+bare metal, a Ryzen 9 9955HX (16 cores, 32 threads) with 32 GB, reached from the
+researcher's Mac as `ssh minipc` with key login only. The public repository and
+every fork have no such variable and stay on `ubuntu-latest`. `container` and
+`deploy` are hosted everywhere.
 
-On GitHub's two-core private runners a push took about ten minutes to go green,
-`adapt-fork` alone 8m45 (run 41546971078, 2 November 2026).
+The same CI run, PR #65's (41720801102), took 8m01 on GitHub's two-core private
+runners and 2m20 on the mini PC -- its first jobs there, on cold caches -- with
+every suite's pass and skip counts identical. Before the `adapt-fork` split a
+push took about ten minutes (run 41546971078, 2 November 2026).
 
 ## Switching
 
@@ -53,7 +55,7 @@ GitHub's runners. Set it again once `actions/runners` lists the instances
 - **After upgrading `@playwright/test`, re-run the provisioning script with the
   new `PLAYWRIGHT_VERSION`.** The workflow passes `--with-deps` only on
   GitHub's runners, because a self-hosted one has no sudo. A newer Chromium
-  needing a package the VM lacks fails to launch, with Playwright's "Host
+  needing a package the machine lacks fails to launch, with Playwright's "Host
   system is missing dependencies" or a missing `.so`.
 - **Every action in `ci.yml` runs on `node24`**, the newest runtime GitHub
   offers actions (`astral-sh/setup-uv` was the last on `node20`, until it moved
@@ -61,7 +63,7 @@ GitHub's runners. Set it again once `actions/runners` lists the instances
   `v10` tag to float on). A self-hosted runner too old for `node24` fails every
   job at its first action, so keep the runners updating themselves. The tests
   themselves run on Node 26, from `actions/setup-node`'s `node-version: 26`.
-- **Caches live on the VM's disk.** `setup-uv` and `setup-node` cache through
+- **Caches live on the machine's disk.** `setup-uv` and `setup-node` cache through
   GitHub's service only on hosted runners; here uv, npm, Deno and Playwright
   keep their caches under `/home/runner`. `actions/checkout` still cleans the
   workspace (`git clean -ffdx`), so `node_modules` and `.venv` are rebuilt from
@@ -73,26 +75,39 @@ GitHub's runners. Set it again once `actions/runners` lists the instances
 
 ## Provisioning
 
-`provision.sh`, beside this file, sets up the VM from a fresh Ubuntu Server:
-Docker, a `runner` user in the `docker` group with no sudo, Chromium's system
-packages through `npx playwright install-deps`, the runner instances as systemd
-services, and a weekly `docker system prune` timer. Its header has the
-invocation; it is safe to re-run, and raising `RUNNERS` adds instances.
+`provision.sh`, beside this file, sets up the machine from a fresh Ubuntu
+Server: Docker, a `runner` user in the `docker` group with no sudo, Chromium's
+system packages through `npx playwright install-deps`, the runner instances as
+systemd services, and a weekly `docker system prune` timer. It is safe to
+re-run, and raising `RUNNERS` adds instances.
 
-The VM in Proxmox: CPU type `host` (the default `kvm64` hides Zen 5's
-instruction sets), about 28 vCPUs, 24 GB, 120 GB of disk, the QEMU guest agent
-on. Six instances cover one full run (five jobs, two of them the `adapt-fork`
-legs); a second run arriving meanwhile queues briefly.
+**`sudo` asks for a password there, so the script runs from a terminal of your
+own, with one attached.** Piped into `ssh` it leaves `sudo` no terminal to ask
+on. Copy it over first:
 
-If `install-deps` refuses the VM's Ubuntu release, build the VM from the
-release `ubuntu-latest` uses instead, which also keeps the two environments
-alike.
+```sh
+token=$(gh api -X POST repos/$R/actions/runners/registration-token --jq .token)
+scp .claude/skills/ci-runner/provision.sh minipc:
+ssh -t minipc "sudo RUNNER_TOKEN=$token bash ~/provision.sh"
+```
 
-To remove an instance (to rename it, or retire the VM):
+The token lasts an hour and registers every instance. Type the last line rather
+than pasting it from a rendered page: a pasted non-breaking space makes `ssh`
+look up " minipc" and report "Could not resolve hostname".
+
+Playwright 1.64.1's `install-deps` accepted Ubuntu 26.04. If a later one refuses
+the machine's release, reinstall it with the release `ubuntu-latest` uses, which
+also keeps the two environments alike. Six instances on 32 threads cover one
+full run (six jobs, two of them the `adapt-fork` legs) at once, and a second
+run queues behind it: re-runs of PR #65's and PR #64's CI started together
+finished green in 2m03 and 3m36, the second's jobs taking runners as the
+first's freed them, with no port or container clash between the two.
+
+To remove an instance (to rename it, or retire the machine):
 
 ```sh
 token=$(gh api -X POST repos/$R/actions/runners/remove-token --jq .token)
-# on the VM, in /home/runner/runner-N:
+# on the mini PC, in /home/runner/runner-N:
 sudo ./svc.sh stop && sudo ./svc.sh uninstall
 sudo -u runner ./config.sh remove --token "$token"
 ```
@@ -106,3 +121,7 @@ sudo -u runner ./config.sh remove --token "$token"
 - `scripts/adapt_fork_check.ts` keeps a failed fork's copy under `/tmp`
   (`adapt-fork-*`); systemd-tmpfiles ages those out after ten days.
 - The runners update themselves; unattended-upgrades covers the OS.
+- SSH accepts keys only: `/etc/ssh/sshd_config.d/10-keys-only.conf` sets
+  `PasswordAuthentication no`. Its name has to sort before cloud-init's
+  `50-cloud-init.conf`, because sshd keeps the first value it reads and that
+  file says `yes`.

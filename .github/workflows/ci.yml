@@ -12,12 +12,12 @@ permissions:
 
 # Where the five test jobs run. A repository that sets the CI_RUNNER variable
 # sends them to the self-hosted runners carrying that label -- this project's
-# private repository will, once the `ci-runner` skill's VM is provisioned; until
-# then it is unset there too. Every repository without it -- the public one, a
-# disease fork, a fork's pull request -- stays on ubuntu-latest. The runners are registered
-# to the private repository alone, so no other repository's job can reach them
-# whatever its workflow file says. Deleting the variable is the fallback when
-# the machine is down; a job waiting for an offline runner queues for a day.
+# private repository does, to the mini PC the `ci-runner` skill describes.
+# Every repository without it -- the public one, a disease fork, a fork's pull
+# request -- stays on ubuntu-latest. The runners are registered to the private
+# repository alone, so no other repository's job can reach them whatever its
+# workflow file says. Deleting the variable is the fallback when the machine is
+# down; a job waiting for an offline runner queues for a day.
 #
 # One machine runs several of these jobs at once, so none of them takes a fixed
 # host port (the postgres services publish on a free one, and each runner sets
