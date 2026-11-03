@@ -77,8 +77,10 @@ Two renderers, one contract, as for the timeline:
   a 520 row, because genes now carry more trait pills (2.2 a gene against 1.8).
   `rowHeight` is 760 and the viewBox 1732x1640 (`2 * margin + 2 * rowHeight +
   rowGap`). A band range such as `10q24.33-q25.1`, which NCBI writes for a gene
-  across a band edge, is placed at the middle of its span in both renderers;
-  any other inexact band is still unplaced. The layout test
+  across a band edge, is placed at the middle of its span in both renderers,
+  provided both ends are on one arm: a p-to-q range (`1p36.33-q44`) would put
+  the gene at the centromere, so it is unplaced, as is any other inexact
+  band. The layout test
   catches only the vertical case -- it asserts blocks stay inside their _row_ --
   so the horizontal one was found by measuring every `li` in
   `ul.phenogram-genes` against the list's own bounding box in a browser. A

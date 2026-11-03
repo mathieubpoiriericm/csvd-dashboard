@@ -109,6 +109,12 @@ class TestPlacement:
         assert place_gene("10q24.33-11q25.1", cytobands) is None
         assert place_gene("10q24.33-q25.1-q25.2", cytobands) is None
 
+    def test_place_gene_refuses_a_range_across_the_centromere(self, cytobands) -> None:
+        """A p-to-q range is placed nowhere, as lib/cytobands.ts."""
+        assert place_gene("1p36.33-q44", cytobands) is None
+        assert place_gene("1q21.1-p13.3", cytobands) is None
+        assert place_gene("10q24.33-q25.1", cytobands) is not None
+
     def test_only_chromosomes_with_a_gene_are_drawn(self, layout, genes) -> None:
         drawn = [c.name for c in layout.chromosomes]
         assert len(drawn) == len(set(drawn))
