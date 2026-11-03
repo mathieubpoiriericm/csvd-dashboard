@@ -10,6 +10,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Final
 
+import asyncpg
 from dotenv import load_dotenv
 
 from pipeline.config import PROJECT_ROOT
@@ -87,24 +88,32 @@ def _gene_select() -> str:
     return f"SELECT id, {projected} FROM genes ORDER BY id"
 
 
-async def _read_genes_with_lists() -> list[dict[str, object]]:
+async def _read_genes_with_lists(
+    conn: asyncpg.Connection | None = None,
+) -> list[dict[str, object]]:
     """Read genes with their three list join tables attached, ordered by id.
 
     `id` is read but never published: it is the join key, and _publishable
     drops it on the way out. Both ORDER BY clauses are load-bearing -- the
     row order and the within-gene ordinal order both reach the JSON.
+
+    *conn* reads inside a caller's transaction -- scripts.reset_to_baseline
+    re-checks the table under the lock it then writes under; without one,
+    a connection of its own.
     """
-    async with Database.connection() as conn:
-        rows = [dict(r) for r in await conn.fetch(_gene_select())]
-        lists: dict[int, dict[str, list[str]]] = {}
-        for key, table, column in _GENE_LIST_SOURCES:
-            fetched = await conn.fetch(
-                f"SELECT gene_id, {column} FROM {table} "  # allowlisted above
-                "ORDER BY gene_id, ordinal"
-            )
-            for record in fetched:
-                gene_lists = lists.setdefault(record["gene_id"], {})
-                gene_lists.setdefault(key, []).append(record[column])
+    if conn is None:
+        async with Database.connection() as own:
+            return await _read_genes_with_lists(own)
+    rows = [dict(r) for r in await conn.fetch(_gene_select())]
+    lists: dict[int, dict[str, list[str]]] = {}
+    for key, table, column in _GENE_LIST_SOURCES:
+        fetched = await conn.fetch(
+            f"SELECT gene_id, {column} FROM {table} "  # allowlisted above
+            "ORDER BY gene_id, ordinal"
+        )
+        for record in fetched:
+            gene_lists = lists.setdefault(record["gene_id"], {})
+            gene_lists.setdefault(key, []).append(record[column])
 
     merged: list[dict[str, object]] = []
     for row in rows:
@@ -114,15 +123,18 @@ async def _read_genes_with_lists() -> list[dict[str, object]]:
     return merged
 
 
-async def read_published_genes() -> list[dict[str, object]]:
+async def read_published_genes(
+    conn: asyncpg.Connection | None = None,
+) -> list[dict[str, object]]:
     """The rows `run_export` writes to table1.json, keys camelCased.
 
     For a caller that compares the live table with a published file without
-    exporting first -- scripts.reset_to_baseline checks a baseline against it.
+    exporting first -- scripts.reset_to_baseline checks a baseline against it,
+    on *conn* when it must read inside its own transaction.
     """
     return [
         {to_camel(key): value for key, value in clean_gene_row(row).items()}
-        for row in await _read_genes_with_lists()
+        for row in await _read_genes_with_lists(conn)
     ]
 
 
