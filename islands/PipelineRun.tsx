@@ -26,6 +26,7 @@ import { pipelineRun } from "../lib/data/pipeline_run.ts";
 import {
   describeError,
   describePaper,
+  describeRefusal,
   describeRejection,
   describeTruncation,
   field,
@@ -357,8 +358,23 @@ function RejectedCard({ gene }: { gene: RejectedGene }) {
 /**
  * A paper, in the columns of the service rows below it: the PMID, where its
  * text came from, and on the right what became of it (`describePaper`).
+ *
+ * A paper another model extracted -- the Opus 4.8 fallback, after Opus 5.5
+ * declined -- names that model beside its source. The run's own model is
+ * left unsaid: it is in the header, and on every row it would be noise. A
+ * refusal names its classifier as a verdict pill, whether the paper then
+ * failed or the fallback served it.
  */
-function PaperRow({ paper }: { paper: RunPaper }) {
+function PaperRow(
+  { paper, primaryModel }: { paper: RunPaper; primaryModel: string | null },
+) {
+  const otherModel = paper.extractionModel !== null &&
+      paper.extractionModel !== primaryModel
+    ? paper.extractionModel
+    : null;
+  const refusal = paper.refusal === null
+    ? null
+    : describeRefusal(paper.refusal);
   return (
     <>
       <div class="pipeline-paper">
@@ -366,9 +382,22 @@ function PaperRow({ paper }: { paper: RunPaper }) {
         <ValuePill>{paperSourceLabel(paper.source)}</ValuePill>
         <span class="pipeline-paper-detail">{describePaper(paper)}</span>
       </div>
-      {paper.error && (
+      {(otherModel || refusal || paper.error) && (
         <dl class="pipeline-fields">
-          <Field name="reason">{paper.error}</Field>
+          {otherModel && (
+            <Field name="extractionModel" pills>
+              <ValuePill>{otherModel}</ValuePill>
+            </Field>
+          )}
+          {refusal && (
+            <Field name="refusal" pills>
+              <span class={`pipeline-chip pipeline-tint-${refusal.tint}`}>
+                <Icon name={refusal.icon} />
+                {refusal.label}
+              </span>
+            </Field>
+          )}
+          {paper.error && <Field name="reason">{paper.error}</Field>}
         </dl>
       )}
     </>
@@ -441,6 +470,7 @@ function PipelineRunContent({ run }: { run: PipelineRun }) {
   const when = formatRunTimestamp(run.runTimestamp);
   const wrote = run.database;
   const effort = field("effort");
+  const fallback = field("fallbackModel");
   const prompt = field("promptVersion");
   const promptBytes = field("promptSha256");
   // Whether there is anything for the drawer to show. A run that failed
@@ -510,6 +540,16 @@ function PipelineRunContent({ run }: { run: PipelineRun }) {
             <span class="pipeline-head-meta">
               <Icon name="cube" />
               {run.config.model}
+            </span>
+          )}
+          {
+            /* Named only when the run requested one: a --batch run cannot,
+              and a report written before the fallback has none. */
+          }
+          {run.config.fallbackModel && (
+            <span class="pipeline-head-meta">
+              <Icon name={fallback.icon} />
+              {fallback.label} {run.config.fallbackModel}
             </span>
           )}
           {
@@ -712,7 +752,9 @@ export const PipelineRunDetails = memo(
           title="Papers"
           list={run.papersDetail}
           keyOf={(paper, index) => `${paper.pmid}-${index}`}
-          render={(paper) => <PaperRow paper={paper} />}
+          render={(paper) => (
+            <PaperRow paper={paper} primaryModel={run.config.model} />
+          )}
         />
 
         {

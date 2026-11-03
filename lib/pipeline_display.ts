@@ -47,6 +47,10 @@ interface RejectionKind extends Badge {
 }
 
 const REJECTION_KINDS = encoding.rejectionReasons.kinds as RejectionKind[];
+const REFUSAL_CATEGORIES = encoding.refusalCategories.kinds as Record<
+  string,
+  Badge
+>;
 const REJECTION_FALLBACK = encoding.rejectionReasons.fallback as
   & Badge
   & { kind: string };
@@ -147,6 +151,17 @@ export function describeRejection(
     };
   }
   return { ...REJECTION_FALLBACK, detail: text };
+}
+
+/**
+ * Which safety classifier declined a paper, as a badge.
+ *
+ * A category the encoding has never seen -- one the API adds later -- is
+ * still a refusal, so it reads as the generic classifier rather than as
+ * nothing.
+ */
+export function describeRefusal(category: string): Badge {
+  return REFUSAL_CATEGORIES[category] ?? REFUSAL_CATEGORIES.unspecified;
 }
 
 /**

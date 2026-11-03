@@ -622,3 +622,27 @@ Deno.test("the committed file is null or a complete run", async () => {
   assert(result !== null, "a non-null pipeline_run.json must normalize");
   assert(result.steps.length > 0, "a recorded run has steps");
 });
+
+Deno.test("the fallback model and a paper's refusal survive, and default to null", () => {
+  const result = normalizePipelineRun(run({
+    config: { model: "claude-opus-5-5", fallbackModel: "claude-opus-4-8" },
+    papersDetail: {
+      shown: 2,
+      total: 2,
+      items: [
+        { pmid: "1", extractionModel: "claude-opus-4-8", refusal: "bio" },
+        { pmid: "2" },
+      ],
+    },
+  }));
+  assert(result !== null);
+  assertEquals(result.config.fallbackModel, "claude-opus-4-8");
+  const [served, older] = result.papersDetail.items;
+  assertEquals([served.extractionModel, served.refusal], [
+    "claude-opus-4-8",
+    "bio",
+  ]);
+  assertEquals([older.extractionModel, older.refusal], [null, null]);
+  // A report written before the fallback has neither key.
+  assertEquals(normalizePipelineRun(run())?.config.fallbackModel, null);
+});

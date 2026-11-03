@@ -307,3 +307,23 @@ Deno.test("every recorded rejection reason classifies", async () => {
     );
   }
 });
+
+Deno.test("every refusal category the pipeline can name has a label", async () => {
+  const kinds = literalMembers(
+    await source("pipeline/run_errors.py"),
+    "RefusalCategory",
+  );
+  assert(kinds.length > 0);
+  const labelled = Object.keys(encoding.refusalCategories.kinds);
+  for (const kind of kinds) {
+    assert(
+      labelled.includes(kind),
+      `refusal category "${kind}" has no label in pipeline_encoding.json`,
+    );
+  }
+  assertEquals(
+    [...labelled].sort(),
+    [...kinds].sort(),
+    "pipeline_encoding.json has a refusal category outside the Python vocabulary",
+  );
+});

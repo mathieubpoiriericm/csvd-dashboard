@@ -278,9 +278,56 @@
       "label": "Reason",
       "icon": "info"
     },
+    "refusal": {
+      "label": "Declined by",
+      "icon": "minusCircle"
+    },
+    "extractionModel": {
+      "label": "Extracted by",
+      "icon": "cube"
+    },
+    "fallbackModel": {
+      "label": "Fallback",
+      "icon": "arrowsRightLeft"
+    },
     "source": {
       "label": "Source",
       "icon": "documentText"
+    }
+  },
+  "refusalCategories": {
+    "$comment": "Which safety classifier declined a paper, keyed by the API's `stop_details.category` (or a fallback block's `trigger.category`) and the pipeline's `unspecified` for a refusal that names none. `tests/pipeline_encoding_test.ts` reconciles the keys with `RefusalCategory` in `pipeline/run_errors.py` both ways; an unseen category renders as `unspecified`. A refusal is a filter, not a failure of the run, so it carries the highlight tint the quote gate does.",
+    "kinds": {
+      "bio": {
+        "label": "Biology safety classifier",
+        "icon": "minusCircle",
+        "tint": "highlight"
+      },
+      "cyber": {
+        "label": "Cybersecurity safety classifier",
+        "icon": "minusCircle",
+        "tint": "highlight"
+      },
+      "frontier_llm": {
+        "label": "Frontier-AI safety classifier",
+        "icon": "minusCircle",
+        "tint": "highlight"
+      },
+      "reasoning_extraction": {
+        "label": "Reasoning-extraction safety classifier",
+        "icon": "minusCircle",
+        "tint": "highlight"
+      },
+      "general_harms": {
+        "label": "General-harms safety classifier",
+        "icon": "minusCircle",
+        "tint": "highlight"
+      },
+      "unspecified": {
+        "label": "Safety classifier",
+        "icon": "minusCircle",
+        "tint": "highlight"
+      }
     }
   },
   "rejectionReasons": {

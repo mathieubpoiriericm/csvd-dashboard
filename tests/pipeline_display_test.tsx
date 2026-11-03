@@ -18,6 +18,7 @@ import {
   describeApi,
   describeError,
   describePaper,
+  describeRefusal,
   describeRejection,
   describeTruncation,
   field,
@@ -74,6 +75,8 @@ const PAPER: RunPaper = {
   rejectedCount: 1,
   processingSeconds: 10.664,
   error: null,
+  extractionModel: "claude-opus-5-5",
+  refusal: null,
 };
 
 Deno.test("formatDuration keeps the precision a reader can act on", () => {
@@ -447,4 +450,15 @@ Deno.test("an unrecognised rejection is badged as an error, uncut", () => {
   assertEquals(odd.tint, "danger");
   assertEquals(odd.detail, "Postgres exploded");
   assert(odd.icon.length > 0);
+});
+
+Deno.test("describeRefusal labels bio and falls back for an unseen category", () => {
+  assertEquals(describeRefusal("bio").label, "Biology safety classifier");
+  assertEquals(
+    describeRefusal("cyber").label,
+    "Cybersecurity safety classifier",
+  );
+  // A category the API adds later is still a refusal, not a blank chip.
+  assertEquals(describeRefusal("zzz").label, "Safety classifier");
+  assertEquals(describeRefusal("zzz"), describeRefusal("unspecified"));
 });

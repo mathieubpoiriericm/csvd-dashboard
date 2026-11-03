@@ -57,6 +57,7 @@ function normalizeConfig(value: unknown): RunConfig {
   const source = record(value);
   return {
     model: nullableText(source.model),
+    fallbackModel: nullableText(source.fallbackModel),
     effort: nullableText(source.effort),
     promptVersion: nullableText(source.promptVersion),
     disease: nullableText(source.disease),
@@ -184,6 +185,8 @@ function normalizePaper(value: unknown): RunPaper {
     rejectedCount: count(source.rejectedCount),
     processingSeconds: nonnegativeNumber(source.processingSeconds),
     error: nullableText(source.error),
+    extractionModel: nullableText(source.extractionModel),
+    refusal: nullableText(source.refusal),
   };
 }
 
