@@ -547,7 +547,12 @@ class TestRefusalWarnings:
             ),
             ("paper_retrieval_failed", "1 paper could not be processed", 1, ["14"]),
         ]
-        assert "next run retries" in (warnings[0].detail or "")
+        # Retried only while the paper is still in a run's window: a
+        # nightly --days-back 7 drops it after a week.
+        assert warnings[0].detail == (
+            "A declined paper is not recorded as processed, so the next run "
+            "whose window still covers it retries it."
+        )
 
     def test_a_fallback_served_paper_raises_model_fallback(self, tmp_path) -> None:
         reporter = _progress(tmp_path)

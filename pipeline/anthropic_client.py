@@ -5,6 +5,7 @@ outputs (JSON Schema constrained decoding), and prompt caching.
 """
 
 import asyncio
+import copy
 import json
 import logging
 import os
@@ -84,16 +85,51 @@ logger = logging.getLogger(__name__)
 
 
 def _declining_hop_category(response: Any) -> str | None:
-    """The category of the first `fallback` block's trigger, if there is one.
+    """The category the first `fallback` block's trigger names, if any.
 
     One block marks each hop where a model ran and declined; the first is
-    the requested model's. None when no model handed over this turn.
+    the requested model's. None when no model handed over this turn, and
+    when the trigger names no category -- so the caller can still look at
+    `stop_details` rather than settle for "unspecified" first.
     """
     for block in getattr(response, "content", None) or []:
         if getattr(block, "type", None) == "fallback":
-            trigger = getattr(block, "trigger", None)
-            return refusal_category(getattr(trigger, "category", None))
+            raw = getattr(getattr(block, "trigger", None), "category", None)
+            return raw if isinstance(raw, str) and raw else None
     return None
+
+
+def _serving_hop(response: Any, *, pmid: str) -> Any:
+    """The response as the model that served it wrote it.
+
+    A model that declines mid-stream has already written into `content`,
+    and the SDK keeps those blocks, then appends a `fallback` block and the
+    next model's. The partial output is the declined model's and is to be
+    discarded: read whole, its tool calls were published as the serving
+    model's genes (and a gene both wrote was counted twice), and its
+    reasoning was saved as the serving model's trace. Everything after the
+    last `fallback` block is the serving hop. A response with no block is
+    returned as it is.
+    """
+    content = list(getattr(response, "content", None) or [])
+    cut = max(
+        (i for i, b in enumerate(content) if getattr(b, "type", None) == "fallback"),
+        default=-1,
+    )
+    if cut < 0:
+        return response
+    if cut > 0:
+        logger.warning(
+            f"  Discarded {cut} block(s) a declining model wrote before the "
+            f"fallback for PMID {pmid}"
+        )
+    serving = content[cut + 1 :]
+    copier = getattr(response, "model_copy", None)
+    if callable(copier):
+        return copier(update={"content": serving})
+    clone = copy.copy(response)
+    clone.content = serving
+    return clone
 
 
 def _refusal_category(response: Any) -> str:
@@ -375,12 +411,25 @@ async def _stream_and_parse(
     # the paper fails so that the next run retries it.
     if response.stop_reason == "refusal":
         category = _refusal_category(response)
+        # Set only when the fallback could not be attempted (its model was
+        # rate-limited or overloaded): then only the requested model ran,
+        # which is a different fact from both declining, and a retry is
+        # worth paying for.
+        recommended = getattr(
+            getattr(response, "stop_details", None), "recommended_model", None
+        )
+        skipped = (
+            f"; the fallback was not attempted (recommended model: {recommended})"
+            if isinstance(recommended, str) and recommended
+            else ""
+        )
         logger.error(
             f"Request refused by safety classifier for PMID {pmid} "
-            f"(category: {category})"
+            f"(category: {category}){skipped}"
         )
         raise ExtractionRefusedError(
-            f"Refused by safety classifier for PMID {pmid} (category: {category})",
+            f"Refused by safety classifier for PMID {pmid} "
+            f"(category: {category}){skipped}",
             usage,
             category=category,
         )
@@ -398,6 +447,10 @@ async def _stream_and_parse(
         usage.truncated_responses = 1
         raise ExtractionFailedError(f"Response truncated for PMID {pmid}", usage)
 
+    # Who served it is read off the whole response (the iterations and the
+    # fallback blocks); what it said, off the serving hop alone.
+    served = _served_by(response)
+    response = _serving_hop(response, pmid=pmid)
     text_content, thinking_text = _account_reasoning(response, usage)
 
     tokens_per_second = (
@@ -463,7 +516,7 @@ async def _stream_and_parse(
         pmid=pmid,
         require_verified_quotes=config.require_verified_quotes,
     )
-    return genes, _served_by(response)
+    return genes, served
 
 
 def _served_by(response: Any) -> ServedBy:

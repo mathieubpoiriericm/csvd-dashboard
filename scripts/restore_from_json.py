@@ -91,7 +91,8 @@ class GeneRestore:
     references: list[str]
 
 
-# (pmid, processed_at, fulltext_available, source, genes_extracted)
+# (pmid, processed_at, fulltext_available, source, genes_extracted,
+#  extraction_model)
 LedgerRow = tuple[str, datetime, bool, str, int, str | None]
 # (run_timestamp, papers_processed, fulltext_retrieved, genes_extracted,
 #  genes_validated, run_mode, status, duration_seconds, report)
@@ -253,6 +254,24 @@ def _reports(logs_dir: Path) -> list[dict[str, Any]]:
     return reports
 
 
+def _extraction_model(paper: dict[str, Any], config: dict[str, Any]) -> str | None:
+    """The model that extracted *paper*, as its report proves it.
+
+    A report written since migration 015 names it per paper. One written
+    before it does not, but its run had no fallback to hand a paper to --
+    its config names no `fallback_model` -- so every paper with text was
+    extracted by the model the config names: the proof the production
+    backfill used, which a restore would otherwise undo. A paper with no
+    text had no model, and anything else is left NULL rather than guessed.
+    """
+    if "extraction_model" in paper:
+        return paper["extraction_model"]
+    if paper.get("source") == "none" or "fallback_model" in config:
+        return None
+    model = config.get("model")
+    return model if isinstance(model, str) and model else None
+
+
 def ledger_from_logs(logs_dir: Path) -> list[LedgerRow]:
     """pubmed_refs as the surviving run reports leave it.
 
@@ -264,15 +283,18 @@ def ledger_from_logs(logs_dir: Path) -> list[LedgerRow]:
     first and the last one to process a paper wins. The same run recorded
     both as a report file and as an event is counted once.
     """
-    runs: dict[datetime, list[dict[str, Any]]] = {}
+    runs: dict[datetime, tuple[dict[str, Any], list[dict[str, Any]]]] = {}
     for report in _reports(logs_dir):
         config = report.get("pipeline_config") or {}
         if "database" not in report or config.get("dry_run") or config.get("test_mode"):
             continue
-        runs.setdefault(_utc(report["timestamp"]), report.get("papers_detail") or [])
+        runs.setdefault(
+            _utc(report["timestamp"]), (config, report.get("papers_detail") or [])
+        )
     ledger: dict[str, LedgerRow] = {}
     for when in sorted(runs):
-        for paper in runs[when]:
+        config, papers = runs[when]
+        for paper in papers:
             if paper.get("error"):
                 continue
             ledger[paper["pmid"]] = (
@@ -281,9 +303,7 @@ def ledger_from_logs(logs_dir: Path) -> list[LedgerRow]:
                 bool(paper["fulltext"]),
                 paper["source"],
                 int(paper["gene_count"]),
-                # Reports written since migration 015 name it; older ones
-                # leave the column NULL rather than guessing a model.
-                paper.get("extraction_model"),
+                _extraction_model(paper, config),
             )
     return list(ledger.values())
 

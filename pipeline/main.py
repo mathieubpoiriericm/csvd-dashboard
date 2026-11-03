@@ -1306,7 +1306,7 @@ def _record_processing_actions(
                 count=len(pmids),
                 detail=(
                     "A declined paper is not recorded as processed, so the "
-                    "next run retries it."
+                    "next run whose window still covers it retries it."
                 ),
                 subjects=pmids,
             )

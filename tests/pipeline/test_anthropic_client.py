@@ -1762,3 +1762,114 @@ class TestAToolInputWithItsGenesEncodedAsAString:
         for value in ("not json", json.dumps({"other": []}), json.dumps(3)):
             with pytest.raises(ValueError):
                 _merge_tool_blocks([self._block({"genes": value})], pmid="1")
+
+
+class TestAMidStreamFallbackKeepsOnlyTheServingHop:
+    """Blocks before the last `fallback` block are the declined model's.
+
+    A model that declines mid-stream has already written into `content`;
+    the SDK keeps those blocks and appends the fallback's after a
+    `fallback` block. The documented handling is to discard the partial
+    output, and reading every tool call published Opus 5.5's genes as Opus
+    4.8's (and counted the gene twice).
+    """
+
+    @staticmethod
+    def _tool(symbol: str) -> MockToolUseBlock:
+        return MockToolUseBlock(
+            input={
+                "genes": [
+                    {
+                        "gene_symbol": symbol,
+                        "confidence": 0.9,
+                        "source_quote": f"{symbol} was associated with the trait.",
+                    }
+                ]
+            }
+        )
+
+    async def test_only_the_serving_hops_tool_calls_are_parsed(
+        self, mocker, mock_anthropic_response
+    ):
+        response = mock_anthropic_response(omit_tool_call=True)
+        response.model = "claude-opus-4-8"
+        response.content = [
+            SimpleNamespace(type="thinking", thinking="5.5 reasoning"),
+            self._tool("NOTCH3"),
+            SimpleNamespace(
+                type="fallback",
+                trigger=SimpleNamespace(type="refusal", category="bio"),
+            ),
+            SimpleNamespace(type="text", text="The genes.", citations=None),
+            self._tool("HTRA1"),
+        ]
+        response.usage.iterations = [
+            SimpleNamespace(type="message", model="claude-opus-5-5",
+                            input_tokens=10, output_tokens=5,
+                            cache_creation_input_tokens=0, cache_read_input_tokens=0),
+            SimpleNamespace(type="fallback_message", model="claude-opus-4-8",
+                            input_tokens=10, output_tokens=5,
+                            cache_creation_input_tokens=0, cache_read_input_tokens=0),
+        ]
+        mock_client = _make_mock_client(response)
+        client = AnthropicClient()
+        mocker.patch.object(client, "_get_client", return_value=mock_client)
+        record = mocker.patch("pipeline.anthropic_client._record_thinking_trace")
+
+        from pipeline.config import PipelineConfig
+
+        genes, _usage, served = await client.extract(
+            "paper text", "12345678", PipelineConfig(), None
+        )
+        assert [g.gene_symbol for g in genes] == ["HTRA1"]
+        assert served == ServedBy(model="claude-opus-4-8", declined="bio")
+        # Opus 5.5's reasoning is not saved as Opus 4.8's.
+        assert "5.5 reasoning" not in record.call_args.kwargs["thinking"]
+
+
+class TestTheRefusalSaysWhatWasTried:
+    async def test_a_null_first_hop_category_falls_through_to_stop_details(
+        self, mocker, mock_anthropic_response
+    ):
+        response = mock_anthropic_response(text="", omit_tool_call=True)
+        response.content.insert(
+            0,
+            SimpleNamespace(
+                type="fallback", trigger=SimpleNamespace(type="refusal", category=None)
+            ),
+        )
+        response.stop_reason = "refusal"
+        response.stop_details = SimpleNamespace(category="general_harms")
+        mock_client = _make_mock_client(response)
+        client = AnthropicClient()
+        mocker.patch.object(client, "_get_client", return_value=mock_client)
+
+        from pipeline.config import PipelineConfig
+
+        with pytest.raises(ExtractionRefusedError) as raised:
+            await client.extract("paper text", "12345678", PipelineConfig(), None)
+        assert raised.value.category == "general_harms"
+
+    async def test_a_fallback_that_was_not_attempted_says_so(
+        self, mocker, mock_anthropic_response
+    ):
+        """Rate-limited or overloaded, the fallback is skipped: the refusal
+        returned is the requested model's, with `recommended_model` set --
+        a different fact from both models declining, and one worth paying
+        to retry."""
+        response = mock_anthropic_response(text="")
+        response.stop_reason = "refusal"
+        response.stop_details = SimpleNamespace(
+            category="bio", recommended_model="claude-opus-4-8"
+        )
+        mock_client = _make_mock_client(response)
+        client = AnthropicClient()
+        mocker.patch.object(client, "_get_client", return_value=mock_client)
+
+        from pipeline.config import PipelineConfig
+
+        with pytest.raises(ExtractionRefusedError) as raised:
+            await client.extract("paper text", "12345678", PipelineConfig(), None)
+        assert raised.value.category == "bio"
+        assert "fallback was not attempted" in str(raised.value)
+        assert "claude-opus-4-8" in str(raised.value)
