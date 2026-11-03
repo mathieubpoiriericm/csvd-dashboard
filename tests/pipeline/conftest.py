@@ -17,6 +17,11 @@ _project_root = str(Path(__file__).resolve().parent.parent.parent)
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
+# Before anything imports the pipeline, which loads .env: see tests/hermetic_env.py.
+from tests.hermetic_env import shut_out_dotenv_database_credentials  # noqa: E402
+
+shut_out_dotenv_database_credentials()
+
 from collections.abc import Iterator  # noqa: E402
 from dataclasses import dataclass  # noqa: E402
 from typing import Any, Final  # noqa: E402

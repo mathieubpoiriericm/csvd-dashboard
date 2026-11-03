@@ -788,7 +788,18 @@ it -- never on refresh status.
 
 **No test may reach the production database.** `_isolate_credentials` in
 `tests/pipeline/conftest.py` clears the `DB_*` variables for exactly that
-reason; see "Commands" in the root `CLAUDE.md`.
+reason; see "Commands" in the root `CLAUDE.md`. **The fixture alone was not
+enough.** monkeypatch restores what it cleared, and `pipeline/main.py` loads
+`.env` at import, so between tests -- in fixture setup and teardown, or in work
+still pending on the event loop -- production's credentials were back in
+`os.environ`; on 2026-11-03 a suite run wrote a zero-filled `external_sync` row
+into production's `sync_runs`, which the export publishes as the newest refresh.
+Both test trees' conftests now call `tests/hermetic_env.py`'s
+`shut_out_dotenv_database_credentials()` before anything imports the pipeline:
+it sets `DB_HOST`, `DB_NAME`, `DB_USER` and `DB_PASSWORD` to empty, and
+`load_dotenv` never overrides a set variable, so `.env`'s values cannot enter a
+test process at all. `test_hermetic_environment.py` in each tree fails if they
+do. `tests/scripts` had no isolation of its own before this.
 
 A test that wants real SQL asks for the `database_env` fixture, which brings up
 **`dhi.io/postgres:18-alpine3.23`** as a container named `csvd-pg-pytest`,
