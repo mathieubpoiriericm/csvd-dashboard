@@ -582,3 +582,13 @@ class TestRefusalWarnings:
             "1 paper was extracted by claude-opus-4-8 after claude-opus-5-5 declined it"
         )
         assert warning.subjects == ["21"]
+        # A retry of a paper that fell back is served by the fallback with
+        # no Opus 5.5 attempt at all; the detail says so, and why a paper
+        # can then name no classifier.
+        assert warning.detail == (
+            "A paper that falls back stays on claude-opus-4-8 for about an "
+            "hour (sticky routing), so a retry of it is served without "
+            "claude-opus-5-5 running again. Each paper names the classifier "
+            "that declined it in this run, or a safety classifier when it "
+            "was declined before the run began."
+        )

@@ -2,6 +2,7 @@
 
 import argparse
 import asyncio
+import contextlib
 import json
 import logging
 import signal
@@ -1193,6 +1194,7 @@ class TestDiscoveryAndCompletion:
         that had just recorded its processed PMIDs.
         """
         mocker.patch("pipeline.main.reset_gene_sequence", new=AsyncMock())
+        mocker.patch("pipeline.main.merge_window")
         mocker.patch(
             "pipeline.main.record_processed_pmids_batch",
             new=AsyncMock(return_value=0),
@@ -2053,6 +2055,7 @@ class TestMetricsCountWhatHappened:
         # report named the run's own, so a programmatic override was
         # reported but not applied.
         mocker.patch("pipeline.main.reset_gene_sequence", new=AsyncMock())
+        mocker.patch("pipeline.main.merge_window")
         merge = mocker.patch(
             "pipeline.main.merge_gene_entries",
             new=AsyncMock(return_value={"inserted": 0, "updated": 0}),
@@ -2067,6 +2070,41 @@ class TestMetricsCountWhatHappened:
         await pipeline_main._merge_processed_batch(batch, MagicMock(), config)
 
         assert merge.await_args.args[1] is config
+
+    async def test_the_merge_and_the_ledger_write_share_one_window(
+        self, mocker
+    ) -> None:
+        """The two transactions run inside `merge_window()`, which is what
+        `scripts.reset_to_baseline` waits on: a reset between them deleted
+        the merged genes, and the ledger then marked their papers done."""
+        calls: list[str] = []
+
+        @contextlib.asynccontextmanager
+        async def window():
+            calls.append("open")
+            yield
+            calls.append("close")
+
+        mocker.patch("pipeline.main.merge_window", new=window)
+        mocker.patch("pipeline.main.reset_gene_sequence", new=AsyncMock())
+
+        async def merge(*_args, **_kwargs):
+            calls.append("merge")
+            return {"inserted": 0, "updated": 0}
+
+        async def record(*_args, **_kwargs):
+            calls.append("record")
+            return 0
+
+        mocker.patch("pipeline.main.merge_gene_entries", new=merge)
+        mocker.patch("pipeline.main.record_processed_pmids_batch", new=record)
+        batch = _ProcessedBatch(results=[], warnings=[])
+
+        await pipeline_main._merge_processed_batch(
+            batch, MagicMock(), PipelineConfig()
+        )
+
+        assert calls == ["open", "merge", "record", "close"]
 
 
 class TestFailedRunsAreRecordedHonestly:

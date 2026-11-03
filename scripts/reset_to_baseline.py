@@ -37,16 +37,17 @@ unless it carries both: the pipeline inserts a gene with the quote and the
 confidence it was extracted with, so a row missing either was added some other
 way -- by a curator, after the baseline -- and the reset would delete it.
 
-**With --write, one transaction**, which re-runs the check under a lock on the
-genes and its three list tables, so nothing can land between the check and the
-write: every genes row is deleted (the three list tables cascade) and the
-baseline inserted with the restore's own `insert_genes`; pubmed_refs is
-emptied, so the next run treats every paper in its window as new; and the
-annotation rows and fetch statuses of every gene symbol outside the baseline
-are deleted, because `--sync-annotations` replaces only the genes it fetches
-and the export publishes the table whole. Trials, the lookup caches, the
-annotations of the kept genes and the run and refresh history are left alone:
-none of them is extracted.
+**With --write, one transaction**, which waits for any pipeline run between
+its gene merge and its ledger write to finish both, then re-runs the check
+under a lock on the genes and its three list tables, so nothing can land
+between the check and the write: every genes row is deleted (the three list
+tables cascade) and the baseline inserted with the restore's own
+`insert_genes`; pubmed_refs is emptied, so the next run treats every paper in
+its window as new; and the annotation rows and fetch statuses of every gene
+symbol outside the baseline are deleted, because `--sync-annotations` replaces
+only the genes it fetches and the export publishes the table whole. Trials, the
+lookup caches, the annotations of the kept genes and the run and refresh
+history are left alone: none of them is extracted.
 
 Before anything else the target is printed from the environment -- `.env` is
 loaded without override, so an exported DB_* variable wins and any one left
@@ -75,7 +76,7 @@ from scripts.restore_from_json import (
     row_differences,
 )
 
-from pipeline.database import Database
+from pipeline.database import MERGE_WINDOW_LOCK, Database
 from pipeline.export.main import read_published_genes
 
 _ROOT: Final = Path(__file__).resolve().parent.parent
@@ -226,8 +227,20 @@ async def reset_database(baseline: list[dict[str, Any]]) -> dict[str, int]:
     pipeline merge -- was deleted without being checked. SHARE ROW EXCLUSIVE
     lets the export and the dry check read, and blocks every INSERT, UPDATE
     and DELETE on the four tables the check reads until the reset commits.
+
+    **It first waits out any run inside its merge window.** A run merges
+    its genes and records their papers in `pubmed_refs` in two
+    transactions, and the table lock covers only the first: a reset landing
+    between them deleted the merged genes, and the run's ledger write then
+    marked their papers processed, so no later run retried them. The run
+    holds `MERGE_WINDOW_LOCK` shared across both (`merge_window`); taking it
+    exclusive here, before the table lock, waits for that window to close,
+    and a run reaching its merge meanwhile waits for this to commit. The
+    order is what keeps it from deadlocking: waiting on the advisory lock,
+    the reset holds nothing a run's merge needs.
     """
     async with Database.connection() as conn, conn.transaction():
+        await conn.execute("SELECT pg_advisory_xact_lock($1)", MERGE_WINDOW_LOCK)
         await conn.execute(
             "LOCK TABLE genes, gene_references, gene_gwas_traits, "
             "gene_monogenic_links IN SHARE ROW EXCLUSIVE MODE"

@@ -272,7 +272,11 @@ table holds it plus additions only, and every gene it would remove carries the
 quote and confidence of the extraction that inserted it, so no curation made
 after the baseline can be thrown away unnoticed. `--write` runs that check again
 inside its own transaction, under a lock on `genes` and its three list tables,
-so nothing written after the dry check can be deleted unchecked. It prints its
+so nothing written after the dry check can be deleted unchecked; before that
+lock it waits for any pipeline run between its gene merge and its
+`pubmed_refs` write (`merge_window` in `pipeline/database.py`), which would
+otherwise record its papers as processed after the reset had deleted their
+genes. It prints its
 target from the environment first. Take a dump, then rehearse on a throwaway
 `container` copy: `pg_restore --no-owner` the dump into one, export **all five**
 `DB_*` variables at its address (one left unset comes from `.env`, which names

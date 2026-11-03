@@ -543,6 +543,79 @@ class TestAnthropicClientExtract:
             await client.extract("paper text", "12345678", PipelineConfig(), None)
         assert raised.value.category == "bio"
 
+    async def test_a_chain_refusal_names_the_fallback_models_reason_too(
+        self, mocker, mock_anthropic_response, caplog
+    ):
+        """The fallback's own reason is the final `stop_details`.
+
+        Grouping stays on the requested model's category -- that is the
+        decline that sent the paper to the fallback -- but the record names
+        both, so a paper Opus 4.8 declined for a different classifier says
+        so.
+        """
+        response = mock_anthropic_response(text="", omit_tool_call=True)
+        response.model = "claude-opus-4-8"
+        response.content.insert(
+            0,
+            SimpleNamespace(
+                type="fallback",
+                to=SimpleNamespace(model="claude-opus-4-8"),
+                trigger=SimpleNamespace(type="refusal", category="bio"),
+            ),
+        )
+        response.stop_reason = "refusal"
+        response.stop_details = SimpleNamespace(category="general_harms")
+        mock_client = _make_mock_client(response)
+
+        client = AnthropicClient()
+        mocker.patch.object(client, "_get_client", return_value=mock_client)
+
+        from pipeline.config import PipelineConfig
+
+        with pytest.raises(ExtractionRefusedError) as raised:
+            await client.extract("paper text", "12345678", PipelineConfig(), None)
+        assert raised.value.category == "bio"
+        message = str(raised.value)
+        assert "(category: bio)" in message
+        assert "claude-opus-4-8 declined it too (category: general_harms)" in message
+        assert "claude-opus-4-8 declined it too" in caplog.text
+
+    async def test_a_chain_refusal_prices_the_fallbacks_attempt_at_its_rates(
+        self, mocker, mock_anthropic_response
+    ):
+        """A declining fallback attempt is a plain `message` entry naming
+        Opus 4.8, and it is Opus 4.8's share of the bill."""
+        response = mock_anthropic_response(text="", omit_tool_call=True)
+        response.content.insert(
+            0,
+            SimpleNamespace(
+                type="fallback",
+                to=SimpleNamespace(model="claude-opus-4-8"),
+                trigger=SimpleNamespace(type="refusal", category="bio"),
+            ),
+        )
+        response.stop_reason = "refusal"
+        response.stop_details = SimpleNamespace(category="bio")
+        response.usage.iterations = [
+            SimpleNamespace(type="message", model="claude-opus-5-5",
+                            input_tokens=900, output_tokens=0,
+                            cache_creation_input_tokens=0, cache_read_input_tokens=0),
+            SimpleNamespace(type="message", model="claude-opus-4-8",
+                            input_tokens=1000, output_tokens=40,
+                            cache_creation_input_tokens=0, cache_read_input_tokens=0),
+        ]
+        mock_client = _make_mock_client(response)
+        client = AnthropicClient()
+        mocker.patch.object(client, "_get_client", return_value=mock_client)
+
+        from pipeline.config import PipelineConfig
+
+        with pytest.raises(ExtractionRefusedError) as raised:
+            await client.extract("paper text", "12345678", PipelineConfig(), None)
+        usage = raised.value.token_usage
+        assert usage is not None
+        assert (usage.fallback_input_tokens, usage.fallback_output_tokens) == (1000, 40)
+
     async def test_a_refusal_with_no_category_is_unspecified(
         self, mocker, mock_anthropic_response
     ):
@@ -1753,18 +1826,37 @@ class TestAToolInputWithItsGenesEncodedAsAString:
 
     def test_the_whole_object_as_a_string_is_decoded(self) -> None:
         block = self._block({"genes": json.dumps({"genes": [self._GENE]})})
-        (gene,) = _merge_tool_blocks([block], pmid="37069360")
+        (gene,) = _merge_tool_blocks([block], pmid="37069360", model="claude-opus-4-8")
         assert (gene.gene_symbol, gene.pmid) == ("SLC13A3", "37069360")
 
     def test_the_list_as_a_string_is_decoded(self) -> None:
         block = self._block({"genes": json.dumps([self._GENE])})
-        (gene,) = _merge_tool_blocks([block], pmid="37069360")
+        (gene,) = _merge_tool_blocks([block], pmid="37069360", model="claude-opus-4-8")
         assert gene.gene_symbol == "SLC13A3"
+
+    def test_decoding_is_logged_with_the_paper_and_the_model(self, caplog) -> None:
+        """How often a model double-encodes is a measurement, so it is in
+        the run log rather than silently repaired."""
+        block = self._block({"genes": json.dumps({"genes": [self._GENE]})})
+        with caplog.at_level(logging.WARNING, logger="pipeline.anthropic_client"):
+            _merge_tool_blocks([block], pmid="37069360", model="claude-opus-4-8")
+        assert (
+            "Decoded a JSON-encoded genes value from claude-opus-4-8 "
+            "for PMID 37069360"
+        ) in caplog.text
+
+    def test_an_ordinary_input_logs_nothing(self, caplog) -> None:
+        block = self._block({"genes": [self._GENE]})
+        with caplog.at_level(logging.WARNING, logger="pipeline.anthropic_client"):
+            _merge_tool_blocks([block], pmid="37069360", model="claude-opus-5-5")
+        assert "Decoded" not in caplog.text
 
     def test_a_string_that_is_not_the_object_still_fails_validation(self) -> None:
         for value in ("not json", json.dumps({"other": []}), json.dumps(3)):
             with pytest.raises(ValueError):
-                _merge_tool_blocks([self._block({"genes": value})], pmid="1")
+                _merge_tool_blocks(
+                    [self._block({"genes": value})], pmid="1", model="claude-opus-4-8"
+                )
 
 
 class TestAMidStreamFallbackKeepsOnlyTheServingHop:
@@ -1830,6 +1922,113 @@ class TestAMidStreamFallbackKeepsOnlyTheServingHop:
         assert "5.5 reasoning" not in record.call_args.kwargs["thinking"]
 
 
+class TestAStickyRetryKeepsTheFirstDeclinesCategory:
+    """A retried request for a paper that fell back is sticky.
+
+    The API keeps a request that fell back on the fallback model for about
+    an hour, so the validation retry of a paper Opus 4.8 served is answered
+    by Opus 4.8 directly: a `fallback_message` iteration and no `fallback`
+    block, because Opus 5.5 did not run. The category is on attempt 1's
+    block, and reading only the attempt that succeeded recorded the paper
+    as declined by "a safety classifier".
+    """
+
+    @staticmethod
+    def _iterations(*kinds: tuple[str, str]) -> list[SimpleNamespace]:
+        return [
+            SimpleNamespace(type=kind, model=model, input_tokens=10,
+                            output_tokens=5, cache_creation_input_tokens=0,
+                            cache_read_input_tokens=0)
+            for kind, model in kinds
+        ]
+
+    def _served_by_fallback(self, make, *, genes, block: bool):
+        response = make(genes=genes)
+        response.model = "claude-opus-4-8"
+        if block:
+            response.content.insert(
+                0,
+                SimpleNamespace(
+                    type="fallback",
+                    to=SimpleNamespace(model="claude-opus-4-8"),
+                    trigger=SimpleNamespace(type="refusal", category="bio"),
+                ),
+            )
+            response.usage.iterations = self._iterations(
+                ("message", "claude-opus-5-5"), ("fallback_message", "claude-opus-4-8")
+            )
+        else:
+            response.usage.iterations = self._iterations(
+                ("fallback_message", "claude-opus-4-8")
+            )
+        return response
+
+    @staticmethod
+    def _client_answering(*responses):
+        stream_obj = AsyncMock()
+        stream_obj.get_final_message = AsyncMock(side_effect=list(responses))
+        cm = MagicMock()
+        cm.__aenter__ = AsyncMock(return_value=stream_obj)
+        cm.__aexit__ = AsyncMock(return_value=False)
+        mock_client = MagicMock()
+        mock_client.beta.messages.stream.return_value = cm
+        return mock_client
+
+    async def test_the_retry_keeps_the_category_the_first_attempt_named(
+        self, mocker, mock_anthropic_response
+    ):
+        malformed = self._served_by_fallback(
+            mock_anthropic_response, genes={"genes": "not json"}, block=True
+        )
+        sticky = self._served_by_fallback(
+            mock_anthropic_response, genes={"genes": []}, block=False
+        )
+        client = AnthropicClient()
+        answering = self._client_answering(malformed, sticky)
+        mocker.patch.object(client, "_get_client", return_value=answering)
+
+        _genes, _usage, served = await client.extract(
+            "paper text", "12345678", PipelineConfig(max_retries=1), None
+        )
+        assert served == ServedBy(model="claude-opus-4-8", declined="bio")
+
+    async def test_a_sticky_answer_with_no_decline_seen_names_no_classifier(
+        self, mocker, mock_anthropic_response
+    ):
+        """A paper that fell back before this run: the decline that put it on
+        Opus 4.8 was never seen here, so no classifier can be named."""
+        sticky = self._served_by_fallback(
+            mock_anthropic_response, genes={"genes": []}, block=False
+        )
+        client = AnthropicClient()
+        mocker.patch.object(
+            client, "_get_client", return_value=self._client_answering(sticky)
+        )
+
+        _genes, _usage, served = await client.extract(
+            "paper text", "12345678", PipelineConfig(), None
+        )
+        assert served == ServedBy(model="claude-opus-4-8", declined="unspecified")
+
+    async def test_a_retry_opus_5_5_answers_itself_is_not_a_fallback(
+        self, mocker, mock_anthropic_response
+    ):
+        """Sticky routing is best-effort: the requested model may be tried
+        again, and a paper it then extracts was not the fallback's."""
+        malformed = self._served_by_fallback(
+            mock_anthropic_response, genes={"genes": "not json"}, block=True
+        )
+        primary = mock_anthropic_response(genes={"genes": []})
+        client = AnthropicClient()
+        answering = self._client_answering(malformed, primary)
+        mocker.patch.object(client, "_get_client", return_value=answering)
+
+        _genes, _usage, served = await client.extract(
+            "paper text", "12345678", PipelineConfig(max_retries=1), None
+        )
+        assert served == ServedBy(model="claude-opus-5-5", declined=None)
+
+
 class TestTheRefusalSaysWhatWasTried:
     async def test_a_null_first_hop_category_falls_through_to_stop_details(
         self, mocker, mock_anthropic_response
@@ -1852,6 +2051,12 @@ class TestTheRefusalSaysWhatWasTried:
         with pytest.raises(ExtractionRefusedError) as raised:
             await client.extract("paper text", "12345678", PipelineConfig(), None)
         assert raised.value.category == "general_harms"
+        # Grouped under the one classifier named, but the message gives each
+        # model its own reason: Opus 5.5's was none, not Opus 4.8's.
+        assert (
+            "(category: unspecified); the fallback model declined it too "
+            "(category: general_harms)"
+        ) in str(raised.value)
 
     async def test_a_fallback_that_was_not_attempted_says_so(
         self, mocker, mock_anthropic_response

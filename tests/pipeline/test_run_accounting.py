@@ -361,6 +361,7 @@ class TestAFailedRunPublishesWhatItProcessed:
             "pipeline.main._process_new_pmids", new=AsyncMock(return_value=batch)
         )
         mocker.patch("pipeline.main.reset_gene_sequence", new=AsyncMock())
+        mocker.patch("pipeline.main.merge_window")
         mocker.patch(
             "pipeline.main.merge_gene_entries",
             new=AsyncMock(
