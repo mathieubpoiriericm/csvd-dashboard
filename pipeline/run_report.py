@@ -61,6 +61,9 @@ class RunConfigRecord(WireModel):
     """
 
     model: str | None = None
+    # The server-side fallback the run requested; None on a --batch run,
+    # which can request none, and on a report written before it existed.
+    fallback_model: str | None = None
     effort: str | None = None
     prompt_version: str | None = None
     disease: str | None = None
@@ -190,6 +193,10 @@ class PaperRecord(WireModel):
     rejected_count: int = 0
     processing_seconds: float | None = None
     error: str | None = None
+    # Appended last: field order is wire order. Null on a report written
+    # before the fallback, which is why both are optional.
+    extraction_model: str | None = None
+    refusal: str | None = None
 
 
 class PipelineRunReport(WireModel):
@@ -382,6 +389,8 @@ def _paper_records(papers_detail: list[dict[str, Any]]) -> list[PaperRecord]:
             rejected_count=len(paper.get("rejected_genes", [])),
             processing_seconds=_optional_seconds(paper.get("processing_time")),
             error=paper.get("error"),
+            extraction_model=paper.get("extraction_model"),
+            refusal=paper.get("refusal"),
         )
         for paper in papers_detail
     ]

@@ -207,6 +207,8 @@ export interface CappedList<T> {
 
 export interface RunConfig {
   model: string | null;
+  /** The server-side fallback the run requested; null under --batch. */
+  fallbackModel: string | null;
   effort: string | null;
   promptVersion: string | null;
   disease: string | null;
@@ -405,6 +407,10 @@ export interface RunPaper {
   rejectedCount: number;
   processingSeconds: number | null;
   error: string | null;
+  /** The model whose response the genes came from; null when none ran. */
+  extractionModel: string | null;
+  /** The classifier category that declined the requested model, if one did. */
+  refusal: string | null;
 }
 
 export interface RunGene {

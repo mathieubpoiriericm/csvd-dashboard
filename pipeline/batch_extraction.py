@@ -97,6 +97,7 @@ def results_by_custom_id(
     usage: TokenUsage | None = None,
     documents: dict[str, str] | None = None,
     config: PipelineConfig | None = None,
+    refusals: dict[str, str] | None = None,
 ) -> dict[str, list[GeneEntry]]:
     """Key results by custom_id — batch results arrive in any order.
 
@@ -130,6 +131,12 @@ def results_by_custom_id(
     nothing under ``--batch`` and the report published 0/0 quotes checked.
     ``submit_and_collect`` always passes it; callers parsing results on
     their own get the parse only.
+
+    ``refusals``, when given, receives custom_id -> classifier category for
+    every refused entry. A refused entry is still absent from the result --
+    the caller fails it, and the next run retries it -- but the run report
+    can then say the classifier declined it, not that the batch returned
+    nothing.
     """
     settings = config or PipelineConfig()
     out: dict[str, list[GeneEntry]] = {}
@@ -160,11 +167,14 @@ def results_by_custom_id(
         # the only refusal handling the batch path has.
         stop_reason = getattr(message, "stop_reason", None)
         if stop_reason == "refusal":
+            category = _refusal_category(message)
             logger.error(
                 "Batch entry %s was refused by the safety classifier (category: %s)",
                 entry.custom_id,
-                _refusal_category(message),
+                category,
             )
+            if refusals is not None:
+                refusals[entry.custom_id] = category
             continue
         if stop_reason == "max_tokens":
             logger.error(
@@ -189,6 +199,7 @@ def results_by_custom_id(
             thinking=thinking_text,
             attempt=1,
             accepted=genes is not None,
+            model=getattr(message, "model", None),
         )
         if genes is None:
             continue
@@ -212,6 +223,7 @@ async def submit_and_collect(
     config: PipelineConfig,
     *,
     usage: TokenUsage | None = None,
+    refusals: dict[str, str] | None = None,
 ) -> dict[str, list[GeneEntry]]:
     """Submit every paper as one batch and poll until it ends.
 
@@ -219,8 +231,8 @@ async def submit_and_collect(
     still running after _MAX_WAIT_SECONDS -- the batch itself is not
     cancelled, so its id is in the message and results stay retrievable.
 
-    ``usage`` receives the whole batch's token usage; see
-    ``results_by_custom_id``.
+    ``usage`` receives the whole batch's token usage and ``refusals`` the
+    category of every refused entry; see ``results_by_custom_id``.
     """
     # Shared with the streaming path so the key precheck and the
     # identity-linked-key workspace header cannot drift between the two.
@@ -256,6 +268,7 @@ async def submit_and_collect(
             usage=usage,
             documents=documents,
             config=config,
+            refusals=refusals,
         )
     finally:
         await client.close()

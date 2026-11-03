@@ -30,12 +30,23 @@ window starts at `datetime.now(UTC) - days_back`, so a retry on a later UTC
 date needs `--days-back` raised by the days since to start where the first run
 did.
 
-**About 2.4% of papers are refused by the bio safety classifier** (37 of 1,570,
-logged as `Refused by safety classifier ... (category: bio)`). A refusal fails
-the paper the same way, so the next run retries it, and the classifier is not
+**About 2.4% of papers were refused by the bio safety classifier** (37 of
+1,570 on 2026-11-03, before the fallback existed). The classifier is not
 deterministic: on the retry five of the first pass's 37 extracted, and five of
-the papers that had failed on credit were refused instead. A refusal before
-any output is still billed.
+the papers that had failed on credit were refused instead. **A streaming run
+now falls back to Claude Opus 4.8** (see "A refusal names its classifier" in
+`pipeline/CLAUDE.md`), so a declined paper is extracted in the same call and
+reported as a `model_fallback` warning; only a paper both models decline fails,
+as a `paper_refused` warning per classifier, and the next run whose window
+still covers it retries it.
+Budget a fallback paper at about three times an ordinary one: the declined
+Opus 5.5 attempt is billed, then Opus 4.8 extracts it at $5 / $25 per MTok and
+writes more than Opus 5.5 does. Measured on 2026-11-03, the retry of the 37
+refused papers (plus one new one) cost $8.38 for 38 papers, about $0.22 each
+against the window's $0.074: Opus 4.8 extracted 34, Opus 5.5 took 3 itself this
+time, and both models declined 1. `--batch`
+cannot fall back -- the Batches API rejects `fallbacks` -- so under it every
+refusal fails the paper as before.
 
 **`pipeline/checkpoint.py` is what makes that survivable.** Each paper is
 appended to `logs/pipeline_checkpoint.jsonl` as it finishes, through the

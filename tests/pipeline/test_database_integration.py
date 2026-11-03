@@ -39,6 +39,7 @@ from pipeline.database import (
     Database,
     merge_genes_transactional,
     record_pipeline_run,
+    record_processed_pmids_batch,
 )
 from pipeline.export.lookups import read_pipeline_run
 from pipeline.run_errors import RunError
@@ -98,7 +99,7 @@ async def test_the_container_is_migrated_to_a_single_head() -> None:
         )
 
     names = {row["column_name"] for row in columns}
-    assert version == "014"
+    assert version == "015"
     # The three migration 009 adds. Their absence is not a schema detail:
     # without them the run report has nowhere to be stored and the About
     # page silently falls back to its summary card.
@@ -860,3 +861,25 @@ async def test_ncbi_fills_an_empty_band_and_never_a_curated_one() -> None:
             await conn.execute(
                 "DELETE FROM ncbi_gene_info WHERE gene_symbol LIKE 'ZZTOP%'"
             )
+
+
+async def test_the_ledger_records_the_extraction_model() -> None:
+    """Migration 015's column: which model extracted each processed paper."""
+    async with Database.connection() as conn:
+        await conn.execute("DELETE FROM pubmed_refs WHERE pmid = '99000001'")
+    await record_processed_pmids_batch(
+        [("99000001", True, "europepmc", 2, "claude-opus-4-8")]
+    )
+    async with Database.connection() as conn:
+        stored = await conn.fetchval(
+            "SELECT extraction_model FROM pubmed_refs WHERE pmid = '99000001'"
+        )
+    assert stored == "claude-opus-4-8"
+    # An upsert writes what the later run knew, as every other column does.
+    await record_processed_pmids_batch([("99000001", False, "none", 0, None)])
+    async with Database.connection() as conn:
+        stored = await conn.fetchval(
+            "SELECT extraction_model FROM pubmed_refs WHERE pmid = '99000001'"
+        )
+        await conn.execute("DELETE FROM pubmed_refs WHERE pmid = '99000001'")
+    assert stored is None

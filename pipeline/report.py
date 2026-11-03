@@ -36,6 +36,11 @@ class PaperSummary(TypedDict, closed=True):
     genes: list[dict[str, Any]]
     rejected_genes: list[dict[str, Any]]
     processing_time: float
+    # Which model extracted the paper, and the classifier that declined the
+    # requested one -- see PaperResult. scripts/restore_from_json.py reads
+    # extraction_model back into pubmed_refs.
+    extraction_model: str | None
+    refusal: str | None
     pdf_parse_time: NotRequired[float]
     llm_time: NotRequired[float]
     validation_time: NotRequired[float]
@@ -94,6 +99,8 @@ def _paper_results_to_summaries(
             "genes": genes_data,
             "rejected_genes": rejected_data,
             "processing_time": getattr(r, "processing_time", 0.0),
+            "extraction_model": getattr(r, "extraction_model", None),
+            "refusal": getattr(r, "refusal", None),
         }
         # Include per-step timing when available
         for timing_field in ("pdf_parse_time", "llm_time", "validation_time"):
@@ -193,7 +200,7 @@ def build_run_data(
         total_duration,
         pipeline_config={
             "llm_provider": "anthropic",
-            **client.report_metadata(config),
+            **client.report_metadata(config, batched=use_batch_api),
             "days_back": days_back,
             "dry_run": dry_run,
             "batch": use_batch_api,

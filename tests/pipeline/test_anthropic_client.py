@@ -18,6 +18,7 @@ from pipeline.anthropic_client import (
     AnthropicClient,
     _build_message_params,
     _extract_response_text,
+    _merge_tool_blocks,
     _record_thinking_trace,
     build_async_client,
 )
@@ -28,7 +29,11 @@ from pipeline.config import (
     PROJECT_ROOT,
     PipelineConfig,
 )
-from pipeline.extraction_models import ExtractionFailedError
+from pipeline.extraction_models import (
+    ExtractionFailedError,
+    ExtractionRefusedError,
+    ServedBy,
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -197,7 +202,7 @@ class TestRequestSharedWithBatchPath:
 def _make_mock_client(response):
     """Create a mock Anthropic client with properly mocked streaming.
 
-    client.messages.stream(**kwargs) is a sync call that returns an
+    client.beta.messages.stream(**kwargs) is a sync call that returns an
     async context manager. We use MagicMock for the sync parts and
     AsyncMock for the async parts.
     """
@@ -209,7 +214,7 @@ def _make_mock_client(response):
     cm.__aexit__ = AsyncMock(return_value=False)
 
     mock_client = MagicMock()
-    mock_client.messages.stream.return_value = cm
+    mock_client.beta.messages.stream.return_value = cm
     return mock_client
 
 
@@ -364,7 +369,7 @@ class TestAnthropicClientExtract:
 
         from pipeline.config import PipelineConfig
 
-        genes, usage = await client.extract(
+        genes, usage, _served = await client.extract(
             "This paper discusses NOTCH3...", "12345678", PipelineConfig(), None
         )
         assert len(genes) == 1
@@ -392,7 +397,7 @@ class TestAnthropicClientExtract:
 
         from pipeline.config import PipelineConfig
 
-        genes, _ = await client.extract(
+        genes, _, _served = await client.extract(
             "Some paper text", "12345678", PipelineConfig(), None
         )
         assert genes == []
@@ -482,6 +487,163 @@ class TestAnthropicClientExtract:
         with pytest.raises(ExtractionFailedError, match=r"category: unspecified"):
             await client.extract("paper text", "12345678", PipelineConfig(), None)
 
+    async def test_a_refusal_raises_extraction_refused_error_with_its_category(
+        self, mocker, mock_anthropic_response
+    ):
+        """The category travels as data, not only inside the sentence.
+
+        The run report groups refused papers by classifier, and parsing the
+        category back out of a log message is the coupling that breaks.
+        """
+        response = mock_anthropic_response(text="")
+        response.stop_reason = "refusal"
+        response.stop_details = SimpleNamespace(category="bio")
+        mock_client = _make_mock_client(response)
+
+        client = AnthropicClient()
+        mocker.patch.object(client, "_get_client", return_value=mock_client)
+
+        from pipeline.config import PipelineConfig
+
+        with pytest.raises(ExtractionRefusedError) as raised:
+            await client.extract("paper text", "12345678", PipelineConfig(), None)
+        assert isinstance(raised.value, ExtractionFailedError)
+        assert raised.value.category == "bio"
+        assert str(raised.value) == (
+            "Refused by safety classifier for PMID 12345678 (category: bio)"
+        )
+
+    async def test_a_chain_refusal_names_the_first_hop_category(
+        self, mocker, mock_anthropic_response
+    ):
+        """Both models declined: report why the requested model did.
+
+        The fallback block's trigger names the classifier that declined Opus
+        5.5; the final stop_details belong to the fallback model, which runs
+        no biology classifier and may say nothing at all.
+        """
+        response = mock_anthropic_response(text="", omit_tool_call=True)
+        response.content.insert(
+            0,
+            SimpleNamespace(
+                type="fallback",
+                trigger=SimpleNamespace(type="refusal", category="bio"),
+            ),
+        )
+        response.stop_reason = "refusal"
+        response.stop_details = SimpleNamespace(category=None)
+        mock_client = _make_mock_client(response)
+
+        client = AnthropicClient()
+        mocker.patch.object(client, "_get_client", return_value=mock_client)
+
+        from pipeline.config import PipelineConfig
+
+        with pytest.raises(ExtractionRefusedError) as raised:
+            await client.extract("paper text", "12345678", PipelineConfig(), None)
+        assert raised.value.category == "bio"
+
+    async def test_a_refusal_with_no_category_is_unspecified(
+        self, mocker, mock_anthropic_response
+    ):
+        response = mock_anthropic_response(text="")
+        response.stop_reason = "refusal"
+        response.stop_details = None
+        mock_client = _make_mock_client(response)
+
+        client = AnthropicClient()
+        mocker.patch.object(client, "_get_client", return_value=mock_client)
+
+        from pipeline.config import PipelineConfig
+
+        with pytest.raises(ExtractionRefusedError) as raised:
+            await client.extract("paper text", "12345678", PipelineConfig(), None)
+        assert raised.value.category == "unspecified"
+
+    async def test_the_stream_requests_the_pinned_fallback(
+        self, mocker, mock_anthropic_response
+    ):
+        """Array form, one target, its own beta header -- never "default".
+
+        The fallback rides on the stream call, not in the shared params:
+        the Batches API rejects `fallbacks`, and the golden cassettes'
+        recorded bodies are compared against `_build_message_params`.
+        """
+        mock_client = _make_mock_client(mock_anthropic_response())
+        client = AnthropicClient()
+        mocker.patch.object(client, "_get_client", return_value=mock_client)
+
+        from pipeline.config import PipelineConfig
+
+        config = PipelineConfig()
+        await client.extract("paper text", "12345678", config, None)
+
+        kwargs = mock_client.beta.messages.stream.call_args.kwargs
+        assert kwargs["betas"] == ["server-side-fallback-2026-06-01"]
+        assert kwargs["fallbacks"] == [{"model": "claude-opus-4-8"}]
+        shared = _build_message_params("paper text", "12345678", config)
+        assert "fallbacks" not in shared
+        assert "betas" not in shared
+
+    async def test_a_fallback_served_response_names_its_model_and_declined_category(
+        self, mocker, mock_anthropic_response
+    ):
+        response = mock_anthropic_response(
+            genes={"genes": []},
+        )
+        response.model = "claude-opus-4-8"
+        response.content.insert(
+            0,
+            SimpleNamespace(
+                type="fallback",
+                trigger=SimpleNamespace(type="refusal", category="bio"),
+            ),
+        )
+        response.usage.iterations = [
+            SimpleNamespace(
+                type="message",
+                model="claude-opus-5-5",
+                input_tokens=900,
+                output_tokens=0,
+                cache_creation_input_tokens=0,
+                cache_read_input_tokens=0,
+            ),
+            SimpleNamespace(
+                type="fallback_message",
+                model="claude-opus-4-8",
+                input_tokens=1000,
+                output_tokens=500,
+                cache_creation_input_tokens=0,
+                cache_read_input_tokens=0,
+            ),
+        ]
+        mock_client = _make_mock_client(response)
+        client = AnthropicClient()
+        mocker.patch.object(client, "_get_client", return_value=mock_client)
+
+        from pipeline.config import PipelineConfig
+
+        _genes, usage, served = await client.extract(
+            "paper text", "12345678", PipelineConfig(), None
+        )
+        assert served == ServedBy(model="claude-opus-4-8", declined="bio")
+        assert usage.input_tokens == 1900
+        assert usage.fallback_output_tokens == 500
+
+    async def test_a_primary_response_is_served_by_opus_5_5(
+        self, mocker, mock_anthropic_response
+    ):
+        mock_client = _make_mock_client(mock_anthropic_response())
+        client = AnthropicClient()
+        mocker.patch.object(client, "_get_client", return_value=mock_client)
+
+        from pipeline.config import PipelineConfig
+
+        _genes, _usage, served = await client.extract(
+            "paper text", "12345678", PipelineConfig(), None
+        )
+        assert served == ServedBy(model="claude-opus-5-5", declined=None)
+
     async def test_unverified_quotes_are_kept_by_default(
         self, mocker, mock_anthropic_response, caplog
     ):
@@ -511,7 +673,7 @@ class TestAnthropicClientExtract:
 
         from pipeline.config import PipelineConfig
 
-        genes, _ = await client.extract(
+        genes, _, _served = await client.extract(
             "paper", "12345678", PipelineConfig(), None
         )
         assert len(genes) == 1
@@ -547,7 +709,9 @@ class TestAnthropicClientExtract:
 
         from pipeline.config import PipelineConfig
 
-        genes, _ = await client.extract("paper", "12345678", PipelineConfig(), None)
+        genes, _, _served = await client.extract(
+            "paper", "12345678", PipelineConfig(), None
+        )
         assert genes == []
 
     async def test_an_uncited_but_verbatim_quote_survives_the_gate(
@@ -580,7 +744,7 @@ class TestAnthropicClientExtract:
 
         from pipeline.config import PipelineConfig
 
-        genes, _ = await client.extract(
+        genes, _, _served = await client.extract(
             f"Intro. {quote} Outro.", "12345678", PipelineConfig(), None
         )
         assert [g.gene_symbol for g in genes] == ["NOTCH3"]
@@ -616,7 +780,9 @@ class TestAnthropicClientExtract:
 
         from pipeline.config import PipelineConfig
 
-        genes, _ = await client.extract(quote, "12345678", PipelineConfig(), None)
+        genes, _, _served = await client.extract(
+            quote, "12345678", PipelineConfig(), None
+        )
         assert [g.gene_symbol for g in genes] == ["NOTCH3"]
         assert "1/1 quotes verbatim in the paper" in caplog.text
         assert "1/1 matched an API citation span" in caplog.text
@@ -689,7 +855,7 @@ class TestAnthropicClientExtract:
             client, "_get_client", return_value=_make_mock_client(response)
         )
 
-        genes, _ = await client.extract(
+        genes, _, _served = await client.extract(
             "Some other text.", "12345678", PipelineConfig(), None
         )
 
@@ -712,7 +878,9 @@ class TestAnthropicClientExtract:
 
         from pipeline.config import PipelineConfig
 
-        genes, _ = await client.extract("paper", "12345678", PipelineConfig(), None)
+        genes, _, _served = await client.extract(
+            "paper", "12345678", PipelineConfig(), None
+        )
         assert genes == []
         assert "Provenance:" not in caplog.text
 
@@ -725,7 +893,7 @@ class TestAnthropicClientExtract:
 
         from pipeline.config import PipelineConfig
 
-        genes, _ = await client.extract(
+        genes, _, _served = await client.extract(
             "Paper text", "12345678", PipelineConfig(), None
         )
         assert genes == []
@@ -760,6 +928,8 @@ class TestAnthropicClientExtract:
             "truncated": False,
             "attempt": 1,
             "accepted": True,
+            # Whose reasoning it is: Opus 4.8's when the fallback served.
+            "model": "claude-opus-5-5",
         }
 
     async def test_a_retried_paper_s_two_traces_say_which_was_accepted(
@@ -785,7 +955,7 @@ class TestAnthropicClientExtract:
             cm.__aexit__ = AsyncMock(return_value=False)
             streams.append(cm)
         mock_client = MagicMock()
-        mock_client.messages.stream.side_effect = streams
+        mock_client.beta.messages.stream.side_effect = streams
         client = AnthropicClient()
         mocker.patch.object(client, "_get_client", return_value=mock_client)
 
@@ -826,7 +996,7 @@ class TestAnthropicClientExtract:
             client, "_get_client", return_value=_make_mock_client(response)
         )
 
-        genes, usage = await client.extract(
+        genes, usage, _served = await client.extract(
             "Paper text", "12345678", PipelineConfig(), None
         )
 
@@ -847,12 +1017,12 @@ class TestAnthropicClientExtract:
 
         assert exc.value.token_usage is not None
         assert exc.value.token_usage.truncated_responses == 1
-        assert mock_client.messages.stream.call_count == 1
+        assert mock_client.beta.messages.stream.call_count == 1
 
     async def test_rate_limit_retries_exhausted(self, mocker):
         response = MagicMock(headers={})
         mock_client = MagicMock()
-        mock_client.messages.stream.side_effect = anthropic.RateLimitError(
+        mock_client.beta.messages.stream.side_effect = anthropic.RateLimitError(
             message="limited", response=response, body=None
         )
         client = AnthropicClient()
@@ -872,17 +1042,17 @@ class TestAnthropicClientExtract:
         response = MagicMock(headers={"retry-after": "0"})
         good = _make_mock_client(mock_anthropic_response())
         mock_client = MagicMock()
-        mock_client.messages.stream.side_effect = [
+        mock_client.beta.messages.stream.side_effect = [
             anthropic.RateLimitError(
                 message="limited", response=response, body=None
             ),
-            good.messages.stream.return_value,
+            good.beta.messages.stream.return_value,
         ]
         client = AnthropicClient()
         mocker.patch.object(client, "_get_client", return_value=mock_client)
         sleep = mocker.patch("pipeline.anthropic_client.asyncio.sleep", AsyncMock())
 
-        genes, _ = await client.extract(
+        genes, _, _served = await client.extract(
             "Paper text",
             "12345678",
             PipelineConfig(max_rate_limit_retries=1),
@@ -908,7 +1078,7 @@ class TestAnthropicClientExtract:
 
     async def test_unexpected_error_is_wrapped(self, mocker):
         mock_client = MagicMock()
-        mock_client.messages.stream.side_effect = RuntimeError("unexpected")
+        mock_client.beta.messages.stream.side_effect = RuntimeError("unexpected")
         client = AnthropicClient()
         mocker.patch.object(client, "_get_client", return_value=mock_client)
 
@@ -919,7 +1089,7 @@ class TestAnthropicClientExtract:
 
     async def test_api_error_returns_empty(self, mocker):
         mock_client = MagicMock()
-        mock_client.messages.stream.side_effect = anthropic.APIError(
+        mock_client.beta.messages.stream.side_effect = anthropic.APIError(
             message="Internal server error",
             request=MagicMock(),
             body=None,
@@ -968,7 +1138,7 @@ class TestAnthropicClientExtract:
         mock_client = MagicMock()
         mock_response = MagicMock()
         mock_response.headers = {"retry-after": "0.01"}
-        mock_client.messages.stream.side_effect = [
+        mock_client.beta.messages.stream.side_effect = [
             anthropic.RateLimitError(
                 message="rate limited",
                 response=mock_response,
@@ -1009,7 +1179,7 @@ class TestAnthropicClientExtract:
         good_cm.__aexit__ = AsyncMock(return_value=False)
 
         mock_client = MagicMock()
-        mock_client.messages.stream.side_effect = [
+        mock_client.beta.messages.stream.side_effect = [
             httpx2.RemoteProtocolError("connection lost"),
             good_cm,
         ]
@@ -1061,7 +1231,7 @@ class TestAnthropicClientExtract:
         good_cm.__aexit__ = AsyncMock(return_value=False)
 
         mock_client = MagicMock()
-        mock_client.messages.stream.side_effect = [bad_cm, good_cm]
+        mock_client.beta.messages.stream.side_effect = [bad_cm, good_cm]
 
         client = AnthropicClient()
         mocker.patch.object(client, "_get_client", return_value=mock_client)
@@ -1069,9 +1239,9 @@ class TestAnthropicClientExtract:
         from pipeline.config import PipelineConfig
 
         cfg = PipelineConfig(max_retries=2)
-        genes, _ = await client.extract("Paper text", "12345678", cfg, None)
+        genes, _, _served = await client.extract("Paper text", "12345678", cfg, None)
         assert genes == []  # Second call should succeed with empty genes
-        assert mock_client.messages.stream.call_count == 2
+        assert mock_client.beta.messages.stream.call_count == 2
 
     async def test_connection_error_retries_then_succeeds(
         self, mocker, mock_anthropic_response
@@ -1086,7 +1256,7 @@ class TestAnthropicClientExtract:
         good_cm.__aexit__ = AsyncMock(return_value=False)
 
         mock_client = MagicMock()
-        mock_client.messages.stream.side_effect = [
+        mock_client.beta.messages.stream.side_effect = [
             httpx2.RemoteProtocolError(
                 "peer closed connection without sending complete message body"
             ),
@@ -1100,14 +1270,14 @@ class TestAnthropicClientExtract:
         from pipeline.config import PipelineConfig
 
         cfg = PipelineConfig(max_connection_retries=3)
-        genes, _ = await client.extract("Paper text", "12345678", cfg, None)
+        genes, _, _served = await client.extract("Paper text", "12345678", cfg, None)
         assert genes == []  # empty genes from good response
-        assert mock_client.messages.stream.call_count == 2
+        assert mock_client.beta.messages.stream.call_count == 2
 
     async def test_connection_error_retries_exhausted(self, mocker):
         """Persistent connection error exhausts retries → returns empty."""
         mock_client = MagicMock()
-        mock_client.messages.stream.side_effect = httpx2.RemoteProtocolError(
+        mock_client.beta.messages.stream.side_effect = httpx2.RemoteProtocolError(
             "peer closed connection without sending complete message body"
         )
 
@@ -1120,7 +1290,8 @@ class TestAnthropicClientExtract:
         cfg = PipelineConfig(max_connection_retries=3)
         with pytest.raises(ExtractionFailedError, match="Connection retries exhausted"):
             await client.extract("Paper text", "12345678", cfg, None)
-        assert mock_client.messages.stream.call_count == cfg.max_connection_retries + 1
+        stream = mock_client.beta.messages.stream
+        assert stream.call_count == cfg.max_connection_retries + 1
 
 
 # ---------------------------------------------------------------------------
@@ -1284,17 +1455,17 @@ class TestTransportErrorsAndAccounting:
         good_cm.__aexit__ = AsyncMock(return_value=False)
 
         mock_client = MagicMock()
-        mock_client.messages.stream.side_effect = [broken_cm, good_cm]
+        mock_client.beta.messages.stream.side_effect = [broken_cm, good_cm]
         client = AnthropicClient()
         mocker.patch.object(client, "_get_client", return_value=mock_client)
         mocker.patch("asyncio.sleep", new_callable=AsyncMock)
 
-        genes, _ = await client.extract(
+        genes, _, _served = await client.extract(
             "Paper text", "12345678", PipelineConfig(max_connection_retries=3), None
         )
 
         assert genes == []
-        assert mock_client.messages.stream.call_count == 2
+        assert mock_client.beta.messages.stream.call_count == 2
         # The retry reaches the run report: without it the External
         # services panel showed one clean Anthropic call.
         row = next(r for r in current_recorder().records() if r.service == "anthropic")
@@ -1306,11 +1477,11 @@ class TestTransportErrorsAndAccounting:
         reset_recorder()
         good = _make_mock_client(mock_anthropic_response())
         mock_client = MagicMock()
-        mock_client.messages.stream.side_effect = [
+        mock_client.beta.messages.stream.side_effect = [
             anthropic.RateLimitError(
                 message="limited", response=MagicMock(headers={}), body=None
             ),
-            good.messages.stream.return_value,
+            good.beta.messages.stream.return_value,
         ]
         client = AnthropicClient()
         mocker.patch.object(client, "_get_client", return_value=mock_client)
@@ -1334,7 +1505,7 @@ class TestTransportErrorsAndAccounting:
         """
         reset_recorder()
         mock_client = MagicMock()
-        mock_client.messages.stream.side_effect = httpx2.ConnectError("refused")
+        mock_client.beta.messages.stream.side_effect = httpx2.ConnectError("refused")
         client = AnthropicClient()
         mocker.patch.object(client, "_get_client", return_value=mock_client)
         mocker.patch("asyncio.sleep", new_callable=AsyncMock)
@@ -1380,20 +1551,20 @@ class TestTransportErrorsAndAccounting:
             first = anthropic.OverloadedError(
                 "overloaded", response=overloaded, body=body
             )
-        mock_client.messages.stream.side_effect = [
+        mock_client.beta.messages.stream.side_effect = [
             first,
-            good.messages.stream.return_value,
+            good.beta.messages.stream.return_value,
         ]
         client = AnthropicClient()
         mocker.patch.object(client, "_get_client", return_value=mock_client)
         mocker.patch("asyncio.sleep", new_callable=AsyncMock)
 
-        genes, _ = await client.extract(
+        genes, _, _served = await client.extract(
             "Paper text", "12345678", PipelineConfig(max_connection_retries=3), None
         )
 
         assert genes == []
-        assert mock_client.messages.stream.call_count == 2
+        assert mock_client.beta.messages.stream.call_count == 2
         row = next(r for r in current_recorder().records() if r.service == "anthropic")
         assert (row.calls, row.ok, row.errors, row.retries) == (2, 1, 1, 1)
 
@@ -1402,7 +1573,7 @@ class TestTransportErrorsAndAccounting:
             529, request=httpx2.Request("POST", "https://api.anthropic.com/v1/messages")
         )
         mock_client = MagicMock()
-        mock_client.messages.stream.side_effect = anthropic.OverloadedError(
+        mock_client.beta.messages.stream.side_effect = anthropic.OverloadedError(
             "overloaded", response=response, body=None
         )
         client = AnthropicClient()
@@ -1413,7 +1584,7 @@ class TestTransportErrorsAndAccounting:
             await client.extract(
                 "Paper text", "12345678", PipelineConfig(max_connection_retries=1), None
             )
-        assert mock_client.messages.stream.call_count == 2
+        assert mock_client.beta.messages.stream.call_count == 2
 
     @pytest.mark.parametrize(
         "error",
@@ -1432,7 +1603,7 @@ class TestTransportErrorsAndAccounting:
         admission of every other paper with no log line.
         """
         mock_client = MagicMock()
-        mock_client.messages.stream.side_effect = error
+        mock_client.beta.messages.stream.side_effect = error
         client = AnthropicClient()
         mocker.patch.object(client, "_get_client", return_value=mock_client)
         rate_limiter = AsyncMock()
@@ -1462,7 +1633,7 @@ class TestTransportErrorsAndAccounting:
             client, "_get_client", return_value=_make_mock_client(response)
         )
 
-        _, usage = await client.extract(
+        _, usage, _served = await client.extract(
             "Paper text", "12345678", PipelineConfig(), None
         )
 
@@ -1516,11 +1687,11 @@ class TestTransportErrorsAndAccounting:
         good_cm.__aenter__ = AsyncMock(return_value=good_stream)
         good_cm.__aexit__ = AsyncMock(return_value=False)
         mock_client = MagicMock()
-        mock_client.messages.stream.side_effect = [bad_cm, good_cm]
+        mock_client.beta.messages.stream.side_effect = [bad_cm, good_cm]
         client = AnthropicClient()
         mocker.patch.object(client, "_get_client", return_value=mock_client)
 
-        _, usage = await client.extract(
+        _, usage, _served = await client.extract(
             "Paper text", "12345678", PipelineConfig(max_retries=2), None
         )
 
@@ -1547,8 +1718,161 @@ class TestTransportErrorsAndAccounting:
         client = AnthropicClient()
         mocker.patch.object(client, "_get_client", return_value=mock_client)
 
-        genes, _ = await client.extract(
+        genes, _, _served = await client.extract(
             "Paper text", "12345678", PipelineConfig(), None
         )
 
         assert [g.gene_symbol for g in genes] == ["NOTCH3", "HTRA1"]
+
+
+class TestAToolInputWithItsGenesEncodedAsAString:
+    """Claude Opus 4.8 -- the fallback -- double-encodes the tool input.
+
+    Its first answer on the golden fixtures (PMID 37069360, 2026-11-03) was
+    `{"genes": "{\\"genes\\": [...]}"}`: the whole object as a JSON string in
+    the one field. The tool is deliberately not strict, so nothing stops
+    it, and it failed validation into the retry, which paid Opus 4.8 again
+    for the same shape. Decoding it loses nothing: the string is exactly the
+    object the schema asks for.
+    """
+
+    # No trait: the trait vocabulary is the disease's, and this module runs
+    # unchanged in every fork (scripts/adapt_fork_check.ts), whose
+    # vocabulary does not carry cSVD's.
+    _GENE = {
+        "gene_symbol": "SLC13A3",
+        "gwas_trait": [],
+        "mendelian_randomization": False,
+        "omics_evidence": [],
+        "confidence": 0.8,
+        "source_quote": "SLC13A3 was associated with the trait.",
+    }
+
+    def _block(self, value):
+        return SimpleNamespace(type="tool_use", name="report_genes", input=value)
+
+    def test_the_whole_object_as_a_string_is_decoded(self) -> None:
+        block = self._block({"genes": json.dumps({"genes": [self._GENE]})})
+        (gene,) = _merge_tool_blocks([block], pmid="37069360")
+        assert (gene.gene_symbol, gene.pmid) == ("SLC13A3", "37069360")
+
+    def test_the_list_as_a_string_is_decoded(self) -> None:
+        block = self._block({"genes": json.dumps([self._GENE])})
+        (gene,) = _merge_tool_blocks([block], pmid="37069360")
+        assert gene.gene_symbol == "SLC13A3"
+
+    def test_a_string_that_is_not_the_object_still_fails_validation(self) -> None:
+        for value in ("not json", json.dumps({"other": []}), json.dumps(3)):
+            with pytest.raises(ValueError):
+                _merge_tool_blocks([self._block({"genes": value})], pmid="1")
+
+
+class TestAMidStreamFallbackKeepsOnlyTheServingHop:
+    """Blocks before the last `fallback` block are the declined model's.
+
+    A model that declines mid-stream has already written into `content`;
+    the SDK keeps those blocks and appends the fallback's after a
+    `fallback` block. The documented handling is to discard the partial
+    output, and reading every tool call published Opus 5.5's genes as Opus
+    4.8's (and counted the gene twice).
+    """
+
+    @staticmethod
+    def _tool(symbol: str) -> MockToolUseBlock:
+        return MockToolUseBlock(
+            input={
+                "genes": [
+                    {
+                        "gene_symbol": symbol,
+                        "confidence": 0.9,
+                        "source_quote": f"{symbol} was associated with the trait.",
+                    }
+                ]
+            }
+        )
+
+    async def test_only_the_serving_hops_tool_calls_are_parsed(
+        self, mocker, mock_anthropic_response
+    ):
+        response = mock_anthropic_response(omit_tool_call=True)
+        response.model = "claude-opus-4-8"
+        response.content = [
+            SimpleNamespace(type="thinking", thinking="5.5 reasoning"),
+            self._tool("NOTCH3"),
+            SimpleNamespace(
+                type="fallback",
+                trigger=SimpleNamespace(type="refusal", category="bio"),
+            ),
+            SimpleNamespace(type="text", text="The genes.", citations=None),
+            self._tool("HTRA1"),
+        ]
+        response.usage.iterations = [
+            SimpleNamespace(type="message", model="claude-opus-5-5",
+                            input_tokens=10, output_tokens=5,
+                            cache_creation_input_tokens=0, cache_read_input_tokens=0),
+            SimpleNamespace(type="fallback_message", model="claude-opus-4-8",
+                            input_tokens=10, output_tokens=5,
+                            cache_creation_input_tokens=0, cache_read_input_tokens=0),
+        ]
+        mock_client = _make_mock_client(response)
+        client = AnthropicClient()
+        mocker.patch.object(client, "_get_client", return_value=mock_client)
+        record = mocker.patch("pipeline.anthropic_client._record_thinking_trace")
+
+        from pipeline.config import PipelineConfig
+
+        genes, _usage, served = await client.extract(
+            "paper text", "12345678", PipelineConfig(), None
+        )
+        assert [g.gene_symbol for g in genes] == ["HTRA1"]
+        assert served == ServedBy(model="claude-opus-4-8", declined="bio")
+        # Opus 5.5's reasoning is not saved as Opus 4.8's.
+        assert "5.5 reasoning" not in record.call_args.kwargs["thinking"]
+
+
+class TestTheRefusalSaysWhatWasTried:
+    async def test_a_null_first_hop_category_falls_through_to_stop_details(
+        self, mocker, mock_anthropic_response
+    ):
+        response = mock_anthropic_response(text="", omit_tool_call=True)
+        response.content.insert(
+            0,
+            SimpleNamespace(
+                type="fallback", trigger=SimpleNamespace(type="refusal", category=None)
+            ),
+        )
+        response.stop_reason = "refusal"
+        response.stop_details = SimpleNamespace(category="general_harms")
+        mock_client = _make_mock_client(response)
+        client = AnthropicClient()
+        mocker.patch.object(client, "_get_client", return_value=mock_client)
+
+        from pipeline.config import PipelineConfig
+
+        with pytest.raises(ExtractionRefusedError) as raised:
+            await client.extract("paper text", "12345678", PipelineConfig(), None)
+        assert raised.value.category == "general_harms"
+
+    async def test_a_fallback_that_was_not_attempted_says_so(
+        self, mocker, mock_anthropic_response
+    ):
+        """Rate-limited or overloaded, the fallback is skipped: the refusal
+        returned is the requested model's, with `recommended_model` set --
+        a different fact from both models declining, and one worth paying
+        to retry."""
+        response = mock_anthropic_response(text="")
+        response.stop_reason = "refusal"
+        response.stop_details = SimpleNamespace(
+            category="bio", recommended_model="claude-opus-4-8"
+        )
+        mock_client = _make_mock_client(response)
+        client = AnthropicClient()
+        mocker.patch.object(client, "_get_client", return_value=mock_client)
+
+        from pipeline.config import PipelineConfig
+
+        with pytest.raises(ExtractionRefusedError) as raised:
+            await client.extract("paper text", "12345678", PipelineConfig(), None)
+        assert raised.value.category == "bio"
+        assert "fallback was not attempted" in str(raised.value)
+        assert "claude-opus-4-8" in str(raised.value)

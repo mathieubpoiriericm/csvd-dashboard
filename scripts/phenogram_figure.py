@@ -241,11 +241,14 @@ def glyph_lift(shape: str, glyphs: dict[str, Any]) -> float:
 
 def place_gene(location: str, table: dict[str, Any]) -> BandHit | None:
     """The region a location names, or None. Exact bands only, and a range
-    (`10q24.33-q25.1`) spans its two ends, as lib/cytobands.ts."""
+    (`10q24.33-q25.1`) spans its two ends on one arm, as lib/cytobands.ts."""
     match = LOCATION.fullmatch(location.strip())
     if not match:
         return None
     chromosome, first, last = match.groups()
+    # One arm, as lib/cytobands.ts: a p-to-q range's midpoint is the centromere.
+    if last is not None and first[0] != last[0]:
+        return None
     bands = {
         band["name"]: band
         for chrom in table["chromosomes"]

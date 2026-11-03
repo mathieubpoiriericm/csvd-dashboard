@@ -6,6 +6,7 @@ wider window survives a narrower run that merges only part of it.
 """
 
 import asyncio
+import json
 import sqlite3
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
@@ -18,7 +19,7 @@ from pipeline.api_telemetry import reset_recorder
 from pipeline.citations import current_tally, reset_tally
 from pipeline.config import PipelineConfig
 from pipeline.database import DatabaseConfigError
-from pipeline.extraction_models import ExtractionFailedError, GeneEntry
+from pipeline.extraction_models import ExtractionFailedError, GeneEntry, ServedBy
 from pipeline.main import PaperResult, _ProcessedBatch, _ProgressReporter
 from pipeline.quality_metrics import PipelineMetrics, TokenUsage
 from pipeline.validation import NcbiUnavailableError
@@ -606,7 +607,11 @@ class TestAFailedPaperContributesOnlyItsSpend:
         mocker.patch(
             "pipeline.main.extract_from_paper",
             new=AsyncMock(
-                return_value=(genes, TokenUsage(input_tokens=4, output_tokens=2))
+                return_value=(
+                    genes,
+                    TokenUsage(input_tokens=4, output_tokens=2),
+                    ServedBy(model="claude-opus-5-5"),
+                )
             ),
         )
         mocker.patch(
@@ -896,7 +901,7 @@ class TestAFailedPapersQuotesAreNotCounted:
             new=AsyncMock(return_value=("paper text", True, "europepmc")),
         )
 
-        async def submit(papers, cfg, *, usage=None):
+        async def submit(papers, cfg, *, usage=None, refusals=None):
             current_tally().record(genes=4, verbatim=3, cited=1)
             return {"333": [_gene(pmid="333")]}
 
@@ -918,3 +923,18 @@ class TestAFailedPapersQuotesAreNotCounted:
 
         assert [result.succeeded for result in batch.results] == [False]
         assert current_tally().genes == 0
+
+
+def test_checkpoint_round_trips_the_serving_model_and_refusal() -> None:
+    result = pipeline_main.PaperResult(
+        pmid="31",
+        fulltext=True,
+        source="europepmc",
+        extraction_model="claude-opus-4-8",
+        refusal="bio",
+    )
+    record = pipeline_main._checkpoint_record(result, PipelineMetrics())
+    restored, _metrics, _provenance = pipeline_main._restored_paper(
+        json.loads(json.dumps(record))
+    )
+    assert (restored.extraction_model, restored.refusal) == ("claude-opus-4-8", "bio")

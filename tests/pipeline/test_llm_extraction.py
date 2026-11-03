@@ -11,7 +11,7 @@ from pydantic import ValidationError
 
 import pipeline.llm_extraction as llm_extraction
 from pipeline.config import PipelineConfig
-from pipeline.extraction_models import ExtractionResult
+from pipeline.extraction_models import ExtractionResult, ServedBy
 from pipeline.llm_extraction import GeneEntry, close_async_client, extract_from_paper
 from pipeline.quality_metrics import TokenUsage
 
@@ -235,19 +235,26 @@ class TestValidateToolInput:
 
 class TestExtractFromPaper:
     async def test_empty_text_returns_empty(self):
-        genes, usage = await extract_from_paper("", "12345678")
+        genes, usage, served = await extract_from_paper("", "12345678")
         assert genes == []
         assert usage.total_tokens == 0
+        # No call was made, so no model served it.
+        assert served is None
 
     async def test_whitespace_text_returns_empty(self):
-        genes, usage = await extract_from_paper("   \n  ", "12345678")
+        genes, _usage, served = await extract_from_paper("   \n  ", "12345678")
         assert genes == []
+        assert served is None
 
     async def test_nonempty_text_creates_and_caches_client(
         self, mocker, monkeypatch
     ):
         client = MagicMock()
-        expected = ([], TokenUsage(input_tokens=4, output_tokens=2))
+        expected = (
+            [],
+            TokenUsage(input_tokens=4, output_tokens=2),
+            ServedBy(model="claude-opus-5-5"),
+        )
         client.extract = AsyncMock(return_value=expected)
         constructor = mocker.patch(
             "pipeline.llm_extraction.AnthropicClient", return_value=client

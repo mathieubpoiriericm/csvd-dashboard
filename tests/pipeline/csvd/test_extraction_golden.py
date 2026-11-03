@@ -749,7 +749,7 @@ async def test_extraction_recovers_the_reachable_genes(pmid: str) -> None:
         )
 
     text = (FIXTURES_DIR / f"{pmid}.txt").read_text(encoding="utf-8")
-    genes, _ = await extract_from_paper(text, pmid, PipelineConfig())
+    genes, _, _served = await extract_from_paper(text, pmid, PipelineConfig())
     actual = {normalize_symbol(g.gene_symbol) for g in genes}
 
     found = reachable & actual
@@ -779,7 +779,7 @@ async def test_every_extracted_gene_carries_a_source_quote() -> None:
     """Provenance is required; an empty quote must never reach the database."""
     pmid = _GOLDEN_PMIDS[0]
     text = (FIXTURES_DIR / f"{pmid}.txt").read_text(encoding="utf-8")
-    genes, _ = await extract_from_paper(text, pmid, PipelineConfig())
+    genes, _, _served = await extract_from_paper(text, pmid, PipelineConfig())
     assert genes, "expected at least one gene"
     for gene in genes:
         assert gene.source_quote.strip()

@@ -3,7 +3,7 @@
 These suites are covered by the pipeline notes, imported here so they load when
 working under `tests/pipeline/`.
 
-`csvd/` holds the tests that name cSVD content -- the 173/178 query recall and
+`csvd/` holds the tests that name cSVD content -- the 178/183 query recall and
 its cassettes, the golden extraction suite and its gold standard, the prompt's
 byte identity with the v6 literals, the manifest's cSVD values -- and a fork
 deletes the whole tree (see "The disease seam" in the root `CLAUDE.md`).

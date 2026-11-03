@@ -142,7 +142,9 @@ uv run python -m pipeline.main --test-mode --days-back 365
 It prints the papers the query retrieves in a year. The `run-long-window`
 skill's figure for the cSVD query is 1,570 papers over two years ≈ $116 of
 extraction under Opus 5.5, about $0.074 a paper, so estimate **papers × 0.09
-USD** (the wizard's checklist uses the same figure), print it, and above
+USD** (the wizard's checklist uses the same figure; the margin also covers
+papers Opus 5.5 declines, which are billed and then extracted again by the
+Opus 4.8 fallback), print it, and above
 roughly **2,000 papers a year send the researcher back to question 3** to
 remove the broadest marker terms or make them more specific. Each one adds the
 papers that use it beside a disease phrase, and a shorter phrase matches more,

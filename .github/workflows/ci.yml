@@ -100,7 +100,7 @@ jobs:
       # goes through GitHub's cache service on a hosted runner only: a
       # self-hosted one keeps uv's cache on its own disk between jobs, and
       # restoring it over the machine's uplink would be slower than not.
-      - uses: astral-sh/setup-uv@v5
+      - uses: astral-sh/setup-uv@v10.3.3
         with:
           enable-cache: ${{ runner.environment == 'github-hosted' }}
 
@@ -215,7 +215,7 @@ jobs:
         with:
           deno-version: v2.x
 
-      - uses: astral-sh/setup-uv@v5
+      - uses: astral-sh/setup-uv@v10.3.3
         with:
           enable-cache: ${{ runner.environment == 'github-hosted' }}
 
@@ -320,7 +320,7 @@ jobs:
         with:
           deno-version: v2.x
 
-      - uses: astral-sh/setup-uv@v5
+      - uses: astral-sh/setup-uv@v10.3.3
         with:
           enable-cache: ${{ runner.environment == 'github-hosted' }}
 

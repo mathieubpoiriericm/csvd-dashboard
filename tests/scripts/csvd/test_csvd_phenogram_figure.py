@@ -1,4 +1,4 @@
-"""The cSVD karyogram, pinned: the 20 chromosomes, 87 blocks, CENPF's row.
+"""The cSVD karyogram, pinned: the 20 chromosomes, 88 blocks, CENPF's row.
 
 The numbers here are the ones tests/csvd/phenogram_layout_test.ts pins for
 lib/phenogram.ts over the committed cSVD genes. The rules that hold for any
@@ -78,7 +78,7 @@ class TestPlacement:
         # when it added AQP4 (18q11.2); the 2026-11-03 re-extraction found
         # GLA again but not AQP4. Mirrored in
         # tests/csvd/phenogram_layout_test.ts.
-        assert len(layout.blocks) == 87
+        assert len(layout.blocks) == 88
         assert layout.unplaced == ()
         assert [c.name for c in layout.chromosomes] == DRAWN
         assert [[c.name for c in row] for row in layout.rows] == [
@@ -138,7 +138,7 @@ class TestRender:
         target = tmp_path / "phenogram.svg"
         fig.savefig(target, format="svg", bbox_inches="tight")
         svg = target.read_text(encoding="utf-8")
-        assert svg.count('id="gene-') == 87
+        assert svg.count('id="gene-') == 88
         # A gene symbol can carry a "/" (COL4A1/2); the gid is sanitized so
         # the id stays a valid XML Name.
         assert 'id="gene-COL4A1-2"' in svg
@@ -146,7 +146,7 @@ class TestRender:
         # Text stays text: real <text> elements, not glyph outlines. Comments
         # and gids carry the symbols regardless of svg.fonttype, so look for
         # the symbol as element content.
-        assert svg.count("<text") >= 87
+        assert svg.count("<text") >= 88
         assert re.search(r"<text[^>]*>(?:<tspan[^>]*>)?COL4A1/2<", svg)
 
     def test_main_draws_the_committed_figure(self, tmp_path: Path) -> None:

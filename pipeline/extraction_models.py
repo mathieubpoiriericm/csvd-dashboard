@@ -2,6 +2,7 @@
 
 import json
 from collections.abc import Mapping
+from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
 from typing import Annotated, Final
@@ -136,9 +137,41 @@ class ExtractionResult(BaseModel):
     genes: list[GeneEntry] = Field(default_factory=list)
 
 
+@dataclass(frozen=True)
+class ServedBy:
+    """Which model produced an extraction, and why another one did not.
+
+    `model` is the response's own top-level `model`, never assumed: under
+    the server-side fallback it names Opus 4.8 when Opus 5.5 declined.
+    `declined` is the category of the hop that declined -- set only when a
+    fallback model served the paper.
+    """
+
+    model: str
+    declined: str | None = None
+
+
 class ExtractionFailedError(RuntimeError):
     """Raised when an extraction attempt failed rather than found no genes."""
 
     def __init__(self, message: str, token_usage: TokenUsage | None = None) -> None:
         super().__init__(message)
         self.token_usage = token_usage
+
+
+class ExtractionRefusedError(ExtractionFailedError):
+    """A safety classifier declined the paper, on every model that was tried.
+
+    Still an `ExtractionFailedError`, so every path that fails a paper on
+    one fails it on this; `category` is what the run report groups by.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        token_usage: TokenUsage | None = None,
+        *,
+        category: str,
+    ) -> None:
+        super().__init__(message, token_usage)
+        self.category = category

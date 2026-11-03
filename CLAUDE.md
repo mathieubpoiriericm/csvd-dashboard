@@ -43,7 +43,12 @@ load-bearing details, and the print-figure and cytoband tasks are in the
 014 renames `clinical_trials.svd_population` to `target_population`, and the
 export, the merge and the clinical-trials sync all read the new name, so run
 `cd pipeline && uv run alembic upgrade head` before the first `deno task data`
-after merging the `disease-reuse` branch.**
+after merging the `disease-reuse` branch.** **Migration 015 adds
+`pubmed_refs.extraction_model`, which every PubMed run's ledger write now fills,
+so upgrade before the first run after merging the `opus-4-8-fallback` branch: on
+a database still at 014 the run pays for every extraction, merges the genes, and
+only then fails writing the ledger.** The checkpoint keeps the papers, so
+re-running the same command after `alembic upgrade head` costs nothing more.
 
 `--export` does that same work at the end of a live run, so the figures, the
 About page's date and the run widget track the database without a second

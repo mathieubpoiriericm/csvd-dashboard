@@ -38,7 +38,45 @@ WarningKind = Literal[
     "quote_unverified",
     "batch_validation",
     "paper_truncated",
+    "paper_refused",
+    "model_fallback",
 ]
+
+# What `stop_details.category` (and a fallback block's `trigger.category`)
+# can name, plus "unspecified" for a refusal that names none -- the API sends
+# null, and a missing value has to read as *a* refusal rather than as none.
+# lib/pipeline_encoding.json labels every member; tests/pipeline_encoding_test.ts
+# reconciles the two both ways.
+RefusalCategory = Literal[
+    "bio",
+    "cyber",
+    "frontier_llm",
+    "reasoning_extraction",
+    "general_harms",
+    "unspecified",
+]
+
+_CLASSIFIER_PHRASES: Final[dict[str, str]] = {
+    "bio": "the biology safety classifier",
+    "cyber": "the cybersecurity safety classifier",
+    "frontier_llm": "the frontier-AI safety classifier",
+    "reasoning_extraction": "the reasoning-extraction safety classifier",
+    "general_harms": "the general-harms safety classifier",
+}
+
+
+def refusal_category(raw: object) -> str:
+    """The category a refusal named, or "unspecified" when it named none.
+
+    A category the API adds later passes through as itself: the widget falls
+    back to a generic label for it rather than this module erasing it.
+    """
+    return raw if isinstance(raw, str) and raw else "unspecified"
+
+
+def classifier_phrase(category: str) -> str:
+    """The classifier a category names, as the subject of a sentence."""
+    return _CLASSIFIER_PHRASES.get(category, "a safety classifier")
 
 
 class RunError(WireModel):

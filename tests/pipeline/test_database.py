@@ -675,7 +675,10 @@ class TestReadHelpers:
 class TestRecordProcessedPmids:
     async def test_records_batch_transactionally(self, mocker):
         conn = _mock_merge_connection(mocker)
-        records = [("1", True, "pmc", 3), ("2", False, "abstract", 0)]
+        records: list[tuple[str, bool, str, int, str | None]] = [
+            ("1", True, "pmc", 3, "claude-opus-5-5"),
+            ("2", False, "abstract", 0, None),
+        ]
 
         assert await record_processed_pmids_batch(records) == 2
 

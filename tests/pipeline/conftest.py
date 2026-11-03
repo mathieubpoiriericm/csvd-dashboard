@@ -17,6 +17,11 @@ _project_root = str(Path(__file__).resolve().parent.parent.parent)
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
+# Before anything imports the pipeline, which loads .env: see tests/hermetic_env.py.
+from tests.hermetic_env import shut_out_dotenv_database_credentials  # noqa: E402
+
+shut_out_dotenv_database_credentials()
+
 from collections.abc import Iterator  # noqa: E402
 from dataclasses import dataclass  # noqa: E402
 from typing import Any, Final  # noqa: E402
@@ -353,6 +358,8 @@ class MockAnthropicResponse:
     stop_reason: str = "end_turn"
     # Populated by the API only when stop_reason is "refusal".
     stop_details: Any = None
+    # The model that produced the message -- the fallback's id when it served.
+    model: str = "claude-opus-5-5"
 
     def __post_init__(self):
         if self.usage is None:

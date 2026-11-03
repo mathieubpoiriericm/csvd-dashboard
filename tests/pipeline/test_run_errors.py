@@ -9,7 +9,13 @@ import httpx
 import pytest
 
 from pipeline.pubmed_search import PubMedSearchError
-from pipeline.run_errors import RunError, RunWarning, classify
+from pipeline.run_errors import (
+    RunError,
+    RunWarning,
+    classifier_phrase,
+    classify,
+    refusal_category,
+)
 
 
 def _http_error(status: int) -> httpx.HTTPStatusError:
@@ -232,3 +238,24 @@ class TestTheDatabaseBeingDownIsADatabaseError:
 
         error = classify(asyncpg.exceptions.UndefinedColumnError("no column"))
         assert error.title == "The database rejected the query (UndefinedColumnError)"
+
+
+@pytest.mark.parametrize(
+    ("category", "phrase"),
+    [
+        ("bio", "the biology safety classifier"),
+        ("cyber", "the cybersecurity safety classifier"),
+        ("frontier_llm", "the frontier-AI safety classifier"),
+        ("reasoning_extraction", "the reasoning-extraction safety classifier"),
+        ("general_harms", "the general-harms safety classifier"),
+        ("unspecified", "a safety classifier"),
+        ("something_new", "a safety classifier"),
+    ],
+)
+def test_classifier_phrase_names_each_category(category: str, phrase: str) -> None:
+    assert classifier_phrase(category) == phrase
+
+
+def test_refusal_category_reads_a_missing_one_as_unspecified() -> None:
+    assert refusal_category(None) == refusal_category("") == "unspecified"
+    assert refusal_category("bio") == "bio"

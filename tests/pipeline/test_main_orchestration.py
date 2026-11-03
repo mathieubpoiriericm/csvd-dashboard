@@ -19,7 +19,12 @@ from pipeline.citations import current_tally, report_provenance, reset_tally
 from pipeline.config import PipelineConfig
 from pipeline.database import DatabaseConfigError
 from pipeline.external_data_sync import ExternalDataSyncResult
-from pipeline.extraction_models import ExtractionFailedError, GeneEntry
+from pipeline.extraction_models import (
+    ExtractionFailedError,
+    ExtractionRefusedError,
+    GeneEntry,
+    ServedBy,
+)
 from pipeline.main import (
     ExtractionOutcome,
     PaperResult,
@@ -180,7 +185,9 @@ class TestExtractionOrchestration:
         usage = TokenUsage(input_tokens=4, output_tokens=2)
         mocker.patch(
             "pipeline.main.extract_from_paper",
-            new=AsyncMock(return_value=([gene], usage)),
+            new=AsyncMock(
+                return_value=([gene], usage, ServedBy(model="claude-opus-5-5"))
+            ),
         )
         validate = mocker.patch(
             "pipeline.main._validate_genes",
@@ -321,7 +328,7 @@ class TestTheQuoteGateNamesWhatItDropped:
                 pmid=pmid,
                 require_verified_quotes=True,
             )
-            return genes, TokenUsage()
+            return genes, TokenUsage(), ServedBy(model="claude-opus-5-5")
 
         return fake
 
@@ -369,7 +376,7 @@ class TestTheQuoteGateNamesWhatItDropped:
                 pmid=pmid,
                 require_verified_quotes=False,
             )
-            return genes, TokenUsage()
+            return genes, TokenUsage(), ServedBy(model="claude-opus-5-5")
 
         mocker.patch("pipeline.main.extract_from_paper", new=fake)
         mocker.patch(
@@ -425,6 +432,8 @@ class TestPaperProcessing:
             "fulltext": False,
             "source": "none",
             "text_truncated": False,
+            "extraction_model": None,
+            "refusal": None,
         }
 
     async def test_process_paper_counts_fulltext_and_returns_extraction(
@@ -469,7 +478,9 @@ class TestPaperProcessing:
         )
         mocker.patch(
             "pipeline.main.extract_from_paper",
-            new=AsyncMock(return_value=([], TokenUsage())),
+            new=AsyncMock(
+                return_value=([], TokenUsage(), ServedBy(model="claude-opus-5-5"))
+            ),
         )
 
         result = await pipeline_main.process_paper(
@@ -491,7 +502,9 @@ class TestPaperProcessing:
         )
         mocker.patch(
             "pipeline.main.extract_from_paper",
-            new=AsyncMock(return_value=([], TokenUsage())),
+            new=AsyncMock(
+                return_value=([], TokenUsage(), ServedBy(model="claude-opus-5-5"))
+            ),
         )
 
         result = await pipeline_main.process_paper(
@@ -2015,7 +2028,7 @@ class TestMetricsCountWhatHappened:
             new=AsyncMock(return_value=("text", True, "europepmc")),
         )
 
-        async def _collect(papers, config, *, usage):
+        async def _collect(papers, config, *, usage, refusals=None):
             usage.input_tokens += 1000
             usage.output_tokens += 200
             usage.truncated_responses += 1
@@ -2795,3 +2808,102 @@ class TestRefreshesAreRecorded:
 
         assert summary["errors"] == ["orphadata exploded"]
         assert "Could not record the annotation_sync refresh" in caplog.text
+
+
+class TestTheServingModelAndTheRefusal:
+    """Which model extracted a paper, and why one did not, reach its result."""
+
+    async def test_process_paper_safe_carries_the_refusal_category(
+        self, mocker
+    ) -> None:
+        mocker.patch(
+            "pipeline.main.process_paper",
+            new=AsyncMock(
+                side_effect=ExtractionRefusedError(
+                    "Refused by safety classifier for PMID 123 (category: bio)",
+                    category="bio",
+                )
+            ),
+        )
+        result = await pipeline_main.process_paper_safe(
+            "123",
+            PipelineMetrics(),
+            asyncio.Semaphore(1),
+            {"current": 0, "total": 1},
+            PipelineConfig(),
+        )
+        assert result.succeeded is False
+        assert result.refusal == "bio"
+        assert result.extraction_model is None
+
+    async def test_a_served_paper_carries_its_model(self, mocker) -> None:
+        mocker.patch(
+            "pipeline.main.fetch_paper_metadata",
+            new=AsyncMock(return_value={"doi": None}),
+        )
+        mocker.patch(
+            "pipeline.main.get_fulltext",
+            new=AsyncMock(
+                return_value={"text": "x" * 50, "fulltext": True, "source": "pmc"}
+            ),
+        )
+        mocker.patch(
+            "pipeline.main.extract_from_paper",
+            new=AsyncMock(
+                return_value=(
+                    [],
+                    TokenUsage(),
+                    ServedBy(model="claude-opus-4-8", declined="bio"),
+                )
+            ),
+        )
+        result = await pipeline_main.process_paper(
+            "123", PipelineMetrics(), config=PipelineConfig()
+        )
+        assert result["extraction_model"] == "claude-opus-4-8"
+        assert result["refusal"] == "bio"
+
+    async def test_a_paper_with_no_text_records_no_extraction_model(
+        self, mocker
+    ) -> None:
+        mocker.patch(
+            "pipeline.main.fetch_paper_metadata",
+            new=AsyncMock(return_value={"doi": None}),
+        )
+        mocker.patch(
+            "pipeline.main.get_fulltext",
+            new=AsyncMock(
+                return_value={"text": "", "fulltext": False, "source": "none"}
+            ),
+        )
+        result = await pipeline_main.process_paper(
+            "123", PipelineMetrics(), config=PipelineConfig()
+        )
+        # Set, not merely absent: no model ran, and the ledger says so.
+        assert result["extraction_model"] is None
+        assert result["refusal"] is None
+
+    async def test_a_refused_batch_entry_fails_with_its_category(
+        self, mocker, tmp_path
+    ) -> None:
+        mocker.patch(
+            "pipeline.main._fetch_paper_text_for_batch",
+            new=AsyncMock(return_value=("paper text", False, "abstract")),
+        )
+
+        async def fake_submit(papers, config, *, usage=None, refusals=None):
+            assert refusals is not None
+            refusals["777"] = "bio"
+            return {}
+
+        mocker.patch("pipeline.main.submit_and_collect", new=fake_submit)
+        config = PipelineConfig(progress_file=str(tmp_path / "progress.json"))
+        reporter = pipeline_main._ProgressReporter(config)
+        batch = await pipeline_main._process_new_pmids_via_batch(
+            ["777"], PipelineMetrics(), config, reporter, use_checkpoint=False
+        )
+        (result,) = batch.results
+        assert result.refusal == "bio"
+        assert result.error == (
+            "Refused by safety classifier for PMID 777 (category: bio)"
+        )

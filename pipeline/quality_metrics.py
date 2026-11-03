@@ -26,6 +26,15 @@ class TokenUsage:
     # truncation; __iadd__ sums it so the metrics total surfaces how many
     # extractions were silently cut short by an undersized token budget.
     truncated_responses: int = 0
+    # The subset of the four counts above that the fallback model ran, from
+    # the `fallback_message` entries of `usage.iterations`. The totals stay
+    # totals across both models, so every panel reading them is unchanged;
+    # these exist so `estimate_cost` can price each model's share at its own
+    # rates. A batch never falls back, so they stay 0 there.
+    fallback_input_tokens: int = 0
+    fallback_output_tokens: int = 0
+    fallback_cache_creation_input_tokens: int = 0
+    fallback_cache_read_input_tokens: int = 0
 
     @property
     def text_output_tokens(self) -> int:
@@ -51,6 +60,12 @@ class TokenUsage:
         self.cache_read_input_tokens += other.cache_read_input_tokens
         self.thinking_tokens += other.thinking_tokens
         self.truncated_responses += other.truncated_responses
+        self.fallback_input_tokens += other.fallback_input_tokens
+        self.fallback_output_tokens += other.fallback_output_tokens
+        self.fallback_cache_creation_input_tokens += (
+            other.fallback_cache_creation_input_tokens
+        )
+        self.fallback_cache_read_input_tokens += other.fallback_cache_read_input_tokens
         return self
 
 
@@ -70,27 +85,53 @@ def reported_thinking_tokens(response_usage: Any) -> int | None:
     return reported if isinstance(reported, int) else None
 
 
-def accumulate_usage(usage: TokenUsage, response: Any) -> None:
-    """Extract token counts from an Anthropic response and accumulate into *usage*.
+def _counts(entry: Any) -> tuple[int, int, int, int]:
+    """Input, output, cache-write and cache-read tokens of one usage entry."""
+    return (
+        getattr(entry, "input_tokens", 0) or 0,
+        getattr(entry, "output_tokens", 0) or 0,
+        getattr(entry, "cache_creation_input_tokens", 0) or 0,
+        getattr(entry, "cache_read_input_tokens", 0) or 0,
+    )
+
+
+def accumulate_usage(usage: TokenUsage, response: Any) -> TokenUsage:
+    """Accumulate an Anthropic response's token counts into *usage*.
+
+    Returns what this one response added, for the TPM reservation.
 
     Thinking tokens are taken here when the API reports them, which is
     before any refusal or truncation check: a response cut off or declined
     after reasoning was still billed for that reasoning.
+
+    **Under the server-side fallback, top-level `usage` is one attempt.** It
+    covers only the attempt that produced the returned message, while
+    `usage.iterations` lists every attempt -- the declined Opus 5.5 one as a
+    `message` entry, the Opus 4.8 one that served it as `fallback_message`.
+    So a non-empty `iterations` is summed instead of the top level, never as
+    well, and its `fallback_message` entries are also counted on their own
+    for `estimate_cost`. Thinking stays top-level: only the served attempt
+    reports it.
     """
     response_usage = getattr(response, "usage", None)
     if response_usage is None:
-        return
-    usage += TokenUsage(
-        input_tokens=response_usage.input_tokens,
-        output_tokens=response_usage.output_tokens,
-        cache_creation_input_tokens=(
-            getattr(response_usage, "cache_creation_input_tokens", 0) or 0
-        ),
-        cache_read_input_tokens=(
-            getattr(response_usage, "cache_read_input_tokens", 0) or 0
-        ),
-        thinking_tokens=reported_thinking_tokens(response_usage) or 0,
-    )
+        return TokenUsage()
+    iterations = getattr(response_usage, "iterations", None)
+    delta = TokenUsage(thinking_tokens=reported_thinking_tokens(response_usage) or 0)
+    entries = iterations if isinstance(iterations, list) and iterations else None
+    for entry in entries or [response_usage]:
+        inp, out, write, read = _counts(entry)
+        delta.input_tokens += inp
+        delta.output_tokens += out
+        delta.cache_creation_input_tokens += write
+        delta.cache_read_input_tokens += read
+        if entries is not None and getattr(entry, "type", None) == "fallback_message":
+            delta.fallback_input_tokens += inp
+            delta.fallback_output_tokens += out
+            delta.fallback_cache_creation_input_tokens += write
+            delta.fallback_cache_read_input_tokens += read
+    usage += delta
+    return delta
 
 
 @dataclass(slots=True)

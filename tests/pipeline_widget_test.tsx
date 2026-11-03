@@ -29,6 +29,7 @@ const RUN: PipelineRun = {
   computeSeconds: 763.3,
   config: {
     model: "claude-opus-5",
+    fallbackModel: null,
     effort: "high",
     promptVersion: "v6",
     disease: null,
@@ -162,6 +163,8 @@ const RUN: PipelineRun = {
         rejectedCount: 1,
         processingSeconds: 10.664,
         error: null,
+        extractionModel: "claude-opus-5",
+        refusal: null,
       },
     ],
   },
@@ -716,4 +719,57 @@ Deno.test("deferred paper records preserve retrieval failures", () => {
   const markup = renderToString(<PipelineRunDetails run={failed} />);
   assertStringIncludes(markup, "Publisher request timed out");
   assertStringIncludes(markup, "Reason");
+});
+
+const withPaper = (
+  paper: Partial<PipelineRun["papersDetail"]["items"][0]>,
+) => ({
+  ...RUN,
+  papersDetail: {
+    ...RUN.papersDetail,
+    items: [{ ...RUN.papersDetail.items[0], ...paper }],
+  },
+});
+
+Deno.test("a refused paper names the classifier that declined it", () => {
+  const markup = renderToString(
+    <PipelineRunDetails
+      run={withPaper({
+        error: "Refused by safety classifier for PMID 32517579 (category: bio)",
+        refusal: "bio",
+        extractionModel: null,
+        geneCount: 0,
+        rejectedCount: 0,
+      })}
+    />,
+  );
+  assertStringIncludes(markup, "Biology safety classifier");
+  assertStringIncludes(markup, "Declined by");
+});
+
+Deno.test("a paper the fallback served names its model, and only that one", () => {
+  const served = renderToString(
+    <PipelineRunDetails
+      run={withPaper({ extractionModel: "claude-opus-4-8", refusal: "bio" })}
+    />,
+  );
+  assertStringIncludes(served, "claude-opus-4-8");
+  assertStringIncludes(served, "Biology safety classifier");
+  // A paper the requested model extracted carries no pill: it would repeat
+  // the header on every row.
+  assert(!details().includes("Extracted by"));
+});
+
+Deno.test("the header names the fallback model when the run requested one", () => {
+  const markup = renderToString(
+    <PipelineRunView
+      run={{
+        ...RUN,
+        config: { ...RUN.config, fallbackModel: "claude-opus-4-8" },
+      }}
+    />,
+  );
+  assertStringIncludes(markup, "Fallback");
+  assertStringIncludes(markup, "claude-opus-4-8");
+  assert(!html().includes("Fallback"));
 });

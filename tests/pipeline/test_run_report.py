@@ -431,6 +431,47 @@ class TestDetail:
         assert paper.rejected_count == 1
         assert paper.fulltext is True
 
+    def test_paper_records_carry_the_serving_model_and_refusal(self) -> None:
+        papers = [
+            {**_run_data()["papers_detail"][0], "extraction_model": "claude-opus-4-8",
+             "refusal": "bio"},
+            {**_run_data()["papers_detail"][0], "pmid": "2", "error": "Refused",
+             "refusal": "cyber", "extraction_model": None},
+        ]
+        report = _report(papers_detail=papers)
+        served, refused = report.papers_detail.items
+        assert (served.extraction_model, served.refusal) == ("claude-opus-4-8", "bio")
+        assert (refused.extraction_model, refused.refusal) == (None, "cyber")
+        wire = served.model_dump(by_alias=True)
+        assert list(wire)[-3:] == ["error", "extractionModel", "refusal"]
+
+    def test_the_config_names_the_fallback_model(self) -> None:
+        config = {**_run_data()["pipeline_config"], "fallback_model": "claude-opus-4-8"}
+        report = _report(pipeline_config=config)
+        assert report.config.fallback_model == "claude-opus-4-8"
+        assert list(report.config.model_dump(by_alias=True))[:2] == [
+            "model",
+            "fallbackModel",
+        ]
+
+    def test_a_report_stored_before_the_fallback_still_validates(self) -> None:
+        """A stored report with none of the new keys re-validates, null-filled."""
+        import json
+        from pathlib import Path
+
+        from pipeline.run_report import PipelineRunReport
+
+        committed = json.loads(Path("data/pipeline_run.json").read_text())
+        if committed is None:
+            pytest.skip("data/pipeline_run.json is null (empty-data mode)")
+        committed["config"].pop("fallbackModel", None)
+        for paper in committed["papersDetail"]["items"]:
+            paper.pop("extractionModel", None)
+            paper.pop("refusal", None)
+        report = PipelineRunReport.model_validate(committed)
+        assert report.config.fallback_model is None
+        assert all(p.refusal is None for p in report.papers_detail.items)
+
     def test_durations_are_rounded_to_milliseconds(self) -> None:
         report = _report()
         assert report.duration_seconds == 166.813

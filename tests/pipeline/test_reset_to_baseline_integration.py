@@ -15,7 +15,9 @@ from typing import Any
 
 import asyncpg
 import pytest
+import scripts.reset_to_baseline as reset_module
 from scripts.reset_to_baseline import (
+    ResetRefused,
     build_reset,
     current_format,
     pending_changes,
@@ -159,7 +161,7 @@ async def _symbols(table: str) -> list[str]:
 
 
 async def _reset() -> dict[str, int]:
-    return await reset_database(build_reset(BASELINE, await read_published_genes()))
+    return await reset_database(BASELINE)
 
 
 async def test_reset_exports_exactly_the_baseline(tmp_path: Path) -> None:
@@ -207,17 +209,84 @@ async def test_a_second_reset_changes_nothing(tmp_path: Path) -> None:
             assert first.read_bytes() == second.read_bytes()
 
 
-async def test_a_failed_reset_leaves_everything_as_it_was(tmp_path: Path) -> None:
+async def test_a_failed_reset_leaves_everything_as_it_was(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A failure after every write rolls every write back.
+
+    The failure is the last statement inside the transaction -- the row
+    count over a table that does not exist -- so the genes rewrite, the
+    ledger delete and both annotation deletes have all run by then. An
+    earlier version failed inside the genes insert, before the other three
+    deletes, and could not tell a rollback from a delete that never ran.
+    """
     await _seed_current(tmp_path)
     before = await pending_changes({"ABC1"})
-    genes = build_reset(BASELINE, await read_published_genes())
-    genes[-1].columns["gene"] = "X" * 101  # genes.gene is VARCHAR(100)
+    genes_before = await read_published_genes()
+    monkeypatch.setattr(
+        reset_module, "_RESET_TABLES", (*reset_module._RESET_TABLES, "no_such_table")
+    )
 
-    with pytest.raises(asyncpg.StringDataRightTruncationError):
-        await reset_database(genes)
+    with pytest.raises(asyncpg.UndefinedTableError):
+        await _reset()
 
     assert await pending_changes({"ABC1"}) == before
+    assert await read_published_genes() == genes_before
+    async with Database.connection() as conn:
+        assert await conn.fetchval("SELECT count(*) FROM pubmed_refs") == 2
     assert await _symbols("gene_annotations") == ["ABC1", "XYZ9"]
+    assert await _symbols("gene_annotation_status") == ["ABC1", "XYZ9"]
+
+
+async def test_a_value_changed_after_the_check_makes_the_write_refuse(
+    tmp_path: Path,
+) -> None:
+    """The write re-checks the table it is about to replace.
+
+    `run` checks, prints and then writes, so anything that lands between
+    the two -- a curator's edit, a pipeline merge -- used to be deleted
+    unchecked.
+    """
+    await _seed_current(tmp_path)
+    build_reset(BASELINE, await read_published_genes())  # the dry check passes
+    async with Database.connection() as conn:
+        await conn.execute(
+            "UPDATE genes SET affected_pathway = 'hypoxia' WHERE gene = 'DEF2'"
+        )
+    before = await pending_changes({"ABC1"})
+    genes_before = await read_published_genes()
+
+    with pytest.raises(ResetRefused, match="DEF2"):
+        await reset_database(BASELINE)
+
+    assert await pending_changes({"ABC1"}) == before
+    assert await read_published_genes() == genes_before
+
+
+async def test_a_merge_cannot_land_while_the_reset_decides(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The check and the write hold one lock, so nothing writes between them."""
+    await _seed_current(tmp_path)
+    outcome: dict[str, str] = {}
+    real_read = reset_module.read_published_genes
+
+    async def read_while_a_merge_tries(*args: Any, **kwargs: Any):
+        async with Database.connection() as other, other.transaction():
+            await other.execute("SET LOCAL lock_timeout = '200ms'")
+            try:
+                await other.execute(
+                    "UPDATE genes SET protein = protein WHERE gene = 'ABC1'"
+                )
+                outcome["merge"] = "landed"
+            except asyncpg.LockNotAvailableError:
+                outcome["merge"] = "blocked"
+        return await real_read(*args, **kwargs)
+
+    monkeypatch.setattr(reset_module, "read_published_genes", read_while_a_merge_tries)
+    await reset_database(BASELINE)
+
+    assert outcome == {"merge": "blocked"}
 
 
 async def test_without_write_it_names_the_environment_target_and_writes_nothing(

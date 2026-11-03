@@ -1,4 +1,4 @@
-import { assert, assertEquals } from "@std/assert";
+import { assert, assertEquals, assertNotEquals } from "@std/assert";
 
 import { cytobands, placeGene, STAINS } from "../lib/cytobands.ts";
 import { genes } from "../lib/data.ts";
@@ -85,6 +85,15 @@ Deno.test("placeGene spans a band range on one chromosome", () => {
   assertEquals(placeGene("10q24.33-"), null);
   assertEquals(placeGene("10q24.33-11q25.1"), null);
   assertEquals(placeGene("10q24.33-q25.1-q25.2"), null);
+});
+
+Deno.test("placeGene refuses a range across the centromere", () => {
+  // Both ends are exact bands, but one is on p and the other on q: the span
+  // is most of the chromosome, and its midpoint is the centromere, which
+  // says nothing about where the gene is. Listed as unplaced instead.
+  assertEquals(placeGene("1p36.33-q44"), null);
+  assertEquals(placeGene("1q21.1-p13.3"), null);
+  assertNotEquals(placeGene("10q24.33-q25.1"), null);
 });
 
 Deno.test("every committed gene's chromosomal location is an exact hg38 band", () => {

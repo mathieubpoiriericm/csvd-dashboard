@@ -61,8 +61,8 @@ const LOCATION = /^(\d{1,2}|X|Y)([pq]\d+(?:\.\d+)?)(?:-([pq]\d+(?:\.\d+)?))?$/;
  * a parent band (`7q31`) or a chromosome the table lacks is unplaced rather
  * than guessed, so a bad string can never land silently on the wrong band.
  * NCBI names a gene that crosses a band edge with a range (`10q24.33-q25.1`);
- * both ends must be exact bands of that one chromosome, and the hit spans
- * them, in either order.
+ * both ends must be exact bands on one arm of that chromosome, and the hit
+ * spans them, in either order.
  */
 export function placeGene(
   location: string,
@@ -71,6 +71,9 @@ export function placeGene(
   const match = LOCATION.exec(location.trim());
   if (!match) return null;
   const [, chromosome, first, last] = match;
+  // Both ends on one arm: a p-to-q range spans the centromere, and its
+  // midpoint would place the gene there whatever the location says.
+  if (last !== undefined && first[0] !== last[0]) return null;
   const bands = table.chromosomes.find((c) => c.name === chromosome)?.bands ??
     [];
   const ends: Band[] = [];

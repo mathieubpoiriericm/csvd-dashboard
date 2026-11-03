@@ -252,6 +252,22 @@ EXTRACTION_MODEL: Final[str] = "claude-opus-5-5"
 # parser matches tool_use blocks against it by name.
 EXTRACTION_TOOL_NAME: Final[str] = "report_genes"
 
+# The one model a declined paper may fall back to, pinned for the same
+# reason as EXTRACTION_MODEL. Opus 5.5 permits two targets
+# (`allowed_fallback_models` on its /v1/models entry: claude-opus-4-8 and
+# claude-opus-5), and `fallbacks: "default"` routes between them by refusal
+# category, server-side and unpublished -- so it could hand a paper to Opus 5,
+# whose extractions this dataset no longer admits. The array form names one.
+# It is not documented to run the biology classifier Opus 5.5 added, which is
+# what Opus 5.5's refusals here are -- though it declined 1 of the 35 papers
+# Opus 5.5 declined as `bio` on 2026-11-03.
+EXTRACTION_FALLBACK_MODEL: Final[str] = "claude-opus-4-8"
+
+# The array form of `fallbacks` requires exactly this header; the scalar
+# "default" form takes `-2026-07-01`, and either header with the other form
+# is a 400. The date is the series' earliest, not a stale one to bump.
+FALLBACK_BETA: Final[str] = "server-side-fallback-2026-06-01"
+
 # Reported in the run metadata beside EXTRACTION_MODEL. A constant rather
 # than a regex over the model name, now that there is one name to parse.
 EXTRACTION_MODEL_VERSION: Final[str] = "5.5"
@@ -706,6 +722,11 @@ class PipelineConfig:
     def llm_model(self) -> str:
         """The pinned extraction model. See EXTRACTION_MODEL."""
         return EXTRACTION_MODEL
+
+    @property
+    def fallback_model(self) -> str:
+        """The pinned fallback model. See EXTRACTION_FALLBACK_MODEL."""
+        return EXTRACTION_FALLBACK_MODEL
 
     @property
     def model_version(self) -> str:

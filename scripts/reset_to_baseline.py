@@ -37,14 +37,16 @@ unless it carries both: the pipeline inserts a gene with the quote and the
 confidence it was extracted with, so a row missing either was added some other
 way -- by a curator, after the baseline -- and the reset would delete it.
 
-**With --write, one transaction:** every genes row is deleted (the three list
-tables cascade) and the baseline inserted with the restore's own
-`insert_genes`; pubmed_refs is emptied, so the next run treats every paper in
-its window as new; and the annotation rows and fetch statuses of every gene
-symbol outside the baseline are deleted, because `--sync-annotations` replaces
-only the genes it fetches and the export publishes the table whole. Trials, the
-lookup caches, the annotations of the kept genes and the run and refresh
-history are left alone: none of them is extracted.
+**With --write, one transaction**, which re-runs the check under a lock on the
+genes and its three list tables, so nothing can land between the check and the
+write: every genes row is deleted (the three list tables cascade) and the
+baseline inserted with the restore's own `insert_genes`; pubmed_refs is
+emptied, so the next run treats every paper in its window as new; and the
+annotation rows and fetch statuses of every gene symbol outside the baseline
+are deleted, because `--sync-annotations` replaces only the genes it fetches
+and the export publishes the table whole. Trials, the lookup caches, the
+annotations of the kept genes and the run and refresh history are left alone:
+none of them is extracted.
 
 Before anything else the target is printed from the environment -- `.env` is
 loaded without override, so an exported DB_* variable wins and any one left
@@ -212,12 +214,26 @@ async def pending_changes(keep: Collection[str]) -> dict[str, int]:
     return counts
 
 
-async def reset_database(genes: Sequence[GeneRestore]) -> dict[str, int]:
-    """Replace the genes with *genes*, empty the ledger and drop the
+async def reset_database(baseline: list[dict[str, Any]]) -> dict[str, int]:
+    """Replace the genes with *baseline*, empty the ledger and drop the
     annotations of every other symbol, in one transaction; the row counts
-    afterwards."""
-    keep = [gene.columns["gene"] for gene in genes]
+    afterwards.
+
+    The check runs again inside the transaction, under a lock, and the write
+    acts on what it read there. `run` checks first so it can print what a
+    reset would change, but that read and this write used to be two
+    transactions: anything that landed between them -- a curator's edit, a
+    pipeline merge -- was deleted without being checked. SHARE ROW EXCLUSIVE
+    lets the export and the dry check read, and blocks every INSERT, UPDATE
+    and DELETE on the four tables the check reads until the reset commits.
+    """
     async with Database.connection() as conn, conn.transaction():
+        await conn.execute(
+            "LOCK TABLE genes, gene_references, gene_gwas_traits, "
+            "gene_monogenic_links IN SHARE ROW EXCLUSIVE MODE"
+        )
+        genes = build_reset(baseline, await read_published_genes(conn))
+        keep = [gene.columns["gene"] for gene in genes]
         await conn.execute("DELETE FROM genes")  # the list tables cascade
         await insert_genes(conn, genes)
         await conn.execute("DELETE FROM pubmed_refs")
@@ -240,7 +256,8 @@ async def run(baseline: Path, *, write: bool) -> None:
         f"{env.get('DB_PORT') or 5432}/{env.get('DB_NAME')}"
     )
     current = await read_published_genes()
-    genes = build_reset(json.loads(baseline.read_text(encoding="utf-8")), current)
+    rows = json.loads(baseline.read_text(encoding="utf-8"))
+    genes = build_reset(rows, current)
     keep = {gene.columns["gene"] for gene in genes}
     removed = [row["gene"] for row in current if row["gene"] not in keep]
     pending = await pending_changes(keep)
@@ -254,7 +271,8 @@ async def run(baseline: Path, *, write: bool) -> None:
     if not write:
         print("Nothing written; pass --write to reset.")
         return
-    for table, count in (await reset_database(genes)).items():
+    # The raw baseline, not `genes`: the write re-checks it under its lock.
+    for table, count in (await reset_database(rows)).items():
         print(f"{table}: {count} rows after the reset")
 
 

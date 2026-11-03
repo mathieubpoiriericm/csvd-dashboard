@@ -411,10 +411,60 @@ def test_the_ledger_replays_the_merged_runs_oldest_first(tmp_path: Path) -> None
     )
 
     assert ledger_from_logs(logs) == [
-        ("10000001", datetime(2026, 1, 2, tzinfo=UTC), False, "europepmc", 3)
+        ("10000001", datetime(2026, 1, 2, tzinfo=UTC), False, "europepmc", 3, None)
     ]
+
+
+def test_ledger_from_logs_carries_the_extraction_model(tmp_path: Path) -> None:
+    """A report written since migration 015 names the model per paper; an
+    older one does not, and the column stays NULL rather than guessed."""
+    logs = tmp_path / "logs"
+    (logs / "json").mkdir(parents=True)
+    served = {**_paper("10000001"), "extraction_model": "claude-opus-4-8"}
+    older = _paper("10000002")
+    report = _report("2026-01-01T00:00:00+00:00", [served, older], dry_run=False)
+    (logs / "json" / "pipeline_report_a.json").write_text(json.dumps(report))
+    rows = {row[0]: row[-1] for row in ledger_from_logs(logs)}
+    assert rows == {"10000001": "claude-opus-4-8", "10000002": None}
 
 
 def test_no_logs_is_an_empty_ledger(tmp_path: Path) -> None:
     """logs/ is gitignored, so CI and a fresh clone have none."""
     assert ledger_from_logs(tmp_path / "absent") == []
+
+
+def test_a_report_from_before_the_fallback_names_the_model_it_ran(
+    tmp_path: Path,
+) -> None:
+    """The proof the production backfill used, applied on the way back in.
+
+    A report written before migration 015 has no per-paper model, but the
+    run had no fallback to hand a paper to: every paper with text was
+    extracted by the model its `pipeline_config` names. Leaving it NULL
+    would undo that backfill on the next restore from logs. A paper with no
+    text had no model, and a report that names a fallback model yet lacks
+    a per-paper one proves nothing.
+    """
+    logs = tmp_path / "logs"
+    (logs / "json").mkdir(parents=True)
+    before = _report(
+        "2026-01-01T00:00:00+00:00",
+        [_paper("10000001"), _paper("10000002", source="none")],
+        dry_run=False,
+        model="claude-opus-5-5",
+    )
+    unprovable = _report(
+        "2026-01-02T00:00:00+00:00",
+        [_paper("10000003")],
+        dry_run=False,
+        model="claude-opus-5-5",
+        fallback_model="claude-opus-4-8",
+    )
+    for name, report in (("a", before), ("b", unprovable)):
+        (logs / "json" / f"pipeline_report_{name}.json").write_text(json.dumps(report))
+    rows = {row[0]: row[-1] for row in ledger_from_logs(logs)}
+    assert rows == {
+        "10000001": "claude-opus-5-5",
+        "10000002": None,
+        "10000003": None,
+    }
