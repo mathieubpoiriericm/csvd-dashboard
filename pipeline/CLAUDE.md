@@ -104,7 +104,27 @@ entry is handed back through `results_by_custom_id`'s `refusals` and fails with
 the same sentence and category as a streaming refusal, and the next run retries
 it.
 
-<!-- opus-4-8-golden: the measured figures go here -->
+**Opus 4.8 was measured on the golden fixtures before it served a paper**
+(2026-11-03, one call per scorable paper, the pipeline's own request with only
+`model` changed and no `fallbacks`; scratch only, nothing recorded over the
+committed cassettes; $3.53). Scored by the same code over the same seven papers
+the Opus 5.5 cassettes cover:
+
+| Model                         | pooled recall | clean recall | quotes verbatim |
+| ----------------------------- | ------------- | ------------ | --------------- |
+| `claude-opus-5-5` (cassettes) | 39/46 = 85%   | 21/26 = 81%  | 122/124 = 98%   |
+| `claude-opus-4-8` (live)      | 41/46 = 89%   | 22/26 = 85%  | 137/139 = 99%   |
+
+n=46 cannot separate the two -- the difference is two genes, one of them a
+prompt-named one -- so read it as "no worse", which is all a fallback needs: a
+paper it serves is otherwise not extracted at all. It is a record, not a gate.
+**One of its seven answers double-encoded the tool input** -- the gene-densest
+paper, PMID 37069360, came back as `{"genes": "<JSON of the whole object>"}` --
+which validation refused into a paid retry until `_decoded_input` in
+`anthropic_client.py` learned to decode that shape. Nothing else about the
+request needed changing: Opus 4.8 wrote cited prose before the tool call on five
+of the seven papers (one short text block and no citation on the other two), and
+its high-effort output ran 3,100-34,600 tokens a paper.
 
 **A failed entry is logged with the API's own reason.** A non-succeeded result
 was logged as its bare type (`Batch entry 37063705: errored`), and the `error`
