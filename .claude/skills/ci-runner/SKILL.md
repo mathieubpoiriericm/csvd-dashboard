@@ -21,7 +21,8 @@ runners and 2m20 on the mini PC -- its first jobs there, on cold caches -- with
 every suite's pass and skip counts identical. Before the `adapt-fork` split a
 push took about ten minutes (run 41546971078, 2 November 2026). The layout
 below took a pull request from 1m40s on six mini-PC runners to about a minute
-(62 s and 66 s on PR #67, no flaky retries).
+(62 s and 66 s on PR #67, no flaky retries), and a push to `main` is live
+1m42s after it lands (the `deploy` skill has how).
 
 ## The layout, and why its parallelism is moderate
 
@@ -80,6 +81,16 @@ configuration running the same twelve jobs (probe runs on 3 November 2026):
   performance-behaviour tests, all on 30 s test timeouts), and a retry costs
   more than the few seconds the workers save. At 4 it ran clean twice. If the
   suite turns flaky again, the next lever is less total load -- pytest `-n 2` -- not fewer browsers.
+- **A Postgres service starting or stopping can abort another job's page
+  load.** GitHub's runner gives each job with a service a Docker network of
+  its own and deletes it when the job ends; the host's interfaces change, and
+  Chromium in a concurrent e2e job aborts the navigation in flight with
+  `net::ERR_NETWORK_CHANGED` at `localhost`. It appeared in 3 of the first 10
+  runs of the split layout -- the Python families now finish while e2e is still
+  running -- and never in the unsplit one. It fails fast and costs one quick
+  retry, never a red run. Running PostgreSQL natively on the machine, with a
+  database per job and worker, would remove it; that is a change to how the
+  services work, not a setting.
 - **About 55 s is the floor** at this volume of tests: six jobs finished within
   51-54 s of one another. Going lower means less work, not more parallelism.
 

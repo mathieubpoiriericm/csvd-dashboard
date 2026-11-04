@@ -427,10 +427,12 @@ and `e2e/`, and carries the rest.
 ### Hosting
 
 The app runs at `https://csvd-dashboard.fly.dev`, on Fly.io, as one always-on
-machine built from the root `Dockerfile` and configured by `fly.toml`. CI's
-`deploy` job ships it on a push to `main` once every other job has passed, then
-checks it from outside with `scripts/smoke_deploy.sh`. It moved there on 2
-November 2026 from Deno Deploy, which shuts down six months after Deno's 9
+machine built from the root `Dockerfile` and configured by `fly.toml`. On a push
+to `main`, CI's `container` job pushes the image it has just smoke-tested to the
+app's registry, and the `deploy` job releases exactly that image once every
+other job has passed, then checks it from outside with
+`scripts/smoke_deploy.sh`; a push is live in under two minutes. It moved there
+on 2 November 2026 from Deno Deploy, which shuts down six months after Deno's 9
 October 2026 announcement. The one-machine rule, the `Fly-Client-IP` header the
 login limiter keys on, the allowlist `.dockerignore` and the 503 diagnosis are
 in the `deploy` skill (`.claude/skills/deploy/SKILL.md`).

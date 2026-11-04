@@ -14,10 +14,16 @@ pushes it to `registry.fly.io/<app>:<commit>`; the `deploy` job in
 `scripts/smoke_deploy.sh` against `https://<app>.fly.dev`. Fly builds nothing
 in CI any more, so what goes live is the image the smoke test passed, and
 Fly's remote build (18-38 s on the deploys before, mostly waiting for a
-builder) is off the time from push to live. `README.md`'s "Deployment" section
-carries the summary table. It moved there on 2 November 2026 from Deno Deploy, which shuts
-down about six months after Deno's 9 October 2026 announcement; "Retiring Deno
-Deploy" below has what is left.
+builder) is off the time from push to live. On the first such push (run
+41751654752, 4 November 2026) `container`'s push took 19 s, inside the time the
+tests take; `deploy`'s release took 29 s against the remote build's 45; and the
+commit was live 1m42s after the push, against 1m55s the deploy before. The
+app's deploy token (`fly tokens create deploy`) is enough for
+`flyctl auth docker` and the push, which Fly does not document.
+`README.md`'s "Deployment" section carries the summary table. It moved there
+on 2 November 2026 from Deno Deploy, which shuts down about six months after
+Deno's 9 October 2026 announcement; "Retiring Deno Deploy" below has what is
+left.
 
 Six things are non-obvious enough to state here:
 
