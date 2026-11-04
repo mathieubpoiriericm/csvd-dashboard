@@ -6,10 +6,14 @@ description: Use when deploying the dashboard to Fly.io, setting up a fork's Fly
 # Hosting on Fly.io
 
 The app runs at `https://csvd-dashboard.fly.dev`, on Fly.io, as one always-on
-machine built from the root `Dockerfile` and configured by `fly.toml`. CI's
-`deploy` job in `.github/workflows/ci.yml` ships it on a push to `main`, but
-only once every other job has passed, then runs `scripts/smoke_deploy.sh`
-against `https://<app>.fly.dev`. `README.md`'s "Deployment" section carries the
+machine built from the root `Dockerfile` and configured by `fly.toml`. On a
+push to `main`, CI's `container` job builds that image, smoke-tests it and
+pushes it to `registry.fly.io/<app>:<commit>`; the `deploy` job in
+`.github/workflows/ci.yml` releases exactly that image
+(`flyctl deploy --image`), but only once every other job has passed, then runs
+`scripts/smoke_deploy.sh` against `https://<app>.fly.dev`. Fly builds nothing
+in CI any more, so what goes live is the image the smoke test passed, and the
+45 s remote build is off the time from push to live. `README.md`'s "Deployment" section carries the
 summary table. It moved there on 2 November 2026 from Deno Deploy, which shuts
 down about six months after Deno's 9 October 2026 announcement; "Retiring Deno
 Deploy" below has what is left.
@@ -95,6 +99,8 @@ These touch an account and its secrets, so the researcher runs them:
 | every gated page answers 503, `/login` renders                | a login secret is unset: `fly secrets list`, then `fly secrets set` the missing one (this restarts the machine)                                      |
 | everyone gets "Too many sign-in attempts" at once            | `LOGIN_CLIENT_IP_HEADER` is missing from `fly.toml`'s `[env]`, or `fly status` lists more than one machine                                            |
 | the CI `deploy` job printed "FLY_API_TOKEN is not set"       | this repository holds no token, which is expected on the second remote and on a fork that hosts elsewhere                                             |
+| the `container` job's push step fails, so nothing deploys     | `flyctl auth docker` or `docker push` to `registry.fly.io` was refused: check the token (`fly tokens create deploy`) and the app name in `fly.toml`; the live site keeps the previous release |
+| `deploy` fails with the image not found                        | the `container` job did not push this commit's image (a re-run of `deploy` alone after a failed push): re-run the whole workflow                      |
 | the CI `container` job fails at `deno task build`            | a file the build imports is missing from `.dockerignore`'s allowlist                                                                                  |
 | the machine starts and exits at once (`fly logs`)            | `--cached-only` met a module the build did not cache; reproduce with `container build` and `container run` (README, "Deployment")                    |
 

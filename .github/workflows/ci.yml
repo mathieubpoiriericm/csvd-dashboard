@@ -462,12 +462,40 @@ jobs:
           docker logs configured
           docker logs unconfigured
 
+      # On a push to main, the image that just passed both smoke tests is the
+      # one that goes live: pushed to the app's registry under the commit, so
+      # deploy below releases it rather than having Fly build a second one --
+      # which took the 45 s build off the time from push to live. The token
+      # enters only the push step, and only on main: a pull request's run
+      # never holds it, and a repository without it pushes nothing.
+      - name: Check for a Fly.io token
+        id: fly
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: echo "token=${FLY_API_TOKEN:+yes}" >> "$GITHUB_OUTPUT"
+
+      - uses: superfly/flyctl-actions/setup-flyctl@1.6
+        if: steps.fly.outputs.token == 'yes'
+
+      - name: Push the smoke-tested image to Fly.io
+        if: steps.fly.outputs.token == 'yes'
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          app=$(sed -n 's/^app = "\(.*\)"$/\1/p' fly.toml)
+          flyctl auth docker
+          docker tag dashboard "registry.fly.io/$app:$GITHUB_SHA"
+          docker push "registry.fly.io/$app:$GITHUB_SHA"
+
   # Fly.io deploys what every gate above passed, on a push to main and on
   # nothing else. FLY_API_TOKEN is a repository secret (`fly tokens create
   # deploy`); a repository without it -- a fork that hosts elsewhere, or the
   # second of this project's two remotes -- skips the deploy instead of
   # failing. --ha=false keeps a first deploy from creating Fly's default two
   # machines: the login limiter counts in the process, so there must be one.
+  # It releases the image container pushed for this commit, so what goes live
+  # is byte for byte the image the smoke test passed.
   deploy:
     name: Deploy to Fly.io
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -494,7 +522,9 @@ jobs:
 
       - name: Deploy
         if: env.FLY_API_TOKEN != ''
-        run: flyctl deploy --remote-only --ha=false
+        run: |
+          app=$(sed -n 's/^app = "\(.*\)"$/\1/p' fly.toml)
+          flyctl deploy --image "registry.fly.io/$app:$GITHUB_SHA" --ha=false
 
       # Logged-out checks only: the passphrase stays a Fly secret. Fly's own
       # health check is liveness on /login, which renders even with a login

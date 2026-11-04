@@ -650,9 +650,10 @@ into a container image by the root `Dockerfile` and runs on
 `fly.toml`. It moved there on 2 November 2026 from Deno Deploy, which Deno
 announced on 9 October 2026 would shut down six months later.
 
-Pushing to `main` deploys it once every other CI job has passed: the `deploy`
-job in `.github/workflows/ci.yml` needs all of them, runs
-`flyctl deploy --remote-only --ha=false`, and then runs
+Pushing to `main` deploys it once every other CI job has passed: the `container`
+job pushes the image it has just smoke-tested to the app's Fly registry under
+the commit, and the `deploy` job, which needs every other job, releases that
+image with `flyctl deploy --image … --ha=false` and then runs
 `scripts/smoke_deploy.sh` against the live site. A red push does not ship. Pull
 requests and other branches build and check the image (the `container` job) but
 deploy nothing, and there are no preview URLs. Because `data/*.json` is
