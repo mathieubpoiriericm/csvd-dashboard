@@ -20,7 +20,8 @@ The same CI run, PR #65's (41720801102), took 8m01 on GitHub's two-core private
 runners and 2m20 on the mini PC -- its first jobs there, on cold caches -- with
 every suite's pass and skip counts identical. Before the `adapt-fork` split a
 push took about ten minutes (run 41546971078, 2 November 2026). The layout
-below took a pull request from 1m40s on six mini-PC runners to 57 s.
+below took a pull request from 1m40s on six mini-PC runners to about a minute
+(62 s and 66 s on PR #67, no flaky retries).
 
 ## The layout, and why its parallelism is moderate
 
@@ -31,7 +32,7 @@ once, one per runner, sharing 16 cores. On the mini PC:
 
 | Setting                                         | Value                                    |
 | ----------------------------------------------- | ---------------------------------------- |
-| `E2E_WORKERS` (read by `playwright.config.ts`)  | 8 for `e2e`, 4 for the other e2e suites  |
+| `E2E_WORKERS` (read by `playwright.config.ts`)  | 4 for every e2e suite                    |
 | `DENO_JOBS` for `deno test --parallel`          | 4                                        |
 | pytest, pipeline suites                         | `-n auto --maxprocesses=4`               |
 | pytest, `tests/scripts`                         | serial                                   |
@@ -47,7 +48,8 @@ configuration running the same twelve jobs (probe runs on 3 November 2026):
 | twelve jobs, every knob at maximum                 | 1m36s | 9             |
 | twelve jobs, moderate                              | 1m22s | 3             |
 | moderate, Deno and Python under `nice -n 15`       | 60 s  | 2             |
-| as above, 8 workers for `e2e` (the layout)         | 57 s  | 0             |
+| as above, 8 workers for `e2e`                      | 57 s  | 0             |
+| **the layout** (4 workers everywhere), PR #67 × 2  | 62 s, 66 s | 0        |
 
 - **Past about 16 busy threads every job slows.** The machine has 16 physical
   cores, and the second thread of each shares it: builds and test suites took
@@ -63,8 +65,14 @@ configuration running the same twelve jobs (probe runs on 3 November 2026):
   the candidates for hardening; at the settings above none flaked.
 - **Priority beats width.** The e2e jobs are the critical path and Deno and
   Python finish early whatever happens, so running them under `nice` took 22 s
-  off. If the e2e suite turns flaky in normal runs, the first lever is `e2e`'s
-  workers, 8 back to 4 (60 s, measured).
+  off.
+- **8 workers for `e2e` was one lucky run.** It measured 57 s with no retries
+  on the probe branch, then retried two or three tests in each of PR #67's
+  first two runs (trial filters, the map's Leaflet start-up, two
+  performance-behaviour tests, all on 30 s test timeouts), and a retry costs
+  more than the few seconds the workers save. At 4 it ran clean twice. If the
+  suite turns flaky again, the next lever is less total load -- pytest `-n 2`,
+  `DENO_JOBS=2` -- not fewer browsers.
 - **About 55 s is the floor** at this volume of tests: six jobs finished within
   51-54 s of one another. Going lower means less work, not more parallelism.
 

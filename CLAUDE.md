@@ -116,11 +116,11 @@ regeneration or a visible change to a page, and commit them with that change.
 private repository has set `CI_RUNNER` to `csvd-ci` since 3 November 2026, which
 sends them to twelve self-hosted runners on a home mini PC (Ubuntu Server on
 bare metal), registered to that repository alone: a run that took 8m01 on
-GitHub's runners takes under a minute there. `empty-data` and `adapt-fork` run
+GitHub's runners takes about a minute there. `empty-data` and `adapt-fork` run
 as matrices split by gate family (`adapt_fork_check.ts --only=deno|python|e2e`),
 twelve jobs at once; Deno and Python commands run under `nice -n 15` so the e2e
 jobs, the critical path, win the CPU; and the parallelism is deliberately
-moderate (Playwright 4 workers, 8 for `e2e`; `DENO_JOBS=4`; pytest
+moderate (4 Playwright workers per e2e suite; `DENO_JOBS=4`; pytest
 `-n auto --maxprocesses=4`, each xdist worker with a database of its own),
 because maximal settings ran slower and left the e2e suite flaky. The public
 repository and every fork leave it unset and stay on `ubuntu-latest`. If the
