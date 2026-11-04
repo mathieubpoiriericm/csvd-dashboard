@@ -23,8 +23,10 @@ permissions:
 # host port (the postgres services publish on a free one, and each runner sets
 # its own E2E_PORT), and caching and Playwright's system packages are decided
 # on runner.environment. The container and deploy jobs stay on GitHub-hosted
-# runners: they are short and off the critical path, and the deploy's
-# FLY_API_TOKEN stays off that machine.
+# runners, and must: on a push to main both hold FLY_API_TOKEN -- container to
+# push the image, deploy to release it -- so moving either to vars.CI_RUNNER
+# would put the token on that machine. They are short and off the critical
+# path anyway.
 #
 # On that machine twelve jobs run at once -- empty-data and adapt-fork are
 # split by gate family (Deno, Python, e2e) so no job runs the three in a row --
@@ -414,10 +416,12 @@ jobs:
 
   # The image Fly.io runs, built and checked from outside on every push and
   # pull request, so a change to the Dockerfile, to .dockerignore's allowlist
-  # or to anything the build imports cannot reach a deploy unrun. The secrets
-  # are throwaway: the container holds nothing and goes with the job. A second
-  # container with no secrets has to fail the smoke script, which is what
-  # shows the script would catch a production deploy missing one.
+  # or to anything the build imports cannot reach a deploy unrun. The smoke
+  # secrets are throwaway: the container holds nothing and goes with the job.
+  # A second container with no secrets has to fail the smoke script, which is
+  # what shows the script would catch a production deploy missing one. On a
+  # push to main this job also holds the real FLY_API_TOKEN, to push the image
+  # below, which is why it stays on GitHub's runners.
   container:
     name: Production image builds and answers
     runs-on: ubuntu-latest
@@ -465,7 +469,8 @@ jobs:
       # On a push to main, the image that just passed both smoke tests is the
       # one that goes live: pushed to the app's registry under the commit, so
       # deploy below releases it rather than having Fly build a second one --
-      # which took the 45 s build off the time from push to live. The token
+      # which takes Fly's remote build (18-38 s on the deploys before this,
+      # mostly waiting for a builder) off the time from push to live. The token
       # enters only the push step, and only on main: a pull request's run
       # never holds it, and a repository without it pushes nothing.
       - name: Check for a Fly.io token

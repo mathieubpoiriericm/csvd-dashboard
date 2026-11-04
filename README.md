@@ -660,12 +660,12 @@ deploy nothing, and there are no preview URLs. Because `data/*.json` is
 committed and bundled at build time, regenerating data and pushing it to `main`
 republishes the site.
 
-| Where           | What it holds                                                                                                   |
-| --------------- | --------------------------------------------------------------------------------------------------------------- |
-| `fly.toml`      | the app name (also the host name, `<app>.fly.dev`), region `cdg`, one 512 MB `shared-cpu-1x` machine, always on |
-| `Dockerfile`    | `denoland/deno:2.9.8`; `deno install --frozen`, `deno task build`, then `deno serve --cached-only`              |
-| `.dockerignore` | an allowlist of what the build reads                                                                            |
-| `FLY_API_TOKEN` | a GitHub Actions secret (`fly tokens create deploy`); without it the deploy job skips                           |
+| Where           | What it holds                                                                                                                |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `fly.toml`      | the app name (also the host name, `<app>.fly.dev`), region `cdg`, one 512 MB `shared-cpu-1x` machine, always on              |
+| `Dockerfile`    | `denoland/deno:2.9.8`; `deno install --frozen`, `deno task build`, then `deno serve --cached-only`                           |
+| `.dockerignore` | an allowlist of what the build reads                                                                                         |
+| `FLY_API_TOKEN` | a GitHub Actions secret (`fly tokens create deploy`); without it the `container` job pushes nothing and the deploy job skips |
 
 The machine costs about $3.69 a month at Fly's November 2026 prices.
 
