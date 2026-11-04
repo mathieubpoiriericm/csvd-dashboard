@@ -1,7 +1,7 @@
 # Genes and Clinical Trials Dashboard
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Maintained](https://img.shields.io/badge/Maintained-yes-green.svg)](mailto:mathieu.poirier@icm-institute.org)
+[![Maintained](https://img.shields.io/badge/Maintained-yes-green.svg)](mailto:mathieu.poirier3@mail.mcgill.ca)
 [![Deno](https://img.shields.io/badge/Deno-2.9-blue.svg)](https://deno.com/)
 [![Fresh](https://img.shields.io/badge/Fresh-2.3-yellow.svg)](https://usefresh.dev/)
 [![Python](https://img.shields.io/badge/Python-3.14+-yellow.svg)](https://www.python.org/)
@@ -1261,7 +1261,7 @@ not freely redistributable.
 
 ## Contact
 
-**Maintenance**: <mathieu.poirier@icm-institute.org>
+**Maintenance**: <mathieu.poirier3@mail.mcgill.ca>
 
 ---
 
