@@ -1,6 +1,6 @@
 ---
 name: regenerate-data
-description: Use when regenerating data/*.json (deno task data, deno task geocode, or --export at the end of a pipeline run), backing up or restoring the production database (from a dump, or from the committed data/*.json when no dump survives), working out which PostgreSQL is serving (the native Homebrew postgresql@18 that holds the data, versus the throwaway dhi.io/postgres:18-alpine3.23 container tests use), a server that brew services reports as started but that answers `FATAL: role "csvd_user" does not exist` (after a Homebrew reinstall, say), rebuilding a database from scratch, or drawing the print figures and cytobands (deno task figure, deno task cytobands).
+description: 'Use when regenerating data/*.json (deno task data, deno task geocode, or --export at the end of a pipeline run), backing up or restoring the production database (from a dump, or from the committed data/*.json when no dump survives), working out which PostgreSQL is serving (the native Homebrew postgresql@18 that holds the data, versus the throwaway dhi.io/postgres:18-alpine3.23 container tests use), a server that brew services reports as started but that answers `FATAL: role "csvd_user" does not exist` (after a Homebrew reinstall, say), rebuilding a database from scratch, or drawing the print figures and cytobands (deno task figure, deno task cytobands).'
 ---
 
 # Regenerating the data
@@ -25,6 +25,34 @@ run (`uv run python -m pipeline.main --clinical-trials --export`), leaving the
 files in the working tree. `deno task geocode` stays separate either way — it
 calls out to clinicaltrials.gov — so a run that adds a trial needs it too, or
 `tests/data_contract_test.ts` fails on the `nctIds` set.
+
+## What `--export` does at the end of a run
+
+`--export` does the work of `deno task data` at the end of a live run, so the
+figures, the About page's date and the run widget track the database without a
+second command. It **stops at the working tree** — the files are left modified
+and nothing is committed, because the curated `genes` table is a scientific
+judgement and the e2e fixtures pin exact row counts. It is refused with
+`--local-pdfs` / `--pmids`, which publish no data; it is skipped after a
+`--dry-run` or `--test-mode` preview, which writes nothing; and it runs even
+when a pipeline **failed**, because `_record_failed_run` persists that failure
+for the widget and not exporting is what would keep it invisible. An export
+failure is folded into the exit code — the database having moved while the files
+did not is the condition the flag exists to remove.
+
+**A PubMed run refreshes the three lookup caches before that export**, for its
+own new gene keys and PMIDs only (`_refresh_lookup_caches`, skipped when
+`--sync-external-data` ran in the same invocation, which covers them anyway).
+Nothing inside a run writes `ncbi_gene_info`, `uniprot_info` or
+`pubmed_citations`, and `complete_lookup` turns a key it cannot find into a row
+of nulls rather than failing — so `--export` used to publish every newly
+inserted gene with a null NCBI uid, description and alias list and every newly
+attached reference as `"(citation not available)"`. Each source fetches only its
+own cache misses, so this costs what the run added and nothing more. It is
+best-effort: a source that cannot be reached is logged as an error and the
+export still runs, because the database has moved and leaving the files behind
+it is worse. A run that _raised_ leaves no report to read those keys out of, so
+whatever it merged before it died waits for the next `--sync-external-data`.
 
 ## Two databases, and they are not interchangeable
 

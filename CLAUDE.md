@@ -25,117 +25,53 @@ own for the same reason. `deno task check` (fmt, lint, `deno check`) and
 column is a scientific judgement, and every disagreement it prints needs a
 human.
 
-A long `--days-back` run is resumable: every paper is checkpointed to
-`logs/pipeline_checkpoint.jsonl` as it finishes, so a crash costs the papers in
-flight and nothing else — re-run the same command. **`--batch` is the exception
-to "and nothing else"**: every paper is in flight until the batch's results
-arrive, and the batch id is held only in the run log, so a crash inside the
-up-to-24h poll loses the whole submission. Re-running resubmits every paper and
-pays again while the first batch completes at Anthropic unretrieved.
-`uv run python -m scripts.backfill_pubmed` walks the window in committed chunks
-instead, for when the database should be updated as it goes. See "Long windows"
-in `pipeline/CLAUDE.md`.
+A long `--days-back` run resumes from `logs/pipeline_checkpoint.jsonl` — re-run
+the same command after a crash. **`--batch` is the exception**: its batch id
+lives only in the run log, so a crash inside the up-to-24h poll loses the whole
+submission and a re-run pays again. The `run-long-window` skill has the rest,
+`scripts.backfill_pubmed` included.
 
-Regenerating `data/*.json` needs PostgreSQL reachable and `.env` populated. The
-commands, the hardened `dhi.io/postgres:18.6` container with its three
-load-bearing details, and the print-figure and cytoband tasks are in the
-`regenerate-data` skill (`.claude/skills/regenerate-data/SKILL.md`). **Migration
-014 renames `clinical_trials.svd_population` to `target_population`, and the
-export, the merge and the clinical-trials sync all read the new name, so run
-`cd pipeline && uv run alembic upgrade head` before the first `deno task data`
-after merging the `disease-reuse` branch.** **Migration 015 adds
-`pubmed_refs.extraction_model`, which every PubMed run's ledger write now fills,
-so upgrade before the first run after merging the `opus-4-8-fallback` branch: on
-a database still at 014 the run pays for every extraction, merges the genes, and
-only then fails writing the ledger.** The checkpoint keeps the papers, so
-re-running the same command after `alembic upgrade head` costs nothing more.
+Regenerating `data/*.json` needs PostgreSQL reachable and `.env` populated; the
+commands, the database setup and the print-figure and cytoband tasks are in the
+`regenerate-data` skill. **After merging anything that adds a migration under
+`pipeline/alembic/versions/`, run `cd pipeline && uv run alembic upgrade head`
+before the next `deno task data` or pipeline run**: the export reads the newest
+columns, and a PubMed run on a stale schema pays for every extraction, merges
+the genes, and only then fails writing the ledger (the checkpoint keeps the
+papers, so re-running after the upgrade costs nothing more).
 
-`--export` does that same work at the end of a live run, so the figures, the
-About page's date and the run widget track the database without a second
-command. It **stops at the working tree** — the files are left modified and
-nothing is committed, because the curated `genes` table is a scientific
-judgement and the e2e fixtures pin exact row counts. It is refused with
-`--local-pdfs` / `--pmids`, which publish no data; it is skipped after a
-`--dry-run` or `--test-mode` preview, which writes nothing; and it runs even
-when a pipeline **failed**, because `_record_failed_run` persists that failure
-for the widget and not exporting is what would keep it invisible. An export
-failure is folded into the exit code — the database having moved while the files
-did not is the condition the flag exists to remove.
+`--export` regenerates the files at the end of a live run and **stops at the
+working tree**: nothing is committed, because the curated `genes` table is a
+scientific judgement and the e2e fixtures pin exact row counts. When it runs, is
+refused or skipped, and the lookup-cache refresh before it, are in the
+`regenerate-data` skill.
 
-**A PubMed run refreshes the three lookup caches before that export**, for its
-own new gene keys and PMIDs only (`_refresh_lookup_caches`, skipped when
-`--sync-external-data` ran in the same invocation, which covers them anyway).
-Nothing inside a run writes `ncbi_gene_info`, `uniprot_info` or
-`pubmed_citations`, and `complete_lookup` turns a key it cannot find into a row
-of nulls rather than failing — so `--export` used to publish every newly
-inserted gene with a null NCBI uid, description and alias list and every newly
-attached reference as `"(citation not available)"`. Each source fetches only its
-own cache misses, so this costs what the run added and nothing more. It is
-best-effort: a source that cannot be reached is logged as an error and the
-export still runs, because the database has moved and leaving the files behind
-it is worse. A run that _raised_ leaves no report to read those keys out of, so
-whatever it merged before it died waits for the next `--sync-external-data`.
-
-`deno task data:empty` (`pipeline/export/empty.py`) writes the other end of the
-range with no database at all: every row file `[]`, both run files `null`, the
-map file with no sites, `omim_info.json` from the CSV, and `cytobands_hg38.json`
-untouched because it is genome reference data. It is where a fork starts and
-what the `empty-data` CI job runs before every gate.
-`uv run python -m scripts.measure_recall` measures the PubMed query against
-`disease/recall_gold.csv` and, with `--write-baseline`, records the figure in
-`disease/recall_baseline.json`; `tests/pipeline/test_query_recall_gold.py`
-replays that measurement from a cassette.
-
-`deno task geocode` stays separate because it calls out to clinicaltrials.gov,
-so a run that adds a trial needs it too or `tests/data_contract_test.ts` fails
-on the `nctIds` set. `deno task figure` stays manual as well; `figures/` is
-gitignored.
-
-Tests never touch that database. `tests/pipeline/conftest.py` clears the `DB_*`
-variables — and the whole `PIPELINE_*` namespace, so a value left in `.env` for
-a local experiment cannot change what the default-config tests measure — and a
-test needing real SQL uses the throwaway database `CSVD_TEST_DB_URL` names (CI's
-`postgres` service on GitHub's runners, a database of the runner's own on the
-mini PC's native PostgreSQL) or, with that unset, brings up its own container —
-from `dhi.io/postgres:18-alpine3.23`, not the glibc image the skill documents
-for a mounted data directory — on its own address under Apple's `container`
-runtime. See "Database tests" in `pipeline/CLAUDE.md`.
+Tests never touch the production database: `tests/pipeline/conftest.py` clears
+the `DB_*` variables and the whole `PIPELINE_*` namespace, and a test needing
+real SQL uses the throwaway database `CSVD_TEST_DB_URL` names or brings up its
+own `dhi.io/postgres:18-alpine3.23` container. See "Database tests" in
+`pipeline/CLAUDE.md`.
 
 Vite is pinned to 7.x because `@fresh/plugin-vite` requires `vite@^7.1.4`.
 
 `deno task perf` measures every route and fourteen interactions under 4x CPU
 throttling; the `perf` skill holds how to run it and how to read it.
 
-`deno task screenshots` builds and recaptures the README's six screenshots into
-`docs/screenshots/` as lossless WebP, through libwebp's `cwebp`. Unlike the perf
-harness it never reuses a listening server: it starts its own on a free port
-with made-up credentials, so an older build cannot be captured as current. The
-images show the committed data as the build bundles it, so rerun it after a data
-regeneration or a visible change to a page, and commit them with that change.
+`deno task screenshots` recaptures the README's screenshots in
+`docs/screenshots/` from the committed data, on a server of its own; rerun it
+after a data regeneration or a visible change to a page, and commit them with
+that change.
 
-**CI's five test jobs run on `${{ vars.CI_RUNNER || 'ubuntu-latest' }}`.** The
-private repository has set `CI_RUNNER` to `csvd-ci` since 3 November 2026, which
-sends them to twelve self-hosted runners on a home mini PC (Ubuntu Server on
-bare metal), registered to that repository alone: a run that took 8m01 on
-GitHub's runners takes about a minute there. `empty-data` and `adapt-fork` run
-as matrices split by gate family (`adapt_fork_check.ts --only=deno|python|e2e`),
-twelve jobs at once; Deno and Python commands run under `nice -n 15` so the e2e
-jobs, the critical path, win the CPU; and the parallelism is deliberately
-moderate (4 Playwright workers per e2e suite; pytest `-n auto --maxprocesses=4`,
-each xdist worker with a database of its own), because maximal settings ran
-slower and left the e2e suite flaky. The public repository and every fork leave
-it unset and stay on `ubuntu-latest`. If the GitHub Actions extension for VS
-Code warns "Context access might be invalid: CI_RUNNER" on a `runs-on` line,
-that is the fallback for a repository without the variable, and it is
-deliberate. One host runs several jobs at once, so no job may take a fixed host
-port -- each runner sets its own `E2E_PORT`, and the database tests there use a
-database of the runner's own on the machine's native PostgreSQL rather than a
-postgres service, whose per-job Docker network made Chromium abort page loads --
-and `container` and `deploy` stay hosted. When the machine is down,
-`gh variable delete CI_RUNNER` is the fallback. The `ci-runner` skill
-(`.claude/skills/ci-runner/SKILL.md`) has the machine, the measurements behind
-those settings, the provisioning script and the Playwright-upgrade step the
-workflow cannot do for it.
+**CI's test jobs run on `${{ vars.CI_RUNNER || 'ubuntu-latest' }}`**: the
+private repository sets `CI_RUNNER=csvd-ci`, which sends them to twelve
+self-hosted runners on a home mini PC; the public repository and every fork stay
+on `ubuntu-latest`, and `container` and `deploy` are always hosted. Several jobs
+share one host, so no job may take a fixed host port — each runner sets its own
+`E2E_PORT`. A VS Code warning "Context access might be invalid: CI_RUNNER" on a
+`runs-on` line is that deliberate fallback. When the machine is down,
+`gh variable delete CI_RUNNER` is the fallback. The `ci-runner` skill has the
+machine, the parallelism settings and why they are moderate, and the
+Playwright-upgrade step.
 
 **`compression()` in `main.ts` is the outermost middleware, and that position is
 load-bearing**: nothing before it compressed the built bundles, and it must stay
@@ -239,39 +175,19 @@ the one table it renders. The barrel exists for the tests that exercise the
 complete boundary. Consequences worth remembering:
 
 - Editing `data/*.json` requires a rebuild/HMR cycle to show up.
-- **`data/gene_annotations.json` is the only file whose rows are a pivot rather
-  than a table dump**: one row per `(gene, disease)` rather than one per
-  cross-reference, because the `gene_annotations` table `--sync-annotations`
-  fills (see `pipeline/CLAUDE.md`) held ~7,700 rows on 2026-09-24, and any
-  island that imports this file bundles it. None does yet — its readers are
-  `scripts/reconcile_omim.py`, the contract tests and the `lib/data.ts` barrel.
-  Only ClinVar's attested diseases and Orphanet's enrichment of them are
-  published; Open Targets' ranked associations and GO terms stay in PostgreSQL,
-  where a query that wants them can reach them. **`relatedXrefs` is not a list
-  of more identifiers for the row's disease** — each entry names a _different_
-  concept and carries the relation its source reported, verbatim and never
-  invented. Merging one into `omimId` would publish a different disease's OMIM
-  number as this gene's, which is the error the annotations exist to remove.
-  `omimSeries` is separate for the same reason: a phenotypic series names a
-  group of phenotypes, so `omimByNumber` can never resolve one. It is also the
-  one export file that is **skipped rather than emptied** when its table has no
-  rows, because only `--sync-annotations` fills it and `[]` would otherwise
-  publish over the committed file atomically. Only a genuinely empty read
-  reaches that rule: `read_disease_annotations` tolerates a missing table and
-  nothing else, so a renamed column or a revoked `SELECT` fails the export
-  rather than freezing the file at its last good read.
+- **`data/gene_annotations.json` is a pivot, one row per `(gene, disease)`**,
+  and any island that imports it bundles it. **`relatedXrefs` names _different_
+  concepts — never merge one into `omimId`**, which would publish another
+  disease's OMIM number as this gene's. It is the one export file skipped rather
+  than emptied when its table has no rows. `.claude/rules/json-contract.md` has
+  the rest.
 - `data/pipeline_run.json` is committed as a bare `null` until a run records a
   report, exactly as `data/pipeline_status.json` was. Both states are covered;
   the About page falls back to the summary card for the null one.
 - **`data/pipeline_syncs.json` is the reference-data refreshes**, one entry per
-  sync mode, committed as `[]` until one is recorded. It is a separate file
-  because a refresh is a separate event from a run — and a separate table, so
-  that no query feeding the run widget or the About page's date badge can see
-  one. It is what publishes the upstreams only the syncs touch: ClinVar,
-  Orphadata, Open Targets, UniProt and ClinicalTrials.gov reached no committed
-  file before it, because `build_run_report` is reachable only from inside
-  `run_pipeline`. See "The refreshes record their own runs" in
-  `pipeline/CLAUDE.md`.
+  sync mode, committed as `[]` until one is recorded — a separate file and table
+  from the runs, so nothing feeding the run widget or the About page's date can
+  see one. See "The refreshes record their own runs" in `pipeline/CLAUDE.md`.
 - `tests/filters_test.ts` asserts against the _real committed rows_ (e.g. exact
   row counts for a trait filter). Regenerating data can legitimately break tests
   — check whether the data changed before "fixing" the filter. The trial
@@ -287,47 +203,11 @@ complete boundary. Consequences worth remembering:
   the guardrail that proved the R-to-Python export port faithful. Keep it.
 - The export itself is covered by `tests/pipeline/export/` and runs in CI,
   against fixtures rather than a live database.
-- **JSON output is byte-exact, and every exported file is gated on it.**
-  `tests/pipeline/export/test_writer.py` parses each `data/*.json`, re-encodes
-  it through the writer and compares the bytes; a companion test fails if a file
-  appears in `data/` with no case, so the gate cannot quietly cover less than
-  the directory. `data/cytobands_hg38.json` is the one exception, and is listed
-  as such: it is not the export's output but `scripts/fetch_cytobands.py`'s, and
-  `deno fmt --check .` is what gates its formatting. It needs no database and
-  runs in milliseconds. This is what catches a formatting divergence before it
-  turns the first regeneration into an unreviewable whole-file diff — the way
-  the missing `</` → `<\/` escaping (jsonlite escapes a slash only after `<`;
-  `json.dumps` never does) would have rewritten every row of `refs.json`.
-  `json.loads()`-equality sees none of this.
-- **Every export query needs an `ORDER BY`.** Without one PostgreSQL returns
-  rows in whatever physical order it likes, so the byte-exact contract above
-  cannot hold across runs. One unordered `SELECT * FROM clinical_trials`
-  reordered `gene_info_table2.json` too, because `split_genetic_targets()` feeds
-  the lookup request lists and `complete_lookup()` restores _request_ order.
-  `_read_table` orders by `id`; the lookups inherit determinism from it.
-  `_read_genes_with_lists` needs **two** -- `genes` by `id`, and each join table
-  by `(gene_id, ordinal)`, because the within-gene order reaches the JSON array
-  as well. `read_disease_annotations` orders by
-  `(gene_symbol, group_key, source, object_id)`, and the `source` term is
-  load-bearing beyond determinism: it puts ClinVar's rows before Orphadata's,
-  which is what lets an exact Orphanet mapping fill only a column ClinVar left
-  empty.
-- **`data/table2.json` publishes only curated trial rows.** `--clinical-trials`
-  writes ClinicalTrials.gov discoveries into the same table, with every curator
-  column NULL; `_read_curated_trials` in `pipeline/export/main.py` skips any row
-  with no `target_population` and logs the count, so a discovery no one has read
-  cannot reach the dashboard as `(unknown)` mechanism, population and evidence —
-  values no filter choice offers and the radar draws nowhere. See
-  "ClinicalTrials.gov rows must read like the curated ones" in
-  `pipeline/CLAUDE.md`.
-- Facility coordinates come from ClinicalTrials.gov's `geoPoint`, which is
-  computed as `GeoPoint(City, State, Country)` — city-level, not facility-level.
-  `jitter_duplicate_coordinates()` fans out co-located sites. No geocoding
-  service is involved. A site with no `geoPoint` is dropped rather than
-  defaulted — a marker at (0, 0) is worse than no marker — and both that drop
-  and a trial that ends up contributing no marker at all are logged by name: the
-  trial is still in `nctIds`, and `tests/data_contract_test.ts` compares only
-  that set, so nothing else would say the map is missing it.
+- **The export is byte-exact and ordered**: every `data/*.json` is gated
+  byte-for-byte against the writer, every export query needs an `ORDER BY`,
+  `data/table2.json` publishes only curated trial rows, and a facility with no
+  `geoPoint` is dropped rather than defaulted. `.claude/rules/json-contract.md`,
+  which loads with `pipeline/export/**`, has why each holds.
 
 ### Gene lists
 
@@ -365,34 +245,9 @@ data limitations live in `pipeline/CLAUDE.md`, which loads when working under
 ### Filtering
 
 `lib/filters.ts` is the only place row selection happens; islands hold the
-selection state and call it. It deliberately diverges from the Shiny original by
-normalizing case and surrounding whitespace on both sides of every comparison —
-the R version compared raw strings and silently hid rows (`"Proteomics"` vs
-`"proteomics"`, traits stored as `"PSMD "`). The data boundary also trims
-display strings, while the raw-JSON contract test keeps generator regressions
-visible.
-
-Two matching rules are non-obvious: a binary group (Yes/No) only constrains when
-exactly one option is selected, and a `SHOW_ALL` selection means "no filter".
-The same rules are enforced in the UI by `nextSelection()` in
-`components/CheckboxFilter.tsx`, which can never leave a group matching nothing.
-
-One group starts constrained: the trials pages' "Study status" seeds
-`DEFAULT_TRIAL_STATUSES` (every status but Completed) through the `initial`
-field on a `useCheckboxFilters` definition, and `reset()` returns to it rather
-than to Show All. The `Active Filters:` line therefore reports it on first
-paint, which is intended -- it is what tells a viewer completed trials are
-hidden. `visibleTrials()` in `lib/filters.ts` is the same default as a function,
-for the SSR tests and any count that has to agree with the page.
-
-`components/FilterPanel.tsx` owns the sidebar-and-table layout both data pages
-render, and the collapse state with it -- the `is-collapsed` class has to reach
-the grid wrapper as well as the panel, so the panel cannot hold it alone.
-Collapsing folds the sidebar to a rail rather than unmounting it: the toggle
-stays one button in one place, so the press keeps focus and the pointer. Hiding
-the controls hides no information, because `TableShell` prints the
-`Active Filters:` line above the table either way -- keep that true if the
-readout ever moves.
+selection state and call it. `.claude/rules/filters.md` loads with it and
+carries the case-normalizing comparison, the two non-obvious matching rules, the
+constrained "Study status" default and the collapsible panel.
 
 ### Routes and islands
 
@@ -429,16 +284,11 @@ and `e2e/`, and carries the rest.
 
 ### Hosting
 
-The app runs at `https://csvd-dashboard.fly.dev`, on Fly.io, as one always-on
-machine built from the root `Dockerfile` and configured by `fly.toml`. On a push
-to `main`, CI's `container` job pushes the image it has just smoke-tested to the
-app's registry, and the `deploy` job releases exactly that image once every
-other job has passed, then checks it from outside with
-`scripts/smoke_deploy.sh`; a push is live in under two minutes. It moved there
-on 2 November 2026 from Deno Deploy, which shuts down six months after Deno's 9
-October 2026 announcement. The one-machine rule, the `Fly-Client-IP` header the
-login limiter keys on, the allowlist `.dockerignore` and the 503 diagnosis are
-in the `deploy` skill (`.claude/skills/deploy/SKILL.md`).
+The app runs at `https://csvd-dashboard.fly.dev` on Fly.io, one always-on
+machine built from the root `Dockerfile`; on a push to `main`, CI's `container`
+job pushes the smoke-tested image and the `deploy` job releases it once every
+other job has passed. The `deploy` skill has the one-machine rule, the
+`Fly-Client-IP` header, the allowlist `.dockerignore` and the 503 diagnosis.
 
 Because `data/*.json` is committed and bundled at build time, regenerating data
 and pushing it to `main` republishes the site — `tests/filters_test.ts`'s caveat
@@ -446,14 +296,14 @@ about regeneration now has a production consequence as well as a test one.
 
 ### Scoped notes
 
-Eight rules files load by path from `.claude/rules/`: `tables.md` (`TableShell`
+Nine rules files load by path from `.claude/rules/`: `tables.md` (`TableShell`
 and the two table islands), `timeline.md` (the trials radar), `phenogram.md`
 (the karyogram), `tooltips.md`, `compression.md`, `gene-lists.md`,
-`json-contract.md` and `login.md`. Four directories carry their own `CLAUDE.md`:
-`islands/` (the map, the run widget and the adapt wizard, whose notes cover
-`lib/adapt/` too), `assets/` (tokens, depth, typography), `e2e/` (npm isolation,
-the production-build harness, the selector traps) and `tests/pipeline/`, which
-imports `pipeline/CLAUDE.md`.
+`json-contract.md`, `login.md` and `filters.md`. Four directories carry their
+own `CLAUDE.md`: `islands/` (the map, the run widget and the adapt wizard, whose
+notes cover `lib/adapt/` too), `assets/` (tokens, depth, typography), `e2e/`
+(npm isolation, the production-build harness, the selector traps) and
+`tests/pipeline/`, which imports `pipeline/CLAUDE.md`.
 
 ### Typography and type graph
 

@@ -10,12 +10,9 @@ paths:
 
 # Gene lists
 
-Three `genes` columns held delimited lists inside TEXT until migration 005 moved
-them into join tables -- `gene_references(gene_id, ordinal, pmid)`,
-`gene_gwas_traits(… trait)`, `gene_monogenic_links(… omim_id)` -- and 006
-dropped the columns. `references` had already been destroyed once by a
-spreadsheet round-trip that read the whole PMID list as one number; one value
-per row makes that impossible rather than merely detectable.
+Why these are join tables (migrations 005 and 006, after a spreadsheet
+round-trip destroyed a PMID list) is in the root `CLAUDE.md`, "Gene lists"; the
+table and column names are in those migrations.
 
 Three things about the arrangement are load-bearing:
 

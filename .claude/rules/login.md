@@ -40,15 +40,6 @@ store, no Deno KV, no auth library. Five things are load-bearing:
   `timingSafeEqual` on two digests. The routes are thin: `routes/login.tsx` and
   `routes/logout.tsx` call `loginResponse` / `logoutResponse` and render the
   card.
-- **`csrf()` in `main.ts` is what protects the two POSTs.** Both forms are
-  same-origin; the plugin rejects a cross-site `Origin` or `Sec-Fetch-Site`. Do
-  not turn `/logout` into a GET link — that is the request it guards.
-- **The e2e suite runs pre-authenticated.** `playwright.config.ts` starts the
-  server with the suite's own two values, the `setup` project signs in once and
-  saves `storageState`, and `chromium` depends on it. A spec that asserts on the
-  logged-out state has to opt out with
-  `test.use({ storageState: { cookies: [], origins: [] } })`, as `login.spec.ts`
-  does.
 
 `_app.tsx` renders `/login` as a bare sheet (no navbar) and, for a verified
 session, a "Sign out" form beside the theme toggle; the flag it reads is

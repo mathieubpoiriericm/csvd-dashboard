@@ -205,7 +205,7 @@ its 30-day `DB_CACHE_TTL_DAYS` expires, so correcting one means deleting it from
 that table -- there is no refresh flag. That miss-only behaviour is also what
 lets a PubMed run fill the lookup caches for its own keys
 (`sync_external_data_for`, called from `_refresh_lookup_caches` before
-`--export`; see the root `CLAUDE.md`).
+`--export`; see the `regenerate-data` skill).
 
 **Open Targets is pinned and self-checking.** The API self-describes as Beta and
 its schema has already moved once (`knownDrugs` → `drugAndClinicalCandidates`),

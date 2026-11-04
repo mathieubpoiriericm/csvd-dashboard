@@ -646,12 +646,13 @@ the query is expected to retrieve per row), unions it with the PMIDs
 `data/table1.json` cites and, when the gitignored gold-standard CSV is present,
 the golden suite's papers, and intersects `SVD_QUERY` with a `[uid]` disjunction
 over the set — exact, and never near the 9,999-record `esearch` cap because the
-result can never exceed the gold set. `scripts.measure_recall` runs it (see the
-root `CLAUDE.md`); the baseline it writes carries the query's sha256, so it says
-which query it measured, and the replay test skips, with a reason, when the gold
-file is empty or no baseline is recorded — which is where a fork starts. The
-cSVD-specific recall suite, with its five pinned misses and the per-branch
-figures, is `tests/pipeline/csvd/test_query_recall.py`.
+result can never exceed the gold set. `uv run python -m scripts.measure_recall`
+runs it, and `--write-baseline` records the figure in
+`disease/recall_baseline.json`; the baseline it writes carries the query's
+sha256, so it says which query it measured, and the replay test skips, with a
+reason, when the gold file is empty or no baseline is recorded — which is where
+a fork starts. The cSVD-specific recall suite, with its five pinned misses and
+the per-branch figures, is `tests/pipeline/csvd/test_query_recall.py`.
 
 The traps in what reaches the model -- esearch paging, PMC's "does not allow
 downloading" notice, DOIs read from the wrong list, JATS tables and
@@ -979,19 +980,12 @@ against the floor and the evidence beside it are one extraction.
 
 ## Long windows
 
-The 2026-11-03 `--days-back 730` run under Opus 5.5 was 1,570 papers, ~4 hours
-and $116 of extraction (about $0.074 a paper, refusals included, since a
-pre-output refusal is billed), and `pipeline/checkpoint.py` is what makes a
-crash at hour two survivable. `--test-mode` gives a window's count for free;
-multiply before starting, and check the API credit balance covers it with room
-to spare -- see the `run-long-window` skill for what an exhausted balance does.
-A paper the Opus 4.8 fallback serves costs about three times the average: the
-same-day retry of the 37 refused papers cost $8.38 for 38 (34 served by Opus
-4.8, 3 by Opus 5.5, 1 declined by both). The resume semantics, the `--batch`
-exception and `scripts.backfill_pubmed` are in "Commands" in the root
-`CLAUDE.md`; the checkpoint's own invariants (the fingerprint, the `flock`, the
-request-order merge) are in the `run-long-window` skill
-(`.claude/skills/run-long-window/SKILL.md`).
+The window's measured cost, the Opus 4.8 fallback's per-paper premium, the
+credit-balance check, the resume semantics, the `--batch` exception and the
+checkpoint's own invariants (the fingerprint, the `flock`, the request-order
+merge) are in the `run-long-window` skill
+(`.claude/skills/run-long-window/SKILL.md`); the `--batch` warning is also in
+"Commands" in the root `CLAUDE.md`.
 
 `scripts/backfill_pubmed.py` is the other half, optional rather than the
 default: cumulative chunks committed as each finishes, at the cost of narrowing
