@@ -12,11 +12,13 @@
  * and the production build.
  *
  *   deno run -A scripts/adapt_fork_check.ts [exampleitis] [hard] [--e2e] [--keep]
- *                                            [--shard=K/N]
+ *                                            [--shard=K/N] [--only=FAMILY]
  *
  * With no answer set named, both run. `--shard=K/N` keeps every N-th of the
- * sets that would run, from the K-th, which is how CI runs them as parallel
- * legs (see `shard`). The Python checks use the checkout's
+ * sets that would run, from the K-th, and `--only=deno|python|e2e` runs one
+ * family of checks, which together are how CI runs them as parallel jobs (see
+ * `shard` and `gates`). With `--e2e` the Playwright run builds the fork, so the
+ * separate production build is skipped. The Python checks use the checkout's
  * virtual environment (or UV_PROJECT_ENVIRONMENT's) without syncing it, and
  * the database tests reach PostgreSQL the way the checkout's do.
  */
@@ -150,26 +152,90 @@ async function adapt(fork: string, answers: Answers) {
   await Deno.writeTextFile(packageJson, `${JSON.stringify(pkg, null, 2)}\n`);
 }
 
-/** Checklist step 5, and the build a deploy runs. */
-async function check(fork: string, e2e: boolean) {
-  await run(fork, "deno", ["install"]);
-  await run(fork, "deno", ["task", "check"]);
-  await run(fork, "deno", ["task", "test:coverage"]);
-  await run(fork, "uv", ["run", "ruff", "check", "."], PYTHON_ENV);
-  await run(fork, "uv", ["run", "ty", "check"], PYTHON_ENV);
-  await run(fork, "uv", ["run", "pytest", "-q"], PYTHON_ENV);
-  await run(fork, "uv", ["run", "pytest", "-q", "tests/scripts"], PYTHON_ENV);
-  await run(fork, "deno", ["task", "build"]);
-  if (e2e) {
-    await run(fork, "npm", ["ci", "--prefix", "e2e"]);
-    await run(fork, "npx", [
-      "--prefix",
-      "e2e",
-      "playwright",
-      "test",
-      "-c",
-      "e2e/playwright.config.ts",
-    ]);
+/** The gate families `--only` picks between. */
+export const FAMILIES = ["deno", "python", "e2e"] as const;
+export type Family = typeof FAMILIES[number];
+
+/** The family `--only=<spec>` names. */
+export function family(spec: string): Family {
+  const match = FAMILIES.find((name) => name === spec);
+  if (match === undefined) {
+    throw new RangeError(
+      `--only takes one of ${FAMILIES.join(", ")}; got "${spec}".`,
+    );
+  }
+  return match;
+}
+
+/** One command of the checks, and whether it needs the Python environment. */
+export interface Gate {
+  command: string;
+  args: string[];
+  python: boolean;
+}
+
+const deno = (...args: string[]): Gate => ({
+  command: "deno",
+  args,
+  python: false,
+});
+const uv = (...args: string[]): Gate => ({ command: "uv", args, python: true });
+
+/**
+ * Checklist step 5, and the build a deploy runs, as the commands to run in
+ * order. `only` keeps one family, which is how CI runs each as a job of its
+ * own. With `e2e`, Playwright's web server builds the same fork, so the
+ * separate build is left out; without it the build still runs, and the
+ * deploy build is never left unchecked. In CI the pipeline suite spreads
+ * across xdist workers, each with a database of its own
+ * (tests/xdist_databases.py); a developer's run stays serial and starts one
+ * container.
+ */
+export function gates(
+  { only, e2e, ci }: { only?: Family; e2e: boolean; ci: boolean },
+): Gate[] {
+  const want = (name: Family) => only === undefined || only === name;
+  const list: Gate[] = [];
+  if (want("deno") || (e2e && want("e2e"))) list.push(deno("install"));
+  if (want("deno")) {
+    list.push(deno("task", "check"), deno("task", "test:coverage"));
+    if (!e2e) list.push(deno("task", "build"));
+  }
+  if (want("python")) {
+    const workers = ci ? ["-n", "auto", "--maxprocesses=4"] : [];
+    list.push(
+      uv("run", "ruff", "check", "."),
+      uv("run", "ty", "check"),
+      uv("run", "pytest", "-q", ...workers),
+      uv("run", "pytest", "-q", "tests/scripts"),
+    );
+  }
+  if (e2e && want("e2e")) {
+    list.push(
+      { command: "npm", args: ["ci", "--prefix", "e2e"], python: false },
+      {
+        command: "npx",
+        args: [
+          "--prefix",
+          "e2e",
+          "playwright",
+          "test",
+          "-c",
+          "e2e/playwright.config.ts",
+        ],
+        python: false,
+      },
+    );
+  }
+  return list;
+}
+
+async function check(
+  fork: string,
+  options: { only?: Family; e2e: boolean; ci: boolean },
+) {
+  for (const gate of gates(options)) {
+    await run(fork, gate.command, gate.args, gate.python ? PYTHON_ENV : {});
   }
 }
 
@@ -198,6 +264,16 @@ if (import.meta.main) {
       console.log(`${shardArg}: no answer set falls here`);
     }
   }
+  let only: Family | undefined;
+  const onlyArg = Deno.args.find((arg) => /^--only(=|$)/.test(arg));
+  if (onlyArg !== undefined) {
+    try {
+      only = family(onlyArg.slice("--only=".length));
+    } catch (error) {
+      console.error((error as Error).message);
+      Deno.exit(2);
+    }
+  }
   const failed: string[] = [];
   for (const name of names) {
     const answers = ANSWER_SETS[name];
@@ -213,7 +289,11 @@ if (import.meta.main) {
     try {
       await copyTree(fork);
       await adapt(fork, answers);
-      await check(fork, flags.has("--e2e"));
+      await check(fork, {
+        only,
+        e2e: flags.has("--e2e"),
+        ci: Deno.env.get("CI") === "true",
+      });
       console.log(`\n== ${name}: every check passed`);
       if (!flags.has("--keep")) await Deno.remove(fork, { recursive: true });
     } catch (error) {
