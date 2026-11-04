@@ -432,8 +432,10 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # The Fly machine is x86_64; the platform is stated so the image cannot
+      # change architecture with the runner it is built on.
       - name: Build the image
-        run: docker build -t dashboard .
+        run: docker build --platform linux/amd64 -t dashboard .
 
       - name: Start it, configured and not
         run: |
