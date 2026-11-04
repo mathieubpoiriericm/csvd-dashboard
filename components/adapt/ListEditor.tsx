@@ -98,8 +98,10 @@ export function ListEditor<T>(
   { items, render, add, addLabel, remove, empty, field, rowLabel }:
     ListEditorProps<T>,
 ) {
+  // `adapt-list` names the list itself: `adapt-lookup` also wraps a row's
+  // own lookup (a trait's ontology search), so it cannot tell the two apart.
   return (
-    <div class="adapt-lookup">
+    <div class="adapt-lookup adapt-list">
       {items.length === 0 && empty && <p class="adapt-status">{empty}</p>}
       {items.map((item, index) => (
         // Keyed by the list's length as well as the index, so adding or
