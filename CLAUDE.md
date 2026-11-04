@@ -120,19 +120,19 @@ GitHub's runners takes about a minute there. `empty-data` and `adapt-fork` run
 as matrices split by gate family (`adapt_fork_check.ts --only=deno|python|e2e`),
 twelve jobs at once; Deno and Python commands run under `nice -n 15` so the e2e
 jobs, the critical path, win the CPU; and the parallelism is deliberately
-moderate (4 Playwright workers per e2e suite; `DENO_JOBS=4`; pytest
-`-n auto --maxprocesses=4`, each xdist worker with a database of its own),
-because maximal settings ran slower and left the e2e suite flaky. The public
-repository and every fork leave it unset and stay on `ubuntu-latest`. If the
-GitHub Actions extension for VS Code warns "Context access might be invalid:
-CI_RUNNER" on a `runs-on` line, that is the fallback for a repository without
-the variable, and it is deliberate. One host runs several jobs at once, so no
-job may take a fixed host port -- the postgres services publish on a free one
-and each runner sets its own `E2E_PORT` -- and `container` and `deploy` stay
-hosted. When the machine is down, `gh variable delete CI_RUNNER` is the
-fallback. The `ci-runner` skill (`.claude/skills/ci-runner/SKILL.md`) has the
-machine, the measurements behind those settings, the provisioning script and the
-Playwright-upgrade step the workflow cannot do for it.
+moderate (4 Playwright workers per e2e suite; pytest `-n auto --maxprocesses=4`,
+each xdist worker with a database of its own), because maximal settings ran
+slower and left the e2e suite flaky. The public repository and every fork leave
+it unset and stay on `ubuntu-latest`. If the GitHub Actions extension for VS
+Code warns "Context access might be invalid: CI_RUNNER" on a `runs-on` line,
+that is the fallback for a repository without the variable, and it is
+deliberate. One host runs several jobs at once, so no job may take a fixed host
+port -- the postgres services publish on a free one and each runner sets its own
+`E2E_PORT` -- and `container` and `deploy` stay hosted. When the machine is
+down, `gh variable delete CI_RUNNER` is the fallback. The `ci-runner` skill
+(`.claude/skills/ci-runner/SKILL.md`) has the machine, the measurements behind
+those settings, the provisioning script and the Playwright-upgrade step the
+workflow cannot do for it.
 
 **`compression()` in `main.ts` is the outermost middleware, and that position is
 load-bearing**: nothing before it compressed the built bundles, and it must stay

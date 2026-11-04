@@ -6,7 +6,7 @@
     "start": "deno serve -A --host 127.0.0.1 --env-file=.env _fresh/server.js",
     "check": "deno fmt --check . && deno lint . && deno check && deno check e2e/fixtures/expected.deno.ts",
     "test": "deno test -A",
-    "test:coverage": "deno test -A --parallel --coverage=coverage --clean --coverage-raw-data-only && deno coverage coverage && deno coverage --include='/lib/' --threshold=100 coverage",
+    "test:coverage": "deno test -A --coverage=coverage --clean --coverage-raw-data-only && deno coverage coverage && deno coverage --include='/lib/' --threshold=100 coverage",
     "test:e2e": "cd e2e && npx playwright test",
     "test:e2e:ui": "cd e2e && npx playwright test --ui",
     "e2e:install": "cd e2e && npm ci && npx playwright install chromium",

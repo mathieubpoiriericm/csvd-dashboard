@@ -31,20 +31,19 @@ permissions:
 # and they share 16 cores. The e2e jobs are the critical path, so every Deno
 # and Python command runs under `nice -n 15` (the $NICE prefix) and gives way
 # to the browsers when the machine is full. The parallelism is deliberately
-# moderate: 4 Playwright workers per e2e suite, DENO_JOBS=4 and at most 4
-# pytest workers. Every knob at its maximum ran slower than the
-# unsplit layout and left the e2e suite flaky, because starved pages time out;
-# the `ci-runner` skill has the measurements. The worker counts come from
-# vars.CI_RUNNER, so a repository without it keeps Playwright's 2 workers and
-# Deno's default, and nice and pytest's `-n auto` are harmless on a VM of
-# one's own.
+# moderate: 4 Playwright workers per e2e suite and at most 4 pytest workers,
+# with Deno's tests serial (tests/deno_parallel_isolation_test.ts says why).
+# Every knob at its maximum ran slower than the unsplit layout and left the
+# e2e suite flaky, because starved pages time out; the `ci-runner` skill has
+# the measurements. The worker count comes from vars.CI_RUNNER, so a
+# repository without it keeps Playwright's 2 workers, and nice and pytest's
+# `-n auto` are harmless on a VM of one's own.
 jobs:
   check:
     name: Format, lint, type-check, unit tests
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     env:
       NICE: nice -n 15
-      DENO_JOBS: ${{ vars.CI_RUNNER && '4' || '' }}
     steps:
       - uses: actions/checkout@v7
 
@@ -231,7 +230,6 @@ jobs:
         family: [deno, python, e2e]
     env:
       NICE: ${{ matrix.family != 'e2e' && 'nice -n 15' || '' }}
-      DENO_JOBS: ${{ vars.CI_RUNNER && '4' || '' }}
       E2E_WORKERS: ${{ vars.CI_RUNNER && '4' || '' }}
 
     services:
@@ -357,7 +355,6 @@ jobs:
         family: [deno, python, e2e]
     env:
       NICE: ${{ matrix.family != 'e2e' && 'nice -n 15' || '' }}
-      DENO_JOBS: ${{ vars.CI_RUNNER && '4' || '' }}
       E2E_WORKERS: ${{ vars.CI_RUNNER && '4' || '' }}
 
     services:

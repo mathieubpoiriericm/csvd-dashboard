@@ -33,13 +33,21 @@ once, one per runner, sharing 16 cores. On the mini PC:
 | Setting                                         | Value                                    |
 | ----------------------------------------------- | ---------------------------------------- |
 | `E2E_WORKERS` (read by `playwright.config.ts`)  | 4 for every e2e suite                    |
-| `DENO_JOBS` for `deno test --parallel`          | 4                                        |
 | pytest, pipeline suites                         | `-n auto --maxprocesses=4`               |
 | pytest, `tests/scripts`                         | serial                                   |
 | every Deno and Python command                   | `nice -n 15` (the `$NICE` prefix)        |
+| `deno test`                                     | serial                                   |
 
-The worker counts come from `vars.CI_RUNNER` in `ci.yml`, so GitHub's runners
-keep Playwright's 2 workers and Deno's default. What decided the numbers, each
+The worker count comes from `vars.CI_RUNNER` in `ci.yml`, so GitHub's runners
+keep Playwright's 2 workers. `deno test --parallel` was in the design and is
+out: test modules share one process under it, and the three auth test files,
+which exist to prove the login gate reads the real environment, set and delete
+`DASHBOARD_PASSPHRASE` and `DASHBOARD_SESSION_SECRET` -- a review reproduced
+another file's test answering 503 four times in 41 runs, and Deno does not
+retry. Excluding them from a parallel pass is no fix (a command-line `--ignore`
+replaces deno.json's top-level `exclude`), and the Deno jobs finish well before
+the e2e jobs anyway. `tests/deno_parallel_isolation_test.ts` fails if
+`test:coverage` turns `--parallel` while such a file exists. What decided the numbers, each
 configuration running the same twelve jobs (probe runs on 3 November 2026):
 
 | Configuration                                      | Run   | Flaky retries |
@@ -71,8 +79,7 @@ configuration running the same twelve jobs (probe runs on 3 November 2026):
   first two runs (trial filters, the map's Leaflet start-up, two
   performance-behaviour tests, all on 30 s test timeouts), and a retry costs
   more than the few seconds the workers save. At 4 it ran clean twice. If the
-  suite turns flaky again, the next lever is less total load -- pytest `-n 2`,
-  `DENO_JOBS=2` -- not fewer browsers.
+  suite turns flaky again, the next lever is less total load -- pytest `-n 2` -- not fewer browsers.
 - **About 55 s is the floor** at this volume of tests: six jobs finished within
   51-54 s of one another. Going lower means less work, not more parallelism.
 
