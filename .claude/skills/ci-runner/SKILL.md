@@ -90,9 +90,9 @@ November 2026):
   `net::ERR_NETWORK_CHANGED` at `localhost`. It appeared in 3 of the first 10
   runs of the split layout -- the Python families now finish while e2e is still
   running -- and never in the unsplit one. It fails fast and costs one quick
-  retry, never a red run. Running PostgreSQL natively on the machine, with a
-  database per job and worker, would remove it; that is a change to how the
-  services work, not a setting.
+  retry, never a red run -- and it is why the database tests on this machine use
+  a native PostgreSQL rather than a service: no job here creates a Docker
+  network any more.
 - **About 55 s is the floor** at this volume of tests: six jobs finished within
   51-54 s of one another. Going lower means less work, not more parallelism.
 
@@ -120,13 +120,17 @@ GitHub's runners. Set it again once `actions/runners` lists the instances
   would hand the machine to anyone who opens one. The variable is only the
   selector; the registration is the boundary.
 - **No job may take a fixed host port.** On GitHub's runners every job has a VM
-  of its own; here twelve share one. The postgres services publish on a free
-  port, read back through `job.services.postgres.ports['5432']` into
-  `CSVD_TEST_DB_URL` (in a step, because the `job` context is not available in a
-  job's `env`). Each runner's `.env` sets `E2E_PORT` as 8100 plus its number
-  (8101 to 8112), which `e2e/playwright.config.ts` serves the build on. A new
-  job that serves on a port, or a fixed container name or image tag like the
-  `container` job's, either follows suit or stays on `ubuntu-latest`.
+  of its own; here twelve share one. On GitHub's runners the postgres services
+  publish on a free port, read back through
+  `job.services.postgres.ports['5432']` into `CSVD_TEST_DB_URL` (in a step,
+  because the `job` context is not available in a job's `env`). Here no service
+  starts: each runner's `.env` names a database of its own, `csvd_ci_r<N>`, on
+  the machine's native PostgreSQL, and a job's pytest-xdist workers create and
+  drop `csvd_ci_r<N>_gw<n>` beside it, so two jobs never share a database. Each
+  runner's `.env` also sets `E2E_PORT` as 8100 plus its number (8101 to 8112),
+  which `e2e/playwright.config.ts` serves the build on. A new job that serves on
+  a port, or a fixed container name or image tag like the `container` job's,
+  either follows suit or stays on `ubuntu-latest`.
 - **After upgrading `@playwright/test`, re-run the provisioning script with the
   new `PLAYWRIGHT_VERSION`.** The workflow passes `--with-deps` only on GitHub's
   runners, because a self-hosted one has no sudo. A newer Chromium needing a
@@ -151,10 +155,24 @@ GitHub's runners. Set it again once `actions/runners` lists the instances
 ## Provisioning
 
 `provision.sh`, beside this file, sets up the machine from a fresh Ubuntu
-Server: Docker, a `runner` user in the `docker` group with no sudo, Chromium's
-system packages through `npx playwright install-deps`, the runner instances as
-systemd services, and a weekly `docker system prune` timer. It is safe to
-re-run, and raising `RUNNERS` adds instances.
+Server:
+
+- a native PostgreSQL 18 for the database tests, on loopback only and tuned as a
+  throwaway (`fsync`, `synchronous_commit` and `full_page_writes` off), with a
+  `csvd_ci` role that has `CREATEDB` and no more, its random password in
+  `/etc/csvd-ci/postgres-password`, and a database per runner;
+- a `runner` user with no sudo and **no `docker` group**: until 4 November 2026
+  it had one, for the service containers, which let any CI job start a container
+  with the whole disk mounted -- root in all but name;
+- Chromium's system packages through `npx playwright install-deps`;
+- the runner instances as systemd services, each `.env` holding its `E2E_PORT`
+  and `CSVD_TEST_DB_URL`.
+
+It is safe to re-run, and raising `RUNNERS` adds instances. Registering a runner
+needs a token; a re-run that registers none does not. It restarts every runner
+at the end, so run it while no CI job is running. `RETIRE_DOCKER=1` removes
+Docker from a machine an earlier version provisioned: the package and what came
+with it, its images, the `docker` group membership and the weekly prune timer.
 
 **`sudo` asks for a password there, so the script runs from a terminal of your
 own, with one attached.** Piped into `ssh` it leaves `sudo` no terminal to ask
@@ -189,8 +207,10 @@ sudo -u runner ./config.sh remove --token "$token"
 
 ## Housekeeping
 
-- Docker: `ci-docker-prune.timer` prunes weekly, so the `postgres:18` image is
-  pulled again about once a week.
+- PostgreSQL runs with `fsync` off, so a power cut can leave the cluster
+  unreadable. Nothing in it matters: `sudo pg_dropcluster --stop 18 main`,
+  `sudo pg_createcluster --start 18 main`, then re-run `provision.sh`, which
+  recreates the role, the databases and the tuning.
 - `du -sh /home/runner/.cache/*` when the disk fills: uv, npm, Deno and
   Playwright keep every version they have fetched.
 - `scripts/adapt_fork_check.ts` keeps a failed fork's copy under `/tmp`

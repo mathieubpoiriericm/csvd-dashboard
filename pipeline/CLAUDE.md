@@ -869,8 +869,10 @@ The `regenerate-data` skill and `_container_address`'s docstring in
 **`CSVD_TEST_DB_URL` comes first, and is what makes these tests run in CI.**
 `container` is macOS-only and the `dhi.io` image needs a login CI does not have,
 so on `ubuntu-latest` the whole file used to skip and every green PR merged with
-no database having applied the migrations. The python job now runs a
-`postgres:18` service and points this variable at it
+no database having applied the migrations. On GitHub's runners the python job
+runs a `postgres:18` service and points this variable at it; on the mini PC the
+runner's own `.env` points it at a database of the runner's own on a native
+PostgreSQL 18 (the `ci-runner` skill)
 (`postgresql://user:password@host:port/database`); the fixture parses it into
 the same `DB_*` settings, migrates that database to head and uses it. A
 malformed URL **raises** rather than skips -- setting it is a statement of

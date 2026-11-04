@@ -20,9 +20,10 @@ permissions:
 # down; a job waiting for an offline runner queues for a day.
 #
 # One machine runs several of these jobs at once, so none of them takes a fixed
-# host port (the postgres services publish on a free one, and each runner sets
-# its own E2E_PORT), and caching and Playwright's system packages are decided
-# on runner.environment. The container and deploy jobs stay on GitHub-hosted
+# host port: each runner sets its own E2E_PORT, and the database tests there use
+# a database of the runner's own on the machine's native PostgreSQL rather than
+# a postgres service (see the python job). Caching and Playwright's system
+# packages are decided on runner.environment. The container and deploy jobs stay on GitHub-hosted
 # runners, and must: on a push to main both hold FLY_API_TOKEN -- container to
 # push the image, deploy to release it -- so moving either to vars.CI_RUNNER
 # would put the token on that machine. They are short and off the critical
@@ -79,11 +80,15 @@ jobs:
     # local fixture brings one up under Apple's `container` runtime, which
     # is macOS-only -- so every one of those tests used to skip here and
     # column types, the JSON report round trip and `--export` from the
-    # live pool were verified on a developer Mac or nowhere. This service
-    # is what `CSVD_TEST_DB_URL` points the fixture at. It is created and
-    # destroyed with the job, and holds nothing. It publishes on whatever
-    # host port is free, because the self-hosted runners share one host and
-    # a second job asking for 5432 would fail to start. Docker probes it every
+    # live pool were verified on a developer Mac or nowhere. On GitHub's
+    # runners this service is what `CSVD_TEST_DB_URL` points the fixture at;
+    # it is created and destroyed with the job, holds nothing, and publishes
+    # on whatever host port is free. On the mini PC (vars.CI_RUNNER) no
+    # service starts: the runner's own .env names a database of its own on
+    # the machine's native PostgreSQL (the `ci-runner` skill). A service there
+    # gave each job a Docker network that appeared and vanished mid-run, and
+    # Chromium in a concurrent e2e job aborted page loads on the change
+    # (net::ERR_NETWORK_CHANGED). Docker probes it every
     # second while it starts: with only the 10-second interval, the first
     # probe came 10 s in and the runner's back-off noticed "healthy" at 15 s,
     # though PostgreSQL accepts connections within two. Failures inside the
@@ -91,7 +96,7 @@ jobs:
     # cannot mark it unhealthy. --health-start-interval needs Docker 25.
     services:
       postgres:
-        image: postgres:18
+        image: ${{ vars.CI_RUNNER == '' && 'postgres:18' || '' }}
         env:
           POSTGRES_USER: csvd_ci
           POSTGRES_PASSWORD: csvd_ci
@@ -112,6 +117,7 @@ jobs:
       # A step rather than the job's env: the `job` context that names the
       # port Docker picked is not available there.
       - name: Point the database tests at the service
+        if: vars.CI_RUNNER == ''
         run: echo "CSVD_TEST_DB_URL=postgresql://csvd_ci:csvd_ci@localhost:${{ job.services.postgres.ports['5432'] }}/csvd_ci" >> "$GITHUB_ENV"
 
       # The pipeline is a uv project. pyproject.toml pins requires-python, so
@@ -220,9 +226,9 @@ jobs:
   # One job per gate family, side by side: run in a row, Deno, Python and
   # Playwright made this the longest chain in the workflow. Each family
   # empties the data itself, then runs only its own gates. The postgres
-  # service starts for the Python family alone -- an empty image starts no
-  # service -- and fail-fast is off so one family's failure does not hide
-  # another's result.
+  # service starts for the Python family alone, and only on GitHub's runners
+  # (see the python job) -- an empty image starts no service -- and fail-fast
+  # is off so one family's failure does not hide another's result.
   empty-data:
     name: A fork starts green, ${{ matrix.family }} (empty data, no cSVD tests)
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
@@ -236,7 +242,7 @@ jobs:
 
     services:
       postgres:
-        image: ${{ matrix.family == 'python' && 'postgres:18' || '' }}
+        image: ${{ matrix.family == 'python' && vars.CI_RUNNER == '' && 'postgres:18' || '' }}
         env:
           POSTGRES_USER: csvd_ci
           POSTGRES_PASSWORD: csvd_ci
@@ -255,7 +261,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Point the database tests at the service
-        if: matrix.family == 'python'
+        if: matrix.family == 'python' && vars.CI_RUNNER == ''
         run: echo "CSVD_TEST_DB_URL=postgresql://csvd_ci:csvd_ci@localhost:${{ job.services.postgres.ports['5432'] }}/csvd_ci" >> "$GITHUB_ENV"
 
       - uses: denoland/setup-deno@v2
@@ -361,7 +367,7 @@ jobs:
 
     services:
       postgres:
-        image: ${{ matrix.family == 'python' && 'postgres:18' || '' }}
+        image: ${{ matrix.family == 'python' && vars.CI_RUNNER == '' && 'postgres:18' || '' }}
         env:
           POSTGRES_USER: csvd_ci
           POSTGRES_PASSWORD: csvd_ci
@@ -380,7 +386,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Point the database tests at the service
-        if: matrix.family == 'python'
+        if: matrix.family == 'python' && vars.CI_RUNNER == ''
         run: echo "CSVD_TEST_DB_URL=postgresql://csvd_ci:csvd_ci@localhost:${{ job.services.postgres.ports['5432'] }}/csvd_ci" >> "$GITHUB_ENV"
 
       - uses: denoland/setup-deno@v2
