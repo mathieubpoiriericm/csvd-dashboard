@@ -626,7 +626,7 @@ pull request -- two of them matrices, twelve jobs in all:
 | Job          | Steps                                                                                                                                                                                                           |
 | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `check`      | `deno install`, `deno task check`, `deno task test:coverage`, `deno task test:perf`                                                                                                                             |
-| `python`     | `uv sync --locked`, Ruff, ty, pytest with branch coverage against a `postgres:18` service, then `tests/scripts` in a step of its own                                                                            |
+| `python`     | `uv sync --locked`, Ruff, ty, pytest with branch coverage against PostgreSQL (a `postgres:18` service on GitHub's runners, the machine's own on a self-hosted one), then `tests/scripts` in a step of its own   |
 | `e2e`        | Playwright against the production build, report uploaded                                                                                                                                                        |
 | `empty-data` | three jobs, one per gate family (Deno, Python, e2e): `deno task data:empty`, `git rm` of the four `csvd/` trees, then that family's gates — the proof that a fork for another disease starts green              |
 | `adapt-fork` | six jobs, one per wizard bundle and gate family: `scripts/adapt_fork_check.ts --e2e --shard=K/2 --only=<family>` unpacks the bundle over a copy of the tree, follows the checklist and runs that family's gates |
@@ -1136,9 +1136,10 @@ have been started with those credentials — stop `deno task start` first, or se
 Tests never touch the database `.env` names: `tests/pipeline/conftest.py` clears
 the `DB_*` variables and the whole `PIPELINE_*` namespace. A test needing real
 SQL uses the throwaway database `CSVD_TEST_DB_URL` names (CI's `postgres:18`
-service) or, with that unset, brings up its own `dhi.io/postgres:18-alpine3.23`
-container under Apple's `container` (so macOS only) and destroys it with the
-session; with neither, those tests skip.
+service, or on the self-hosted runners a database of the runner's own) or, with
+that unset, brings up its own `dhi.io/postgres:18-alpine3.23` container under
+Apple's `container` (so macOS only) and destroys it with the session; with
+neither, those tests skip.
 
 ### Coverage
 

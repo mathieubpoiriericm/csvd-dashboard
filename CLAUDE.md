@@ -95,10 +95,11 @@ Tests never touch that database. `tests/pipeline/conftest.py` clears the `DB_*`
 variables — and the whole `PIPELINE_*` namespace, so a value left in `.env` for
 a local experiment cannot change what the default-config tests measure — and a
 test needing real SQL uses the throwaway database `CSVD_TEST_DB_URL` names (CI's
-`postgres` service) or, with that unset, brings up its own container — from
-`dhi.io/postgres:18-alpine3.23`, not the glibc image the skill documents for a
-mounted data directory — on its own address under Apple's `container` runtime.
-See "Database tests" in `pipeline/CLAUDE.md`.
+`postgres` service on GitHub's runners, a database of the runner's own on the
+mini PC's native PostgreSQL) or, with that unset, brings up its own container —
+from `dhi.io/postgres:18-alpine3.23`, not the glibc image the skill documents
+for a mounted data directory — on its own address under Apple's `container`
+runtime. See "Database tests" in `pipeline/CLAUDE.md`.
 
 Vite is pinned to 7.x because `@fresh/plugin-vite` requires `vite@^7.1.4`.
 
@@ -127,9 +128,11 @@ it unset and stay on `ubuntu-latest`. If the GitHub Actions extension for VS
 Code warns "Context access might be invalid: CI_RUNNER" on a `runs-on` line,
 that is the fallback for a repository without the variable, and it is
 deliberate. One host runs several jobs at once, so no job may take a fixed host
-port -- the postgres services publish on a free one and each runner sets its own
-`E2E_PORT` -- and `container` and `deploy` stay hosted. When the machine is
-down, `gh variable delete CI_RUNNER` is the fallback. The `ci-runner` skill
+port -- each runner sets its own `E2E_PORT`, and the database tests there use a
+database of the runner's own on the machine's native PostgreSQL rather than a
+postgres service, whose per-job Docker network made Chromium abort page loads --
+and `container` and `deploy` stay hosted. When the machine is down,
+`gh variable delete CI_RUNNER` is the fallback. The `ci-runner` skill
 (`.claude/skills/ci-runner/SKILL.md`) has the machine, the measurements behind
 those settings, the provisioning script and the Playwright-upgrade step the
 workflow cannot do for it.
