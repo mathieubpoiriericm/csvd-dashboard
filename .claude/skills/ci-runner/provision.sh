@@ -21,7 +21,7 @@
 set -euo pipefail
 
 REPO_URL=${REPO_URL:-https://github.com/mathieubpoiriericm/csvd-dashboard-private}
-RUNNERS=${RUNNERS:-6}
+RUNNERS=${RUNNERS:-12}
 LABEL=${LABEL:-csvd-ci}
 # e2e/package.json's @playwright/test. Re-run this script with the new one
 # after an upgrade: the workflow skips --with-deps on a self-hosted runner.
