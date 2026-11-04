@@ -290,7 +290,13 @@ Nine things are load-bearing:
   lists and the confidence render their stored value back, which rewrote the
   field under the cursor (a trailing comma or a half-typed "0." vanished), so
   only a paste could enter a second item. Playwright's `fill()` pastes, which is
-  why only the key-at-a-time spec in `e2e/tests/adapt.spec.ts` sees it.
+  why only the key-at-a-time spec in `e2e/tests/adapt.spec.ts` sees it. That
+  spec types into a row an Add press has just drawn, and `AddButton` moves focus
+  to the new row's first control a task after the click, so the spec's `press()`
+  waits for the move before typing: on a loaded runner it landed mid-word, and
+  "0.75" left "0." in Confidence and "75" in the PMID. It finds the new row
+  through the list root's `adapt-list` class, because `adapt-lookup` also wraps
+  a trait's ontology search inside a row.
 - **The NCBI credentials leave the browser in nothing.** Both the archive entry
   and "Export answers" write `exportableAnswers()`, which blanks `search.ncbi`;
   the archive is committed to a repository and the export is mailed around.

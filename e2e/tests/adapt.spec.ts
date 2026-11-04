@@ -149,7 +149,16 @@ async function fill(scope: Page, label: string, value: string, index = 0) {
   await field.fill(value);
 }
 
-/** Press a button that may sit in a folded card. */
+/**
+ * Press a button that may sit in a folded card.
+ *
+ * A list's Add button moves focus into the new row a task after the click
+ * (`AddButton` in components/adapt/ListEditor.tsx), so this waits for it to
+ * land. Without the wait, a field typed straight after can lose the rest of
+ * its keystrokes to the new row's first field when the move comes mid-word:
+ * on a loaded runner "0.75" typed into Confidence left "0." there and put
+ * "75" in the PMID beside it.
+ */
 async function press(
   page: Page,
   name: string,
@@ -158,7 +167,21 @@ async function press(
   const button = page.getByRole("button", { name, exact, includeHidden: true })
     .nth(nth);
   await openCardOf(button);
+  const adds = await button.evaluate((el) =>
+    el.matches(".adapt-list > .adapt-actions > .adapt-button")
+  );
   await button.click();
+  if (adds) {
+    await expect.poll(() =>
+      button.evaluate((el) => {
+        const rows = el.closest(".adapt-list")?.querySelectorAll(
+          ":scope > .adapt-row",
+        );
+        const last = rows?.[rows.length - 1];
+        return last?.contains(document.activeElement) ?? false;
+      })
+    ).toBe(true);
+  }
 }
 
 /**
