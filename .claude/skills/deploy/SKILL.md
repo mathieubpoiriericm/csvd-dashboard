@@ -137,11 +137,16 @@ Run the probe again if the app moves host or the proxy changes behaviour.
 The site moved from `https://csvd-dashboard.mathieubpoiriericm.deno.net` to
 `https://csvd-dashboard.fly.dev` on 2 November 2026, and `hosting.url`,
 `disease/README.md`, `README.md` and the root `CLAUDE.md` name the new address.
-The Deno Deploy project keeps serving the old one until it is deleted, and Deno
-Deploy itself shuts down in about April 2027 (no date published). Two steps are
-left, and both are the researcher's:
 
-1. Tell the readers the new address. A session cookie belongs to its host, so
-   everyone signs in once more there, with the same passphrase.
-2. Delete the Deno Deploy project once nobody uses the old address, in the Deno
-   Deploy console. It cannot be undone. Then this section can go.
+Since 4 November 2026 the old address serves a "has moved" page instead of the
+dashboard, and so does the legacy Shiny app's,
+`https://icm-dashboard.shinyapps.io/published_dashboard_preview/`. Both come
+from the private `csvd-dashboard-moved` repository, whose README has the deploy
+steps. The page links to the same path on the new host and tells a reader how
+to get the passphrase, since a session cookie belongs to its host and everyone
+signs in once more there. The Deno Deploy app is linked to that repository now,
+so a push here no longer builds there, and its two login secrets are deleted.
+
+Nothing is left to do. The Deno Deploy project goes when Deno Deploy shuts down,
+in about April 2027 (no date published), or earlier if the researcher deletes it
+in the Deno Deploy console, which cannot be undone.
