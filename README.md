@@ -650,21 +650,22 @@ into a container image by the root `Dockerfile` and runs on
 `fly.toml`. It moved there on 2 November 2026 from Deno Deploy, which Deno
 announced on 9 October 2026 would shut down six months later.
 
-Pushing to `main` deploys it once every other CI job has passed: the `deploy`
-job in `.github/workflows/ci.yml` needs all of them, runs
-`flyctl deploy --remote-only --ha=false`, and then runs
+Pushing to `main` deploys it once every other CI job has passed: the `container`
+job pushes the image it has just smoke-tested to the app's Fly registry under
+the commit, and the `deploy` job, which needs every other job, releases that
+image with `flyctl deploy --image … --ha=false` and then runs
 `scripts/smoke_deploy.sh` against the live site. A red push does not ship. Pull
 requests and other branches build and check the image (the `container` job) but
 deploy nothing, and there are no preview URLs. Because `data/*.json` is
 committed and bundled at build time, regenerating data and pushing it to `main`
 republishes the site.
 
-| Where           | What it holds                                                                                                   |
-| --------------- | --------------------------------------------------------------------------------------------------------------- |
-| `fly.toml`      | the app name (also the host name, `<app>.fly.dev`), region `cdg`, one 512 MB `shared-cpu-1x` machine, always on |
-| `Dockerfile`    | `denoland/deno:2.9.8`; `deno install --frozen`, `deno task build`, then `deno serve --cached-only`              |
-| `.dockerignore` | an allowlist of what the build reads                                                                            |
-| `FLY_API_TOKEN` | a GitHub Actions secret (`fly tokens create deploy`); without it the deploy job skips                           |
+| Where           | What it holds                                                                                                                |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `fly.toml`      | the app name (also the host name, `<app>.fly.dev`), region `cdg`, one 512 MB `shared-cpu-1x` machine, always on              |
+| `Dockerfile`    | `denoland/deno:2.9.8`; `deno install --frozen`, `deno task build`, then `deno serve --cached-only`                           |
+| `.dockerignore` | an allowlist of what the build reads                                                                                         |
+| `FLY_API_TOKEN` | a GitHub Actions secret (`fly tokens create deploy`); without it the `container` job pushes nothing and the deploy job skips |
 
 The machine costs about $3.69 a month at Fly's November 2026 prices.
 
