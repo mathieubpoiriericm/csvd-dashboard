@@ -880,6 +880,21 @@ Point it only at a throwaway database: it is migrated and written to.
 Without it the fixture falls back to the container, and **skips** only when the
 `container` CLI, its system service or the image is unavailable too.
 
+**Under pytest-xdist each worker gets a database of its own.** CI runs the
+pipeline suites with `-n auto --maxprocesses=4`, and every worker is a pytest
+session of its own, so the session-scoped fixture runs once per worker while
+four files migrate and write the same tables -- sharing one database, two
+workers collided on primary keys. With `PYTEST_XDIST_WORKER` set the fixture
+creates `<db>_gw<n>` beside the database `CSVD_TEST_DB_URL` names (dropping a
+crashed run's leftover first), migrates it and drops it when the worker
+finishes; without the variable each worker runs its own container,
+`csvd-pg-pytest-gw<n>`. Only names carrying a worker suffix are ever dropped,
+and the role needs `CREATEDB`, which CI's service superuser has. A serial run is
+exactly what it was, and a database test added later is isolated without a
+marker. It is not `xdist_group`: on pytest 9.2.0, grouped tests spread across
+workers on xdist 3.6.1, 3.7.0 and 3.8.0 alike, reproduced on a minimal suite --
+`tests/xdist_databases.py` carries the reasoning.
+
 `tests/pipeline/test_database_integration.py` is what uses it, and it covers
 what a mocked connection cannot: that Alembic reaches a single head, that the
 report survives the `JSON` column and `read_pipeline_run`'s re-validation, that
