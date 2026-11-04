@@ -992,19 +992,9 @@ def throwaway_postgres() -> Iterator[dict[str, str]]:
     if url:
         settings = _settings_from_url(url)
         _wait_until_ready(settings)
-        if worker is None:
-            _upgrade_to_head(settings)
-            yield settings
-            return
-        name = xdist_databases.worker_database_name(settings["DB_NAME"], worker)
-        drop = f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)'
-        _run_admin(settings, drop, f'CREATE DATABASE "{name}"')
-        worker_settings = {**settings, "DB_NAME": name}
-        try:
-            _upgrade_to_head(worker_settings)
-            yield worker_settings
-        finally:
-            _run_admin(settings, drop)
+        yield from xdist_databases.session_database(
+            settings, worker, admin=_run_admin, upgrade=_upgrade_to_head
+        )
         return
 
     reason = _container_is_usable()
