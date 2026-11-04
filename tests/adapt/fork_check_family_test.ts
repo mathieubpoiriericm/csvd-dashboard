@@ -66,11 +66,15 @@ Deno.test("the python family spreads the pipeline suite across workers in CI onl
   assert(local.every((gate) => !gate.args.includes("-n")));
 });
 
-Deno.test("the e2e family installs, then runs Playwright, and is nothing without --e2e", () => {
+Deno.test("the e2e family installs, then runs Playwright, and is refused without --e2e", () => {
   assertEquals(lines(gates({ only: "e2e", e2e: true, ci: true })), [
     "deno install",
     "npm ci --prefix e2e",
     PLAYWRIGHT,
   ]);
-  assertEquals(gates({ only: "e2e", e2e: false, ci: true }), []);
+  assertThrows(
+    () => gates({ only: "e2e", e2e: false, ci: true }),
+    RangeError,
+    "--only=e2e needs --e2e",
+  );
 });

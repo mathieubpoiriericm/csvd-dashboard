@@ -194,6 +194,12 @@ const uv = (...args: string[]): Gate => ({ command: "uv", args, python: true });
 export function gates(
   { only, e2e, ci }: { only?: Family; e2e: boolean; ci: boolean },
 ): Gate[] {
+  if (only === "e2e" && !e2e) {
+    // A run that checks nothing must not end in "every check passed".
+    throw new RangeError(
+      "--only=e2e needs --e2e: without it the e2e family has nothing to run.",
+    );
+  }
   const want = (name: Family) => only === undefined || only === name;
   const list: Gate[] = [];
   if (want("deno") || (e2e && want("e2e"))) list.push(deno("install"));
@@ -266,13 +272,17 @@ if (import.meta.main) {
   }
   let only: Family | undefined;
   const onlyArg = Deno.args.find((arg) => /^--only(=|$)/.test(arg));
-  if (onlyArg !== undefined) {
-    try {
-      only = family(onlyArg.slice("--only=".length));
-    } catch (error) {
-      console.error((error as Error).message);
-      Deno.exit(2);
-    }
+  const options = {
+    e2e: flags.has("--e2e"),
+    ci: Deno.env.get("CI") === "true",
+  };
+  try {
+    if (onlyArg !== undefined) only = family(onlyArg.slice("--only=".length));
+    // Refused here, before any fork is copied, rather than per fork.
+    gates({ only, ...options });
+  } catch (error) {
+    console.error((error as Error).message);
+    Deno.exit(2);
   }
   const failed: string[] = [];
   for (const name of names) {
@@ -289,11 +299,7 @@ if (import.meta.main) {
     try {
       await copyTree(fork);
       await adapt(fork, answers);
-      await check(fork, {
-        only,
-        e2e: flags.has("--e2e"),
-        ci: Deno.env.get("CI") === "true",
-      });
+      await check(fork, { only, ...options });
       console.log(`\n== ${name}: every check passed`);
       if (!flags.has("--keep")) await Deno.remove(fork, { recursive: true });
     } catch (error) {
