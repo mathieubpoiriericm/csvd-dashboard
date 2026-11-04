@@ -30,6 +30,7 @@ from dataclasses import dataclass  # noqa: E402
 from typing import Any, Final  # noqa: E402
 
 import pytest  # noqa: E402
+from tests import xdist_databases  # noqa: E402
 
 from pipeline.config import PipelineConfig  # noqa: E402
 from pipeline.extraction_models import TRACKED_TRAITS  # noqa: E402
@@ -913,6 +914,27 @@ def _wait_until_ready(
     )
 
 
+def _run_admin(settings: dict[str, str], *statements: str) -> None:
+    """Run `statements` on the database `settings` name, one connection."""
+    import asyncpg
+
+    async def _run() -> None:
+        connection = await asyncpg.connect(
+            host=settings["DB_HOST"],
+            port=int(settings["DB_PORT"]),
+            database=settings["DB_NAME"],
+            user=settings["DB_USER"],
+            password=settings["DB_PASSWORD"],
+        )
+        try:
+            for statement in statements:
+                await connection.execute(statement)
+        finally:
+            await connection.close()
+
+    asyncio.run(_run())
+
+
 @pytest.fixture(scope="session")
 def throwaway_postgres() -> Iterator[dict[str, str]]:
     """A disposable PostgreSQL for tests that need a real one.
@@ -955,13 +977,34 @@ def throwaway_postgres() -> Iterator[dict[str, str]]:
 
     Skips rather than fails when neither that variable nor the runtime and
     its image is available.
+
+    Under pytest-xdist every worker is a session of its own, so each gets a
+    database of its own: `<db>_gw<n>` beside the one `CSVD_TEST_DB_URL`
+    names, created fresh (a crashed run's leftover is dropped first), migrated
+    and dropped again when the worker finishes -- or, without the variable,
+    a container of its own. Only names carrying a worker suffix are ever
+    dropped, which keeps this inside the variable's throwaway contract; the
+    role needs `CREATEDB`, as CI's service superuser has.
+    `tests/xdist_databases.py` says why this is not `xdist_group`.
     """
+    worker = os.environ.get("PYTEST_XDIST_WORKER")
     url = os.environ.get(_TEST_DB_URL_VAR)
     if url:
         settings = _settings_from_url(url)
         _wait_until_ready(settings)
-        _upgrade_to_head(settings)
-        yield settings
+        if worker is None:
+            _upgrade_to_head(settings)
+            yield settings
+            return
+        name = xdist_databases.worker_database_name(settings["DB_NAME"], worker)
+        drop = f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)'
+        _run_admin(settings, drop, f'CREATE DATABASE "{name}"')
+        worker_settings = {**settings, "DB_NAME": name}
+        try:
+            _upgrade_to_head(worker_settings)
+            yield worker_settings
+        finally:
+            _run_admin(settings, drop)
         return
 
     reason = _container_is_usable()
@@ -976,12 +1019,13 @@ def throwaway_postgres() -> Iterator[dict[str, str]]:
         "DB_PASSWORD": "csvd_pytest",
     }
 
-    _container("delete", "--force", _TEST_CONTAINER, check=False)
+    container = xdist_databases.container_name(_TEST_CONTAINER, worker)
+    _container("delete", "--force", container, check=False)
     _container(
         "run",
         "--detach",
         "--name",
-        _TEST_CONTAINER,
+        container,
         "--env",
         f"POSTGRES_USER={settings['DB_USER']}",
         "--env",
@@ -994,13 +1038,13 @@ def throwaway_postgres() -> Iterator[dict[str, str]]:
         # No port is published: the container answers on 5432 at its own
         # address, so the production server on the host's 5432 is neither
         # shadowed nor reachable from here.
-        settings["DB_HOST"] = _container_address(_TEST_CONTAINER)
+        settings["DB_HOST"] = _container_address(container)
         settings["DB_PORT"] = "5432"
-        _wait_until_ready(settings, container_name=_TEST_CONTAINER)
+        _wait_until_ready(settings, container_name=container)
         _upgrade_to_head(settings)
         yield settings
     finally:
-        _container("delete", "--force", _TEST_CONTAINER, check=False)
+        _container("delete", "--force", container, check=False)
 
 
 def _upgrade_to_head(settings: dict[str, str]) -> None:

@@ -620,16 +620,16 @@ interactions**: the `longtask` API only reports tasks over 50 ms.
 
 ### Continuous integration
 
-`.github/workflows/ci.yml` runs five jobs on every push to `main` and every pull
-request:
+`.github/workflows/ci.yml` runs five test jobs on every push to `main` and every
+pull request -- two of them matrices, twelve jobs in all:
 
-| Job          | Steps                                                                                                                                                                                         |
-| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `check`      | `deno install`, `deno task check`, `deno task test:coverage`, `deno task test:perf`                                                                                                           |
-| `python`     | `uv sync --locked`, Ruff, ty, pytest with branch coverage against a `postgres:18` service, then `tests/scripts` in a step of its own                                                          |
-| `e2e`        | Playwright against the production build, report uploaded                                                                                                                                      |
-| `empty-data` | `deno task data:empty`, `git rm` of the four `csvd/` trees, then every gate above — the proof that a fork for another disease starts green                                                    |
-| `adapt-fork` | `scripts/adapt_fork_check.ts --e2e`: two wizard bundles unpacked over copies of the tree, the checklist followed, every gate run on each, one per parallel leg (`--shard=1/2`, `--shard=2/2`) |
+| Job          | Steps                                                                                                                                                                                                           |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `check`      | `deno install`, `deno task check`, `deno task test:coverage`, `deno task test:perf`                                                                                                                             |
+| `python`     | `uv sync --locked`, Ruff, ty, pytest with branch coverage against a `postgres:18` service, then `tests/scripts` in a step of its own                                                                            |
+| `e2e`        | Playwright against the production build, report uploaded                                                                                                                                                        |
+| `empty-data` | three jobs, one per gate family (Deno, Python, e2e): `deno task data:empty`, `git rm` of the four `csvd/` trees, then that family's gates — the proof that a fork for another disease starts green              |
+| `adapt-fork` | six jobs, one per wizard bundle and gate family: `scripts/adapt_fork_check.ts --e2e --shard=K/2 --only=<family>` unpacks the bundle over a copy of the tree, follows the checklist and runs that family's gates |
 
 They run on `ubuntu-latest` unless the repository sets a `CI_RUNNER` variable
 naming a self-hosted runner label, which is how this project's private

@@ -25,10 +25,25 @@ permissions:
 # on runner.environment. The container and deploy jobs stay on GitHub-hosted
 # runners: they are short and off the critical path, and the deploy's
 # FLY_API_TOKEN stays off that machine.
+#
+# On that machine twelve jobs run at once -- empty-data and adapt-fork are
+# split by gate family (Deno, Python, e2e) so no job runs the three in a row --
+# and they share 16 cores. The e2e jobs are the critical path, so every Deno
+# and Python command runs under `nice -n 15` (the $NICE prefix) and gives way
+# to the browsers when the machine is full. The parallelism is deliberately
+# moderate: 4 Playwright workers per e2e suite and at most 4 pytest workers,
+# with Deno's tests serial (tests/deno_parallel_isolation_test.ts says why).
+# Every knob at its maximum ran slower than the unsplit layout and left the
+# e2e suite flaky, because starved pages time out; the `ci-runner` skill has
+# the measurements. The worker count comes from vars.CI_RUNNER, so a
+# repository without it keeps Playwright's 2 workers, and nice and pytest's
+# `-n auto` are harmless on a VM of one's own.
 jobs:
   check:
     name: Format, lint, type-check, unit tests
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    env:
+      NICE: nice -n 15
     steps:
       - uses: actions/checkout@v7
 
@@ -42,19 +57,21 @@ jobs:
         run: deno install
 
       - name: Check
-        run: deno task check
+        run: $NICE deno task check
 
       # Browser-only effects are exercised by Playwright below. Deno coverage
       # gates the full SSR/unit graph and requires 100% in shared lib/ logic.
       - name: Unit tests and coverage
-        run: deno task test:coverage
+        run: $NICE deno task test:coverage
 
       - name: Profiling metric contract tests
-        run: deno task test:perf
+        run: $NICE deno task test:perf
 
   python:
     name: Pipeline lint, type-check, unit tests
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    env:
+      NICE: nice -n 15
 
     # The database-integration suite needs a real PostgreSQL, and the
     # local fixture brings one up under Apple's `container` runtime, which
@@ -115,16 +132,18 @@ jobs:
         run: uv sync --locked --group dev --group figure
 
       - name: Lint
-        run: uv run ruff check .
+        run: $NICE uv run ruff check .
 
       - name: Type-check
-        run: uv run ty check
+        run: $NICE uv run ty check
 
       # Measure both the importable package and Alembic's non-package scripts.
       # pyproject enforces the 99.5% line+branch coverage floor.
+      # `-n auto --maxprocesses=4` spreads it over at most four xdist workers,
+      # each migrating a database of its own (tests/xdist_databases.py).
       - name: Unit tests and coverage
         run: >-
-          uv run pytest
+          $NICE uv run pytest -n auto --maxprocesses=4
           --cov=pipeline
           --cov=pipeline/alembic
           --cov-branch
@@ -138,11 +157,13 @@ jobs:
       # reaches main unrun. The figure group installed above is what they
       # importorskip on; no database, no network.
       - name: Print-figure tests
-        run: uv run pytest tests/scripts
+        run: $NICE uv run pytest tests/scripts
 
   e2e:
     name: End-to-end
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    env:
+      E2E_WORKERS: ${{ vars.CI_RUNNER && '4' || '' }}
     steps:
       - uses: actions/checkout@v7
 
@@ -193,13 +214,27 @@ jobs:
   # runs, and a tracked file it left behind is what the greplists would find.
   # `--ignore-unmatch` is for the fork itself: there the trees are already
   # gone, and this job goes on proving its own tests hold on empty data.
+  #
+  # One job per gate family, side by side: run in a row, Deno, Python and
+  # Playwright made this the longest chain in the workflow. Each family
+  # empties the data itself, then runs only its own gates. The postgres
+  # service starts for the Python family alone -- an empty image starts no
+  # service -- and fail-fast is off so one family's failure does not hide
+  # another's result.
   empty-data:
-    name: A fork starts green (empty data, no cSVD tests)
+    name: A fork starts green, ${{ matrix.family }} (empty data, no cSVD tests)
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        family: [deno, python, e2e]
+    env:
+      NICE: ${{ matrix.family != 'e2e' && 'nice -n 15' || '' }}
+      E2E_WORKERS: ${{ vars.CI_RUNNER && '4' || '' }}
 
     services:
       postgres:
-        image: postgres:18
+        image: ${{ matrix.family == 'python' && 'postgres:18' || '' }}
         env:
           POSTGRES_USER: csvd_ci
           POSTGRES_PASSWORD: csvd_ci
@@ -218,6 +253,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Point the database tests at the service
+        if: matrix.family == 'python'
         run: echo "CSVD_TEST_DB_URL=postgresql://csvd_ci:csvd_ci@localhost:${{ job.services.postgres.ports['5432'] }}/csvd_ci" >> "$GITHUB_ENV"
 
       - uses: denoland/setup-deno@v2
@@ -229,11 +265,14 @@ jobs:
           enable-cache: ${{ runner.environment == 'github-hosted' }}
 
       - uses: actions/setup-node@v7
+        if: matrix.family == 'e2e'
         with:
           node-version: 26
           cache: ${{ runner.environment == 'github-hosted' && 'npm' || '' }}
           cache-dependency-path: e2e/package-lock.json
 
+      # Every family installs both: the empty export is written by Python and
+      # every gate needs the Deno side.
       - name: Install dependencies
         run: |
           deno install
@@ -245,47 +284,55 @@ jobs:
           git rm -r -q --ignore-unmatch tests/csvd e2e/tests/csvd tests/pipeline/csvd tests/scripts/csvd
 
       - name: Check
-        run: deno task check
+        if: matrix.family == 'deno'
+        run: $NICE deno task check
 
       - name: Unit tests and coverage
-        run: deno task test:coverage
+        if: matrix.family == 'deno'
+        run: $NICE deno task test:coverage
 
       - name: Lint
-        run: uv run ruff check .
+        if: matrix.family == 'python'
+        run: $NICE uv run ruff check .
 
       - name: Type-check
-        run: uv run ty check
+        if: matrix.family == 'python'
+        run: $NICE uv run ty check
 
       - name: Pipeline tests and coverage
+        if: matrix.family == 'python'
         run: >-
-          uv run pytest
+          $NICE uv run pytest -n auto --maxprocesses=4
           --cov=pipeline
           --cov=pipeline/alembic
           --cov-branch
           --cov-report=term-missing:skip-covered
 
       - name: Print-figure tests
-        run: uv run pytest tests/scripts
+        if: matrix.family == 'python'
+        run: $NICE uv run pytest tests/scripts
 
       - name: Install Playwright
+        if: matrix.family == 'e2e'
         working-directory: e2e
         run: |
           npm ci
           npx playwright install ${{ runner.environment == 'github-hosted' && '--with-deps' || '' }} chromium
 
       - name: End-to-end tests on empty data
+        if: matrix.family == 'e2e'
         working-directory: e2e
         run: npx playwright test
 
       - uses: actions/upload-artifact@v7
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && matrix.family == 'e2e' }}
         with:
           name: playwright-report-empty-data
           path: e2e/playwright-report/
           retention-days: 7
 
   adapt-fork:
-    name: A fork the adapt wizard starts is green (${{ matrix.shard }}/2)
+    name: A fork the adapt wizard starts is green (${{ matrix.shard }}/2, ${{ matrix.family }})
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
 
     # The empty-data job keeps this repository's disease/, so a failure only
@@ -294,19 +341,25 @@ jobs:
     # scans, one trial population -- cannot surface there. This unpacks two
     # wizard bundles over copies of the tree and runs every check on each.
     #
-    # One fork per leg, side by side: run one after the other they made this
-    # the slowest job in the workflow by three minutes. The script shards by
-    # position, so a third answer set lands in a leg without this matrix
-    # changing; fail-fast is off so one fork's failure does not hide the
-    # other's result.
+    # One job per fork and gate family, side by side: run one after the other
+    # they made this the slowest job in the workflow by minutes. The script
+    # shards by position, so a third answer set lands in a leg without this
+    # matrix changing, and --only picks the family. Under --e2e the fork's own
+    # production build is the one Playwright's web server makes, so the Deno
+    # family does not build it a second time. fail-fast is off so one job's
+    # failure does not hide another's result.
     strategy:
       fail-fast: false
       matrix:
         shard: [1, 2]
+        family: [deno, python, e2e]
+    env:
+      NICE: ${{ matrix.family != 'e2e' && 'nice -n 15' || '' }}
+      E2E_WORKERS: ${{ vars.CI_RUNNER && '4' || '' }}
 
     services:
       postgres:
-        image: postgres:18
+        image: ${{ matrix.family == 'python' && 'postgres:18' || '' }}
         env:
           POSTGRES_USER: csvd_ci
           POSTGRES_PASSWORD: csvd_ci
@@ -325,6 +378,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Point the database tests at the service
+        if: matrix.family == 'python'
         run: echo "CSVD_TEST_DB_URL=postgresql://csvd_ci:csvd_ci@localhost:${{ job.services.postgres.ports['5432'] }}/csvd_ci" >> "$GITHUB_ENV"
 
       - uses: denoland/setup-deno@v2
@@ -336,20 +390,27 @@ jobs:
           enable-cache: ${{ runner.environment == 'github-hosted' }}
 
       - uses: actions/setup-node@v7
+        if: matrix.family == 'e2e'
         with:
           node-version: 26
           cache: ${{ runner.environment == 'github-hosted' && 'npm' || '' }}
           cache-dependency-path: e2e/package-lock.json
 
+      # Every family installs both: the empty export is written by Python and
+      # every gate needs the Deno side.
       - name: Install dependencies
         run: |
           deno install
           uv sync --locked --group dev --group figure
+
+      - name: Install Playwright
+        if: matrix.family == 'e2e'
+        run: |
           npm ci --prefix e2e
           npx --prefix e2e playwright install ${{ runner.environment == 'github-hosted' && '--with-deps' || '' }} chromium
 
       - name: Run the checks on a wizard-made fork
-        run: deno run -A scripts/adapt_fork_check.ts --e2e --shard=${{ matrix.shard }}/2
+        run: $NICE deno run -A scripts/adapt_fork_check.ts --e2e --shard=${{ matrix.shard }}/2 --only=${{ matrix.family }}
 
   # The image Fly.io runs, built and checked from outside on every push and
   # pull request, so a change to the Dockerfile, to .dockerignore's allowlist
