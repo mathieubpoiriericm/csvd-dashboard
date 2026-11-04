@@ -23,12 +23,21 @@ if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) {
   throw new Error("E2E_PORT must be an integer between 1 and 65535");
 }
 
+// How many workers CI runs, when it says. An empty value counts as unset:
+// ci.yml passes `${{ vars.CI_RUNNER && '4' || '' }}`, which is the empty
+// string on GitHub's runners, and there the suite keeps its 2 workers.
+const WORKERS_ENV = process.env.E2E_WORKERS ?? "";
+const WORKERS = WORKERS_ENV === "" ? undefined : Number(WORKERS_ENV);
+if (WORKERS !== undefined && (!Number.isInteger(WORKERS) || WORKERS < 1)) {
+  throw new Error("E2E_WORKERS must be a positive integer");
+}
+
 export default defineConfig({
   testDir: "./tests",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 2 : undefined,
+  workers: WORKERS ?? (process.env.CI ? 2 : undefined),
   reporter: process.env.CI
     ? [["html"], ["github"]]
     : [["html", { open: "never" }]],
