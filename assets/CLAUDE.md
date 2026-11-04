@@ -152,7 +152,11 @@ Two things are load-bearing beyond the tokens:
 Typography is **Barlow Condensed over Barlow**, self-hosted as static faces
 because Barlow has no variable release; the `@font-face` blocks in `app.css` are
 the inventory and `tests/styles_contract_test.ts` fails on a weight none of them
-declares.
+declares. **A face that loads can still draw nothing.** Each weight is a latin
+and a latin-ext file split by `unicode-range`, and until November 2026 the
+`*-latin.woff2` names held latin-ext files with no a-z: `document.fonts` said
+`loaded` and every page drew the system font. `tests/fonts_test.ts` reads each
+file's own character map, so replace a font through it, not by file name.
 
 **No mono face ships.** Nine rules read `--svd-font-mono` and they were two
 different intentions: seven wanted tabular figures, which the design draws in
