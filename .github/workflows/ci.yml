@@ -31,8 +31,8 @@ permissions:
 # and they share 16 cores. The e2e jobs are the critical path, so every Deno
 # and Python command runs under `nice -n 15` (the $NICE prefix) and gives way
 # to the browsers when the machine is full. The parallelism is deliberately
-# moderate: 4 Playwright workers (8 for the largest suite), DENO_JOBS=4 and at
-# most 4 pytest workers. Every knob at its maximum ran slower than the
+# moderate: 4 Playwright workers per e2e suite, DENO_JOBS=4 and at most 4
+# pytest workers. Every knob at its maximum ran slower than the
 # unsplit layout and left the e2e suite flaky, because starved pages time out;
 # the `ci-runner` skill has the measurements. The worker counts come from
 # vars.CI_RUNNER, so a repository without it keeps Playwright's 2 workers and
@@ -163,10 +163,8 @@ jobs:
   e2e:
     name: End-to-end
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
-    # The largest suite, and the last to finish: on the mini PC it gets twice
-    # the workers the other e2e jobs do.
     env:
-      E2E_WORKERS: ${{ vars.CI_RUNNER && '8' || '' }}
+      E2E_WORKERS: ${{ vars.CI_RUNNER && '4' || '' }}
     steps:
       - uses: actions/checkout@v7
 
