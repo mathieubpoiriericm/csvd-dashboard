@@ -2,7 +2,11 @@ import { useMemo } from "preact/hooks";
 import { createColumnHelper } from "@tanstack/table-core";
 import { useTable } from "@tanstack/preact-table";
 
-import { Absent, plainCell } from "../components/Absent.tsx";
+import {
+  Absent,
+  plainCell,
+  presentOrUndefined,
+} from "../components/Absent.tsx";
 import { CheckboxFilter } from "../components/CheckboxFilter.tsx";
 import { useCheckboxFilters } from "../components/useCheckboxFilters.ts";
 import { DensityReadout } from "../components/DensityReadout.tsx";
@@ -67,8 +71,18 @@ const GROUP_START_COLUMNS = new Set([
   "sourceQuote",
 ]);
 
-/** Joins a list column into the plain text used for sorting and searching. */
-const asText = (values: string[]) => values.join(", ");
+/**
+ * Joins a list column into the plain text used for sorting and searching:
+ * the values the cell shows, as it shows them, or `undefined` when it shows
+ * only the absent dash (`presentOrUndefined`).
+ */
+function asText(
+  values: readonly string[],
+  format: (value: string) => string = (value) => value,
+): string | undefined {
+  const present = values.filter((value) => !isAbsent(value));
+  return present.length > 0 ? present.map(format).join(", ") : undefined;
+}
 
 interface TooltippedValuesProps {
   values: readonly string[];
@@ -184,13 +198,11 @@ function ReferenceCitations({ values }: { values: readonly string[] }) {
  * the citation replaced them on screen, and dropping them here would quietly
  * break searching by PMID.
  */
-function referencesKey(values: readonly string[]): string {
-  return values
-    .map((pmid) => {
-      const reference = referenceByPmid.get(pmid.trim());
-      return reference ? `${pmid} ${shortCitation(reference)}` : pmid;
-    })
-    .join(", ");
+function referencesKey(values: readonly string[]): string | undefined {
+  return asText(values, (pmid) => {
+    const reference = referenceByPmid.get(pmid.trim());
+    return reference ? `${pmid} ${shortCitation(reference)}` : pmid;
+  });
 }
 
 /**
@@ -202,6 +214,30 @@ function referencesKey(values: readonly string[]): string {
  * the whole cell back to raw text: one unrecognised abbreviation in a chain
  * used to cost the tooltip on every other part in it too.
  */
+/**
+ * The cell types as the cell prints them -- `FB > PC > SMC` for the stored
+ * `FB>PC>SMC` -- so the search box finds what the reader can see.
+ */
+function cellTypesText(value: string): string {
+  const { parts, separators } = splitCellTypes(value);
+  if (parts.length === 0) return value;
+  return parts
+    .map((part, i) => i > 0 ? `${separators[i - 1] ?? ">"} ${part}` : part)
+    .join(" ");
+}
+
+/**
+ * The brain cell types column's sort and search key: the stored form and the
+ * printed one, as `referencesKey` keeps both the PMID and the citation, so
+ * either spelling finds the row. The stored form leads, so the order is
+ * unchanged.
+ */
+function cellTypesKey(value: string): string | undefined {
+  if (isAbsent(value)) return undefined;
+  const shown = cellTypesText(value);
+  return shown === value ? value : `${value} ${shown}`;
+}
+
 export function BrainCellTypesCell({ value }: { value: string }) {
   if (isAbsent(value)) return <Absent />;
 
@@ -231,7 +267,8 @@ const COLUMNS = column.columns([
       </Tooltip>
     ),
   }),
-  column.accessor("protein", {
+  column.accessor((row) => presentOrUndefined(row.protein), {
+    id: "protein",
     header: "Protein",
     cell: ({ row }) =>
       isAbsent(row.original.protein)
@@ -242,7 +279,8 @@ const COLUMNS = column.columns([
           </Tooltip>
         ),
   }),
-  column.accessor("chromosomalLocation", {
+  column.accessor((row) => presentOrUndefined(row.chromosomalLocation), {
+    id: "chromosomalLocation",
     header: "Chromosomal Location",
     // Karyotype order, not `alphanumeric`: see the sortFns registry in
     // components/TableShell.tsx.
@@ -254,12 +292,13 @@ const COLUMNS = column.columns([
     header: "GWAS Trait",
     cell: ({ row }) => <TooltippedValues values={row.original.gwasTrait} />,
   }),
-  column.accessor("mendelianRandomization", {
+  column.accessor((row) => presentOrUndefined(row.mendelianRandomization), {
+    id: "mendelianRandomization",
     header: "Mendelian Randomization",
     cell: plainCell,
   }),
   column.accessor(
-    (row) => asText(row.evidenceFromOtherOmicsStudies.map(formatOmicsValue)),
+    (row) => asText(row.evidenceFromOtherOmicsStudies, formatOmicsValue),
     {
       id: "evidenceFromOtherOmicsStudies",
       header: "Evidence From Other Omics Studies",
@@ -282,13 +321,15 @@ const COLUMNS = column.columns([
       />
     ),
   }),
-  column.accessor("brainCellTypes", {
+  column.accessor((row) => cellTypesKey(row.brainCellTypes), {
+    id: "brainCellTypes",
     header: CELL_TYPES_LABEL,
     cell: ({ row }) => (
       <BrainCellTypesCell value={row.original.brainCellTypes} />
     ),
   }),
-  column.accessor("affectedPathway", {
+  column.accessor((row) => presentOrUndefined(row.affectedPathway), {
+    id: "affectedPathway",
     header: "Affected Pathway",
     cell: plainCell,
   }),
@@ -297,7 +338,8 @@ const COLUMNS = column.columns([
     header: "References",
     cell: ({ row }) => <ReferenceCitations values={row.original.references} />,
   }),
-  column.accessor("sourceQuote", {
+  column.accessor((row) => presentOrUndefined(row.sourceQuote), {
+    id: "sourceQuote",
     header: "Source Quote",
     cell: plainCell,
   }),
@@ -354,6 +396,9 @@ export default function GenesView({ rows = genes }: GenesViewProps = {}) {
     data: filtered,
     columns: COLUMNS,
     initialState: { pagination: { pageIndex: 0, pageSize: 10 } },
+    // A column's key is `undefined` exactly where its cell shows the absent
+    // dash (`presentOrUndefined`), and those rows sort last either way.
+    defaultColumn: { sortUndefined: "last" },
     // No column here opts into row spanning; switching the feature off keeps
     // its span index from being built at all.
     enableCellSpanning: false,

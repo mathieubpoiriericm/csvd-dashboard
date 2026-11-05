@@ -1,9 +1,19 @@
 import { useMemo, useState } from "preact/hooks";
 import { createColumnHelper } from "@tanstack/table-core";
-import type { RowSpanContext, SortingState } from "@tanstack/table-core";
+import type {
+  FilterFn,
+  Row,
+  RowSpanContext,
+  SortingState,
+} from "@tanstack/table-core";
 import { useTable } from "@tanstack/preact-table";
 
-import { Absent, plainCell, valueOrAbsent } from "../components/Absent.tsx";
+import {
+  Absent,
+  plainCell,
+  presentOrUndefined,
+  valueOrAbsent,
+} from "../components/Absent.tsx";
 import { CheckboxFilter } from "../components/CheckboxFilter.tsx";
 import { useCheckboxFilters } from "../components/useCheckboxFilters.ts";
 import { DensityReadout } from "../components/DensityReadout.tsx";
@@ -31,7 +41,7 @@ import { trials } from "../lib/data/trials.ts";
 import { filterTrials, normalize } from "../lib/filters.ts";
 import { isAbsent } from "../lib/sentinels.ts";
 import { registryTooltip, trialGeneTooltip } from "../lib/trial_tooltips.ts";
-import { resolveTrialStatus } from "../lib/trials.ts";
+import { phaseBarLabel, resolveTrialStatus } from "../lib/trials.ts";
 import { compareCompletionDates, completionDateKey } from "../lib/sorting.ts";
 import type { Trial } from "../lib/types.ts";
 
@@ -43,11 +53,11 @@ import type { Trial } from "../lib/types.ts";
  * results through three hidden columns, plus a ~110-line `drawCallback` in
  * JavaScript to reassemble them at draw time.
  */
-const spanWithinDrug = (
+const spanWithinDrug = <TValue extends string | undefined>(
   { anchorRow, anchorValue, row, value }: RowSpanContext<
     ShellFeatures,
     Trial,
-    string
+    TValue
   >,
 ) =>
   value === anchorValue &&
@@ -114,29 +124,41 @@ function phaseBuckets(rows: readonly Trial[]) {
 
 const column = createColumnHelper<ShellFeatures, Trial>();
 
+/**
+ * A column keyed on the stored text, or on `undefined` where the cell shows
+ * the absent dash (`presentOrUndefined`).
+ */
+const keyed = (key: keyof Trial) => (row: Trial) =>
+  presentOrUndefined(row[key]);
+
 const COLUMNS = column.columns([
   column.accessor("drug", {
     header: "Drug",
     spanRows: spanWithinDrug,
   }),
-  column.accessor("mechanismOfAction", {
+  column.accessor(keyed("mechanismOfAction"), {
+    id: "mechanismOfAction",
     header: "Mechanism of Action",
     cell: plainCell,
   }),
-  column.accessor("geneticTarget", {
+  column.accessor(keyed("geneticTarget"), {
+    id: "geneticTarget",
     header: "Genetic Target",
     spanRows: spanWithinDrug,
     cell: ({ row }) => <GeneticTargets value={row.original.geneticTarget} />,
   }),
-  column.accessor("geneticEvidence", {
+  column.accessor(keyed("geneticEvidence"), {
+    id: "geneticEvidence",
     header: "Genetic Evidence",
     cell: plainCell,
   }),
-  column.accessor("trialName", {
+  column.accessor(keyed("trialName"), {
+    id: "trialName",
     header: "Trial Name",
     cell: plainCell,
   }),
-  column.accessor("registryId", {
+  column.accessor(keyed("registryId"), {
+    id: "registryId",
     header: "Registry ID",
     cell: ({ row }) =>
       isAbsent(row.original.registryId)
@@ -147,28 +169,42 @@ const COLUMNS = column.columns([
           </Tooltip>
         ),
   }),
-  column.accessor("overallStatus", {
-    header: "Study Status",
-    cell: ({ row }) =>
-      isAbsent(row.original.overallStatus)
-        ? <Absent />
-        : resolveTrialStatus(row.original.overallStatus).label,
-  }),
-  column.accessor("clinicalTrialPhase", {
+  // Keyed on the label the cell prints, so "Not Yet Recruiting" finds the
+  // rows that say it; the stored `NOT_YET_RECRUITING` matched no search a
+  // reader would type.
+  column.accessor(
+    (row) =>
+      isAbsent(row.overallStatus)
+        ? undefined
+        : resolveTrialStatus(row.overallStatus).label,
+    {
+      id: "overallStatus",
+      header: "Study Status",
+      cell: ({ row }) =>
+        isAbsent(row.original.overallStatus)
+          ? <Absent />
+          : resolveTrialStatus(row.original.overallStatus).label,
+    },
+  ),
+  column.accessor(keyed("clinicalTrialPhase"), {
+    id: "clinicalTrialPhase",
     header: "Clinical Trial Phase",
     spanRows: spanWithinDrug,
     cell: plainCell,
   }),
-  column.accessor("targetPopulation", {
+  column.accessor(keyed("targetPopulation"), {
+    id: "targetPopulation",
     header: POPULATION_FIELD.label,
     spanRows: spanWithinDrug,
     cell: plainCell,
   }),
-  column.accessor("targetPopulationDetails", {
+  column.accessor(keyed("targetPopulationDetails"), {
+    id: "targetPopulationDetails",
     header: POPULATION_FIELD.detailsLabel,
     cell: plainCell,
   }),
-  column.accessor("targetSampleSize", {
+  column.accessor(keyed("targetSampleSize"), {
+    id: "targetSampleSize",
     header: "Target Sample Size",
     cell: plainCell,
   }),
@@ -197,15 +233,36 @@ const COLUMNS = column.columns([
         valueOrAbsent(formatMonthYear(row.original.estimatedCompletionDate)),
     },
   ),
-  column.accessor("primaryOutcome", {
+  column.accessor(keyed("primaryOutcome"), {
+    id: "primaryOutcome",
     header: "Primary Outcome",
     cell: plainCell,
   }),
-  column.accessor("sponsorType", {
+  column.accessor(keyed("sponsorType"), {
+    id: "sponsorType",
     header: "Sponsor Type",
     cell: plainCell,
   }),
 ]);
+
+/**
+ * The table's search: each column's key, as `includesString` reads it, except
+ * the completion date. Its key is `undefined` for anything but a date, so a
+ * non-date sorts last in both directions -- which also hid the one value the
+ * cell prints as text, "Completed (unpublished)", from the search box. Here it
+ * is searched as the cell prints it.
+ */
+const searchShownText: FilterFn<ShellFeatures, Trial> = Object.assign(
+  (row: Row<ShellFeatures, Trial>, columnId: string, filterValue: string) => {
+    const text = columnId === "estimatedCompletionDate"
+      ? presentOrUndefined(
+        formatMonthYear(row.original.estimatedCompletionDate),
+      )
+      : row.getValue<unknown>(columnId);
+    return text != null && String(text).toLowerCase().includes(filterValue);
+  },
+  { resolveFilterValue: (value: unknown) => String(value).toLowerCase() },
+);
 
 const FILTERS = {
   geneticEvidence: {
@@ -265,6 +322,10 @@ export default function TrialsView({ rows = trials }: TrialsViewProps = {}) {
     initialState: { pagination: { pageIndex: 0, pageSize: 10 } },
     state: { sorting },
     onSortingChange: setSorting,
+    globalFilterFn: searchShownText,
+    // A column's key is `undefined` exactly where its cell shows the absent
+    // dash (`presentOrUndefined`), and those rows sort last either way.
+    defaultColumn: { sortUndefined: "last" },
     // Switching spanning off here empties the span index at source, so the
     // renderer needs no second switch of its own.
     enableCellSpanning: groupedByDrug,
@@ -304,7 +365,7 @@ export default function TrialsView({ rows = trials }: TrialsViewProps = {}) {
     (trial) => trial.clinicalTrialPhase.trim(),
   );
   const readout = buckets.phases.map((phase) => ({
-    label: phase || "—",
+    label: phaseBarLabel(phase),
     total: buckets.perPhase.get(phase) ?? 0,
     shown: visibleTrialsPerPhase.get(phase) ?? 0,
   }));

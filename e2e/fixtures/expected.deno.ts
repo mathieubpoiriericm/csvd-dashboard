@@ -45,6 +45,7 @@ import {
   encoding as phenogram,
 } from "../../lib/phenogram.ts";
 import { chromosomeOf } from "../../lib/sorting.ts";
+import { phaseBarLabel } from "../../lib/trials.ts";
 import {
   computeTimelineLayout,
   encoding as timeline,
@@ -188,7 +189,7 @@ const phasesInTable = new Set(trials.map((t) => t.clinicalTrialPhase.trim()));
 const phasesPresent = [
   ...PHASE_ORDER.filter((p) => phasesInTable.has(p)),
   ...[...phasesInTable].filter((p) => !PHASE_ORDER.includes(p)).sort(),
-].map((p) => p || "—");
+].map(phaseBarLabel);
 
 const shownLocations = filterLocationsByStatus(
   trialLocations,

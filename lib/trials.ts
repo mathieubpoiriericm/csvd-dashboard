@@ -1,3 +1,4 @@
+import { isAbsent } from "./sentinels.ts";
 import type { TrialLocation } from "./types.ts";
 
 function defineRegistry(
@@ -66,6 +67,17 @@ export {
   type ResolvedTrialStatus,
   resolveTrialStatus,
 } from "./trial_status.ts";
+
+/**
+ * A phase as the trials readout labels its bar.
+ *
+ * The export fills a missing phase with `(unknown)`, which the table prints
+ * as the absent dash and the filter offers as "Phase not stated"; under a bar,
+ * and in the readout's spoken list, it read as the raw sentinel.
+ */
+export function phaseBarLabel(phase: string): string {
+  return phase.trim() === "" || isAbsent(phase) ? "Not stated" : phase;
+}
 
 /** Human-readable city/state/country string for a trial facility. */
 export function formatTrialPlace(

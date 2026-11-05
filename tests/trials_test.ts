@@ -2,11 +2,18 @@ import { assert, assertEquals, assertMatch } from "@std/assert";
 
 import {
   formatTrialPlace,
+  phaseBarLabel,
   registryLink,
   registryOf,
   resolveTrialStatus,
 } from "../lib/trials.ts";
 import { STATUS_NOT_STATED, TRIAL_STATUSES } from "../lib/trial_status.ts";
+
+Deno.test("phaseBarLabel names a missing phase rather than printing the sentinel", () => {
+  assertEquals(phaseBarLabel("II/III"), "II/III");
+  assertEquals(phaseBarLabel("(unknown)"), "Not stated");
+  assertEquals(phaseBarLabel(""), "Not stated");
+});
 
 Deno.test("registryOf rejects malformed and unsupported identifiers", () => {
   assertEquals(registryOf("12345"), null);
