@@ -136,6 +136,8 @@ Moved from the root `CLAUDE.md`, which keeps a one-line summary of each.
   trial is still in `nctIds`, and `tests/data_contract_test.ts` compares only
   that set, so nothing else would say the map is missing it.
 
+## Provenance columns and the export's readers
+
 `genes.source_quote` (migration 004) and `genes.confidence` (migration 010) are
 both published now. There is no named hold-out set; `_publishable` drops only
 `id` / `created_at` / `updated_at`. A `genes` column is held out by leaving its

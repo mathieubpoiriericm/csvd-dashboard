@@ -10,7 +10,7 @@ paths:
   - "tests/pipeline/export/test_tables.py"
 ---
 
-# Gene merge
+# Gene merge: the `source_quote` and `confidence` columns, and placeholders
 
 **The two columns are filled as one pair, or not at all.** A confidence scores
 the sentence it was extracted with, so `merge_genes_transactional` guards both

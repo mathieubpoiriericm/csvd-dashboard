@@ -5,7 +5,7 @@ paths:
   - "tests/pipeline/test_alembic_migrations.py"
 ---
 
-# Migrations
+# Migrations: the run report's `009`, and Alembic rather than Atlas
 
 - **The migration is `009`, and the number is load-bearing.** It was authored as
   `008` while another branch's `008_add_gene_annotations` was in flight. Both
