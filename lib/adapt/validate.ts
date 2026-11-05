@@ -132,6 +132,13 @@ export const hiddenChar = (c: string): boolean =>
 const hasHidden = (s: string) => [...trim(s)].some(hiddenChar);
 
 /**
+ * A gap in a trait key other than one ASCII space: a tab, a no-break space,
+ * a run of two. The canonical list writes the key as typed and the examples
+ * collapse every whitespace run to one space, so the two would disagree.
+ */
+export const TRAIT_KEY_GAP = /[^\S ]| {2}/;
+
+/**
  * The names a JavaScript object keeps for itself. A mechanism, an alias or
  * a cell type becomes a key of a map in the generated files, and assigning
  * "__proto__" sets the map's prototype instead: the entry is silently lost.
@@ -328,10 +335,12 @@ const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 const SVG_ROOT =
   /^\s*(?:<\?xml[^>]*\?>\s*)?(?:<!--[\s\S]*?-->\s*|<!DOCTYPE[^>[]*>\s*)*<svg\b([^>]*)>/i;
 const SVG_NAMESPACE = /\sxmlns\s*=\s*["']http:\/\/www\.w3\.org\/2000\/svg["']/;
+// A namespace prefix (`<s:script>` with `xmlns:s` bound to SVG, or an XHTML
+// `<h:script>`) names the same element, so each pattern allows one.
 const SVG_ACTIVE = [
-  /<\s*(?:script|foreignObject|iframe|embed|object|handler|listener)\b/i,
+  /<\s*(?:[\w.-]+:)?(?:script|foreignObject|iframe|embed|object|handler|listener)\b/i,
   /\son[a-z]+\s*=/i,
-  /<\s*(?:set|animate\w*)\b[^>]*attributeName\s*=\s*["']?\s*(?:on|href|xlink:href)/i,
+  /<\s*(?:[\w.-]+:)?(?:set|animate\w*)\b[^>]*attributeName\s*=\s*["']?\s*(?:on|href|xlink:href)/i,
 ];
 
 function judgeLogo(logo: LogoFile): string | null {
@@ -504,6 +513,9 @@ function identityIssues(a: Answers): Issue[] {
       "wrong",
     );
   }
+  // Every string manifest.json holds ships before login, these included:
+  // the fork's own test walks all of them.
+  publicText(c, finder, "institute.url", institute.url);
   for (
     const [path, logo, what] of [
       ["logoLight", logoLight, "The logo"],
@@ -535,6 +547,8 @@ function identityIssues(a: Answers): Issue[] {
       "wrong",
     );
   }
+  publicText(c, finder, "maintainer.name", maintainer.name);
+  publicText(c, finder, "maintainer.email", maintainer.email);
   c.text("cellTypes.label", cellTypes.label, "The cell-type column label");
   publicText(c, finder, "cellTypes.label", cellTypes.label);
   if (cellTypes.glossary.length === 0) {
@@ -702,6 +716,8 @@ function vocabularyIssues(a: Answers): Issue[] {
     if (blank(f.label)) {
       c.add(`${row}.label`, "Each family needs a label.", "missing");
     } else c.hidden(`${row}.label`, f.label);
+    // The key is written to phenogram.json too, which ships before login.
+    publicText(c, finder, row, f.key);
     publicText(c, finder, `${row}.label`, f.label);
   });
   const dup = duplicates(traits.map((t) => t.key));
@@ -712,6 +728,19 @@ function vocabularyIssues(a: Answers): Issue[] {
       c.add(key, "A trait key cannot contain a comma.", "wrong");
     } else if (clean(t.key).includes("\n")) {
       c.add(key, "A trait key is one line.", "wrong");
+    } else if (TRAIT_KEY_GAP.test(clean(t.key))) {
+      // The key reaches the canonical list as typed, but the prompt's
+      // examples respell any other gap as one space: the model would be
+      // taught a key the vocabulary refuses.
+      c.add(
+        key,
+        "Separate the words of a trait key with single spaces.",
+        "wrong",
+      );
+    } else if (clean(t.key).startsWith("#")) {
+      // The first key opens a line of prompt.md, where "## " starts a
+      // section and the pipeline then refuses the whole file.
+      c.add(key, 'A trait key cannot start with "#".', "wrong");
     } else if (t.key.includes(SLOT)) {
       // The keys are written into the prompt's traits.canonical section.
       c.add(
@@ -776,7 +805,10 @@ function vocabularyIssues(a: Answers): Issue[] {
         "Write the DOI alone, starting with 10., e.g. 10.1000/xyz123: the link adds https://doi.org/ itself.",
         "wrong",
       );
-    }
+    } else c.hidden("citationStandard.doi", doi);
+    // `\S` admits an invisible character, which the field already marks;
+    // the DOI ships in manifest.json, before login, like the rest.
+    publicText(c, finder, "citationStandard.doi", doi);
   }
   return c.issues;
 }
@@ -924,6 +956,8 @@ function trialsIssues(a: Answers): Issue[] {
     if (blank(f.label)) {
       c.add(`${row}.label`, "Each mechanism family needs a label.", "missing");
     } else c.hidden(`${row}.label`, f.label);
+    // The key is written to timeline.json too, which ships before login.
+    publicText(c, finder, row, f.key);
     publicText(c, finder, `${row}.label`, f.label);
   });
   if (t.mechanisms.length === 0) {

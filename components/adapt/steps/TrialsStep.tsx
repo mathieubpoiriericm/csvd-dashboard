@@ -198,6 +198,12 @@ export function TrialsStep(
           items={t.conditionPairs}
           addLabel="Add word pair"
           field="conditionPairs"
+          rowLabel={(pair, i) => {
+            const words = pair.map((w) => w.trim()).filter((w) => w !== "");
+            return `Word pair ${i + 1}${
+              words.length === 0 ? "" : `: ${words.join(" + ")}`
+            }`;
+          }}
           empty="No word pairs. A pair keeps a trial whose condition contains both words, e.g. juvenile + onset."
           add={() => update((d) => d.trials.conditionPairs.push(["", ""]))}
           remove={(i) => update((d) => d.trials.conditionPairs.splice(i, 1))}
@@ -231,6 +237,10 @@ export function TrialsStep(
           items={t.mechanismFamilies}
           addLabel="Add mechanism family"
           field="mechanismFamilies"
+          rowLabel={(f, i) =>
+            `Mechanism family ${i + 1}${
+              f.key.trim() === "" ? "" : `: ${f.key}`
+            }`}
           add={() =>
             update((d) =>
               d.trials.mechanismFamilies.push({ key: "", label: "" })
