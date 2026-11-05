@@ -317,6 +317,21 @@ test("an unassessed drug draws no ring and an assessed negative draws a dashed o
   await expect(solid).toHaveCount(T.evidenceRings - T.evidenceDashed);
 });
 
+test("at a stacked width an opened record is scrolled into view", async ({ page }) => {
+  // At 1100px and below the drawer stacks above the plate. Focus that may
+  // not scroll left it -- record and close button both -- wholly above the
+  // viewport, and the tap appeared to do nothing.
+  test.skip(T.markers === 0, NO_MARKER);
+  await page.setViewportSize({ width: 900, height: 800 });
+  await figureSettled(page);
+  const marker = page.locator("g.drug").first().locator("circle.marker");
+  await marker.scrollIntoViewIfNeeded();
+  await marker.click();
+  const close = page.getByRole("button", { name: "Close trial details" });
+  await expect(close).toBeFocused();
+  await expect(close).toBeInViewport();
+});
+
 test("the trial drawer has pointer and keyboard close controls", async ({ page }) => {
   test.skip(T.markers === 0, NO_MARKER);
   await figureSettled(page);
