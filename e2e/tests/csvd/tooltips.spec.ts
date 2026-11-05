@@ -319,12 +319,13 @@ test("a PMID shows its citation and links to PubMed", async ({ page }) => {
 });
 
 /**
- * COL4A1/2 is the only gene whose NCBI lookup row is empty in every field and
- * whose UniProt row has no accession, so neither tooltip has anything to show
- * and both cells render unwrapped. The gene cell is the half that used to open
- * onto three "Not available" lines and no link.
+ * COL4A1/2 is the curators' label for the collagen IV pair, which no NCBI or
+ * UniProt record carries; sent literally, both lookups came back empty and
+ * neither cell had a tooltip. The refresh now asks for each gene, and both
+ * tooltips show both, each with its own link. The rule that a key with no
+ * record renders unwrapped is pinned on synthetic rows in tooltips_test.ts.
  */
-test("a gene with no lookup record renders without a tooltip", async ({ page }) => {
+test("COL4A1/2's gene and protein tooltips show both collagen genes", async ({ page }) => {
   await page.goto("/genes");
   await page.getByRole("searchbox", { name: "Search genes" }).fill("COL4A1/2");
   // The global filter also matches HTRA1, whose source quote names COL4A1/2,
@@ -334,12 +335,24 @@ test("a gene with no lookup record renders without a tooltip", async ({ page }) 
   });
   await expect(row).toHaveCount(1);
 
-  for (const column of [0, 1]) {
-    await expect(
-      row.locator("td").nth(column).locator(".tooltip-box"),
-    ).toHaveCount(0);
-    await expect(row.locator("td").nth(column)).not.toBeEmpty();
-  }
+  await row.locator("td").nth(0).locator(".tooltip-box").hover();
+  await expect(
+    tooltip(page).getByRole("link", { name: "View COL4A1 on NCBI Gene" }),
+  ).toHaveAttribute("href", "https://www.ncbi.nlm.nih.gov/gene/1282");
+  await expect(
+    tooltip(page).getByRole("link", { name: "View COL4A2 on NCBI Gene" }),
+  ).toHaveAttribute("href", "https://www.ncbi.nlm.nih.gov/gene/1284");
+
+  await page.getByRole("heading", { level: 1 }).hover();
+  await row.locator("td").nth(1).locator(".tooltip-box").hover();
+  await expect(tooltip(page)).toContainText("P02462");
+  await expect(tooltip(page)).toContainText("P08572");
+  await expect(
+    tooltip(page).getByRole("link", { name: "View COL4A1 on UniProt" }),
+  ).toHaveAttribute("href", /uniprot\.org.*P02462/);
+  await expect(
+    tooltip(page).getByRole("link", { name: "View COL4A2 on UniProt" }),
+  ).toHaveAttribute("href", /uniprot\.org.*P08572/);
 });
 
 test("registry IDs on the trials table carry a registry tooltip", async ({ page }) => {

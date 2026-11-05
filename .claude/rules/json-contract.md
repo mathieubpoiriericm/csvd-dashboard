@@ -72,8 +72,17 @@ poison the UI.
 
 Moved from the root `CLAUDE.md`, which keeps a one-line summary of each.
 
-- **`data/gene_annotations.json` is the only file whose rows are a pivot rather
-  than a table dump**: one row per `(gene, disease)` rather than one per
+- **The lookup files are one row per `(key, lookup symbol)`, not per key.**
+  `gene_info.json`, `gene_info_table2.json` and `protein_info.json` carry
+  `symbol` second, after `name` / `gene`: the symbol NCBI or UniProt was asked
+  for, which is also the cache key `scripts/restore_from_json.py` writes back.
+  It equals the key for every gene but an alias key (`geneAliases`), which is
+  published as one row per member gene -- `COL4A1/2` as a `COL4A1` row and a
+  `COL4A2` row -- so the key repeats and `tests/data_contract_test.ts` holds the
+  pair unique instead. The lookup maps in `lib/data/` group rows under their
+  key, and a file without `symbol` normalizes it to the key.
+- **`data/gene_annotations.json` is the only file whose rows are a disease
+  pivot rather than a table dump**: one row per `(gene, disease)` rather than one per
   cross-reference, because the `gene_annotations` table `--sync-annotations`
   fills (see `.claude/rules/pipeline/syncs.md`) held ~7,700 rows on 2026-09-24,
   and any island that imports this file bundles it. None does yet — its readers

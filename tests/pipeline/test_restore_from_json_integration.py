@@ -207,7 +207,7 @@ async def test_a_restored_uniprot_row_is_refetched_by_the_next_sync(
 
     assert await get_cached_uniprot_info(["ABC1"], max_age_days=DB_CACHE_TTL_DAYS) == {}
     assert await read_uniprot_info(["ABC1"]) == [
-        {"gene": "ABC1", "accession": "P12345", "url": url}
+        {"gene": "ABC1", "symbol": "ABC1", "accession": "P12345", "url": url}
     ]
 
 

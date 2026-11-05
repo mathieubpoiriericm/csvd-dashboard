@@ -17,6 +17,7 @@ import {
 } from "../../lib/phenogram_tooltips.ts";
 import {
   cellTypeTooltip,
+  geneTooltip,
   omimTooltip,
   proteinTooltip,
   referenceTooltip,
@@ -51,6 +52,32 @@ Deno.test("referenceTooltip builds its rows from the discrete fields", () => {
 
 Deno.test("a trial's genetic target resolves to its NCBI record", () => {
   assertEquals(trialGeneTooltip("FGA")?.rows.length, 3);
+});
+
+/**
+ * COL4A1/2 is the curators' label for the collagen IV pair, which no NCBI or
+ * UniProt record carries. Both lookups now name each gene with its own record,
+ * where they used to publish nothing for the row at all.
+ */
+Deno.test("COL4A1/2's tooltips name both collagen genes", () => {
+  assertEquals(geneTooltip("COL4A1/2")?.links, [
+    {
+      href: "https://www.ncbi.nlm.nih.gov/gene/1282",
+      label: "View COL4A1 on NCBI Gene",
+    },
+    {
+      href: "https://www.ncbi.nlm.nih.gov/gene/1284",
+      label: "View COL4A2 on NCBI Gene",
+    },
+  ]);
+  assertEquals(
+    proteinTooltip("COL4A1/2")?.rows.map((row) => row.value),
+    ["COL4A1", "P02462", "COL4A2", "P08572"],
+  );
+  assertEquals(
+    phenogramTooltip(gene("COL4A1/2")).links?.map((link) => link.label),
+    ["View COL4A1 on NCBI Gene", "View COL4A2 on NCBI Gene"],
+  );
 });
 
 Deno.test("protein and OMIM tooltips return the committed records", () => {

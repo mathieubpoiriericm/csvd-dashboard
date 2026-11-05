@@ -143,58 +143,45 @@
     }
   },
   {
-    "runTimestamp": "2026-11-03T18:45:50Z",
+    "runTimestamp": "2026-11-05T18:36:47Z",
     "mode": "external_sync",
-    "status": "completed_with_warnings",
-    "durationSeconds": 2.043,
+    "status": "completed",
+    "durationSeconds": 2.796,
     "sources": [
       {
         "key": "ncbi_gene",
         "label": "NCBI Gene",
-        "fetched": 1,
-        "cached": 111,
-        "failed": 1
+        "fetched": 3,
+        "cached": 110,
+        "failed": 0
       },
       {
         "key": "uniprot",
         "label": "UniProt",
-        "fetched": 1,
-        "cached": 87,
+        "fetched": 3,
+        "cached": 85,
         "failed": 0
       },
       {
         "key": "pubmed_citations",
         "label": "PubMed citations",
-        "fetched": 5,
-        "cached": 163,
+        "fetched": 0,
+        "cached": 167,
         "failed": 0
       }
     ],
     "apis": [
       {
         "service": "ncbi_eutils",
-        "label": "E-utilities fetch",
-        "endpoint": "/entrez/eutils/efetch.fcgi",
-        "method": "GET",
-        "calls": 5,
-        "ok": 5,
-        "notFound": 0,
-        "errors": 0,
-        "retries": 0,
-        "totalMs": 1067.4,
-        "bytes": 0
-      },
-      {
-        "service": "ncbi_eutils",
         "label": "E-utilities search",
         "endpoint": "/entrez/eutils/esearch.fcgi",
         "method": "GET",
-        "calls": 2,
-        "ok": 2,
+        "calls": 3,
+        "ok": 3,
         "notFound": 0,
         "errors": 0,
         "retries": 0,
-        "totalMs": 124.2,
+        "totalMs": 454.2,
         "bytes": 0
       },
       {
@@ -202,12 +189,12 @@
         "label": "E-utilities summary",
         "endpoint": "/entrez/eutils/esummary.fcgi",
         "method": "GET",
-        "calls": 1,
-        "ok": 1,
+        "calls": 3,
+        "ok": 3,
         "notFound": 0,
         "errors": 0,
         "retries": 0,
-        "totalMs": 335.1,
+        "totalMs": 488.1,
         "bytes": 0
       },
       {
@@ -215,12 +202,12 @@
         "label": "UniProt",
         "endpoint": "/uniprotkb/:id",
         "method": "GET",
-        "calls": 1,
-        "ok": 1,
+        "calls": 3,
+        "ok": 3,
         "notFound": 0,
         "errors": 0,
         "retries": 0,
-        "totalMs": 145.7,
+        "totalMs": 671.1,
         "bytes": 0
       },
       {
@@ -228,21 +215,19 @@
         "label": "UniProt",
         "endpoint": "/uniprotkb/search",
         "method": "GET",
-        "calls": 1,
-        "ok": 1,
+        "calls": 3,
+        "ok": 3,
         "notFound": 0,
         "errors": 0,
         "retries": 0,
-        "totalMs": 531.1,
+        "totalMs": 2789.6,
         "bytes": 0
       }
     ],
     "errors": {
-      "shown": 1,
-      "total": 1,
-      "items": [
-        "Gene not found: COL4A1/2"
-      ]
+      "shown": 0,
+      "total": 0,
+      "items": []
     }
   }
 ]

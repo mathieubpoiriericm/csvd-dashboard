@@ -606,6 +606,17 @@ Deno.test("phenogramTooltip links each member's NCBI record", () => {
       label: "View on NCBI Gene",
     }],
   );
+  // A member NCBI gave no uid gets no link, and the others keep their names.
+  assertEquals(
+    phenogramTooltip(sampleGene({ gene: "PAIR" }), {
+      omim,
+      geneInfo: new Map([["PAIR", [PAIR[0], { ...PAIR[1], uid: null }]]]),
+    }).links,
+    [{
+      href: "https://www.ncbi.nlm.nih.gov/gene/1",
+      label: "View GENEA on NCBI Gene",
+    }],
+  );
 });
 
 Deno.test("phenogramTooltip resolves OMIM numbers it knows and keeps the ones it does not", () => {

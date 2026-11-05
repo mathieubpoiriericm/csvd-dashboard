@@ -85,14 +85,17 @@ const LOCATION_NULLABLE_STRING_FIELDS = [
 
 function assertUniqueKeys(
   rows: Array<Record<string, unknown>>,
-  field: string,
+  fields: string | string[],
   dataset: string,
 ): void {
-  const keys = rows.map((row) => String(row[field]));
+  const names = typeof fields === "string" ? [fields] : fields;
+  const keys = rows.map((row) =>
+    JSON.stringify(names.map((name) => String(row[name])))
+  );
   assertEquals(
     new Set(keys).size,
     keys.length,
-    `${dataset}.${field} values must be unique`,
+    `${dataset}.(${names.join(", ")}) values must be unique`,
   );
 }
 
@@ -242,11 +245,17 @@ Deno.test("generated tooltip lookups satisfy their runtime contracts", () => {
   ] as const;
   for (const [dataset, value] of geneDatasets) {
     const rows = value as Array<Record<string, unknown>>;
-    assertUniqueKeys(rows, "name", dataset);
+    // An alias key is published as one row per member gene, so the key
+    // repeats and the (key, symbol) pair is what is unique.
+    assertUniqueKeys(rows, ["name", "symbol"], dataset);
     for (const [index, row] of rows.entries()) {
       assert(
         typeof row.name === "string" && row.name.trim() !== "",
         `${dataset} row ${index} needs a nonblank gene name`,
+      );
+      assert(
+        typeof row.symbol === "string" && row.symbol.trim() !== "",
+        `${dataset} row ${index} needs a nonblank lookup symbol`,
       );
       for (const field of ["uid", "description", "otheraliases"] as const) {
         assert(
@@ -258,11 +267,15 @@ Deno.test("generated tooltip lookups satisfy their runtime contracts", () => {
   }
 
   const proteins = rawProteinInfoJson as Array<Record<string, unknown>>;
-  assertUniqueKeys(proteins, "gene", "protein_info");
+  assertUniqueKeys(proteins, ["gene", "symbol"], "protein_info");
   for (const [index, row] of proteins.entries()) {
     assert(
       typeof row.gene === "string" && row.gene.trim() !== "",
       `protein_info row ${index} needs a nonblank gene`,
+    );
+    assert(
+      typeof row.symbol === "string" && row.symbol.trim() !== "",
+      `protein_info row ${index} needs a nonblank lookup symbol`,
     );
     assert(row.accession === null || typeof row.accession === "string");
     assert(

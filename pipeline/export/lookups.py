@@ -15,6 +15,7 @@ from typing import Any, Final
 import asyncpg
 from pydantic import ValidationError
 
+from pipeline.annotations import lookup_symbols
 from pipeline.api_telemetry import relabel_api_rows
 from pipeline.database import Database
 from pipeline.run_report import PipelineRunReport
@@ -45,23 +46,50 @@ def complete_lookup(
     return out
 
 
+def _lookup_pairs(keys: Sequence[str]) -> list[tuple[str, str]]:
+    """Each curated key beside each symbol the lookup caches hold it under.
+
+    `--sync-external-data` asks NCBI and UniProt for an alias key's member
+    genes (`lookup_symbols`), and the caches are keyed by the symbol
+    queried. The lookup files are therefore one row per (key, member), in
+    key order and then member order -- one row for every key but an alias.
+    """
+    return [(key, symbol) for key in keys for symbol in lookup_symbols(key)]
+
+
+def _member_rows(
+    pairs: Sequence[tuple[str, str]],
+    key_name: str,
+    records: Sequence[dict[str, Any]],
+    defaults: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """One wire row per pair: the curated key first, then the cached row."""
+    completed = complete_lookup(
+        records, [symbol for _, symbol in pairs], "symbol", defaults
+    )
+    return [
+        {key_name: key, **row} for (key, _), row in zip(pairs, completed, strict=True)
+    ]
+
+
 async def read_ncbi_gene_info(symbols: Sequence[str]) -> list[dict[str, Any]]:
-    """Cached NCBI gene metadata, one row per requested symbol."""
+    """Cached NCBI gene metadata, one row per requested key and member gene."""
     if not symbols:
         return []
+    pairs = _lookup_pairs(symbols)
     async with Database.connection() as conn:
         rows = await conn.fetch(
             """
-            SELECT gene_symbol AS name, ncbi_uid AS uid,
+            SELECT gene_symbol AS symbol, ncbi_uid AS uid,
                    description, aliases AS otheraliases
             FROM ncbi_gene_info
             WHERE gene_symbol = ANY($1::text[])
             """,
-            list(symbols),
+            list(dict.fromkeys(symbol for _, symbol in pairs)),
         )
     records = [
         {
-            "name": r["name"],
+            "symbol": r["symbol"],
             # The dashboard's uid is a string; do not let an integer column
             # type leak into the generated wire format.
             "uid": None if r["uid"] is None else str(r["uid"]),
@@ -70,29 +98,30 @@ async def read_ncbi_gene_info(symbols: Sequence[str]) -> list[dict[str, Any]]:
         }
         for r in rows
     ]
-    return complete_lookup(
-        records,
-        symbols,
+    return _member_rows(
+        pairs,
         "name",
+        records,
         {"uid": None, "description": None, "otheraliases": None},
     )
 
 
 async def read_uniprot_info(symbols: Sequence[str]) -> list[dict[str, Any]]:
-    """Cached UniProt protein metadata, one row per requested symbol."""
+    """Cached UniProt protein metadata, one row per requested key and member."""
     if not symbols:
         return []
+    pairs = _lookup_pairs(symbols)
     async with Database.connection() as conn:
         rows = await conn.fetch(
             """
-            SELECT gene_symbol AS gene, accession, url
+            SELECT gene_symbol AS symbol, accession, url
             FROM uniprot_info
             WHERE gene_symbol = ANY($1::text[])
             """,
-            list(symbols),
+            list(dict.fromkeys(symbol for _, symbol in pairs)),
         )
     records = [dict(r) for r in rows]
-    return complete_lookup(records, symbols, "gene", {"accession": None, "url": None})
+    return _member_rows(pairs, "gene", records, {"accession": None, "url": None})
 
 
 async def read_pubmed_refs(pmids: Sequence[str]) -> list[dict[str, Any]]:
