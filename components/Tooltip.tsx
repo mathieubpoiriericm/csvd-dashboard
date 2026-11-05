@@ -271,8 +271,9 @@ export function Tooltip({ content, italic, children }: TooltipProps) {
 
 /**
  * Detail markup is shared by the deferred popover and server-render tests.
- * Rows are keyed by position, not label: a key published as several member
- * genes repeats its labels ("UID" once per member).
+ * Rows and links are keyed by position, not content: a key published as
+ * several member genes repeats its labels ("UID" once per member), and two
+ * members can resolve to one record and so carry the same link.
  */
 export function TooltipDetails({ content }: { content: TooltipContent }) {
   return (
@@ -282,9 +283,9 @@ export function TooltipDetails({ content }: { content: TooltipContent }) {
           <strong>{row.label}</strong> {row.value}
         </span>
       ))}
-      {content.links?.map((link) => (
+      {content.links?.map((link, index) => (
         <a
-          key={link.href}
+          key={index}
           class="tooltip-link-btn"
           href={link.href}
           target="_blank"

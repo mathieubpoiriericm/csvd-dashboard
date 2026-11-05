@@ -5,6 +5,7 @@ import {
   assertNotMatch,
   assertStringIncludes,
 } from "@std/assert";
+import type { VNode } from "preact";
 import { renderToString } from "preact-render-to-string";
 import { useTable } from "@tanstack/preact-table";
 import { createColumnHelper } from "@tanstack/table-core";
@@ -665,4 +666,36 @@ Deno.test("tooltip details render repeated labels and every link", () => {
   assertEquals(markup.match(/class="tooltip-link-btn"/g)?.length, 2);
   assertStringIncludes(markup, "https://example.org/101");
   assertStringIncludes(markup, "https://example.org/202");
+});
+
+/**
+ * Two members can resolve to one record -- two symbols for the same UniProt
+ * entry, say -- and so carry the same link. Siblings sharing a key are what
+ * Preact's diff can mis-patch, so neither the rows nor the links may key on
+ * their content.
+ */
+Deno.test("tooltip details give every row and link a key of its own", () => {
+  const tree = TooltipDetails({
+    content: {
+      rows: [
+        { label: "Gene", value: "GENEA" },
+        { label: "Gene", value: "GENEB" },
+      ],
+      links: [
+        { label: "View GENEA", href: "https://example.org/same" },
+        { label: "View GENEB", href: "https://example.org/same" },
+      ],
+    },
+  });
+  // Under `jsx: "precompile"` an element's dynamic children sit in
+  // `props.exprs`; under the classic transform, in `props.children`.
+  const props = tree.props as { children?: unknown; exprs?: unknown };
+  const lists = [props.exprs, props.children].flat().filter(
+    Array.isArray,
+  ) as VNode[][];
+  assertEquals(lists.length, 2, "the rows and the links");
+  for (const siblings of lists) {
+    const keys = siblings.map((node) => node.key);
+    assertEquals(new Set(keys).size, keys.length, `keys ${keys.join(", ")}`);
+  }
 });

@@ -380,6 +380,30 @@ def test_lookup_rows_are_restored_under_their_symbol(tmp_path: Path) -> None:
     ]
 
 
+def test_a_blank_or_padded_symbol_is_read_as_the_dashboard_reads_it(
+    tmp_path: Path,
+) -> None:
+    """The dashboard trims `symbol` and falls back to the key when nothing is
+    left, so a hand-edited file restores the cache key the page looks up --
+    not "  ", and not " GENEB " beside the GENEB the sync would fetch."""
+    data = _write_export(
+        tmp_path / "data",
+        gene_info=[
+            _gene_info("PLAIN", "  ", "1"),
+            _gene_info("GENEA/B", " GENEB ", "2"),
+        ],
+        protein_info=[
+            _protein_info("PLAIN", "  ", "P1"),
+            _protein_info("GENEA/B", " GENEB ", "P2"),
+        ],
+    )
+
+    plan = build_plan(data, tmp_path / "logs")
+
+    assert [row[0] for row in plan.ncbi] == ["PLAIN", "GENEB"]
+    assert [row[0] for row in plan.uniprot] == ["PLAIN", "GENEB"]
+
+
 def test_a_symbol_shared_by_two_keys_is_one_cache_row(tmp_path: Path) -> None:
     """A member that is also a curated key of its own is published under
     both, but is one cache row; restoring it twice would fail the insert on

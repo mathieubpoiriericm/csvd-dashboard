@@ -359,6 +359,13 @@ def row_differences(
     return [k for k in keys if committed.get(k) != again.get(k)]
 
 
+def _lookup_symbol(row: Mapping[str, Any], key_field: str) -> str:
+    """The cache key a lookup row was fetched under, read as the dashboard
+    reads it: `symbol` trimmed, falling back to the curated key when the file
+    predates `symbol` or carries a blank one (`normalizeGeneInfo`)."""
+    return (row.get("symbol") or "").strip() or row[key_field]
+
+
 def _is_fallback_citation(row: Mapping[str, Any]) -> bool:
     return row["formattedRef"] == f"PMID: {row['pmid']} (citation not available)"
 
@@ -404,7 +411,7 @@ def build_plan(data_dir: Path, logs_dir: Path) -> RestorePlan:
         for row in read(name):
             if (row["uid"], row["description"], row["otheraliases"]) == (None,) * 3:
                 continue
-            symbol = row.get("symbol") or row["name"]
+            symbol = _lookup_symbol(row, "name")
             ncbi.setdefault(
                 symbol,
                 (symbol, row["uid"], row["description"], row["otheraliases"]),
@@ -413,7 +420,7 @@ def build_plan(data_dir: Path, logs_dir: Path) -> RestorePlan:
     for row in read("protein_info.json"):
         if (row["accession"], row["url"]) == (None, None):
             continue
-        symbol = row.get("symbol") or row["gene"]
+        symbol = _lookup_symbol(row, "gene")
         uniprot.setdefault(symbol, (symbol, row["accession"], row["url"]))
 
     return RestorePlan(
