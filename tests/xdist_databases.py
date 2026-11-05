@@ -48,6 +48,34 @@ def quote_identifier(name: str) -> str:
     return '"' + name.replace('"', '""') + '"'
 
 
+def quote_literal(text: str) -> str:
+    """`text` as an SQL string literal, its own single quotes doubled."""
+    return "'" + text.replace("'", "''") + "'"
+
+
+def _drop_statements(database: str) -> tuple[str, str]:
+    """End our own sessions on `database`, then drop it -- never WITH (FORCE).
+
+    FORCE terminates every session on the database, and terminating an
+    autovacuum worker, which carries no role, needs superuser or
+    `pg_signal_backend`: the mini PC's `csvd_ci` role, CREATEDB and no more,
+    has neither, so autovacuum on a worker database failed a job with
+    "permission denied to terminate process" (runner-11, 2026-11-05). Our own
+    role's sessions -- the pool a session leaves open until it ends, or a
+    crashed run's -- are terminated explicitly, which a role may always do to
+    itself, and the plain DROP that follows stops an autovacuum worker by
+    itself. A plain DROP tried *first* is no answer: with our own session still
+    connected it waits five seconds, autovacuum takes the freshly written
+    database meanwhile, and any FORCE after it meets that worker.
+    """
+    terminate = (
+        "SELECT pg_terminate_backend(pid) FROM pg_stat_activity"
+        f" WHERE datname = {quote_literal(database)} AND usename = current_user"
+        " AND pid <> pg_backend_pid()"
+    )
+    return terminate, f"DROP DATABASE IF EXISTS {quote_identifier(database)}"
+
+
 def session_database(
     settings: dict[str, str],
     worker: str | None,
@@ -60,8 +88,9 @@ def session_database(
     Serial, it is that database itself, migrated, and nothing is created or
     dropped. Under xdist it is the worker's own: dropped first (a crashed
     run's leftover), created, migrated, yielded, and dropped again even when
-    the migration fails. `admin(settings, *statements)` runs statements
-    connected to the base database; `upgrade(settings)` migrates to head.
+    the migration fails (see `_drop_statements` for how). `admin(settings,
+    *statements)` runs statements connected to the base database;
+    `upgrade(settings)` migrates to head.
     """
     if worker is None:
         upgrade(settings)
@@ -71,14 +100,14 @@ def session_database(
         **settings,
         "DB_NAME": worker_database_name(settings["DB_NAME"], worker),
     }
+    drop = _drop_statements(worker_settings["DB_NAME"])
     name = quote_identifier(worker_settings["DB_NAME"])
-    drop = f"DROP DATABASE IF EXISTS {name} WITH (FORCE)"
-    admin(settings, drop, f"CREATE DATABASE {name}")
+    admin(settings, *drop, f"CREATE DATABASE {name}")
     try:
         upgrade(worker_settings)
         yield worker_settings
     finally:
-        admin(settings, drop)
+        admin(settings, *drop)
 
 
 def container_name(base: str, worker: str | None) -> str:

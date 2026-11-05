@@ -84,8 +84,19 @@ workers collided on primary keys. With `PYTEST_XDIST_WORKER` set the fixture
 creates `<db>_gw<n>` beside the database `CSVD_TEST_DB_URL` names (dropping a
 crashed run's leftover first), migrates it and drops it when the worker
 finishes; without the variable each worker runs its own container,
-`csvd-pg-pytest-gw<n>`. Only names carrying a worker suffix are ever dropped,
-and the role needs `CREATEDB`, which CI's service superuser has. A run cut short
+`csvd-pg-pytest-gw<n>`. **Neither drop uses `WITH (FORCE)`.** FORCE terminates
+every session, and terminating an autovacuum worker, which carries no role,
+needs superuser or `pg_signal_backend`; the mini PC's `CREATEDB`-only role has
+neither, and on 2026-11-05 autovacuum on a worker database failed runner-11's
+setup with "permission denied to terminate process". Each drop instead ends our
+own role's sessions on the database with `pg_terminate_backend`, which a role
+may always do to itself (a session's pool is still connected at every teardown),
+then runs a plain `DROP DATABASE`, which stops an autovacuum worker by itself. A
+plain DROP first with FORCE as the fallback failed in CI (PR #76's first push):
+it waited five seconds on our own session while autovacuum took the freshly
+written database, and the FORCE after it met that worker. All three reproduced
+on PostgreSQL 18.6. Only names carrying a worker suffix are ever dropped, and
+the role needs `CREATEDB`, which CI's service superuser has. A run cut short
 leaves its `<db>_gw<n>` on a server that outlives it -- CI's service does not --
 and the next run with that many workers drops and recreates it;
 `--maxprocesses=4` bounds them at four per database, so they cannot pile up, and
