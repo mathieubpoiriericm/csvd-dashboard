@@ -117,8 +117,10 @@ async function openMapPopup(page) {
   // Leaflet keeps a path in the overlay pane for markers it has not laid out
   // yet, drawn as `d="M0 0"`. With 431 facility sites one of those is often
   // first in document order, so the visible ones are what this drills for.
+  // The pane also holds markercluster's coverage polygon while the pointer
+  // rests on a cluster; only a site marker carries `role="button"`.
   const marker = page.locator(
-    ".leaflet-overlay-pane path.leaflet-interactive:visible",
+    '.leaflet-overlay-pane path.leaflet-interactive[role="button"]:visible',
   );
   const cluster = page.locator(".marker-cluster");
   const markerInView = () =>

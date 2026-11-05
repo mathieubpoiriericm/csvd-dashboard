@@ -29,12 +29,15 @@ The same rules are enforced in the UI by `nextSelection()` in
 `components/CheckboxFilter.tsx`, which can never leave a group matching nothing.
 
 One group starts constrained: the trials pages' "Study status" seeds
-`DEFAULT_TRIAL_STATUSES` (every status but Completed) through the `initial`
-field on a `useCheckboxFilters` definition, and `reset()` returns to it rather
-than to Show All. The `Active Filters:` line therefore reports it on first
-paint, which is intended -- it is what tells a viewer completed trials are
-hidden. `visibleTrials()` in `lib/filters.ts` is the same default as a function,
-for the SSR tests and any count that has to agree with the page.
+`DEFAULT_TRIAL_STATUSES` (every status but Completed, Suspended and Unknown)
+through the `initial` field on a `useCheckboxFilters` definition, and `reset()`
+returns to it rather than to Show All. The `Active Filters:` line therefore
+reports it on first paint, which is intended -- it is what tells a viewer those
+trials are hidden. Unknown also answers for a trial with no ClinicalTrials.gov
+record (`matchesStatus`), so the default hides every ISRCTN, ANZCTR and ChiCTR
+trial from the table and the radar too; that was chosen, not overlooked.
+`visibleTrials()` in `lib/filters.ts` is the same default as a function, for the
+SSR tests and any count that has to agree with the page.
 
 `components/FilterPanel.tsx` owns the sidebar-and-table layout both data pages
 render, and the collapse state with it -- the `is-collapsed` class has to reach

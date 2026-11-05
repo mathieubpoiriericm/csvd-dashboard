@@ -270,6 +270,7 @@ const expected = {
     registryPhase,
     impossible: impossibleTrial,
     phasesPresent,
+    completedOnly: countTrials({ statuses: ["COMPLETED"] }),
   },
 
   firstGeneAsc: firstGene(genesByName),

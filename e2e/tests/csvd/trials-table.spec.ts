@@ -69,21 +69,24 @@ test("sorting descending by drug keeps repeated rows merged", async ({ page }) =
   await expect(page.locator("td.group-cell").first()).toBeVisible();
 });
 
-test("search narrows the trials table to the three visible CADASIL trials", async ({ page }) => {
+test("search narrows the trials table to the two visible CADASIL trials", async ({ page }) => {
   const search = page.getByRole("searchbox", { name: "Search trials" });
 
   // The global filter spans every column and runs over the default-visible
-  // (non-Completed) set, so "CADASIL" catches three of the five trials that
-  // name it in their title and population details -- Palm tocotrienols
-  // complex and Adrenomedullin are both Completed and hidden by default.
+  // set, so "CADASIL" catches two of the five trials that name it in their
+  // title and population details -- Cerebrolysin and Edaravone Dexborneol.
+  // Palm tocotrienols complex and Adrenomedullin are Completed and Dabigatran
+  // is Unknown, all three hidden by default.
   await search.fill("CADASIL");
   await expect(banner(page)).toHaveText(
-    `Active Filters: ${STATUS_SUMMARY} | Search: “CADASIL” — showing 3 of ${TRIAL_TOTAL} rows`,
+    `Active Filters: ${STATUS_SUMMARY} | Search: “CADASIL” — showing 2 of ${TRIAL_TOTAL} rows`,
   );
-  await expect(rows(page)).toHaveCount(3);
+  await expect(rows(page)).toHaveCount(2);
   await expect(page.locator(".pagination span").first())
-    .toHaveText("Showing 1–3 of 3");
+    .toHaveText("Showing 1–2 of 2");
   await expect(rows(page).filter({ hasText: "Cerebrolysin" })).toHaveCount(1);
+  await expect(rows(page).filter({ hasText: "Edaravone Dexborneol" }))
+    .toHaveCount(1);
 
   await search.fill("");
   await expect(rows(page)).toHaveCount(10);
@@ -100,18 +103,19 @@ test("search results keep alternating drug-group striping", async ({ page }) => 
   await pageSizeSelect(page).selectOption("100");
   // The search box debounces, so wait for the filtered set before reading
   // the stripes: read earlier, the rows still carry the unfiltered parity.
-  await expect(banner(page)).toContainText("showing 61 of 102 rows");
+  await expect(banner(page)).toContainText("showing 29 of 102 rows");
 
   await expect(banner(page)).toContainText("Search: “Academic”");
-  await expect(rows(page)).toHaveCount(61);
+  await expect(rows(page)).toHaveCount(29);
   const group = (drug: string) =>
     rows(page).filter({ has: page.getByText(drug, { exact: true }) }).first();
-  // Unfiltered, BAC sits between Azelnidipine and Butylphthalide; it matches
-  // no Academic row, so the groups after it shift by one and the stripes
-  // have to be recomputed over the filtered set to keep alternating.
-  await expect(group("Azelnidipine")).toHaveClass("group-odd");
-  await expect(group("Butylphthalide")).toHaveClass("group-even");
-  await expect(group("Calculus bovis sativus")).toHaveClass("group-odd");
+  // Unsearched, Cerebrolysin sits between Calculus bovis sativus (even) and
+  // Cilostazol (even after it); it matches no Academic row, so the groups
+  // after it shift by one and the stripes have to be recomputed over the
+  // filtered set to keep alternating.
+  await expect(group("Calculus bovis sativus")).toHaveClass("group-even");
+  await expect(group("Cilostazol")).toHaveClass("group-odd");
+  await expect(group("Clopidogrel")).toHaveClass("group-even");
 });
 
 test("a gene symbol matches no trial", async ({ page }) => {

@@ -202,10 +202,22 @@ export const STATUS_CHOICES: readonly FilterChoice[] = [
     )),
 ];
 
-/** The first filter default that is not Show-All: completed trials stay in the record and off the page. */
+/**
+ * Statuses the trials pages start with unticked. They stay in the record and
+ * one tick away, but off the page until asked for: a completed trial is over,
+ * a suspended one is paused, and a status not stated -- CT.gov's own UNKNOWN,
+ * or a trial with no ClinicalTrials.gov record at all -- says nothing current.
+ */
+const HIDDEN_BY_DEFAULT: ReadonlySet<string> = new Set([
+  "COMPLETED",
+  "SUSPENDED",
+  STATUS_NOT_STATED,
+]);
+
+/** The first filter default that is not Show-All: the table, radar and map all start from it. */
 export const DEFAULT_TRIAL_STATUSES: readonly string[] = STATUS_CHOICES
   .map((choice) => choice.value)
-  .filter((value) => value !== SHOW_ALL && value !== "COMPLETED");
+  .filter((value) => value !== SHOW_ALL && !HIDDEN_BY_DEFAULT.has(value));
 
 // -----------------------------------------------------------------------------
 // REGISTRIES AND EXTERNAL LINKS

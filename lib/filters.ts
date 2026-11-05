@@ -256,7 +256,7 @@ export function filterTrials(
   });
 }
 
-/** Every group unconstrained except status, which starts without Completed. */
+/** Every group unconstrained except status, which starts without Completed, Suspended and Unknown. */
 export function defaultTrialFilters(): TrialFilters {
   return {
     geneticEvidence: YES_NO_CHOICES.map((choice) => choice.value),

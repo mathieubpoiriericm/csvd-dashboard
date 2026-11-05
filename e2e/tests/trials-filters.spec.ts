@@ -33,17 +33,17 @@ const STATUS = "Study status";
 const T = EXPECTED.trials;
 
 /**
- * The status group starts constrained (every status but Completed), so its
- * summary fragment rides along in the banner whenever any other group is
- * also active -- it is always last, since `statuses` is the last key in
- * `FILTERS`.
+ * The status group starts constrained (every status but Completed, Suspended
+ * and Unknown), so its summary fragment rides along in the banner whenever
+ * any other group is also active -- it is always last, since `statuses` is
+ * the last key in `FILTERS`.
  */
 
 test.beforeEach(async ({ page }) => {
   await page.goto("/trials");
 });
 
-test("starts with completed trials hidden", async ({ page }) => {
+test("starts with completed, suspended and not-stated trials hidden", async ({ page }) => {
   await expectSummary(page, STATUS_SUMMARY);
   await expectRowCount(page, TRIAL_SHOWN, TRIAL_TOTAL);
   for (const group of [EVIDENCE, REGISTRY, PHASE, POPULATION, SPONSOR]) {
@@ -172,17 +172,17 @@ test("impossible combinations show the empty state", async ({ page }) => {
   );
 });
 
-test("ticking Show All in the status group lifts the default Completed filter", async ({ page }) => {
+test("ticking Show All in the status group lifts the default status filter", async ({ page }) => {
   await choice(page, STATUS, "Show All").check();
   await expectRowCount(page, TRIAL_TOTAL, TRIAL_TOTAL);
 });
 
-test("unticking every status but Completed shows only completed trials", async ({ page }) => {
+test("ticking Completed and unticking every default status shows only completed trials", async ({ page }) => {
   await choice(page, STATUS, "Completed").check();
   for (const label of EXPECTED.defaultStatusLabels) {
     await choice(page, STATUS, label).uncheck();
   }
-  await expectRowCount(page, TRIAL_TOTAL - TRIAL_SHOWN, TRIAL_TOTAL);
+  await expectRowCount(page, T.completedOnly, TRIAL_TOTAL);
 });
 
 test("clearing all filters restores every group and the search together", async ({ page }) => {
@@ -204,8 +204,8 @@ test("clearing all filters restores every group and the search together", async 
   await page.getByRole("button", { name: "Clear all filters" }).click();
 
   // `reset` returns every group to its seeded default, and the status
-  // group's default is "every status but Completed" -- the summary reads
-  // that line, not "None".
+  // group's default is "every status but Completed, Suspended and Unknown"
+  // -- the summary reads that line, not "None".
   await expectSummary(page, STATUS_SUMMARY);
   await expectRowCount(page, TRIAL_SHOWN, TRIAL_TOTAL);
   await expect(search).toHaveValue("");

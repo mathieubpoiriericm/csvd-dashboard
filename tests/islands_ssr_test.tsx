@@ -112,12 +112,22 @@ const TRIALS = [
     targetSampleSize: "(unknown)",
     sponsorType: "Industry",
   }),
-  // A registry-less, status-less row, completed and so hidden by default.
+  // A registry-less, phase-less row: shown, since it is recruiting, but no
+  // ring can place it.
   sampleTrial({
     drug: "Drug C",
     registryId: "(unknown)",
-    overallStatus: "(unknown)",
     clinicalTrialPhase: "",
+    targetPopulation: POPULATION,
+    mechanismOfAction: MECHANISM,
+  }),
+  // A status the registry never stated folds onto the Unknown choice, which
+  // the default selection leaves unticked, so this row starts hidden.
+  sampleTrial({
+    drug: "Drug D",
+    registryId: "NCT00000004",
+    overallStatus: "(unknown)",
+    clinicalTrialPhase: "III",
     targetPopulation: POPULATION,
     mechanismOfAction: MECHANISM,
   }),
@@ -162,13 +172,14 @@ Deno.test("Phenogram over no genes draws no chromosome and no unplaced note", ()
 
 Deno.test("TrialsTimeline draws a marker per visible trial with rings, gaps and both legends", () => {
   const html = renderToString(<TrialsTimeline rows={TRIALS} />);
-  // One marker group per trial the rings can place; the phase-less row is
-  // counted but drawn nowhere.
+  // One marker group per visible trial the rings can place; the phase-less
+  // row is counted but drawn nowhere, and the status-less one is neither.
   assertEquals(count(html, 'data-drug="Drug A"'), 2);
   assertEquals(count(html, 'class="marker"'), 3);
+  assert(!html.includes('data-drug="Drug D"'));
   assertStringIncludes(html, 'class="evidence"');
   assertStringIncludes(html, 'class="gap"');
-  assertStringIncludes(html, "Showing 4 of 4 trials");
+  assertStringIncludes(html, "Showing 4 of 5 trials");
   assertStringIncludes(html, 'class="timeline-legend-item"');
   assertStringIncludes(html, timeline.populations[0].label.join(" "));
 });
@@ -185,9 +196,9 @@ Deno.test("TrialsView merges a drug's rows and tooltips its targets and registry
   assertStringIncludes(html, "NCT00000001");
   assertStringIncludes(html, "GENE1");
   assertStringIncludes(html, "Recruiting");
-  // A status the registry never stated folds onto the UNKNOWN choice, which
-  // the default selection keeps, so every synthetic row shows.
-  assertStringIncludes(html, "showing 4 of 4 rows");
+  // The status-less row starts hidden with the rest of Unknown.
+  assertStringIncludes(html, "showing 4 of 5 rows");
+  assert(!html.includes("NCT00000004"));
   assertStringIncludes(html, "Jan 2030");
 });
 
