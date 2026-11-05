@@ -153,10 +153,11 @@ sentence silently broke the check.
 
 ## Quote provenance reaches the report
 
-`_report_provenance` computed how many quotes were verbatim in the paper and how
-many matched an API citation span, logged both, and discarded them — so the
-dashboard could show a gene's quote without being able to say how many checked
-out. `citations.ProvenanceTally` accumulates them for the run.
+Provenance reporting (now `report_provenance` in `pipeline/citations.py`)
+computed how many quotes were verbatim in the paper and how many matched an API
+citation span, logged both, and discarded them — so the dashboard could show a
+gene's quote without being able to say how many checked out.
+`citations.ProvenanceTally` accumulates them for the run.
 
 It is a module-level tally reset per run, like the API recorder, rather than a
 return value threaded through `extract_from_paper` and `_extract_and_validate`:

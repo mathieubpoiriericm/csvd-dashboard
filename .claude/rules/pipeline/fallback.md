@@ -3,11 +3,9 @@ paths:
   - "pipeline/anthropic_client.py"
   - "pipeline/batch_extraction.py"
   - "pipeline/quality_metrics.py"
-  - "pipeline/config.py"
   - "tests/pipeline/test_anthropic_client.py"
   - "tests/pipeline/test_batch_extraction.py"
   - "tests/pipeline/test_quality_metrics.py"
-  - "tests/pipeline/test_config.py"
 ---
 
 # Refusals and the fallback model

@@ -46,10 +46,11 @@ scientific judgement and the e2e fixtures pin exact row counts. When it runs, is
 refused or skipped, and the lookup-cache refresh before it, are in the
 `regenerate-data` skill.
 
-Tests never touch the production database: `tests/pipeline/conftest.py` clears
-the `DB_*` variables and the whole `PIPELINE_*` namespace, and a test needing
-real SQL uses the throwaway database `CSVD_TEST_DB_URL` names or brings up its
-own `dhi.io/postgres:18-alpine3.23` container. See
+Tests never touch the production database: `tests/pipeline/conftest.py` empties
+the `DB_*` credentials (so `load_dotenv` cannot refill them from `.env`) and
+clears the whole `PIPELINE_*` namespace, and a test needing real SQL uses the
+throwaway database `CSVD_TEST_DB_URL` names or brings up its own
+`dhi.io/postgres:18-alpine3.23` container. See
 `.claude/rules/pipeline/database-tests.md`.
 
 Vite is pinned to 7.x because `@fresh/plugin-vite` requires `vite@^7.1.4`.
