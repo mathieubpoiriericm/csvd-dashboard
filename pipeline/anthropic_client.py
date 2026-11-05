@@ -816,8 +816,8 @@ def build_async_client() -> anthropic.AsyncAnthropic:
     attempt, and `messages.batches.retrieve` -- polled for up to 24 hours
     with no retry wrapper at all -- would abort a submitted batch on one
     transient 502. Buying exact telemetry with lost papers is the wrong
-    trade; the undercount is documented instead, in `pipeline/CLAUDE.md`
-    under "API telemetry".
+    trade; the undercount is documented instead, in
+    `.claude/rules/pipeline/api-telemetry.md`.
     """
     if not os.getenv("ANTHROPIC_API_KEY"):
         raise ExtractionFailedError(

@@ -75,9 +75,10 @@ Moved from the root `CLAUDE.md`, which keeps a one-line summary of each.
 - **`data/gene_annotations.json` is the only file whose rows are a pivot rather
   than a table dump**: one row per `(gene, disease)` rather than one per
   cross-reference, because the `gene_annotations` table `--sync-annotations`
-  fills (see `pipeline/CLAUDE.md`) held ~7,700 rows on 2026-09-24, and any
-  island that imports this file bundles it. None does yet — its readers are
-  `scripts/reconcile_omim.py`, the contract tests and the `lib/data.ts` barrel.
+  fills (see `.claude/rules/pipeline/syncs.md`) held ~7,700 rows on 2026-09-24,
+  and any island that imports this file bundles it. None does yet — its readers
+  are `scripts/reconcile_omim.py`, the contract tests and the `lib/data.ts`
+  barrel.
   Only ClinVar's attested diseases and Orphanet's enrichment of them are
   published; Open Targets' ranked associations and GO terms stay in PostgreSQL,
   where a query that wants them can reach them. **`relatedXrefs` is not a list
@@ -125,7 +126,7 @@ Moved from the root `CLAUDE.md`, which keeps a one-line summary of each.
   cannot reach the dashboard as `(unknown)` mechanism, population and evidence —
   values no filter choice offers and the radar draws nowhere. See
   "ClinicalTrials.gov rows must read like the curated ones" in
-  `pipeline/CLAUDE.md`.
+  `.claude/rules/pipeline/clinical-trials.md`.
 - Facility coordinates come from ClinicalTrials.gov's `geoPoint`, which is
   computed as `GeoPoint(City, State, Country)` — city-level, not facility-level.
   `jitter_duplicate_coordinates()` fans out co-located sites. No geocoding

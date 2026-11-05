@@ -84,8 +84,8 @@ wanting real SQL asks for the `database_env` fixture, which brings the
 container up as `csvd-pg-pytest`, migrates it to head, and destroys it with the
 session. It publishes no port: `container` gives the container **its own
 address** on the `default` network, so it answers on 5432 there and cannot
-shadow the production server on the host's 5432. See "Database tests" in
-`pipeline/CLAUDE.md`.
+shadow the production server on the host's 5432. See
+`.claude/rules/pipeline/database-tests.md`.
 
 **An empty container list says nothing about production.** `container list` and
 `container volume list` describe only the testing shape; the native server is

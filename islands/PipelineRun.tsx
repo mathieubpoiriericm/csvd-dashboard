@@ -555,8 +555,8 @@ function PipelineRunContent({ run }: { run: PipelineRun }) {
           {
             /* The method is the model *and* how it was asked: effort and
               prompt version are both pinned and measured (see
-              pipeline/CLAUDE.md), so a header naming only the model
-              stated half of it. */
+              .claude/rules/pipeline/extraction.md), so a header naming
+              only the model stated half of it. */
           }
           {run.config.effort && (
             <span class="pipeline-head-meta">

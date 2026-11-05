@@ -10,8 +10,9 @@ uv run python -m pipeline.main --sync-annotations
 ```
 
 It is free, takes about 30 minutes, and records its own `sync_runs` row (see
-"The refreshes record their own runs" in `pipeline/CLAUDE.md`). Everything below
-was found in shipped data or a recorded run rather than reasoned about.
+"The refreshes record their own runs" in `.claude/rules/pipeline/syncs.md`).
+Everything below was found in shipped data or a recorded run rather than
+reasoned about.
 
 `--sync-annotations` fetches disease, ontology and identity annotations for the
 63 curated genes from ClinVar, Orphadata and Open Targets, and verifies Table

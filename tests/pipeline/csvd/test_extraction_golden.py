@@ -54,7 +54,7 @@ is what makes a re-record actually re-record. It also records *failures* --
 an auth error replays forever as if it were the answer -- so check the run
 passed before trusting it, and delete the directory again if it did not.
 Then re-measure `_RECALL_BASELINE` and the figures quoted from it in
-pipeline/CLAUDE.md and disease/README.md.
+.claude/rules/pipeline/not-proven.md and fallback.md and in disease/README.md.
 
 The `live` pytest marker (see pyproject.toml) is reserved for a future test
 that calls the real API directly, outside VCR; nothing here uses it.
@@ -391,7 +391,8 @@ _RECALL_BASELINE: Final[dict[str, float]] = {
 # 10/10 again, pooled 42/46 and clean 23/26. The floor stays at 0.80: the
 # sample has now landed on both sides of it with nothing about extraction
 # changed, which is what a floor below the best observed value is for. Both
-# figures are quoted in pipeline/CLAUDE.md and disease/README.md and move with this.
+# figures are quoted in .claude/rules/pipeline/not-proven.md and fallback.md and in
+# disease/README.md, and move with this.
 #
 # The 2026-11-02 re-record is the move from Claude Opus 5 to Claude Opus 5.5,
 # at effort "high" over the same fixture text (every manifest hash matched),
@@ -411,7 +412,7 @@ _RECALL_BASELINE: Final[dict[str, float]] = {
 # 21/26: Opus 5.5 leaves out genes it does not believe instead of reporting
 # them at 0.2. 33293549 measured 10/10 and keeps its 0.80 floor for the
 # reason above. This suite still scores raw extraction, before the floor
-# (see pipeline/CLAUDE.md, "What is not proven"), so these are the floors.
+# (see .claude/rules/pipeline/not-proven.md), so these are the floors.
 
 
 def test_every_selected_paper_has_a_recall_baseline() -> None:

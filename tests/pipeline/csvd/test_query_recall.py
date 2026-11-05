@@ -145,7 +145,8 @@ def _entrez_contact(monkeypatch: pytest.MonkeyPatch) -> None:
 #   23649698  CADASIL, no genetic term in title or abstract. Reachable only
 #             by dropping the genetics gate on the MeSH branch, which costs
 #             ~1,476 extra papers a year for this one -- measured, rejected.
-#   36180795  GIGASTROKE. Recorded in CLAUDE.md as out of the prompt's scope.
+#   36180795  GIGASTROKE. Recorded in .claude/rules/pipeline/extraction.md as
+#             out of the prompt's scope.
 #   39805841  one of the digit-recovered references.
 #   30651383, 37063705  carry neither the phrase nor a cSVD MeSH heading.
 _SVD_QUERY_RECALL: Final[int] = 178
