@@ -4,12 +4,13 @@ E-utilities bounds *rate* -- 10 requests a second with an API key, 3
 without, counted across every endpoint on one key -- and a semaphore bounds
 concurrency, which is a different quantity: ten in flight over calls that
 return in 30 ms is roughly 300 a second, and the first full annotation run
-was answered 429 on 53 of 63 requests that way (see pipeline/CLAUDE.md,
-"NCBI limits requests per second, and a semaphore does not"). Validation
-had the pacing and the retry; gene info, citations, the PMC and abstract
-fetches and the metadata lookup each had a semaphore and nothing else, so
-a burst of papers put every one of their requests out at once and read
-the 429s as "not found", "citation fetch failed" and "no text".
+was answered 429 on 53 of 63 requests that way (see
+.claude/rules/pipeline/ncbi-rate.md, "NCBI limits requests per second, and a
+semaphore does not"). Validation had the pacing and the retry; gene info,
+citations, the PMC and abstract fetches and the metadata lookup each had a
+semaphore and nothing else, so a burst of papers put every one of their
+requests out at once and read the 429s as "not found", "citation fetch
+failed" and "no text".
 
 The state is module-level on purpose: the limit is per key, not per
 module, so the spacing has to be shared by every caller in the process.

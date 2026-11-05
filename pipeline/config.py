@@ -401,7 +401,7 @@ class PipelineConfig:
     # not the API citation match, which is computed beside it and only
     # logged. Gating on citations would discard two thirds of the genes for
     # want of prose (33% coverage), while the document check drops one gene
-    # in 138; see "Provenance" in pipeline/CLAUDE.md. Default False: this
+    # in 138; see .claude/rules/pipeline/provenance.md. Default False: this
     # lands as a measurement first, so a mismatch shows up in the logs
     # rather than silently removing a gene.
     require_verified_quotes: bool = field(

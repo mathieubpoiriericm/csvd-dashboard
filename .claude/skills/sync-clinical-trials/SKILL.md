@@ -15,7 +15,7 @@ The discovery gate (`is_disease_study`, `ct_max_retries`, and why `trial_name` a
 `primary_outcome` are curator-owned once `target_population` is filled in --
 renamed from `svd_population` by migration 014 so the wire key does not spell
 the disease) is under "The discovery is gated on a stated cSVD condition" in
-`pipeline/CLAUDE.md`.
+`.claude/rules/pipeline/clinical-trials.md`.
 
 Table 2 is curated, and `--clinical-trials` writes beside it under the same
 filter vocabulary, so every API-sourced column has to arrive in the spelling the

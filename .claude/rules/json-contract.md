@@ -75,9 +75,10 @@ Moved from the root `CLAUDE.md`, which keeps a one-line summary of each.
 - **`data/gene_annotations.json` is the only file whose rows are a pivot rather
   than a table dump**: one row per `(gene, disease)` rather than one per
   cross-reference, because the `gene_annotations` table `--sync-annotations`
-  fills (see `pipeline/CLAUDE.md`) held ~7,700 rows on 2026-09-24, and any
-  island that imports this file bundles it. None does yet — its readers are
-  `scripts/reconcile_omim.py`, the contract tests and the `lib/data.ts` barrel.
+  fills (see `.claude/rules/pipeline/syncs.md`) held ~7,700 rows on 2026-09-24,
+  and any island that imports this file bundles it. None does yet — its readers
+  are `scripts/reconcile_omim.py`, the contract tests and the `lib/data.ts`
+  barrel.
   Only ClinVar's attested diseases and Orphanet's enrichment of them are
   published; Open Targets' ranked associations and GO terms stay in PostgreSQL,
   where a query that wants them can reach them. **`relatedXrefs` is not a list
@@ -125,7 +126,7 @@ Moved from the root `CLAUDE.md`, which keeps a one-line summary of each.
   cannot reach the dashboard as `(unknown)` mechanism, population and evidence —
   values no filter choice offers and the radar draws nowhere. See
   "ClinicalTrials.gov rows must read like the curated ones" in
-  `pipeline/CLAUDE.md`.
+  `.claude/rules/pipeline/clinical-trials.md`.
 - Facility coordinates come from ClinicalTrials.gov's `geoPoint`, which is
   computed as `GeoPoint(City, State, Country)` — city-level, not facility-level.
   `jitter_duplicate_coordinates()` fans out co-located sites. No geocoding
@@ -134,3 +135,35 @@ Moved from the root `CLAUDE.md`, which keeps a one-line summary of each.
   and a trial that ends up contributing no marker at all are logged by name: the
   trial is still in `nctIds`, and `tests/data_contract_test.ts` compares only
   that set, so nothing else would say the map is missing it.
+
+## Provenance columns and the export's readers
+
+`genes.source_quote` (migration 004) and `genes.confidence` (migration 010) are
+both published now. There is no named hold-out set; `_publishable` drops only
+`id` / `created_at` / `updated_at`. A `genes` column is held out by leaving its
+name out of `_GENE_COLUMNS`, which is the projection `_gene_select()` builds, so
+an unlisted column is never even read; `clinical_trials` is still read with
+`SELECT *`, so holding a column out of **that** table needs a projection first.
+A missing quote publishes the `"(not yet extracted)"` sentinel
+(`clean_gene_row`, `fill_missing_text`) rather than a null-valued key on a
+string-typed field -- the same reasoning as `"(reference needed)"`. A missing
+confidence publishes JSON `null`: it is a nullable number, not a sentineled
+string, and the two are never conflated in `lib/types.ts`. Both surface in
+`islands/GenesView.tsx` as their own columns under an "Extraction Provenance"
+header group, following the established pattern for a prose field in this table
+(`Trial Name` / `Primary Outcome` in `TrialsView.tsx`: plain text, no tooltip,
+wraps) rather than the tooltip-on-hover the plan first proposed -- that would
+have needed a truncation affordance this table has never had, and no other
+column here hides its value behind an icon.
+
+**The export's readers tolerate migration lag and nothing else.** Each of
+`read_pipeline_status`, `read_pipeline_run`, `read_sync_runs` and
+`read_disease_annotations` catches only `asyncpg.UndefinedTableError` /
+`UndefinedColumnError` -- the shapes of "this revision does not have it yet" --
+and lets every other failure, plus any stored document that fails re-validation,
+propagate. `run_export` stages these four values before `publish_atomically`, so
+a swallowed error was not a degraded read: it published `null` over
+`pipeline_run.json`, `[]` over `pipeline_syncs.json`, or froze
+`gene_annotations.json` at its last good read, and `--export` still exited 0. A
+raised error aborts before the publish, which leaves every committed file
+exactly as it was and is folded into the exit code by `_publish_export`.

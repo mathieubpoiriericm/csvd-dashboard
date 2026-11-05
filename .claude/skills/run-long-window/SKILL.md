@@ -35,10 +35,10 @@ did.
 deterministic: on the retry five of the first pass's 37 extracted, and five of
 the papers that had failed on credit were refused instead. **A streaming run
 now falls back to Claude Opus 4.8** (see "A refusal names its classifier" in
-`pipeline/CLAUDE.md`), so a declined paper is extracted in the same call and
-reported as a `model_fallback` warning; only a paper both models decline fails,
-as a `paper_refused` warning per classifier, and the next run whose window
-still covers it retries it.
+`.claude/rules/pipeline/fallback.md`), so a declined paper is extracted in the
+same call and reported as a `model_fallback` warning; only a paper both models
+decline fails, as a `paper_refused` warning per classifier, and the next run
+whose window still covers it retries it.
 Budget a fallback paper at about three times an ordinary one: the declined
 Opus 5.5 attempt is billed, then Opus 4.8 extracts it at $5 / $25 per MTok and
 writes more than Opus 5.5 does. Measured on 2026-11-03, the retry of the 37
@@ -152,8 +152,8 @@ id lives only in the `Submitted batch %s` log line, so a crash inside the
 up-to-24h wait loses the submission and a re-run pays again -- see "Commands" in
 the root `CLAUDE.md`. `--test-mode` counts what a window would process before
 paying for it, and `scripts.backfill_pubmed` walks it in committed chunks so the
-database is updated as it goes; both are described under "Long windows" in
-`pipeline/CLAUDE.md`.
+database is updated as it goes; both are described in
+`.claude/rules/pipeline/long-windows.md`.
 
 ```bash
 uv run python -m pipeline.main --test-mode --days-back 365

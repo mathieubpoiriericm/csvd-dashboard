@@ -73,7 +73,7 @@ and a database that has not taken migration 009 keeps it that way. Exactly one
 of the two renders — two accounts of the same run would invite them to disagree,
 which is what this replaces.
 
-The pipeline half is in `pipeline/CLAUDE.md`. On this side:
+The pipeline half is in `.claude/rules/pipeline/run-reporting.md`. On this side:
 
 - **`lib/pipeline_encoding.json` is the single source of truth for every label,
   glyph and tint**, in the pattern of the two figure encodings.

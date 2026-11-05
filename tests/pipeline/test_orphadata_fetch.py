@@ -730,9 +730,9 @@ class TestOrphadataFreshnessFollowsClinVar:
     """This source's rows are keyed on ClinVar's ORPHAcodes and group_keys.
 
     A ClinVar refresh inside Orphadata's own TTL -- after the manual purge
-    `pipeline/CLAUDE.md` prescribes, say -- can add a code or move a group,
-    and the enrichment left behind either no longer joins (dropped at export
-    with a warning) or is simply missing, for the rest of the 30 days.
+    the `sync-annotations` skill prescribes, say -- can add a code or move a
+    group, and the enrichment left behind either no longer joins (dropped at
+    export with a warning) or is simply missing, for the rest of the 30 days.
     """
 
     @staticmethod

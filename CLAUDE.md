@@ -49,8 +49,8 @@ refused or skipped, and the lookup-cache refresh before it, are in the
 Tests never touch the production database: `tests/pipeline/conftest.py` clears
 the `DB_*` variables and the whole `PIPELINE_*` namespace, and a test needing
 real SQL uses the throwaway database `CSVD_TEST_DB_URL` names or brings up its
-own `dhi.io/postgres:18-alpine3.23` container. See "Database tests" in
-`pipeline/CLAUDE.md`.
+own `dhi.io/postgres:18-alpine3.23` container. See
+`.claude/rules/pipeline/database-tests.md`.
 
 Vite is pinned to 7.x because `@fresh/plugin-vite` requires `vite@^7.1.4`.
 
@@ -138,8 +138,8 @@ is stdlib-only so `config.py` and `extraction_models.py` can both import it.
 `tests/no_disease_literals_test.ts` and
 `tests/pipeline/test_no_disease_literals.py` scan the code for the manifest's
 own terms and fail on any hit outside a reasoned allow-list. Every measurement
-in this file and in `pipeline/CLAUDE.md` is of the cSVD dataset this repository
-was built on.
+in this file and in `.claude/rules/pipeline/` is of the cSVD dataset this
+repository was built on.
 
 **The tests that name the disease live in four `csvd/` trees** — `tests/csvd`,
 `tests/pipeline/csvd`, `tests/scripts/csvd` and `e2e/tests/csvd` — and nowhere
@@ -187,7 +187,8 @@ complete boundary. Consequences worth remembering:
 - **`data/pipeline_syncs.json` is the reference-data refreshes**, one entry per
   sync mode, committed as `[]` until one is recorded — a separate file and table
   from the runs, so nothing feeding the run widget or the About page's date can
-  see one. See "The refreshes record their own runs" in `pipeline/CLAUDE.md`.
+  see one. See "The refreshes record their own runs" in
+  `.claude/rules/pipeline/syncs.md`.
 - `tests/filters_test.ts` asserts against the _real committed rows_ (e.g. exact
   row counts for a trait filter). Regenerating data can legitimately break tests
   — check whether the data changed before "fixing" the filter. The trial
@@ -239,8 +240,10 @@ islands and the contract tests, and carries the rest: the omics vocabulary,
 
 Extraction (the pinned model, the effort and prompt sweeps, provenance), the
 Docling PDF fallback, what the measurements do and do not prove, and the known
-data limitations live in `pipeline/CLAUDE.md`, which loads when working under
-`pipeline/` — and, by import, under `tests/pipeline/`.
+data limitations live in fifteen path-scoped rules under
+`.claude/rules/pipeline/`, each loading with the modules and tests it names.
+`pipeline/CLAUDE.md` indexes them and loads when working under `pipeline/` —
+and, by import, under `tests/pipeline/`.
 
 ### Filtering
 
@@ -299,11 +302,13 @@ about regeneration now has a production consequence as well as a test one.
 Nine rules files load by path from `.claude/rules/`: `tables.md` (`TableShell`
 and the two table islands), `timeline.md` (the trials radar), `phenogram.md`
 (the karyogram), `tooltips.md`, `compression.md`, `gene-lists.md`,
-`json-contract.md`, `login.md` and `filters.md`. Four directories carry their
-own `CLAUDE.md`: `islands/` (the map, the run widget and the adapt wizard, whose
-notes cover `lib/adapt/` too), `assets/` (tokens, depth, typography), `e2e/`
-(npm isolation, the production-build harness, the selector traps) and
-`tests/pipeline/`, which imports `pipeline/CLAUDE.md`.
+`json-contract.md`, `login.md` and `filters.md`. Fifteen more under
+`.claude/rules/pipeline/` carry the pipeline's notes, indexed in
+`pipeline/CLAUDE.md`. Four directories carry their own `CLAUDE.md`: `islands/`
+(the map, the run widget and the adapt wizard, whose notes cover `lib/adapt/`
+too), `assets/` (tokens, depth, typography), `e2e/` (npm isolation, the
+production-build harness, the selector traps) and `tests/pipeline/`, which
+imports `pipeline/CLAUDE.md`.
 
 ### Typography and type graph
 

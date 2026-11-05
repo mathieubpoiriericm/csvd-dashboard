@@ -1482,9 +1482,9 @@ class TestBuildAsyncClient:
 
         assert build_async_client().max_retries == anthropic.DEFAULT_MAX_RETRIES
 
-        telemetry = (PROJECT_ROOT / "pipeline" / "CLAUDE.md").read_text(
-            encoding="utf-8"
-        )
+        telemetry = (
+            PROJECT_ROOT / ".claude" / "rules" / "pipeline" / "api-telemetry.md"
+        ).read_text(encoding="utf-8")
         assert "undercounts" in telemetry and "DEFAULT_MAX_RETRIES" in telemetry
 
 
