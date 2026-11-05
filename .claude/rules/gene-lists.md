@@ -53,3 +53,12 @@ the export's own parsers. It is run as a module
 (`uv run python -m scripts.backfill_gene_lists`), not as a path, and on a
 database past migration 006 it exits with a message rather than failing on the
 first `SELECT`: the columns it reads are gone, so there is nothing to backfill.
+
+**`genes.references` was corrupted upstream for ten rows by a spreadsheet
+round-trip, and all ten are recovered** -- each mangled cell has exactly 15
+significant digits, float64's guarantee, so only the second PMID's last digit
+was lost, and enumerating the ten candidates against NCBI left one cSVD paper
+each time. **Do not read a lost digit as a zero**: the naive readings
+(`39114920`, `39805840`) are real papers on other subjects. `extract_pmids`
+still refuses a mangled cell outright, so a mangled value arriving from anywhere
+else shows as `(reference needed)` rather than as fabricated citations.
