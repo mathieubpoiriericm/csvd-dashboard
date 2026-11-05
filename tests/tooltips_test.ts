@@ -395,7 +395,7 @@ Deno.test("phenogramTooltip names the location, the evidence and the display lab
   assertEquals(phenogramTooltip(rich).rows, [
     { label: "Location", value: "1p31.3" },
     { label: "GWAS phenotypes", value: first.label },
-    { label: "Other omics", value: "TWAS;brain frontal cortex" },
+    { label: "Other omics", value: "TWAS (brain frontal cortex)" },
     { label: "Monogenic disease", value: "999999" },
     { label: "Mendelian randomization", value: "No" },
   ]);

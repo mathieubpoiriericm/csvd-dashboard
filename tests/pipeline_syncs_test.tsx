@@ -83,7 +83,7 @@ Deno.test("a refresh with an invalid date keeps its results visible", () => {
   assertStringIncludes(html, "Date unavailable");
   assertStringIncludes(html, "Disease annotations");
   assertStringIncludes(html, "Completed");
-  assertStringIncludes(html, "3 fetched · 60 written");
+  assertStringIncludes(html, "3 fetched · 60 from cache");
   assert(!html.includes("Invalid Date"));
 });
 
@@ -99,10 +99,29 @@ Deno.test("the providers only a refresh touches are named on the page", () => {
   assertEquals(html.includes("api.platform.opentargets.org"), false);
 });
 
-Deno.test("each upstream reports what it fetched and what it wrote", () => {
+Deno.test("each upstream reports what it fetched and what its cache held", () => {
   const html = render([ANNOTATIONS]);
   assertStringIncludes(html, "ClinVar");
-  assertStringIncludes(html, "3 fetched · 60 written");
+  assertStringIncludes(html, "3 fetched · 60 from cache");
+  // A cache hit is not a write: "60 written" said the opposite.
+  assert(!html.includes("written"));
+});
+
+Deno.test("ClinicalTrials.gov's count is the rows it wrote", () => {
+  // The one upstream with no cache publishes its written rows in the
+  // `cached` slot (`sync_clinical_trials`).
+  const html = render([{
+    ...ANNOTATIONS,
+    mode: "clinical_trials",
+    sources: [{
+      key: "clinicaltrials",
+      label: "ClinicalTrials.gov",
+      fetched: 381,
+      cached: 141,
+      failed: 0,
+    }],
+  }]);
+  assertStringIncludes(html, "381 fetched · 141 written");
 });
 
 Deno.test("an upstream with nothing to do says so rather than showing zeros", () => {

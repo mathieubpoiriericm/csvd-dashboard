@@ -1161,6 +1161,16 @@ Deno.test("a logo's bytes are what its name says, and inert", () => {
       svg(`<svg ${NS}><a href="javascript:alert(1)"><text>x</text></a></svg>`),
       svg(`<svg ${NS}><a href="&#106;avascript:alert(1)"/></svg>`),
       svg(`<svg ${NS}><foreignObject><p>x</p></foreignObject></svg>`),
+      // A namespace prefix names the same element.
+      svg(
+        `<svg ${NS} xmlns:s="http://www.w3.org/2000/svg"><s:script>alert(1)</s:script></svg>`,
+      ),
+      svg(
+        `<svg ${NS}><h:script xmlns:h="http://www.w3.org/1999/xhtml">alert(1)</h:script></svg>`,
+      ),
+      svg(
+        `<svg ${NS} xmlns:s="http://www.w3.org/2000/svg"><s:set attributeName="onload" to="alert(1)"/></svg>`,
+      ),
       svg(`<!DOCTYPE svg [<!ENTITY x "y">]><svg ${NS}/>`),
       svg("<svg/>"),
       { name: "logo.svg", base64: PNG },
@@ -1218,6 +1228,78 @@ Deno.test("a gene symbol cannot reach the text shown before login", () => {
   lacks(
     withChange((a) => a.trials.populations[0].label = "GENEAB carriers"),
     "trials:populations[0].label",
+  );
+});
+
+Deno.test("a gene symbol cannot reach any string the public files hold", () => {
+  // The fork's own test walks every string and key of manifest.json,
+  // timeline.json and phenogram.json; these six were never checked, so a
+  // bundle this approved failed that test in the fork.
+  has(
+    withChange((a) => {
+      a.vocabulary.families[0].key = "GENEA-related";
+      for (const t of a.vocabulary.traits) {
+        if (t.family === "fam-a") t.family = "GENEA-related";
+      }
+    }),
+    "vocabulary:families[0]",
+  );
+  has(
+    withChange((a) => {
+      a.trials.mechanismFamilies[0].key = "GENEA_directed";
+      for (const m of a.trials.mechanisms) m.family = "GENEA_directed";
+    }),
+    "trials:mechanismFamilies[0]",
+  );
+  has(
+    withChange((a) => a.identity.institute.url = "https://example.org/GENEA"),
+    "identity:institute.url",
+  );
+  has(
+    withChange((a) => a.identity.maintainer.name = "GENEA lab"),
+    "identity:maintainer.name",
+  );
+  has(
+    withChange((a) => a.identity.maintainer.email = "GENEA@example.org"),
+    "identity:maintainer.email",
+  );
+  has(
+    withChange((a) =>
+      a.vocabulary.citationStandard = {
+        name: "Standard",
+        label: "Example et al. 2020",
+        doi: "10.1000/GENEA",
+        linkLabel: "Standard",
+      }
+    ),
+    "vocabulary:citationStandard.doi",
+  );
+});
+
+Deno.test("a DOI holding an invisible character is refused", () => {
+  const standard = (doi: string) =>
+    withChange((a) =>
+      a.vocabulary.citationStandard = {
+        name: "Standard",
+        label: "Example et al. 2020",
+        doi,
+        linkLabel: "Standard",
+      }
+    );
+  has(standard("10.1000/xy\u200bz"), "vocabulary:citationStandard.doi");
+  lacks(standard("10.1000/xyz"), "vocabulary:citationStandard.doi");
+});
+
+Deno.test("a trait key keeps its words one space apart and opens no heading", () => {
+  for (const key of ["T  1", "T\t1", "T\u00a01", "## T1", "#T1"]) {
+    has(
+      withChange((a) => a.vocabulary.traits[0].key = key),
+      "vocabulary:traits[0].key",
+    );
+  }
+  lacks(
+    withChange((a) => a.vocabulary.traits[0].key = "T 1"),
+    "vocabulary:traits[0].key",
   );
 });
 

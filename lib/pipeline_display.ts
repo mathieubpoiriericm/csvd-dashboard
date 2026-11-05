@@ -10,7 +10,13 @@
 import encoding from "./pipeline_encoding.json" with { type: "json" };
 
 import type { IconName } from "../components/Icon.tsx";
-import type { ApiService, RunError, RunPaper, RunStep } from "./types.ts";
+import type {
+  ApiService,
+  RunError,
+  RunPaper,
+  RunStep,
+  SyncSource,
+} from "./types.ts";
 import { formatCount } from "./format.ts";
 
 export { formatConfidence, formatCount } from "./format.ts";
@@ -213,10 +219,22 @@ export function formatDuration(seconds: number | null): string {
   // that 59.6 belongs to the sub-minute case printed "60 s"; the
   // minutes branch had its own guard for the same arithmetic and this
   // one did not.
+  // Tenths below ten seconds, decided on the rounded value for the same
+  // reason: 9.96 s printed "10.0 s" beside a 10 s that printed "10 s".
+  const tenths = Math.round(seconds * 10) / 10;
+  if (tenths < 10) return `${tenths.toFixed(1)} s`;
   const whole = Math.round(seconds);
-  if (whole < 60) return `${seconds < 10 ? seconds.toFixed(1) : whole} s`;
-  const minutes = Math.floor(whole / 60);
-  return `${minutes}m ${whole - minutes * 60}s`;
+  if (whole < 60) return `${whole} s`;
+  if (whole < 3600) {
+    const minutes = Math.floor(whole / 60);
+    return `${minutes}m ${whole - minutes * 60}s`;
+  }
+  // An hour or more -- a timed-out refresh records a flat 3600 s, and a
+  // `--batch` poll can run for a day -- reads in hours and minutes:
+  // "1440m 0s" is a number nobody can read at a glance.
+  const totalMinutes = Math.round(seconds / 60);
+  const hours = Math.floor(totalMinutes / 60);
+  return `${hours}h ${totalMinutes - hours * 60}m`;
 }
 
 /** Milliseconds, for the API panel, through the same rules as seconds. */
@@ -230,11 +248,47 @@ export function formatBytes(bytes: number): string {
   const units = ["B", "kB", "MB", "GB"];
   let value = bytes;
   let unit = 0;
-  while (value >= 1000 && unit < units.length - 1) {
+  // Compared as it will print: 999,960 bytes is "1000.0 kB" once rounded,
+  // which is the next unit up.
+  while (Number(value.toFixed(1)) >= 1000 && unit < units.length - 1) {
     value /= 1000;
     unit += 1;
   }
   return `${unit === 0 ? value : value.toFixed(1)} ${units[unit]}`;
+}
+
+/**
+ * Upstreams whose `cached` count is rows written, not cache hits.
+ *
+ * Every other refresh publishes in that slot the keys its cache already
+ * held fresh, so it fetched nothing for them and wrote nothing either
+ * (`SyncResult(cached=len(cached))` in the ClinVar, Orphadata and Open
+ * Targets syncs, `sync_cache_misses(cached_count=...)` in NCBI Gene,
+ * UniProt and the PubMed citations). ClinicalTrials.gov keeps no cache:
+ * `sync_clinical_trials` publishes the rows it wrote there instead. The
+ * key is `_SOURCES` in `pipeline/sync_report.py`.
+ */
+const WRITTEN_IN_CACHED_SLOT: ReadonlySet<string> = new Set([
+  "clinicaltrials",
+]);
+
+/**
+ * One upstream's counts on a refresh: what came back from it, what was
+ * already current (or, for ClinicalTrials.gov, what was written) and
+ * what failed. A refresh answered entirely from cache must not read as
+ * one that wrote, which is what "87 written" for 87 cache hits said.
+ */
+export function describeSourceCounts(source: SyncSource): string {
+  const parts: string[] = [];
+  if (source.fetched > 0) parts.push(`${formatCount(source.fetched)} fetched`);
+  if (source.cached > 0) {
+    const word = WRITTEN_IN_CACHED_SLOT.has(source.key)
+      ? "written"
+      : "from cache";
+    parts.push(`${formatCount(source.cached)} ${word}`);
+  }
+  if (source.failed > 0) parts.push(`${formatCount(source.failed)} failed`);
+  return parts.length > 0 ? parts.join(" · ") : "nothing to do";
 }
 
 /** A percentage, for the cache hit rate. */

@@ -110,9 +110,19 @@ Deno.test("safeNext keeps only a same-site path", () => {
       "https://evil.example/",
       "genes",
       "javascript:alert(1)",
+      // A browser drops tab, LF and CR from a Location before resolving it,
+      // so each of these would have redirected off-site after sign-in.
+      "/\t/evil.example",
+      "/\t\\evil.example",
+      "/\n/evil.example",
+      "/\r/evil.example",
+      "/genes\u007f",
+      // `Headers` refuses anything past U+00FF: a 500, not a redirect.
+      "/\u65e5",
+      "/a b",
     ]
   ) {
-    assertEquals(safeNext(raw), "/", `${raw}`);
+    assertEquals(safeNext(raw), "/", JSON.stringify(raw));
   }
 });
 

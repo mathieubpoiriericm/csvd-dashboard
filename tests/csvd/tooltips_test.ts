@@ -71,7 +71,7 @@ Deno.test("phenogramTooltip names the location, the evidence and the NCBI link",
     rows: [
       { label: "Location", value: "1p31.3" },
       { label: "GWAS phenotypes", value: "PSMD" },
-      { label: "Other omics", value: "TWAS;brain frontal cortex" },
+      { label: "Other omics", value: "TWAS (brain frontal cortex)" },
       {
         label: "Monogenic disease",
         value: "Autoinflammation, immune dysregulation, and eosinophilia",

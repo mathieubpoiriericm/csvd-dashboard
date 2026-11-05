@@ -1,5 +1,5 @@
 import { useHydratedRef } from "../components/useHydratedRef.ts";
-import type { Ref } from "preact";
+import { Fragment, type Ref } from "preact";
 import {
   useEffect,
   useLayoutEffect,
@@ -398,23 +398,37 @@ function LabelBox(
         {lines.map((line, i) => {
           const sub = i > 0 ? subline : undefined;
           return (
-            <tspan
-              key={i}
-              x={point.x}
-              dy={`${i === 0 ? firstDy : LINE_HEIGHT_EM}em`}
-              font-size={sub?.size}
-              font-weight={sub?.style.weight}
-              letter-spacing={sub?.style.tracking}
-              fill-opacity={sub?.style.opacity}
-            >
-              {line}
-            </tspan>
+            <Fragment key={i}>
+              {
+                /* The word space a wrap replaced, for the accessible text:
+                  without it "Cognitive Impairment" was read as one word.
+                  Zero-size, so it adds no advance to the line it ends and
+                  an end-anchored first line does not shift. */
+              }
+              {i > 0 && <tspan font-size="0">{WORD_SPACE}</tspan>}
+              <tspan
+                x={point.x}
+                dy={`${i === 0 ? firstDy : LINE_HEIGHT_EM}em`}
+                font-size={sub?.size}
+                font-weight={sub?.style.weight}
+                letter-spacing={sub?.style.tracking}
+                fill-opacity={sub?.style.opacity}
+              >
+                {line}
+              </tspan>
+            </Fragment>
           );
         })}
       </text>
     </>
   );
 }
+
+/**
+ * A space as a JSX child. Written as a literal it is whitespace-only text,
+ * which the JSX transform and `deno fmt` both drop.
+ */
+const WORD_SPACE = " ";
 
 const DRUG_STYLE: TextStyle = { weight: 500, halo: true };
 const POPULATION_STYLE: TextStyle = { weight: 600 };
@@ -967,7 +981,9 @@ export default function TrialsTimeline(
     nudgePasses.current = 0;
     solvedGeometry.current = undefined;
     dispatchInteraction({ type: "close-drawer" });
-    dispatchInteraction({ type: "hide-tooltip" });
+    // `hide`, not the bare action: a tooltip still waiting on its open
+    // timer would otherwise land on the new figure with the old marker.
+    hide();
     setBoxes(new Map());
     setNudges(new Map());
     setShifts(new Map());
@@ -986,13 +1002,19 @@ export default function TrialsTimeline(
   // returns to the marker.
   useEffect(() => {
     if (active !== null) {
-      closeRef.current?.focus({ preventScroll: true });
+      // Not `preventScroll`: at 1100px and below the drawer stacks above
+      // the plate, scroll anchoring holds the plate still as it opens, and
+      // a focus that may not scroll left the record and its close button
+      // wholly above the viewport -- a tap that visibly did nothing.
+      closeRef.current?.focus();
       return;
     }
     const restore = restoreFocusTo.current;
     restoreFocusTo.current = null;
     if (restore !== null) {
-      markerRefs.current[restore]?.focus({ preventScroll: true });
+      // The plate rescales as the drawer closes, which can leave the marker
+      // below the fold; let focus bring it back into view.
+      markerRefs.current[restore]?.focus();
     }
   }, [active]);
 
@@ -1132,7 +1154,7 @@ export default function TrialsTimeline(
     cancelTooltipFrame();
     tooltipCursor.current = null;
     dispatchInteraction({ type: "activate-marker", index });
-    if (active === index) closeRef.current?.focus({ preventScroll: true });
+    if (active === index) closeRef.current?.focus();
   };
 
   const activeMarker = active === null ? null : layout.markers[active];
@@ -1230,9 +1252,10 @@ export default function TrialsTimeline(
                 {RADAR_TITLE}
               </title>
               <desc id="timeline-desc">
-                Rings are trial phases, Phase III innermost; sectors are target
-                populations; each marker is one trial, coloured by mechanism of
-                action. Activate a marker for the trial's details.
+                Rings are trial phases, Phase {encoding.rings[0].phase}{" "}
+                innermost; sectors are target populations; each marker is one
+                trial, coloured by mechanism of action. Activate a marker for
+                the trial's details.
               </desc>
 
               {

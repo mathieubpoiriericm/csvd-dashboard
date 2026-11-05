@@ -30,13 +30,35 @@ function addVary(headers: Headers, field: string): void {
   headers.set("Vary", fields.join(", "));
 }
 
-/** True when the client offered gzip. `CompressionStream` speaks no brotli. */
+/** An `Accept-Encoding` entry's weight: its `q`, or 1 when it names none. */
+function qValue(params: readonly string[]): number {
+  for (const param of params) {
+    const [key, value = ""] = param.split("=").map((part) => part.trim());
+    if (key.toLowerCase() !== "q") continue;
+    const q = Number(value);
+    return value !== "" && Number.isFinite(q) ? q : 0;
+  }
+  return 1;
+}
+
+/**
+ * True when the client accepts gzip. `CompressionStream` speaks no brotli.
+ *
+ * A `q` of 0 is a refusal (RFC 9110 §12.5.3), and gzip named outright
+ * outranks the wildcard: `gzip;q=0`, `br, gzip;q=0` and `identity, *;q=0`
+ * all decline it, and all three used to be answered in gzip.
+ */
 export function acceptsGzip(acceptEncoding: string | null): boolean {
   if (!acceptEncoding) return false;
-  return acceptEncoding
-    .split(",")
-    .map((value) => value.trim().split(";")[0].toLowerCase())
-    .some((coding) => coding === "gzip" || coding === "*");
+  let gzip: number | undefined;
+  let wildcard: number | undefined;
+  for (const entry of acceptEncoding.split(",")) {
+    const [coding, ...params] = entry.split(";");
+    const name = coding.trim().toLowerCase();
+    if (name === "gzip") gzip = qValue(params);
+    else if (name === "*") wildcard = qValue(params);
+  }
+  return (gzip ?? wildcard ?? 0) > 0;
 }
 
 /**

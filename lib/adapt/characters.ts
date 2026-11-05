@@ -486,6 +486,15 @@ function slots(text: string): Offence[] {
 
 const SLOT_MESSAGE = '"{{" can\'t be used: the prompt reads it as a slot.';
 
+/**
+ * A gap validate()'s `TRAIT_KEY_GAP` refuses: whitespace other than a space,
+ * or a space right after whitespace. A line break and an invisible character
+ * (U+2028 is both) have offences of their own.
+ */
+const traitKeyGap = (text: string, c: string, at: number): boolean =>
+  c !== "\n" && !hiddenChar(c) && /\s/.test(c) &&
+  (c !== " " || /\s/.test(text[at - 1]));
+
 function traitKey(text: string): Diagnosis {
   const t = trim(text);
   if (t === "") return CLEAN;
@@ -495,26 +504,34 @@ function traitKey(text: string): Diagnosis {
       text,
       from,
       to,
-      (c) => c === "," || c === "\n" || hiddenChar(c),
+      (c, at) =>
+        c === "," || c === "\n" || hiddenChar(c) ||
+        traitKeyGap(text, c, at) || (c === "#" && at === from),
     ),
     ...slots(text),
   ]);
   if (offences.length === 0) return reserved(t) ? FAILS : CLEAN;
   const hidden = offences.filter((o) => hiddenChar(o.char));
+  const gaps = offences.filter((o) => traitKeyGap(text, o.char, o.start));
   const parts = [
     offences.some((o) => o.char === ",") &&
     "A comma can't be used: the filters would read two keys.",
     offences.some((o) => o.char === "\n") &&
     "A line break can't be used: a key is one line.",
+    gaps.length > 0 &&
+    "Separate the words with single spaces: the prompt's examples respell any other gap.",
+    offences.some((o) => o.char === "#" && o.start === from) &&
+    'A key can\'t start with "#": the prompt would read its line as a heading.',
     offences.some((o) => o.char === SLOT) && SLOT_MESSAGE,
     hidden.length > 0 && hiddenMessage(hidden),
   ].filter(Boolean);
-  const fixed = without(text, hidden);
+  const fixed = without(text, hidden).replace(/\s+/g, " ");
   return {
     ...FAILS,
     offences,
     message: parts.join(" "),
-    fix: hidden.length === offences.length && fixed !== "" && !reserved(fixed)
+    fix: hidden.length + gaps.length === offences.length && fixed !== "" &&
+        !fixed.startsWith("#") && !reserved(fixed)
       ? fixed
       : null,
   };

@@ -352,6 +352,20 @@ Deno.test("every rule agrees with validate(), and every fix passes both", () => 
   }
 });
 
+Deno.test("a trait key's gaps are single spaces, and it opens no heading", () => {
+  const gap = diagnose("traitKey", "T \t 1");
+  assertEquals(gap.ok, false);
+  assertEquals(gap.fix, "T 1");
+  assertEquals(diagnose("traitKey", "T\u00a01").fix, "T 1");
+  assertEquals(diagnose("traitKey", "T 1").ok, true);
+  const heading = diagnose("traitKey", "## T1");
+  assertEquals(heading.offences.map((o) => o.char), ["#"]);
+  assertEquals(heading.fix, null);
+  // A hidden character before the "#" is fixable only to a key that
+  // still opens a heading, so nothing is offered.
+  assertEquals(diagnose("traitKey", "\u200b#T").fix, null);
+});
+
 Deno.test("the key names each character it cannot hold and offers the key", () => {
   const d = diagnose("key", "Example-itis");
   assertEquals(

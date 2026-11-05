@@ -20,6 +20,7 @@ import {
   describePaper,
   describeRefusal,
   describeRejection,
+  describeSourceCounts,
   describeTruncation,
   field,
   formatBytes,
@@ -97,6 +98,22 @@ Deno.test("formatDuration never prints sixty seconds", () => {
   assertEquals(formatDuration(59.4), "59 s");
 });
 
+Deno.test("formatDuration reads an hour or more in hours", () => {
+  // A timed-out refresh records a flat 3600 s; a `--batch` poll can run
+  // for a day. "60m 0s" and "1440m 0s" were what these printed.
+  assertEquals(formatDuration(3600), "1h 0m");
+  assertEquals(formatDuration(86_400), "24h 0m");
+  assertEquals(formatDuration(90_061), "25h 1m");
+  // Rounded before the branch: 3599.6 s is an hour, not "60m 0s".
+  assertEquals(formatDuration(3599.6), "1h 0m");
+  assertEquals(formatDuration(3570), "59m 30s");
+});
+
+Deno.test("formatDuration never prints ten seconds with a decimal", () => {
+  assertEquals(formatDuration(9.96), "10 s");
+  assertEquals(formatDuration(9.94), "9.9 s");
+});
+
 Deno.test("formatDuration never prints a thousand milliseconds", () => {
   // 0.9996 s is 1000 ms once rounded; that is the sub-second branch
   // printing a second.
@@ -122,8 +139,33 @@ Deno.test("formatBytes uses the unit that keeps it under four digits", () => {
   assertEquals(formatBytes(4200), "4.2 kB");
   assertEquals(formatBytes(4_200_000), "4.2 MB");
   assertEquals(formatBytes(4_200_000_000), "4.2 GB");
+  // Decided on the printed value: 999,960 B is not "1000.0 kB".
+  assertEquals(formatBytes(999_960), "1.0 MB");
+  assertEquals(formatBytes(999_940), "999.9 kB");
   assertEquals(formatBytes(0), "—");
   assertEquals(formatBytes(Number.NaN), "—");
+});
+
+Deno.test("describeSourceCounts names cache hits as cache hits", () => {
+  const source = { key: "ncbi_gene", label: "NCBI Gene" };
+  assertEquals(
+    describeSourceCounts({ ...source, fetched: 1, cached: 111, failed: 1 }),
+    "1 fetched · 111 from cache · 1 failed",
+  );
+  assertEquals(
+    describeSourceCounts({
+      key: "clinicaltrials",
+      label: "ClinicalTrials.gov",
+      fetched: 1_381,
+      cached: 141,
+      failed: 0,
+    }),
+    "1,381 fetched · 141 written",
+  );
+  assertEquals(
+    describeSourceCounts({ ...source, fetched: 0, cached: 0, failed: 0 }),
+    "nothing to do",
+  );
 });
 
 Deno.test("formatCount separates thousands", () => {

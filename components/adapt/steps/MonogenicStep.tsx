@@ -202,6 +202,8 @@ export function MonogenicStep(
           items={aliases}
           addLabel="Add alias"
           field="aliases"
+          rowLabel={(al, i) =>
+            `Alias ${i + 1}${al.alias.trim() === "" ? "" : `: ${al.alias}`}`}
           add={() =>
             update((d) => d.monogenic.aliases.push({ alias: "", symbols: [] }))}
           remove={(i) => update((d) => d.monogenic.aliases.splice(i, 1))}

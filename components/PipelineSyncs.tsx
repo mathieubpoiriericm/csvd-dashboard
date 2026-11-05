@@ -24,6 +24,7 @@
 import { ApiList } from "./ApiList.tsx";
 import { Icon } from "./Icon.tsx";
 import {
+  describeSourceCounts,
   describeTruncation,
   formatCount,
   formatDuration,
@@ -36,17 +37,14 @@ import type { SyncRun } from "../lib/types.ts";
 
 function SourceCount({ source }: { source: SyncRun["sources"][number] }) {
   // Fetched and cached are separate facts -- what came back from the
-  // upstream, and what reached the database -- so a refresh that answered
-  // entirely from cache is visibly different from one that fetched.
-  const parts: string[] = [];
-  if (source.fetched > 0) parts.push(`${formatCount(source.fetched)} fetched`);
-  if (source.cached > 0) parts.push(`${formatCount(source.cached)} written`);
-  if (source.failed > 0) parts.push(`${formatCount(source.failed)} failed`);
+  // upstream, and what the cache already held -- so a refresh that
+  // answered entirely from cache is visibly different from one that
+  // fetched. The words are `describeSourceCounts`'s.
   return (
     <li class="pipeline-source">
       <span class="pipeline-source-name">{source.label}</span>
       <span class="pipeline-source-detail">
-        {parts.length > 0 ? parts.join(" · ") : "nothing to do"}
+        {describeSourceCounts(source)}
       </span>
     </li>
   );

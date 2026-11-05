@@ -336,6 +336,13 @@ _TSX_ID_HEADER = re.compile(r'id:\s*"(\w+)",\s*\n\s*header:\s*"([^"]+)"')
 _TSX_ACCESSOR_HEADER_IDENTIFIER = re.compile(
     r'accessor\("(\w+)",\s*\{\s*header:\s*([A-Za-z_][\w.]*),'
 )
+# The same, for a column keyed by a function rather than a field name: it
+# names itself with `id:`. A column whose cell can show the absent dash is
+# written this way (its key reads undefined there), the manifest-labelled
+# ones among them.
+_TSX_ID_HEADER_IDENTIFIER = re.compile(
+    r'id:\s*"(\w+)",\s*\n\s*header:\s*([A-Za-z_][\w.]*),'
+)
 
 _MANIFEST = json.loads(
     (Path(__file__).resolve().parents[3] / "disease" / "manifest.json").read_text(
@@ -376,7 +383,10 @@ def _tsx_headers(relative_path: str) -> dict[str, str]:
     text = (repo_root / relative_path).read_text(encoding="utf-8")
     headers = dict(_TSX_ACCESSOR_HEADER.findall(text))
     headers.update(_TSX_ID_HEADER.findall(text))
-    for accessor_key, identifier in _TSX_ACCESSOR_HEADER_IDENTIFIER.findall(text):
+    for accessor_key, identifier in [
+        *_TSX_ACCESSOR_HEADER_IDENTIFIER.findall(text),
+        *_TSX_ID_HEADER_IDENTIFIER.findall(text),
+    ]:
         if identifier not in _MANIFEST_HEADERS:
             raise KeyError(
                 f"{relative_path}: accessor {accessor_key!r} has a header "

@@ -41,6 +41,14 @@ store, no Deno KV, no auth library. Five things are load-bearing:
   `routes/logout.tsx` call `loginResponse` / `logoutResponse` and render the
   card.
 
+`main.ts` runs `csrf()` through `server/same_site_origin.ts`, which also
+accepts `https://<host>`. Fly terminates TLS, so the app's own URL is `http://`;
+a browser that sends `Origin` but no `Sec-Fetch-Site` (Safari before 16.4,
+Firefox before 90, a header-stripping proxy) was refused every sign-in and
+sign-out with a bare 403 while plain `csrf()` compared the two. `safeNext()`
+admits only printable ASCII after the one leading `/`: a browser drops tab, LF
+and CR from a `Location`, so `/\t/evil.example` used to redirect off-site.
+
 `_app.tsx` renders `/login` as a bare sheet (no navbar) and, for a verified
 session, a "Sign out" form beside the theme toggle; the flag it reads is
 `ctx.state.authenticated`, the one field in `State` (`utils.ts`).

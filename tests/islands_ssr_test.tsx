@@ -159,7 +159,10 @@ Deno.test("Phenogram draws a block per placeable gene and reports the rest", () 
   assertStringIncludes(html, 'class="phenogram-pill-mark"');
   assertStringIncludes(html, 'class="phenogram-glyph"');
   assertStringIncludes(html, 'class="phenogram-unplaced"');
-  assertStringIncludes(html, "GENE3");
+  // GENE3's location is the export's `(unknown)`: it is named as missing,
+  // never printed raw inside the note's own parentheses.
+  assertStringIncludes(html, "GENE3 (no location recorded)");
+  assert(!html.includes("((unknown))"));
   assertStringIncludes(html, TRAIT.label);
 });
 

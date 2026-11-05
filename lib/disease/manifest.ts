@@ -44,6 +44,16 @@ function stringMap(value: unknown): Record<string, string> {
   return out;
 }
 
+/**
+ * A DOI as the manifest means it: the identifier alone. One copied as its
+ * own address or cited with "doi:" in front is written by hand often
+ * enough, and either would link to https://doi.org/https://doi.org/….
+ */
+export function bareDoi(value: string): string {
+  return value.trim()
+    .replace(/^(?:https?:\/\/(?:dx\.)?doi\.org\/|doi:)\s*/i, "");
+}
+
 function population(value: unknown, index: number): Population {
   const source = record(value);
   return {
@@ -58,7 +68,7 @@ function citationStandard(value: unknown): CitationStandard | null {
   return {
     name: required(source, "name", "citationStandard.name"),
     label: required(source, "label", "citationStandard.label"),
-    doi: required(source, "doi", "citationStandard.doi"),
+    doi: bareDoi(required(source, "doi", "citationStandard.doi")),
     linkLabel: required(source, "linkLabel", "citationStandard.linkLabel"),
   };
 }
@@ -77,7 +87,7 @@ function aboutCitation(value: unknown): AboutCitation | null {
     title: required(source, "title", "about.citation.title"),
     journal: required(source, "journal", "about.citation.journal"),
     year,
-    doi: required(source, "doi", "about.citation.doi"),
+    doi: bareDoi(required(source, "doi", "about.citation.doi")),
   };
 }
 

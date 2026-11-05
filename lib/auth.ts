@@ -123,9 +123,18 @@ export async function passphraseMatches(
  * The path to return to after login, or `/` when the value is anything
  * else. Only a path that starts with exactly one `/` passes: `//host` is a
  * scheme-relative URL, and browsers read `/\host` the same way.
+ *
+ * And only printable ASCII after it, which is all the gate ever writes: it
+ * takes `pathname + search` from a parsed URL, where everything else is
+ * already percent-encoded. A browser strips tab, LF and CR from a
+ * `Location` before resolving it, so `/\t/evil.example` cleared the
+ * one-slash check and then landed on `//evil.example`; a raw newline, or a
+ * character `Headers` cannot carry, made the redirect itself throw.
  */
 export function safeNext(raw: string | null | undefined): string {
-  return typeof raw === "string" && /^\/(?![/\\])/.test(raw) ? raw : "/";
+  return typeof raw === "string" && /^\/(?![/\\])[\x21-\x7e]*$/.test(raw)
+    ? raw
+    : "/";
 }
 
 /** The session cookie: HttpOnly, Lax, site-wide, 30 days, Secure off localhost. */

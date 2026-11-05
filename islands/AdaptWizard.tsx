@@ -79,6 +79,9 @@ const STORAGE_REFUSED =
 const UNREADABLE =
   "The draft saved in this browser was written by another version of the wizard, or is damaged, so it could not be read. It is kept aside rather than overwritten; download it to keep a copy.";
 
+const UNREADABLE_UNKEPT =
+  "The draft saved in this browser was written by another version of the wizard, or is damaged, so it could not be read, and the browser refused the room to keep a copy aside. Nothing is saved over it until you download it.";
+
 function saveDownload(name: string, bytes: Uint8Array, type: string) {
   // A Uint8Array's buffer types as ArrayBufferLike, which BlobPart no longer
   // admits; every array reaching here sits on a plain ArrayBuffer.
@@ -131,6 +134,18 @@ export default function AdaptWizard() {
   const unsavedRef = useRef(false);
   // The stored draft this build could not read, kept aside for download.
   const [unreadable, setUnreadable] = useState<string | null>(null);
+  // True while that draft could not be copied aside, so the stored one is
+  // still the only copy: no save writes over it until it is downloaded. The
+  // ref is what `save`, called inside state updaters, reads.
+  const [unkept, setUnkept] = useState(false);
+  const unkeptRef = useRef(false);
+  // Whether storage holds the logos these answers carry, under their keys.
+  // `writeDraft` skips a logo equal to the previous answers', which is only
+  // safe while this holds: after a refused logo write, or for a draft that
+  // still carries its logos inline, the next save must write them again,
+  // or it succeeds without them and clears the alert over a logo lost on
+  // reload.
+  const logosStored = useRef(true);
   // False until the stored draft has been read. Before that the form is the
   // server's HTML with no island behind it: whatever is typed there reaches
   // no state and is lost at the first render, so it is disabled until then.
@@ -186,12 +201,28 @@ export default function AdaptWizard() {
       if (stored.unreadable) {
         // Kept before anything is saved over it: a draft another version
         // wrote is not destroyed by the first keystroke of this one.
-        setUnreadable(keepUnreadable(localStorage));
+        const text = localStorage.getItem(DRAFT_STORAGE_KEY);
+        try {
+          setUnreadable(keepUnreadable(localStorage));
+        } catch {
+          // No room for the copy, so the stored draft is still the only
+          // one: offer it for download, and save nothing over it until then.
+          unkeptRef.current = true;
+          setUnkept(true);
+          setUnreadable(text);
+        }
       } else {
         synced.current = localStorage.getItem(DRAFT_STORAGE_KEY);
       }
       if (stored.answers !== null) {
         const draft = stored.answers;
+        // A draft saved before the logos had keys of their own carries them
+        // inline; the first save has to move them out.
+        logosStored.current = (Object.keys(LOGO_KEYS) as LogoSlot[]).every(
+          (slot) =>
+            draft.identity[slot] === null ||
+            readLogo(localStorage.getItem(LOGO_KEYS[slot])) !== null,
+        );
         setAnswers(draft);
         // The page opens on Identity; a stored draft decides its card.
         setOpenCard(entryCard(draft, "identity"));
@@ -209,6 +240,11 @@ export default function AdaptWizard() {
    * this tab's. A refused write keeps `next` and raises the alert.
    */
   function save(next: Answers, previous: Answers | null): Answers {
+    if (unkeptRef.current) {
+      unsavedRef.current = true;
+      setUnsaved(true);
+      return next;
+    }
     try {
       let written = next;
       const stored = localStorage.getItem(DRAFT_STORAGE_KEY);
@@ -227,12 +263,14 @@ export default function AdaptWizard() {
         written.identity.logoLight = next.identity.logoLight;
         written.identity.logoDark = next.identity.logoDark;
       }
-      writeDraft(localStorage, written, previous);
+      writeDraft(localStorage, written, logosStored.current ? previous : null);
+      logosStored.current = true;
       synced.current = serialiseDraft(withoutLogos(written));
       unsavedRef.current = false;
       setUnsaved(false);
       return written;
     } catch {
+      logosStored.current = false;
       unsavedRef.current = true;
       setUnsaved(true);
       return next;
@@ -282,8 +320,12 @@ export default function AdaptWizard() {
         draft.identity.logoLight = previous.identity.logoLight;
         draft.identity.logoDark = previous.identity.logoDark;
         synced.current = incoming;
-        // Showing exactly what is stored, this tab has nothing unsaved.
-        if (serialiseDraft(withoutLogos(draft)) === incoming) {
+        // Showing exactly what is stored, this tab has nothing unsaved --
+        // unless a logo it holds never reached storage.
+        if (
+          logosStored.current && !unkeptRef.current &&
+          serialiseDraft(withoutLogos(draft)) === incoming
+        ) {
           unsavedRef.current = false;
           setUnsaved(false);
         }
@@ -716,16 +758,23 @@ export default function AdaptWizard() {
       />
       {unreadable !== null && (
         <div class="notice notice-warning" role="alert">
-          <p>{UNREADABLE}</p>
+          <p>{unkept ? UNREADABLE_UNKEPT : UNREADABLE}</p>
           <button
             type="button"
             class="adapt-button"
-            onClick={() =>
+            onClick={() => {
               saveDownload(
                 "adapt-draft-unreadable.json",
                 new TextEncoder().encode(unreadable),
                 "application/json",
-              )}
+              );
+              if (unkeptRef.current) {
+                // The researcher holds the copy now; save the answers.
+                unkeptRef.current = false;
+                setUnkept(false);
+                setAnswers((current) => save(current, null));
+              }
+            }}
           >
             Download the stored draft
           </button>

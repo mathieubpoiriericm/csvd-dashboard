@@ -1076,3 +1076,50 @@ test("a logo outlives a reload under its own key, and Start over clears it", asy
   await page.getByRole("button", { name: "Start over" }).click();
   await expect.poll(() => stored(`${DRAFT_KEY}-logo-light`)).toBeNull();
 });
+
+test("a refused logo write keeps the alert until the logo itself is stored", async ({ page }) => {
+  // Only the logo's own key is refused, as a full quota refuses a megabyte
+  // after the draft has fitted. The next keystroke's save used to skip the
+  // logo -- unchanged since the answers before it -- succeed, and clear the
+  // alert over a logo that a reload then lost.
+  await page.addInitScript((logoKey) => {
+    const setItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (key: string, value: string) {
+      if (
+        key === logoKey &&
+        (globalThis as { refuse?: boolean }).refuse !== false
+      ) {
+        throw new DOMException("The quota is full.", "QuotaExceededError");
+      }
+      return setItem.call(this, key, value);
+    };
+  }, `${DRAFT_KEY}-logo-light`);
+  await page.reload();
+  await waitForHydration(page);
+  const alert = page.getByRole("alert").filter({
+    hasText: "refused to save the draft",
+  });
+  const logo = page.locator('input[data-field="logoLight"]');
+  await openCardOf(logo);
+  await logo.setInputFiles({
+    name: "logo-light.svg",
+    mimeType: "image/svg+xml",
+    buffer: Buffer.from(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"/>',
+    ),
+  });
+  await expect(alert).toBeVisible();
+  await fill(page, "Disease name", "exampleitis");
+  await expect(alert).toBeVisible();
+  await page.evaluate(() => {
+    (globalThis as { refuse?: boolean }).refuse = false;
+  });
+  await fill(page, "Short form", "EXD");
+  await expect(alert).toHaveCount(0);
+  expect(
+    await page.evaluate(
+      (key) => localStorage.getItem(key),
+      `${DRAFT_KEY}-logo-light`,
+    ),
+  ).toContain("logo-light.svg");
+});

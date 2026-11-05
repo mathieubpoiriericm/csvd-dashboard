@@ -47,6 +47,19 @@ Three things about that registry are load-bearing:
   one, so "Xq22.1" sorted above chromosome 1. Nothing showed it until the
   365-day run added GLA, the table's first X-linked gene.
 
+**A column's key is `undefined` wherever its cell shows the absent dash.** The
+sentinels are parenthesised, `(` sorts before every letter and `alphanumeric`
+puts a text chunk before a number, so a column keyed on the raw value opened its
+first ascending page on nothing but dashes, and a search for "none found"
+matched rows that say no such thing. Both islands key such columns through
+`presentOrUndefined` (`components/Absent.tsx`) and set
+`defaultColumn: { sortUndefined: "last" }`; `plainCell` renders an `undefined`
+key as the dash. A key is also the text the cell prints wherever the two differ
+-- the status label, the cell types with their spaces -- because it is what the
+search box matches; the one exception, the completion date, is searched as
+printed through `TrialsView`'s own `globalFilterFn`. A new column follows the
+same rule.
+
 Do not add `as any` back to the `useTable` call. It compiles either way, and its
 only effect is to switch off the prerequisite checking above.
 

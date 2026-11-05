@@ -201,6 +201,8 @@ export function SearchStep(
                       <button
                         type="button"
                         class="adapt-button"
+                        // One per phrase: the name says which.
+                        aria-label={`Drop heading for "${m.phrase}"`}
                         onClick={(e) => {
                           // The button goes with the heading; the check
                           // button takes focus rather than the page.
