@@ -32,6 +32,15 @@ const OPPOSITE_SIDE = {
   right: "left",
 } as const;
 
+/**
+ * The arrow's turn for each placement. It is a square with its top and left
+ * borders drawn, so it is that corner that reads as the point: 45deg aims it
+ * up, at a trigger below the panel. The default placement is `top`, where it
+ * must aim down; drawn at 45deg there, the outline sat inside the panel as a
+ * "^" and the part pointing at the trigger had none.
+ */
+const ARROW_ROTATION = { bottom: 45, left: 135, top: 225, right: 315 } as const;
+
 /** `toggle` carries `newState`, which Deno's DOM lib does not model yet. */
 type ToggleLike = Event & { newState?: "open" | "closed" };
 
@@ -218,6 +227,7 @@ export function Tooltip({ content, italic, children }: TooltipProps) {
       tip.style.right = "";
       tip.style.bottom = "";
       tip.style[OPPOSITE_SIDE[side]] = `${-ARROW_SIZE_PX / 2}px`;
+      tip.style.transform = `rotate(${ARROW_ROTATION[side]}deg)`;
 
       // Revealed only once placed, so it never paints at the UA default
       // position for a frame while computePosition resolves.
@@ -232,7 +242,11 @@ export function Tooltip({ content, italic, children }: TooltipProps) {
     };
   }, [open, content]);
 
-  if (!content) return <>{children}</>;
+  // A gene symbol is italic whether or not there is anything to say about
+  // it: the only italics came from the trigger's class, so a symbol with no
+  // lookup record (a curated combined key, say) stood upright beside every
+  // other.
+  if (!content) return italic ? <i>{children}</i> : <>{children}</>;
 
   return (
     <>
