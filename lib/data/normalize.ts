@@ -73,6 +73,7 @@ export function normalizeGeneInfo(value: unknown): GeneInfo | null {
   if (name === null) return null;
   return {
     name,
+    symbol: nullableText(source.symbol) ?? name,
     uid: nullableText(source.uid),
     description: nullableText(source.description),
     otheraliases: nullableText(source.otheraliases),
@@ -86,6 +87,7 @@ export function normalizeProteinInfo(value: unknown): ProteinInfo | null {
   if (gene === null) return null;
   return {
     gene,
+    symbol: nullableText(source.symbol) ?? gene,
     accession: nullableText(source.accession),
     url: nullableText(source.url),
   };

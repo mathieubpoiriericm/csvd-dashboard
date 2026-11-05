@@ -269,25 +269,30 @@ export function Tooltip({ content, italic, children }: TooltipProps) {
   );
 }
 
-/** Detail markup is shared by the deferred popover and server-render tests. */
+/**
+ * Detail markup is shared by the deferred popover and server-render tests.
+ * Rows are keyed by position, not label: a key published as several member
+ * genes repeats its labels ("UID" once per member).
+ */
 export function TooltipDetails({ content }: { content: TooltipContent }) {
   return (
     <span class="tooltip-pop-scroll">
-      {content.rows.map((row) => (
-        <span key={row.label} class="tooltip-row">
+      {content.rows.map((row, index) => (
+        <span key={index} class="tooltip-row">
           <strong>{row.label}</strong> {row.value}
         </span>
       ))}
-      {content.link && (
+      {content.links?.map((link) => (
         <a
+          key={link.href}
           class="tooltip-link-btn"
-          href={content.link.href}
+          href={link.href}
           target="_blank"
           rel="noopener noreferrer"
         >
-          {content.link.label}
+          {link.label}
         </a>
-      )}
+      ))}
     </span>
   );
 }

@@ -54,7 +54,13 @@ export interface Trial {
 
 /** NCBI Gene cache entry. */
 export interface GeneInfo {
+  /** The curated key the row is published under (`Gene.gene`). */
   name: string;
+  /**
+   * The symbol NCBI was asked for. It equals `name` except for an alias key,
+   * which is published as one row per member gene.
+   */
+  symbol: string;
   uid: string | null;
   description: string | null;
   otheraliases: string | null;
@@ -62,7 +68,10 @@ export interface GeneInfo {
 
 /** UniProt cache entry. */
 export interface ProteinInfo {
+  /** The curated key the row is published under (`Gene.gene`). */
   gene: string;
+  /** The symbol UniProt was asked for; see `GeneInfo.symbol`. */
+  symbol: string;
   accession: string | null;
   url: string | null;
 }

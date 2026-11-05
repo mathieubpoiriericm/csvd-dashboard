@@ -34,7 +34,7 @@ function joined(
 /** The two caches the panel resolves against; tests hand in their own. */
 export interface PhenogramLookups {
   omim: ReadonlyMap<string, OmimEntry>;
-  geneInfo: ReadonlyMap<string, GeneInfo>;
+  geneInfo: ReadonlyMap<string, readonly GeneInfo[]>;
 }
 
 /** Complete verbal counterpart to one gene's visual encoding. */
@@ -66,10 +66,19 @@ export function phenogramTooltip(
     },
     { label: "Mendelian randomization", value: gene.mendelianRandomization },
   ];
-  const uid = optionalText(geneInfo.get(gene.gene)?.uid);
+  // One NCBI link per lookup row with a uid: an alias key is published as
+  // one row per member gene, and each link then names its member.
+  const infos = geneInfo.get(gene.gene) ?? [];
+  const several = infos.length > 1;
   return {
     rows,
-    link: ncbiGeneLink(uid),
+    links: infos.flatMap((info) => {
+      const link = ncbiGeneLink(
+        optionalText(info.uid),
+        several ? info.symbol : undefined,
+      );
+      return link ? [link] : [];
+    }),
   };
 }
 
@@ -78,5 +87,6 @@ export function phenotypeTooltip(trait: TraitEncoding): TooltipContent {
   if (trait.definition) {
     rows.push({ label: definitionLabel(), value: trait.definition });
   }
-  return { rows, link: trait.standard ? citationLink() : undefined };
+  const citation = trait.standard ? citationLink() : undefined;
+  return { rows, links: citation ? [citation] : [] };
 }

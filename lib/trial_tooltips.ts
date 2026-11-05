@@ -16,6 +16,6 @@ export function registryTooltip(registryId: string): TooltipContent | null {
 
   return {
     rows: [{ label: "Registry", value: registry.registryLabel }],
-    link: { href: registry.href, label: registry.actionLabel },
+    links: [{ href: registry.href, label: registry.actionLabel }],
   };
 }

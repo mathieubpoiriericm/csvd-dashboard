@@ -42,7 +42,7 @@ import {
  */
 export function geneTooltip(
   geneSymbol: string,
-  lookup: ReadonlyMap<string, GeneInfo> = geneInfoByName,
+  lookup: ReadonlyMap<string, readonly GeneInfo[]> = geneInfoByName,
 ): TooltipContent | null {
   return geneInfoTooltip(lookup.get(geneSymbol));
 }
@@ -50,7 +50,7 @@ export function geneTooltip(
 /** UniProt summary, looked up by the gene symbol rather than the protein name. */
 export function proteinTooltip(
   geneSymbol: string,
-  lookup: ReadonlyMap<string, ProteinInfo> = proteinInfoByGene,
+  lookup: ReadonlyMap<string, readonly ProteinInfo[]> = proteinInfoByGene,
 ): TooltipContent | null {
   return proteinInfoTooltip(lookup.get(geneSymbol));
 }
@@ -187,7 +187,7 @@ export function referenceTooltip(
 
   return {
     rows: referenceRows(reference),
-    link: { href: `${PUBMED_BASE_URL}${id}`, label: "View on PubMed" },
+    links: [{ href: `${PUBMED_BASE_URL}${id}`, label: "View on PubMed" }],
   };
 }
 
