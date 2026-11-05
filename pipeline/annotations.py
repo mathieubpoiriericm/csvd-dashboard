@@ -64,6 +64,22 @@ def lookup_symbols(curated_symbol: str) -> tuple[str, ...]:
     return _LOOKUP_ALIASES.get(curated_symbol, (curated_symbol,))
 
 
+def renamed_symbols() -> dict[str, str]:
+    """Curated keys that stand for exactly one other symbol, mapped to it.
+
+    These are retired names the literature still writes (`C6orf195`, now
+    `LINC01600`): the lookup caches hold the record under the new name, but
+    the record is still the key's own. A key standing for several genes is
+    left out, because no one member's attributes -- its band, say -- are the
+    key's.
+    """
+    return {
+        key: members[0]
+        for key, members in _LOOKUP_ALIASES.items()
+        if len(members) == 1
+    }
+
+
 def expand_lookup_symbols(
     curated_symbols: list[str],
 ) -> tuple[list[str], dict[str, str]]:

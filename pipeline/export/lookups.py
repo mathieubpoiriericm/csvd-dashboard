@@ -1,8 +1,12 @@
 """Cache-table reads for the export, ported from read_external_data.R.
 
-Every lookup returns exactly one row per requested key, in request order —
-the dashboard indexes these by position-independent key, but the four JSON
-files are asserted row-for-row against their request lists.
+Every lookup returns its rows in request order, and every requested key gets
+at least one -- a fallback when the cache has nothing. The citation reader
+returns exactly one per PMID; the NCBI and UniProt readers return one per
+(key, lookup symbol), which is one per key for every gene but an alias key
+(`geneAliases`), published as one row per member gene. The dashboard groups
+those rows by key, so their position carries no meaning, but the JSON files
+are byte-gated, so the order must not move between runs.
 """
 
 import json

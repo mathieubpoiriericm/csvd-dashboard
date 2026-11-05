@@ -97,7 +97,11 @@ resolves to the same NCBI uid and UniProt entry under either name). Unlike
 `gene_annotations`, these rows are **not** filed under the curated key: the
 export publishes one row per member beside it, so the two NCBI records stay
 two. The literal `COL4A1/2` rows already in both caches are inert -- nothing
-asks for them -- and are left in place.
+asks for them -- and are left in place. `fill_missing_chromosomal_locations`
+follows the same map for a key that stands for one renamed symbol
+(`renamed_symbols()`), so a run-inserted `C6orf195`-style row still takes the
+band cached under its new name; a key standing for several genes is never
+filled, because no one member's band is its own.
 
 **`--sync-annotations` is deliberately a separate entry point from
 `--sync-external-data`.** The existing sync feeds the NCBI/UniProt/PubMed caches

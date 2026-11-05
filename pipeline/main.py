@@ -3042,9 +3042,10 @@ def _published_lookup_keys(run_data: PipelineRunData) -> tuple[list[str], list[s
     cache for the PMIDs in `gene_references`, so a paper that attached no
     reference reaches no lookup. The symbols go through
     ``canonical_gene_symbol`` because that is the key the merge stored and
-    therefore the key the export requests -- caching a pair member's own
-    symbol would leave the row published under the shared alias key looking
-    up nothing.
+    therefore the key the export requests: the refresh expands that key to
+    every member symbol it stands for, so a paper naming one pair member
+    still gets its partner's record fetched -- the export publishes a row
+    for each, and a member never fetched would publish as nulls.
 
     A gene the insert floor refused is named here too: the report says what
     the run extracted, not what the merge kept. Caching it costs one lookup

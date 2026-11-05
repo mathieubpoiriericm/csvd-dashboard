@@ -244,7 +244,7 @@ export function Tooltip({ content, italic, children }: TooltipProps) {
 
   // A gene symbol is italic whether or not there is anything to say about
   // it: the only italics came from the trigger's class, so a symbol with no
-  // lookup record (a curated combined key, say) stood upright beside every
+  // lookup record (one NCBI does not know, say) stood upright beside every
   // other.
   if (!content) return italic ? <i>{children}</i> : <>{children}</>;
 

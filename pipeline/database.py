@@ -15,7 +15,7 @@ from typing import Any, ClassVar, Final, cast
 
 import asyncpg
 
-from pipeline.annotations import AnnotationRow
+from pipeline.annotations import AnnotationRow, renamed_symbols
 from pipeline.config import PipelineConfig
 
 logger = logging.getLogger(__name__)
@@ -706,26 +706,38 @@ async def fill_missing_chromosomal_locations() -> int:
     reason this is not a curation write: it fills a gap rather than revising a
     judgement.
 
-    Matching is on `upper(gene)`, the index migration 002 added, because the
-    sync fetched every other symbol under the spelling `genes.gene` holds. An
-    alias key (`geneAliases`) is fetched under its member symbols instead, so
-    its row matches no cache row here; curated alias rows already carry a
-    location, so the empty-only guard excludes them before that matters.
+    Matching is on `upper(gene)`, because the sync fetched every other symbol
+    under the spelling `genes.gene` holds. An alias key (`geneAliases`) is
+    fetched under its member symbols instead. One that stands for a single
+    renamed symbol is matched through it (`renamed_symbols`), since that
+    record is the key's own -- without it a run-inserted row under the old
+    name, which is every row in a fork that starts from empty data, would
+    never be placed. A key standing for several genes matches nothing: no
+    one member's band is the key's, and choosing is a curation call.
 
     Returns:
         The number of rows filled.
     """
+    renamed = renamed_symbols()
     async with Database.connection() as conn:
         result = await conn.execute(
             """
+            WITH renamed AS (
+                SELECT key, member
+                FROM unnest($1::text[], $2::text[]) AS r(key, member)
+            )
             UPDATE genes g
             SET chromosomal_location = n.map_location,
                 updated_at = CURRENT_TIMESTAMP
             FROM ncbi_gene_info n
-            WHERE upper(n.gene_symbol) = upper(g.gene)
+            WHERE upper(n.gene_symbol) = upper(coalesce(
+                    (SELECT r.member FROM renamed r WHERE r.key = g.gene),
+                    g.gene))
               AND coalesce(btrim(g.chromosomal_location), '') = ''
               AND coalesce(btrim(n.map_location), '') <> ''
-            """
+            """,
+            list(renamed),
+            list(renamed.values()),
         )
     # asyncpg returns the tag, e.g. "UPDATE 16".
     return int(result.split()[-1]) if result else 0
