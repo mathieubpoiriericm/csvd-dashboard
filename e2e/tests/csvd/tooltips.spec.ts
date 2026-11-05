@@ -361,9 +361,16 @@ test("registry IDs on the trials table carry a registry tooltip", async ({ page 
 });
 
 /** The four single-symbol genetic targets in the curated rows. The table
- * paginates now, so each is searched for rather than counted on page one. */
+ * paginates now, so each is searched for rather than counted on page one,
+ * and over every status: PLG's one trial, Tranexamic acid
+ * (ACTRN12624001477516), has no ClinicalTrials.gov record and starts hidden
+ * under Unknown. */
 test("single-symbol genetic targets get tooltips", async ({ page }) => {
   await page.goto("/trials");
+  await page.getByRole("group", { name: /^Study status/ }).getByRole(
+    "checkbox",
+    { name: /^Show All/ },
+  ).check();
   const search = page.getByRole("searchbox", { name: "Search trials" });
 
   for (const symbol of ["PDE3A", "APP", "GLP1R", "PLG"]) {

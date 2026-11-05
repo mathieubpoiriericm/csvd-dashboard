@@ -9,7 +9,7 @@ import {
 import { banner, pageSizeSelect, rows } from "../helpers.ts";
 
 const TOTAL = TRIAL_TOTAL;
-/** Default-visible rows: every status but Completed. */
+/** Default-visible rows: every status but Completed, Suspended and Unknown. */
 const SHOWN = TRIAL_SHOWN;
 const HAS_ROWS = SHOWN > 0;
 

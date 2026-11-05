@@ -330,15 +330,34 @@ Deno.test("buildFilterSummary prints choice labels, not wire values", () => {
   ]);
 });
 
-Deno.test("status choices derive from the vocabulary and the default hides Completed", () => {
+Deno.test("status choices derive from the vocabulary and the default hides Completed, Suspended and Unknown", () => {
   const values = STATUS_CHOICES.map((c) => c.value);
   assertEquals(values[0], SHOW_ALL);
-  assert(values.includes("COMPLETED") && values.includes("UNKNOWN"));
+  assert(
+    values.includes("COMPLETED") && values.includes("SUSPENDED") &&
+      values.includes("UNKNOWN"),
+  );
   assert(!values.includes("TERMINATED") && !values.includes("WITHDRAWN"));
+  const hidden = new Set([SHOW_ALL, "COMPLETED", "SUSPENDED", "UNKNOWN"]);
   assertEquals(
     DEFAULT_TRIAL_STATUSES,
-    values.filter((v) => v !== SHOW_ALL && v !== "COMPLETED"),
+    values.filter((v) => !hidden.has(v)),
   );
+});
+
+Deno.test("the default trial selection hides completed, suspended and not-stated trials", () => {
+  const rows = [
+    "RECRUITING",
+    "ACTIVE_NOT_RECRUITING",
+    "COMPLETED",
+    "SUSPENDED",
+    "UNKNOWN",
+    UNKNOWN,
+  ].map((overallStatus) => ({ ...sampleTrial(), overallStatus }));
+  assertEquals(visibleTrials(rows).map((r) => r.overallStatus), [
+    "RECRUITING",
+    "ACTIVE_NOT_RECRUITING",
+  ]);
 });
 
 Deno.test("status filtering folds the export sentinel onto the UNKNOWN choice", () => {
@@ -356,7 +375,10 @@ Deno.test("status filtering folds the export sentinel onto the UNKNOWN choice", 
   assertEquals(only(["RECRUITING"]), [" recruiting "]);
   assertEquals(only(["UNKNOWN"]), ["UNKNOWN", UNKNOWN]);
   assertEquals(only([SHOW_ALL]).length, 4);
-  assertEquals(visibleTrials(rows).length, 3);
+  // The default leaves Unknown unticked, so it hides the sentinel with it.
+  assertEquals(visibleTrials(rows).map((r) => r.overallStatus), [
+    " recruiting ",
+  ]);
   assertEquals(defaultTrialFilters().statuses, DEFAULT_TRIAL_STATUSES);
 });
 
@@ -379,9 +401,16 @@ Deno.test("location status filtering treats a null status as not stated", () => 
     1,
   );
   assertEquals(filterLocationsByStatus([site], [SHOW_ALL]).length, 1);
+  // The default hides a site whose status is not stated, as it hides
+  // Suspended and Completed ones.
   assertEquals(
-    filterLocationsByStatus([site], DEFAULT_TRIAL_STATUSES).length,
-    1,
+    filterLocationsByStatus([
+      site,
+      { ...site, status: "SUSPENDED" },
+      { ...site, status: "COMPLETED" },
+      { ...site, status: "RECRUITING" },
+    ], DEFAULT_TRIAL_STATUSES).map((l) => l.status),
+    ["RECRUITING"],
   );
 });
 

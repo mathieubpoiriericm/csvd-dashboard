@@ -25,10 +25,11 @@ test("labels are boxless halos and the evidence ring lifts with its marker", asy
   ) => [...new Set(rects.map((rect) => rect.getAttribute("fill")))]);
   expect(fills).toEqual(["none"]);
 
-  // Cilostazol reaches this cell on more than one trial now; any of them
-  // carries the same evidence ring.
+  // Cilostazol's Stroke phase III cell holds NCT06530537, recruiting and so
+  // visible by default; its phase II marker is ISRCTN14632228, which has no
+  // ClinicalTrials.gov record and starts hidden under Unknown.
   const trial = figure.locator(
-    'g.drug[data-drug="Cilostazol"][data-pop="Stroke"][data-phase="II"]',
+    'g.drug[data-drug="Cilostazol"][data-pop="Stroke"][data-phase="III"]',
   ).first();
   const ring = trial.locator("circle.evidence");
   await expect(ring).toHaveCount(1);

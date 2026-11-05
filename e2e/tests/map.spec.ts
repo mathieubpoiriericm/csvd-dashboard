@@ -254,9 +254,12 @@ async function openAnyMarker(page: import("@playwright/test").Page) {
   // Leaflet keeps a path in the overlay pane for markers it has not laid out
   // yet, drawn as `d="M0 0"`. With many facility sites visible one of those is
   // often first in document order, so the visible ones are what this drills
-  // for.
+  // for. The overlay pane also holds markercluster's coverage polygon, drawn
+  // while the pointer rests on a cluster -- after a cluster click it often
+  // does -- and clicking that polygon lands on the cluster badge above it.
+  // Only a site marker carries `role="button"`.
   const marker = page.locator(
-    ".leaflet-overlay-pane path.leaflet-interactive:visible",
+    '.leaflet-overlay-pane path.leaflet-interactive[role="button"]:visible',
   );
   const cluster = page.locator(".marker-cluster");
   const markerInView = () =>

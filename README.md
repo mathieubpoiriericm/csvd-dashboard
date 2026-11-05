@@ -209,8 +209,10 @@ Filters:
 - Population — the groups `disease/manifest.json` declares, under the column
   label it names
 - Sponsor type (Academic, Industry)
-- Study status — every status but Completed is selected at first, so completed
-  trials start hidden; the radar and the map share this default
+- Study status — every status but Completed, Suspended and Unknown is selected
+  at first, so those trials start hidden; the radar and the map share this
+  default. Unknown also covers a trial with no ClinicalTrials.gov record, so the
+  ISRCTN, ANZCTR and ChiCTR trials start hidden too
 
 ### Trials Radar (`/timeline`)
 

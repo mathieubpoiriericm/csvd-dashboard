@@ -12,8 +12,9 @@ type FilterDefinition = Omit<CheckboxFilterConfig, "selected" | "onChange"> & {
    * The selection the group starts with and returns to on reset. Absent,
    * a binary group starts with both choices and a showAll group with
    * Show All -- both "unconstrained". The trials pages' "Study status" is
-   * the one group that starts constrained (every status but Completed),
-   * and the "Active Filters:" line reports it on first paint on purpose.
+   * the one group that starts constrained (every status but Completed,
+   * Suspended and Unknown), and the "Active Filters:" line reports it on
+   * first paint on purpose.
    */
   initial?: readonly string[];
 };
