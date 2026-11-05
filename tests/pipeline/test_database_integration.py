@@ -883,3 +883,45 @@ async def test_the_ledger_records_the_extraction_model() -> None:
         )
         await conn.execute("DELETE FROM pubmed_refs WHERE pmid = '99000001'")
     assert stored is None
+
+
+async def test_a_cached_ncbi_miss_is_read_back_not_refetched(mocker) -> None:
+    """A symbol NCBI does not know is reported once, not on every refresh.
+
+    The negative row used to be written with a NULL band, and
+    `get_cached_ncbi_genes` withholds a NULL `map_location` as "written
+    before migration 012" -- so the miss was never read back, and every
+    `--sync-external-data` fetched it again and reported "Gene not found"
+    for it again. The second sync below must find it in the cache and ask
+    NCBI nothing.
+    """
+    import httpx
+
+    from pipeline.ncbi_gene_fetch import clear_ncbi_cache, sync_ncbi_gene_info
+
+    client = AsyncMock()
+    client.get = AsyncMock(
+        return_value=httpx.Response(
+            200, json={"esearchresult": {"count": "0", "idlist": []}}
+        )
+    )
+    mocker.patch(
+        "pipeline.ncbi_gene_fetch._client_manager.get", return_value=client
+    )
+    clear_ncbi_cache()
+    try:
+        first = await sync_ncbi_gene_info(["ZZTOPMISS"])
+        clear_ncbi_cache()
+        second = await sync_ncbi_gene_info(["ZZTOPMISS"])
+
+        assert first.failed == 1
+        assert second.cached == 1
+        assert second.failed == 0
+        assert second.errors == []
+        assert client.get.await_count == 1, "the second sync must not ask NCBI"
+    finally:
+        clear_ncbi_cache()
+        async with Database.connection() as conn:
+            await conn.execute(
+                "DELETE FROM ncbi_gene_info WHERE gene_symbol LIKE 'ZZTOP%'"
+            )

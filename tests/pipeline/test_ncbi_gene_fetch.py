@@ -508,6 +508,11 @@ class TestFetchNCBIGeneUncached:
         assert result is not None
         assert result.gene_symbol == "FAKEGENE"
         assert result.ncbi_uid is None
+        # An empty band, not None: NULL is what get_cached_ncbi_genes
+        # withholds as "written before migration 012", so a miss stored
+        # with it was never read back and was fetched -- and reported as
+        # a failure -- on every refresh.
+        assert result.map_location == ""
 
     async def test_non_200_returns_none(self, mocker):
         resp = httpx.Response(500)

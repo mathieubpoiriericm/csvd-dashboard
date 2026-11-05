@@ -137,7 +137,13 @@ async def _fetch_ncbi_gene_uncached(gene_symbol: str) -> NCBIGeneInfo | None:
         data = resp.json()
         if data["esearchresult"]["count"] == "0":
             logger.debug(f"Gene {gene_symbol} not found in NCBI")
-            return NCBIGeneInfo(gene_symbol=gene_symbol)
+            # An empty band, not None. "" is the complete answer "NCBI states
+            # nothing for this symbol"; NULL is what get_cached_ncbi_genes
+            # withholds as "written before migration 012", so a miss stored
+            # with it was never read back and every refresh fetched and
+            # reported it again. Fixed here rather than in the reader so that
+            # NULL keeps meaning one thing only.
+            return NCBIGeneInfo(gene_symbol=gene_symbol, map_location="")
 
         gene_id = await ncbi_http.select_gene_uid(
             client, gene_symbol, data["esearchresult"]["idlist"]

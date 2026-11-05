@@ -118,3 +118,13 @@ a stale row -- NULL means "written before migration 012", an empty string means
 "fetched, NCBI states no band" -- so each row heals exactly once rather than
 re-fetching forever. Any column added to a lookup cache later needs the same
 treatment.
+
+**A "not found" is a complete answer too, so it is written with an empty band.**
+`_fetch_ncbi_gene_uncached` used to build the negative row with
+`map_location=None`, which the rule above withholds like a pre-012 row: the miss
+was never read back, so every refresh fetched it again and reported
+`Gene not found` again -- `COL4A1/2` did so on every `--sync-external-data`. The
+fix is on the write side so that NULL keeps its one meaning, "written before
+migration 012" (which `scripts/restore_from_json.py` also relies on to have its
+restored rows re-fetched); a miss written before the fix is fetched once more
+and rewritten with the empty band.
