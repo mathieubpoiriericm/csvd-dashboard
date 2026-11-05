@@ -48,12 +48,40 @@ def quote_identifier(name: str) -> str:
     return '"' + name.replace('"', '""') + '"'
 
 
+def _drop(
+    settings: dict[str, str],
+    name: str,
+    *,
+    admin: Callable[..., None],
+    in_use: type[BaseException],
+) -> None:
+    """Drop database `name`, with FORCE only when a session is still on it.
+
+    A plain DROP DATABASE stops an autovacuum worker on the database itself.
+    WITH (FORCE) terminates every session instead, and terminating an
+    autovacuum worker -- which carries no role -- needs superuser or
+    `pg_signal_backend`: the mini PC's `csvd_ci` role, CREATEDB and no more,
+    has neither, so autovacuum visiting a leftover worker database failed a
+    job's setup with "permission denied to terminate process" (runner-11,
+    2026-11-05; reproduced on PostgreSQL 18.6). FORCE stays the fallback for a
+    session of our own role that a crashed run left connected, which a plain
+    DROP refuses as "being accessed by other users" -- `in_use` is the
+    driver's exception for that.
+    """
+    plain = f"DROP DATABASE IF EXISTS {name}"
+    try:
+        admin(settings, plain)
+    except in_use:
+        admin(settings, f"{plain} WITH (FORCE)")
+
+
 def session_database(
     settings: dict[str, str],
     worker: str | None,
     *,
     admin: Callable[..., None],
     upgrade: Callable[[dict[str, str]], None],
+    in_use: type[BaseException],
 ) -> Iterator[dict[str, str]]:
     """The database one pytest session uses on the server `settings` names.
 
@@ -61,7 +89,9 @@ def session_database(
     dropped. Under xdist it is the worker's own: dropped first (a crashed
     run's leftover), created, migrated, yielded, and dropped again even when
     the migration fails. `admin(settings, *statements)` runs statements
-    connected to the base database; `upgrade(settings)` migrates to head.
+    connected to the base database; `upgrade(settings)` migrates to head;
+    `in_use` is the exception `admin` raises when a DROP finds the database
+    still in use (see `_drop`).
     """
     if worker is None:
         upgrade(settings)
@@ -72,13 +102,13 @@ def session_database(
         "DB_NAME": worker_database_name(settings["DB_NAME"], worker),
     }
     name = quote_identifier(worker_settings["DB_NAME"])
-    drop = f"DROP DATABASE IF EXISTS {name} WITH (FORCE)"
-    admin(settings, drop, f"CREATE DATABASE {name}")
+    _drop(settings, name, admin=admin, in_use=in_use)
+    admin(settings, f"CREATE DATABASE {name}")
     try:
         upgrade(worker_settings)
         yield worker_settings
     finally:
-        admin(settings, drop)
+        _drop(settings, name, admin=admin, in_use=in_use)
 
 
 def container_name(base: str, worker: str | None) -> str:
