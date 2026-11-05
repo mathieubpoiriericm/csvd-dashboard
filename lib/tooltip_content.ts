@@ -65,7 +65,7 @@ export function ncbiGeneLink(
 }
 
 /** Present values only, so an absent link is not a list entry. */
-function present<T>(values: readonly (T | undefined)[]): T[] {
+export function present<T>(values: readonly (T | undefined)[]): T[] {
   return values.filter((value): value is T => value !== undefined);
 }
 

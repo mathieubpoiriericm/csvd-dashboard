@@ -683,7 +683,9 @@ Deno.test("phenotypeTooltip carries the long name, the standard's definition and
   assertEquals(content.rows[0], { label: "T1", value: "Trait one" });
   assertEquals(content.rows[1].label, definitionLabel());
   assertEquals(content.rows[1].value, "Signal abnormality of a kind.");
-  assertEquals(content.links, [citationLink()]);
+  // A fork the wizard starts may name no standard, and then has no link.
+  const citation = citationLink();
+  assertEquals(content.links, citation ? [citation] : []);
 
   const plain = { key: "T2", label: "T2", family: "f", name: "Trait two" };
   assertEquals(phenotypeTooltip(plain), {

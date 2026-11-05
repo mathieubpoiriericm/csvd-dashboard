@@ -10,6 +10,7 @@ import type { TraitEncoding } from "./phenogram.ts";
 import {
   ncbiGeneLink,
   optionalText,
+  present,
   type TooltipContent,
   type TooltipRow,
 } from "./tooltip_content.ts";
@@ -87,6 +88,10 @@ export function phenotypeTooltip(trait: TraitEncoding): TooltipContent {
   if (trait.definition) {
     rows.push({ label: definitionLabel(), value: trait.definition });
   }
-  const citation = trait.standard ? citationLink() : undefined;
-  return { rows, links: citation ? [citation] : [] };
+  // `citationLink()` is undefined in a fork that names no standard; `present`
+  // drops it without a branch only one of the two datasets could reach.
+  return {
+    rows,
+    links: present([trait.standard ? citationLink() : undefined]),
+  };
 }
