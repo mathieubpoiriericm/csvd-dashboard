@@ -990,16 +990,10 @@ def throwaway_postgres() -> Iterator[dict[str, str]]:
     worker = os.environ.get("PYTEST_XDIST_WORKER")
     url = os.environ.get(_TEST_DB_URL_VAR)
     if url:
-        import asyncpg
-
         settings = _settings_from_url(url)
         _wait_until_ready(settings)
         yield from xdist_databases.session_database(
-            settings,
-            worker,
-            admin=_run_admin,
-            upgrade=_upgrade_to_head,
-            in_use=asyncpg.exceptions.ObjectInUseError,
+            settings, worker, admin=_run_admin, upgrade=_upgrade_to_head
         )
         return
 

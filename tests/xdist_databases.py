@@ -48,31 +48,32 @@ def quote_identifier(name: str) -> str:
     return '"' + name.replace('"', '""') + '"'
 
 
-def _drop(
-    settings: dict[str, str],
-    name: str,
-    *,
-    admin: Callable[..., None],
-    in_use: type[BaseException],
-) -> None:
-    """Drop database `name`, with FORCE only when a session is still on it.
+def quote_literal(text: str) -> str:
+    """`text` as an SQL string literal, its own single quotes doubled."""
+    return "'" + text.replace("'", "''") + "'"
 
-    A plain DROP DATABASE stops an autovacuum worker on the database itself.
-    WITH (FORCE) terminates every session instead, and terminating an
-    autovacuum worker -- which carries no role -- needs superuser or
+
+def _drop_statements(database: str) -> tuple[str, str]:
+    """End our own sessions on `database`, then drop it -- never WITH (FORCE).
+
+    FORCE terminates every session on the database, and terminating an
+    autovacuum worker, which carries no role, needs superuser or
     `pg_signal_backend`: the mini PC's `csvd_ci` role, CREATEDB and no more,
-    has neither, so autovacuum visiting a leftover worker database failed a
-    job's setup with "permission denied to terminate process" (runner-11,
-    2026-11-05; reproduced on PostgreSQL 18.6). FORCE stays the fallback for a
-    session of our own role that a crashed run left connected, which a plain
-    DROP refuses as "being accessed by other users" -- `in_use` is the
-    driver's exception for that.
+    has neither, so autovacuum on a worker database failed a job with
+    "permission denied to terminate process" (runner-11, 2026-11-05). Our own
+    role's sessions -- the pool a session leaves open until it ends, or a
+    crashed run's -- are terminated explicitly, which a role may always do to
+    itself, and the plain DROP that follows stops an autovacuum worker by
+    itself. A plain DROP tried *first* is no answer: with our own session still
+    connected it waits five seconds, autovacuum takes the freshly written
+    database meanwhile, and any FORCE after it meets that worker.
     """
-    plain = f"DROP DATABASE IF EXISTS {name}"
-    try:
-        admin(settings, plain)
-    except in_use:
-        admin(settings, f"{plain} WITH (FORCE)")
+    terminate = (
+        "SELECT pg_terminate_backend(pid) FROM pg_stat_activity"
+        f" WHERE datname = {quote_literal(database)} AND usename = current_user"
+        " AND pid <> pg_backend_pid()"
+    )
+    return terminate, f"DROP DATABASE IF EXISTS {quote_identifier(database)}"
 
 
 def session_database(
@@ -81,17 +82,15 @@ def session_database(
     *,
     admin: Callable[..., None],
     upgrade: Callable[[dict[str, str]], None],
-    in_use: type[BaseException],
 ) -> Iterator[dict[str, str]]:
     """The database one pytest session uses on the server `settings` names.
 
     Serial, it is that database itself, migrated, and nothing is created or
     dropped. Under xdist it is the worker's own: dropped first (a crashed
     run's leftover), created, migrated, yielded, and dropped again even when
-    the migration fails. `admin(settings, *statements)` runs statements
-    connected to the base database; `upgrade(settings)` migrates to head;
-    `in_use` is the exception `admin` raises when a DROP finds the database
-    still in use (see `_drop`).
+    the migration fails (see `_drop_statements` for how). `admin(settings,
+    *statements)` runs statements connected to the base database;
+    `upgrade(settings)` migrates to head.
     """
     if worker is None:
         upgrade(settings)
@@ -101,14 +100,14 @@ def session_database(
         **settings,
         "DB_NAME": worker_database_name(settings["DB_NAME"], worker),
     }
+    drop = _drop_statements(worker_settings["DB_NAME"])
     name = quote_identifier(worker_settings["DB_NAME"])
-    _drop(settings, name, admin=admin, in_use=in_use)
-    admin(settings, f"CREATE DATABASE {name}")
+    admin(settings, *drop, f"CREATE DATABASE {name}")
     try:
         upgrade(worker_settings)
         yield worker_settings
     finally:
-        _drop(settings, name, admin=admin, in_use=in_use)
+        admin(settings, *drop)
 
 
 def container_name(base: str, worker: str | None) -> str:
