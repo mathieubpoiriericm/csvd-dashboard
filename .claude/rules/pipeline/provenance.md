@@ -6,6 +6,7 @@ paths:
   - "tests/pipeline/test_citations.py"
   - "tests/pipeline/test_config.py"
   - "tests/pipeline/csvd/test_extraction_golden.py"
+  - "tests/pipeline/test_anthropic_client.py"
 ---
 
 # Provenance

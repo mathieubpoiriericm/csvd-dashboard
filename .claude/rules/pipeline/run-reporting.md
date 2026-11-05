@@ -16,6 +16,12 @@ paths:
   - "tests/pipeline/test_run_errors.py"
   - "tests/pipeline/test_run_accounting.py"
   - "tests/pipeline/export/test_read_pipeline_run.py"
+  - "tests/pipeline/test_citations.py"
+  - "tests/pipeline/export/test_lookups.py"
+  - "tests/pipeline/test_main.py"
+  - "tests/pipeline/test_main_orchestration.py"
+  - "tests/pipeline/test_pdf_retrieval.py"
+  - "tests/pipeline/test_validation.py"
 ---
 
 # Run reporting

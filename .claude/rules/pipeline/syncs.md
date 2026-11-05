@@ -12,6 +12,11 @@ paths:
   - "tests/pipeline/test_annotations.py"
   - "tests/pipeline/test_ncbi_gene_fetch.py"
   - "tests/pipeline/export/test_read_sync_runs.py"
+  - "tests/pipeline/test_cache_utils.py"
+  - "tests/pipeline/test_database.py"
+  - "tests/pipeline/test_database_integration.py"
+  - "tests/pipeline/test_main.py"
+  - "tests/pipeline/test_main_orchestration.py"
 ---
 
 # Reference-data refreshes

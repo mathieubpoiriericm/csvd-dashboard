@@ -7,6 +7,8 @@ paths:
   - "tests/pipeline/test_checkpoint.py"
   - "tests/pipeline/test_config.py"
   - "tests/scripts/test_backfill_pubmed.py"
+  - "tests/pipeline/test_main.py"
+  - "tests/pipeline/test_main_orchestration.py"
 ---
 
 # Long windows

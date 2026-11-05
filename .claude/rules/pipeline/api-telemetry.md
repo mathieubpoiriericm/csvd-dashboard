@@ -9,6 +9,8 @@ paths:
   - "tests/pipeline/test_api_inventory_wiring.py"
   - "tests/pipeline/test_http_client.py"
   - "tests/pipeline/test_anthropic_client.py"
+  - "tests/pipeline/export/test_geocode.py"
+  - "tests/pipeline/test_notifications.py"
 ---
 
 # API telemetry

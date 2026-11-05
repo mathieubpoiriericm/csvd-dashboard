@@ -7,6 +7,9 @@ paths:
   - "tests/pipeline/conftest.py"
   - "tests/pipeline/test_pdf_parse.py"
   - "tests/pipeline/test_pdf_retrieval.py"
+  - "tests/pipeline/test_config.py"
+  - "tests/pipeline/test_main.py"
+  - "tests/pipeline/test_main_orchestration.py"
 ---
 
 # PDF fallback

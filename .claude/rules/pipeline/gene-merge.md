@@ -8,6 +8,9 @@ paths:
   - "tests/pipeline/test_database_integration.py"
   - "tests/pipeline/test_data_merger.py"
   - "tests/pipeline/export/test_tables.py"
+  - "tests/pipeline/csvd/test_csvd_data_merger.py"
+  - "tests/pipeline/test_reset_to_baseline_integration.py"
+  - "tests/scripts/test_reset_to_baseline.py"
 ---
 
 # Gene merge: the `source_quote` and `confidence` columns, and placeholders

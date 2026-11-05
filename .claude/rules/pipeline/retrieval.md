@@ -11,6 +11,7 @@ paths:
   - "tests/pipeline/test_pubmed_search.py"
   - "tests/pipeline/csvd/test_query_recall.py"
   - "tests/scripts/test_measure_recall.py"
+  - "tests/pipeline/test_pdf_retrieval.py"
 ---
 
 # Retrieval

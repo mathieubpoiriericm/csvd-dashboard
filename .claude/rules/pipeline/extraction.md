@@ -14,6 +14,7 @@ paths:
   - "tests/pipeline/test_extraction_models.py"
   - "tests/pipeline/csvd/test_csvd_prompt_assembly.py"
   - "tests/pipeline/csvd/test_csvd_prompts.py"
+  - "tests/pipeline/csvd/test_csvd_extraction_models.py"
 ---
 
 # Extraction

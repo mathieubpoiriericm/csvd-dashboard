@@ -3,9 +3,13 @@ paths:
   - "pipeline/data_merger.py"
   - "pipeline/config.py"
   - "pipeline/llm_extraction.py"
+  - "disease/pipeline.json"
   - "tests/pipeline/test_data_merger.py"
   - "tests/pipeline/csvd/test_extraction_golden.py"
   - "tests/pipeline/csvd/test_query_recall.py"
+  - "tests/pipeline/test_config.py"
+  - "tests/pipeline/csvd/test_csvd_data_merger.py"
+  - "tests/pipeline/test_llm_extraction.py"
 ---
 
 # What is not proven

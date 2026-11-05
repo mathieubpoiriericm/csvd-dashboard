@@ -5,7 +5,9 @@ paths:
   - "pipeline/database.py"
   - "pipeline/data_merger.py"
   - "scripts/backfill_gene_lists.py"
+  - "pipeline/export/text.py"
   - "tests/pipeline/export/test_export_main.py"
+  - "tests/pipeline/export/test_text.py"
 ---
 
 # Gene lists

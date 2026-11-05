@@ -8,6 +8,10 @@ paths:
   - "pipeline/pdf_retrieval.py"
   - "tests/pipeline/test_ncbi_http.py"
   - "tests/pipeline/test_clinvar_fetch.py"
+  - "tests/pipeline/test_ncbi_gene_fetch.py"
+  - "tests/pipeline/test_pdf_retrieval.py"
+  - "tests/pipeline/test_pubmed_citations.py"
+  - "tests/pipeline/test_validation.py"
 ---
 
 # NCBI request pacing

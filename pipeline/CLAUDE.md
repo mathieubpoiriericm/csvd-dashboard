@@ -13,7 +13,7 @@ when a task spans topics or touches a module none of them names.
 | `extraction`      | pinned model and prompt version, thinking and effort, the trait enum, overload and `httpx2` retries, the effort sweep, the v7 template |
 | `fallback`        | refusals and their classifier, the Opus 4.8 fallback and its cost accounting, keeping the batch path in step                           |
 | `provenance`      | the two quote checks, why the tool is not `strict`, the verbatim gate, the reasoning trace                                             |
-| `run-reporting`   | the two reports, per-step warnings, failed runs, the accounting decisions, quote counts                                                |
+| `run-reporting`   | the two reports, per-step warnings, error classification, failed runs, the accounting decisions, quote counts                          |
 | `syncs`           | refresh records, `--sync-annotations` as its own mode, the band cache                                                                  |
 | `ncbi-rate`       | spacing E-utilities requests, counting retries                                                                                         |
 | `api-telemetry`   | the service list and what stays out of it                                                                                              |

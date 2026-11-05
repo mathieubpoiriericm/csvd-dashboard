@@ -83,8 +83,9 @@ If upstream added an Alembic migration, run
 before the next `deno task data`; the export reads the new column names. If
 upstream changed the extraction prompt template, the fork's
 `recall_baseline.json` is unaffected (it hashes the query, not the prompt),
-but any extraction cassette the fork recorded is stale;
-`tests/pipeline/CLAUDE.md` says how the golden suite is re-recorded.
+but any extraction cassette the fork recorded is stale; the module docstring of
+upstream's `tests/pipeline/csvd/test_extraction_golden.py` says how the golden
+suite is re-recorded.
 
 Commit the merge with the gates green, and say in the message which of the
 locations above needed a hand.

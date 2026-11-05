@@ -3,11 +3,13 @@ paths:
   - "pipeline/clinical_trials_fetch.py"
   - "pipeline/config.py"
   - "pipeline/database.py"
+  - "disease/pipeline.json"
   - "tests/pipeline/test_clinical_trials_fetch.py"
   - "tests/pipeline/test_config.py"
   - "tests/pipeline/test_database.py"
   - "tests/pipeline/test_clinical_trials_pipeline.py"
   - "tests/pipeline/csvd/test_csvd_clinical_trials_fetch.py"
+  - "tests/pipeline/test_database_integration.py"
 ---
 
 # ClinicalTrials.gov
