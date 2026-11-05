@@ -20,19 +20,63 @@ Deno.test("gene lookup indexes discard malformed rows and normalize safe rows", 
       otheraliases: " ",
     },
   ];
-  const expected: [string, GeneInfo][] = [[
+  const expected: [string, GeneInfo[]][] = [[
     "NOTCH3",
-    {
+    [{
       name: "NOTCH3",
+      symbol: "NOTCH3",
       uid: "4854",
       description: null,
       otheraliases: null,
-    },
+    }],
   ]];
 
   assertEquals([...indexGeneInfoByName(rows)], expected);
   assertEquals([...indexTrialGeneInfoByName(rows)], expected);
   assertEquals([...indexGeneInfoByName({ name: "NOTCH3" })], []);
+});
+
+/**
+ * An alias key is published as one lookup row per member gene, so a key
+ * maps to every row it has, in file order. A file written before `symbol`
+ * existed, or one carrying a blank symbol, still indexes: the symbol falls
+ * back to the key, which is what it was then.
+ */
+Deno.test("gene lookup rows group under their key and default the symbol to it", () => {
+  const index = indexGeneInfoByName([
+    { name: "PAIR", symbol: " GENEA ", uid: "1" },
+    { name: "PAIR", symbol: "GENEB", uid: "2" },
+    { name: "OLD", uid: "3" },
+    { name: "BLANK", symbol: "  ", uid: "4" },
+  ]);
+  assertEquals(index.get("PAIR")!.map((row) => row.symbol), [
+    "GENEA",
+    "GENEB",
+  ]);
+  assertEquals(index.get("OLD")!.map((row) => row.symbol), ["OLD"]);
+  assertEquals(index.get("BLANK")!.map((row) => row.symbol), ["BLANK"]);
+  assertEquals(
+    indexTrialGeneInfoByName([
+      { name: "PAIR", symbol: "GENEA" },
+      { name: "PAIR", symbol: "GENEB" },
+    ]).get("PAIR")!.length,
+    2,
+  );
+});
+
+Deno.test("protein lookup rows group under their gene and default the symbol to it", () => {
+  const index = indexProteinInfoByGene([
+    { gene: "PAIR", symbol: "GENEA", accession: "P1" },
+    { gene: "PAIR", symbol: "GENEB", accession: "P2" },
+    { gene: "OLD", accession: "P3" },
+    { gene: "BLANK", symbol: " ", accession: "P4" },
+  ]);
+  assertEquals(index.get("PAIR")!.map((row) => row.symbol), [
+    "GENEA",
+    "GENEB",
+  ]);
+  assertEquals(index.get("OLD")!.map((row) => row.symbol), ["OLD"]);
+  assertEquals(index.get("BLANK")!.map((row) => row.symbol), ["BLANK"]);
 });
 
 Deno.test("protein lookup rejects unusable keys without touching optional fields", () => {
@@ -45,11 +89,12 @@ Deno.test("protein lookup rejects unusable keys without touching optional fields
     ])],
     [[
       "COL4A1",
-      {
+      [{
         gene: "COL4A1",
+        symbol: "COL4A1",
         accession: "P02462",
         url: null,
-      },
+      }],
     ]],
   );
   assertEquals([...indexProteinInfoByGene(null)], []);

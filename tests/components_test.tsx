@@ -421,7 +421,7 @@ Deno.test("Tooltip renders plain children or a stable deferred popover shell", (
       italic
       content={{
         rows: [{ label: "Field", value: "Value" }],
-        link: { href: "https://example.com", label: "Open record" },
+        links: [{ href: "https://example.com", label: "Open record" }],
       }}
     >
       Trigger
@@ -617,7 +617,10 @@ Deno.test("tooltip details preserve rows and secure external links when opened",
     <TooltipDetails
       content={{
         rows: [{ label: "Gene", value: "COL4A1" }],
-        link: { label: "NCBI", href: "https://www.ncbi.nlm.nih.gov/gene/1282" },
+        links: [{
+          label: "NCBI",
+          href: "https://www.ncbi.nlm.nih.gov/gene/1282",
+        }],
       }}
     />,
   );
@@ -631,4 +634,35 @@ Deno.test("tooltip details preserve rows and secure external links when opened",
   );
   assertStringIncludes(rowsOnly, "<strong>Only</strong>");
   assertNotMatch(rowsOnly, /<a[ >]/);
+});
+
+/**
+ * A key published as several member genes repeats its labels -- one "UID"
+ * per member -- so a row cannot be keyed by its label, and every member's
+ * link is its own button.
+ */
+Deno.test("tooltip details render repeated labels and every link", () => {
+  const markup = render(
+    <TooltipDetails
+      content={{
+        rows: [
+          { label: "Gene", value: "GENEA" },
+          { label: "UID", value: "101" },
+          { label: "Gene", value: "GENEB" },
+          { label: "UID", value: "202" },
+        ],
+        links: [
+          { label: "View GENEA", href: "https://example.org/101" },
+          { label: "View GENEB", href: "https://example.org/202" },
+        ],
+      }}
+    />,
+  );
+  for (const text of ["GENEA", "101", "GENEB", "202"]) {
+    assertStringIncludes(markup, text);
+  }
+  assertEquals(markup.match(/<strong>UID<\/strong>/g)?.length, 2);
+  assertEquals(markup.match(/class="tooltip-link-btn"/g)?.length, 2);
+  assertStringIncludes(markup, "https://example.org/101");
+  assertStringIncludes(markup, "https://example.org/202");
 });

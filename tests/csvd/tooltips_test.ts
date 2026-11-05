@@ -17,6 +17,7 @@ import {
 } from "../../lib/phenogram_tooltips.ts";
 import {
   cellTypeTooltip,
+  geneTooltip,
   omimTooltip,
   proteinTooltip,
   referenceTooltip,
@@ -42,10 +43,10 @@ Deno.test("referenceTooltip builds its rows from the discrete fields", () => {
       { label: "Year", value: "2023" },
       { label: "DOI", value: "10.1212/NXG.0000000000200069" },
     ],
-    link: {
+    links: [{
       href: "https://pubmed.ncbi.nlm.nih.gov/37063705",
       label: "View on PubMed",
-    },
+    }],
   });
 });
 
@@ -53,11 +54,37 @@ Deno.test("a trial's genetic target resolves to its NCBI record", () => {
   assertEquals(trialGeneTooltip("FGA")?.rows.length, 3);
 });
 
+/**
+ * COL4A1/2 is the curators' label for the collagen IV pair, which no NCBI or
+ * UniProt record carries. Both lookups now name each gene with its own record,
+ * where they used to publish nothing for the row at all.
+ */
+Deno.test("COL4A1/2's tooltips name both collagen genes", () => {
+  assertEquals(geneTooltip("COL4A1/2")?.links, [
+    {
+      href: "https://www.ncbi.nlm.nih.gov/gene/1282",
+      label: "View COL4A1 on NCBI Gene",
+    },
+    {
+      href: "https://www.ncbi.nlm.nih.gov/gene/1284",
+      label: "View COL4A2 on NCBI Gene",
+    },
+  ]);
+  assertEquals(
+    proteinTooltip("COL4A1/2")?.rows.map((row) => row.value),
+    ["COL4A1", "P02462", "COL4A2", "P08572"],
+  );
+  assertEquals(
+    phenogramTooltip(gene("COL4A1/2")).links?.map((link) => link.label),
+    ["View COL4A1 on NCBI Gene", "View COL4A2 on NCBI Gene"],
+  );
+});
+
 Deno.test("protein and OMIM tooltips return the committed records", () => {
-  assertEquals(proteinTooltip("LAMB1")?.link, {
+  assertEquals(proteinTooltip("LAMB1")?.links, [{
     href: "https://www.uniprot.org/uniprotkb/P07942/entry",
     label: "View on UniProt",
-  });
+  }]);
   assertEquals(omimTooltip(" 617168 ")?.rows, [
     { label: "Phenotype", value: "Aortic aneurysm, familial thoracic 10" },
     { label: "Inheritance", value: "AD" },
@@ -78,10 +105,10 @@ Deno.test("phenogramTooltip names the location, the evidence and the NCBI link",
       },
       { label: "Mendelian randomization", value: "No" },
     ],
-    link: {
+    links: [{
       href: "https://www.ncbi.nlm.nih.gov/gene/3716",
       label: "View on NCBI Gene",
-    },
+    }],
   });
 });
 
@@ -94,7 +121,10 @@ Deno.test("phenogramTooltip says None found rather than the sentinel, and uses d
     "None found",
     "No",
   ]);
-  assertEquals(lamb1.link?.href, "https://www.ncbi.nlm.nih.gov/gene/3912");
+  assertEquals(
+    lamb1.links?.[0]?.href,
+    "https://www.ncbi.nlm.nih.gov/gene/3912",
+  );
 
   const cenpf = phenogramTooltip(gene("CENPF"));
   assertEquals(cenpf.rows[1].value, "WM-PVS; HIP-PVS; PSMD");
@@ -110,10 +140,10 @@ Deno.test("phenotypeTooltip carries the long name, the STRIVE-2 definition and i
   });
   assertEquals(content.rows[1].label, "STRIVE-2 definition");
   assertEquals(content.rows[1].value.startsWith("Signal abnormality"), true);
-  assertEquals(content.link, {
+  assertEquals(content.links, [{
     href: "https://doi.org/10.1016/S1474-4422(23)00131-X",
     label: "View STRIVE-2 (Lancet Neurol 2023)",
-  });
+  }]);
 
   const psmd = encoding.traits.find((t) => t.key === "PSMD")!;
   assertEquals(phenotypeTooltip(psmd), {
@@ -121,7 +151,7 @@ Deno.test("phenotypeTooltip carries the long name, the STRIVE-2 definition and i
       label: "PSMD",
       value: "Peak width of skeletonized mean diffusivity",
     }],
-    link: undefined,
+    links: [],
   });
 });
 

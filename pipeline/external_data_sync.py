@@ -9,6 +9,7 @@ import logging
 import re
 from dataclasses import dataclass, field
 
+from pipeline.annotations import expand_lookup_symbols
 from pipeline.clinvar_fetch import (
     clear_clinvar_cache,
     close_clinvar_client,
@@ -182,7 +183,17 @@ async def _sync_lookup_caches(
 
     Shared by the scheduled whole-database sync and the per-run refresh, so
     the two cannot drift on which source is asked for what.
+
+    The keys arrive as `genes.gene` holds them, and an alias key
+    (`geneAliases` in disease/pipeline.json) is a curator's label rather
+    than a symbol either source knows: sent literally it came back "Gene not
+    found" on every refresh and published no record. Each is asked for by
+    its member symbols instead, the fan-out `--sync-annotations` already
+    makes, and the caches are keyed by the symbol actually queried.
     """
+    ncbi_genes = expand_lookup_symbols(ncbi_genes)[0]
+    uniprot_genes = expand_lookup_symbols(uniprot_genes)[0]
+
     logger.info("Syncing NCBI gene info...")
     ncbi_result = await sync_ncbi_gene_info(ncbi_genes, config=config)
     result.ncbi_fetched = ncbi_result.fetched

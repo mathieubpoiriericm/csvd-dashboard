@@ -393,25 +393,34 @@ def build_plan(data_dir: Path, logs_dir: Path) -> RestorePlan:
 
     # A complete_lookup fallback is the export saying the cache had nothing;
     # storing one would make the cache claim an answer it never fetched.
+    #
+    # The cache is keyed by the symbol the sync queried, which the export
+    # publishes as `symbol` beside the curated key -- they differ for an
+    # alias key, whose members are one row each. A file written before
+    # `symbol` existed falls back to the key, which is what it was then. One
+    # symbol can be published under two keys, so both caches keep its first.
     ncbi: dict[str, tuple[str, str | None, str | None, str | None]] = {}
     for name in ("gene_info.json", "gene_info_table2.json"):
         for row in read(name):
             if (row["uid"], row["description"], row["otheraliases"]) == (None,) * 3:
                 continue
+            symbol = row.get("symbol") or row["name"]
             ncbi.setdefault(
-                row["name"],
-                (row["name"], row["uid"], row["description"], row["otheraliases"]),
+                symbol,
+                (symbol, row["uid"], row["description"], row["otheraliases"]),
             )
+    uniprot: dict[str, tuple[str, str | None, str | None]] = {}
+    for row in read("protein_info.json"):
+        if (row["accession"], row["url"]) == (None, None):
+            continue
+        symbol = row.get("symbol") or row["gene"]
+        uniprot.setdefault(symbol, (symbol, row["accession"], row["url"]))
 
     return RestorePlan(
         genes=genes,
         trials=trials,
         ncbi=list(ncbi.values()),
-        uniprot=[
-            (row["gene"], row["accession"], row["url"])
-            for row in read("protein_info.json")
-            if (row["accession"], row["url"]) != (None, None)
-        ],
+        uniprot=list(uniprot.values()),
         citations=[
             (
                 row["pmid"],

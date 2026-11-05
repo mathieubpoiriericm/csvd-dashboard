@@ -32,7 +32,13 @@ logger = logging.getLogger(__name__)
 #
 # So a lookup fans out to the real symbols and the rows come back filed under
 # the curated key, which is the key `genes.gene` holds and therefore the key
-# the export asks for. This is the same correspondence
+# the export asks for. The NCBI Gene and UniProt refresh
+# (`external_data_sync._sync_lookup_caches`) and the export's lookup files
+# (`export.lookups`) fan out through the same function, with one
+# difference: those caches are keyed by the symbol queried, and the export
+# publishes one row per member beside its curated key, so the pair's two
+# NCBI records and two accessions stay distinguishable. This is the same
+# correspondence
 # `data_merger._CANONICAL_GENE_SYMBOLS` applies in the other direction when a
 # run extracts one of the pair's own member symbols;
 # `tests/pipeline/test_annotations.py` reconciles the two so neither can gain
@@ -56,6 +62,22 @@ def lookup_symbols(curated_symbol: str) -> tuple[str, ...]:
     returned unchanged, so every caller can fan out unconditionally.
     """
     return _LOOKUP_ALIASES.get(curated_symbol, (curated_symbol,))
+
+
+def renamed_symbols() -> dict[str, str]:
+    """Curated keys that stand for exactly one other symbol, mapped to it.
+
+    These are retired names the literature still writes (`C6orf195`, now
+    `LINC01600`): the lookup caches hold the record under the new name, but
+    the record is still the key's own. A key standing for several genes is
+    left out, because no one member's attributes -- its band, say -- are the
+    key's.
+    """
+    return {
+        key: members[0]
+        for key, members in _LOOKUP_ALIASES.items()
+        if len(members) == 1
+    }
 
 
 def expand_lookup_symbols(

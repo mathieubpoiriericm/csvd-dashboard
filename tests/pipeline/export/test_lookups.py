@@ -118,7 +118,7 @@ class TestReadNcbiGeneInfo:
         mock_conn.fetch = AsyncMock(
             return_value=[
                 {
-                    "name": "LAMB1",
+                    "symbol": "LAMB1",
                     "uid": 3912,
                     "description": "laminin subunit beta 1",
                     "otheraliases": "CLM, LIS5",
@@ -132,6 +132,7 @@ class TestReadNcbiGeneInfo:
         assert out == [
             {
                 "name": "LAMB1",
+                "symbol": "LAMB1",
                 "uid": "3912",
                 "description": "laminin subunit beta 1",
                 "otheraliases": "CLM, LIS5",
@@ -150,7 +151,13 @@ class TestReadNcbiGeneInfo:
         out = await read_ncbi_gene_info(["MISSING"])
 
         assert out == [
-            {"name": "MISSING", "uid": None, "description": None, "otheraliases": None}
+            {
+                "name": "MISSING",
+                "symbol": "MISSING",
+                "uid": None,
+                "description": None,
+                "otheraliases": None,
+            }
         ]
 
     async def test_preserves_request_order_across_hit_and_miss(self, mocker) -> None:
@@ -158,7 +165,7 @@ class TestReadNcbiGeneInfo:
         mock_conn.fetch = AsyncMock(
             return_value=[
                 {
-                    "name": "HTRA1",
+                    "symbol": "HTRA1",
                     "uid": 5654,
                     "description": "d",
                     "otheraliases": "a",
@@ -173,11 +180,69 @@ class TestReadNcbiGeneInfo:
         assert out[0]["uid"] is None
         assert out[1]["uid"] == "5654"
 
+    async def test_an_alias_key_publishes_one_row_per_member(
+        self, mocker, gene_aliases
+    ) -> None:
+        """The cache holds the member genes under their own symbols, and the
+        export publishes each beside the curated key the dashboard looks it
+        up by -- so the two records stay two."""
+        mock_conn = AsyncMock()
+        mock_conn.fetch = AsyncMock(
+            return_value=[
+                {"symbol": "GENEA", "uid": 1, "description": "a", "otheraliases": None},
+                {"symbol": "GENEB", "uid": 2, "description": "b", "otheraliases": "X"},
+            ]
+        )
+        _mock_connection(mocker, mock_conn)
+
+        out = await read_ncbi_gene_info(["GENEA/B"])
+
+        assert out == [
+            {
+                "name": "GENEA/B",
+                "symbol": "GENEA",
+                "uid": "1",
+                "description": "a",
+                "otheraliases": None,
+            },
+            {
+                "name": "GENEA/B",
+                "symbol": "GENEB",
+                "uid": "2",
+                "description": "b",
+                "otheraliases": "X",
+            },
+        ]
+        await_args = mock_conn.fetch.await_args
+        assert await_args is not None
+        assert await_args.args[1] == ["GENEA", "GENEB"]
+
+    async def test_an_uncached_member_gets_its_own_fallback_row(
+        self, mocker, gene_aliases
+    ) -> None:
+        mock_conn = AsyncMock()
+        mock_conn.fetch = AsyncMock(
+            return_value=[
+                {"symbol": "GENEA", "uid": 1, "description": "a", "otheraliases": None},
+            ]
+        )
+        _mock_connection(mocker, mock_conn)
+
+        out = await read_ncbi_gene_info(["GENEA/B"])
+
+        assert out[1] == {
+            "name": "GENEA/B",
+            "symbol": "GENEB",
+            "uid": None,
+            "description": None,
+            "otheraliases": None,
+        }
+
     async def test_integer_uid_is_coerced_to_string(self, mocker) -> None:
         mock_conn = AsyncMock()
         mock_conn.fetch = AsyncMock(
             return_value=[
-                {"name": "X", "uid": 42, "description": None, "otheraliases": None}
+                {"symbol": "X", "uid": 42, "description": None, "otheraliases": None}
             ]
         )
         _mock_connection(mocker, mock_conn)
@@ -191,7 +256,7 @@ class TestReadNcbiGeneInfo:
         mock_conn = AsyncMock()
         mock_conn.fetch = AsyncMock(
             return_value=[
-                {"name": "X", "uid": None, "description": None, "otheraliases": None}
+                {"symbol": "X", "uid": None, "description": None, "otheraliases": None}
             ]
         )
         _mock_connection(mocker, mock_conn)
@@ -211,7 +276,7 @@ class TestReadNcbiGeneInfo:
         mock_conn.fetch = AsyncMock(
             return_value=[
                 {
-                    "name": "LAMB1",
+                    "symbol": "LAMB1",
                     "uid": 3912,
                     "description": "laminin subunit beta 1",
                     "otheraliases": "CLM, LIS5",
@@ -243,7 +308,7 @@ class TestReadUniprotInfo:
         mock_conn.fetch = AsyncMock(
             return_value=[
                 {
-                    "gene": "LAMB1",
+                    "symbol": "LAMB1",
                     "accession": "P07942",
                     "url": "https://www.uniprot.org/uniprotkb/P07942/entry",
                 }
@@ -256,6 +321,7 @@ class TestReadUniprotInfo:
         assert out == [
             {
                 "gene": "LAMB1",
+                "symbol": "LAMB1",
                 "accession": "P07942",
                 "url": "https://www.uniprot.org/uniprotkb/P07942/entry",
             }
@@ -272,7 +338,41 @@ class TestReadUniprotInfo:
 
         out = await read_uniprot_info(["MISSING"])
 
-        assert out == [{"gene": "MISSING", "accession": None, "url": None}]
+        assert out == [
+            {"gene": "MISSING", "symbol": "MISSING", "accession": None, "url": None}
+        ]
+
+    async def test_an_alias_key_publishes_one_row_per_member(
+        self, mocker, gene_aliases
+    ) -> None:
+        mock_conn = AsyncMock()
+        mock_conn.fetch = AsyncMock(
+            return_value=[
+                {"symbol": "GENEA", "accession": "P1", "url": "https://u/P1"},
+                {"symbol": "GENEB", "accession": "P2", "url": "https://u/P2"},
+            ]
+        )
+        _mock_connection(mocker, mock_conn)
+
+        out = await read_uniprot_info(["GENEA/B"])
+
+        assert out == [
+            {
+                "gene": "GENEA/B",
+                "symbol": "GENEA",
+                "accession": "P1",
+                "url": "https://u/P1",
+            },
+            {
+                "gene": "GENEA/B",
+                "symbol": "GENEB",
+                "accession": "P2",
+                "url": "https://u/P2",
+            },
+        ]
+        await_args = mock_conn.fetch.await_args
+        assert await_args is not None
+        assert await_args.args[1] == ["GENEA", "GENEB"]
 
     async def test_key_order_matches_protein_info_json_for_hit_and_fallback(
         self, mocker, committed_rows
@@ -281,7 +381,7 @@ class TestReadUniprotInfo:
         mock_conn.fetch = AsyncMock(
             return_value=[
                 {
-                    "gene": "LAMB1",
+                    "symbol": "LAMB1",
                     "accession": "P07942",
                     "url": "https://www.uniprot.org/uniprotkb/P07942/entry",
                 }

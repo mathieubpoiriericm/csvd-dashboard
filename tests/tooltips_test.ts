@@ -23,7 +23,7 @@ import {
   phenotypeTooltip,
 } from "../lib/phenogram_tooltips.ts";
 import { registryTooltip, trialGeneTooltip } from "../lib/trial_tooltips.ts";
-import type { Reference } from "../lib/types.ts";
+import type { GeneInfo, Reference } from "../lib/types.ts";
 import { geneInfoByName, omimByNumber, referenceByPmid } from "../lib/data.ts";
 import { citationLink, definitionLabel } from "../lib/disease.ts";
 import { encoding } from "../lib/phenogram.ts";
@@ -122,10 +122,10 @@ Deno.test("referenceTooltip builds rows and the PubMed link from a lookup row", 
       { label: "Title", value: "A title" },
       { label: "DOI", value: "10.1/x" },
     ],
-    link: {
+    links: [{
       href: "https://pubmed.ncbi.nlm.nih.gov/12345678",
       label: "View on PubMed",
-    },
+    }],
   });
 });
 
@@ -190,19 +190,19 @@ Deno.test("splitCellTypes preserves directional separators and ignores blanks", 
 
 Deno.test("registry links use resolvable public URL forms", () => {
   assertEquals(
-    registryTooltip("ACTRN12624001477516")?.link,
-    {
+    registryTooltip("ACTRN12624001477516")?.links,
+    [{
       href:
         "https://www.anzctr.org.au/Trial/Registration/TrialReview.aspx?ACTRN=ACTRN12624001477516",
       label: "View on ANZCTR",
-    },
+    }],
   );
   assertEquals(
-    registryTooltip("ChiCTR2500109773")?.link,
-    {
+    registryTooltip("ChiCTR2500109773")?.links,
+    [{
       href: "https://www.chictr.org.cn/searchprojEN.html",
       label: "Search ChiCTR",
-    },
+    }],
   );
   assertEquals(registryTooltip("unsupported-1"), null);
 });
@@ -220,28 +220,41 @@ Deno.test("registry links use resolvable public URL forms", () => {
  */
 Deno.test("a lookup row with no usable field gets no gene tooltip", () => {
   const lookup = new Map([
-    ["GENE1", {
+    ["GENE1", [{
       name: "GENE1",
+      symbol: "GENE1",
       uid: null,
       description: null,
       otheraliases: null,
-    }],
+    }]],
   ]);
   assertEquals(geneTooltip("GENE1", lookup), null);
   // The same rule for the protein cell.
   const proteins = new Map([
-    ["GENE1", { gene: "GENE1", accession: null, url: null }],
+    ["GENE1", [{ gene: "GENE1", symbol: "GENE1", accession: null, url: null }]],
   ]);
   assertEquals(proteinTooltip("GENE1", proteins), null);
 });
 
 Deno.test("a lookup row with any usable field still gets a tooltip", () => {
-  const partial = [
-    { name: "A", uid: "1", description: null, otheraliases: null },
-    { name: "B", uid: null, description: "a description", otheraliases: null },
-    { name: "C", uid: null, description: null, otheraliases: "X, Y" },
+  const partial: GeneInfo[] = [
+    { name: "A", symbol: "A", uid: "1", description: null, otheraliases: null },
+    {
+      name: "B",
+      symbol: "B",
+      uid: null,
+      description: "a description",
+      otheraliases: null,
+    },
+    {
+      name: "C",
+      symbol: "C",
+      uid: null,
+      description: null,
+      otheraliases: "X, Y",
+    },
   ];
-  const lookup = new Map(partial.map((info) => [info.name, info]));
+  const lookup = new Map(partial.map((info) => [info.name, [info]]));
   for (const info of partial) {
     const content = geneTooltip(info.name, lookup);
     assertEquals(content !== null, true, `${info.name} must keep its tooltip`);
@@ -252,59 +265,172 @@ Deno.test("a lookup row with any usable field still gets a tooltip", () => {
 Deno.test("the committed lookup rows follow the same two rules", () => {
   // Vacuous on an empty cache; on the committed one it is the check the two
   // synthetic cases above stand in for.
-  for (const info of geneInfoByName.values()) {
-    const usable = Boolean(info.uid || info.description || info.otheraliases);
-    assertEquals(geneTooltip(info.name) !== null, usable, info.name);
+  for (const [name, infos] of geneInfoByName) {
+    const usable = infos.some((info) =>
+      Boolean(info.uid || info.description || info.otheraliases)
+    );
+    assertEquals(geneTooltip(name) !== null, usable, name);
   }
 });
 
 Deno.test("gene tooltip builders cover missing, partial, trial, and encoded UID records", () => {
   assertEquals(geneInfoTooltip(undefined), null);
+  assertEquals(geneInfoTooltip([]), null);
   assertEquals(
-    geneInfoTooltip({
+    geneInfoTooltip([{
       name: "PARTIAL",
+      symbol: "PARTIAL",
       uid: null,
       description: " Description ",
       otheraliases: null,
-    }),
+    }]),
     {
       rows: [
         { label: "UID", value: "Not available" },
         { label: "Description", value: "Description" },
         { label: "Other Aliases", value: "Not available" },
       ],
-      link: undefined,
+      links: [],
     },
   );
   assertEquals(
-    geneInfoTooltip({
+    geneInfoTooltip([{
       name: "ENCODED",
+      symbol: "ENCODED",
       uid: "id/with space",
       description: null,
       otheraliases: "Alias",
-    })?.link,
-    {
+    }])?.links,
+    [{
       href: "https://www.ncbi.nlm.nih.gov/gene/id%2Fwith%20space",
       label: "View on NCBI Gene",
-    },
+    }],
   );
   assertEquals(geneTooltip("NOSUCHGENE"), null);
   assertEquals(trialGeneTooltip("NOSUCHGENE"), null);
 });
 
+// An alias key is published as one lookup row per member gene, and the
+// tooltip has to say which record belongs to which member.
+const PAIR: GeneInfo[] = [
+  {
+    name: "PAIR",
+    symbol: "GENEA",
+    uid: "1",
+    description: "a",
+    otheraliases: null,
+  },
+  {
+    name: "PAIR",
+    symbol: "GENEB",
+    uid: "2",
+    description: "b",
+    otheraliases: "X",
+  },
+];
+
+Deno.test("a key with several lookup rows shows one block and one link per member", () => {
+  assertEquals(geneInfoTooltip(PAIR), {
+    rows: [
+      { label: "Gene", value: "GENEA" },
+      { label: "UID", value: "1" },
+      { label: "Description", value: "a" },
+      { label: "Other Aliases", value: "Not available" },
+      { label: "Gene", value: "GENEB" },
+      { label: "UID", value: "2" },
+      { label: "Description", value: "b" },
+      { label: "Other Aliases", value: "X" },
+    ],
+    links: [
+      {
+        href: "https://www.ncbi.nlm.nih.gov/gene/1",
+        label: "View GENEA on NCBI Gene",
+      },
+      {
+        href: "https://www.ncbi.nlm.nih.gov/gene/2",
+        label: "View GENEB on NCBI Gene",
+      },
+    ],
+  });
+});
+
+Deno.test("a member with nothing to show is dropped but the survivor keeps its Gene row", () => {
+  const empty = { uid: null, description: null, otheraliases: null };
+  assertEquals(
+    geneInfoTooltip([
+      { name: "PAIR", symbol: "GENEA", ...empty },
+      { name: "PAIR", symbol: "GENEB", ...empty, uid: "2" },
+    ]),
+    {
+      rows: [
+        { label: "Gene", value: "GENEB" },
+        { label: "UID", value: "2" },
+        { label: "Description", value: "Not available" },
+        { label: "Other Aliases", value: "Not available" },
+      ],
+      links: [{
+        href: "https://www.ncbi.nlm.nih.gov/gene/2",
+        label: "View GENEB on NCBI Gene",
+      }],
+    },
+  );
+});
+
+Deno.test("a key whose members all lack content gets no tooltip", () => {
+  const empty = { uid: null, description: null, otheraliases: null };
+  assertEquals(
+    geneInfoTooltip([
+      { name: "PAIR", symbol: "GENEA", ...empty },
+      { name: "PAIR", symbol: "GENEB", ...empty },
+    ]),
+    null,
+  );
+  assertEquals(
+    proteinInfoTooltip([
+      { gene: "PAIR", symbol: "GENEA", accession: null, url: null },
+      { gene: "PAIR", symbol: "GENEB", accession: " ", url: null },
+    ]),
+    null,
+  );
+});
+
+Deno.test("a single row keeps today's output even when its symbol differs from its key", () => {
+  assertEquals(
+    geneInfoTooltip([{
+      name: "OLDSYM",
+      symbol: "NEWSYM",
+      uid: "3",
+      description: "d",
+      otheraliases: null,
+    }]),
+    {
+      rows: [
+        { label: "UID", value: "3" },
+        { label: "Description", value: "d" },
+        { label: "Other Aliases", value: "Not available" },
+      ],
+      links: [{
+        href: "https://www.ncbi.nlm.nih.gov/gene/3",
+        label: "View on NCBI Gene",
+      }],
+    },
+  );
+});
+
 Deno.test("protein and OMIM tooltips return records and reject unknown keys", () => {
   assertEquals(proteinTooltip("NOSUCHGENE"), null);
   const proteins = new Map([
-    ["GENE1", {
+    ["GENE1", [{
       gene: "GENE1",
+      symbol: "GENE1",
       accession: "P00001",
       url: "https://www.uniprot.org/uniprotkb/P00001/entry",
-    }],
+    }]],
   ]);
-  assertEquals(proteinTooltip("GENE1", proteins)?.link, {
+  assertEquals(proteinTooltip("GENE1", proteins)?.links, [{
     href: "https://www.uniprot.org/uniprotkb/P00001/entry",
     label: "View on UniProt",
-  });
+  }]);
   assertEquals(omimTooltip("not-a-number"), null);
   // Every committed OMIM entry resolves, and a number the table lacks does not.
   for (const [number, entry] of omimByNumber) {
@@ -315,19 +441,26 @@ Deno.test("protein and OMIM tooltips return records and reject unknown keys", ()
   }
   assertEquals(omimTooltip("999999999"), null);
 
+  assertEquals(proteinInfoTooltip(undefined), null);
   assertEquals(
-    proteinInfoTooltip({ gene: "EMPTY", accession: " ", url: null }),
+    proteinInfoTooltip([{
+      gene: "EMPTY",
+      symbol: "EMPTY",
+      accession: " ",
+      url: null,
+    }]),
     null,
   );
   assertEquals(
-    proteinInfoTooltip({
+    proteinInfoTooltip([{
       gene: "HTTP",
+      symbol: "HTTP",
       accession: " P1 ",
       url: "http://example.com/P1",
-    }),
+    }]),
     {
       rows: [{ label: "UniProt Accession Number", value: "P1" }],
-      link: undefined,
+      links: [],
     },
   );
   assertEquals(omimEntryTooltip(undefined), null);
@@ -340,8 +473,8 @@ Deno.test("protein and OMIM tooltips return records and reject unknown keys", ()
       inheritance: "AD",
       geneOrLocus: "GENE",
       geneOrLocusMimNumber: "2",
-    })?.link,
-    { href: "https://www.omim.org/entry/1", label: "View on OMIM" },
+    })?.links,
+    [{ href: "https://www.omim.org/entry/1", label: "View on OMIM" }],
   );
   assertEquals(
     omimEntryTooltip({
@@ -359,7 +492,25 @@ Deno.test("protein and OMIM tooltips return records and reject unknown keys", ()
         { label: "Gene or Locus", value: "GENE" },
         { label: "Gene or Locus MIM Number", value: "Not available" },
       ],
-      link: undefined,
+      links: [],
+    },
+  );
+});
+
+Deno.test("a protein key with several rows lists each accession and drops only an unsafe link", () => {
+  assertEquals(
+    proteinInfoTooltip([
+      { gene: "PAIR", symbol: "GENEA", accession: "P1", url: "https://u/P1" },
+      { gene: "PAIR", symbol: "GENEB", accession: "P2", url: "http://u/P2" },
+    ]),
+    {
+      rows: [
+        { label: "Gene", value: "GENEA" },
+        { label: "UniProt Accession Number", value: "P1" },
+        { label: "Gene", value: "GENEB" },
+        { label: "UniProt Accession Number", value: "P2" },
+      ],
+      links: [{ href: "https://u/P1", label: "View GENEA on UniProt" }],
     },
   );
 });
@@ -413,16 +564,58 @@ Deno.test("phenogramTooltip says None found rather than the sentinel", () => {
 });
 
 Deno.test("phenogramTooltip links an NCBI record and omits the link without one", () => {
-  for (const [symbol, info] of geneInfoByName) {
-    if (!info.uid) continue;
+  for (const [name, infos] of geneInfoByName) {
     assertEquals(
-      phenogramTooltip(sampleGene({ gene: symbol })).link?.href,
-      `https://www.ncbi.nlm.nih.gov/gene/${info.uid}`,
+      phenogramTooltip(sampleGene({ gene: name })).links?.map((l) => l.href),
+      infos.filter((info) => info.uid).map((info) =>
+        `https://www.ncbi.nlm.nih.gov/gene/${info.uid}`
+      ),
     );
   }
   assertEquals(
-    phenogramTooltip(sampleGene({ gene: "NOSUCHGENE" })).link,
-    undefined,
+    phenogramTooltip(sampleGene({ gene: "NOSUCHGENE" })).links,
+    [],
+  );
+});
+
+Deno.test("phenogramTooltip links each member's NCBI record", () => {
+  const omim = new Map();
+  assertEquals(
+    phenogramTooltip(sampleGene({ gene: "PAIR" }), {
+      omim,
+      geneInfo: new Map([["PAIR", PAIR]]),
+    }).links,
+    [
+      {
+        href: "https://www.ncbi.nlm.nih.gov/gene/1",
+        label: "View GENEA on NCBI Gene",
+      },
+      {
+        href: "https://www.ncbi.nlm.nih.gov/gene/2",
+        label: "View GENEB on NCBI Gene",
+      },
+    ],
+  );
+  assertEquals(
+    phenogramTooltip(sampleGene({ gene: "PAIR" }), {
+      omim,
+      geneInfo: new Map([["PAIR", PAIR.slice(0, 1)]]),
+    }).links,
+    [{
+      href: "https://www.ncbi.nlm.nih.gov/gene/1",
+      label: "View on NCBI Gene",
+    }],
+  );
+  // A member NCBI gave no uid gets no link, and the others keep their names.
+  assertEquals(
+    phenogramTooltip(sampleGene({ gene: "PAIR" }), {
+      omim,
+      geneInfo: new Map([["PAIR", [PAIR[0], { ...PAIR[1], uid: null }]]]),
+    }).links,
+    [{
+      href: "https://www.ncbi.nlm.nih.gov/gene/1",
+      label: "View GENEA on NCBI Gene",
+    }],
   );
 });
 
@@ -458,17 +651,23 @@ Deno.test("phenogramTooltip resolves against the lookups it is handed", () => {
   ]]);
   const geneInfo = new Map([[
     "GENE1",
-    { name: "GENE1", uid: "42", description: null, otheraliases: null },
+    [{
+      name: "GENE1",
+      symbol: "GENE1",
+      uid: "42",
+      description: null,
+      otheraliases: null,
+    }],
   ]]);
   const content = phenogramTooltip(
     sampleGene({ gene: "GENE1", linkToMonogenicDisease: ["100000", "200000"] }),
     { omim, geneInfo },
   );
   assertEquals(content.rows[3].value, "A phenotype; 200000");
-  assertEquals(content.link, {
+  assertEquals(content.links, [{
     href: "https://www.ncbi.nlm.nih.gov/gene/42",
     label: "View on NCBI Gene",
-  });
+  }]);
 });
 
 Deno.test("phenotypeTooltip carries the long name, the standard's definition and its DOI", () => {
@@ -484,11 +683,13 @@ Deno.test("phenotypeTooltip carries the long name, the standard's definition and
   assertEquals(content.rows[0], { label: "T1", value: "Trait one" });
   assertEquals(content.rows[1].label, definitionLabel());
   assertEquals(content.rows[1].value, "Signal abnormality of a kind.");
-  assertEquals(content.link, citationLink());
+  // A fork the wizard starts may name no standard, and then has no link.
+  const citation = citationLink();
+  assertEquals(content.links, citation ? [citation] : []);
 
   const plain = { key: "T2", label: "T2", family: "f", name: "Trait two" };
   assertEquals(phenotypeTooltip(plain), {
     rows: [{ label: "T2", value: "Trait two" }],
-    link: undefined,
+    links: [],
   });
 });

@@ -883,3 +883,89 @@ async def test_the_ledger_records_the_extraction_model() -> None:
         )
         await conn.execute("DELETE FROM pubmed_refs WHERE pmid = '99000001'")
     assert stored is None
+
+
+async def test_a_renamed_alias_key_takes_its_new_symbols_band(gene_aliases) -> None:
+    """The refresh caches an alias key under its member symbols now, so the
+    band of a key that stands for one renamed symbol is filed under the new
+    name. A run-inserted row under the old key -- every row, in a fork that
+    starts from empty data -- must still be filled from it, or it publishes
+    "(unknown)" and the phenogram never places it.
+
+    A key standing for several genes has no one band of its own; filling it
+    is a curation call, so it is left empty.
+    """
+    from pipeline.database import fill_missing_chromosomal_locations
+
+    async with Database.connection() as conn:
+        await conn.execute(
+            "INSERT INTO genes (gene, chromosomal_location) VALUES "
+            "('OLDSYM', ''), ('GENEA/B', '')"
+        )
+        await conn.execute(
+            "INSERT INTO ncbi_gene_info (gene_symbol, map_location) VALUES "
+            "('NEWSYM', '6p25.2'), ('GENEA', '13q34'), ('GENEB', '13q34')"
+        )
+    try:
+        filled = await fill_missing_chromosomal_locations()
+
+        async with Database.connection() as conn:
+            rows = await conn.fetch(
+                "SELECT gene, chromosomal_location FROM genes "
+                "WHERE gene IN ('OLDSYM', 'GENEA/B')"
+            )
+        got = {r["gene"]: r["chromosomal_location"] for r in rows}
+
+        assert got == {"OLDSYM": "6p25.2", "GENEA/B": ""}
+        assert filled == 1
+    finally:
+        async with Database.connection() as conn:
+            await conn.execute(
+                "DELETE FROM genes WHERE gene IN ('OLDSYM', 'GENEA/B')"
+            )
+            await conn.execute(
+                "DELETE FROM ncbi_gene_info "
+                "WHERE gene_symbol IN ('NEWSYM', 'GENEA', 'GENEB')"
+            )
+
+
+async def test_a_cached_ncbi_miss_is_read_back_not_refetched(mocker) -> None:
+    """A symbol NCBI does not know is reported once, not on every refresh.
+
+    The negative row used to be written with a NULL band, and
+    `get_cached_ncbi_genes` withholds a NULL `map_location` as "written
+    before migration 012" -- so the miss was never read back, and every
+    `--sync-external-data` fetched it again and reported "Gene not found"
+    for it again. The second sync below must find it in the cache and ask
+    NCBI nothing.
+    """
+    import httpx
+
+    from pipeline.ncbi_gene_fetch import clear_ncbi_cache, sync_ncbi_gene_info
+
+    client = AsyncMock()
+    client.get = AsyncMock(
+        return_value=httpx.Response(
+            200, json={"esearchresult": {"count": "0", "idlist": []}}
+        )
+    )
+    mocker.patch(
+        "pipeline.ncbi_gene_fetch._client_manager.get", return_value=client
+    )
+    clear_ncbi_cache()
+    try:
+        first = await sync_ncbi_gene_info(["ZZTOPMISS"])
+        clear_ncbi_cache()
+        second = await sync_ncbi_gene_info(["ZZTOPMISS"])
+
+        assert first.failed == 1
+        assert second.cached == 1
+        assert second.failed == 0
+        assert second.errors == []
+        assert client.get.await_count == 1, "the second sync must not ask NCBI"
+    finally:
+        clear_ncbi_cache()
+        async with Database.connection() as conn:
+            await conn.execute(
+                "DELETE FROM ncbi_gene_info WHERE gene_symbol LIKE 'ZZTOP%'"
+            )

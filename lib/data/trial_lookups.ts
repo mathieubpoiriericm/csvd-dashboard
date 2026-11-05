@@ -4,7 +4,7 @@ import geneInfoJson from "../../data/gene_info_table2.json" with {
   type: "json",
 };
 
-import { indexBy } from "../collections.ts";
+import { groupBy } from "../collections.ts";
 import type { GeneInfo } from "../types.ts";
 import { normalizeGeneInfo, normalizeRows } from "./normalize.ts";
 
@@ -14,8 +14,8 @@ export function normalizeTrialGeneInfoRows(value: unknown): GeneInfo[] {
 
 export function indexTrialGeneInfoByName(
   value: unknown,
-): ReadonlyMap<string, GeneInfo> {
-  return indexBy(normalizeTrialGeneInfoRows(value), (row) => row.name);
+): ReadonlyMap<string, readonly GeneInfo[]> {
+  return groupBy(normalizeTrialGeneInfoRows(value), (row) => row.name);
 }
 
 export const table2GeneInfoByName = indexTrialGeneInfoByName(geneInfoJson);
