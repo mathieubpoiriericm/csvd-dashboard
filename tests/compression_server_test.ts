@@ -41,6 +41,18 @@ Deno.test("gzip is offered only when the client lists it", () => {
   assert(!acceptsGzip(null));
 });
 
+Deno.test("a q of zero refuses gzip, and gzip named outranks the wildcard", () => {
+  assert(!acceptsGzip("gzip;q=0"));
+  assert(!acceptsGzip("br, gzip;q=0"));
+  assert(!acceptsGzip("identity, *;q=0"));
+  assert(!acceptsGzip("gzip; q=0.000, *"));
+  assert(acceptsGzip("gzip;q=0.001"));
+  assert(acceptsGzip("br;q=1, *;q=0.5"));
+  assert(acceptsGzip("GZIP ; Q=1"));
+  // A weight that is not a number is not an acceptance.
+  assert(!acceptsGzip("gzip;q="));
+});
+
 Deno.test("only compressible, large enough, unencoded bodies qualify", () => {
   const css = { "Content-Type": "text/css", "Content-Length": "4096" };
   assert(shouldCompress(response(BODY, css), "gzip"));

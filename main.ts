@@ -1,9 +1,10 @@
-import { App, csrf, staticFiles } from "fresh";
+import { App, staticFiles } from "fresh";
 
 import { compression } from "./server/compression.ts";
 import { frameProtection } from "./server/frame_protection.ts";
 import { loginPostLimiter } from "./server/login_post_limiter.ts";
 import { protectDataAssets } from "./server/protected_data_assets.ts";
+import { sameSiteCsrf } from "./server/same_site_origin.ts";
 import { svgPolicy } from "./server/svg_policy.ts";
 import type { State } from "./utils.ts";
 
@@ -27,8 +28,10 @@ app.use(staticFiles());
 // limiter then reserves atomically before POST /login verifies the passphrase.
 // Behind a proxying host, LOGIN_CLIENT_IP_HEADER names the header its ingress
 // sets with the visitor's address (fly.toml sets Fly-Client-IP); unset, the
-// socket peer is the client, as it is locally and in e2e.
-app.use(csrf());
+// socket peer is the client, as it is locally and in e2e. The origin check
+// accepts this host over HTTPS, which is what a browser behind Fly's TLS
+// sends (server/same_site_origin.ts).
+app.use(sameSiteCsrf());
 app.use(
   loginPostLimiter({
     trustedClientIpHeader: Deno.env.get("LOGIN_CLIENT_IP_HEADER"),
