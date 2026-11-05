@@ -183,6 +183,15 @@ five e2e specs. Re-derive them from the regenerated files; and run
 removed ids, succeeds, and writes an `nctIds` superset that
 `tests/data_contract_test.ts` fails on.
 
+The trial populations are pinned in five more places, all of which move
+together: `tests/timeline_layout_test.ts` and
+`tests/scripts/test_timeline_figure.py` (sector drug counts, empty cells, the
+shared-cell pair and its ring thickness), `e2e/tests/trials-filters.spec.ts`
+(per-population counts), `e2e/tests/timeline.spec.ts` (the first marker drawn,
+and accessible names that use the population _label_ -- "Any SVD (including
+monogenic)", not "SVD") and the "CADASIL" search counts in
+`e2e/tests/readout.spec.ts` and `e2e/tests/trials-table.spec.ts`.
+
 **A phase the radar cannot place is an error.** `lib/timeline.ts` and
 `scripts/timeline_figure.py` both place a trial by comparing
 `clinicalTrialPhase` to the ring's phase for **equality**, and the rings are

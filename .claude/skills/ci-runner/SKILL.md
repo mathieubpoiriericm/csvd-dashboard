@@ -14,7 +14,8 @@ the `empty-data` and `adapt-fork` matrices, twelve jobs in all) run on
 bare metal, a Ryzen 9 9955HX (16 cores, 32 threads) with 32 GB, reached from the
 researcher's Mac as `ssh minipc` with key login only. The public repository and
 every fork have no such variable and stay on `ubuntu-latest`. `container` and
-`deploy` are hosted everywhere.
+`deploy` are hosted everywhere. A VS Code warning "Context access might be
+invalid: CI_RUNNER" on a `runs-on` line is that deliberate fallback.
 
 The same CI run, PR #65's (41720801102), took 8m01 on GitHub's two-core private
 runners and 2m20 on the mini PC -- its first jobs there, on cold caches -- with
