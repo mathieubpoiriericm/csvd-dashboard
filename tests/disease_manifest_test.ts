@@ -135,6 +135,30 @@ Deno.test("about.citation normalizes a full citation object", () => {
   });
 });
 
+Deno.test("about.citation keeps the DOI alone, whatever form it was written in", () => {
+  // The About page links `https://doi.org/${doi}` and prints the DOI as the
+  // link text, so a DOI pasted as its own address linked to
+  // https://doi.org/https://doi.org/….
+  for (
+    const doi of [
+      "https://doi.org/10.1000/example",
+      "http://dx.doi.org/10.1000/example",
+      "doi: 10.1000/example",
+      " 10.1000/example ",
+    ]
+  ) {
+    const raw = structuredClone(manifestJson) as Record<string, unknown>;
+    (raw.about as Record<string, unknown>).citation = {
+      authors: "Author, A. et al.",
+      title: "A title",
+      journal: "A Journal",
+      year: 2020,
+      doi,
+    };
+    assertEquals(normalizeManifest(raw).about.citation?.doi, "10.1000/example");
+  }
+});
+
 Deno.test("about.citation.year must be an integer", () => {
   const raw = structuredClone(manifestJson) as Record<string, unknown>;
   (raw.about as Record<string, unknown>).citation = {

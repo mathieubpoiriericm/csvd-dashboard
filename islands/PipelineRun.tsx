@@ -205,7 +205,9 @@ function Step(
         <span class={`pipeline-badge pipeline-tint-${badge.tint}`}>
           <Icon name={badge.icon} />
           {badge.label}
-          {warnings > 0 && <span class="pipeline-badge-count">{warnings}</span>}
+          {warnings > 0 && (
+            <span class="pipeline-badge-count">{formatCount(warnings)}</span>
+          )}
         </span>
         <span class="pipeline-step-time">
           {formatDuration(step.durationSeconds)}
@@ -243,7 +245,7 @@ function Step(
                 <span class="pipeline-note-subjects">
                   {warning.subjects.slice(0, 8).join(", ")}
                   {warning.subjects.length > 8 &&
-                    ` and ${warning.subjects.length - 8} more`}
+                    ` and ${formatCount(warning.subjects.length - 8)} more`}
                 </span>
               )}
             </span>
