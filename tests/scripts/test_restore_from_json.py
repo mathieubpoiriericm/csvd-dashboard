@@ -332,6 +332,76 @@ def test_lookup_fallbacks_are_not_restored_as_cache_rows(tmp_path: Path) -> None
     ]
 
 
+def _gene_info(name: str, symbol: str, uid: str) -> dict[str, Any]:
+    return {
+        "name": name,
+        "symbol": symbol,
+        "uid": uid,
+        "description": f"{symbol} description",
+        "otheraliases": None,
+    }
+
+
+def _protein_info(gene: str, symbol: str, accession: str) -> dict[str, Any]:
+    return {
+        "gene": gene,
+        "symbol": symbol,
+        "accession": accession,
+        "url": f"https://u/{accession}",
+    }
+
+
+def test_lookup_rows_are_restored_under_their_symbol(tmp_path: Path) -> None:
+    """An alias key publishes one lookup row per member gene, and the cache
+    holds them under the member symbol the sync fetched them by. Keyed by
+    the curated name instead, the second member would collide with the
+    first and the export would find neither."""
+    data = _write_export(
+        tmp_path / "data",
+        gene_info=[
+            _gene_info("GENEA/B", "GENEA", "1"),
+            _gene_info("GENEA/B", "GENEB", "2"),
+        ],
+        protein_info=[
+            _protein_info("GENEA/B", "GENEA", "P1"),
+            _protein_info("GENEA/B", "GENEB", "P2"),
+        ],
+    )
+
+    plan = build_plan(data, tmp_path / "logs")
+
+    assert plan.ncbi == [
+        ("GENEA", "1", "GENEA description", None),
+        ("GENEB", "2", "GENEB description", None),
+    ]
+    assert plan.uniprot == [
+        ("GENEA", "P1", "https://u/P1"),
+        ("GENEB", "P2", "https://u/P2"),
+    ]
+
+
+def test_a_symbol_shared_by_two_keys_is_one_cache_row(tmp_path: Path) -> None:
+    """A member that is also a curated key of its own is published under
+    both, but is one cache row; restoring it twice would fail the insert on
+    the primary key."""
+    data = _write_export(
+        tmp_path / "data",
+        gene_info=[
+            _gene_info("GENEA/B", "GENEA", "1"),
+            _gene_info("GENEA", "GENEA", "1"),
+        ],
+        protein_info=[
+            _protein_info("GENEA/B", "GENEA", "P1"),
+            _protein_info("GENEA", "GENEA", "P1"),
+        ],
+    )
+
+    plan = build_plan(data, tmp_path / "logs")
+
+    assert [row[0] for row in plan.ncbi] == ["GENEA"]
+    assert [row[0] for row in plan.uniprot] == ["GENEA"]
+
+
 # ---------------------------------------------------------- the PMID ledger
 
 
