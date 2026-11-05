@@ -315,6 +315,43 @@ class TestSyncAllExternalData:
         call_args = mock_ncbi.call_args[0][0]
         assert len(call_args) == 2
 
+    async def test_an_alias_key_is_looked_up_by_its_members(
+        self, mocker, gene_aliases
+    ):
+        """NCBI and UniProt know the member genes, never the curated label.
+
+        Sent literally, an alias key is a symbol neither source has, so it
+        came back "Gene not found" on every refresh and published no record.
+        A table 2 target that is already a member is asked for once.
+        """
+        mocker.patch(
+            "pipeline.external_data_sync.get_table1_gene_symbols",
+            return_value=["GENEA/B", "OLDSYM", "PLAIN"],
+        )
+        mocker.patch(
+            "pipeline.external_data_sync.get_table2_gene_symbols",
+            return_value=["GENEA"],
+        )
+        mocker.patch("pipeline.external_data_sync.get_all_pmids", return_value=[])
+        mock_ncbi = mocker.patch(
+            "pipeline.external_data_sync.sync_ncbi_gene_info",
+            return_value=NCBISyncResult(fetched=4, cached=0, failed=0, errors=[]),
+        )
+        mock_uniprot = mocker.patch(
+            "pipeline.external_data_sync.sync_uniprot_info",
+            return_value=UniProtSyncResult(fetched=4, cached=0, failed=0, errors=[]),
+        )
+        _mock_cleanup(mocker)
+
+        await sync_all_external_data()
+
+        mock_ncbi.assert_called_once_with(
+            ["GENEA", "GENEB", "NEWSYM", "PLAIN"], config=None
+        )
+        mock_uniprot.assert_called_once_with(
+            ["GENEA", "GENEB", "NEWSYM", "PLAIN"], config=None
+        )
+
     async def test_skips_pubmed_when_no_pmids(self, mocker):
         mocker.patch(
             "pipeline.external_data_sync.get_table1_gene_symbols",
@@ -481,6 +518,25 @@ class TestSyncExternalDataForOneRun:
         assert result.ncbi_fetched == 1
         assert result.uniprot_fetched == 1
         assert result.pubmed_fetched == 1
+
+    async def test_the_per_run_refresh_looks_up_members_too(
+        self, mocker, gene_aliases
+    ):
+        """The merge stores the curated key, so a run hands this the alias."""
+        ncbi = mocker.patch(
+            "pipeline.external_data_sync.sync_ncbi_gene_info",
+            return_value=NCBISyncResult(fetched=2, cached=0, failed=0, errors=[]),
+        )
+        uniprot = mocker.patch(
+            "pipeline.external_data_sync.sync_uniprot_info",
+            return_value=UniProtSyncResult(fetched=2, cached=0, failed=0, errors=[]),
+        )
+        _mock_cleanup(mocker)
+
+        await sync_external_data_for(["GENEA/B"], [])
+
+        ncbi.assert_called_once_with(["GENEA", "GENEB"], config=None)
+        uniprot.assert_called_once_with(["GENEA", "GENEB"], config=None)
 
     async def test_a_source_failure_closes_the_clients_and_propagates(
         self, mocker

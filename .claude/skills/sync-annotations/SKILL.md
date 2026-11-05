@@ -86,6 +86,11 @@ anyway. `gene_annotations` holds all of them keyed on
   curated key already asserts is one entity. Recording the member gene is a
   migration, and is the upgrade if the distinction is ever wanted.
 
+  `--sync-external-data` fans out through the same `lookup_symbols()` for NCBI
+  Gene and UniProt, but keeps the members apart: those caches are keyed by
+  member symbol and the export publishes one lookup row per member, so the
+  tooltips show `COL4A1` and `COL4A2` each with its own record.
+
 **That last invariant is easy to break and each client broke it differently.**
 `replace_gene_annotations` deletes before it inserts, so a status row written
 after a failure does not merely fail to record — it drops the rows the gene

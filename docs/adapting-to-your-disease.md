@@ -366,7 +366,9 @@ _instead of_ their HGNC symbols: every extraction of the members is stored, and
 published, under the alias. Use one for a group the literature treats as one
 (our `COL4A1/2` stands for two genes) or for a symbol NCBI has retired that the
 literature still writes (our `C6orf195`, now `LINC01600`), never for a synonym
-of a gene you want shown by its own symbol.
+of a gene you want shown by its own symbol. NCBI Gene and UniProt are asked for
+the members, not the alias, and the gene and protein tooltips show each member
+with its own record.
 
 Lookup: NCBI Gene for each symbol's official spelling, searched among current
 records only (a replaced record answers with its old name, which is not the

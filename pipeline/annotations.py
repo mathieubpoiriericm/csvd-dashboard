@@ -32,7 +32,13 @@ logger = logging.getLogger(__name__)
 #
 # So a lookup fans out to the real symbols and the rows come back filed under
 # the curated key, which is the key `genes.gene` holds and therefore the key
-# the export asks for. This is the same correspondence
+# the export asks for. The NCBI Gene and UniProt refresh
+# (`external_data_sync._sync_lookup_caches`) and the export's lookup files
+# (`export.lookups`) fan out through the same function, with one
+# difference: those caches are keyed by the symbol queried, and the export
+# publishes one row per member beside its curated key, so the pair's two
+# NCBI records and two accessions stay distinguishable. This is the same
+# correspondence
 # `data_merger._CANONICAL_GENE_SYMBOLS` applies in the other direction when a
 # run extracts one of the pair's own member symbols;
 # `tests/pipeline/test_annotations.py` reconciles the two so neither can gain

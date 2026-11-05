@@ -707,10 +707,10 @@ async def fill_missing_chromosomal_locations() -> int:
     judgement.
 
     Matching is on `upper(gene)`, the index migration 002 added, because the
-    sync fetched each symbol under the spelling `genes.gene` holds. A curated
-    row filed under a combined alias key names two genes and matches no NCBI
-    symbol; it already has a location, so the empty-only guard excludes it
-    before that matters.
+    sync fetched every other symbol under the spelling `genes.gene` holds. An
+    alias key (`geneAliases`) is fetched under its member symbols instead, so
+    its row matches no cache row here; curated alias rows already carry a
+    location, so the empty-only guard excludes them before that matters.
 
     Returns:
         The number of rows filled.

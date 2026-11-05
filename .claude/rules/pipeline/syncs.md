@@ -87,6 +87,18 @@ dependency order, the delete-before-insert trap and the 30-day status rows that
 stand in the way of a re-sync, `_LOOKUP_ALIASES` for `COL4A1/2` and `C6orf195`
 -- is the `sync-annotations` skill (`.claude/skills/sync-annotations/SKILL.md`).
 
+**`--sync-external-data` fans an alias key out the same way.** It used to send
+`COL4A1/2` to NCBI Gene and UniProt literally, which neither knows, so the row
+published no NCBI record and no accession and every refresh reported
+`Gene not found: COL4A1/2`. `_sync_lookup_caches` now asks for each key's
+`lookup_symbols()`, so `ncbi_gene_info` and `uniprot_info` hold rows under the
+member symbols (`COL4A1`, `COL4A2`, and `LINC01600` for `C6orf195`, which
+resolves to the same NCBI uid and UniProt entry under either name). Unlike
+`gene_annotations`, these rows are **not** filed under the curated key: the
+export publishes one row per member beside it, so the two NCBI records stay
+two. The literal `COL4A1/2` rows already in both caches are inert -- nothing
+asks for them -- and are left in place.
+
 **`--sync-annotations` is deliberately a separate entry point from
 `--sync-external-data`.** The existing sync feeds the NCBI/UniProt/PubMed caches
 every consumer already reads; folding four more APIs into it would make every

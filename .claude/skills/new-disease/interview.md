@@ -232,7 +232,8 @@ the dashboard files genes under _instead of_ their HGNC symbols, mapped to
 the symbols it stands for: every extraction of a member is stored and
 published under the name. Use one for a group the literature treats as one,
 `COL4A1/2`, or a symbol NCBI has retired that the literature still writes,
-`C6orf195`; never for a synonym of a gene that should show as itself); `omim_info.csv` (one row per confirmed OMIM phenotype entry:
+`C6orf195`; never for a synonym of a gene that should show as itself. NCBI
+Gene and UniProt are asked for the members, and the tooltips show each); `omim_info.csv` (one row per confirmed OMIM phenotype entry:
 `omim_num,omim_link,location,phenotype,phenotype_mim_number,inheritance,phenotype_mapping_key,gene_or_locus,gene_or_locus_mim_number`);
 `prompt.md` → `## strategy.monogenic_genes` (exactly the `monogenicGenes`
 list joined by `, `), `## rubric.monogenic_examples`,
