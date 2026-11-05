@@ -5,6 +5,7 @@ import { geneInfoByName } from "./data/gene_info.ts";
 import { omimByNumber } from "./data/omim.ts";
 import vocabulary from "../disease/vocabulary.json" with { type: "json" };
 import { citationLink, definitionLabel } from "./disease/citation.ts";
+import { formatOmicsValue } from "./filters.ts";
 import type { TraitEncoding } from "./phenogram.ts";
 import {
   ncbiGeneLink,
@@ -24,7 +25,7 @@ const TRAIT_LABELS = new Map(vocabulary.traits.map((trait) => [
 
 function joined(
   values: readonly string[],
-  render: (value: string) => string = (value) => value,
+  render: (value: string) => string,
 ): string {
   const present = values.filter((value) => value !== NONE_FOUND);
   return present.length ? present.map(render).join("; ") : "None found";
@@ -54,7 +55,7 @@ export function phenogramTooltip(
     },
     {
       label: "Other omics",
-      value: joined(gene.evidenceFromOtherOmicsStudies),
+      value: joined(gene.evidenceFromOtherOmicsStudies, formatOmicsValue),
     },
     {
       label: "Monogenic disease",

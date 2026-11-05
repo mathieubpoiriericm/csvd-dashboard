@@ -17,8 +17,20 @@ const uniqueValues = (values: readonly string[]) => [
   ...new Set(values.map((value) => value.trim()).filter(Boolean)),
 ];
 
-function formatValues(label: string, values: readonly string[]): string | null {
-  return values.length > 0 ? `${label}: ${values.join(", ")}` : null;
+/** One `Label: a, b` segment; a sentinel renders as the absent dash. */
+function LabelledValues(
+  { label, values }: { label: string; values: readonly string[] },
+) {
+  return (
+    <>
+      {label}: {values.map((value, index) => (
+        <span key={`${value}-${index}`}>
+          {index > 0 && ", "}
+          {valueOrAbsent(value)}
+        </span>
+      ))}
+    </>
+  );
 }
 
 interface PopupValuesProps {
@@ -64,9 +76,9 @@ export function MapPopup({ location, trials = [] }: MapPopupProps) {
     formatMonthYear,
   );
   const phaseSponsor = [
-    formatValues("Phase", phases),
-    formatValues("Sponsor", sponsors),
-  ].filter(Boolean).join(" • ");
+    { label: "Phase", values: phases },
+    { label: "Sponsor", values: sponsors },
+  ].filter(({ values }) => values.length > 0);
   const place = formatTrialPlace(location);
   const registry = registryLink(location.nctId);
 
@@ -85,7 +97,16 @@ export function MapPopup({ location, trials = [] }: MapPopupProps) {
 
       <div class="popup-trial-info">
         <PopupValues singular="Drug" values={drugs} />
-        {phaseSponsor && <div class="popup-info-row">{phaseSponsor}</div>}
+        {phaseSponsor.length > 0 && (
+          <div class="popup-info-row">
+            {phaseSponsor.map(({ label, values }, index) => (
+              <span key={label}>
+                {index > 0 && " • "}
+                <LabelledValues label={label} values={values} />
+              </span>
+            ))}
+          </div>
+        )}
         <PopupValues singular="Sample Size" values={sampleSizes} />
         <PopupValues
           singular="Est. Completion"

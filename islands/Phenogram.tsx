@@ -13,6 +13,7 @@ import {
   whenFontsReady,
 } from "../components/svgMeasurements.ts";
 import { genes } from "../lib/data/genes.ts";
+import { isAbsent } from "../lib/sentinels.ts";
 import type { Gene } from "../lib/types.ts";
 import {
   type ChromosomeShape,
@@ -438,7 +439,13 @@ export default function Phenogram({ rows = genes }: PhenogramProps = {}) {
         <p class="phenogram-unplaced">
           Not placed on the figure (no hg38 band for the location): {karyogram
             .unplaced
-            .map((g) => `${g.gene} (${g.chromosomalLocation})`)
+            .map((g) =>
+              `${g.gene} (${
+                isAbsent(g.chromosomalLocation)
+                  ? "no location recorded"
+                  : g.chromosomalLocation
+              })`
+            )
             .join(", ")}
         </p>
       )}

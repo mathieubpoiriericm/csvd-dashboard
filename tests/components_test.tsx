@@ -383,6 +383,24 @@ Deno.test("MapPopup omits unavailable optional sections", () => {
   assertStringIncludes(html, 'class="map-popup"');
 });
 
+Deno.test("MapPopup renders a sentinel phase or sponsor as the absent dash", () => {
+  const html = render(
+    <MapPopup
+      location={LOCATION}
+      trials={[{
+        ...sampleTrial(),
+        clinicalTrialPhase: "(unknown)",
+        sponsorType: "Academic",
+      }]}
+    />,
+  );
+
+  assertNotMatch(html, /\(unknown\)/);
+  assertStringIncludes(html, "Phase:");
+  assertStringIncludes(html, 'class="cell-absent"');
+  assertStringIncludes(html, " • Sponsor: <span >Academic</span>");
+});
+
 Deno.test("MapPopup uses singular labels for one trial", () => {
   const html = render(
     <MapPopup
