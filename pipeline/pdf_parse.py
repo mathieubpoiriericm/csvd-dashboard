@@ -33,6 +33,7 @@ from functools import cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from pipeline import profiling
 from pipeline.config import PipelineConfig
 
 if TYPE_CHECKING:
@@ -190,28 +191,33 @@ def parse_pdf_bytes(data: bytes, *, config: PipelineConfig | None = None) -> str
     flatten, losing which column a p-value belongs to.
     """
     settings = _ConverterSettings.from_config(config or PipelineConfig())
-    try:
-        document = _convert(data, settings)
-    except ImportError:
-        # Docling is a hard requirement (see pyproject.toml), so this is a
-        # broken install rather than a bad PDF. Degrading it to an abstract
-        # would hide the breakage behind quietly worse extraction for every
-        # paper in the run.
-        raise
-    # A malformed PDF is isolated to this paper rather than aborting the run.
-    except Exception as exc:
-        logger.warning("Docling could not parse the PDF: %s", exc)
-        return None
-    if document is None:
-        return None
+    # The network path calls this through asyncio.to_thread, so the zone sits
+    # on a worker thread's own stack. --local-pdfs reaches it synchronously
+    # through parse_pdf_file, and a zone that never awaits is safe anywhere.
+    with profiling.zone("parse PDF"):
+        try:
+            document = _convert(data, settings)
+        except ImportError:
+            # Docling is a hard requirement (see pyproject.toml), so this is a
+            # broken install rather than a bad PDF. Degrading it to an
+            # abstract would hide the breakage behind quietly worse extraction
+            # for every paper in the run.
+            raise
+        # A malformed PDF is isolated to this paper rather than aborting the
+        # run.
+        except Exception as exc:
+            logger.warning("Docling could not parse the PDF: %s", exc)
+            return None
+        if document is None:
+            return None
 
-    try:
-        text = document.export_to_html()
-    # Export failures are likewise local to this paper.
-    except Exception as exc:
-        logger.warning("Docling could not parse the PDF: %s", exc)
-        return None
-    return text.strip() or None
+        try:
+            text = document.export_to_html()
+        # Export failures are likewise local to this paper.
+        except Exception as exc:
+            logger.warning("Docling could not parse the PDF: %s", exc)
+            return None
+        return text.strip() or None
 
 
 def parse_pdf_file(path: Path, *, config: PipelineConfig | None = None) -> str | None:

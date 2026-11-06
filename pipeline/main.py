@@ -229,7 +229,7 @@ def _configure_ca_bundle() -> None:
 
 _configure_ca_bundle()
 
-from pipeline import checkpoint, europepmc, ncbi_http
+from pipeline import checkpoint, europepmc, ncbi_http, profiling
 from pipeline.api_telemetry import current_recorder, reset_recorder
 from pipeline.batch_extraction import submit_and_collect
 from pipeline.batch_validation import batch_validate
@@ -1067,6 +1067,9 @@ async def process_paper_safe(
         total = progress["total"]
         logger.info(f"[{current}/{total}] Starting PMID {pmid}")
         start_time = time.monotonic()
+        # A plot, not a zone: papers interleave on the event loop thread, and
+        # zones held across their awaits would break Tracy's per-thread stack.
+        profiling.adjust("papers in flight", 1)
         try:
             result = await process_paper(
                 pmid, metrics, config=config, rate_limiter=rate_limiter
@@ -1090,6 +1093,8 @@ async def process_paper_safe(
                 refusal=_refusal_of(e),
                 processing_time=time.monotonic() - start_time,
             )
+        finally:
+            profiling.adjust("papers in flight", -1)
 
 
 async def process_papers_concurrently(
@@ -1149,6 +1154,15 @@ async def process_papers_concurrently(
         # failure on resume and retire the paper without ever extracting it.
         if on_complete is not None and result.succeeded:
             on_complete(result, paper_metrics)
+        # Per-paper time goes in the message, since a zone per paper is ruled
+        # out (see process_paper_safe); `tracy-csvexport -m` lists them all.
+        profiling.adjust("papers done", 1)
+        profiling.message(
+            f"PMID {pmid}: {len(result.genes)} genes ({result.source}) "
+            f"in {result.processing_time:.1f} s"
+            if result.succeeded
+            else f"PMID {pmid}: failed after {result.processing_time:.1f} s"
+        )
         return result
 
     async with asyncio.TaskGroup() as tg:
@@ -2507,12 +2521,13 @@ async def run_pipeline(
         gene_result = merged
 
     try:
-        all_pmids, new_pmids = await _discover_new_pmids(
-            days_back,
-            dry_run=dry_run,
-            test_mode=test_mode,
-            progress=progress,
-        )
+        with profiling.zone("discover papers"):
+            all_pmids, new_pmids = await _discover_new_pmids(
+                days_back,
+                dry_run=dry_run,
+                test_mode=test_mode,
+                progress=progress,
+            )
         if not all_pmids:
             logger.info("No new papers found. Pipeline complete.")
             progress.finalize(
@@ -2535,37 +2550,43 @@ async def run_pipeline(
             )
             return metrics, None
 
-        if use_batch_api:
-            batch = await _process_new_pmids_via_batch(
-                new_pmids,
-                metrics,
-                config,
-                progress,
-                use_checkpoint=not dry_run,
-                collected=processed_so_far,
-            )
-        else:
-            batch = await _process_new_pmids(
-                new_pmids,
-                metrics,
-                config,
-                rate_limiter,
-                progress,
-                # A dry run merges nothing, so it never earns the right to
-                # clear a real run's saved work -- and leaving its own behind
-                # would let it be restored by a run that never paid for it.
-                use_checkpoint=not dry_run,
-                collected=processed_so_far,
-            )
+        # The papers inside run concurrently and so only plot and message;
+        # this zone is the stage around them all.
+        with profiling.zone("process papers") as stage:
+            stage.text(f"{len(new_pmids)} papers")
+            if use_batch_api:
+                batch = await _process_new_pmids_via_batch(
+                    new_pmids,
+                    metrics,
+                    config,
+                    progress,
+                    use_checkpoint=not dry_run,
+                    collected=processed_so_far,
+                )
+            else:
+                batch = await _process_new_pmids(
+                    new_pmids,
+                    metrics,
+                    config,
+                    rate_limiter,
+                    progress,
+                    # A dry run merges nothing, so it never earns the right to
+                    # clear a real run's saved work -- and leaving its own
+                    # behind would let it be restored by a run that never
+                    # paid for it.
+                    use_checkpoint=not dry_run,
+                    collected=processed_so_far,
+                )
         if dry_run:
             logger.info("Dry run mode - skipping database merge")
             progress.finalize(
                 status="completed",
             )
         else:
-            gene_result = await _merge_processed_batch(
-                batch, progress, config, on_merged=_remember_merge
-            )
+            with profiling.zone("merge genes"):
+                gene_result = await _merge_processed_batch(
+                    batch, progress, config, on_merged=_remember_merge
+                )
             # pubmed_refs is the durable record for these papers now, so the
             # checkpoint has nothing left to protect *for them*. Papers it
             # holds outside this run's window were paid for by a wider run
@@ -2587,14 +2608,15 @@ async def run_pipeline(
             use_batch_api=use_batch_api,
         )
 
-        await _complete_pubmed_run(
-            metrics,
-            run_data,
-            config,
-            progress,
-            dry_run=dry_run,
-            manage_lifecycle=manage_lifecycle,
-        )
+        with profiling.zone("complete run"):
+            await _complete_pubmed_run(
+                metrics,
+                run_data,
+                config,
+                progress,
+                dry_run=dry_run,
+                manage_lifecycle=manage_lifecycle,
+            )
 
         return metrics, run_data
 
@@ -3166,14 +3188,17 @@ async def _run_selected_pipelines(
     try:
         if args.pubmed:
             try:
-                metrics, pubmed_run_data = await run_pipeline(
-                    days_back=args.days_back,
-                    dry_run=args.dry_run,
-                    test_mode=args.test_mode,
-                    use_batch_api=args.batch,
-                    config=config,
-                    manage_lifecycle=False,
-                )
+                # The modes run one after another, so each may hold a zone
+                # across its awaits (see pipeline/profiling.py).
+                with profiling.zone("pubmed"):
+                    metrics, pubmed_run_data = await run_pipeline(
+                        days_back=args.days_back,
+                        dry_run=args.dry_run,
+                        test_mode=args.test_mode,
+                        use_batch_api=args.batch,
+                        config=config,
+                        manage_lifecycle=False,
+                    )
                 summaries.append(
                     {
                         "name": "pubmed",
@@ -3215,13 +3240,14 @@ async def _run_selected_pipelines(
         )
         for selected, runner, name, label in summary_pipelines:
             if selected:
-                summaries.append(
-                    await _run_summary_pipeline(
-                        runner(config=config, manage_lifecycle=False),
-                        name,
-                        label,
+                with profiling.zone(name):
+                    summaries.append(
+                        await _run_summary_pipeline(
+                            runner(config=config, manage_lifecycle=False),
+                            name,
+                            label,
+                        )
                     )
-                )
 
         any_failed = any(s["status"] == "failed" for s in summaries)
         pubmed_only = len(summaries) == 1 and summaries[0]["name"] == "pubmed"
@@ -3329,24 +3355,28 @@ def main() -> None:
     args = _prepare_cli_args(parser, parser.parse_args())
 
     config = PipelineConfig()
+    # Inert unless the run goes through `deno task tracy:run`.
+    profiling.start("pipeline", " ".join(sys.argv[1:]))
 
     try:
         if args.local_pdfs:
-            asyncio.run(
-                run_local_pdf_pipeline(
-                    pdf_dir=args.local_pdfs,
-                    skip_validation=args.skip_validation,
-                    config=config,
+            with profiling.zone("local PDFs"):
+                asyncio.run(
+                    run_local_pdf_pipeline(
+                        pdf_dir=args.local_pdfs,
+                        skip_validation=args.skip_validation,
+                        config=config,
+                    )
                 )
-            )
         elif args.pmids:
-            asyncio.run(
-                run_pmid_pipeline(
-                    pmid_file=args.pmids,
-                    skip_validation=args.skip_validation,
-                    config=config,
+            with profiling.zone("PMID list"):
+                asyncio.run(
+                    run_pmid_pipeline(
+                        pmid_file=args.pmids,
+                        skip_validation=args.skip_validation,
+                        config=config,
+                    )
                 )
-            )
         else:
             exit_code = asyncio.run(_run_selected_pipelines(args, config))
             if exit_code:

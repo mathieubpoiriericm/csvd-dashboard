@@ -25,6 +25,7 @@ when a task spans topics or touches a module none of them names.
 | `database-tests`  | test isolation from production credentials, `database_env`, `CSVD_TEST_DB_URL`, one database per xdist worker                          |
 | `long-windows`    | the preview flags, the token reservation, the pointer to `run-long-window`                                                             |
 | `migrations`      | revision 009's collision, Alembic rather than Atlas                                                                                    |
+| `profiling`       | Tracy zones versus plots and messages under asyncio, call-site attribution, the inert default                                          |
 
 `.claude/rules/json-contract.md` also carries how the provenance columns are
 published and why the export's readers tolerate migration lag and nothing else;

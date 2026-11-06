@@ -13,6 +13,7 @@ from typing import Final
 import asyncpg
 from dotenv import load_dotenv
 
+from pipeline import profiling
 from pipeline.config import PROJECT_ROOT
 from pipeline.database import Database
 from pipeline.export.lookups import (
@@ -278,37 +279,47 @@ async def run_export(target_dir: Path | None = None) -> None:
     target = target_dir or PROJECT_ROOT / "data"
     target.mkdir(parents=True, exist_ok=True)
 
-    with tempfile.TemporaryDirectory(
-        prefix=".dashboard-export-", dir=target
-    ) as staging_name:
+    with (
+        tempfile.TemporaryDirectory(
+            prefix=".dashboard-export-", dir=target
+        ) as staging_name,
+        # One Tracy zone per step, inert unless run through `deno task
+        # tracy:run`. The steps await one at a time, so the zones never
+        # interleave.
+        profiling.stages() as zones,
+    ):
         staging = Path(staging_name)
         staged: dict[str, Path] = {}
+
+        def step(label: str) -> None:
+            logger.info(label)
+            zones(label)
 
         def stage(name: str) -> Path:
             path = staging / name
             staged[name] = path
             return path
 
-        logger.info("[1/11] Cleaning Table 1 (genes)")
+        step("[1/11] Cleaning Table 1 (genes)")
         genes = [clean_gene_row(row) for row in await _read_genes_with_lists()]
         write_rows(genes, stage("table1.json"))
         gene_symbols = list(dict.fromkeys(row["Gene"] for row in genes))
 
-        logger.info("[2/11] Cleaning Table 2 (clinical trials)")
+        step("[2/11] Cleaning Table 2 (clinical trials)")
         trials = [clean_trial_row(row) for row in await _read_curated_trials()]
         write_rows(trials, stage("table2.json"))
 
-        logger.info("[3/11] NCBI gene info for Table 1 genes")
+        step("[3/11] NCBI gene info for Table 1 genes")
         write_rows(await read_ncbi_gene_info(gene_symbols), stage("gene_info.json"))
 
-        logger.info("[4/11] NCBI gene info for Table 2 targets")
+        step("[4/11] NCBI gene info for Table 2 targets")
         targets = split_genetic_targets(r["Genetic Target"] for r in trials)
         write_rows(await read_ncbi_gene_info(targets), stage("gene_info_table2.json"))
 
-        logger.info("[5/11] UniProt protein info")
+        step("[5/11] UniProt protein info")
         write_rows(await read_uniprot_info(gene_symbols), stage("protein_info.json"))
 
-        logger.info("[6/11] PubMed references")
+        step("[6/11] PubMed references")
         pmids = list(
             dict.fromkeys(
                 ref
@@ -319,13 +330,13 @@ async def run_export(target_dir: Path | None = None) -> None:
         )
         write_rows(await read_pubmed_refs(pmids), stage("refs.json"))
 
-        logger.info("[7/11] OMIM reference table")
+        step("[7/11] OMIM reference table")
         write_rows(read_omim_csv(), stage("omim_info.json"))
 
-        logger.info("[8/11] Latest pipeline run status")
+        step("[8/11] Latest pipeline run status")
         write_value(await read_pipeline_status(), stage("pipeline_status.json"))
 
-        logger.info("[9/11] Machine-fetched disease annotations")
+        step("[9/11] Machine-fetched disease annotations")
         # Pivoted to one row per (gene, disease) -- this file is bundled into
         # the islands that import it, so the raw cross-reference rows would
         # multiply the payload.
@@ -351,7 +362,7 @@ async def run_export(target_dir: Path | None = None) -> None:
         # a tested contract the date badge reads, and keeping it means the
         # page still renders its summary card when no run has recorded a
         # report yet.
-        logger.info("[10/11] Latest pipeline run report")
+        step("[10/11] Latest pipeline run report")
         write_value(await read_pipeline_run(), stage("pipeline_run.json"))
 
         # The reference-data refreshes, which record their own smaller
@@ -363,9 +374,10 @@ async def run_export(target_dir: Path | None = None) -> None:
         # gene_annotations.json: sync_runs rows are never deleted, so an
         # empty read means no refresh has ever been recorded and `[]` is
         # the true answer rather than a file to publish over.
-        logger.info("[11/11] Reference data refreshes")
+        step("[11/11] Reference data refreshes")
         write_value(await read_sync_runs(), stage("pipeline_syncs.json"))
 
+        zones("publish")
         publish_atomically(staged, target)
 
     logger.info("Export complete. Run `deno task geocode` for the map locations.")
@@ -373,6 +385,7 @@ async def run_export(target_dir: Path | None = None) -> None:
 
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(message)s")
+    profiling.start("pipeline export", "data/*.json from PostgreSQL")
 
     async def _run() -> None:
         try:
