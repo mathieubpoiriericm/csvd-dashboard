@@ -25,9 +25,11 @@ e2e/.auth/
 # machine- and run-specific; the findings doc is what gets committed.
 e2e/perf/artifacts/
 
-# The Tracy profiler distribution `deno task perf` shells out to. Local
-# macOS ARM64 binaries, not ours to redistribute.
-tracy-profiler-0.14.1
+# What `deno task tracy:build` makes from the third_party/tracy submodule: the
+# CMake build trees, the tools in .tracy/bin that `deno task perf` and
+# `deno task tracy:run` shell out to, and the pipeline's tracy_client wheel.
+# Machine-specific, and rebuilt on every Tracy bump.
+.tracy/
 
 # Python
 __pycache__/
@@ -98,8 +100,8 @@ data/.geocoded_trials-*.json
 
 # Misc
 .ipynb_checkpoints/
-tracy-profiler-0.14.1
 docs/superpowers/
+docs/tracy.pdf
 to-do-list.md
 ui-touch-ups.md
 .claude/worktrees/

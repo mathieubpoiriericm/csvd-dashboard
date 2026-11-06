@@ -463,15 +463,15 @@ either variable unset every page answers 503 rather than opening.
 
 ### Prerequisites
 
-| Tool                | Needed for                                                  | Version |
-| ------------------- | ----------------------------------------------------------- | ------- |
-| Deno                | the web app (always)                                        | 2.9+    |
-| Node.js + npm       | the Playwright suite, the perf harness, the screenshots     | 26+     |
-| uv                  | the Python pipeline and the print figures                   | 0.12+   |
-| PostgreSQL          | regenerating `data/` only                                   | 18.6    |
-| Apple's `container` | optional: a containerised PostgreSQL, the pytest database   | 1.3+    |
-| libwebp (`cwebp`)   | recapturing the screenshots                                 | 1.0+    |
-| Tracy               | `deno task perf` (`tracy-import-chrome`, `tracy-csvexport`) | 0.14.1  |
+| Tool                | Needed for                                                | Version |
+| ------------------- | --------------------------------------------------------- | ------- |
+| Deno                | the web app (always)                                      | 2.9+    |
+| Node.js + npm       | the Playwright suite, the perf harness, the screenshots   | 26+     |
+| uv                  | the Python pipeline and the print figures                 | 0.12+   |
+| PostgreSQL          | regenerating `data/` only                                 | 18.6    |
+| Apple's `container` | optional: a containerised PostgreSQL, the pytest database | 1.3+    |
+| libwebp (`cwebp`)   | recapturing the screenshots                               | 1.0+    |
+| CMake + Ninja       | building Tracy (`deno task tracy:build`)                  | 3.25+   |
 
 ### Web application
 
@@ -584,6 +584,9 @@ Tasks live in `deno.json`.
 | `deno task test:e2e:ui`   | the same suite in Playwright's UI mode          |
 | `deno task perf`          | throttled responsiveness measurement            |
 | `deno task test:perf`     | the perf harness's metric tests, no browser     |
+| `deno task tracy:build`   | build Tracy's tools and the pipeline's client   |
+| `deno task tracy:update`  | move Tracy to its latest release and rebuild    |
+| `deno task tracy:run`     | run a pipeline command under the Tracy profiler |
 | `deno task screenshots`   | build, then recapture the README's screenshots  |
 | `deno task data`          | regenerate `data/` except the map and cytobands |
 | `deno task data:empty`    | write the empty `data/` a fork starts from      |
@@ -614,11 +617,18 @@ untraced repetitions.
 
 Each scenario records in-page `PerformanceObserver` metrics (long tasks, INP,
 layout shift, TTFB/FCP/LCP, transferred bytes) and a Chromium CDP trace ranked
-by self time, which needs Tracy 0.14.1's binaries in `tracy-profiler-0.14.1/` at
-the repository root or in `TRACY_DIR` (`node e2e/perf/run.mjs --no-trace`
-records the in-page metrics alone). **Read INP, not blocking time, for the
-interactions**: the `longtask` API only reports tasks over 50 ms.
-`e2e/perf/README.md` has the invocations and the caveats.
+by self time, which needs the Tracy tools `deno task tracy:build` builds from
+the `third_party/tracy` submodule into `.tracy/bin`, or a build in `TRACY_DIR`
+(`node e2e/perf/run.mjs --no-trace` records the in-page metrics alone). **Read
+INP, not blocking time, for the interactions**: the `longtask` API only reports
+tasks over 50 ms. `e2e/perf/README.md` has the invocations and the caveats.
+
+The pipeline is profiled with the same Tracy, from the inside.
+`deno task tracy:run python -m pipeline.main --pubmed --test-mode` runs the
+command with Tracy's Python client, built from the `third_party/tracy`
+submodule, and saves the capture under `logs/tracy/`. Every other run has no
+client installed, and `pipeline/profiling.py` does nothing. Read a capture with
+`.tracy/bin/tracy-csvexport -e` or open it in `.tracy/bin/tracy-profiler`.
 
 ### Continuous integration
 

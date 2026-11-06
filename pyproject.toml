@@ -93,7 +93,8 @@ torchvision = [{ index = "pytorch-cpu", marker = "sys_platform >= 'linux'" }]
 target-version = "py314"
 line-length = 88
 src = ["pipeline"]
-extend-exclude = ["pipeline/alembic"]
+# third_party/ holds git submodules (Tracy), linted by their own projects.
+extend-exclude = ["pipeline/alembic", "third_party"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
@@ -139,6 +140,11 @@ skip_covered = true
 
 [tool.ty.environment]
 python-version = "3.14"
+
+[tool.ty.src]
+# The Tracy submodule ships its own Python (bindings, an MCP server and its
+# tests), typed against modules this environment does not install.
+exclude = ["third_party"]
 
 [tool.ty.rules]
 # Third-party packages may not have type stubs available

@@ -2,9 +2,10 @@
 
 Run `deno task perf` after installing the Deno and E2E dependencies. The harness
 starts an authenticated production server using the suite's disposable
-credentials and runs Chromium serially. Tracy 0.14.1's `tracy-import-chrome` and
-`tracy-csvexport` must be executable in the repository-root
-`tracy-profiler-0.14.1` directory, or in `TRACY_DIR`.
+credentials and runs Chromium serially. It shells out to Tracy's
+`tracy-import-chrome` and `tracy-csvexport`, which `deno task tracy:build` builds
+from the `third_party/tracy` submodule (always its latest release) into
+`.tracy/bin`; set `TRACY_DIR` to use a build elsewhere, as a worktree does.
 
 Each invocation writes a new timestamped directory under `e2e/perf/artifacts/`.
 These local artifacts are ignored by Git. Commit a summarized findings document,

@@ -1,6 +1,6 @@
 ---
 name: perf
-description: Use when measuring or interpreting the dashboard's responsiveness with `deno task perf` - the 4x CPU throttling, the two recorded channels, the Tracy binaries and TRACY_DIR in a worktree, where the numbers live, and why INP rather than blocking time is the figure to read.
+description: Use when measuring or interpreting the dashboard's responsiveness with `deno task perf` - the 4x CPU throttling, the two recorded channels, where the Tracy tools come from and TRACY_DIR in a worktree, where the numbers live, and why INP rather than blocking time is the figure to read.
 ---
 
 # Responsiveness measurement
@@ -15,10 +15,12 @@ only. Two channels are recorded per scenario: in-page `PerformanceObserver`
 metrics (long tasks, INP, layout shift, TTFB/FCP/LCP, transferred bytes) and a
 Chromium CDP trace converted by `tracy-import-chrome` and ranked by self time
 with `tracy-csvexport -e`. **Tracy cannot instrument Preact** — the capture is
-an ordinary DevTools trace and Tracy is only the analysis backend. The binaries
-are gitignored and expected at the repository root, so a worktree needs
-`TRACY_DIR` pointed at the main checkout's copy. A missing binary fails the
-run's preflight, and so does a failed conversion;
+an ordinary DevTools trace and Tracy is only the analysis backend. The tools
+are built from the `third_party/tracy` submodule (always its newest release)
+into the gitignored `.tracy/bin` by `deno task tracy:build`, so a worktree points
+`TRACY_DIR` at the main checkout's `.tracy/bin`. Building, updating and reading
+captures are the `tracy` skill. A missing binary fails the run's preflight, and
+so does a failed conversion;
 `node e2e/perf/run.mjs --no-trace` records the in-page metrics alone. Each run
 writes its numbers to a timestamped directory under `e2e/perf/artifacts/`,
 gitignored too. **Read INP, not blocking time, for the interaction scenarios** —

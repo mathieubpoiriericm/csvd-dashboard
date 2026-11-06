@@ -55,6 +55,14 @@ throwaway database `CSVD_TEST_DB_URL` names or brings up its own
 
 Vite is pinned to 7.x because `@fresh/plugin-vite` requires `vite@^7.1.4`.
 
+Tracy lives in the `third_party/tracy` git submodule, pinned to its newest
+release. `deno task tracy:build` builds its tools into `.tracy/bin` and the
+pipeline's client wheel, and `deno task tracy:update` moves it to a newer
+release. `deno task tracy:run <cmd>` runs a pipeline command under the profiler;
+`pipeline/profiling.py` does nothing in any other run. The `tracy` skill has the
+workflow, and it is where the asyncio zone rule and the macOS capture-order bug
+are written down.
+
 `deno task screenshots` recaptures the README's screenshots in
 `docs/screenshots/` from the committed data, on a server of its own; rerun it
 after a data regeneration or a visible change to a page, and commit them with
@@ -86,6 +94,9 @@ island that will not hydrate. It is not.
   The whole suite runs from the repo root:
   `npx --prefix e2e playwright test -c e2e/playwright.config.ts [tests/x.spec.ts]`.
 - Copy `.env` in before `deno task data` or a live run; it is gitignored.
+- Set `TRACY_DIR=<main checkout>/.tracy/bin` for `deno task perf` and
+  `deno task tracy:run`, rather than building Tracy again; init the
+  `third_party/tracy` submodule only to work on Tracy itself.
 - The branch is `worktree-<name>`; push it as `git push origin HEAD:<name>` -- a
   bare `git push` refuses the mismatch.
 
