@@ -509,7 +509,7 @@ if (
 }
 if (useTrace && !await tracyAvailable()) {
   throw new Error(
-    "Tracy binaries missing; set TRACY_DIR or explicitly use --no-trace",
+    "Tracy binaries missing; run `deno task tracy:build` (or set TRACY_DIR), or explicitly use --no-trace",
   );
 }
 let all = [...LOAD_SCENARIOS, ...INTERACTION_SCENARIOS];

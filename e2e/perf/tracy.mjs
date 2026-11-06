@@ -8,8 +8,9 @@
  * second step is what makes the traces rankable from a script rather than only
  * readable in the GUI.
  *
- * The binaries are a local, gitignored distribution; a missing one fails a requested trace run. Use --no-trace explicitly
- * when only in-page measurements are wanted.
+ * The binaries are built from the third_party/tracy submodule, at its latest
+ * release, by `deno task tracy:build`; a missing one fails a requested trace
+ * run. Use --no-trace explicitly when only in-page measurements are wanted.
  */
 import { execFile } from "node:child_process";
 import { access } from "node:fs/promises";
@@ -20,12 +21,14 @@ import { fileURLToPath } from "node:url";
 const run = promisify(execFile);
 
 /**
- * The distribution is gitignored, so its location is a local fact rather than a
- * committed one: the repository root by default, `TRACY_DIR` to point elsewhere.
+ * The build output is gitignored, so its location is a local fact rather than a
+ * committed one: `.tracy/bin` by default, `TRACY_DIR` to point elsewhere (a
+ * worktree points it at the main checkout's). No version is named here: the
+ * submodule's checkout decides it, so a Tracy update needs no edit to this file.
  * Absent, `tracyAvailable()` returns false and the runner fails preflight.
  */
 const TRACY_DIR = (process.env.TRACY_DIR ??
-  fileURLToPath(new URL("../../tracy-profiler-0.14.1", import.meta.url)))
+  fileURLToPath(new URL("../../.tracy/bin", import.meta.url)))
   .replace(/\/+$/, "");
 
 export const IMPORT_CHROME = `${TRACY_DIR}/tracy-import-chrome`;
