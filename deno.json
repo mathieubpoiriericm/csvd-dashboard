@@ -12,6 +12,9 @@
     "e2e:install": "cd e2e && npm ci && npx playwright install chromium",
     "test:perf": "node --test e2e/perf/*.test.mjs",
     "perf": "deno task build && node e2e/perf/run.mjs",
+    "tracy:build": "bash scripts/tracy.sh build",
+    "tracy:update": "bash scripts/tracy.sh update",
+    "tracy:run": "bash scripts/tracy.sh run",
     "screenshots": "deno task build && node e2e/screenshots.mjs",
     "models": "uv run docling-tools models download layout tableformer rapidocr --rapidocr-backend-lang onnxruntime:en",
     "data": "uv run python -m pipeline.export.main",
@@ -48,6 +51,8 @@
     "!e2e/fixtures/expected.deno.ts",
     ".claude",
     ".venv",
+    ".tracy",
+    "third_party",
     "tests/pipeline/cassettes",
     "tests/pipeline/csvd/cassettes"
   ],

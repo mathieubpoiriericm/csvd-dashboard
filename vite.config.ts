@@ -43,7 +43,15 @@ export default defineConfig({
       // logs/ is ignored for the ordinary version of the same problem: the
       // pipeline writes a progress file and a per-invocation log there, so
       // a run in one terminal would reload the page in another.
-      ignored: ["**/.playwright-mcp/**", "**/logs/**"],
+      //
+      // third_party/ and .tracy/ are the Tracy submodule and its build
+      // output: `deno task tracy:build` writes thousands of files there.
+      ignored: [
+        "**/.playwright-mcp/**",
+        "**/logs/**",
+        "**/third_party/**",
+        "**/.tracy/**",
+      ],
     },
   },
 });
