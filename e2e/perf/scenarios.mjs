@@ -100,7 +100,22 @@ const interaction = (id, ready, act, extra = {}) => ({
   act,
   ...extra,
 });
+/**
+ * An accessible name that starts with `text`, as e2e/helpers.ts's
+ * startsWithName does (this file is plain Node, so it cannot import that
+ * TypeScript). Filter checkboxes carry a hidden description ("WMH, White
+ * matter hyperintensities …") and a group with an active filter gains a count
+ * ("GWAS Traits, 1 selected"), so an exact name stops matching. The anchor
+ * still keeps "WMH" from matching "PVWMH".
+ */
+const startsWithName = (text) =>
+  new RegExp(`^${text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(\\s*,|$)`);
 const rows = (page) => page.locator(ROWS);
+/**
+ * The "Active Filters: …" line. It is a role="status" region, but so is the
+ * pagination summary beside the table, so getByRole("status") is ambiguous.
+ */
+const banner = (page) => page.locator(".filter-message");
 const pageSize = (page) => page.locator(".table-control select");
 const tip = (page) => page.locator(".tooltip-pop.is-placed");
 const theme = async (page) => {
@@ -117,7 +132,7 @@ const search = (table) => async (page) => {
     table === "genes" ? "Search genes" : "Search trials",
   );
   await field.pressSequentially(text, { delay: 80 });
-  await expect(page.getByRole("status")).toContainText(`Search: “${text}”`);
+  await expect(banner(page)).toContainText(`Search: “${text}”`);
   await expect(rows(page).first()).toContainText(new RegExp(text, "i"));
 };
 const size100 = async (page) => {
@@ -130,7 +145,12 @@ const tooltipHover = async (page) => {
 };
 export const INTERACTION_SCENARIOS = [
   interaction("timeline/hover-marker", timelineReady, async (page) => {
-    for (const index of [0, 12, 24, 48]) {
+    // Four markers spread across the figure, derived from the count rather
+    // than pinned: the data shrank from 49+ drugs to 33, and index 48 no
+    // longer existed.
+    const count = await page.locator("g.drug").count();
+    const indices = [0, count >> 2, count >> 1, count - 1];
+    for (const index of new Set(indices)) {
       await page.mouse.move(0, 0);
       await expect(page.locator(".timeline-tooltip")).toHaveCount(0);
       const marker = page.locator("g.drug").nth(index);
@@ -191,6 +211,11 @@ export const INTERACTION_SCENARIOS = [
   interaction("timeline/open-drawer", timelineReady, async (page) => {
     await page.locator("g.drug").first().press("Enter");
     await expect(page.locator("#timeline-drawer")).toBeVisible();
+    // The drawer is visible a moment before focus moves into it. Escape sent
+    // in between lands on the marker, which ignores it, so the drawer stays
+    // open; the lifecycle run hit that on every second cycle. Wait for the
+    // focus, as about/drawer does and e2e/tests/timeline.spec.ts explains.
+    await expect(page.locator(".timeline-drawer-close")).toBeFocused();
     await page.keyboard.press("Escape");
     await expect(page.locator("#timeline-drawer")).toBeHidden();
   }),
@@ -224,19 +249,23 @@ export const INTERACTION_SCENARIOS = [
     }),
     interaction(`${table}/filter-toggle`, tableReady, async (page) => {
       const group = page.getByRole("group", {
-        name: table === "genes" ? "GWAS Traits" : "Clinical Trial Phase",
-        exact: true,
+        name: startsWithName(
+          table === "genes" ? "GWAS Traits" : "Clinical Trial Phase",
+        ),
       });
       const box = group.getByRole("checkbox", {
-        name: table === "genes" ? "WMH" : "Clinical Trial Phase II",
-        exact: true,
+        name: startsWithName(table === "genes" ? "WMH" : "Phase II"),
       });
+      // The group's own count badge, not the page-wide banner: the trials
+      // table starts with a default Study status filter, so its banner never
+      // reads "None" again.
+      const count = group.locator(".filter-count");
       await box.click();
       await expect(box).toBeChecked();
-      await expect(page.locator(".filter-active")).not.toBeEmpty();
+      await expect(count).not.toHaveText("All");
       await group.getByRole("checkbox", { name: "Show All", exact: true })
         .click();
-      await expect(page.locator(".filter-none")).toHaveText("None");
+      await expect(count).toHaveText("All");
     }),
   ]),
   interaction("genes/tooltip-hover", tableReady, tooltipHover),
@@ -287,6 +316,10 @@ export const INTERACTION_SCENARIOS = [
     const map = page.locator(".leaflet-container");
     const pane = page.locator(".leaflet-map-pane");
     const before = await pane.getAttribute("style");
+    // The map now starts 535 px down the page, so at 1280×720 its centre is
+    // below the fold and a drag there never reaches it. Bring it into view
+    // first; the measured drag is unchanged.
+    await map.scrollIntoViewIfNeeded();
     const box = await map.boundingBox();
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await page.mouse.down();
