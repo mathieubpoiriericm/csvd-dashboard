@@ -12,7 +12,11 @@ import {
 } from "../lib/auth.ts";
 import { rewriteResponseHeaders } from "./response_header_policy.ts";
 
-/** Rollup uses this as the stable name before appending its content hash. */
+/**
+ * The prefix of every protected chunk name: `protected-data-<module>` for a
+ * lib/data/ module, and the bare name for the lib/data.ts facade. Rollup
+ * appends the content hash after it.
+ */
 export const PROTECTED_DATA_CHUNK_NAME = "protected-data";
 
 const PROTECTED_DATA_ASSET = /^\/assets\/protected-data-[A-Za-z0-9_-]+\.js$/;
@@ -110,7 +114,10 @@ export function normalizeStaticPathname(
   }
 }
 
-/** True only for the generated JavaScript chunk name reserved above. */
+/**
+ * True only for a protected chunk, `/assets/protected-data-<name>-<hash>.js`
+ * (or the facade's bare `protected-data-<hash>.js`).
+ */
 export function isProtectedDataAssetPath(
   pathname: string,
   basePath = "",
