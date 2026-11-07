@@ -40,23 +40,33 @@ function moduleFilePath(moduleId: string): string | null {
 }
 
 /**
- * Assign generated JSON and every module in the browser-facing lib/data/
- * boundary to the protected client chunk. The latter matters when a data
- * correction or lookup constant lives in TypeScript rather than raw JSON.
- * Unrelated JSON (for example visualization encoding) remains public code.
+ * Whether a module belongs to the protected boundary: generated JSON, and
+ * every module in the browser-facing lib/data/ boundary. The latter matters
+ * when a data correction or lookup constant lives in TypeScript rather than
+ * raw JSON. Unrelated JSON (for example visualization encoding) remains
+ * public code. The dev and build guards decide ownership here, never from a
+ * chunk name.
  */
-export function protectedDataChunkName(
+export function isProtectedDataModule(
   moduleId: string,
   repositoryRoot: string,
-): string | undefined {
+): boolean {
   const id = moduleFilePath(moduleId);
-  if (id === null) return undefined;
+  if (id === null) return false;
   const root = normalizeFileSystemPath(repositoryRoot);
   const generatedDataRoot = `${root}/data/`;
   const clientDataRoot = `${root}/lib/data/`;
   const clientDataFacade = `${root}/lib/data.ts`;
   return (id.startsWith(generatedDataRoot) && id.endsWith(".json")) ||
-      id.startsWith(clientDataRoot) || id === clientDataFacade
+    id.startsWith(clientDataRoot) || id === clientDataFacade;
+}
+
+/** Vite's `manualChunks` name for a protected module. */
+export function protectedDataChunkName(
+  moduleId: string,
+  repositoryRoot: string,
+): string | undefined {
+  return isProtectedDataModule(moduleId, repositoryRoot)
     ? PROTECTED_DATA_CHUNK_NAME
     : undefined;
 }

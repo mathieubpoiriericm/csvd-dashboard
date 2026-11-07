@@ -4,6 +4,7 @@ import type { Plugin, Rollup } from "vite";
 
 import {
   isProtectedDataAssetPath,
+  isProtectedDataModule,
   protectedDataChunkName,
 } from "./protected_data_assets.ts";
 
@@ -103,7 +104,7 @@ export function assertProtectedDataBundle(
 
   for (const chunk of chunks) {
     const protectedModules = Object.keys(chunk.modules).filter((moduleId) =>
-      protectedDataChunkName(moduleId, repositoryRoot) !== undefined
+      isProtectedDataModule(moduleId, repositoryRoot)
     );
     if (
       protectedModules.length > 0 &&

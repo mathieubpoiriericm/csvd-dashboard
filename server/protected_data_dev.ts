@@ -6,7 +6,7 @@ import { resolve } from "node:path";
 import type { Connect, Plugin } from "vite";
 
 import { loginConfig, SESSION_COOKIE, verifySession } from "../lib/auth.ts";
-import { protectedDataChunkName } from "./protected_data_assets.ts";
+import { isProtectedDataModule } from "./protected_data_assets.ts";
 
 const PRIVATE_NO_STORE = "private, no-store";
 const ENCODED_BYTE = /%[0-9A-Fa-f]{2}/;
@@ -56,14 +56,13 @@ function isProtectedModuleId(
   repositoryRoot: string,
 ): boolean {
   const hasProtectedOwnership = (candidate: string) =>
-    protectedDataChunkName(candidate, repositoryRoot) !== undefined ||
+    isProtectedDataModule(candidate, repositoryRoot) ||
     // Vite ultimately reads from the host filesystem. Conservatively fold
     // both sides so an APFS case alias cannot evade this lexical boundary.
-    protectedDataChunkName(
-        candidate.toLowerCase(),
-        repositoryRoot.toLowerCase(),
-      ) !==
-      undefined;
+    isProtectedDataModule(
+      candidate.toLowerCase(),
+      repositoryRoot.toLowerCase(),
+    );
 
   if (hasProtectedOwnership(moduleId)) {
     return true;
