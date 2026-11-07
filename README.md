@@ -846,13 +846,17 @@ The files are never served as they are. In production, Vite gives each
 `lib/data/` module a chunk of its own, `protected-data-<name>-<hash>.js`,
 carrying the JSON file it imports, so a page downloads only the datasets its
 islands import. The build fails if one of those modules lands in a public chunk,
-or if a public module with code lands in a protected one. Server middleware
-authenticates those chunks before static serving and sends them
-`private, no-store`, as the login gate sends every page `no-store`, so none of
-them stays in a shared or browser cache. Login CSS, fonts, icons and bootstrap
-code stay public so the signed-out login page renders. `compression()`, the
-outermost middleware in `main.ts`, gzips the protected chunks and the static
-bundles alike, which took every route from 760–1000 KB to 204–255 KB.
+if a public module with code lands in a protected one, or if a data file is
+emitted as an asset (a `new URL(…, import.meta.url)` reference would copy it out
+verbatim); Vite never inlines protected data as a `data:` URL, so that case
+cannot hide in a chunk either. A path is matched case-folded, so a case alias
+such as `../DATA/` on macOS stays protected. Server middleware authenticates
+those chunks before static serving and sends them `private, no-store`, as the
+login gate sends every page `no-store`, so none of them stays in a shared or
+browser cache. Login CSS, fonts, icons and bootstrap code stay public so the
+signed-out login page renders. `compression()`, the outermost middleware in
+`main.ts`, gzips the protected chunks and the static bundles alike, which took
+every route from 760–1000 KB to 204–255 KB.
 
 ### Regenerating
 

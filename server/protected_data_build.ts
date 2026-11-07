@@ -62,6 +62,28 @@ export function clientChunkName(
     : undefined;
 }
 
+/**
+ * Vite's `build.assetsInlineLimit`: protected data is never inlined. Under
+ * the limit (4 KB) Vite writes a file referenced by `new URL(…,
+ * import.meta.url)` into the importing chunk as a data: URL, where neither
+ * the module checks nor the asset check below can see it. Kept out of line,
+ * it is emitted as an asset, which `assertProtectedDataBundle` refuses.
+ * Every other file keeps Vite's default limit.
+ */
+export function protectedDataInlineLimit(
+  repositoryRoot: string,
+): (filePath: string) => false | undefined {
+  return (filePath) =>
+    isProtectedDataModule(filePath, repositoryRoot) ? false : undefined;
+}
+
+/** An asset's source path as Vite records it, relative to the root. */
+function assetSourcePath(name: string, repositoryRoot: string): string {
+  return /^(?:[A-Za-z]:)?[\\/]/.test(name)
+    ? name
+    : `${repositoryRoot.replace(/[\\/]+$/, "")}/${name}`;
+}
+
 /** The chain of chunk files from one chunk to the first target it reaches, or null. */
 function importChain(
   from: Rollup.OutputChunk,
@@ -104,6 +126,27 @@ export function assertProtectedDataBundle(
   );
   if (protectedChunks.length === 0) {
     throw new Error("Expected at least one protected data chunk, found 0");
+  }
+
+  // Every emitted asset is served publicly: only protected-data chunks pass
+  // through the session check. A data file referenced by URL rather than
+  // imported (`new URL(…, import.meta.url)`, or `?url` from a lib/data
+  // module) would be copied here verbatim.
+  for (const output of Object.values(bundle)) {
+    if (output.type !== "asset") continue;
+    const sources = output.originalFileNames.filter((name) =>
+      isProtectedDataModule(
+        assetSourcePath(name, repositoryRoot),
+        repositoryRoot,
+      )
+    );
+    if (sources.length > 0) {
+      throw new Error(
+        `Protected data emitted as a public asset ${output.fileName}: ${
+          sources.join(", ")
+        }`,
+      );
+    }
   }
 
   for (const chunk of chunks) {

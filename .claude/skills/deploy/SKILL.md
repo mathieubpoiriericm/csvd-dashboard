@@ -96,8 +96,8 @@ These touch an account and its secrets, so the researcher runs them:
    releases it wherever the secret exists; where it does not, `container` pushes
    nothing and `deploy` skips with a notice.
 6. Push to `main`, or run `fly deploy --remote-only --ha=false` once by hand.
-   Then `scripts/smoke_deploy.sh https://<app>.fly.dev` should print five `ok`
-   lines with `SMOKE_PASSPHRASE` set, or four and a skip without it.
+   Then `scripts/smoke_deploy.sh https://<app>.fly.dev` should print seven
+   `ok` lines with `SMOKE_PASSPHRASE` set, or five and a skip without it.
 
 ## Diagnosis
 

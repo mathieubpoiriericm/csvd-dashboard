@@ -6,6 +6,7 @@ import {
   assertProtectedDataBundle,
   clientChunkName,
   PROTECTED_DATA_SENTINELS,
+  protectedDataInlineLimit,
   SHARED_CHUNK_NAME,
 } from "../server/protected_data_build.ts";
 
@@ -327,4 +328,73 @@ Deno.test("build guard rejects lib/data modules whose chunk names collide", () =
     Error,
     `Protected chunk ${PROTECTED} holds lib/data modules whose chunk names collide: /repo/lib/data/sub/x.ts, /repo/lib/data/sub-x.ts`,
   );
+});
+
+Deno.test("build guard rejects a case alias of protected data in a public chunk", () => {
+  const output = bundle();
+  output["assets/client-entry-Public1.js"] = chunk(
+    "assets/client-entry-Public1.js",
+    "public bootstrap",
+    ["/repo/DATA/table1.json"],
+  );
+  assertThrows(
+    () => assertProtectedDataBundle(output, ROOT),
+    Error,
+    "Protected modules emitted in public chunk assets/client-entry-Public1.js: /repo/DATA/table1.json",
+  );
+});
+
+/** An emitted asset, as Vite names one: its source relative to the root. */
+function asset(
+  fileName: string,
+  originalFileNames: string[],
+): Rollup.OutputAsset {
+  return {
+    type: "asset",
+    fileName,
+    name: undefined,
+    names: [],
+    originalFileName: originalFileNames[0] ?? null,
+    originalFileNames,
+    source: "{}",
+    needsCodeReference: false,
+  } as unknown as Rollup.OutputAsset;
+}
+
+// `new URL("../data/x.json", import.meta.url)` and a `?url` import from a
+// lib/data module emit the file itself as a public asset, which no chunk check
+// sees: the bytes would be served as they are, without a session.
+Deno.test("build guard rejects protected data emitted as a public asset", () => {
+  const output = bundle();
+  output["assets/table1-Ab12.json"] = asset("assets/table1-Ab12.json", [
+    "data/table1.json",
+  ]);
+  assertThrows(
+    () => assertProtectedDataBundle(output, ROOT),
+    Error,
+    "Protected data emitted as a public asset assets/table1-Ab12.json: data/table1.json",
+  );
+});
+
+Deno.test("build guard accepts public assets", () => {
+  const output = bundle();
+  output["assets/Barlow-400-Ab12.woff2"] = asset(
+    "assets/Barlow-400-Ab12.woff2",
+    ["node_modules/@fontsource/barlow/files/barlow-latin-400-normal.woff2"],
+  );
+  output["assets/client-entry-Ab12.css"] = asset(
+    "assets/client-entry-Ab12.css",
+    [],
+  );
+  assertProtectedDataBundle(output, ROOT);
+});
+
+// Under assetsInlineLimit (4 KB) Vite inlines a file as a data: URL inside
+// the importing chunk, where no asset check could see it, so protected data
+// is never inlined; every other file keeps Vite's default.
+Deno.test("protected data is never inlined as a data URL", () => {
+  const shouldInline = protectedDataInlineLimit(ROOT);
+  assertEquals(shouldInline("/repo/data/pipeline_status.json"), false);
+  assertEquals(shouldInline("/repo/lib/data/genes.ts"), false);
+  assertEquals(shouldInline("/repo/assets/logo.svg"), undefined);
 });

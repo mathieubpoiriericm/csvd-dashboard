@@ -49,12 +49,19 @@ read -r code location < <(
   fail "GET / answered $code ${location:-with no Location}, want 303 to /login?next=%2F"
 ok "GET / sends a logged-out visitor to /login"
 
-# 3. The protected data chunk is refused without a session. The middleware
-# matches the file name's shape, not the file, so no build hash is needed.
+# 3. The protected data chunks are refused without a session. The middleware
+# matches the file name's shape, not the file, so no build hash is needed;
+# step 6 checks the names the build actually emits, when it can sign in.
 code=$(status_of "$base/assets/protected-data-smoke.js")
 [ "$code" = 401 ] ||
   fail "a logged-out GET of a protected-data chunk answered $code, want 401"
 ok "protected data refused without a session"
+
+# Vite's build manifest maps every source file to its chunk. staticFiles()
+# does not serve it today; this keeps it that way.
+code=$(status_of "$base/.vite/manifest.json")
+[ "$code" != 200 ] || fail "GET /.vite/manifest.json answered 200, want it unserved"
+ok "the build manifest is not served"
 
 # 4. Responses leave compressed (server/compression.ts), not at full size.
 encoding=$(
@@ -99,3 +106,36 @@ cookie=$(
 code=$(printf 'Cookie: %s\n' "$cookie" | status_of -H @- "$base/")
 [ "$code" = 200 ] || fail "GET / with the new session answered $code, want 200"
 ok "signing in opens the dashboard"
+
+# 6. Every protected chunk a data page loads is refused without a session and
+# never cached. Step 3 proves the gate matches the name's shape; this proves
+# the names the build emits have that shape, by following /genes to the island
+# chunks it boots and the protected chunks those import.
+code=$(printf 'Cookie: %s\n' "$cookie" | status_of -H @- "$base/.vite/manifest.json")
+[ "$code" != 200 ] ||
+  fail "GET /.vite/manifest.json with a session answered 200, want it unserved"
+page=$(printf 'Cookie: %s\n' "$cookie" | curl -sS -H @- "$base/genes")
+islands=$(
+  printf '%s' "$page" |
+    grep -oE '/assets/fresh-island__[A-Za-z0-9_-]+\.js' | sort -u || true
+)
+[ -n "$islands" ] || fail "GET /genes named no island chunk"
+chunks=$(
+  for island in $islands; do
+    curl -sS "$base$island" | grep -oE 'protected-data-[A-Za-z0-9_-]+\.js' || true
+  done | sort -u
+)
+[ -n "$chunks" ] || fail "the /genes islands import no protected-data chunk"
+for chunk in $chunks; do
+  read -r code cache < <(
+    printf 'Cookie: %s\n' "$cookie" |
+      curl -sS -o /dev/null -H @- -w '%{http_code} %header{cache-control}\n' \
+        "$base/assets/$chunk" || echo "000"
+  )
+  [ "$code" = 200 ] && [ "${cache:-}" = "private, no-store" ] ||
+    fail "GET $chunk with a session answered $code ${cache:-}, want 200 private, no-store"
+  code=$(status_of "$base/assets/$chunk")
+  [ "$code" = 401 ] ||
+    fail "a logged-out GET of $chunk answered $code, want 401"
+done
+ok "$(wc -w <<<"$chunks" | tr -d ' ') protected chunks /genes loads: 401 logged out, private and no-store signed in"

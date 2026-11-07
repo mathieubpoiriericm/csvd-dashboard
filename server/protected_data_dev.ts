@@ -55,14 +55,10 @@ function isProtectedModuleId(
   moduleId: string,
   repositoryRoot: string,
 ): boolean {
+  // isProtectedDataModule folds case, so an APFS case alias cannot evade
+  // this lexical boundary either.
   const hasProtectedOwnership = (candidate: string) =>
-    isProtectedDataModule(candidate, repositoryRoot) ||
-    // Vite ultimately reads from the host filesystem. Conservatively fold
-    // both sides so an APFS case alias cannot evade this lexical boundary.
-    isProtectedDataModule(
-      candidate.toLowerCase(),
-      repositoryRoot.toLowerCase(),
-    );
+    isProtectedDataModule(candidate, repositoryRoot);
 
   if (hasProtectedOwnership(moduleId)) {
     return true;
