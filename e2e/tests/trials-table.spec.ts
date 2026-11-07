@@ -6,7 +6,7 @@ import {
   TRIAL_SHOWN,
   TRIAL_TOTAL,
 } from "../fixtures/expected-data.ts";
-import { banner, pageSizeSelect, rows } from "../helpers.ts";
+import { banner, pageSizeSelect, rows, wholePage } from "../helpers.ts";
 
 const TOTAL = TRIAL_TOTAL;
 /** Default-visible rows: every status but Completed, Suspended and Unknown. */
@@ -291,6 +291,7 @@ test("the sticky treatment stays on Drug through a merged block, and stays opaqu
   // applied straight to td.col-identity, so hovering any row measured 90%
   // transparent (alpha 0.1) even after the rest-state fix.
   await pageSizeSelect(page).selectOption("100");
+  await wholePage(page);
   const scroller = page.locator(".table-scroll");
   await scroller.evaluate((el) => {
     el.scrollLeft = el.scrollWidth;
