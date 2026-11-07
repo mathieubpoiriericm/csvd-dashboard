@@ -256,3 +256,9 @@ test_that("correction_report gives each line its cell count, or says it kept the
   expect_match(r[2], "line 3 +ST1 +gene +kept$")
   expect_match(r[3], "line 4 +ST1 +protein +1 cell$")
 })
+
+test_that("read_corrections reads a fingerprint in either case and refuses a mangled one", {
+  expect_equal(read_corrections(corrections_file("ST1,gene,83,0A1B2C3D,a,b,r\n"))$row_fingerprint, "0a1b2c3d")
+  expect_error(read_corrections(corrections_file("ST1,gene,,,a,b,r\n", "ST1,gene,83,1.2345E+14,a,b,r\n")),
+               "line 3.*1.2345E\\+14.*8 hex digits")
+})

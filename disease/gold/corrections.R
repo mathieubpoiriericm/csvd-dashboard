@@ -69,6 +69,15 @@ read_corrections <- function(path) {
                  out$line[bad[1]], out$source_row[bad[1]]), call. = FALSE)
   }
   out$source_row <- as.integer(out$source_row)
+  # A fingerprint Excel read as a number ("1.2345E+14", or one that lost its
+  # leading zeros) would otherwise be reported as a row that changed.
+  bad <- which(!is.na(out$row_fingerprint) & !grepl("^[0-9a-fA-F]{8}$", out$row_fingerprint))
+  if (length(bad)) {
+    stop(sprintf(paste0("corrections.csv line %d: row_fingerprint %s is not 8 hex digits; copy it again from ",
+                        "the row_fingerprint column of out/ (Excel may have read it as a number)"),
+                 out$line[bad[1]], out$row_fingerprint[bad[1]]), call. = FALSE)
+  }
+  out$row_fingerprint <- tolower(out$row_fingerprint)
   out
 }
 
@@ -168,8 +177,8 @@ correction_report <- function(log) {
   sprintf("  line %-4d %-4s %-40s %s", log$line, log$sheet, log$column, what)
 }
 
-# The rows a merged workbook cell fills (attribute "merged", set by ST3's
-# assembly): a fix to one of them is a fix to all of them.
+# The rows a merged workbook cell fills (attribute "merged", set by
+# build_rows): a fix to one of them is a fix to all of them.
 merged_rows <- function(t, column, index) {
   m <- attr(t, "merged")
   if (is.null(m)) return(index)

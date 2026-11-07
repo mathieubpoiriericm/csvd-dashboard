@@ -66,7 +66,8 @@ clean_header <- function(x) {
 }
 
 # The ids in one reference cell, in order: PMIDs, bare DOIs, and anything
-# else as "other". `duplicate` marks a repeat of an earlier id in the cell.
+# else as "other". `duplicate` marks a repeat of an earlier id in the cell;
+# DOIs are case-insensitive, so one repeated in another case is a repeat.
 reference_tokens <- function(x) {
   empty <- tibble(kind = character(), id = character(), duplicate = logical())
   if (length(x) != 1 || is.na(x)) return(empty)
@@ -79,7 +80,8 @@ reference_tokens <- function(x) {
   kind <- ifelse(grepl("^\\d+$", tokens), "pmid",
     ifelse(grepl("^10\\.\\d{4,9}/\\S+$", tokens), "doi", "other")
   )
-  tibble(kind = kind, id = tokens, duplicate = duplicated(paste(kind, tokens)))
+  key <- paste(kind, ifelse(kind == "doi", tolower(tokens), tokens))
+  tibble(kind = kind, id = tokens, duplicate = duplicated(key))
 }
 
 # Splits `column` of `table` into one row per id. The column keeps the ids
@@ -117,7 +119,7 @@ collect_references <- function(sheet, table, column) {
 }
 
 # "head (group)" with the group at the very end; without one, head is the
-# whole value and group is NA.
+# whole value and group is NA. An empty head ("(3,156)") or group is NA.
 split_trailing_group <- function(x) {
   re <- "^(.*?)\\s*\\(([^()]*)\\)\\s*$"
   hit <- !is.na(x) & grepl(re, x, perl = TRUE)
@@ -125,6 +127,8 @@ split_trailing_group <- function(x) {
   group <- rep(NA_character_, length(x))
   head[hit] <- sub(re, "\\1", x[hit], perl = TRUE)
   group[hit] <- trimws(sub(re, "\\2", x[hit], perl = TRUE))
+  head[hit & !nzchar(head)] <- NA_character_
+  group[hit & !nzchar(group)] <- NA_character_
   tibble(head = head, group = group)
 }
 

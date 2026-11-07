@@ -205,3 +205,10 @@ test_that("every output row carries its fingerprint, and a correction can quote 
   expect_false(any(fixed$suspects$rule == "unparsed" & fixed$suspects$source_row %in% 211))
   expect_equal(st6$row_fingerprint[st6$source_row == 211], fp)
 })
+
+test_that("an error while assembling a sheet names the sheet", {
+  skip_if_not(file.exists(XLSX), "workbook absent")
+  spec <- SHEETS$ST4
+  spec$build <- function(sd) stop("column C has values but no header", call. = FALSE)
+  expect_error(assemble_sheet(XLSX, spec), "ST4 (SupplementaryTable4): column C", fixed = TRUE)
+})
