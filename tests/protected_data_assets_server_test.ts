@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { issueSession, SESSION_COOKIE } from "../lib/auth.ts";
 import {
   isProtectedDataAssetPath,
+  isProtectedDataModule,
   makePrivateNoStore,
   normalizeStaticPathname,
   protectDataAssets,
@@ -59,7 +60,7 @@ function assertPrivateNoStore(response: Response): void {
   assertMatch(response.headers.get("vary") ?? "", /(?:^|,\s*)Cookie(?:,|$)/i);
 }
 
-Deno.test("generated JSON and lib/data modules receive the protected chunk name", async () => {
+Deno.test("generated JSON, lib/data and the facade are protected modules", async () => {
   const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
   const dataDirectory = new URL("../data/", import.meta.url);
   let count = 0;
@@ -68,22 +69,16 @@ Deno.test("generated JSON and lib/data modules receive the protected chunk name"
     if (!entry.isFile || !entry.name.endsWith(".json")) continue;
     count++;
     const moduleId = fileURLToPath(new URL(entry.name, dataDirectory));
-    assertEquals(
-      protectedDataChunkName(moduleId, repositoryRoot),
-      PROTECTED_DATA_CHUNK_NAME,
-      entry.name,
-    );
-    assertEquals(
-      protectedDataChunkName(`${moduleId}?import`, repositoryRoot),
-      PROTECTED_DATA_CHUNK_NAME,
+    assert(isProtectedDataModule(moduleId, repositoryRoot), entry.name);
+    assert(
+      isProtectedDataModule(`${moduleId}?import`, repositoryRoot),
       `${entry.name}?import`,
     );
-    assertEquals(
-      protectedDataChunkName(
+    assert(
+      isProtectedDataModule(
         `\0deno::1::${new URL(entry.name, dataDirectory).href}`,
         repositoryRoot,
       ),
-      PROTECTED_DATA_CHUNK_NAME,
       `virtual ${entry.name}`,
     );
   }
@@ -92,32 +87,70 @@ Deno.test("generated JSON and lib/data modules receive the protected chunk name"
   const clientDataDirectory = new URL("../lib/data/", import.meta.url);
   for await (const entry of Deno.readDir(clientDataDirectory)) {
     if (!entry.isFile) continue;
-    assertEquals(
-      protectedDataChunkName(
+    assert(
+      isProtectedDataModule(
         fileURLToPath(new URL(entry.name, clientDataDirectory)),
         repositoryRoot,
       ),
-      PROTECTED_DATA_CHUNK_NAME,
       `lib/data/${entry.name}`,
     );
   }
-  assertEquals(
-    protectedDataChunkName(
+  assert(
+    isProtectedDataModule(
       fileURLToPath(new URL("../lib/data.ts", import.meta.url)),
       repositoryRoot,
     ),
-    PROTECTED_DATA_CHUNK_NAME,
   );
+  assert(isProtectedDataModule("C:\\repo\\data\\trials.json", "C:\\repo"));
+});
+
+Deno.test("modules outside data/ and lib/data/ are not protected", () => {
+  const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
   assertEquals(
-    protectedDataChunkName(
+    isProtectedDataModule(
       fileURLToPath(new URL("../lib/phenogram_encoding.json", import.meta.url)),
       repositoryRoot,
     ),
-    undefined,
+    false,
   );
-  assertEquals(
-    protectedDataChunkName("C:\\repo\\data\\trials.json", "C:\\repo"),
-    PROTECTED_DATA_CHUNK_NAME,
+  for (
+    const id of [
+      "/repo/lib/filters.ts",
+      "/repo/lib/collections.ts",
+      "/repo/lib/database.ts",
+      "/elsewhere/data/table1.json",
+    ]
+  ) {
+    assertEquals(isProtectedDataModule(id, "/repo"), false, id);
+  }
+});
+
+// Rollup places each JSON file in the chunk of the lib/data module that
+// imports it, so a page downloads only the datasets its islands import.
+Deno.test("lib/data modules name their own protected chunk", () => {
+  const cases: [string, string, string | undefined][] = [
+    ["/repo/lib/data/genes.ts", "/repo", "protected-data-genes"],
+    ["/repo/lib/data/gene_info.ts?v=1", "/repo", "protected-data-gene_info"],
+    [
+      "\0deno::1::file:///repo/lib/data/pipeline_run.ts",
+      "/repo",
+      "protected-data-pipeline_run",
+    ],
+    ["C:\\repo\\lib\\data\\trials.ts", "C:\\repo\\", "protected-data-trials"],
+    ["/repo/lib/data/sub/x.ts", "/repo", "protected-data-sub-x"],
+    ["/repo/lib/data/odd.name.ts", "/repo", "protected-data-odd_name"],
+    ["/repo/lib/data.ts", "/repo", PROTECTED_DATA_CHUNK_NAME],
+    ["/repo/data/table1.json", "/repo", undefined],
+    ["\0deno::1::file:///repo/data/table1.json", "/repo", undefined],
+    ["/repo/lib/filters.ts", "/repo", undefined],
+  ];
+  for (const [moduleId, root, expected] of cases) {
+    assertEquals(protectedDataChunkName(moduleId, root), expected, moduleId);
+  }
+  assert(
+    isProtectedDataAssetPath(
+      "/assets/protected-data-gene_annotations-AbC_12.js",
+    ),
   );
 });
 

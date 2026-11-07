@@ -116,7 +116,7 @@ export function isViteDevServer(): boolean {
  * single largest reduction available to any route.
  *
  * It is deliberately the outermost middleware, so it also covers the
- * protected-data chunk that `protectDataAssets()` rewrites and the early
+ * protected-data chunks that `protectDataAssets()` rewrites and the early
  * denials that never reach file routing. `Content-Length` is dropped rather
  * than recomputed: the compressed body is a stream, and a wrong length is worse
  * than an absent one.

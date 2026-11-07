@@ -12,7 +12,11 @@ import {
 } from "../lib/auth.ts";
 import { rewriteResponseHeaders } from "./response_header_policy.ts";
 
-/** Rollup uses this as the stable name before appending its content hash. */
+/**
+ * The prefix of every protected chunk name: `protected-data-<module>` for a
+ * lib/data/ module, and the bare name for the lib/data.ts facade. Rollup
+ * appends the content hash after it.
+ */
 export const PROTECTED_DATA_CHUNK_NAME = "protected-data";
 
 const PROTECTED_DATA_ASSET = /^\/assets\/protected-data-[A-Za-z0-9_-]+\.js$/;
@@ -40,10 +44,36 @@ function moduleFilePath(moduleId: string): string | null {
 }
 
 /**
- * Assign generated JSON and every module in the browser-facing lib/data/
- * boundary to the protected client chunk. The latter matters when a data
- * correction or lookup constant lives in TypeScript rather than raw JSON.
- * Unrelated JSON (for example visualization encoding) remains public code.
+ * Whether a module belongs to the protected boundary: generated JSON, and
+ * every module in the browser-facing lib/data/ boundary. The latter matters
+ * when a data correction or lookup constant lives in TypeScript rather than
+ * raw JSON. Unrelated JSON (for example visualization encoding) remains
+ * public code. The dev and build guards decide ownership here, never from a
+ * chunk name.
+ */
+export function isProtectedDataModule(
+  moduleId: string,
+  repositoryRoot: string,
+): boolean {
+  const id = moduleFilePath(moduleId);
+  if (id === null) return false;
+  const root = normalizeFileSystemPath(repositoryRoot);
+  const generatedDataRoot = `${root}/data/`;
+  const clientDataRoot = `${root}/lib/data/`;
+  const clientDataFacade = `${root}/lib/data.ts`;
+  return (id.startsWith(generatedDataRoot) && id.endsWith(".json")) ||
+    id.startsWith(clientDataRoot) || id === clientDataFacade;
+}
+
+/**
+ * Vite's `manualChunks` name for a protected module: each lib/data/ module
+ * gets a chunk of its own, so a page downloads only the datasets its islands
+ * import. Generated JSON is left unnamed on purpose -- Rollup pulls an
+ * unnamed dependency into its importer's manual chunk, so each file ships
+ * with the lib/data module that reads it. A name says nothing about
+ * ownership; that is `isProtectedDataModule`'s alone. Every name stays within
+ * the characters `PROTECTED_DATA_ASSET` accepts, or the gate would not see
+ * the file (and the build guard would refuse it).
  */
 export function protectedDataChunkName(
   moduleId: string,
@@ -52,13 +82,12 @@ export function protectedDataChunkName(
   const id = moduleFilePath(moduleId);
   if (id === null) return undefined;
   const root = normalizeFileSystemPath(repositoryRoot);
-  const generatedDataRoot = `${root}/data/`;
+  if (id === `${root}/lib/data.ts`) return PROTECTED_DATA_CHUNK_NAME;
   const clientDataRoot = `${root}/lib/data/`;
-  const clientDataFacade = `${root}/lib/data.ts`;
-  return (id.startsWith(generatedDataRoot) && id.endsWith(".json")) ||
-      id.startsWith(clientDataRoot) || id === clientDataFacade
-    ? PROTECTED_DATA_CHUNK_NAME
-    : undefined;
+  if (!id.startsWith(clientDataRoot)) return undefined;
+  const stem = id.slice(clientDataRoot.length).replace(/\.[^./]+$/, "")
+    .replaceAll("/", "-").replace(/[^A-Za-z0-9_-]/g, "_");
+  return `${PROTECTED_DATA_CHUNK_NAME}-${stem}`;
 }
 
 /**
@@ -85,7 +114,10 @@ export function normalizeStaticPathname(
   }
 }
 
-/** True only for the generated JavaScript chunk name reserved above. */
+/**
+ * True only for a protected chunk, `/assets/protected-data-<name>-<hash>.js`
+ * (or the facade's bare `protected-data-<hash>.js`).
+ */
 export function isProtectedDataAssetPath(
   pathname: string,
   basePath = "",

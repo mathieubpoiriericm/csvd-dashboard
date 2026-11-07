@@ -242,7 +242,7 @@ as islands. The island loads nothing of the dataset: `lib/adapt/validate.ts` and
 the manifest reach their shared helpers through public modules
 (`lib/normalize.ts`, `lib/sentinels.ts`, the `shared` chunk), and
 `server/protected_data_build.ts` fails the build if the island's chunk reaches
-the protected one, directly or through another chunk.
+any protected one, directly or through another chunk.
 
 Nine things are load-bearing:
 

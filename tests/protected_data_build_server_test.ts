@@ -12,18 +12,24 @@ import {
 const ROOT = "/repo";
 
 const PROTECTED = "assets/protected-data-Ab_12.js";
+const PROTECTED_2 = "assets/protected-data-references-Cd_34.js";
 const MANIFEST = "assets/manifest-Public2.js";
 const WIZARD = "assets/fresh-island__AdaptWizard-Public3.js";
 const TOGGLE = "assets/fresh-island__ThemeToggle-Public4.js";
 
+/**
+ * A chunk whose listed modules each render code; `typeOnly` modules render
+ * nothing, as a type-only import does once the compiler erases it.
+ */
 function chunk(
   fileName: string,
   code: string,
   moduleIds: string[],
-  { name = "", imports = [], dynamicImports = [] }: {
+  { name = "", imports = [], dynamicImports = [], typeOnly = [] }: {
     name?: string;
     imports?: string[];
     dynamicImports?: string[];
+    typeOnly?: string[];
   } = {},
 ): Rollup.OutputChunk {
   return {
@@ -33,7 +39,10 @@ function chunk(
     code,
     imports,
     dynamicImports,
-    modules: Object.fromEntries(moduleIds.map((id) => [id, {}])),
+    modules: Object.fromEntries([
+      ...moduleIds.map((id) => [id, { renderedLength: 1 }]),
+      ...typeOnly.map((id) => [id, { renderedLength: 0 }]),
+    ]),
   } as unknown as Rollup.OutputChunk;
 }
 
@@ -70,6 +79,21 @@ function bundle(
     }),
   ];
   return Object.fromEntries(chunks.map((output) => [output.fileName, output]));
+}
+
+/** A second protected chunk, the references table, loaded by GenesView. */
+function withSecondProtectedChunk(
+  output: Rollup.OutputBundle,
+  code = "references",
+): Rollup.OutputBundle {
+  output[PROTECTED_2] = chunk(PROTECTED_2, code, [
+    "\0deno::1::file:///repo/data/refs.json",
+    "/repo/lib/data/references.ts",
+  ]);
+  const genes = "assets/fresh-island__GenesView-Public5.js";
+  return withImports(output, genes, {
+    imports: [MANIFEST, PROTECTED, PROTECTED_2],
+  });
 }
 
 function withImports(
@@ -150,7 +174,7 @@ Deno.test("build guard rejects a data-free island that imports the protected chu
         ROOT,
       ),
     Error,
-    `Data-free island AdaptWizard loads the protected data chunk: ${WIZARD} -> ${PROTECTED}`,
+    `Data-free island AdaptWizard loads a protected data chunk: ${WIZARD} -> ${PROTECTED}`,
   );
 });
 
@@ -162,7 +186,7 @@ Deno.test("build guard follows a data-free island's imports to the protected chu
         ROOT,
       ),
     Error,
-    `Data-free island AdaptWizard loads the protected data chunk: ${WIZARD} -> ${MANIFEST} -> ${PROTECTED}`,
+    `Data-free island AdaptWizard loads a protected data chunk: ${WIZARD} -> ${MANIFEST} -> ${PROTECTED}`,
   );
 });
 
@@ -174,7 +198,7 @@ Deno.test("build guard counts a data-free island's dynamic imports", () => {
         ROOT,
       ),
     Error,
-    `Data-free island ThemeToggle loads the protected data chunk: ${TOGGLE} -> ${PROTECTED}`,
+    `Data-free island ThemeToggle loads a protected data chunk: ${TOGGLE} -> ${PROTECTED}`,
   );
 });
 
@@ -189,22 +213,102 @@ Deno.test("build guard rejects a bundle without a data-free island's chunk", () 
 });
 
 Deno.test("client chunks keep lib/data's public imports out of the protected chunk", () => {
-  for (const id of ["/repo/lib/sentinels.ts", "/repo/lib/normalize.ts?v=1"]) {
-    assertEquals(clientChunkName(id, ROOT), SHARED_CHUNK_NAME);
-  }
   for (
     const id of [
-      "\0deno::1::file:///repo/data/table1.json",
-      "/repo/lib/data/normalize.ts",
+      "/repo/lib/sentinels.ts",
+      "/repo/lib/normalize.ts?v=1",
+      "/repo/lib/collections.ts",
     ]
   ) {
-    assertEquals(clientChunkName(id, ROOT), PROTECTED_DATA_CHUNK_NAME);
+    assertEquals(clientChunkName(id, ROOT), SHARED_CHUNK_NAME, id);
   }
+  assertEquals(
+    clientChunkName("/repo/lib/data/normalize.ts", ROOT),
+    `${PROTECTED_DATA_CHUNK_NAME}-normalize`,
+  );
+  // JSON is unnamed: Rollup places it with the lib/data module importing it.
+  assertEquals(
+    clientChunkName("\0deno::1::file:///repo/data/table1.json", ROOT),
+    undefined,
+  );
   for (const id of ["/repo/lib/filters.ts", "/elsewhere/lib/sentinels.ts"]) {
     assertEquals(clientChunkName(id, ROOT), undefined);
   }
   assertEquals(
     clientChunkName("C:\\repo\\lib\\sentinels.ts", "C:\\repo\\"),
     SHARED_CHUNK_NAME,
+  );
+});
+
+Deno.test("build guard accepts several protected chunks", () => {
+  assertProtectedDataBundle(withSecondProtectedChunk(bundle()), ROOT);
+});
+
+Deno.test("build guard rejects a bundle with no protected chunk", () => {
+  const output = bundle();
+  delete output[PROTECTED];
+  output["assets/public-Ab_12.js"] = chunk("assets/public-Ab_12.js", "public", [
+    "/repo/lib/filters.ts",
+  ]);
+  assertThrows(
+    () => assertProtectedDataBundle(output, ROOT),
+    Error,
+    "Expected at least one protected data chunk, found 0",
+  );
+});
+
+// Rollup pulls an unnamed dependency of a manual chunk into it, so a public
+// helper that only lib/data imports would make its other importers load data.
+Deno.test("build guard rejects a public module with code in a protected chunk", () => {
+  const output = bundle();
+  output[PROTECTED] = chunk(PROTECTED, "data", [
+    "\0deno::1::file:///repo/data/table1.json",
+    "/repo/lib/data/locations.ts",
+    "/repo/lib/collections.ts",
+  ]);
+  assertThrows(
+    () => assertProtectedDataBundle(output, ROOT),
+    Error,
+    `Public modules emitted in protected chunk ${PROTECTED}: /repo/lib/collections.ts`,
+  );
+});
+
+Deno.test("build guard ignores a type-only public module in a protected chunk", () => {
+  const output = bundle();
+  output[PROTECTED] = chunk(
+    PROTECTED,
+    "data",
+    ["\0deno::1::file:///repo/data/table1.json", "/repo/lib/data/locations.ts"],
+    { typeOnly: ["/repo/lib/types.ts"] },
+  );
+  assertProtectedDataBundle(output, ROOT);
+});
+
+Deno.test("build guard rejects a canary held by a second protected chunk and a public one", () => {
+  assertThrows(
+    () =>
+      assertProtectedDataBundle(
+        withSecondProtectedChunk(
+          bundle("no canary", "public P07942"),
+          "P07942",
+        ),
+        ROOT,
+      ),
+    Error,
+    "leaked into public chunk",
+  );
+});
+
+Deno.test("build guard rejects a data-free island that reaches a second protected chunk", () => {
+  assertThrows(
+    () =>
+      assertProtectedDataBundle(
+        withImports(withSecondProtectedChunk(bundle()), WIZARD, {
+          imports: [MANIFEST, PROTECTED_2],
+        }),
+        ROOT,
+      ),
+    Error,
+    `Data-free island AdaptWizard loads a protected data chunk: ${WIZARD} -> ${PROTECTED_2}`,
   );
 });

@@ -1,9 +1,9 @@
 /**
  * The normalizers the disease manifest shares with the generated-data
  * boundary. They live here, and `lib/data/normalize.ts` re-exports them,
- * because everything under `lib/data/` is bundled into the protected chunk:
- * a manifest that imported them from there would make the adapt wizard,
- * which renders no data, load the whole dataset before it could hydrate.
+ * because everything under `lib/data/` is bundled into protected chunks: a
+ * manifest that imported them from there would make the adapt wizard, which
+ * renders no data, load protected data before it could hydrate.
  */
 
 export function nullableText(value: unknown): string | null {
