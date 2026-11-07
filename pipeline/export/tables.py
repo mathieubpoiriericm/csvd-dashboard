@@ -158,6 +158,9 @@ _OMICS_TYPES: Final[frozenset[str]] = frozenset(
         "PWAS",
         "Proteomics",
         "WES/WGS",
+        "Proteogenomic MR",
+        "Fine-mapping",
+        "Experimental",
         _MENTR_LABEL,
     }
 )

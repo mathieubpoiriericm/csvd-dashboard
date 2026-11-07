@@ -636,3 +636,32 @@ def test_the_dashboards_absent_sentinels_are_the_ones_the_export_writes() -> Non
     )
     missing = {sentinel for sentinel in sentinels if f'"{sentinel}"' not in tables}
     assert not missing, f"the export never writes {sorted(missing)}"
+
+
+@pytest.mark.parametrize(
+    "entry",
+    [
+        "Proteogenomic MR;WMH",
+        "Fine-mapping;multiancestry fine-mapping",
+        "Experimental;CRISPR, experimental",
+    ],
+)
+def test_the_curated_evidence_types_are_filter_reachable(entry: str) -> None:
+    """The three types the curated sheet's folded columns introduce.
+
+    The wire form passes the gate whole. Through `clean_gene_row` the
+    prose cleanup rewrites ";" to ", " first, so the detail after the type
+    is split off (and dropped when it is not itself a type), but the type
+    survives and is never replaced by the "(none found)" sentinel.
+    """
+    assert _publishable_omics([entry], "gold") == [entry]
+
+    published = clean_gene_row(
+        {"gene": "ABC", "evidence_from_other_omics_studies": entry}
+    )["Evidence From Other Omics Studies"]
+    assert published
+    assert "(none found)" not in published
+    assert all(
+        element.split(";")[0].strip().lower() in _OMICS_TYPE_KEYS
+        for element in published
+    )

@@ -125,6 +125,10 @@ export const OMICS_CHOICES: readonly FilterChoice[] = [
   // routinely, and an omics value absent from this list is unreachable in
   // the filter and fails the data contract test.
   { label: "WES/WGS", value: "WES/WGS" },
+  // The curated evidence the hand-curated gold sheet folds into this column.
+  { label: "Proteogenomic MR", value: "Proteogenomic MR" },
+  { label: "Fine-mapping", value: "Fine-mapping" },
+  { label: "Experimental", value: "Experimental" },
   {
     label: "MENTR",
     value: "mutation effect prediction on ncRNA transcription",
