@@ -43,26 +43,48 @@ function moduleFilePath(moduleId: string): string | null {
   return normalizeFileSystemPath(id);
 }
 
+/** Where a module sits inside the protected boundary. */
+type ProtectedDataModule =
+  | { kind: "generated-json" }
+  | { kind: "facade" }
+  | { kind: "client-data"; path: string };
+
 /**
- * Whether a module belongs to the protected boundary: generated JSON, and
- * every module in the browser-facing lib/data/ boundary. The latter matters
- * when a data correction or lookup constant lives in TypeScript rather than
- * raw JSON. Unrelated JSON (for example visualization encoding) remains
- * public code. The dev and build guards decide ownership here, never from a
- * chunk name.
+ * Classify a module against the protected boundary, or null outside it:
+ * generated JSON, every module in the browser-facing lib/data/ boundary
+ * (`path` is relative to lib/data/), and the lib/data.ts facade. The
+ * lib/data/ part matters when a data correction or lookup constant lives in
+ * TypeScript rather than raw JSON. Unrelated JSON (for example visualization
+ * encoding) remains public code. Ownership and naming both read this, so a
+ * chunk name can only ever refine ownership.
+ */
+function classifyProtectedDataModule(
+  moduleId: string,
+  repositoryRoot: string,
+): ProtectedDataModule | null {
+  const id = moduleFilePath(moduleId);
+  if (id === null) return null;
+  const root = normalizeFileSystemPath(repositoryRoot);
+  const clientDataRoot = `${root}/lib/data/`;
+  if (id.startsWith(clientDataRoot)) {
+    return { kind: "client-data", path: id.slice(clientDataRoot.length) };
+  }
+  if (id === `${root}/lib/data.ts`) return { kind: "facade" };
+  if (id.startsWith(`${root}/data/`) && id.endsWith(".json")) {
+    return { kind: "generated-json" };
+  }
+  return null;
+}
+
+/**
+ * Whether a module belongs to the protected boundary. The dev and build
+ * guards decide ownership here, never from a chunk name.
  */
 export function isProtectedDataModule(
   moduleId: string,
   repositoryRoot: string,
 ): boolean {
-  const id = moduleFilePath(moduleId);
-  if (id === null) return false;
-  const root = normalizeFileSystemPath(repositoryRoot);
-  const generatedDataRoot = `${root}/data/`;
-  const clientDataRoot = `${root}/lib/data/`;
-  const clientDataFacade = `${root}/lib/data.ts`;
-  return (id.startsWith(generatedDataRoot) && id.endsWith(".json")) ||
-    id.startsWith(clientDataRoot) || id === clientDataFacade;
+  return classifyProtectedDataModule(moduleId, repositoryRoot) !== null;
 }
 
 /**
@@ -70,24 +92,27 @@ export function isProtectedDataModule(
  * gets a chunk of its own, so a page downloads only the datasets its islands
  * import. Generated JSON is left unnamed on purpose -- Rollup pulls an
  * unnamed dependency into its importer's manual chunk, so each file ships
- * with the lib/data module that reads it. A name says nothing about
- * ownership; that is `isProtectedDataModule`'s alone. Every name stays within
- * the characters `PROTECTED_DATA_ASSET` accepts, or the gate would not see
- * the file (and the build guard would refuse it).
+ * with the lib/data module that reads it. Every name stays within the
+ * characters `PROTECTED_DATA_ASSET` accepts, or the gate would not see the
+ * file (and the build guard would refuse it); two paths that sanitize to the
+ * same name fail the build guard rather than share a chunk.
  */
 export function protectedDataChunkName(
   moduleId: string,
   repositoryRoot: string,
 ): string | undefined {
-  const id = moduleFilePath(moduleId);
-  if (id === null) return undefined;
-  const root = normalizeFileSystemPath(repositoryRoot);
-  if (id === `${root}/lib/data.ts`) return PROTECTED_DATA_CHUNK_NAME;
-  const clientDataRoot = `${root}/lib/data/`;
-  if (!id.startsWith(clientDataRoot)) return undefined;
-  const stem = id.slice(clientDataRoot.length).replace(/\.[^./]+$/, "")
-    .replaceAll("/", "-").replace(/[^A-Za-z0-9_-]/g, "_");
-  return `${PROTECTED_DATA_CHUNK_NAME}-${stem}`;
+  const module = classifyProtectedDataModule(moduleId, repositoryRoot);
+  switch (module?.kind) {
+    case "facade":
+      return PROTECTED_DATA_CHUNK_NAME;
+    case "client-data": {
+      const stem = module.path.replace(/\.[^./]+$/, "").replaceAll("/", "-")
+        .replace(/[^A-Za-z0-9_-]/g, "_");
+      return `${PROTECTED_DATA_CHUNK_NAME}-${stem}`;
+    }
+    default:
+      return undefined;
+  }
 }
 
 /**

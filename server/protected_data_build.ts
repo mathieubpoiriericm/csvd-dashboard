@@ -122,6 +122,23 @@ export function assertProtectedDataBundle(
     }
   }
 
+  // Rollup never merges two manual chunk names, so a protected chunk holding
+  // two named modules means their names collided (lib/data/sub/x.ts and
+  // lib/data/sub-x.ts are both protected-data-sub-x): pages importing either
+  // would download both. Fail rather than merge them silently.
+  for (const chunk of protectedChunks) {
+    const named = Object.keys(chunk.modules).filter((moduleId) =>
+      protectedDataChunkName(moduleId, repositoryRoot) !== undefined
+    );
+    if (named.length > 1) {
+      throw new Error(
+        `Protected chunk ${chunk.fileName} holds lib/data modules whose chunk names collide: ${
+          named.join(", ")
+        }`,
+      );
+    }
+  }
+
   // A type-only import renders nothing, so only modules that left code count.
   for (const chunk of protectedChunks) {
     const publicModules = Object.entries(chunk.modules).filter((

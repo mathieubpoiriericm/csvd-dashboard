@@ -312,3 +312,19 @@ Deno.test("build guard rejects a data-free island that reaches a second protecte
     `Data-free island AdaptWizard loads a protected data chunk: ${WIZARD} -> ${PROTECTED_2}`,
   );
 });
+
+// Rollup never merges two manual chunk names, so two lib/data modules in one
+// chunk means their names collided: lib/data/sub/x.ts and lib/data/sub-x.ts
+// are both protected-data-sub-x.
+Deno.test("build guard rejects lib/data modules whose chunk names collide", () => {
+  const output = bundle();
+  output[PROTECTED] = chunk(PROTECTED, "data", [
+    "/repo/lib/data/sub/x.ts",
+    "/repo/lib/data/sub-x.ts",
+  ]);
+  assertThrows(
+    () => assertProtectedDataBundle(output, ROOT),
+    Error,
+    `Protected chunk ${PROTECTED} holds lib/data modules whose chunk names collide: /repo/lib/data/sub/x.ts, /repo/lib/data/sub-x.ts`,
+  );
+});
