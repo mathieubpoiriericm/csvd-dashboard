@@ -340,6 +340,7 @@ class TestRunExport:
                         "0765",
                         "7654321",
                         "37063705",
+                        "10.21203/rs.3.rs-5926137/v1",
                     ],
                 },
                 {"Gene": "B", "References": ["(reference needed)"]},

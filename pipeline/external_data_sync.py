@@ -17,6 +17,7 @@ from pipeline.clinvar_fetch import (
 )
 from pipeline.config import PipelineConfig
 from pipeline.database import Database, fill_missing_chromosomal_locations
+from pipeline.export.text import is_doi
 from pipeline.ncbi_gene_fetch import (
     clear_ncbi_cache,
     close_ncbi_client,
@@ -154,7 +155,7 @@ async def get_all_pmids() -> list[str]:
     all_pmids: set[str] = set()
     for row in rows:
         pmid = row["pmid"]
-        if pmid:
+        if pmid and not is_doi(str(pmid)):
             all_pmids.update(extract_pmids_from_text(str(pmid)))
 
     return sorted(all_pmids)

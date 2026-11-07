@@ -863,6 +863,18 @@ async def test_ncbi_fills_an_empty_band_and_never_a_curated_one() -> None:
             )
 
 
+async def test_a_doi_reference_is_stored_whole(scratch_gene) -> None:
+    """Migration 016: a 27-character DOI overflowed VARCHAR(20)."""
+    doi = "10.21203/rs.3.rs-5926137/v1"
+    await merge_genes_transactional(
+        [_gene_row(references=["39298701", doi])], []
+    )
+    assert await _list_values("gene_references", "pmid") == [
+        (0, "39298701"),
+        (1, doi),
+    ]
+
+
 async def test_the_ledger_records_the_extraction_model() -> None:
     """Migration 015's column: which model extracted each processed paper."""
     async with Database.connection() as conn:

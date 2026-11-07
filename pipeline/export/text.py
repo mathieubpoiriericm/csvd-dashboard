@@ -164,6 +164,17 @@ def extract_matches(value: str | None, pattern: re.Pattern[str]) -> list[str]:
     return pattern.findall(value)
 
 
+def is_doi(reference: str) -> bool:
+    """True for a DOI reference: gene_references holds PMIDs and DOIs alike.
+
+    A DOI starts with ``10.`` and has a ``/`` after its registrant prefix; a
+    PMID is all digits. Every PubMed lookup (the export's citation read, the
+    lookup-cache refresh, --sync-external-data) must skip what this accepts,
+    because PubMed has no record under a DOI.
+    """
+    return reference.startswith("10.") and "/" in reference
+
+
 def extract_pmids(value: str | None) -> list[str]:
     """Extract PubMed IDs without mistaking years or DOI fragments for them.
 
