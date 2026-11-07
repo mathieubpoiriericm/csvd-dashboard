@@ -135,8 +135,19 @@ const search = (table) => async (page) => {
   await expect(banner(page)).toContainText(`Search: “${text}”`);
   await expect(rows(page).first()).toContainText(new RegExp(text, "i"));
 };
+/**
+ * Picks 100 rows by typing it into the focused select, not by selectOption.
+ * selectOption sets the value and dispatches synthetic input and change
+ * events, which EventTiming ignores, so the scenario recorded no event and
+ * reported only its long task. Arrow keys and End open the popup on macOS
+ * rather than changing the value; type-ahead changes it on every platform,
+ * from a trusted keypress. The tables open at 10 rows, so "1" and "10" leave
+ * the value alone and only the last keystroke re-renders.
+ */
 const size100 = async (page) => {
-  await pageSize(page).selectOption("100");
+  await pageSize(page).focus();
+  await page.keyboard.type("100");
+  await expect(pageSize(page)).toHaveValue("100");
   await expect.poll(() => rows(page).count()).toBeGreaterThan(10);
 };
 const tooltipHover = async (page) => {
