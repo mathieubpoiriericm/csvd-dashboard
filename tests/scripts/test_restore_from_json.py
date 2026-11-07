@@ -25,6 +25,8 @@ from scripts.restore_from_json import (
     trial_from_wire,
 )
 
+from pipeline.export.tables import clean_omics_value
+
 _DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 
 _POPULATED_GENE: dict[str, Any] = {
@@ -117,6 +119,27 @@ def test_a_detail_with_a_comma_goes_back_in_parentheses() -> None:
 
 def test_the_omics_sentinel_is_not_stored() -> None:
     assert stored_omics(["(none found)"]) is None
+
+
+@pytest.mark.parametrize(
+    "entries",
+    [
+        ["TWAS;TRAIT-A: tissue one*"],  # a "*" and a second ":"
+        ["TWAS;tissue one, (age>65): tissue two", "PWAS;x"],  # nested parentheses
+        ["TWAS;Whole_Blood"],  # an underscore
+    ],
+)
+def test_entries_prose_cannot_carry_are_stored_as_an_array(
+    entries: list[str],
+) -> None:
+    """Prose is kept whenever it exports back to the entries; when it would
+    not, the entries are stored already split, and the export publishes
+    them as they are."""
+    stored = stored_omics(entries)
+    assert stored is not None
+    assert stored.startswith("[")
+    assert ";" not in stored  # one element to the gene merge's ";" split
+    assert clean_omics_value(stored) == entries
 
 
 # ------------------------------------------------------------------ genes

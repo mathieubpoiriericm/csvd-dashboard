@@ -70,7 +70,7 @@ import asyncpg
 from dotenv import load_dotenv
 
 from pipeline.database import Database
-from pipeline.export.tables import clean_gene_row, clean_trial_row
+from pipeline.export.tables import clean_gene_row, clean_omics_value, clean_trial_row
 from pipeline.export.text import clean_column_name
 from pipeline.export.writer import to_camel
 
@@ -123,12 +123,16 @@ _COMMA_OUTSIDE_PARENS: Final = re.compile(r",(?![^(]*\))")
 
 
 def stored_omics(entries: list[str]) -> str | None:
-    """The stored prose `clean_omics_value` turns back into *entries*.
+    """The stored value `clean_omics_value` turns back into *entries*.
 
-    The export rewrites the stored ":" to ";" after splitting studies on
-    ";", and splits on commas outside parentheses, so a detail goes back
-    behind a colon -- or, when it holds such a comma, inside parentheses,
-    the form `_recover_omics_type` rebuilds "Type;detail" from.
+    Prose when prose can carry them: the export rewrites the stored ":" to
+    ";" after splitting studies on ";", and splits on commas outside
+    parentheses, so a detail goes back behind a colon -- or, when it holds
+    such a comma, inside parentheses, the form `_recover_omics_type`
+    rebuilds "Type;detail" from. Prose cannot carry a "*", a second ":", an
+    "_" or nested parentheses -- curated gold wording has all four -- so
+    entries prose would change are stored as a JSON array instead, ";"
+    escaped so the gene merge's ";" split leaves it whole.
     """
     if entries == ["(none found)"]:
         return None
@@ -139,7 +143,10 @@ def stored_omics(entries: list[str]) -> str | None:
             head, _, detail = entry.partition(";")
             candidate = f"{head} ({detail})"
         stored.append(candidate)
-    return ", ".join(stored)
+    prose = ", ".join(stored)
+    if clean_omics_value(prose) == entries:
+        return prose
+    return json.dumps(entries, ensure_ascii=False).replace(";", "\\u003b")
 
 
 def gene_from_wire(row: Mapping[str, Any]) -> GeneRestore:

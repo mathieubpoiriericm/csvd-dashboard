@@ -1,3 +1,4 @@
+import json
 import logging
 import re
 from pathlib import Path
@@ -665,3 +666,47 @@ def test_the_curated_evidence_types_are_filter_reachable(entry: str) -> None:
         element.split(";")[0].strip().lower() in _OMICS_TYPE_KEYS
         for element in published
     )
+
+
+# ---------------------------------------------------------------------------
+# Omics stored already split -- a JSON array of wire-form entries
+# ---------------------------------------------------------------------------
+
+
+def test_omics_stored_as_a_json_array_publishes_each_entry_verbatim() -> None:
+    """Prose cannot carry every curated wording through the chain above: it
+    strips "*", turns every ":" into ";" and splits on commas outside
+    parentheses. A value stored as a JSON array of wire-form entries is
+    already split, so each entry is published as written -- through the same
+    type gate, and with nothing else rewritten.
+    """
+    stored = json.dumps(
+        ["TWAS;TRAIT-A: tissue one*, (age>65): tissue two_x", "Proteomics"]
+    )
+    assert clean_omics_value(stored) == [
+        "TWAS;TRAIT-A: tissue one*, (age>65): tissue two_x",
+        "Proteomics",
+    ]
+
+
+def test_omics_stored_as_a_json_array_still_gates_the_type(caplog) -> None:
+    stored = json.dumps(["colocalization;tissue*", "Proteomics (plasma)"])
+    with caplog.at_level(logging.INFO, logger="pipeline.export.tables"):
+        assert clean_omics_value(stored, "ABC1") == ["Proteomics;plasma"]
+    assert "no filterable study type" in caplog.text
+
+
+def test_omics_prose_a_merge_appended_after_the_array_is_cleaned_as_prose() -> (
+    None
+):
+    """The gene merge appends the extraction's prose after the stored value,
+    joined on ";" (`merge_genes_transactional`). The array's own semicolons
+    are escaped, so the merge sees it as one element and leaves it whole.
+    """
+    stored = json.dumps(["TWAS;a: b*"]).replace(";", "\\u003b")
+    assert ";" not in stored
+    assert clean_omics_value(f"{stored};PWAS:brain*") == ["TWAS;a: b*", "PWAS;brain"]
+
+
+def test_omics_prose_that_merely_starts_with_a_bracket_is_prose() -> None:
+    assert clean_omics_value("[TWAS]") == ["(none found)"]
