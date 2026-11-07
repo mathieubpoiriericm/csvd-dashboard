@@ -8,12 +8,11 @@ suppressPackageStartupMessages({
 
 # ---- assembly --------------------------------------------------------------
 
-build_rows <- function(sd) rows_to_table(sd$vals, sd$header, sd$data_rows)
-
-# ST3: an agent's merged cells span all of its trials, so they fill down.
-# The table remembers which rows each merged cell fills (attribute
+# One record per row. A merged cell fills every row it spans (ST3's agents
+# span all of their trials); read unexpanded, it would reach only its first
+# row. The table remembers which rows each merged cell fills (attribute
 # "merged"), so a correction to one of them reaches all of them.
-build_st3 <- function(sd) {
+build_rows <- function(sd) {
   t <- rows_to_table(sd$expanded, sd$header, sd$data_rows)
   attr(t, "merged") <- merged_groups(sd)
   t
@@ -36,7 +35,7 @@ merged_groups <- function(sd) {
 # ST2: a method spans the rows of its merged column A; each pro and con is a
 # bullet row of its own.
 build_st2 <- function(sd) {
-  t <- records_to_table(sd$vals, sd$header, sd$data_rows, key_col = 1, sep = "\n")
+  t <- records_to_table(sd$vals, sd$header, sd$data_rows, key_col = 1, sep = "\n", merges = sd$merges)
   t$pros <- strip_bullets(t$pros)
   t$cons <- strip_bullets(t$cons)
   t
@@ -44,11 +43,21 @@ build_st2 <- function(sd) {
 
 # ST4: a trial spans the rows of its merged column B; a continuation row
 # holds the trial's "(NCT...)" in column A.
-build_st4 <- function(sd) records_to_table(sd$vals, sd$header, sd$data_rows, key_col = 2, sep = " ")
+build_st4 <- function(sd) {
+  records_to_table(sd$vals, sd$header, sd$data_rows, key_col = 2, sep = " ", merges = sd$merges)
+}
 
+# An error in reading or building a sheet names the sheet, since a cell
+# address or a row number alone fits any of the six.
 assemble_sheet <- function(path, spec) {
-  sd <- read_sheet(path, find_sheet(path, spec$sheet), spec$header_rows, spec$first_data_row)
-  table <- spec$build(sd)
+  in_sheet <- function(expr) {
+    tryCatch(expr, error = function(e) {
+      stop(sprintf("%s (%s): %s", spec$id, spec$sheet, conditionMessage(e)), call. = FALSE)
+    })
+  }
+  sheet <- find_sheet(path, spec$sheet)
+  sd <- in_sheet(read_sheet(path, sheet, spec$header_rows, spec$first_data_row))
+  table <- in_sheet(spec$build(sd))
   found <- setdiff(names(table), c("source_row", "footnote_refs"))
   if (!identical(found, spec$columns)) {
     stop(sprintf("%s (%s): the columns changed.\n  expected: %s\n  found:    %s",
@@ -75,6 +84,13 @@ unparsed <- function(sheet, table, column, parsed, what) {
   bad <- which(!is.na(table[[column]]) & is.na(parsed))
   if (length(bad) == 0) return(empty_suspects())
   suspect(sheet, table$source_row[bad], column, table[[column]][bad], "unparsed", paste("expected", what))
+}
+
+# A superscript anywhere in a sheet gives its table a footnote_refs column,
+# which a finish that rebuilds the table must carry over.
+carry_footnote_refs <- function(table, t) {
+  if ("footnote_refs" %in% names(t)) table$footnote_refs <- t$footnote_refs
+  table
 }
 
 finish_references <- function(id, column) {
@@ -118,7 +134,7 @@ finish_st3 <- function(t) {
     estimated_completion = estimated_completion,
     completion_note = ifelse(is.na(estimated_completion), completion, NA_character_),
     trial_primary_outcome = t$trial_primary_outcome, trial_sponsor_type = t$trial_sponsor_type
-  )
+  ) |> carry_footnote_refs(t)
   finished_parts(table, suspects = bind_rows(
     unparsed("ST3", t, "genetic_evidence_target", ifelse(ok_ev, ev$head, NA), "Yes or No (target)"),
     unparsed("ST3", t, "trial_name_id", registry_id, "a trial name and one registry id in brackets"),
@@ -158,7 +174,7 @@ finish_st6 <- function(t) {
     se = ci$se, ci_low = ci$ci_low, ci_high = ci$ci_high,
     p_value = p$p_value, p_value_qualifier = p$p_value_qualifier,
     author_journal_year = t$author_journal_year, pmid = t$pmid
-  )
+  ) |> carry_footnote_refs(t)
   r <- collect_references("ST6", table, "pmid")
   finished_parts(r$table, r$references, bind_rows(
     unparsed("ST6", t, "n", n, "a whole number"),
@@ -201,7 +217,7 @@ SHEETS <- list(
     "agent", "mechanism_of_action", "genetic_evidence_target", "trial_name_id", "trial_phase",
     "trial_population_target_n", "trial_estimated_completion", "trial_primary_outcome",
     "trial_sponsor_type"
-  ), "st3_trials.csv", build_st3, finish_st3, header_rows = 1:2, first_data_row = 3L),
+  ), "st3_trials.csv", build_rows, finish_st3, header_rows = 1:2, first_data_row = 3L),
   ST4 = sheet_spec("ST4", "SupplementaryTable4", paste(
     "Supplementary Table 4: Examples of randomised controlled trials for the prevention of",
     "cSVD-related phenotypes with brain MRI and genetics data"), c(

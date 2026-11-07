@@ -86,10 +86,18 @@ main <- function(args, gold_dir) {
   cat("Written to", normalizePath(out_dir), "\n")
 }
 
+# The folder of the script Rscript runs. Rscript passes the script as
+# --file=, writing each space of its path as "~+~".
+script_dir <- function(command_args) {
+  file_arg <- grep("^--file=", command_args, value = TRUE)
+  if (length(file_arg) == 0) stop("run clean_gold.R with Rscript", call. = FALSE)
+  path <- gsub("~+~", " ", sub("^--file=", "", file_arg[1]), fixed = TRUE)
+  dirname(normalizePath(path, mustWork = TRUE))
+}
+
 if (sys.nframe() == 0L) {
   local({
-    file_arg <- grep("^--file=", commandArgs(FALSE), value = TRUE)
-    gold_dir <- dirname(normalizePath(sub("^--file=", "", file_arg[1])))
+    gold_dir <- script_dir(commandArgs(FALSE))
     missing <- PACKAGES[!vapply(PACKAGES, requireNamespace, logical(1), quietly = TRUE)]
     if (length(missing)) {
       stop(sprintf("missing R packages; install them with:\n  install.packages(c(%s))",

@@ -43,9 +43,12 @@ plain_number <- function(x) format(x, scientific = FALSE, digits = 15, trim = TR
 # ("1-4,7"), `full` everything, each superscript in brackets so a reference
 # number never runs into the word before it ("package[1]"). Adjacent
 # superscript runs are one superscript: Excel may split "1-4" into "1", "-",
-# "4". Numbers, dates and #N/A are rendered as text; any other error value
-# stops the run. Every column is typed later, explicitly.
+# "4". The spaces at either end of a superscript run stay in the text, so
+# "ACCORD" + "1-4 " + "(NCT...)" reads "ACCORD (NCT...)". Numbers, dates and
+# #N/A are rendered as text; any other error value stops the run. Every
+# column is typed later, explicitly.
 cell_values <- function(cells) {
+  space <- "[\\s\\x{a0}]*"
   rendered <- lapply(seq_len(nrow(cells)), function(i) {
     type <- cells$data_type[i]
     value <- sup <- full <- NA_character_
@@ -55,12 +58,15 @@ cell_values <- function(cells) {
         value <- full <- cells$character[i]
       } else {
         raised <- !is.na(runs$vertAlign) & runs$vertAlign == "superscript"
-        value <- paste0(runs$character[!raised], collapse = "")
         group <- cumsum(c(TRUE, raised[-1] != raised[-length(raised)]))
         pieces <- vapply(split(runs$character, group), paste0, "", collapse = "", USE.NAMES = FALSE)
-        up <- vapply(split(raised, group), `[`, TRUE, 1, USE.NAMES = FALSE) & nzchar(trimws(pieces))
-        full <- paste0(ifelse(up, paste0("[", pieces, "]"), pieces), collapse = "")
-        if (any(up)) sup <- paste(pieces[up], collapse = ",")
+        lead <- sub(paste0("^(", space, ")[\\s\\S]*$"), "\\1", pieces, perl = TRUE)
+        trail <- sub(paste0("^[\\s\\S]*?(", space, ")$"), "\\1", pieces, perl = TRUE)
+        core <- substr(pieces, nchar(lead) + 1L, nchar(pieces) - nchar(trail))
+        up <- vapply(split(raised, group), `[`, TRUE, 1, USE.NAMES = FALSE) & nzchar(core)
+        value <- paste0(ifelse(up, paste0(lead, trail), pieces), collapse = "")
+        full <- paste0(ifelse(up, paste0(lead, "[", core, "]", trail), pieces), collapse = "")
+        if (any(up)) sup <- paste(core[up], collapse = ",")
       }
     } else if (type == "numeric" && !is.na(cells$numeric[i])) {
       value <- full <- plain_number(cells$numeric[i])
@@ -81,7 +87,7 @@ cell_values <- function(cells) {
     }
     c(value, sup, full)
   })
-  m <- matrix(unlist(rendered), ncol = 3, byrow = TRUE)
+  m <- matrix(as.character(unlist(rendered)), ncol = 3, byrow = TRUE)
   out <- tibble(
     row = as.integer(cells$row), col = as.integer(cells$col),
     value = as_missing(clean_text(m[, 1])), sup = clean_text(m[, 2]), full = clean_text(m[, 3])
@@ -139,15 +145,16 @@ expand_merges <- function(vals, merges) {
 }
 
 # The last data row: the row before the first one, from `first_data_row` on,
-# that holds no value and lies in no merged range.
+# that holds no value and lies in no merged range. A table without a single
+# data row stops the run; read on, its header would become its data.
 table_bounds <- function(vals, merges, first_data_row) {
-  last <- max(vals$row)
-  if (first_data_row > last) return(as.integer(last))
-  for (r in seq.int(first_data_row, last)) {
-    covered <- any(merges$first_row <= r & merges$last_row >= r)
-    if (!(r %in% vals$row) && !covered) return(as.integer(r - 1))
+  last <- max(vals$row, 0L)
+  r <- as.integer(first_data_row)
+  while (r <= last && (r %in% vals$row || any(merges$first_row <= r & merges$last_row >= r))) r <- r + 1L
+  if (r == first_data_row) {
+    stop(sprintf("the table has no data: row %d, where its data start, is empty", first_data_row), call. = FALSE)
   }
-  as.integer(last)
+  r - 1L
 }
 
 # Pass merge-expanded values: the distinct header texts of each column, top
@@ -199,14 +206,27 @@ rows_to_table <- function(vals, header, rows) {
 }
 
 # A record starts at each row whose `key_col` holds a value and runs to the
-# row before the next start.
-records_to_table <- function(vals, header, rows, key_col, sep) {
+# row before the next start. Pass the sheet's merges: a cell merged down into
+# the next record would reach only the first, so it stops the run.
+records_to_table <- function(vals, header, rows, key_col, sep, merges = NULL) {
   body <- vals[vals$row %in% rows, ]
   starts <- sort(unique(body$row[body$col == key_col & !is.na(body$value)]))
-  body$key <- starts[findInterval(body$row, starts)]
+  record_of <- function(r) c(NA_integer_, starts)[findInterval(r, starts) + 1L]
+  body$key <- record_of(body$row)
   orphans <- body$row[is.na(body$key) & !is.na(body$value)]
   if (length(orphans)) {
     stop(sprintf("row %d holds values before the first record", orphans[1]), call. = FALSE)
+  }
+  if (!is.null(merges)) {
+    filled <- paste(body$row, body$col)[!is.na(body$value)]
+    m <- merges[merges$last_row > merges$first_row & paste(merges$first_row, merges$first_col) %in% filled, ]
+    across <- which(record_of(m$first_row) != record_of(m$last_row))
+    if (length(across)) {
+      i <- across[1]
+      stop(sprintf("%s%d:%s%d is merged across the records starting at rows %d and %d; only the first would get its value",
+                   col_letter(m$first_col[i]), m$first_row[i], col_letter(m$last_col[i]), m$last_row[i],
+                   record_of(m$first_row[i]), record_of(m$last_row[i])), call. = FALSE)
+    }
   }
   keyed_table(body[!is.na(body$key), ], header, starts, sep)
 }

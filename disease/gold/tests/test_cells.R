@@ -159,3 +159,39 @@ test_that("check_below_table stops on data-like rows below the table", {
   footnotes <- vals_of(c(8, 9, 9), c(1, 1, 2), c("Non-exhaustive list", "1", "Action to Control"))
   expect_silent(check_below_table(dplyr::bind_rows(data, footnotes), 6))
 })
+
+test_that("cell_values keeps the spaces a superscript run carries", {
+  runs <- tibble::tibble(character = c("ACCORD", "1-4 ", "(NCT00000620)"), vertAlign = c(NA, "superscript", NA))
+  v <- cell_values(one_cell(character = "ACCORD1-4 (NCT00000620)", character_formatted = list(runs)))
+  expect_equal(c(v$value, v$sup, v$full), c("ACCORD (NCT00000620)", "1-4", "ACCORD[1-4] (NCT00000620)"))
+  runs <- tibble::tibble(character = c("word", " 2 ", "next", " ", "end"),
+                         vertAlign = c(NA, "superscript", NA, "superscript", NA))
+  v <- cell_values(one_cell(character = "word 2 next end", character_formatted = list(runs)))
+  expect_equal(c(v$value, v$sup, v$full), c("word next end", "2", "word [2] next end"))
+})
+
+test_that("cell_values reads a sheet with no cells as no values", {
+  expect_equal(nrow(cell_values(one_cell()[0, ])), 0)
+})
+
+test_that("table_bounds stops when the table has no data row, rather than reading its header as data", {
+  expect_error(table_bounds(vals_of(1, 1:2, c("Gene", "Tier")), no_merges, 2), "no data.*row 2")
+  expect_error(table_bounds(vals_of(integer(), integer(), character()), no_merges, 2), "no data")
+})
+
+test_that("records_to_table names a row holding values before the first record", {
+  h <- tibble::tibble(col = 1:2, name = c("trial_id", "sample_size"), legend = NA_character_)
+  expect_error(records_to_table(vals_of(c(5, 6, 6), c(1, 1, 2), c("stray", "A", "10")), h, 5:6, key_col = 2, sep = " "),
+               "row 5 holds values before the first record")
+  expect_error(records_to_table(vals_of(5, 1, "stray"), h, 5, key_col = 2, sep = " "),
+               "row 5 holds values before the first record")
+})
+
+test_that("records_to_table stops on a cell merged down into the next record", {
+  h <- tibble::tibble(col = 1:2, name = c("trial_id", "brain_mri_data"), legend = NA_character_)
+  v <- vals_of(c(4, 4, 6), c(1, 2, 1), c("ASPREE", "Yes", "COMPASS"))
+  expect_error(records_to_table(v, h, 4:6, key_col = 1, sep = " ", merges = merge_of(4, 2, 6, 2)),
+               "B4:B6.*rows 4 and 6")
+  within <- records_to_table(v, h, 4:6, key_col = 1, sep = " ", merges = merge_of(4, 2, 5, 2))
+  expect_equal(within$brain_mri_data, c("Yes", NA))
+})

@@ -145,3 +145,13 @@ test_that("every source and test file is ASCII, so the run reads the same in any
     expect_false(any(bytes > as.raw(0x7f)), info = basename(f))
   }
 })
+
+test_that("split_trailing_group gives an empty head or group as missing", {
+  s <- split_trailing_group(c("(3,156)", "Cilostazol ()"))
+  expect_equal(s$head, c(NA, "Cilostazol"))
+  expect_equal(s$group, c("3,156", NA))
+})
+
+test_that("reference_tokens finds a repeated DOI written in another case", {
+  expect_equal(reference_tokens("10.1038/S41591-023-02268-W, 10.1038/s41591-023-02268-w")$duplicate, c(FALSE, TRUE))
+})
