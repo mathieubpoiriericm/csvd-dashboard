@@ -7,7 +7,7 @@
  * other data file; nothing fetches at build or run time.
  */
 
-import cytobandsJson from "../data/cytobands_hg38.json" with { type: "json" };
+import { rawCytobands } from "./data/cytobands.ts";
 
 /** The UCSC `gieStain` values, in the order the encoding's `stains` map lists them. */
 export const STAINS = [
@@ -40,7 +40,7 @@ export interface CytobandTable {
   chromosomes: Chromosome[];
 }
 
-export const cytobands: CytobandTable = cytobandsJson;
+export const cytobands: CytobandTable = rawCytobands;
 
 export interface BandHit {
   chromosome: string;

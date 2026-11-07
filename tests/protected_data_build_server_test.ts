@@ -222,14 +222,15 @@ Deno.test("client chunks keep lib/data's public imports out of the protected chu
   ) {
     assertEquals(clientChunkName(id, ROOT), SHARED_CHUNK_NAME, id);
   }
-  for (
-    const id of [
-      "\0deno::1::file:///repo/data/table1.json",
-      "/repo/lib/data/normalize.ts",
-    ]
-  ) {
-    assertEquals(clientChunkName(id, ROOT), PROTECTED_DATA_CHUNK_NAME);
-  }
+  assertEquals(
+    clientChunkName("/repo/lib/data/normalize.ts", ROOT),
+    `${PROTECTED_DATA_CHUNK_NAME}-normalize`,
+  );
+  // JSON is unnamed: Rollup places it with the lib/data module importing it.
+  assertEquals(
+    clientChunkName("\0deno::1::file:///repo/data/table1.json", ROOT),
+    undefined,
+  );
   for (const id of ["/repo/lib/filters.ts", "/elsewhere/lib/sentinels.ts"]) {
     assertEquals(clientChunkName(id, ROOT), undefined);
   }

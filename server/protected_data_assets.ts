@@ -61,14 +61,29 @@ export function isProtectedDataModule(
     id.startsWith(clientDataRoot) || id === clientDataFacade;
 }
 
-/** Vite's `manualChunks` name for a protected module. */
+/**
+ * Vite's `manualChunks` name for a protected module: each lib/data/ module
+ * gets a chunk of its own, so a page downloads only the datasets its islands
+ * import. Generated JSON is left unnamed on purpose -- Rollup pulls an
+ * unnamed dependency into its importer's manual chunk, so each file ships
+ * with the lib/data module that reads it. A name says nothing about
+ * ownership; that is `isProtectedDataModule`'s alone. Every name stays within
+ * the characters `PROTECTED_DATA_ASSET` accepts, or the gate would not see
+ * the file (and the build guard would refuse it).
+ */
 export function protectedDataChunkName(
   moduleId: string,
   repositoryRoot: string,
 ): string | undefined {
-  return isProtectedDataModule(moduleId, repositoryRoot)
-    ? PROTECTED_DATA_CHUNK_NAME
-    : undefined;
+  const id = moduleFilePath(moduleId);
+  if (id === null) return undefined;
+  const root = normalizeFileSystemPath(repositoryRoot);
+  if (id === `${root}/lib/data.ts`) return PROTECTED_DATA_CHUNK_NAME;
+  const clientDataRoot = `${root}/lib/data/`;
+  if (!id.startsWith(clientDataRoot)) return undefined;
+  const stem = id.slice(clientDataRoot.length).replace(/\.[^./]+$/, "")
+    .replaceAll("/", "-").replace(/[^A-Za-z0-9_-]/g, "_");
+  return `${PROTECTED_DATA_CHUNK_NAME}-${stem}`;
 }
 
 /**

@@ -15,7 +15,8 @@ import {
  * The login gate. Runs for every file route and lets through only /login,
  * /logout and requests carrying a valid session cookie. Ordinary static
  * assets are served before file routing; main.ts gives the generated
- * protected-data chunk its own equivalent session check before staticFiles().
+ * protected-data chunks their own equivalent session check before
+ * staticFiles().
  *
  * It fails closed: with either secret unset, every gated route answers 503
  * rather than opening. There is no environment-sniffing bypass for

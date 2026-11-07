@@ -13,7 +13,7 @@ export const app = new App<State>();
 // The outer policy reaches static files, route responses, and early denials. The
 // protected-data matcher must run before staticFiles(), which otherwise serves
 // immutable assets immediately; every other asset stays public for /login.
-// Outermost, so it also covers the protected-data chunk that the next
+// Outermost, so it also covers the protected-data chunks that the next
 // middleware rewrites and the denials that never reach file routing. Nothing
 // compressed before this: staticFiles() serves the built bundles verbatim.
 app.use(compression());

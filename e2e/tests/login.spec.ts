@@ -158,7 +158,9 @@ test("the login fonts are public, versioned and immutable", async ({ page, reque
   }
 });
 
-test("the generated data bundle requires a live session and is never cacheable", async ({ page }) => {
+// Each lib/data module is its own protected chunk, so the page loads several;
+// every one of them must be gated, not only the first a check happens to find.
+test("the generated data bundles require a live session and are never cacheable", async ({ page }) => {
   await page.goto("/genes");
   await page.getByLabel("Passphrase").fill(PASSPHRASE);
   await page.getByRole("button", { name: "Sign in" }).click();
@@ -169,18 +171,27 @@ test("the generated data bundle requires a live session and is never cacheable",
       /\/assets\/protected-data-[A-Za-z0-9_-]+\.js(?:\?|$)/.test(entry.name)
     )
   );
-  const assetUrl = await page.evaluate(() =>
-    performance.getEntriesByType("resource")
-      .map((entry) => entry.name)
-      .find((name) =>
-        /\/assets\/protected-data-[A-Za-z0-9_-]+\.js(?:\?|$)/.test(name)
-      )!
-  );
+  const assetUrls = await page.evaluate(() => [
+    ...new Set(
+      performance.getEntriesByType("resource")
+        .map((entry) => entry.name)
+        .filter((name) =>
+          /\/assets\/protected-data-[A-Za-z0-9_-]+\.js(?:\?|$)/.test(name)
+        ),
+    ),
+  ]);
+  expect(assetUrls.length).toBeGreaterThan(0);
 
-  const authenticated = await page.request.get(assetUrl);
-  expect(authenticated.status()).toBe(200);
-  expect(authenticated.headers()["cache-control"]).toBe("private, no-store");
-  expect(authenticated.headers()["vary"]).toMatch(/(?:^|,\s*)Cookie(?:,|$)/i);
+  for (const assetUrl of assetUrls) {
+    const authenticated = await page.request.get(assetUrl);
+    expect(authenticated.status(), assetUrl).toBe(200);
+    expect(authenticated.headers()["cache-control"], assetUrl).toBe(
+      "private, no-store",
+    );
+    expect(authenticated.headers()["vary"], assetUrl).toMatch(
+      /(?:^|,\s*)Cookie(?:,|$)/i,
+    );
+  }
 
   await page.getByRole("button", { name: "Sign out" }).click();
   await expect(page).toHaveURL("/login");
@@ -188,10 +199,14 @@ test("the generated data bundle requires a live session and is never cacheable",
     (await page.context().cookies()).some(({ name }) => name === "svd_session")
   ).toBe(false);
 
-  const anonymous = await page.request.get(assetUrl);
-  expect(anonymous.status()).toBe(401);
-  expect(anonymous.headers()["cache-control"]).toBe("private, no-store");
-  expect(await anonymous.text()).toBe("Unauthorized");
+  for (const assetUrl of assetUrls) {
+    const anonymous = await page.request.get(assetUrl);
+    expect(anonymous.status(), assetUrl).toBe(401);
+    expect(anonymous.headers()["cache-control"], assetUrl).toBe(
+      "private, no-store",
+    );
+    expect(await anonymous.text(), assetUrl).toBe("Unauthorized");
+  }
 });
 
 test("the theme toggle works on the login page", async ({ page }) => {

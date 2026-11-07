@@ -155,8 +155,9 @@ runtime.** The modules under `lib/data/` use `import … with { type: "json" }`,
 so each file is bundled into whatever imports it. **Import the narrow module,
 not the barrel** — `lib/data.ts` re-exports all of them, and an island that
 reaches for it pulls the whole ~400 KB dataset into its client bundle instead of
-the one table it renders. The barrel exists for the tests that exercise the
-complete boundary. Consequences worth remembering:
+the one table it renders. Each `lib/data/` module is a protected chunk of its
+own, so a narrow import also downloads only that dataset. The barrel exists for
+the tests that exercise the complete boundary. Consequences worth remembering:
 
 - Editing `data/*.json` requires a rebuild/HMR cycle to show up.
 - **`data/gene_annotations.json` is a pivot, one row per `(gene, disease)`**,

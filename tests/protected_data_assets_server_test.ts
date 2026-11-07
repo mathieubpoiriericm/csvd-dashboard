@@ -9,6 +9,8 @@ import {
   makePrivateNoStore,
   normalizeStaticPathname,
   protectDataAssets,
+  PROTECTED_DATA_CHUNK_NAME,
+  protectedDataChunkName,
 } from "../server/protected_data_assets.ts";
 
 const PASSPHRASE = "test-passphrase";
@@ -121,6 +123,35 @@ Deno.test("modules outside data/ and lib/data/ are not protected", () => {
   ) {
     assertEquals(isProtectedDataModule(id, "/repo"), false, id);
   }
+});
+
+// Rollup places each JSON file in the chunk of the lib/data module that
+// imports it, so a page downloads only the datasets its islands import.
+Deno.test("lib/data modules name their own protected chunk", () => {
+  const cases: [string, string, string | undefined][] = [
+    ["/repo/lib/data/genes.ts", "/repo", "protected-data-genes"],
+    ["/repo/lib/data/gene_info.ts?v=1", "/repo", "protected-data-gene_info"],
+    [
+      "\0deno::1::file:///repo/lib/data/pipeline_run.ts",
+      "/repo",
+      "protected-data-pipeline_run",
+    ],
+    ["C:\\repo\\lib\\data\\trials.ts", "C:\\repo\\", "protected-data-trials"],
+    ["/repo/lib/data/sub/x.ts", "/repo", "protected-data-sub-x"],
+    ["/repo/lib/data/odd.name.ts", "/repo", "protected-data-odd_name"],
+    ["/repo/lib/data.ts", "/repo", PROTECTED_DATA_CHUNK_NAME],
+    ["/repo/data/table1.json", "/repo", undefined],
+    ["\0deno::1::file:///repo/data/table1.json", "/repo", undefined],
+    ["/repo/lib/filters.ts", "/repo", undefined],
+  ];
+  for (const [moduleId, root, expected] of cases) {
+    assertEquals(protectedDataChunkName(moduleId, root), expected, moduleId);
+  }
+  assert(
+    isProtectedDataAssetPath(
+      "/assets/protected-data-gene_annotations-AbC_12.js",
+    ),
+  );
 });
 
 Deno.test("protected asset matching mirrors Fresh static path normalization", () => {

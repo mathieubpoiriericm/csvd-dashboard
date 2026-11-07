@@ -346,10 +346,10 @@ page changes, and in a fork after its first live run.
 │   ├── compression.ts          gzip ahead of staticFiles(), ETag suffixed
 │   ├── frame_protection.ts     framing policy
 │   ├── svg_policy.ts           a script-free sandbox for every SVG served
-│   ├── protected_data_assets.ts  authenticates the generated-data chunk
+│   ├── protected_data_assets.ts  authenticates the generated-data chunks
 │   ├── login_post_limiter.ts   rate limit on POST /login
 │   ├── response_header_policy.ts  header rewriting shared by the policies
-│   ├── protected_data_build.ts   the Vite plugin that isolates that chunk,
+│   ├── protected_data_build.ts   the Vite plugin that isolates those chunks,
 │   │                           with seven data strings as leak canaries
 │   └── protected_data_dev.ts   the same gate under the Vite dev server
 ├── islands/                    the interactive views
@@ -842,15 +842,17 @@ The modules under `lib/data/` import each file with
 them, and an island that reaches for it pulls the whole ~400 KB dataset into its
 client bundle instead of the one table it renders.
 
-The files are never served as they are. In production, Vite groups the records
-and their `lib/data/` normalization layer into one `protected-data-<hash>.js`
-chunk, and the build fails if one of those modules lands in a public chunk.
-Server middleware authenticates that chunk before static serving and sends it
-`private, no-store`, as the login gate sends every page `no-store`, so neither
-stays in a shared or browser cache. Login CSS, fonts, icons and bootstrap code
-stay public so the signed-out login page renders. `compression()`, the outermost
-middleware in `main.ts`, gzips the protected chunk and the static bundles alike,
-which took every route from 760–1000 KB to 204–255 KB.
+The files are never served as they are. In production, Vite gives each
+`lib/data/` module a chunk of its own, `protected-data-<name>-<hash>.js`,
+carrying the JSON file it imports, so a page downloads only the datasets its
+islands import. The build fails if one of those modules lands in a public chunk,
+or if a public module with code lands in a protected one. Server middleware
+authenticates those chunks before static serving and sends them
+`private, no-store`, as the login gate sends every page `no-store`, so none of
+them stays in a shared or browser cache. Login CSS, fonts, icons and bootstrap
+code stay public so the signed-out login page renders. `compression()`, the
+outermost middleware in `main.ts`, gzips the protected chunks and the static
+bundles alike, which took every route from 760–1000 KB to 204–255 KB.
 
 ### Regenerating
 
