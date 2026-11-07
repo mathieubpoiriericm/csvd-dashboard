@@ -42,6 +42,12 @@
       "label": "Lacunes",
       "hue": "#e34948",
       "tint": "#ffe0dc"
+    },
+    {
+      "key": "ich",
+      "label": "Intracerebral haemorrhage",
+      "hue": "#8a6d1f",
+      "tint": "#f3ead0"
     }
   ]
 }

@@ -68,6 +68,14 @@
       "xrefNote": "no term in any OLS4 ontology"
     },
     {
+      "key": "MTAG (all ICH, SVS, WMH, FA, MD, AD)",
+      "label": "MTAG (all ICH, SVS, WMH, FA, MD, AD)",
+      "family": "extreme",
+      "name": "MTAG (all ICH, SVS, WMH, FA, MD, AD)",
+      "xref": null,
+      "xrefNote": "curated gold wording"
+    },
+    {
       "key": "WMH",
       "label": "WMH",
       "family": "wmh",
@@ -136,6 +144,38 @@
       "definition": "Round or ovoid, subcortical, fluid filled (similar signal to CSF) cavity up to 15 mm in diameter that is likely to be end tissue damage from a recent small subcortical infarct, small subcortical haemorrhage, incidental diffusion-weighted imaging-positive lesion, or end-stage cavitation in a white matter hyperintensity.",
       "xref": null,
       "xrefNote": "no exact term: HP:0032570 is 'Pontine ischemic lacunes' (anatomically narrower) and HP:0007858 is 'Chorioretinal lacunae' (a retinal finding, not cerebral)"
+    },
+    {
+      "key": "lacunes (suggestive significance)",
+      "label": "lacunes (suggestive significance)",
+      "family": "lacunes",
+      "name": "lacunes (suggestive significance)",
+      "xref": null,
+      "xrefNote": "curated gold wording"
+    },
+    {
+      "key": "ICH",
+      "label": "ICH",
+      "family": "ich",
+      "name": "ICH",
+      "xref": null,
+      "xrefNote": "curated gold wording"
+    },
+    {
+      "key": "non-lobar ICH",
+      "label": "non-lobar ICH",
+      "family": "ich",
+      "name": "non-lobar ICH",
+      "xref": null,
+      "xrefNote": "curated gold wording"
+    },
+    {
+      "key": "All ICH & lobar ICH only",
+      "label": "All ICH & lobar ICH only",
+      "family": "ich",
+      "name": "All ICH & lobar ICH only",
+      "xref": null,
+      "xrefNote": "curated gold wording"
     }
   ],
   "synonyms": [
@@ -150,6 +190,12 @@
       "to": "CMB",
       "note": "Canonical prompt abbreviation, folded onto the curated CMB code. Arrived from an LLM extraction on the first live --pubmed run.",
       "source": "prompt"
+    },
+    {
+      "from": "Lacunar stroke",
+      "to": "lacunar stroke",
+      "note": "Gold sheet capitalises the first letter; folded onto the curated lowercase trait.",
+      "source": "curated"
     }
   ],
   "untracked": [

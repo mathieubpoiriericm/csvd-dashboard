@@ -17,14 +17,14 @@ async function figureSettled(page: Page) {
   await page.evaluate(() => document.fonts.ready);
 }
 
-test("draws 20 chromosomes and 87 gene blocks under seven families", async ({ page }) => {
+test("draws 20 chromosomes and 87 gene blocks under eight families", async ({ page }) => {
   await figureSettled(page);
   const figure = page.locator(FIGURE);
   await expect(figure.locator("g.phenogram-chromosome")).toHaveCount(20);
   await expect(figure.locator('g.phenogram-chromosome[data-chromosome="13"]'))
     .toHaveCount(1);
   await expect(figure.locator("g.phenogram-block")).toHaveCount(87);
-  await expect(page.locator(".phenogram-legend-family")).toHaveCount(7);
+  await expect(page.locator(".phenogram-legend-family")).toHaveCount(8);
 });
 
 test("the raster's errors are gone: ABO on 9, C6orf195 on 6, COL4A1/2 on 13", async ({ page }) => {

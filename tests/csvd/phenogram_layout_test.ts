@@ -142,7 +142,7 @@ Deno.test("pills and glyphs derive from the four evidence columns", () => {
   });
 });
 
-Deno.test("the legend lists the seven families with every trait", () => {
+Deno.test("the legend lists the eight families with every trait", () => {
   assertEquals(layout.legend.families.map((f) => f.family.key), [
     "pvs",
     "diffusion",
@@ -151,6 +151,7 @@ Deno.test("the legend lists the seven families with every trait", () => {
     "stroke",
     "cmb",
     "lacunes",
+    "ich",
   ]);
   assertEquals(
     layout.legend.families.reduce((n, f) => n + f.traits.length, 0),
