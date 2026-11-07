@@ -1,6 +1,6 @@
 ---
 name: tracy
-description: Use when profiling the pipeline with Tracy, adding Tracy instrumentation to pipeline code, reading or comparing .tracy captures or tracy-csvexport output, building or updating the third_party/tracy submodule, or when Tracy misbehaves (capture "disconnected during the initial connection handshake", "incompatible protocol version", "Fatal Python error: take_gil", a wheel or tool that will not build).
+description: 'Use when profiling the pipeline with Tracy, adding Tracy instrumentation to pipeline code, reading or comparing .tracy captures or tracy-csvexport output, building or updating the third_party/tracy submodule, or when Tracy misbehaves (capture "disconnected during the initial connection handshake", "incompatible protocol version", "Fatal Python error: take_gil", a wheel or tool that will not build).'
 ---
 
 # Tracy
