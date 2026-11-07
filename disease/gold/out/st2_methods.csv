@@ -1,0 +1,74 @@
+﻿"source_row","row_fingerprint","method","description","year","pmid","pros","cons"
+2,"2014970e","Open Targets Platform (OTP) association score","Aggregates evidence from diverse sources for gene-disease associations.",2025,"39657122","Uses many different data sources to calculate score
+Calculates both data type specific and overall scores
+Data sources are comprehensive
+Graphical user interface well documented and annotated","Scoring framework is semi-subjective"
+6,"576b92f6","GPS","Genetic priority score (GPS) that integrates multiple lines of genetic evidence from clinical variants, common variant associations and rare variant coding associations to predict main indications of drug targets.",2024,"38172303","Integrates numerous genetic features across three evidence types (clinical, coding, GWAS)
+Publicly available scores for 19,365 genes and 399 indications
+Demonstrates that combining multiple phenotype-specific genetic features (rare and common variants) in an allelic series provides superior target prediction compared to individual features alone","Primarily loss-of-function predictions present therapeutic challenges, though advances in drug design and exhaustion of traditional targets make these unexplored LOF genes an opportunity
+Integration of multiple large-scale datasets introduces potential inaccuracies from both source repositories and phenotype mapping processes
+Phecode v1.2 terminology limits disease resolution compared to newer phecodeX used in ML-GPS
+Fixed significance thresholds may miss subtle associations"
+10,"9807ba15","ML-GPS","Extension of GPS that incorporates both rare and common variant associations from machine learning-based continuous phenotypes, to predict main indications of drug targets.",2024,"39406732","Addresses missing cases via ML-predicted continuous phenotypes
+Includes all genetic associations (regardless of significance) encoded continuously as -log10(p-values), allowing the model to determine optimal thresholds for each feature
+Uses gradient boosting with SHAP analysis to identify non-linear relationships and feature importance","Primarily trained on European ancestry data, requiring further validation across diverse populations
+Covers 112 diseases; many conditions remain unmodeled
+Some diseases remain difficult to predict accurately within UK Biobank, restricting coverage and reliability for certain conditions
+Machine learning model accuracy may propagate errors into downstream predictions"
+14,"33bc38f8","SE-GPS","Extension of GPS that integrates multiple lines of genetic evidence to predict side effects of drug targets.",2025,"41027901","Systematic framework for on-target side effect prediction
+Integrates direction of genetic effects to distinguish between target inhibition and activation, differentiating potential side effects from drug repurposing opportunities
+Provides scores for 15,000+ genes across 500+ phenotypes
+Predicts on-target side effects early in target discovery (grounded in human genetic evidence) to reduce late-stage clinical trial failures and inform preclinical safety assessment and trial design","Performance constrained by heterogeneous data sources with potential quality issues: OnSIDES computational text extraction risks mislabeling; OpenTargets spontaneous reports may not establish causality
+Lacks non-European population representation, limiting generalizability
+Binary case-control phenotypes simplify complex traits and restrict sensitivity to subtle biological variation; cannot distinguish severe versus moderate adverse events
+Reliance on inference-based LoGoFunc for GOF/LOF prediction adds uncertainty
+Integration of multiple ontologies (ICD-10, phecode) may cause mismatched mappings or phenotype exclusions"
+19,"d4a7ea37","DOE","Specific framework to predict direction of effect (DOE) of drug targets using genetic evidence.",2025,"41050905","High predictive performance
+Comprehensively covers 19,450 genes and 47,822 gene-disease pairs
+Integrates diverse data sources including gene/protein embeddings and genetic associations across the allele frequency spectrum
+Enables DOE prediction using genetic and functional signatures, allowing broad applicability","Biased toward known druggable genes and established mechanisms (especially small molecules), underrepresenting emerging therapeutic classes
+Gene/protein embeddings improve flexibility but reduce interpretability compared to traditional tabular features
+Three-character ICD-10 codes introduce variable disease definition sensitivity/specificity, potentially missing disease subtypes and mechanistic nuances
+Limited representation of failed clinical trials
+Dependence on nominally significant genetic associations and predicted GOF/LOF annotations may introduce spurious associations
+Does not model degree of target modulation or toxicity/dosage effects"
+25,"658ac73a","GREP","A standalone python software to quantify an enrichment of the user-defined set of genes in the target of clinical indication categories and to capture potentially repositionable drugs targeting the gene set. This software should accelerate investigators to reposition drugs to other indications with the guidance of known genomics.",2019,"30859178","Identifies repositionable drugs from user-defined gene sets
+Versatile across diverse data types: GWAS, tissue-specific gene expression, somatic mutation profiles in cancers
+Quantifies gene set enrichment in drug target categories, linking trait-associated genetic findings to corresponding indicated medications
+Generates biological insights into tissue-specific biology and genetic landscape of complex traits/diseases, aiding mechanistic understanding
+Open-source and computationally efficient standalone implementation","No consideration of effect directionality
+Requires future integration of comprehensive functional variant annotations and detailed drug databases to improve precision and utility for drug repurposing
+Enrichment alone does not establish causality
+Statistical power depends on gene set size
+Does not account for gene constraint or essentiality when prioritizing drug repositioning candidates, important for safety/druggability assessment"
+30,"6c968ac7","TransPhar","The Trans-Phar [integration of transcriptome-wide association study (TWAS) and pharmacological database], achieving in silico screening of compounds from a large-scale pharmacological database (L1000 Connectivity Map), which have inverse expression profiles compared with tissue-specific genetically regulated gene expression. This approach could be effective in disease genomics-driven drug development.",2021,"33577681","Hypothesis-free approach requiring no prior biological or chemical knowledge, especially effective for diseases with unknown etiology or limited existing treatments
+Integrates GWAS summary statistics with compound-induced gene expression profiles across 29 GTEx tissues, comprehensively capturing tissue- and cell-type-specific gene expression effects
+Publicly available pipeline easily adapted/extended
+Accelerates drug discovery and repositioning across diverse diseases and organs, including urgent pandemic situations","Assumes reversing disease-associated expression changes is therapeutic, which may not hold since most GWAS reflect disease development rather than progression or treatment phases
+May miss compounds whose effects are not strongly linked to genetically regulated expression (GREx)
+In silico matching oversimplifies in vivo complexity including tissue distribution, effects on other organs, dosage, and treatment duration
+CMap L1000 contains limited time points and doses, which may not reflect long-term or chronic treatment scenarios"
+34,"75e447fa","L2G","Based on genetic and functional genomics traits, the Locus-to-Gene (L2G) machine-learning algorithm ranks the most likely causative genes at each GWAS credible set. The likelihood that a gene is causal for a particular GWAS locus is measured by the L2G score, ranging from 0 to 1. The predictive features used by the L2G algorithm are designed to capture various genetic and genomic contexts that influence the likelihood of a gene being causal at a given GWAS credible set.",2021,"34711957","Integrates multiple data types at each GWAS locus: distance metrics, fine-mapping, posterior probabilities, molecular QTL characterization, chromatin interactions, and variant pathogenicity
+Well-calibrated probabilistic scores (0-1)
+Links non-coding GWAS variants to likely target genes through molecular QTLs and chromatin interactions; systematically scalable across large GWAS datasets
+Weights variant-to-gene evidence by fine-mapping-derived posterior probability of causality, increasing precision of causal gene prioritization","Performance depends on availability and quality of molecular QTL, chromatin interaction, and variant annotation datasets, which may be incomplete or tissue-specific
+Distance feature may bias against long-range regulation
+Assumes fine-mapping accuracy; errors in credible set construction can propagate to gene prioritization
+Chromatin and QTL datasets derived from limited tissues/cell types may not capture disease-relevant regulatory contexts"
+38,"9194521f","Effector Index","Effector Index (Ei)’s key predictive features include coding or transcript-altering SNVs, distance to gene, and open chromatin-based metrics. This work outlines a simple, understandable approach to prioritize genes at GWAS loci for functional follow-up and drug development, and provides a systematic strategy for prioritization of GWAS target genes.",2022,"35147782","Provides quantitative estimates of relative importance of genomic features to systematically identify likely causal genes
+Outperforms simpler methods (locus-specific features, nearest gene approach) by evaluating genes in multi-factor locus context, detecting causal genes even when distal to lead SNVs
+Narrows candidate genes for experimental validation, reducing genes requiring follow-up at each locus (78% have ≤4 genes at Ei >0.46)
+Uses simple, accessible features (protein-coding/transcript alterations, fine-mapped SNVs in DHSs, distance) available from public datasets
+Scalable to large GWAS datasets and independently curated gene lists, including those identified through whole-exome sequencing","Limited to well-powered GWAS with European ancestry
+Performance mainly evaluated on physiological and metabolic traits; applicability to neurological traits not established
+Fine-mapping requires well-matched LD reference panels; inaccurate panels may cause convergence failures or inaccurate gene prioritization
+Updates in reference datasets (GTEx, GENCODE) could alter results, affecting reproducibility"
+43,"ed8c3be2","Mendelian randomization","Mendelian Randomization (MR) is a method that leverages genetic variants as instrumental variables to infer causal relationships between exposures and disease outcomes. In drug development, MR can be used to assess the causal effect of modulating a potential target gene on disease risk, thereby predicting the likely efficacy and safety of targeting that gene. By providing robust causal evidence at an early stage, MR helps reduce the risk of late-stage drug failure, prioritize therapeutic targets, and accelerate the development of novel medicines.",2019,"31208196","Enables causal inference using genetic variants as instruments; reduces confounding and reverse causation compared to observational studies
+Simulates pharmacological modulation effects to support target validation and early-stage prioritization before costly preclinical/clinical trials
+Can evaluate both activation and inhibition strategies through different genetic variant types
+Reveals pleiotropic effects across diseases, identifying drug repositioning opportunities or potential adverse effects
+Sensitivity analyses (MR-Egger, weighted median) may detect and adjust for pleiotropy violations","Relies on three key assumptions (relevance, independence, exclusion restriction); violations such as horizontal pleiotropy or weak instruments can bias results
+Limited to genetically mediated targets with known genetic associations; cannot capture environmental or post-transcriptional regulation effects
+Lifelong genetic effects differ from acute drug treatment
+Effect sizes may not translate to drug dosing
+Population-specific estimates limit generalization"

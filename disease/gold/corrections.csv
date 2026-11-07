@@ -1,0 +1,40 @@
+sheet,column,source_row,row_fingerprint,old,new,reason
+ST1,protein,81,2d289e61,TNC,Tenascin,Protein and Gene swapped: TNC is the gene symbol (9q33.1)
+ST1,gene,81,2d289e61,Tenascin,TNC,Protein and Gene swapped: TNC is the gene symbol (9q33.1)
+ST1,gene,,,COL4A1/2,COL4A1/2,deliberate combined COL4A1 and COL4A2 row
+ST1,references,,,"37069360,39805841,39805841,37231261,38868715,35084939,35165441,38987604,35158371,37824663,29443965,30129931","37069360,39805841,37231261,38868715,35084939,35165441,38987604,35158371,37824663,29443965,30129931",PMID 39805841 listed twice
+ST1,other_omics,,,Proteomics,proteomics,"one capitalised spelling; the other 51 cells use ""proteomics"""
+ST6,platform,,,Nighingale (NMR),Nightingale (NMR),typo: Nightingale Health NMR platform
+ST6,methods,,,regression,Regression,"one spelling: 508 cells use ""Regression"", 205 ""regression"""
+ST6,se_ic,,,"0,922 - 0965","0,922 - 0,965",missing decimal comma in the upper bound; beta 0.943 lies inside 0.922-0.965
+ST6,names,,,glucose,Glucose,one spelling of the metabolite name
+ST6,names,,,glycoprotein acetyls,Glycoprotein Acetyls,"one spelling: 2 cells use ""Glycoprotein Acetyls"""
+ST6,names,,,Epo,EPO,"one spelling for erythropoietin: row 232 writes ""EPO"""
+ST6,full_name,,,butyrophilin subfamily 3 member A2,Butyrophilin subfamily 3 member A2,"one spelling: full names are capitalised (68 of 84)"
+ST1,gene,2,7b9f3a4f,STN1 (OBFC1),STN1,OBFC1 is the previous HGNC symbol of STN1
+ST1,gene,,,PVRL2:CTB-129P6.4,PVRL2:CTB-129P6.4,locus label as published in the MTAG study (PMID 39298701)
+ST6,platform,,,SomaScan 7K assay,SomaScan 7K,"one form for SomaScan platforms: ""SomaScan"" plus its version"
+ST6,platform,,,Somascan assay,SomaScan 5K,"one form for SomaScan platforms: ""SomaScan"" plus its version; Shi 2021 (PMID 34604499) measured 5032 proteins, the 5K assay"
+ST1,other_omics,,,"TWAS HIP-PVS: Nerve tibial, brain cerebellar hemisphere*, brain cerebellum*, heart left ventricle*, heart artial appendage*, artery tibial*, artery aorta, peripheral blood, whole blood","TWAS HIP-PVS: Nerve tibial, brain cerebellar hemisphere*, brain cerebellum*, heart left ventricle*, heart atrial appendage*, artery tibial*, artery aorta, peripheral blood, whole blood",typo: atrial appendage
+ST1,other_omics,,,"TWAS WM-PVS: Nerve tibial, heart artial appendage*, artery tibial","TWAS WM-PVS: Nerve tibial, heart atrial appendage*, artery tibial",typo: atrial appendage
+ST2,description,,,"Extension of GPS that incorporations both rare and common variant associations from machine learning-based continuous phenotypes, to predict main indications of drug targets.","Extension of GPS that incorporates both rare and common variant associations from machine learning-based continuous phenotypes, to predict main indications of drug targets.",typo: incorporates
+ST5,other_indications,,,symptomic relief of intermittent claudication*,symptomatic relief of intermittent claudication*,typo: symptomatic
+ST6,population,,,sympomatic cSVD,symptomatic cSVD,typo: symptomatic
+ST1,monogenic,67,681212ec,"Sorsby fundus dystrophy, 136900, AD;","T-cell lymphoma, subcutaneous panniculitis-like, 618398, AR;","Sorsby fundus dystrophy (136900) is caused by TIMP3, not HAVCR2 (TIMD3 read as TIMP3); HAVCR2's one OMIM phenotype is 618398 (NCBI Gene 84868), AR per HPO (PMID 30374066)"
+ST1,monogenic,81,2d289e61,"Ehlers-Danlos Syndrome, Classic-Like, 1, 606408, AR; Vesicoureteral reflux 8 , 615963 , AD;","Deafness, autosomal dominant 56, 615629, AD;","EDS classic-like 1 (606408) and VUR8 (615963) are caused by TNXB (tenascin-X), not TNC; TNC's one OMIM phenotype is DFNA56, 615629 (NCBI Gene 3371)"
+ST6,platform,276,9eb82ddb,SomaScan,SomaScan 5K,"Caro 2025 (PMID 41266628): its Nagahama cohort was measured with SomaScan 4.0, the 5K assay (supplementary methods)"
+ST6,platform,277,472e683b,SomaScan,SomaScan 5K,"Caro 2025 (PMID 41266628): its Nagahama cohort was measured with SomaScan 4.0, the 5K assay (supplementary methods)"
+ST6,platform,195,3dc3da8e,microRNA QC PCR Panel V1.M (,Serum/Plasma Focus microRNA PCR-Panel V3.M and V4.M (Qiagen),"cut off in the workbook, and the QC panel only checked sample quality: Van der Auwera 2024 (PMID 38255959) measured the miRNAs with the Serum/Plasma Focus microRNA PCR-Panel (Qiagen) V3.M and V4.M"
+ST1,monogenic,,,"Adult onset leukoencephalopathy with hemiplegic migraine and stroke-likeepisodes, psychiatric symptoms, 621214, AD","Adult onset leukoencephalopathy with hemiplegic migraine and stroke-like episodes, psychiatric symptoms, 621214, AD",typo: stroke-like episodes
+ST1,monogenic,,,"3-hydroxyisobutryl-CoA hydrolase deficiency, 250620, AR","3-hydroxyisobutyryl-CoA hydrolase deficiency, 250620, AR",typo: 3-hydroxyisobutyryl-CoA (OMIM 250620)
+ST1,monogenic,,,"Hippocampal Memory Defect and a Leukoencephalopathy,AD, unknown if LOF or GOF","Hippocampal Memory Defect and a Leukoencephalopathy, 621424, AD, unknown if LOF or GOF","OMIM number added: 621424 (Leukoencephalopathy without lacunae, adult-onset, LAMB1) is the disease of PMID 34606115, End-Truncated LAMB1 Causes a Hippocampal Memory Defect and a Leukoencephalopathy"
+ST6,full_name,,,Tapasin.related protein,Tapasin-related protein,dots for hyphens; the UniProt name
+ST6,full_name,,,Protein O.glucosyltransferase 1,Protein O-glucosyltransferase 1,dots for hyphens; the UniProt name
+ST6,full_name,,,Prostate.associated microseminoprotein,Prostate-associated microseminoprotein,dots for hyphens; the UniProt name
+ST6,full_name,,,Toll.like receptor 1,Toll-like receptor 1,dots for hyphens; the UniProt name
+ST6,full_name,,,Histo.blood group ABO system transferase group ABO system transferase,Histo-blood group ABO system transferase,dots for hyphens and a repeated ending; the UniProt name
+ST6,full_name,,,Beta.crystallin S,Beta-crystallin S,dots for hyphens; the UniProt name
+ST6,full_name,,,Low affinity immunoglobulin gamma Fc region receptor III.A,Low affinity immunoglobulin gamma Fc region receptor III-A,dots for hyphens; the UniProt name
+ST6,full_name,,,"3.hydroxyisobutyryl.CoA hydrolase, mitochondrial","3-hydroxyisobutyryl-CoA hydrolase, mitochondrial",dots for hyphens; the UniProt name
+ST6,full_name,,,Netrin.4,Netrin-4,dots for hyphens; the UniProt name
+ST6,full_name,,,Ephrin type.B receptor 4 type-B receptor 4,Ephrin type-B receptor 4,dots for hyphens and a repeated ending; the UniProt name
