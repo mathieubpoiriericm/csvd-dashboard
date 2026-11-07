@@ -1,0 +1,13 @@
+# The scripts here are sourced together (clean_gold.R and tests/helper-gold.R
+# load helpers.R, cells.R, sheets.R and corrections.R), so each calls
+# functions another defines. lintr checks object usage one file at a time
+# and cannot see them: every cross-file call would be "no visible global
+# function definition". To check object usage, source the five scripts and
+# testthat first, then lint in that session, where those names resolve.
+linters: linters_with_defaults(
+    object_name_linter = object_name_linter(
+      styles = c("snake_case", "SNAKE_CASE", "symbols")
+    ),
+    object_usage_linter = NULL
+  )
+encoding: "UTF-8"

@@ -21,7 +21,8 @@ suspect <- function(sheet, source_row, column, value, rule, detail) {
 }
 
 empty_suspects <- function() {
-  suspect(character(), integer(), character(), character(), character(), character())
+  none <- character()
+  suspect(none, integer(), none, none, none, none)
 }
 
 # Non-breaking spaces become spaces, line endings become LF, each line is
@@ -54,12 +55,14 @@ snake_case <- function(x) {
 
 # A bracketed group holding a footnote mark is a legend, not part of the
 # name: it is removed from the name and the whole header is returned as
-# `legend` so it can be kept among the footnotes.
+# `legend` so it can be kept among the footnotes. A header with no letter or
+# digit left ("*", "-") has no name, so its column counts as unnamed.
 clean_header <- function(x) {
   legend_group <- paste0("\\s*\\([^()]*", FOOTNOTE_MARKS, "[^()]*\\)")
   has_legend <- !is.na(x) & grepl(legend_group, x, perl = TRUE)
   name <- gsub(legend_group, "", x, perl = TRUE)
   name <- snake_case(gsub(FOOTNOTE_MARKS, "", name, perl = TRUE))
+  name[!is.na(name) & !nzchar(name)] <- NA_character_
   tibble(name = name, legend = ifelse(has_legend, x, NA_character_))
 }
 
@@ -93,23 +96,29 @@ collect_references <- function(sheet, table, column) {
   cells <- table[[column]]
   tokens <- reference_tokens(cells)
   kept <- tokens |>
-    filter(!duplicate) |>
-    mutate(position = row_number(), .by = cell)
+    filter(!.data$duplicate) |>
+    mutate(position = row_number(), .by = "cell")
   repeats <- tokens |>
-    filter(duplicate) |>
-    summarise(detail = paste(id, collapse = "; "), .by = cell) |>
+    filter(.data$duplicate) |>
+    summarise(detail = paste(.data$id, collapse = "; "), .by = "cell") |>
     mutate(rule = "duplicate_reference")
   others <- kept |>
-    filter(kind == "other") |>
-    transmute(cell, detail = id, rule = "reference_token")
-  found <- arrange(bind_rows(repeats, others), cell)
+    filter(.data$kind == "other") |>
+    transmute(cell = .data$cell, detail = .data$id, rule = "reference_token")
+  found <- arrange(bind_rows(repeats, others), .data$cell)
   ids <- split(kept$id, factor(kept$cell, levels = seq_along(cells)))
-  table[[column]] <- na_if(vapply(ids, paste, "", collapse = "; ", USE.NAMES = FALSE), "")
+  joined <- vapply(ids, paste, "", collapse = "; ", USE.NAMES = FALSE)
+  table[[column]] <- na_if(joined, "")
   list(
     table = table,
-    references = tibble(sheet = sheet, source_row = table$source_row[kept$cell], position = kept$position,
-                        kind = kept$kind, id = kept$id),
-    suspects = suspect(sheet, table$source_row[found$cell], column, cells[found$cell], found$rule, found$detail)
+    references = tibble(
+      sheet = sheet, source_row = table$source_row[kept$cell],
+      position = kept$position, kind = kept$kind, id = kept$id
+    ),
+    suspects = suspect(
+      sheet, table$source_row[found$cell], column, cells[found$cell],
+      found$rule, found$detail
+    )
   )
 }
 
@@ -137,11 +146,15 @@ split_registry_ids <- function(x) {
   tibble(name = name, registry_ids = na_if(ids, ""))
 }
 
-# Whole numbers, optionally with comma thousands separators ("10,251").
+# Whole numbers, optionally with comma thousands separators ("10,251"). As
+# with DECIMAL, a leading zero ("007") is a typo, not a number, and so is a
+# count too large for an R integer.
 parse_count <- function(x) {
-  ok <- !is.na(x) & grepl("^(\\d+|\\d{1,3}(,\\d{3})+)$", x)
+  ok <- !is.na(x) & grepl("^(0|[1-9]\\d*|[1-9]\\d{0,2}(,\\d{3})+)$", x)
+  n <- as.numeric(gsub(",", "", x[ok], fixed = TRUE))
+  n[n > .Machine$integer.max] <- NA
   out <- rep(NA_integer_, length(x))
-  out[ok] <- as.integer(gsub(",", "", x[ok], fixed = TRUE))
+  out[ok] <- as.integer(n)
   out
 }
 
@@ -151,25 +164,30 @@ DECIMAL <- "^-?(0|[1-9]\\d*)([.,]\\d+)?([eE][-+]?\\d+)?$"
 
 # Once its comma is a point, a DECIMAL is a JSON number, and jsonlite reads
 # it with C's strtod, which rounds to the nearest double. R's as.numeric()
-# does not always, and lands one step off on some tiny p-values.
+# does not always, and lands one step off on some tiny p-values. A value too
+# large for a double ("1e400") does not parse.
 parse_decimal <- function(x) {
   ok <- !is.na(x) & grepl(DECIMAL, x)
   out <- rep(NA_real_, length(x))
   if (any(ok)) {
-    json <- paste0("[", paste(sub(",", ".", x[ok], fixed = TRUE), collapse = ","), "]")
-    out[ok] <- jsonlite::parse_json(json, simplifyVector = TRUE)
+    numbers <- paste(sub(",", ".", x[ok], fixed = TRUE), collapse = ",")
+    out[ok] <- jsonlite::parse_json(paste0("[", numbers, "]"),
+                                    simplifyVector = TRUE)
   }
+  out[!is.finite(out)] <- NA_real_
   out
 }
 
-# ST6's SE/IC column: a single decimal is a standard error; two decimal-comma
-# numbers separated by ";", ", ", "-" or an en dash are a confidence interval,
-# valid only when both bounds parse and are in order.
+# ST6's SE/IC column: a single decimal is a standard error; two decimals
+# separated by ";", ", ", "-" or an en dash are a confidence interval, valid
+# only when both bounds parse and are in order. A bound takes a decimal comma
+# or point; a comma followed by a space always separates the bounds.
 split_ci <- function(x) {
   se <- parse_decimal(x)
   ci_low <- ci_high <- rep(NA_real_, length(x))
-  bound <- "(-?\\d+(?:,\\d+)?)"
-  re <- paste0("^\\s*", bound, "\\s*(?:;|,\\s+|\u{2013}|-)\\s*", bound, "\\s*$")
+  bound <- "(-?\\d+(?:[.,]\\d+)?)"
+  re <- paste0("^\\s*", bound, "\\s*(?:;|,\\s+|\u{2013}|-)\\s*", bound,
+               "\\s*$")
   i <- which(!is.na(x) & is.na(se) & grepl(re, x, perl = TRUE))
   low <- parse_decimal(sub(re, "\\1", x[i], perl = TRUE))
   high <- parse_decimal(sub(re, "\\2", x[i], perl = TRUE))
@@ -179,15 +197,20 @@ split_ci <- function(x) {
   tibble(se = se, ci_low = ci_low, ci_high = ci_high)
 }
 
+# A p-value with an optional qualifier ("<0,001"). One outside [0, 1] is not
+# a p-value, so it does not parse.
 split_pvalue <- function(x) {
   re <- "^([<>\u{2264}\u{2265}]?)\\s*(.*)$"
   p_value <- parse_decimal(sub(re, "\\2", x, perl = TRUE))
+  p_value[!is.na(p_value) & (p_value < 0 | p_value > 1)] <- NA_real_
   qualifier <- sub(re, "\\1", x, perl = TRUE)
-  qualifier[is.na(p_value) | qualifier == ""] <- NA_character_
+  qualifier[is.na(p_value) | !nzchar(qualifier, keepNA = TRUE)] <- NA_character_
   tibble(p_value = p_value, p_value_qualifier = qualifier)
 }
 
-# An ISO date ("2028-07-01") at month precision ("2028-07"); anything else NA.
+# An ISO date ("2028-07-01") at month precision ("2028-07"); anything else,
+# a month or day out of range included, is NA.
 to_month <- function(x) {
-  ifelse(!is.na(x) & grepl("^\\d{4}-\\d{2}-\\d{2}$", x), substr(x, 1, 7), NA_character_)
+  iso <- "^\\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])$"
+  ifelse(!is.na(x) & grepl(iso, x), substr(x, 1, 7), NA_character_)
 }
