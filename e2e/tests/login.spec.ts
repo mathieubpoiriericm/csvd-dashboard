@@ -166,11 +166,10 @@ test("the generated data bundles require a live session and are never cacheable"
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page.locator("table.data-table tbody tr").first()).toBeVisible();
 
-  await page.waitForFunction(() =>
-    performance.getEntriesByType("resource").some((entry) =>
-      /\/assets\/protected-data-[A-Za-z0-9_-]+\.js(?:\?|$)/.test(entry.name)
-    )
-  );
+  // The rows are server-rendered, so they appear before the chunks finish
+  // loading. A hydrated island has evaluated every module it imports, so
+  // every protected chunk the page needs is in the resource timeline.
+  await page.waitForSelector('.table-controls[data-hydrated="true"]');
   const assetUrls = await page.evaluate(() => [
     ...new Set(
       performance.getEntriesByType("resource")
