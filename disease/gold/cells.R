@@ -13,8 +13,8 @@ find_sheet <- function(path, name) {
   sheets <- tidyxl::xlsx_sheet_names(path)
   hit <- sheets[trimws(sheets) == name]
   if (length(hit) == 0) {
-    stop(sprintf("sheet %s not found in %s (it has: %s)", name, basename(path),
-                 paste(trimws(sheets), collapse = ", ")), call. = FALSE)
+    stop(sprintf("sheet %s not found in %s (it has: %s)", name, basename(path), toString(trimws(sheets))),
+         call. = FALSE)
   }
   hit[[1]]
 }
@@ -31,68 +31,76 @@ col_letter <- function(n) {
 }
 
 col_number <- function(letters) {
-  vapply(strsplit(letters, ""), function(ch) Reduce(function(a, b) a * 26 + b, match(ch, LETTERS), 0),
-         numeric(1))
+  vapply(strsplit(letters, ""), \(ch) Reduce(\(n, digit) n * 26L + digit, match(ch, LETTERS), 0L), integer(1))
 }
 
 # A number as the workbook holds it, never in scientific notation, so that a
-# count of 100000 still reads as a count.
+# count of 100000 still reads as a count. Pass one number at a time: format()
+# gives a vector one precision, so c(1, 0.5) would read "1.0", "0.5".
 plain_number <- function(x) format(x, scientific = FALSE, digits = 15, trim = TRUE)
 
-# `value` is the cell's text without its superscripts, `sup` the superscripts
-# ("1-4,7"), `full` everything, each superscript in brackets so a reference
-# number never runs into the word before it ("package[1]"). Adjacent
-# superscript runs are one superscript: Excel may split "1-4" into "1", "-",
-# "4". The spaces at either end of a superscript run stay in the text, so
-# "ACCORD" + "1-4 " + "(NCT...)" reads "ACCORD (NCT...)". Numbers, dates and
-# #N/A are rendered as text; any other error value stops the run. Every
-# column is typed later, explicitly.
-cell_values <- function(cells) {
+# One rich-text cell's runs as c(value, sup, full): `value` is its text
+# without its superscripts, `sup` the superscripts ("1-4,7"), `full`
+# everything, each superscript in brackets so a reference number never runs
+# into the word before it ("package[1]"). Adjacent superscript runs are one
+# superscript: Excel may split "1-4" into "1", "-", "4". The spaces at either
+# end of a superscript run stay in the text, so "ACCORD" + "1-4 " +
+# "(NCT...)" reads "ACCORD (NCT...)".
+split_superscripts <- function(runs) {
   space <- "[\\s\\x{a0}]*"
-  rendered <- lapply(seq_len(nrow(cells)), function(i) {
-    type <- cells$data_type[i]
-    value <- sup <- full <- NA_character_
-    if (type == "character") {
-      runs <- cells$character_formatted[[i]]
-      if (is.null(runs) || nrow(runs) == 0) {
-        value <- full <- cells$character[i]
-      } else {
-        raised <- !is.na(runs$vertAlign) & runs$vertAlign == "superscript"
-        group <- cumsum(c(TRUE, raised[-1] != raised[-length(raised)]))
-        pieces <- vapply(split(runs$character, group), paste0, "", collapse = "", USE.NAMES = FALSE)
-        lead <- sub(paste0("^(", space, ")[\\s\\S]*$"), "\\1", pieces, perl = TRUE)
-        trail <- sub(paste0("^[\\s\\S]*?(", space, ")$"), "\\1", pieces, perl = TRUE)
-        core <- substr(pieces, nchar(lead) + 1L, nchar(pieces) - nchar(trail))
-        up <- vapply(split(raised, group), `[`, TRUE, 1, USE.NAMES = FALSE) & nzchar(core)
-        value <- paste0(ifelse(up, paste0(lead, trail), pieces), collapse = "")
-        full <- paste0(ifelse(up, paste0(lead, "[", core, "]", trail), pieces), collapse = "")
-        if (any(up)) sup <- paste(core[up], collapse = ",")
-      }
-    } else if (type == "numeric" && !is.na(cells$numeric[i])) {
-      value <- full <- plain_number(cells$numeric[i])
-    } else if (type == "date" && !is.na(cells$date[i])) {
-      value <- full <- format(as.Date(cells$date[i]), "%Y-%m-%d")
-    } else if (type == "logical" && !is.na(cells$logical[i])) {
-      value <- full <- as.character(cells$logical[i])
-    } else if (type == "error") {
-      if (cells$error[i] != "#N/A") {
-        stop(sprintf("cell %s holds the error %s: fix it in the workbook", cells$address[i], cells$error[i]),
-             call. = FALSE)
-      }
-      full <- cells$error[i]
-    }
-    if (!is.na(cells$formula[i]) && is.na(value) && type != "error") {
-      stop(sprintf("cell %s: formula =%s has no saved result; open and save the workbook in Excel",
-                   cells$address[i], cells$formula[i]), call. = FALSE)
-    }
-    c(value, sup, full)
-  })
-  m <- matrix(as.character(unlist(rendered)), ncol = 3, byrow = TRUE)
-  out <- tibble(
+  raised <- rle(runs$vertAlign %in% "superscript")
+  group <- rep(seq_along(raised$lengths), raised$lengths)
+  pieces <- vapply(split(runs$character, group), paste0, "", collapse = "", USE.NAMES = FALSE)
+  lead <- sub(paste0("^(", space, ")[\\s\\S]*$"), "\\1", pieces, perl = TRUE)
+  trail <- sub(paste0("^[\\s\\S]*?(", space, ")$"), "\\1", pieces, perl = TRUE)
+  core <- substr(pieces, nchar(lead) + 1L, nchar(pieces) - nchar(trail))
+  up <- raised$values & nzchar(core)
+  c(value = paste0(ifelse(up, paste0(lead, trail), pieces), collapse = ""),
+    sup = if (any(up)) paste(core[up], collapse = ",") else NA_character_,
+    full = paste0(ifelse(up, paste0(lead, "[", core, "]", trail), pieces), collapse = ""))
+}
+
+# Every cell as cleaned text in `value`, `sup` and `full`, as
+# split_superscripts() describes them; a cell without a superscript is its
+# own value and full text. Numbers, dates and #N/A are rendered as text; any
+# other error value, or a formula with no saved result, stops the run at the
+# first such cell. Every column is typed later, explicitly.
+cell_values <- function(cells) {
+  type <- cells$data_type
+  shown <- rep(NA_character_, nrow(cells))
+  text <- which(type == "character")
+  shown[text] <- cells$character[text]
+  number <- which(type == "numeric" & !is.na(cells$numeric))
+  shown[number] <- vapply(cells$numeric[number], plain_number, "")
+  day <- which(type == "date" & !is.na(cells$date))
+  shown[day] <- format(as.Date(cells$date[day]), "%Y-%m-%d")
+  flag <- which(type == "logical" & !is.na(cells$logical))
+  shown[flag] <- as.character(cells$logical[flag])
+  value <- full <- shown
+  sup <- rep(NA_character_, nrow(cells))
+  rich <- text[vapply(cells$character_formatted[text], \(runs) any(runs$vertAlign %in% "superscript"), NA)]
+  parts <- vapply(cells$character_formatted[rich], split_superscripts, c(value = "", sup = "", full = ""))
+  value[rich] <- parts["value", ]
+  sup[rich] <- parts["sup", ]
+  full[rich] <- parts["full", ]
+  error <- type == "error"
+  full[error] <- cells$error[error]
+  unsaved <- !error & !is.na(cells$formula) & is.na(value)
+  first <- which((error & cells$error != "#N/A") | unsaved)[1]
+  if (!is.na(first) && error[first]) {
+    stop(sprintf("cell %s holds the error %s: fix it in the workbook", cells$address[first], cells$error[first]),
+         call. = FALSE)
+  }
+  if (!is.na(first)) {
+    stop(sprintf("cell %s: formula =%s has no saved result; open and save the workbook in Excel",
+                 cells$address[first], cells$formula[first]), call. = FALSE)
+  }
+  tibble(
     row = as.integer(cells$row), col = as.integer(cells$col),
-    value = as_missing(clean_text(m[, 1])), sup = clean_text(m[, 2]), full = clean_text(m[, 3])
-  )
-  out[!is.na(out$full), ] |> arrange(row, col)
+    value = as_missing(clean_text(value)), sup = clean_text(sup), full = clean_text(full)
+  ) |>
+    filter(!is.na(full)) |>
+    arrange(row, col)
 }
 
 read_cells <- function(path, sheet) {
@@ -101,33 +109,30 @@ read_cells <- function(path, sheet) {
 
 # Merged ranges of one sheet, read from the sheet's XML: workbook.xml names
 # the sheet's relationship id, the workbook's rels file maps it to a file.
+# The XML is read straight from the zip, and its elements are matched by
+# local name, which spares stripping the namespaces of a whole sheet.
 read_merges <- function(path, sheet) {
-  dir <- tempfile("xlsx-")
-  on.exit(unlink(dir, recursive = TRUE))
-  utils::unzip(path, exdir = dir)
-  read <- function(f) {
-    doc <- xml2::read_xml(file.path(dir, f))
-    xml2::xml_ns_strip(doc)
-    doc
+  elements <- function(file, name) {
+    xml2::xml_find_all(xml2::read_xml(unz(path, file)), sprintf("//*[local-name()='%s']", name))
   }
-  sheets <- xml2::xml_find_all(read("xl/workbook.xml"), "//sheets/sheet")
-  node <- sheets[xml2::xml_attr(sheets, "name") == sheet]
+  sheets <- elements("xl/workbook.xml", "sheet")
+  node <- sheets[xml2::xml_attr(sheets, "name") %in% sheet]
   if (length(node) != 1) stop(sprintf("sheet %s not found in workbook.xml", sheet), call. = FALSE)
   attrs <- xml2::xml_attrs(node[[1]])
   rid <- attrs[[grep("(^|:)id$", names(attrs))[1]]]
-  rels <- xml2::xml_find_all(read("xl/_rels/workbook.xml.rels"), "//Relationship")
+  rels <- elements("xl/_rels/workbook.xml.rels", "Relationship")
   target <- xml2::xml_attr(rels, "Target")[xml2::xml_attr(rels, "Id") == rid]
   target <- if (startsWith(target, "/")) sub("^/", "", target) else file.path("xl", target)
-  refs <- xml2::xml_attr(xml2::xml_find_all(read(target), "//mergeCell"), "ref")
-  ends <- strsplit(refs, ":", fixed = TRUE)
-  first <- vapply(ends, `[`, "", 1)
-  last <- vapply(ends, function(e) e[length(e)], "")
-  tibble(
-    first_row = as.integer(sub("^[A-Z]+", "", first)), first_col = as.integer(col_number(sub("\\d+$", "", first))),
-    last_row = as.integer(sub("^[A-Z]+", "", last)), last_col = as.integer(col_number(sub("\\d+$", "", last)))
-  )
+  refs <- xml2::xml_attr(elements(target, "mergeCell"), "ref")
+  # A one-cell ref ("A1") is its own first and last cell.
+  first <- sub(":.*", "", refs)
+  last <- sub(".*:", "", refs)
+  row_of <- function(ref) as.integer(sub("^[A-Z]+", "", ref))
+  col_of <- function(ref) col_number(sub("\\d+$", "", ref))
+  tibble(first_row = row_of(first), first_col = col_of(first), last_row = row_of(last), last_col = col_of(last))
 }
 
+# Every cell a merged range covers takes the value of its top-left cell.
 expand_merges <- function(vals, merges) {
   added <- bind_rows(vals[0, ], lapply(seq_len(nrow(merges)), function(i) {
     m <- merges[i, ]
@@ -138,10 +143,7 @@ expand_merges <- function(vals, merges) {
     tibble(row = as.integer(grid$row), col = as.integer(grid$col),
            value = anchor$value, sup = anchor$sup, full = anchor$full)
   }))
-  vals |>
-    anti_join(added, by = c("row", "col")) |>
-    bind_rows(added) |>
-    arrange(row, col)
+  rows_upsert(vals, added, by = c("row", "col")) |> arrange(row, col)
 }
 
 # The last data row: the row before the first one, from `first_data_row` on,
@@ -162,8 +164,7 @@ table_bounds <- function(vals, merges, first_data_row) {
 header_names <- function(vals, header_rows) {
   joined <- vals[vals$row %in% header_rows & !is.na(vals$value), ] |>
     arrange(col, row) |>
-    group_by(col) |>
-    summarise(text = paste(unique(value), collapse = " "), .groups = "drop")
+    summarise(text = paste(unique(value), collapse = " "), .by = col)
   cleaned <- clean_header(joined$text)
   tibble(col = joined$col, name = cleaned$name, legend = cleaned$legend)
 }
@@ -173,8 +174,7 @@ named_columns <- function(body, header) {
   named <- header[!is.na(header$name), ] |> arrange(col)
   stray <- setdiff(unique(body$col[!is.na(body$value)]), named$col)
   if (length(stray)) {
-    stop(sprintf("column %s has values but no header", paste(col_letter(sort(stray)), collapse = ", ")),
-         call. = FALSE)
+    stop(sprintf("column %s has values but no header", toString(col_letter(sort(stray)))), call. = FALSE)
   }
   named
 }

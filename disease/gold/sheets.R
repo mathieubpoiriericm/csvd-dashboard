@@ -82,7 +82,6 @@ finished_parts <- function(table, references = NULL, suspects = NULL) {
 # source column and value, so a correction or a keep row can target it.
 unparsed <- function(sheet, table, column, parsed, what) {
   bad <- which(!is.na(table[[column]]) & is.na(parsed))
-  if (length(bad) == 0) return(empty_suspects())
   suspect(sheet, table$source_row[bad], column, table[[column]][bad], "unparsed", paste("expected", what))
 }
 
@@ -111,8 +110,8 @@ finish_st2 <- function(t) {
 finish_st3 <- function(t) {
   ev <- split_trailing_group(t$genetic_evidence_target)
   ok_ev <- ev$head %in% c("Yes", "No")
-  genetic_target <- as_missing(ev$group)
-  genetic_target[!ok_ev] <- t$genetic_evidence_target[!ok_ev]
+  genetic_evidence <- ifelse(ok_ev, ev$head, NA_character_)
+  genetic_target <- ifelse(ok_ev, as_missing(ev$group), t$genetic_evidence_target)
 
   reg <- split_registry_ids(t$trial_name_id)
   one_id <- !is.na(reg$registry_ids) & !grepl(";", reg$registry_ids, fixed = TRUE)
@@ -127,7 +126,7 @@ finish_st3 <- function(t) {
 
   table <- tibble(
     source_row = t$source_row, agent = t$agent, mechanism_of_action = t$mechanism_of_action,
-    genetic_evidence = ifelse(ok_ev, ev$head, NA_character_), genetic_target = genetic_target,
+    genetic_evidence = genetic_evidence, genetic_target = genetic_target,
     trial_name = ifelse(one_id, reg$name, t$trial_name_id), registry_id = registry_id,
     trial_phase = t$trial_phase,
     population = ifelse(is.na(target_n), t$trial_population_target_n, pop$head), target_n = target_n,
@@ -136,7 +135,7 @@ finish_st3 <- function(t) {
     trial_primary_outcome = t$trial_primary_outcome, trial_sponsor_type = t$trial_sponsor_type
   ) |> carry_footnote_refs(t)
   finished_parts(table, suspects = bind_rows(
-    unparsed("ST3", t, "genetic_evidence_target", ifelse(ok_ev, ev$head, NA), "Yes or No (target)"),
+    unparsed("ST3", t, "genetic_evidence_target", genetic_evidence, "Yes or No (target)"),
     unparsed("ST3", t, "trial_name_id", registry_id, "a trial name and one registry id in brackets"),
     unparsed("ST3", t, "trial_population_target_n", target_n, "a population and its target N in brackets"),
     suspect("ST3", t$source_row[not_first], "trial_estimated_completion", completion[not_first],

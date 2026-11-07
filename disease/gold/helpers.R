@@ -28,14 +28,12 @@ empty_suspects <- function() {
 # trimmed with its runs of spaces collapsed, empty lines are dropped, and an
 # empty result is NA.
 clean_text <- function(x) {
-  vapply(as.character(x), function(s) {
-    if (is.na(s)) return(NA_character_)
-    s <- gsub("\u{00a0}", " ", s, fixed = TRUE)
-    s <- gsub("\r\n?", "\n", s)
-    lines <- trimws(gsub("[ \t]+", " ", strsplit(s, "\n", fixed = TRUE)[[1]]))
-    lines <- lines[nzchar(lines)]
-    if (length(lines) == 0) NA_character_ else paste(lines, collapse = "\n")
-  }, character(1), USE.NAMES = FALSE)
+  x <- gsub("\u{00a0}", " ", as.character(x), fixed = TRUE)
+  x <- gsub("[ \t]+", " ", gsub("\r\n?", "\n", x))
+  # A line break takes the spaces around it and the empty lines after it.
+  x <- gsub("^[ \n]+|[ \n]+$", "", gsub(" *\n[ \n]*", "\n", x))
+  x[!nzchar(x)] <- NA_character_
+  x
 }
 
 # The workbook's spellings of "no value". Anything else, "NOT FOUND" or
@@ -65,57 +63,54 @@ clean_header <- function(x) {
   tibble(name = name, legend = ifelse(has_legend, x, NA_character_))
 }
 
-# The ids in one reference cell, in order: PMIDs, bare DOIs, and anything
-# else as "other". `duplicate` marks a repeat of an earlier id in the cell;
-# DOIs are case-insensitive, so one repeated in another case is a repeat.
+# The ids in reference cells, one row per id in order: the `cell` of `x` it
+# came from and its `kind`, a PMID, a bare DOI, or anything else as "other".
+# `duplicate` marks a repeat of an earlier id in the same cell; DOIs are
+# case-insensitive, so one repeated in another case is a repeat.
 reference_tokens <- function(x) {
-  empty <- tibble(kind = character(), id = character(), duplicate = logical())
-  if (length(x) != 1 || is.na(x)) return(empty)
   s <- gsub("(?i)\\bPMID\\s*:", " ", x, perl = TRUE)
   s <- gsub("(?i)https?://(dx\\.)?doi\\.org/", " ", s, perl = TRUE)
   s <- gsub("(?i)\\bdoi\\s*:\\s*", " ", s, perl = TRUE)
-  tokens <- sub("\\.+$", "", strsplit(s, "[,;\\s]+", perl = TRUE)[[1]])
-  tokens <- tokens[nzchar(tokens)]
-  if (length(tokens) == 0) return(empty)
-  kind <- ifelse(grepl("^\\d+$", tokens), "pmid",
-    ifelse(grepl("^10\\.\\d{4,9}/\\S+$", tokens), "doi", "other")
+  per_cell <- strsplit(s, "[,;\\s]+", perl = TRUE)
+  tokens <- sub("\\.+$", "", unlist(per_cell))
+  cell <- rep(seq_along(per_cell), lengths(per_cell))
+  found <- !is.na(tokens) & nzchar(tokens)
+  tokens <- tokens[found]
+  cell <- cell[found]
+  kind <- case_when(
+    grepl("^\\d+$", tokens) ~ "pmid",
+    grepl("^10\\.\\d{4,9}/\\S+$", tokens) ~ "doi",
+    .default = "other"
   )
-  key <- paste(kind, ifelse(kind == "doi", tolower(tokens), tokens))
-  tibble(kind = kind, id = tokens, duplicate = duplicated(key))
+  key <- paste(cell, kind, ifelse(kind == "doi", tolower(tokens), tokens))
+  tibble(cell = cell, kind = kind, id = tokens, duplicate = duplicated(key))
 }
 
 # Splits `column` of `table` into one row per id. The column keeps the ids
 # without repeats, joined by "; "; repeats and unrecognised tokens become
-# suspects carrying the original cell.
+# suspects carrying the original cell, a cell's repeats first.
 collect_references <- function(sheet, table, column) {
   cells <- table[[column]]
-  per_cell <- lapply(cells, reference_tokens)
-  references <- bind_rows(
-    tibble(sheet = character(), source_row = integer(), position = integer(),
-           kind = character(), id = character()),
-    lapply(seq_along(cells), function(i) {
-      kept <- per_cell[[i]][!per_cell[[i]]$duplicate, ]
-      if (nrow(kept) == 0) return(NULL)
-      tibble(sheet = sheet, source_row = table$source_row[i], position = seq_len(nrow(kept)),
-             kind = kept$kind, id = kept$id)
-    })
+  tokens <- reference_tokens(cells)
+  kept <- tokens |>
+    filter(!duplicate) |>
+    mutate(position = row_number(), .by = cell)
+  repeats <- tokens |>
+    filter(duplicate) |>
+    summarise(detail = paste(id, collapse = "; "), .by = cell) |>
+    mutate(rule = "duplicate_reference")
+  others <- kept |>
+    filter(kind == "other") |>
+    transmute(cell, detail = id, rule = "reference_token")
+  found <- arrange(bind_rows(repeats, others), cell)
+  ids <- split(kept$id, factor(kept$cell, levels = seq_along(cells)))
+  table[[column]] <- na_if(vapply(ids, paste, "", collapse = "; ", USE.NAMES = FALSE), "")
+  list(
+    table = table,
+    references = tibble(sheet = sheet, source_row = table$source_row[kept$cell], position = kept$position,
+                        kind = kept$kind, id = kept$id),
+    suspects = suspect(sheet, table$source_row[found$cell], column, cells[found$cell], found$rule, found$detail)
   )
-  suspects <- bind_rows(empty_suspects(), lapply(seq_along(cells), function(i) {
-    t <- per_cell[[i]]
-    repeats <- t$id[t$duplicate]
-    others <- t$id[!t$duplicate & t$kind == "other"]
-    bind_rows(
-      if (length(repeats)) suspect(sheet, table$source_row[i], column, cells[i],
-                                   "duplicate_reference", paste(repeats, collapse = "; ")),
-      if (length(others)) suspect(sheet, table$source_row[i], column, cells[i],
-                                  "reference_token", others)
-    )
-  }))
-  table[[column]] <- vapply(per_cell, function(t) {
-    ids <- t$id[!t$duplicate]
-    if (length(ids)) paste(ids, collapse = "; ") else NA_character_
-  }, character(1))
-  list(table = table, references = references, suspects = suspects)
 }
 
 # "head (group)" with the group at the very end; without one, head is the
@@ -136,13 +131,10 @@ split_trailing_group <- function(x) {
 # by "; ", NA when there are none.
 split_registry_ids <- function(x) {
   group <- paste0("\\((", REGISTRY_ID, ")\\)")
-  ids <- vapply(x, function(s) {
-    if (is.na(s)) return(NA_character_)
-    found <- regmatches(s, gregexpr(group, s, perl = TRUE))[[1]]
-    if (length(found)) paste(gsub("[()]", "", found), collapse = "; ") else NA_character_
-  }, character(1), USE.NAMES = FALSE)
+  found <- regmatches(x, gregexpr(group, x, perl = TRUE))
+  ids <- vapply(found, \(f) paste(gsub("[()]", "", f), collapse = "; "), "")
   name <- clean_text(gsub(paste0("\\s*", group), "", x, perl = TRUE))
-  tibble(name = name, registry_ids = ids)
+  tibble(name = name, registry_ids = na_if(ids, ""))
 }
 
 # Whole numbers, optionally with comma thousands separators ("10,251").

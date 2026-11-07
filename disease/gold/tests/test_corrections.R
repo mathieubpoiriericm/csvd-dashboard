@@ -21,14 +21,14 @@ test_that("read_corrections tolerates an Excel-saved file", {
     "ST1 , gene ,83, 0a1b2c3d , Tenascin ,TNC,swapped with protein\r\n",
     "ST6,methods,,,\"a\r\nb\",\"a\nc\",typo\r\n"
   )), path)
-  c <- read_corrections(path)
-  expect_equal(names(c), c("line", "sheet", "column", "source_row", "row_fingerprint", "old", "new", "reason"))
-  expect_equal(c$row_fingerprint, c("0a1b2c3d", NA))
-  expect_equal(c$sheet, c("ST1", "ST6"))
-  expect_equal(c$column[1], "gene")
-  expect_equal(c$old, c("Tenascin", "a\nb"))
-  expect_equal(c$source_row, c(83L, NA))
-  expect_equal(c$line, 2:3)
+  corr <- read_corrections(path)
+  expect_equal(names(corr), c("line", "sheet", "column", "source_row", "row_fingerprint", "old", "new", "reason"))
+  expect_equal(corr$row_fingerprint, c("0a1b2c3d", NA))
+  expect_equal(corr$sheet, c("ST1", "ST6"))
+  expect_equal(corr$column[1], "gene")
+  expect_equal(corr$old, c("Tenascin", "a\nb"))
+  expect_equal(corr$source_row, c(83L, NA))
+  expect_equal(corr$line, 2:3)
 })
 
 corrections_file <- function(...) {
@@ -38,16 +38,16 @@ corrections_file <- function(...) {
 }
 
 test_that("read_corrections reads a missing-value marker in old or new as an empty cell", {
-  c <- read_corrections(corrections_file("ST6,methods,7,0a1b2c3d,MR,NA,drop it\n",
-                                         "ST6,methods,8,0a1b2c3d,N.A.,X,fill it\n"))
-  expect_equal(c$new, c(NA, "X"))
-  expect_equal(c$old, c("MR", NA))
+  corr <- read_corrections(corrections_file("ST6,methods,7,0a1b2c3d,MR,NA,drop it\n",
+                                            "ST6,methods,8,0a1b2c3d,N.A.,X,fill it\n"))
+  expect_equal(corr$new, c(NA, "X"))
+  expect_equal(corr$old, c("MR", NA))
 })
 
 test_that("read_corrections skips empty rows and keeps each row's line number", {
-  c <- read_corrections(corrections_file("ST1,gene,,,a,b,r\r\n,,,,,,\r\n\r\nST6,methods,,,c,d,r\r\n,,,,,,\r\n"))
-  expect_equal(c$sheet, c("ST1", "ST6"))
-  expect_equal(c$line, c(2L, 5L))
+  corr <- read_corrections(corrections_file("ST1,gene,,,a,b,r\r\n,,,,,,\r\n\r\nST6,methods,,,c,d,r\r\n,,,,,,\r\n"))
+  expect_equal(corr$sheet, c("ST1", "ST6"))
+  expect_equal(corr$line, c(2L, 5L))
 })
 
 test_that("read_corrections stops on a row with the wrong number of fields", {
@@ -57,8 +57,8 @@ test_that("read_corrections stops on a row with the wrong number of fields", {
 })
 
 test_that("read_corrections numbers a row by the line it starts on, after a field spanning lines", {
-  c <- read_corrections(corrections_file("ST2,description,,,\"two\nlines\",one line,r\nST6,methods,,,c,d,r\n"))
-  expect_equal(c$line, c(2L, 4L))
+  corr <- read_corrections(corrections_file("ST2,description,,,\"two\nlines\",one line,r\nST6,methods,,,c,d,r\n"))
+  expect_equal(corr$line, c(2L, 4L))
 })
 
 test_that("read_corrections names the file when it is not UTF-8", {
@@ -71,9 +71,9 @@ test_that("read_corrections names the file when it is not UTF-8", {
 test_that("read_corrections reads a header-only file as no corrections", {
   path <- tempfile(fileext = ".csv")
   writeLines("sheet,column,source_row,row_fingerprint,old,new,reason", path)
-  c <- read_corrections(path)
-  expect_equal(nrow(c), 0)
-  expect_type(c$source_row, "integer")
+  corr <- read_corrections(path)
+  expect_equal(nrow(corr), 0)
+  expect_type(corr$source_row, "integer")
 })
 
 test_that("a row-targeted change touches one cell", {
@@ -126,9 +126,9 @@ test_that("a column-wide correction matching no cell stops the run", {
 })
 
 test_that("two corrections giving one cell different values stop the run", {
-  c <- corrections_of(c("ST1", "ST1"), "gene", c(83, NA), "Tenascin", c("TNC", "TN-C"),
-                      fp = c(fp_of(tables_of()$ST1, 83), NA))
-  expect_error(apply_corrections(tables_of(), c), "line 2.*line 3")
+  corr <- corrections_of(c("ST1", "ST1"), "gene", c(83, NA), "Tenascin", c("TNC", "TN-C"),
+                         fp = c(fp_of(tables_of()$ST1, 83), NA))
+  expect_error(apply_corrections(tables_of(), corr), "line 2.*line 3")
 })
 
 test_that("a blank reason, an unknown sheet or an unknown column stops the run", {
@@ -226,14 +226,19 @@ test_that("a row-targeted correction must quote its row_fingerprint, and only it
 
 test_that("a correction never follows its row number onto another row", {
   before <- tibble::tibble(source_row = 271:273, names = c("CTSB", "Cystatin M", "CTSS"), n = "6581")
-  c <- corrections_of("ST6", "n", 272, "6581", "6580", fp = fp_of(before, 272))
+  corr <- corrections_of("ST6", "n", 272, "6581", "6580", fp = fp_of(before, 272))
   after <- tibble::tibble(source_row = 271:274, names = c("NEW", "CTSB", "Cystatin M", "CTSS"), n = "6581")
-  expect_error(apply_corrections(list(ST6 = after), c), "line 2.*now row 273")
-  expect_equal(apply_corrections(list(ST6 = before), c)$tables$ST6$n, c("6581", "6580", "6581"))
+  expect_error(apply_corrections(list(ST6 = after), corr), "line 2.*now row 273")
+  expect_equal(apply_corrections(list(ST6 = before), corr)$tables$ST6$n, c("6581", "6580", "6581"))
 })
 
 test_that("an error message shows an empty cell as empty, never as NA", {
-  message_of <- function(tables, c) tryCatch({ apply_corrections(tables, c); "" }, error = conditionMessage)
+  message_of <- function(tables, corr) {
+    tryCatch({
+      apply_corrections(tables, corr)
+      ""
+    }, error = conditionMessage)
+  }
   before <- tibble::tibble(source_row = 4L, methods = "MR")
   tables <- list(ST6 = tibble::tibble(source_row = 4L, methods = NA_character_))
   changed <- message_of(tables, corrections_of("ST6", "methods", 4, "MR", "X", fp = fp_of(before, 4)))
@@ -248,9 +253,9 @@ test_that("an error message shows an empty cell as empty, never as NA", {
 })
 
 test_that("correction_report gives each line its cell count, or says it kept the value", {
-  c <- corrections_of(c("ST6", "ST1", "ST1"), c("methods", "gene", "protein"), NA,
-                      c("regression", "Tenascin", "TNC"), c("Regression", "Tenascin", "Tenascin"))
-  r <- correction_report(apply_corrections(tables_of(), c)$log)
+  corr <- corrections_of(c("ST6", "ST1", "ST1"), c("methods", "gene", "protein"), NA,
+                         c("regression", "Tenascin", "TNC"), c("Regression", "Tenascin", "Tenascin"))
+  r <- correction_report(apply_corrections(tables_of(), corr)$log)
   expect_length(r, 3)
   expect_match(r[1], "line 2 +ST6 +methods +2 cells$")
   expect_match(r[2], "line 3 +ST1 +gene +kept$")

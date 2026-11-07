@@ -53,22 +53,21 @@ test_that("cell_values stops on an error value other than #N/A", {
 })
 
 test_that("cell_values writes numbers out in full, never in scientific notation", {
-  cells <- tibble::tibble(
-    address = c("A1", "B1", "C1"), row = 1L, col = 1:3, data_type = "numeric",
-    character = NA_character_, character_formatted = list(NULL, NULL, NULL),
-    numeric = c(100000, 30970556, 1e-05), date = as.POSIXct(NA), logical = NA,
-    error = NA_character_, formula = NA_character_
-  )
+  cells <- one_cell(address = c("A1", "B1", "C1"), col = 1:3, data_type = "numeric",
+                    numeric = c(100000, 30970556, 1e-05))
   expect_equal(cell_values(cells)$value, c("100000", "30970556", "0.00001"))
 })
 
 test_that("cell_values stops on a formula with no saved result", {
-  cells <- tibble::tibble(
-    address = "G200", row = 200L, col = 7L, data_type = "blank", character = NA_character_,
-    character_formatted = list(NULL), numeric = NA_real_, date = as.POSIXct(NA),
-    logical = NA, error = NA_character_, formula = "1087+5494"
-  )
+  cells <- one_cell(address = "G200", row = 200L, col = 7L, data_type = "blank", formula = "1087+5494")
   expect_error(cell_values(cells), "G200.*open and save")
+})
+
+test_that("cell_values names the first cell that stops the run, whatever stops it", {
+  cells <- one_cell(address = c("A1", "B1"), col = 1:2, data_type = c("blank", "error"),
+                    error = c(NA, "#REF!"), formula = c("1+1", NA))
+  expect_error(cell_values(cells), "A1: formula")
+  expect_error(cell_values(cells[2:1, ]), "B1 holds the error")
 })
 
 test_that("expand_merges gives covered cells the top-left value", {

@@ -13,15 +13,19 @@
 PACKAGES <- c("tidyxl", "readr", "dplyr", "tibble", "xml2", "jsonlite")
 
 run_cleaning <- function(xlsx, corrections_path) {
-  assembled <- lapply(SHEETS, function(spec) assemble_sheet(xlsx, spec))
+  assembled <- lapply(SHEETS, \(spec) assemble_sheet(xlsx, spec))
+  assembled_tables <- lapply(assembled, `[[`, "table")
   corrections <- read_corrections(corrections_path)
-  applied <- apply_corrections(lapply(assembled, `[[`, "table"), corrections)
-  finished <- lapply(names(SHEETS), function(id) finish_sheet(SHEETS[[id]], applied$tables[[id]]))
-  names(finished) <- names(SHEETS)
+  applied <- apply_corrections(assembled_tables, corrections)
+  finished <- Map(finish_sheet, SHEETS, applied$tables)
   by_id <- lapply(finished, `[[`, "table")
   # Fingerprints of the rows as assembled, before corrections, which is what
-  # a row-targeted correction quotes.
-  fingerprints <- lapply(lapply(assembled, `[[`, "table"), row_fingerprints)
+  # a row-targeted correction quotes; each row carries its own beside its
+  # source_row.
+  fingerprints <- lapply(assembled_tables, row_fingerprints)
+  add_fingerprints <- function(t, fp, by) {
+    dplyr::left_join(t, fp, by = by) |> dplyr::relocate(row_fingerprint, .after = source_row)
+  }
   suspects <- dplyr::bind_rows(
     empty_suspects(),
     case_variants(applied$tables),
@@ -30,13 +34,9 @@ run_cleaning <- function(xlsx, corrections_path) {
     duplicate_rows(by_id)
   ) |>
     drop_kept(corrections) |>
-    dplyr::left_join(dplyr::bind_rows(fingerprints, .id = "sheet"), by = c("sheet", "source_row")) |>
-    dplyr::relocate(row_fingerprint, .after = source_row) |>
+    add_fingerprints(dplyr::bind_rows(fingerprints, .id = "sheet"), by = c("sheet", "source_row")) |>
     dplyr::arrange(rule, sheet, source_row)
-  tables <- lapply(names(by_id), function(id) {
-    dplyr::left_join(by_id[[id]], fingerprints[[id]], by = "source_row") |>
-      dplyr::relocate(row_fingerprint, .after = source_row)
-  })
+  tables <- Map(add_fingerprints, by_id, fingerprints, by = "source_row")
   names(tables) <- vapply(SHEETS, `[[`, "", "out")
   list(
     tables = tables,
@@ -101,7 +101,7 @@ if (sys.nframe() == 0L) {
     missing <- PACKAGES[!vapply(PACKAGES, requireNamespace, logical(1), quietly = TRUE)]
     if (length(missing)) {
       stop(sprintf("missing R packages; install them with:\n  install.packages(c(%s))",
-                   paste0("\"", missing, "\"", collapse = ", ")), call. = FALSE)
+                   toString(dQuote(missing, q = FALSE))), call. = FALSE)
     }
     for (f in c("helpers.R", "cells.R", "sheets.R", "corrections.R")) source(file.path(gold_dir, f))
     main(commandArgs(trailingOnly = TRUE), gold_dir)

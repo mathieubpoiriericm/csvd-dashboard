@@ -97,7 +97,7 @@ test_that("ST1 references are split, cleaned and deduplicated", {
                   "35158371", "37824663", "29443965", "30129931")
   expect_equal(f$table$references[f$table$gene == "LPAR1"],
                paste(c("37069360", "39805841", cell_types), collapse = "; "))
-  ends <- vapply(split(f$references$id, f$references$source_row), function(ids) identical(tail(ids, 9), cell_types), TRUE)
+  ends <- vapply(split(f$references$id, f$references$source_row), \(ids) identical(tail(ids, 9), cell_types), TRUE)
   expect_equal(sum(ends), 115)
   expect_true(any(f$suspects$rule == "duplicate_reference" & f$suspects$source_row == lpar1))
   expect_equal(sort(unique(f$references$kind)), c("doi", "pmid"))
@@ -152,8 +152,8 @@ test_that("non-ASCII text survives the CSV round trip, and Excel reads every fil
   write_outputs(r, out)
   back <- readr::read_csv(file.path(out, "st3_trials.csv"), col_types = readr::cols(.default = "c"))
   expect_true("Recent SVS with Fazekas score \u{2265}2" %in% back$population)
-  expect_setequal(list.files(out), c(unname(sapply(SHEETS, `[[`, "out")), "references.csv", "footnotes.csv",
-                                     "suspects.csv", "captions.csv"))
+  expect_setequal(list.files(out), c(vapply(SHEETS, `[[`, "", "out", USE.NAMES = FALSE),
+                                     "references.csv", "footnotes.csv", "suspects.csv", "captions.csv"))
   for (f in list.files(out, full.names = TRUE)) {
     expect_equal(readBin(f, "raw", 3), as.raw(c(0xef, 0xbb, 0xbf)), info = basename(f))
   }

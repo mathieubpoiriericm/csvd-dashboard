@@ -49,6 +49,12 @@ test_that("reference_tokens splits, strips prefixes and classifies", {
   expect_equal(reference_tokens("37069360,39805841,39805841")$duplicate, c(FALSE, FALSE, TRUE))
 })
 
+test_that("reference_tokens names each id's cell, and a repeat is one within its own cell", {
+  r <- reference_tokens(c("1, 2", NA, "", "2; 2"))
+  expect_equal(r$cell, c(1L, 1L, 4L, 4L))
+  expect_equal(r$duplicate, c(FALSE, FALSE, FALSE, TRUE))
+})
+
 test_that("collect_references joins, lists and reports", {
   t <- tibble::tibble(source_row = c(4L, 5L), references = c("1,2,2", "x 3"))
   out <- collect_references("ST1", t, "references")
