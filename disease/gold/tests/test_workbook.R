@@ -1,12 +1,17 @@
 # These read the real workbook; each one skips when it is absent.
 COUNTS <- c(ST1 = 115, ST2 = 10, ST3 = 16, ST4 = 11, ST5 = 14, ST6 = 1945)
+CORRECTIONS_HEADER <- "sheet,column,source_row,row_fingerprint,old,new,reason"
+read_text <- function(path) {
+  readr::read_csv(path, col_types = readr::cols(.default = "c"))
+}
 
 test_that("every sheet assembles to its expected rows and columns", {
   skip_if_not(file.exists(XLSX), "workbook absent")
   for (id in names(SHEETS)) {
     a <- assemble_sheet(XLSX, SHEETS[[id]])
     expect_equal(nrow(a$table), COUNTS[[id]], info = id)
-    expect_equal(setdiff(names(a$table), c("source_row", "footnote_refs")), SHEETS[[id]]$columns, info = id)
+    expect_equal(setdiff(names(a$table), c("source_row", "footnote_refs")),
+                 SHEETS[[id]]$columns, info = id)
   }
 })
 
@@ -36,14 +41,18 @@ test_that("footnotes and header legends are kept", {
 
 # ST1's cell-type footnote and its reference list were removed from the
 # workbook once their PMIDs had been added to every row's References.
-test_that("ST1 keeps only its header legend below the table, and its caption", {
+test_that("ST1 keeps only its header legend below the table, and caption", {
   skip_if_not(file.exists(XLSX), "workbook absent")
   a <- assemble_sheet(XLSX, SHEETS$ST1)
   expect_equal(a$footnotes$text, "Other omics (*significant colocalization)")
-  expect_equal(a$caption, "Supplementary Table 1: Putative causal genes and proteins associated with cSVD traits")
+  expect_equal(a$caption,
+               paste("Supplementary Table 1: Putative causal genes and",
+                     "proteins associated with cSVD traits"))
 })
 
-finished <- function(id) finish_sheet(SHEETS[[id]], assemble_sheet(XLSX, SHEETS[[id]])$table)
+finished <- function(id) {
+  finish_sheet(SHEETS[[id]], assemble_sheet(XLSX, SHEETS[[id]])$table)
+}
 
 test_that("ST3 splits trials, populations, evidence and dates", {
   skip_if_not(file.exists(XLSX), "workbook absent")
@@ -56,11 +65,14 @@ test_that("ST3 splits trials, populations, evidence and dates", {
   expect_equal(r5$genetic_evidence, "No")
   expect_true(is.na(r5$genetic_target))
   expect_equal(t$completion_note[t$source_row == 16], "Completed")
-  expect_equal(t$genetic_target[t$source_row == 5], "GWAS for ischemic stroke: PDE3A")
-  expect_equal(t$trial_name[t$source_row == 10], "TASTE-SVD (testing edaravone dexborneol)")
+  expect_equal(t$genetic_target[t$source_row == 5],
+               "GWAS for ischemic stroke: PDE3A")
+  expect_equal(t$trial_name[t$source_row == 10],
+               "TASTE-SVD (testing edaravone dexborneol)")
   expect_equal(names(t), c(
-    "source_row", "agent", "mechanism_of_action", "genetic_evidence", "genetic_target", "trial_name",
-    "registry_id", "trial_phase", "population", "target_n", "estimated_completion", "completion_note",
+    "source_row", "agent", "mechanism_of_action", "genetic_evidence",
+    "genetic_target", "trial_name", "registry_id", "trial_phase",
+    "population", "target_n", "estimated_completion", "completion_note",
     "trial_primary_outcome", "trial_sponsor_type"
   ))
 })
@@ -68,7 +80,9 @@ test_that("ST3 splits trials, populations, evidence and dates", {
 test_that("ST4 separates names, registry ids, footnotes and sample sizes", {
   skip_if_not(file.exists(XLSX), "workbook absent")
   t <- finished("ST4")$table
-  expect_equal(unlist(t[t$source_row == 2, c("trial_name", "registry_ids", "footnote_refs")], use.names = FALSE),
+  first <- t[t$source_row == 2, c("trial_name", "registry_ids",
+                                  "footnote_refs")]
+  expect_equal(unlist(first, use.names = FALSE),
                c("ACCORD", "NCT00000620", "1-4"))
   expect_equal(t$trial_name[t$source_row == 16], "SPS3")
   expect_equal(t$registry_ids[t$source_row == 7], "NCT02484547; NCT02477800")
@@ -83,8 +97,11 @@ test_that("ST6 parses counts, intervals and p-values", {
   expect_true(6581L %in% t$n)
   expect_equal(t$p_value[t$source_row == 52], 0.001)
   expect_equal(t$p_value_qualifier[t$source_row == 52], "<")
-  expect_equal(c(t$ci_low[t$source_row == 3], t$ci_high[t$source_row == 3]), c(-0.33, -0.09))
-  expect_true(any(f$suspects$rule == "unparsed" & f$suspects$source_row == 211 & f$suspects$column == "se_ic"))
+  expect_equal(c(t$ci_low[t$source_row == 3], t$ci_high[t$source_row == 3]),
+               c(-0.33, -0.09))
+  s <- f$suspects
+  expect_true(any(s$rule == "unparsed" & s$source_row == 211 &
+                    s$column == "se_ic"))
   expect_equal(nrow(f$references), 1945)
 })
 
@@ -97,9 +114,11 @@ test_that("ST1 references are split, cleaned and deduplicated", {
                   "35158371", "37824663", "29443965", "30129931")
   expect_equal(f$table$references[f$table$gene == "LPAR1"],
                paste(c("37069360", "39805841", cell_types), collapse = "; "))
-  ends <- vapply(split(f$references$id, f$references$source_row), \(ids) identical(tail(ids, 9), cell_types), TRUE)
+  ends <- vapply(split(f$references$id, f$references$source_row),
+                 \(ids) identical(tail(ids, 9), cell_types), TRUE)
   expect_equal(sum(ends), 115)
-  expect_true(any(f$suspects$rule == "duplicate_reference" & f$suspects$source_row == lpar1))
+  expect_true(any(f$suspects$rule == "duplicate_reference" &
+                    f$suspects$source_row == lpar1))
   expect_equal(sort(unique(f$references$kind)), c("doi", "pmid"))
 })
 
@@ -109,19 +128,21 @@ test_that("ST2 and ST5 are typed and their references listed", {
   expect_type(f2$table$year, "integer")
   expect_equal(nrow(f2$references), 10)
   f5 <- finished("ST5")
-  expect_equal(f5$table$references[f5$table$gene_target %in% "SERPIND1"], "41266628; 37069360")
+  expect_equal(f5$table$references[f5$table$gene_target %in% "SERPIND1"],
+               "41266628; 37069360")
   expect_true(is.na(f5$table$gene_target[f5$table$source_row == 15]))
 })
 
-run_empty <- function() {
+# A run with the given correction rows, or none.
+run_with <- function(...) {
   corr <- tempfile(fileext = ".csv")
-  writeLines("sheet,column,source_row,row_fingerprint,old,new,reason", corr)
+  writeLines(c(CORRECTIONS_HEADER, ...), corr)
   run_cleaning(XLSX, corr)
 }
 
 test_that("no output cell carries whitespace noise or a missing marker", {
   skip_if_not(file.exists(XLSX), "workbook absent")
-  r <- run_empty()
+  r <- run_with()
   for (t in c(r$tables, list(r$references, r$footnotes))) {
     chr <- unlist(lapply(t[vapply(t, is.character, TRUE)], na.omit))
     expect_false(any(grepl("^\\s|\\s$|\u{00a0}", chr)))
@@ -129,86 +150,102 @@ test_that("no output cell carries whitespace noise or a missing marker", {
   }
 })
 
-test_that("typed columns have their types and references point at real rows", {
+test_that("typed columns have their types; references point at real rows", {
   skip_if_not(file.exists(XLSX), "workbook absent")
-  r <- run_empty()
+  r <- run_with()
   expect_type(r$tables$st6_biomarkers.csv$n, "integer")
   expect_type(r$tables$st6_biomarkers.csv$p_value, "double")
   expect_type(r$tables$st3_trials.csv$target_n, "integer")
   expect_type(r$tables$st2_methods.csv$year, "integer")
-  ids <- c(ST1 = "st1_genes.csv", ST2 = "st2_methods.csv", ST5 = "st5_repositioning.csv", ST6 = "st6_biomarkers.csv")
+  ids <- c(ST1 = "st1_genes.csv", ST2 = "st2_methods.csv",
+           ST5 = "st5_repositioning.csv", ST6 = "st6_biomarkers.csv")
   for (id in names(ids)) {
     refs <- r$references[r$references$sheet == id, ]
-    expect_true(all(refs$source_row %in% r$tables[[ids[[id]]]]$source_row), info = id)
+    rows <- r$tables[[ids[[id]]]]$source_row
+    expect_true(all(refs$source_row %in% rows), info = id)
   }
-  expect_equal(names(r$suspects), c("sheet", "source_row", "row_fingerprint", "column", "value", "rule", "detail"))
+  expect_equal(names(r$suspects), c("sheet", "source_row", "row_fingerprint",
+                                    "column", "value", "rule", "detail"))
   expect_true(all(r$suspects$sheet %in% names(SHEETS)))
 })
 
-test_that("non-ASCII text survives the CSV round trip, and Excel reads every file as UTF-8", {
+test_that("non-ASCII text survives the CSV round trip as UTF-8 for Excel", {
   skip_if_not(file.exists(XLSX), "workbook absent")
-  r <- run_empty()
+  r <- run_with()
   out <- tempfile()
   write_outputs(r, out)
-  back <- readr::read_csv(file.path(out, "st3_trials.csv"), col_types = readr::cols(.default = "c"))
+  back <- read_text(file.path(out, "st3_trials.csv"))
   expect_true("Recent SVS with Fazekas score \u{2265}2" %in% back$population)
-  expect_setequal(list.files(out), c(vapply(SHEETS, `[[`, "", "out", USE.NAMES = FALSE),
-                                     "references.csv", "footnotes.csv", "suspects.csv", "captions.csv"))
+  expect_setequal(list.files(out),
+                  c(vapply(SHEETS, `[[`, "", "out", USE.NAMES = FALSE),
+                    "references.csv", "footnotes.csv", "suspects.csv",
+                    "captions.csv"))
+  bom <- as.raw(c(0xef, 0xbb, 0xbf))
   for (f in list.files(out, full.names = TRUE)) {
-    expect_equal(readBin(f, "raw", 3), as.raw(c(0xef, 0xbb, 0xbf)), info = basename(f))
+    expect_equal(readBin(f, "raw", 3), bom, info = basename(f))
   }
-  captions <- readr::read_csv(file.path(out, "captions.csv"), col_types = readr::cols(.default = "c"))
+  captions <- read_text(file.path(out, "captions.csv"))
   expect_equal(names(captions), c("sheet", "caption"))
   expect_equal(captions$sheet, names(SHEETS))
-  expect_true(all(startsWith(captions$caption, paste0("Supplementary Table ", 1:6, ":"))))
+  expect_true(all(startsWith(captions$caption,
+                             paste0("Supplementary Table ", 1:6, ":"))))
 })
 
 test_that("a keep row in corrections.csv silences its suspect", {
   skip_if_not(file.exists(XLSX), "workbook absent")
-  corr <- tempfile(fileext = ".csv")
-  writeLines(c("sheet,column,source_row,row_fingerprint,old,new,reason",
-               "ST1,gene,,,COL4A1/2,COL4A1/2,combined COL4A1 and COL4A2 row"), corr)
-  r <- run_cleaning(XLSX, corr)
-  expect_false(any(r$suspects$rule == "gene_symbol" & r$suspects$value %in% "COL4A1/2"))
-  expect_true(any(run_empty()$suspects$value %in% "COL4A1/2"))
+  r <- run_with("ST1,gene,,,COL4A1/2,COL4A1/2,combined COL4A1 and COL4A2 row")
+  expect_false(any(r$suspects$rule == "gene_symbol" &
+                     r$suspects$value %in% "COL4A1/2"))
+  expect_true(any(run_with()$suspects$value %in% "COL4A1/2"))
 })
 
-test_that("ST3 records which rows each merged cell fills, and a fix reaches them all", {
+test_that("ST3 records the rows each merged cell fills; a fix reaches all", {
   skip_if_not(file.exists(XLSX), "workbook absent")
-  m <- attr(assemble_sheet(XLSX, SHEETS$ST3)$table, "merged")
-  expect_equal(m$source_row[m$column == "mechanism_of_action" & m$anchor_row == 5], 5:7)
-  corr <- tempfile(fileext = ".csv")
-  fp <- row_fingerprints(assemble_sheet(XLSX, SHEETS$ST3)$table)
-  writeLines(c("sheet,column,source_row,row_fingerprint,old,new,reason",
-               paste0("ST3,mechanism_of_action,5,", fp$row_fingerprint[fp$source_row == 5],
-                      ",\"Antiplatelet, vasodilator (phosphodiesterase 3 inhibitor)\",Antiplatelet,test")), corr)
-  t <- run_cleaning(XLSX, corr)$tables$st3_trials.csv
-  expect_equal(t$mechanism_of_action[t$source_row %in% 5:7], rep("Antiplatelet", 3))
+  st3 <- assemble_sheet(XLSX, SHEETS$ST3)$table
+  m <- attr(st3, "merged")
+  expect_equal(m$source_row[m$column == "mechanism_of_action" &
+                              m$anchor_row == 5], 5:7)
+  fp <- row_fingerprints(st3)
+  t <- run_with(paste0(
+    "ST3,mechanism_of_action,5,", fp$row_fingerprint[fp$source_row == 5],
+    ",\"Antiplatelet, vasodilator (phosphodiesterase 3 inhibitor)\",",
+    "Antiplatelet,test"
+  ))$tables$st3_trials.csv
+  expect_equal(t$mechanism_of_action[t$source_row %in% 5:7],
+               rep("Antiplatelet", 3))
 })
 
-test_that("every output row carries its fingerprint, and a correction can quote it", {
+test_that("every output row carries its fingerprint for a correction", {
   skip_if_not(file.exists(XLSX), "workbook absent")
-  r <- run_empty()
+  r <- run_with()
+  fingerprint <- "^[0-9a-f]{8}$"
   for (name in names(r$tables)) {
-    expect_equal(names(r$tables[[name]])[1:2], c("source_row", "row_fingerprint"), info = name)
-    expect_true(all(grepl("^[0-9a-f]{8}$", r$tables[[name]]$row_fingerprint)), info = name)
+    t <- r$tables[[name]]
+    expect_equal(names(t)[1:2], c("source_row", "row_fingerprint"),
+                 info = name)
+    expect_true(all(grepl(fingerprint, t$row_fingerprint)), info = name)
   }
-  expect_equal(names(r$suspects)[1:3], c("sheet", "source_row", "row_fingerprint"))
-  expect_true(all(grepl("^[0-9a-f]{8}$", r$suspects$row_fingerprint[!is.na(r$suspects$source_row)])))
-  fp <- r$tables$st6_biomarkers.csv$row_fingerprint[r$tables$st6_biomarkers.csv$source_row == 211]
-  corr <- tempfile(fileext = ".csv")
-  writeLines(c("sheet,column,source_row,row_fingerprint,old,new,reason",
-               paste0("ST6,se_ic,211,", fp, ",\"0,922 - 0965\",\"0,922 - 0,965\",missing decimal comma")), corr)
-  fixed <- run_cleaning(XLSX, corr)
+  s <- r$suspects
+  expect_equal(names(s)[1:3], c("sheet", "source_row", "row_fingerprint"))
+  expect_true(all(grepl(fingerprint,
+                        s$row_fingerprint[!is.na(s$source_row)])))
+  st6 <- r$tables$st6_biomarkers.csv
+  fp <- st6$row_fingerprint[st6$source_row == 211]
+  fixed <- run_with(paste0("ST6,se_ic,211,", fp, ",\"0,922 - 0965\",",
+                           "\"0,922 - 0,965\",missing decimal comma"))
   st6 <- fixed$tables$st6_biomarkers.csv
   expect_equal(st6$ci_high[st6$source_row == 211], 0.965)
-  expect_false(any(fixed$suspects$rule == "unparsed" & fixed$suspects$source_row %in% 211))
+  expect_false(any(fixed$suspects$rule == "unparsed" &
+                     fixed$suspects$source_row %in% 211))
   expect_equal(st6$row_fingerprint[st6$source_row == 211], fp)
 })
 
 test_that("an error while assembling a sheet names the sheet", {
   skip_if_not(file.exists(XLSX), "workbook absent")
   spec <- SHEETS$ST4
-  spec$build <- function(sd) stop("column C has values but no header", call. = FALSE)
-  expect_error(assemble_sheet(XLSX, spec), "ST4 (SupplementaryTable4): column C", fixed = TRUE)
+  spec$build <- function(sd) {
+    stop("column C has values but no header", call. = FALSE)
+  }
+  expect_error(assemble_sheet(XLSX, spec),
+               "ST4 (SupplementaryTable4): column C", fixed = TRUE)
 })

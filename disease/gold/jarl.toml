@@ -1,0 +1,6 @@
+# The scripts here are sourced together (clean_gold.R and tests/helper-gold.R
+# load helpers.R, cells.R, sheets.R and corrections.R), so an object one file
+# defines, like SHEETS or the tests' XLSX, is read by another. jarl checks
+# one file at a time and would report each as defined but never used.
+[lint]
+ignore = ["unused_object"]
