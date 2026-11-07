@@ -3,6 +3,7 @@ import { useHydratedRef } from "./useHydratedRef.ts";
 import { FlexRender } from "@tanstack/preact-table";
 import { Icon } from "./Icon.tsx";
 import { compareChromosomalLocation } from "../lib/sorting.ts";
+import { firstBatchEnd } from "../lib/row_batches.ts";
 import type { PreactTable } from "@tanstack/preact-table";
 import type { ComponentChildren } from "preact";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
@@ -134,6 +135,14 @@ interface TableShellProps<TData extends RowData> {
 }
 
 const PAGE_SIZES = [10, 25, 50, 100];
+
+/**
+ * New rows drawn in the frame that answers an interaction; the rest of the
+ * page follows once that frame has painted (lib/row_batches.ts). Twenty-five
+ * fill the scrollport at every tested viewport: its height is capped near the
+ * viewport's and the shortest /genes row is 59px.
+ */
+const FIRST_BATCH = 25;
 
 /**
  * How long the table waits after the last keystroke before it re-filters.
@@ -280,7 +289,30 @@ export function TableShell<TData extends RowData>({
     if (scrollRef.current) scrollRef.current.scrollTop = 0;
   }, [pageIndex, pageSize]);
   const pageCount = table.getPageCount();
-  const rows = table.getRowModel().rows;
+  const pageRows = table.getRowModel().rows;
+  const rowIds = pageRows.map((row) => row.id);
+  const pageKey = rowIds.join("\u0000");
+  // The rows the last commit drew, and the last page drawn in full. A page is
+  // whole on first render, so SSR and hydration never batch.
+  const drawnIds = useRef<ReadonlySet<string>>(new Set());
+  const [wholePage, setWholePage] = useState(pageKey);
+  const end = wholePage === pageKey ? pageRows.length : firstBatchEnd(
+    rowIds,
+    drawnIds.current,
+    FIRST_BATCH,
+    (index) =>
+      pageRows[index].getAllCells().some((cell) => cell.getIsCovered()),
+  );
+  const rows = end < pageRows.length ? pageRows.slice(0, end) : pageRows;
+  const partial = rows.length < pageRows.length;
+  useLayoutEffect(() => {
+    drawnIds.current = new Set(rows.map((row) => row.id));
+  });
+  // Preact runs passive effects once the frame has painted, so the rest of the
+  // page lands in a task of its own instead of the interaction's.
+  useEffect(() => {
+    if (partial) setWholePage(pageKey);
+  }, [pageKey, partial]);
   const filteredRows = table.getFilteredRowModel().rows.length;
   const leafHeaders = table.getHeaderGroups().at(-1)?.headers ?? [];
   const searchTerm = typeof globalFilter === "string"
@@ -347,7 +379,10 @@ export function TableShell<TData extends RowData>({
       }
       <div class="blueprint-frame">
         <div class="table-scroll" ref={scrollRef}>
-          <table class="data-table">
+          <table
+            class="data-table"
+            aria-busy={partial ? "true" : undefined}
+          >
             <caption class="visually-hidden">{tableLabel}</caption>
             <thead>
               {headerGroups && (

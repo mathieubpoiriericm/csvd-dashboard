@@ -1,6 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { EXPECTED, GENE_TOTAL } from "../fixtures/expected-data.ts";
-import { blockTiles, pageSizeSelect } from "../helpers.ts";
+import { blockTiles, pageSizeSelect, wholePage } from "../helpers.ts";
 
 test("gene search finds a displayed gene symbol", async ({ page }) => {
   test.skip(GENE_TOTAL === 0, "no committed genes to search");
@@ -20,6 +20,7 @@ test("confidence sorts numerically with missing scores last in both directions",
   test.skip(GENE_TOTAL === 0, "no committed genes to sort");
   await page.goto("/genes");
   await pageSizeSelect(page).selectOption("100");
+  await wholePage(page);
   const header = page.getByRole("columnheader", { name: "Confidence" });
   for (let i = 0; i < 2; i++) {
     await header.getByRole("button").click();
@@ -90,6 +91,7 @@ for (const path of ["/genes", "/trials"]) {
       "no committed rows to sort",
     );
     await pageSizeSelect(page).selectOption("100");
+    await wholePage(page);
     for (const column of await sortableColumns(page)) {
       const header = page.locator(`thead th.sortable.${column}`);
       for (let click = 0; click < 2; click++) {

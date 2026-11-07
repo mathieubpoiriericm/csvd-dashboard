@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { EXPECTED, GENE_TOTAL, pagesFor } from "../fixtures/expected-data.ts";
-import { banner, pageSizeSelect, rows } from "../helpers.ts";
+import { banner, pageSizeSelect, rows, wholePage } from "../helpers.ts";
 
 const TOTAL = GENE_TOTAL;
 const PAGES = pagesFor(TOTAL);
@@ -306,4 +306,38 @@ test("chromosomal location sorts by chromosome number", async ({ page }) => {
   expect(chromosomes.filter((n) => n === -1)).toHaveLength(0);
   expect(chromosomes).toEqual([...chromosomes].sort((a, b) => a - b));
   expect(chromosomes[0]).toBe(Math.min(...chromosomes));
+});
+
+// The frame that answers a page-size change carries the rows already drawn and
+// at most 25 new ones (lib/row_batches.ts); the rest follow once it has
+// painted, and the table is aria-busy until they do. At 4x CPU throttling this
+// took the change from a 184 ms event to 64 ms.
+test("a larger page draws its first rows first, then the rest", async ({ page }) => {
+  const shown = Math.min(TOTAL, 100);
+  test.skip(shown <= 10 + 25, "too few rows to need a second batch");
+  await page.waitForSelector('.table-controls[data-hydrated="true"]');
+  await page.evaluate(() => {
+    const table = document.querySelector("table.data-table")!;
+    const drawn: { rows: number; busy: string | null }[] = [];
+    Object.assign(window, { drawn });
+    new MutationObserver(() =>
+      drawn.push({
+        rows: table.querySelectorAll("tbody tr").length,
+        busy: table.getAttribute("aria-busy"),
+      })
+    ).observe(table, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["aria-busy"],
+    });
+  });
+  await pageSizeSelect(page).selectOption("100");
+  await expect(rows(page)).toHaveCount(shown);
+  await wholePage(page);
+  const drawn = await page.evaluate(() =>
+    (window as unknown as { drawn: unknown[] }).drawn
+  );
+  expect(drawn[0]).toEqual({ rows: 10 + 25, busy: "true" });
+  expect(drawn.at(-1)).toEqual({ rows: shown, busy: null });
 });

@@ -74,6 +74,19 @@ unconditionally and must keep skipping covered cells entirely — `rowspan="0"` 
 valid HTML meaning "span to the end of the row group", so rendering one merges
 the cell down the whole `tbody`.
 
+**A page of many new rows is drawn in two frames.** `TableShell` draws the
+rows already on screen plus the first 25 new ones (`FIRST_BATCH`) in the frame
+that answers the interaction, and the rest from a passive effect, which Preact
+runs once that frame has painted; `lib/row_batches.ts` decides where the first
+frame stops. Drawing all 87 /genes rows at once measured a 184 ms event at 4x
+CPU throttling, on the edge of a good INP; two frames measured 64 ms. Rows
+already drawn are never held back, so a sort or a narrowing search still
+renders whole rather than tearing rows down to rebuild them, and a batch never
+ends inside a merged trials block. A page is whole on first render, so SSR and
+hydration never batch. The table is `aria-busy` in between: an e2e check that
+reads every row after a page-size change waits for it with `wholePage()` from
+`e2e/helpers.ts`, or it reads the first batch.
+
 `@tanstack/table-core` and `@tanstack/preact-table` each ship a `skills/`
 directory inside `node_modules` documenting the exact installed version. Prefer
 it to the website, which mixes v9 beta into search results.
