@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import {
   clientChunkName,
   protectedDataBuildGuard,
+  protectedDataInlineLimit,
 } from "./server/protected_data_build.ts";
 import { protectedDataDevGuard } from "./server/protected_data_dev.ts";
 
@@ -20,6 +21,7 @@ export default defineConfig({
   environments: {
     client: {
       build: {
+        assetsInlineLimit: protectedDataInlineLimit(REPOSITORY_ROOT),
         rollupOptions: {
           output: {
             manualChunks(id) {

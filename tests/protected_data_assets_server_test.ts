@@ -281,3 +281,22 @@ Deno.test("a missing login configuration fails the protected boundary closed", a
     assertPrivateNoStore(response);
   });
 });
+
+// The build folds case as the dev guard does: on a case-insensitive volume
+// (APFS by default) ../DATA/table1.json is table1.json, and an alias Rollup
+// kept verbatim must not read as public.
+Deno.test("a case alias of a protected path is still protected", () => {
+  for (
+    const id of [
+      "/repo/DATA/table1.json",
+      "/repo/data/TABLE1.JSON",
+      "/repo/LIB/DATA/genes.ts",
+      "/repo/lib/Data.ts",
+      "\0deno::1::file:///REPO/DATA/table1.json",
+    ]
+  ) {
+    assert(isProtectedDataModule(id, "/repo"), id);
+  }
+  assert(isProtectedDataModule("/Repo/data/table1.json", "/repo"));
+  assertEquals(isProtectedDataModule("/repo/LIB/filters.ts", "/repo"), false);
+});

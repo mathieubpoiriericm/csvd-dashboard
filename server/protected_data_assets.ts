@@ -78,13 +78,22 @@ function classifyProtectedDataModule(
 
 /**
  * Whether a module belongs to the protected boundary. The dev and build
- * guards decide ownership here, never from a chunk name.
+ * guards decide ownership here, never from a chunk name. Vite and Rollup
+ * read from the host filesystem, and on a case-insensitive volume (APFS by
+ * default) `../DATA/table1.json` is the same file under an id no lexical
+ * comparison would match, so both sides are also compared case-folded. That
+ * is conservative on a case-sensitive volume, where it can only call an
+ * unrelated `DATA/` directory protected.
  */
 export function isProtectedDataModule(
   moduleId: string,
   repositoryRoot: string,
 ): boolean {
-  return classifyProtectedDataModule(moduleId, repositoryRoot) !== null;
+  return classifyProtectedDataModule(moduleId, repositoryRoot) !== null ||
+    classifyProtectedDataModule(
+        moduleId.toLowerCase(),
+        repositoryRoot.toLowerCase(),
+      ) !== null;
 }
 
 /**
