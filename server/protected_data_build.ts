@@ -23,10 +23,10 @@ export const PROTECTED_DATA_SENTINELS = [
 ] as const;
 
 /**
- * Islands that render nothing of the dataset, so must hydrate without the
+ * Islands that render nothing of the dataset, so must hydrate without any
  * protected chunk: the login page renders the theme toggle before any
- * session exists, and the adapt wizard would otherwise wait on the whole
- * dataset, uncacheable, before its form unlocks.
+ * session exists, and the adapt wizard would otherwise wait on data,
+ * uncacheable, before its form unlocks.
  */
 export const DATA_FREE_ISLANDS = ["AdaptWizard", "ThemeToggle"] as const;
 
@@ -36,12 +36,19 @@ export const SHARED_CHUNK_NAME = "shared";
 /**
  * Public modules that lib/data/ imports. Rollup pulls a manual chunk's
  * dependencies into it unless they have a chunk of their own, so without one
- * these would ship inside the protected chunk, and a data-free island that
- * reads the absent sentinels or the manifest's normalizers would load it.
+ * these would ship inside a protected chunk: a data-free island that reads
+ * the absent sentinels or the manifest's normalizers would load it, and an
+ * island that only wanted `groupBy` would load a dataset it never renders.
+ * `assertProtectedDataBundle` fails the build on any public module that
+ * still lands in a protected chunk.
  */
-const SHARED_MODULES = ["lib/sentinels.ts", "lib/normalize.ts"];
+const SHARED_MODULES = [
+  "lib/sentinels.ts",
+  "lib/normalize.ts",
+  "lib/collections.ts",
+];
 
-/** Vite's `manualChunks`: the protected chunk, and the public one beside it. */
+/** Vite's `manualChunks`: the protected chunks, and the public one beside them. */
 export function clientChunkName(
   moduleId: string,
   repositoryRoot: string,
@@ -55,16 +62,16 @@ export function clientChunkName(
     : undefined;
 }
 
-/** The chain of chunk files from one chunk to another, or null. */
+/** The chain of chunk files from one chunk to the first target it reaches, or null. */
 function importChain(
   from: Rollup.OutputChunk,
-  to: string,
+  isTarget: (fileName: string) => boolean,
   chunksByFile: ReadonlyMap<string, Rollup.OutputChunk>,
 ): string[] | null {
   const importedBy = new Map<string, string | null>([[from.fileName, null]]);
   const queue = [from.fileName];
   for (const fileName of queue) {
-    if (fileName === to) {
+    if (isTarget(fileName)) {
       const chain: string[] = [];
       for (let at: string | null = fileName; at !== null;) {
         chain.unshift(at);
@@ -95,12 +102,9 @@ export function assertProtectedDataBundle(
   const protectedChunks = chunks.filter((chunk) =>
     isProtectedDataAssetPath(`/${chunk.fileName}`)
   );
-  if (protectedChunks.length !== 1) {
-    throw new Error(
-      `Expected exactly one protected data chunk, found ${protectedChunks.length}`,
-    );
+  if (protectedChunks.length === 0) {
+    throw new Error("Expected at least one protected data chunk, found 0");
   }
-  const [protectedChunk] = protectedChunks;
 
   for (const chunk of chunks) {
     const protectedModules = Object.keys(chunk.modules).filter((moduleId) =>
@@ -118,6 +122,23 @@ export function assertProtectedDataBundle(
     }
   }
 
+  // A type-only import renders nothing, so only modules that left code count.
+  for (const chunk of protectedChunks) {
+    const publicModules = Object.entries(chunk.modules).filter((
+      [moduleId, module],
+    ) =>
+      module.renderedLength > 0 &&
+      !isProtectedDataModule(moduleId, repositoryRoot)
+    ).map(([moduleId]) => moduleId);
+    if (publicModules.length > 0) {
+      throw new Error(
+        `Public modules emitted in protected chunk ${chunk.fileName}: ${
+          publicModules.join(", ")
+        }`,
+      );
+    }
+  }
+
   const chunksByFile = new Map(chunks.map((chunk) => [chunk.fileName, chunk]));
   for (const island of DATA_FREE_ISLANDS) {
     const entry = chunks.find((chunk) =>
@@ -126,10 +147,14 @@ export function assertProtectedDataBundle(
     if (entry === undefined) {
       throw new Error(`No client chunk for the data-free island ${island}`);
     }
-    const chain = importChain(entry, protectedChunk.fileName, chunksByFile);
+    const chain = importChain(
+      entry,
+      (fileName) => isProtectedDataAssetPath(`/${fileName}`),
+      chunksByFile,
+    );
     if (chain !== null) {
       throw new Error(
-        `Data-free island ${island} loads the protected data chunk: ${
+        `Data-free island ${island} loads a protected data chunk: ${
           chain.join(" -> ")
         }`,
       );
@@ -140,9 +165,11 @@ export function assertProtectedDataBundle(
     // A canary the data does not hold proves nothing, and public text may
     // carry it for its own reasons: a fork keeps these until its first
     // export, and its manifest, which ships publicly, can name one.
-    if (!protectedChunk.code.includes(sentinel)) continue;
+    if (!protectedChunks.some((chunk) => chunk.code.includes(sentinel))) {
+      continue;
+    }
     const publicOwners = chunks.filter((chunk) =>
-      chunk !== protectedChunk && chunk.code.includes(sentinel)
+      !protectedChunks.includes(chunk) && chunk.code.includes(sentinel)
     );
     if (publicOwners.length > 0) {
       const names = publicOwners.map((chunk) => chunk.fileName).join(", ");
