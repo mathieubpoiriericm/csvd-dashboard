@@ -9,7 +9,6 @@ from pathlib import Path
 import pytest
 
 from pipeline.export.empty import EMPTY_FILES, UNTOUCHED, main, write_empty_export
-from pipeline.export.omim import read_omim_csv
 from pipeline.export.writer import write_rows, write_value
 
 _DATA_DIR = Path(__file__).resolve().parents[3] / "data"
@@ -97,10 +96,11 @@ def test_the_generation_time_defaults_to_now(tmp_path: Path) -> None:
     assert datetime.strptime(stamp, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC) >= before
 
 
-def test_omim_info_comes_from_the_disease_csv(tmp_path: Path) -> None:
+def test_omim_info_holds_only_what_a_published_gene_links_to(tmp_path: Path) -> None:
+    """The empty export publishes no genes, so no OMIM entry either."""
     write_empty_export(tmp_path, now=_NOW)
     expected = tmp_path / "expected.json"
-    write_rows(read_omim_csv(), expected)
+    write_rows([], expected)
     assert (tmp_path / "omim_info.json").read_bytes() == expected.read_bytes()
 
 

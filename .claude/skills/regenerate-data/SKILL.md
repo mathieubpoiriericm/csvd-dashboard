@@ -15,7 +15,8 @@ deno task data:empty  # pipeline/export/empty.py   → the empty start, no datab
 ```
 
 `data:empty` is not a regeneration: it writes every file empty or `null` (the
-OMIM table from the CSV, the cytobands untouched) so a fork, or the
+OMIM table too, since it publishes only entries a published gene links to; the
+cytobands untouched) so a fork, or the
 `empty-data` CI job, starts from a state every suite passes on. Running it here
 throws the committed data away in the working tree; `git checkout -- data`
 brings it back.

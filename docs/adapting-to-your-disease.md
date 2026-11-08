@@ -491,7 +491,8 @@ deno task data:empty
 ```
 
 This writes every row file as `[]`, both run files as `null`, the map with no
-sites, `omim_info.json` from your CSV, and leaves the genome reference file
+sites, `omim_info.json` empty too (the export publishes only the entries of your
+CSV that a published gene links to), and leaves the genome reference file
 (cytobands) untouched. It needs no database. Our CI runs the whole test suite in
 exactly this state, so it is a supported configuration, not a degraded one.
 

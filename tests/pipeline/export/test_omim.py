@@ -15,7 +15,11 @@ from typing import Final
 
 import pytest
 
-from pipeline.export.omim import DEFAULT_OMIM_CSV, read_omim_csv
+from pipeline.export.omim import (
+    DEFAULT_OMIM_CSV,
+    read_omim_csv,
+    referenced_omim_rows,
+)
 from pipeline.export.writer import write_rows
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -72,10 +76,13 @@ def test_omim_csv_round_trips_byte_identical_to_the_committed_json(
     tmp_path: Path,
 ) -> None:
     """Real-data fidelity proof for one ninth of the export: read the
-    actual committed CSV, write it back out with the real writer, and
-    diff against the actual committed JSON. No mocks, no fixtures.
+    actual committed CSV, keep the entries the committed genes link to, write
+    it back out with the real writer, and diff against the actual committed
+    JSON. No mocks, no fixtures; on the empty export both sides are empty.
     """
-    rows = read_omim_csv(DEFAULT_OMIM_CSV)
+    genes = json.loads((_REPO_ROOT / "data" / "table1.json").read_text())
+    links = [link for gene in genes for link in gene["linkToMonogenicDisease"]]
+    rows = referenced_omim_rows(read_omim_csv(DEFAULT_OMIM_CSV), links)
     out = tmp_path / "omim_info.json"
     write_rows(rows, out)
 
@@ -181,3 +188,29 @@ def test_write_rows_produces_the_contract_key_order(tmp_path: Path) -> None:
         "geneOrLocus",
         "geneOrLocusMimNumber",
     ]
+
+
+def _row(number: int) -> dict[str, object]:
+    return {
+        "omim_num": number,
+        "omim_link": f"https://www.omim.org/entry/{number}",
+        "phenotype": f"Phenotype {number}",
+        "inheritance": "AD",
+        "gene_or_locus": "GENE",
+        "gene_or_locus_mim_number": "",
+    }
+
+
+def test_only_entries_a_published_gene_links_to_are_kept() -> None:
+    """A CSV row no published gene cites is a reference row, not evidence."""
+    rows = [_row(100001), _row(100002), _row(100003)]
+    kept = referenced_omim_rows(rows, ["100003", " 100001 ", "100001"])
+    # The CSV's order, each entry once, whatever order the links came in.
+    assert [row["omim_num"] for row in kept] == [100001, 100003]
+
+
+def test_sentinels_and_non_numbers_reference_nothing() -> None:
+    rows = [_row(100001)]
+    assert referenced_omim_rows(rows, ["(none found)", "1000011", "OMIM:100001"]) == []
+    assert referenced_omim_rows(rows, []) == []
+    assert referenced_omim_rows([], ["100001"]) == []

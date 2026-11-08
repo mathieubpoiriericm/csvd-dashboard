@@ -93,6 +93,27 @@ Deno.test("protein and OMIM tooltips return the committed records", () => {
   ]);
 });
 
+// The OMIM rows gold's monogenic prose adds carry the phenotype, the number,
+// the inheritance and the gold gene; gold gives no gene MIM number, which the
+// tooltip says rather than leaving a blank row.
+Deno.test("an OMIM entry built from gold prose renders what gold gives", () => {
+  assertEquals(omimTooltip("621424"), {
+    rows: [
+      {
+        label: "Phenotype",
+        value: "Hippocampal Memory Defect and a Leukoencephalopathy",
+      },
+      { label: "Inheritance", value: "AD" },
+      { label: "Gene or Locus", value: "LAMB1" },
+      { label: "Gene or Locus MIM Number", value: "Not available" },
+    ],
+    links: [{
+      href: "https://www.omim.org/entry/621424?search=621424&highlight=621424",
+      label: "View on OMIM",
+    }],
+  });
+});
+
 Deno.test("phenogramTooltip names the location, the evidence and the NCBI link", () => {
   assertEquals(phenogramTooltip(gene("JAK1")), {
     rows: [
@@ -115,15 +136,16 @@ Deno.test("phenogramTooltip names the location, the evidence and the NCBI link",
   });
 });
 
-// LAMB1's monogenic link is the gold table's OMIM 621424; its GWAS and
-// other-omics cells are still empty, so they carry the None found rows.
+// LAMB1's monogenic link is the gold table's OMIM 621424, named by its
+// phenotype; its GWAS and other-omics cells are empty, so they carry the
+// None found rows.
 Deno.test("phenogramTooltip says None found rather than the sentinel, and uses display labels", () => {
   const lamb1 = phenogramTooltip(gene("LAMB1"));
   assertEquals(lamb1.rows.map((r) => r.value), [
     "7q31.1",
     "None found",
     "None found",
-    "621424",
+    "Hippocampal Memory Defect and a Leukoencephalopathy",
     "No",
   ]);
   assertEquals(

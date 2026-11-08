@@ -25,7 +25,7 @@ from pipeline.export.lookups import (
     read_sync_runs,
     read_uniprot_info,
 )
-from pipeline.export.omim import read_omim_csv
+from pipeline.export.omim import read_omim_csv, referenced_omim_rows
 from pipeline.export.publish import publish_atomically
 from pipeline.export.tables import clean_gene_row, clean_trial_row
 from pipeline.export.text import is_doi, split_genetic_targets
@@ -340,7 +340,13 @@ async def run_export(target_dir: Path | None = None) -> None:
         write_rows(await read_pubmed_refs(pmids), stage("refs.json"))
 
         step("[7/11] OMIM reference table")
-        write_rows(read_omim_csv(), stage("omim_info.json"))
+        monogenic_links = [
+            link for row in genes for link in row["Link to Monogenic Disease"]
+        ]
+        write_rows(
+            referenced_omim_rows(read_omim_csv(), monogenic_links),
+            stage("omim_info.json"),
+        )
 
         step("[8/11] Latest pipeline run status")
         write_value(await read_pipeline_status(), stage("pipeline_status.json"))

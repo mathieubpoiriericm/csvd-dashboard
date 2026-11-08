@@ -146,9 +146,21 @@ _RAW_TRIALS: list[dict[str, object]] = [
 # be filtered out of the PMID list, mirroring export.R's
 # grep("^[1-9][0-9]*$", ...).
 _CLEANED_GENES = [
-    {"Gene": "LAMB1", "References": ["37063705", "(reference needed)"]},
-    {"Gene": "HTRA1", "References": ["012345", "12345678"]},
-    {"Gene": "LAMB1", "References": ["37063705"]},
+    {
+        "Gene": "LAMB1",
+        "References": ["37063705", "(reference needed)"],
+        "Link to Monogenic Disease": ["(none found)"],
+    },
+    {
+        "Gene": "HTRA1",
+        "References": ["012345", "12345678"],
+        "Link to Monogenic Disease": ["600142"],
+    },
+    {
+        "Gene": "LAMB1",
+        "References": ["37063705"],
+        "Link to Monogenic Disease": ["(none found)"],
+    },
 ]
 _CLEANED_TRIALS = [
     {"Genetic Target": "NOTCH3, HTRA1"},
@@ -220,7 +232,7 @@ def _patch_export_dependencies(mocker, *, pubmed_side_effect=None):
     )
     mock_omim = mocker.patch(
         "pipeline.export.main.read_omim_csv",
-        return_value=[{"omim_num": 1}],
+        return_value=[{"omim_num": 100001}, {"omim_num": 600142}],
     )
     mock_annotations = mocker.patch(
         "pipeline.export.main.read_disease_annotations",
@@ -288,6 +300,9 @@ class TestRunExport:
         assert mocks["ncbi"].call_args_list[1].args[0] == ["NOTCH3", "HTRA1"]
         assert mocks["uniprot"].call_args_list[0].args[0] == ["LAMB1", "HTRA1"]
         mocks["omim"].assert_called_once_with()
+        # Only the entry a published gene links to is published.
+        omim = json.loads((target_dir / "omim_info.json").read_text())
+        assert omim == [{"omimNum": 600142}]
         mocks["status"].assert_called_once_with()
         mocks["annotations"].assert_awaited_once_with()
     async def test_an_unsynced_annotation_table_keeps_the_committed_file(
@@ -342,9 +357,14 @@ class TestRunExport:
                         "37063705",
                         "10.21203/rs.3.rs-5926137/v1",
                     ],
+                    "Link to Monogenic Disease": [],
                 },
-                {"Gene": "B", "References": ["(reference needed)"]},
-                {"Gene": "C", "References": []},
+                {
+                    "Gene": "B",
+                    "References": ["(reference needed)"],
+                    "Link to Monogenic Disease": [],
+                },
+                {"Gene": "C", "References": [], "Link to Monogenic Disease": []},
             ],
         )
         mocker.patch(
