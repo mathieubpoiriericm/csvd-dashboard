@@ -125,10 +125,12 @@ Deno.test("the PubMed lookup holds exactly the PMIDs gold cites", () => {
 });
 
 Deno.test("the Publications count is every reference gold cites, DOIs included", () => {
-  // 48 PMIDs and the 3 DOIs gold cites in place of a PMID.
+  // 48 PMIDs and the one preprint gold cites by DOI. The two published
+  // papers the workbook also cited by DOI are corrected to their PMIDs in
+  // disease/gold/corrections.csv, so neither is counted twice.
   const cited = new Set(table1.flatMap((row) => row.references));
   assertEquals(publicationCount, cited.size);
-  assertEquals(publicationCount, 51);
+  assertEquals(publicationCount, 49);
 });
 
 Deno.test("the OMIM lookup holds exactly the entries gold links to", () => {

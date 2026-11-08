@@ -54,14 +54,22 @@ def test_every_published_trait_is_in_the_vocabulary() -> None:
     assert published - {"(none found)"} <= keys
 
 
-def test_the_19_dois_survive() -> None:
+def test_only_the_preprint_is_cited_by_doi() -> None:
+    """A DOI shows on the Genes table as a bare link, so only a source with no
+    PubMed record may be one. The two published papers the workbook cites by
+    DOI are corrected to their PMIDs in disease/gold/corrections.csv."""
     published = [
         ref
         for gene in _plan().genes
         for ref in export_gene(gene)["references"]
         if is_doi(ref)
     ]
-    assert len(published) == 19
+    assert published == ["10.21203/rs.3.rs-5926137/v1"] * 14
+
+
+def test_the_published_dois_are_cited_by_pmid() -> None:
+    assert "39298701" in export_gene(_gene("APOE"))["references"]
+    assert "37069360" in export_gene(_gene("SERPIND1"))["references"]
 
 
 def test_stn1_links_only_its_omim_number() -> None:
