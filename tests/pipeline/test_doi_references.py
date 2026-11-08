@@ -1,5 +1,7 @@
 """DOI gene references: told apart from PMIDs and kept out of PubMed lookups."""
 
+import json
+from pathlib import Path
 from unittest.mock import AsyncMock
 
 import pytest
@@ -10,14 +12,22 @@ from pipeline.external_data_sync import get_all_pmids
 
 _DOI = "10.21203/rs.3.rs-5926137/v1"
 
+# The cases tests/citations_test.ts runs lib/citations.ts's isDoi over: one
+# rule, so a reference the export keeps out of PubMed is one the page links.
+_CASES = json.loads(
+    (Path(__file__).resolve().parents[1] / "fixtures" / "doi_cases.json").read_text(
+        encoding="utf-8"
+    )
+)
 
-def test_is_doi_accepts_a_doi_and_refuses_a_pmid() -> None:
-    assert is_doi(_DOI) is True
-    assert is_doi("39298701") is False
+
+@pytest.mark.parametrize("value", _CASES["doi"])
+def test_is_doi_accepts_what_the_genes_table_links(value: str) -> None:
+    assert is_doi(value) is True
 
 
-@pytest.mark.parametrize("value", ["10.1000", "(reference needed)", "", "1/2"])
-def test_is_doi_needs_the_prefix_and_a_slash(value: str) -> None:
+@pytest.mark.parametrize("value", _CASES["notDoi"])
+def test_is_doi_refuses_what_the_genes_table_does_not(value: str) -> None:
     assert is_doi(value) is False
 
 

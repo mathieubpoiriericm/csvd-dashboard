@@ -171,15 +171,23 @@ def extract_matches(value: str | None, pattern: re.Pattern[str]) -> list[str]:
     return pattern.findall(value)
 
 
+# lib/citations.ts's `isDoi`, character for character: ``10.``, a registrant
+# code of four to nine ASCII digits, ``/`` and a suffix with no whitespace.
+_DOI: Final = re.compile(r"10\.[0-9]{4,9}/\S+")
+
+
 def is_doi(reference: str) -> bool:
     """True for a DOI reference: gene_references holds PMIDs and DOIs alike.
 
-    A DOI starts with ``10.`` and has a ``/`` after its registrant prefix; a
-    PMID is all digits. Every PubMed lookup (the export's citation read, the
-    lookup-cache refresh, --sync-external-data) must skip what this accepts,
-    because PubMed has no record under a DOI.
+    The rule is the Genes table's (`isDoi` in lib/citations.ts), surrounding
+    whitespace aside, so a reference this skips in the PubMed lookups is one
+    the page links to doi.org; both are tested over
+    tests/fixtures/doi_cases.json. A PMID is all digits. Every PubMed lookup
+    (the export's citation read, the lookup-cache refresh,
+    --sync-external-data) must skip what this accepts, because PubMed has no
+    record under a DOI.
     """
-    return reference.startswith("10.") and "/" in reference
+    return _DOI.fullmatch(reference.strip()) is not None
 
 
 def extract_pmids(value: str | None) -> list[str]:
