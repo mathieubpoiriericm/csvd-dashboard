@@ -119,7 +119,7 @@ def test_gene_from_gold_folds_columns() -> None:
             other_incl_experimental="CRISPR, experimental",
             monogenic="Syndrome A, 123456, AD; Syndrome B, 654321, AR; 123456 again",
             brain_cell_types_mice="EC>PC",
-            brain_cell_types_human="Arterial.EC > Venous.EC",
+            brain_cell_types_human="Arterial, EC > Venous, EC",
             pathway_goa_function="angiogenesis",
         ),
         ["11111111", "10.1000/xyz.1"],
@@ -129,7 +129,7 @@ def test_gene_from_gold_folds_columns() -> None:
     assert gene.columns["chromosomal_location"] == "1p36.3"
     assert gene.columns["affected_pathway"] == "angiogenesis"
     assert gene.columns["brain_cell_types"] == (
-        "Mouse: EC>PC; Human: Arterial.EC > Venous.EC"
+        "Mouse: EC>PC; Human: Arterial, EC > Venous, EC"
     )
     assert gene.columns["mendelian_randomization"] is True
     assert gene.columns["source_quote"] is None

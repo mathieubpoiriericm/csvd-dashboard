@@ -71,7 +71,7 @@
       "618564",
       "614483"
     ],
-    "brainCellTypes": "Mouse: FB>EC>PC; Human: Matrix.PC >> Venous.SMC >> Arterial.SMC > Transport.PC",
+    "brainCellTypes": "Mouse: FB>EC>PC; Human: Matrix, PC >> Venous, SMC >> Arterial, SMC > Transport, PC",
     "affectedPathway": "extracellular matrix structural constituent",
     "references": [
       "39216230",
@@ -107,7 +107,7 @@
       "TWAS;WMH: CMC brain dlPFC qTTL, brain hippocampus*, brain cerebellum*, brain cerebellar hemisphere*, artery tibial"
     ],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Mouse: EC>MG>SMC; Human: Arterial.SMC > Arteriolar.SMC >> AC >> Capillary.EC",
+    "brainCellTypes": "Mouse: EC>MG>SMC; Human: Arterial, SMC > Arteriolar, SMC >> AC >> Capillary, EC",
     "affectedPathway": "protein binding",
     "references": [
       "10.21203/rs.3.rs-5926137/v1",
@@ -138,7 +138,7 @@
       "130720",
       "608600"
     ],
-    "brainCellTypes": "Mouse: SMC>PC>FB; Human: Transport.PC > Matrix.PC >> Arteriolar.SMC >> Arterial.SMC",
+    "brainCellTypes": "Mouse: SMC>PC>FB; Human: Transport, PC > Matrix, PC >> Arteriolar, SMC >> Arterial, SMC",
     "affectedPathway": "extracellular region",
     "references": [
       "19539236",
@@ -164,7 +164,7 @@
     "mendelianRandomization": "No",
     "evidenceFromOtherOmicsStudies": ["Experimental;CRISPR, experimental"],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Mouse: EC>PC>FB; Human: Pial.FB >> Parenchymal.pvFB >> Transport.PC >> Arterial.EC",
+    "brainCellTypes": "Mouse: EC>PC>FB; Human: Pial, FB >> Parenchymal, pvFB >> Transport, PC >> Arterial, EC",
     "affectedPathway": "extracellular matrix organization",
     "references": [
       "33773637",
@@ -191,7 +191,7 @@
     "mendelianRandomization": "No",
     "evidenceFromOtherOmicsStudies": ["(none found)"],
     "linkToMonogenicDisease": ["621331"],
-    "brainCellTypes": "Mouse: EC; Human: Capillary.EC > Venular.EC > Venous.EC > Arteriolar.EC",
+    "brainCellTypes": "Mouse: EC; Human: Capillary, EC > Venular, EC > Venous, EC > Arteriolar, EC",
     "affectedPathway": "negative regulation of synapse maturation",
     "references": [
       "36929019",
@@ -216,7 +216,7 @@
     "mendelianRandomization": "No",
     "evidenceFromOtherOmicsStudies": ["(none found)"],
     "linkToMonogenicDisease": ["621313"],
-    "brainCellTypes": "Mouse: SMC; Human: Parenchymal.pvFB > Pial.FB > Inner.Arachnoid.FB >> AC",
+    "brainCellTypes": "Mouse: SMC; Human: Parenchymal, pvFB > Pial, FB > Inner Arachnoid, FB >> AC",
     "affectedPathway": "mitochondrion",
     "references": [
       "38430071",
@@ -241,7 +241,7 @@
     "mendelianRandomization": "No",
     "evidenceFromOtherOmicsStudies": ["(none found)"],
     "linkToMonogenicDisease": ["621214"],
-    "brainCellTypes": "Mouse: MG>AC>PC; Human: Pial.FB > PVM >> Mono >> Venous.SMC",
+    "brainCellTypes": "Mouse: MG>AC>PC; Human: Pial, FB > PVM >> Mono >> Venous, SMC",
     "affectedPathway": "extracellular fibril organization",
     "references": [
       "38489591",
@@ -266,7 +266,7 @@
     "mendelianRandomization": "No",
     "evidenceFromOtherOmicsStudies": ["(none found)"],
     "linkToMonogenicDisease": ["621394"],
-    "brainCellTypes": "Mouse: MG>FB>OL; Human: PVM >> Mono > Transport.PC > Pial.FB",
+    "brainCellTypes": "Mouse: MG>FB>OL; Human: PVM >> Mono > Transport, PC > Pial, FB",
     "affectedPathway": "intracellular membrane-bounded organelle",
     "references": [
       "27664989",
@@ -291,7 +291,7 @@
     "mendelianRandomization": "No",
     "evidenceFromOtherOmicsStudies": ["(none found)"],
     "linkToMonogenicDisease": ["605714"],
-    "brainCellTypes": "Mouse: OL>EC>FB; Human: Arteriolar.EC > Capillary.EC > Arachnoid.Barrier.FB > OL",
+    "brainCellTypes": "Mouse: OL>EC>FB; Human: Arteriolar, EC > Capillary, EC > Arachnoid Barrier, FB > OL",
     "affectedPathway": "neuromuscular process controlling balance",
     "references": [
       "2111584",
@@ -316,7 +316,7 @@
     "mendelianRandomization": "No",
     "evidenceFromOtherOmicsStudies": ["(none found)"],
     "linkToMonogenicDisease": ["192315"],
-    "brainCellTypes": "Mouse: MG>FB>EC; Human: Epen >> Parenchymal.pvFB >> Pial.FB >> Arachnoid.Barrier.FB",
+    "brainCellTypes": "Mouse: MG>FB>EC; Human: Epen >> Parenchymal, pvFB >> Pial, FB >> Arachnoid Barrier, FB",
     "affectedPathway": "cell death",
     "references": [
       "30859180",
@@ -341,7 +341,7 @@
     "mendelianRandomization": "No",
     "evidenceFromOtherOmicsStudies": ["(none found)"],
     "linkToMonogenicDisease": ["621424"],
-    "brainCellTypes": "Mouse: FB>PC>SMC; Human: Parenchymal.pvFB >> Inner.Arachnoid.FB >> Pial.FB >> Matrix.PC",
+    "brainCellTypes": "Mouse: FB>PC>SMC; Human: Parenchymal, pvFB >> Inner Arachnoid, FB >> Pial, FB >> Matrix, PC",
     "affectedPathway": "extracellular matrix organization",
     "references": [
       "37063705",
@@ -371,7 +371,7 @@
       "Fine-mapping;multiancestry fine-mapping"
     ],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Mouse: FB; Human: Matrix.PC > Arachnoid.Barrier.FB > Dural.Border.FB >> OL",
+    "brainCellTypes": "Mouse: FB; Human: Matrix, PC > Arachnoid Barrier, FB > Dural Border, FB >> OL",
     "affectedPathway": "cell junction",
     "references": [
       "32358547",
@@ -402,7 +402,7 @@
     "mendelianRandomization": "No",
     "evidenceFromOtherOmicsStudies": ["TWAS;WMH: dlPFC*"],
     "linkToMonogenicDisease": ["236600", "616053"],
-    "brainCellTypes": "Mouse: all < 40; Human: TC >> Epen >> Capillary.EC > BC",
+    "brainCellTypes": "Mouse: all < 40; Human: TC >> Epen >> Capillary, EC > BC",
     "affectedPathway": "Wnt signaling pathway",
     "references": [
       "33293549",
@@ -429,7 +429,7 @@
     "mendelianRandomization": "No",
     "evidenceFromOtherOmicsStudies": ["TWAS;WMH: dlPFC, nerve tibial*"],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Mouse: EC; Human: Arterial.EC > Capillary.EC >> Arteriolar.EC > Venous.EC",
+    "brainCellTypes": "Mouse: EC; Human: Arterial, EC > Capillary, EC >> Arteriolar, EC > Venous, EC",
     "affectedPathway": "integral to membrane",
     "references": [
       "32358547",
@@ -459,7 +459,7 @@
       "TWAS;Cells cultured fibroblasts, brain frontal cortex BA9*"
     ],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Mouse: FB>EC; Human: Inner.Arachnoid.FB >> Parenchymal.pvFB > Arachnoid.Barrier.FB > Pial.FB",
+    "brainCellTypes": "Mouse: FB>EC; Human: Inner Arachnoid, FB >> Parenchymal, pvFB > Arachnoid Barrier, FB > Pial, FB",
     "affectedPathway": "protein binding",
     "references": [
       "10.21203/rs.3.rs-5926137/v1",
@@ -487,7 +487,7 @@
       "Proteogenomic MR;WMH"
     ],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Mouse: all < 40; Human: AC >> Matrix.PC >> Transport.PC > Arteriolar.EC",
+    "brainCellTypes": "Mouse: all < 40; Human: AC >> Matrix, PC >> Transport, PC > Arteriolar, EC",
     "affectedPathway": "apoptotic process",
     "references": [
       "32358547",
@@ -541,7 +541,7 @@
     "mendelianRandomization": "Yes",
     "evidenceFromOtherOmicsStudies": ["Proteomics", "Proteogenomic MR;WMH"],
     "linkToMonogenicDisease": ["617347", "269600", "611771", "104310"],
-    "brainCellTypes": "Mouse: MG>AC>FB; Human: Dural.Border.FB >> PVM > RBC > MG",
+    "brainCellTypes": "Mouse: MG>AC>FB; Human: Dural Border, FB >> PVM > RBC > MG",
     "affectedPathway": "artery morphogenesis",
     "references": [
       "32913026",
@@ -571,7 +571,7 @@
       "TWAS;Brain cerebellum*, brain frontal cortex BA9*"
     ],
     "linkToMonogenicDisease": ["618999"],
-    "brainCellTypes": "Mouse: FB>PC>SMC; Human: Transport.PC > Matrix.PC > Inner.Arachnoid.FB > Parenchymal.pvFB",
+    "brainCellTypes": "Mouse: FB>PC>SMC; Human: Transport, PC > Matrix, PC > Inner Arachnoid, FB > Parenchymal, pvFB",
     "affectedPathway": "membrane",
     "references": [
       "10.21203/rs.3.rs-5926137/v1",
@@ -599,7 +599,7 @@
       "Experimental;arterial specific endothelial growth factor, indispensable for arterial flow recovery under pathological challenge, by maintaining endothelial function"
     ],
     "linkToMonogenicDisease": ["615373"],
-    "brainCellTypes": "Mouse: EC>SMC; Human: AC >> Arterial.SMC > Arterial.EC >> Arteriolar.SMC",
+    "brainCellTypes": "Mouse: EC>SMC; Human: AC >> Arterial, SMC > Arterial, EC >> Arteriolar, SMC",
     "affectedPathway": "neurogenesis",
     "references": [
       "36180795",
@@ -627,7 +627,7 @@
       "TWAS;WMH: Heart atrial appendage*, Artery Tibial*"
     ],
     "linkToMonogenicDisease": ["225100"],
-    "brainCellTypes": "Mouse: OL>FB>SMC; Human: Neut >> MG > Dural.Border.FB > Mono",
+    "brainCellTypes": "Mouse: OL>FB>SMC; Human: Neut >> MG > Dural Border, FB > Mono",
     "affectedPathway": "extracellular matrix organization",
     "references": [
       "33293549",
@@ -685,7 +685,7 @@
       "TWAS;HIP-PVS: Nerve tibial, brain cerebellar hemisphere*, brain cerebellum*, heart left ventricle*, heart atrial appendage*, artery tibial*, artery aorta, peripheral blood, whole blood"
     ],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Mouse: PC>SMC>FB; Human: Parenchymal.pvFB >> Pial.FB >> Inner.Arachnoid.FB >> Arterial.SMC",
+    "brainCellTypes": "Mouse: PC>SMC>FB; Human: Parenchymal, pvFB >> Pial, FB >> Inner Arachnoid, FB >> Arterial, SMC",
     "affectedPathway": "extracellular matrix organization",
     "references": [
       "36180795",
@@ -743,7 +743,7 @@
     "mendelianRandomization": "No",
     "evidenceFromOtherOmicsStudies": ["(none found)"],
     "linkToMonogenicDisease": ["618384"],
-    "brainCellTypes": "Mouse: FB>AC; Human: Inner.Arachnoid.FB >> OL >> Arachnoid.Barrier.FB >> AC",
+    "brainCellTypes": "Mouse: FB>AC; Human: Inner Arachnoid, FB >> OL >> Arachnoid Barrier, FB >> AC",
     "affectedPathway": "transmembrane transport",
     "references": [
       "37069360",
@@ -772,7 +772,7 @@
       "Proteogenomic MR;WMH"
     ],
     "linkToMonogenicDisease": ["126600", "611276", "620780"],
-    "brainCellTypes": "Mouse: FB; Human: Epen >> AC > Dural.Border.FB >> Venous.SMC",
+    "brainCellTypes": "Mouse: FB; Human: Epen >> AC > Dural Border, FB >> Venous, SMC",
     "affectedPathway": "extracellular matrix",
     "references": [
       "32358547",
@@ -805,7 +805,7 @@
       "TWAS;PSMD: Whole blood*, brain cerebellum*"
     ],
     "linkToMonogenicDisease": ["618773"],
-    "brainCellTypes": "Mouse: EC>MG>FB; Human: Venous.EC >> Venular.EC >> Arterial.EC > Arteriolar.EC",
+    "brainCellTypes": "Mouse: EC>MG>FB; Human: Venous, EC >> Venular, EC >> Arterial, EC > Arteriolar, EC",
     "affectedPathway": "angiogenesis",
     "references": [
       "32358547",
@@ -842,7 +842,7 @@
       "TWAS;PSMD: Artery coronary*, artery tibial*"
     ],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Mouse: SMC>PC>FB; Human: Arteriolar.SMC >> Arterial.SMC >> Matrix.PC > Transport.PC",
+    "brainCellTypes": "Mouse: SMC>PC>FB; Human: Arteriolar, SMC >> Arterial, SMC >> Matrix, PC > Transport, PC",
     "affectedPathway": "protein binding",
     "references": [
       "31430377",
@@ -991,7 +991,7 @@
       "TWAS;multi-trait WMH & lacunar stroke: CMC brain*, aortic artery*, tibial artery*, whole blood*, YFS whole blood*"
     ],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Mouse: all < 40; Human: Epen >> AC >> Arachnoid.Barrier.FB > Capillary.EC",
+    "brainCellTypes": "Mouse: all < 40; Human: Epen >> AC >> Arachnoid Barrier, FB > Capillary, EC",
     "affectedPathway": "epithelial cilium movement",
     "references": [
       "33773637",
@@ -1018,7 +1018,7 @@
       "TWAS;WM-PVS: Nerve tibial, whole blood*"
     ],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Mouse: MG>FB>SMC; Human: Matrix.PC > Transport.PC >> MG >> RBC",
+    "brainCellTypes": "Mouse: MG>FB>SMC; Human: Matrix, PC > Transport, PC >> MG >> RBC",
     "affectedPathway": "extracellular matrix organization",
     "references": [
       "37069360",
@@ -1043,7 +1043,7 @@
     "mendelianRandomization": "No",
     "evidenceFromOtherOmicsStudies": ["TWAS;WM-PVS:whole blood*"],
     "linkToMonogenicDisease": ["258900"],
-    "brainCellTypes": "Mouse: EC; Human: Neu >> OPC > Parenchymal.pvFB > OL",
+    "brainCellTypes": "Mouse: EC; Human: Neu >> OPC > Parenchymal, pvFB > OL",
     "affectedPathway": "transferase activity",
     "references": [
       "37069360",
@@ -1070,7 +1070,7 @@
       "TWAS;WMH: Nerve tibial*, CMC brain dlPFC sQTL*, brain putamen basal ganglia*, brain hypothalamus*, brain hippocampus*, brain frontal cortex BA9*, brain cortex*, brain cerebellum*, brain caudate basal ganglia*, whole blood*"
     ],
     "linkToMonogenicDisease": ["617294", "620236"],
-    "brainCellTypes": "Mouse: SMC>EC>PC; Human: OL >> Neu > Transport.PC >> Neut",
+    "brainCellTypes": "Mouse: SMC>EC>PC; Human: OL >> Neu > Transport, PC >> Neut",
     "affectedPathway": "protein binding",
     "references": [
       "32358547",
@@ -1101,7 +1101,7 @@
       "Proteogenomic MR;SVS"
     ],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Mouse: all < 40; Human: Arteriolar.SMC > Arterial.SMC > PVM >> Venous.SMC",
+    "brainCellTypes": "Mouse: all < 40; Human: Arteriolar, SMC > Arterial, SMC > PVM >> Venous, SMC",
     "affectedPathway": "protein binding",
     "references": [
       "36180795",
@@ -1157,7 +1157,7 @@
       "TWAS;WM-PVS: nerve tibial*, brain caudate BG*, brain cerebellar hemisphere*, brain cerebellum*, brain cortex*, brain hippocampus*, brain nucleus accumbens BG*, brain putamen BG*, brain spinal cord cervical c1*, brain frontal cortex BA9*, heart left ventricle*, heart atrial appendage*, artery tibial*, artery coronary*, artery aorta*"
     ],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Mouse: MG>SMC; Human: Pial.FB >> Arteriolar.SMC > Venous.SMC >> Parenchymal.pvFB",
+    "brainCellTypes": "Mouse: MG>SMC; Human: Pial, FB >> Arteriolar, SMC > Venous, SMC >> Parenchymal, pvFB",
     "affectedPathway": "integral to membrane",
     "references": [
       "37069360",
@@ -1184,7 +1184,7 @@
       "TWAS;WM-PVS: Nerve tibial, heart atrial appendage*, artery tibial"
     ],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Mouse: OL>FB; Human: OL >> Arachnoid.Barrier.FB >> Inner.Arachnoid.FB > Parenchymal.pvFB",
+    "brainCellTypes": "Mouse: OL>FB; Human: OL >> Arachnoid Barrier, FB >> Inner Arachnoid, FB > Parenchymal, pvFB",
     "affectedPathway": "cell surface",
     "references": [
       "37069360",
@@ -1210,7 +1210,7 @@
     "mendelianRandomization": "Yes",
     "evidenceFromOtherOmicsStudies": ["Proteomics", "Proteogenomic MR;PVS"],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Mouse: all < 40; Human: Arterial.SMC >> Arteriolar.SMC >> Arachnoid.Barrier.FB >> Dural.Border.FB",
+    "brainCellTypes": "Mouse: all < 40; Human: Arterial, SMC >> Arteriolar, SMC >> Arachnoid Barrier, FB >> Dural Border, FB",
     "affectedPathway": "extracellular region",
     "references": [
       "41266628",
@@ -1235,7 +1235,7 @@
     "mendelianRandomization": "Yes",
     "evidenceFromOtherOmicsStudies": ["Proteomics", "Proteogenomic MR;PVS"],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Mouse: EC; Human: Pial.FB > TC >> Arterial.EC >> Arachnoid.Barrier.FB",
+    "brainCellTypes": "Mouse: EC; Human: Pial, FB > TC >> Arterial, EC >> Arachnoid Barrier, FB",
     "affectedPathway": "integral to membrane",
     "references": [
       "41266628",
@@ -1260,7 +1260,7 @@
     "mendelianRandomization": "Yes",
     "evidenceFromOtherOmicsStudies": ["Proteomics", "Proteogenomic MR;PVS"],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Mouse: SMC; Human: Arterial.SMC > Arteriolar.SMC >> Matrix.PC >> Parenchymal.pvFB",
+    "brainCellTypes": "Mouse: SMC; Human: Arterial, SMC > Arteriolar, SMC >> Matrix, PC >> Parenchymal, pvFB",
     "affectedPathway": "extracellular matrix organization",
     "references": [
       "41266628",
@@ -1285,7 +1285,7 @@
     "mendelianRandomization": "Yes",
     "evidenceFromOtherOmicsStudies": ["Proteomics", "Proteogenomic MR;PVS"],
     "linkToMonogenicDisease": ["601369"],
-    "brainCellTypes": "Mouse: FB; Human: Inner.Arachnoid.FB >> Venous.SMC > Arachnoid.Barrier.FB >> Neu",
+    "brainCellTypes": "Mouse: FB; Human: Inner Arachnoid, FB >> Venous, SMC > Arachnoid Barrier, FB >> Neu",
     "affectedPathway": "proteinaceous extracellular matrix",
     "references": [
       "41266628",
@@ -1310,7 +1310,7 @@
     "mendelianRandomization": "Yes",
     "evidenceFromOtherOmicsStudies": ["Proteomics", "Proteogenomic MR;WMH"],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Mouse: all < 40; Human: Dural.Border.FB > PVM >> Epen >> MG",
+    "brainCellTypes": "Mouse: all < 40; Human: Dural Border, FB > PVM >> Epen >> MG",
     "affectedPathway": "extracellular region",
     "references": [
       "41266628",
@@ -1385,7 +1385,7 @@
     "mendelianRandomization": "Yes",
     "evidenceFromOtherOmicsStudies": ["Proteomics", "Proteogenomic MR;PVS"],
     "linkToMonogenicDisease": ["603776"],
-    "brainCellTypes": "Mouse: all < 40; Human: Arachnoid.Barrier.FB >> Dural.Border.FB >> Neu >> Pial.FB",
+    "brainCellTypes": "Mouse: all < 40; Human: Arachnoid Barrier, FB >> Dural Border, FB >> Neu >> Pial, FB",
     "affectedPathway": "neurogenesis",
     "references": [
       "41266628",
@@ -1460,7 +1460,7 @@
     "mendelianRandomization": "Yes",
     "evidenceFromOtherOmicsStudies": ["Proteomics", "Proteogenomic MR;SVS"],
     "linkToMonogenicDisease": ["619785"],
-    "brainCellTypes": "Mouse: all < 40; Human: Arachnoid.Barrier.FB > Dural.Border.FB >> Inner.Arachnoid.FB > Arterial.SMC",
+    "brainCellTypes": "Mouse: all < 40; Human: Arachnoid Barrier, FB > Dural Border, FB >> Inner Arachnoid, FB > Arterial, SMC",
     "affectedPathway": "extracellular matrix organization",
     "references": [
       "36180795",
@@ -1485,7 +1485,7 @@
     "mendelianRandomization": "Yes",
     "evidenceFromOtherOmicsStudies": ["Proteomics", "Proteogenomic MR;PVS"],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Human: PVM > Venous.SMC > BC > TC",
+    "brainCellTypes": "Human: PVM > Venous, SMC > BC > TC",
     "affectedPathway": "(unknown)",
     "references": [
       "41266628",
@@ -1510,7 +1510,7 @@
     "mendelianRandomization": "Yes",
     "evidenceFromOtherOmicsStudies": ["Proteomics", "Proteogenomic MR;PVS"],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Mouse: FB; Human: Pial.FB > Parenchymal.pvFB >> Inner.Arachnoid.FB > Venous.SMC",
+    "brainCellTypes": "Mouse: FB; Human: Pial, FB > Parenchymal, pvFB >> Inner Arachnoid, FB > Venous, SMC",
     "affectedPathway": "extracellular matrix",
     "references": [
       "41266628",
@@ -1535,7 +1535,7 @@
     "mendelianRandomization": "Yes",
     "evidenceFromOtherOmicsStudies": ["Proteomics", "Proteogenomic MR;PVS"],
     "linkToMonogenicDisease": ["612356"],
-    "brainCellTypes": "Mouse: OL; Human: Inner.Arachnoid.FB >> Arachnoid.Barrier.FB >> Dural.Border.FB >> Neu",
+    "brainCellTypes": "Mouse: OL; Human: Inner Arachnoid, FB >> Arachnoid Barrier, FB >> Dural Border, FB >> Neu",
     "affectedPathway": "extracellular region",
     "references": [
       "41266628",
@@ -1561,7 +1561,7 @@
     "mendelianRandomization": "Yes",
     "evidenceFromOtherOmicsStudies": ["Proteomics", "Proteogenomic MR;WMH"],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Mouse: all < 40; Human: Arteriolar.SMC > RBC > Arterial.SMC > TC",
+    "brainCellTypes": "Mouse: all < 40; Human: Arteriolar, SMC > RBC > Arterial, SMC > TC",
     "affectedPathway": "synaptic transmission",
     "references": [
       "41266628",
@@ -1586,7 +1586,7 @@
     "mendelianRandomization": "Yes",
     "evidenceFromOtherOmicsStudies": ["Proteomics", "Proteogenomic MR;WMH"],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Mouse: PC>SMC>FB; Human: Arachnoid.Barrier.FB >> Dural.Border.FB >> Transport.PC > Inner.Arachnoid.FB",
+    "brainCellTypes": "Mouse: PC>SMC>FB; Human: Arachnoid Barrier, FB >> Dural Border, FB >> Transport, PC > Inner Arachnoid, FB",
     "affectedPathway": "extracellular region",
     "references": [
       "41266628",
@@ -1611,7 +1611,7 @@
     "mendelianRandomization": "Yes",
     "evidenceFromOtherOmicsStudies": ["Proteomics", "Proteogenomic MR;WMH"],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Mouse: PC>FB>SMC; Human: Transport.PC >> Matrix.PC >> Venous.SMC >> Arterial.EC",
+    "brainCellTypes": "Mouse: PC>FB>SMC; Human: Transport, PC >> Matrix, PC >> Venous, SMC >> Arterial, EC",
     "affectedPathway": "blood coagulation",
     "references": [
       "15905468",
@@ -1637,7 +1637,7 @@
     "mendelianRandomization": "Yes",
     "evidenceFromOtherOmicsStudies": ["Proteomics", "Proteogenomic MR;PVS"],
     "linkToMonogenicDisease": ["250620"],
-    "brainCellTypes": "Mouse: AC; Human: OL >> AC > Capillary.EC > OPC",
+    "brainCellTypes": "Mouse: AC; Human: OL >> AC > Capillary, EC > OPC",
     "affectedPathway": "mitochondrion",
     "references": [
       "41266628",
@@ -1662,7 +1662,7 @@
     "mendelianRandomization": "Yes",
     "evidenceFromOtherOmicsStudies": ["Proteomics", "Proteogenomic MR;WMH"],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Mouse: all < 40; Human: AC >> Venous.EC >> Mono >> Venular.EC",
+    "brainCellTypes": "Mouse: all < 40; Human: AC >> Venous, EC >> Mono >> Venular, EC",
     "affectedPathway": "extracellular region",
     "references": [
       "41266628",
@@ -1687,7 +1687,7 @@
     "mendelianRandomization": "Yes",
     "evidenceFromOtherOmicsStudies": ["Proteomics", "Proteogenomic MR;PVS"],
     "linkToMonogenicDisease": ["615696", "617232"],
-    "brainCellTypes": "Mouse: FB>EC>PC; Human: Arteriolar.EC > OPC > Arterial.EC > PVM",
+    "brainCellTypes": "Mouse: FB>EC>PC; Human: Arteriolar, EC > OPC > Arterial, EC > PVM",
     "affectedPathway": "Notch signaling pathway",
     "references": [
       "41266628",
@@ -1737,7 +1737,7 @@
     "mendelianRandomization": "Yes",
     "evidenceFromOtherOmicsStudies": ["Proteomics", "Proteogenomic MR;WMH"],
     "linkToMonogenicDisease": ["253200"],
-    "brainCellTypes": "Mouse: MG>AC>OL; Human: Venous.EC >> Venular.EC >> MG > PVM",
+    "brainCellTypes": "Mouse: MG>AC>OL; Human: Venous, EC >> Venular, EC >> MG > PVM",
     "affectedPathway": "central nervous system development",
     "references": [
       "41266628",
@@ -1762,7 +1762,7 @@
     "mendelianRandomization": "Yes",
     "evidenceFromOtherOmicsStudies": ["Proteomics", "Proteogenomic MR;WMH"],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Mouse: all < 40; Human: OPC >> Arachnoid.Barrier.FB >> Neu >> AC",
+    "brainCellTypes": "Mouse: all < 40; Human: OPC >> Arachnoid Barrier, FB >> Neu >> AC",
     "affectedPathway": "extracellular matrix organization",
     "references": [
       "41266628",
@@ -1787,7 +1787,7 @@
     "mendelianRandomization": "Yes",
     "evidenceFromOtherOmicsStudies": ["Proteomics", "Proteogenomic MR;WMH"],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Mouse: FB>EC>PC; Human: Capillary.EC > Venular.EC > Parenchymal.pvFB > Arteriolar.EC",
+    "brainCellTypes": "Mouse: FB>EC>PC; Human: Capillary, EC > Venular, EC > Parenchymal, pvFB > Arteriolar, EC",
     "affectedPathway": "extracellular space",
     "references": [
       "41266628",
@@ -1867,7 +1867,7 @@
       "Proteogenomic MR;WMH"
     ],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Mouse: NOT FOUND; Human: TC >> Arteriolar.EC >> BC > Capillary.EC",
+    "brainCellTypes": "Mouse: NOT FOUND; Human: TC >> Arteriolar, EC >> BC > Capillary, EC",
     "affectedPathway": "integral to membrane",
     "references": [
       "32358547",
@@ -1894,7 +1894,7 @@
     "mendelianRandomization": "Yes",
     "evidenceFromOtherOmicsStudies": ["Proteomics", "Proteogenomic MR;WMH"],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Mouse: NOT FOUND; Human: TC >> Arteriolar.EC >> Capillary.EC > Arterial.EC",
+    "brainCellTypes": "Mouse: NOT FOUND; Human: TC >> Arteriolar, EC >> Capillary, EC > Arterial, EC",
     "affectedPathway": "integral to membrane",
     "references": [
       "41266628",
@@ -1923,7 +1923,7 @@
       "Proteogenomic MR;PVS"
     ],
     "linkToMonogenicDisease": ["604302", "108010"],
-    "brainCellTypes": "Mouse: all < 40; Human: Venous.SMC > Arteriolar.SMC >> Arterial.SMC > Arterial.EC",
+    "brainCellTypes": "Mouse: all < 40; Human: Venous, SMC > Arteriolar, SMC >> Arterial, SMC > Arterial, EC",
     "affectedPathway": "regulation of angiogenesis",
     "references": [
       "37684694",
@@ -1950,7 +1950,7 @@
     "mendelianRandomization": "Yes",
     "evidenceFromOtherOmicsStudies": ["Proteomics", "Proteogenomic MR;PVS"],
     "linkToMonogenicDisease": ["617920"],
-    "brainCellTypes": "Mouse: all < 40; Human: PVM >> Pial.FB >> Parenchymal.pvFB > Arterial.SMC",
+    "brainCellTypes": "Mouse: all < 40; Human: PVM >> Pial, FB >> Parenchymal, pvFB > Arterial, SMC",
     "affectedPathway": "cell adhesion",
     "references": [
       "41266628",
@@ -1975,7 +1975,7 @@
     "mendelianRandomization": "Yes",
     "evidenceFromOtherOmicsStudies": ["Proteomics", "Proteogenomic MR;WMH"],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Mouse: EC>FB; Human: Venous.EC >> Venular.EC >> Arteriolar.EC > Capillary.EC",
+    "brainCellTypes": "Mouse: EC>FB; Human: Venous, EC >> Venular, EC >> Arteriolar, EC > Capillary, EC",
     "affectedPathway": "angiogenesis",
     "references": [
       "35325079",
@@ -2001,7 +2001,7 @@
     "mendelianRandomization": "Yes",
     "evidenceFromOtherOmicsStudies": ["Proteomics", "Proteogenomic MR;WMH"],
     "linkToMonogenicDisease": ["617907", "617911"],
-    "brainCellTypes": "Mouse: all < 40; Human: Matrix.PC >> Mono >> Transport.PC >> Venular.EC",
+    "brainCellTypes": "Mouse: all < 40; Human: Matrix, PC >> Mono >> Transport, PC >> Venular, EC",
     "affectedPathway": "extracellular space",
     "references": [
       "41266628",
@@ -2082,7 +2082,7 @@
     "mendelianRandomization": "Yes",
     "evidenceFromOtherOmicsStudies": ["Proteomics", "Proteogenomic MR;PVS"],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Mouse: all < 40; Human: Dural.Border.FB >> Arachnoid.Barrier.FB >> Pial.FB > Inner.Arachnoid.FB",
+    "brainCellTypes": "Mouse: all < 40; Human: Dural Border, FB >> Arachnoid Barrier, FB >> Pial, FB > Inner Arachnoid, FB",
     "affectedPathway": "extracellular region",
     "references": [
       "41266628",
@@ -2108,7 +2108,7 @@
     "mendelianRandomization": "Yes",
     "evidenceFromOtherOmicsStudies": ["Proteomics", "Proteogenomic MR;PVS"],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Human: Arterial.SMC >> Arachnoid.Barrier.FB >> Dural.Border.FB >> Arteriolar.SMC",
+    "brainCellTypes": "Human: Arterial, SMC >> Arachnoid Barrier, FB >> Dural Border, FB >> Arteriolar, SMC",
     "affectedPathway": "(unknown)",
     "references": [
       "41266628",
@@ -2133,7 +2133,7 @@
     "mendelianRandomization": "Yes",
     "evidenceFromOtherOmicsStudies": ["Proteomics", "Proteogenomic MR;PVS"],
     "linkToMonogenicDisease": ["619844"],
-    "brainCellTypes": "Mouse: all < 40; Human: Pial.FB > Arterial.SMC > Arteriolar.SMC > OL",
+    "brainCellTypes": "Mouse: all < 40; Human: Pial, FB > Arterial, SMC > Arteriolar, SMC > OL",
     "affectedPathway": "apoptotic process",
     "references": [
       "41266628",
@@ -2158,7 +2158,7 @@
     "mendelianRandomization": "Yes",
     "evidenceFromOtherOmicsStudies": ["Proteomics", "Proteogenomic MR;WMH"],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Human: Inner.Arachnoid.FB >> Pial.FB >> Arachnoid.Barrier.FB >> Parenchymal.pvFB",
+    "brainCellTypes": "Human: Inner Arachnoid, FB >> Pial, FB >> Arachnoid Barrier, FB >> Parenchymal, pvFB",
     "affectedPathway": "extracellular region",
     "references": [
       "41266628",
@@ -2183,7 +2183,7 @@
     "mendelianRandomization": "Yes",
     "evidenceFromOtherOmicsStudies": ["Proteomics", "Proteogenomic MR;WMH"],
     "linkToMonogenicDisease": ["615629"],
-    "brainCellTypes": "Human: AC >> Arterial.SMC >> OPC >> Epen",
+    "brainCellTypes": "Human: AC >> Arterial, SMC >> OPC >> Epen",
     "affectedPathway": "(unknown)",
     "references": [
       "41266628",
@@ -2214,7 +2214,7 @@
       "Proteogenomic MR;PVS"
     ],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Mouse: all < 40; Human: Transport.PC >> Matrix.PC >> Arteriolar.EC >> Dural.Border.FB",
+    "brainCellTypes": "Mouse: all < 40; Human: Transport, PC >> Matrix, PC >> Arteriolar, EC >> Dural Border, FB",
     "affectedPathway": "extracellular region",
     "references": [
       "36180795",
@@ -2243,7 +2243,7 @@
       "Proteomics;plasma"
     ],
     "linkToMonogenicDisease": ["143200"],
-    "brainCellTypes": "Mouse: FB>OL; Human: OPC >> Mono >> AC >> Dural.Border.FB",
+    "brainCellTypes": "Mouse: FB>OL; Human: OPC >> Mono >> AC >> Dural Border, FB",
     "affectedPathway": "cell adhesion",
     "references": [
       "32358547",
@@ -2272,7 +2272,7 @@
     "mendelianRandomization": "No",
     "evidenceFromOtherOmicsStudies": ["(none found)"],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Mouse: EC>SMC>PC; Human: Venular.EC >> Venous.EC > Capillary.EC >> Arteriolar.EC",
+    "brainCellTypes": "Mouse: EC>SMC>PC; Human: Venular, EC >> Venous, EC > Capillary, EC >> Arteriolar, EC",
     "affectedPathway": "extracellular region",
     "references": [
       "37069360",
@@ -2322,7 +2322,7 @@
     "mendelianRandomization": "No",
     "evidenceFromOtherOmicsStudies": ["(none found)"],
     "linkToMonogenicDisease": ["612350"],
-    "brainCellTypes": "Mouse: FB>AC; Human: Arterial.SMC > Arteriolar.SMC > Pial.FB > Transport.PC",
+    "brainCellTypes": "Mouse: FB>AC; Human: Arterial, SMC > Arteriolar, SMC > Pial, FB > Transport, PC",
     "affectedPathway": "connective tissue development",
     "references": [
       "33773637",
@@ -2347,7 +2347,7 @@
     "mendelianRandomization": "No",
     "evidenceFromOtherOmicsStudies": ["(none found)"],
     "linkToMonogenicDisease": ["619354"],
-    "brainCellTypes": "Mouse: EC>SMC>PC; Human: Arteriolar.SMC >> Arterial.SMC >> Venous.SMC >> Arterial.EC",
+    "brainCellTypes": "Mouse: EC>SMC>PC; Human: Arteriolar, SMC >> Arterial, SMC >> Venous, SMC >> Arterial, EC",
     "affectedPathway": "apoptotic process",
     "references": [
       "33773637",
@@ -2401,7 +2401,7 @@
       "Proteogenomic MR;WMH"
     ],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Mouse: SMC; Human: Arterial.SMC > Arteriolar.SMC >> Venous.SMC >> BC",
+    "brainCellTypes": "Mouse: SMC; Human: Arterial, SMC > Arteriolar, SMC >> Venous, SMC >> BC",
     "affectedPathway": "muscle organ development",
     "references": [
       "39417098",
@@ -2430,7 +2430,7 @@
       "Proteogenomic MR;WMH"
     ],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Mouse: all < 40; Human: Neu >> TC >> Dural.Border.FB > Inner.Arachnoid.FB",
+    "brainCellTypes": "Mouse: all < 40; Human: Neu >> TC >> Dural Border, FB > Inner Arachnoid, FB",
     "affectedPathway": "integral to membrane",
     "references": [
       "39417098",
@@ -2480,7 +2480,7 @@
     "mendelianRandomization": "No",
     "evidenceFromOtherOmicsStudies": ["(none found)"],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Mouse: FB>EC>MG; Human: Parenchymal.pvFB >> Arachnoid.Barrier.FB >> Inner.Arachnoid.FB > Pial.FB",
+    "brainCellTypes": "Mouse: FB>EC>MG; Human: Parenchymal, pvFB >> Arachnoid Barrier, FB >> Inner Arachnoid, FB > Pial, FB",
     "affectedPathway": "extracellular matrix",
     "references": [
       "33293549",
@@ -2505,7 +2505,7 @@
     "mendelianRandomization": "Yes",
     "evidenceFromOtherOmicsStudies": ["Proteogenomic MR;SVS"],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Mouse: FB>SMC>PC; Human: Arteriolar.EC > Capillary.EC > Matrix.PC > OPC",
+    "brainCellTypes": "Mouse: FB>SMC>PC; Human: Arteriolar, EC > Capillary, EC > Matrix, PC > OPC",
     "affectedPathway": "cell communication",
     "references": [
       "36180795",
@@ -2584,7 +2584,7 @@
     "mendelianRandomization": "No",
     "evidenceFromOtherOmicsStudies": ["(none found)"],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Mouse: all < 40; Human: Arterial.EC > Neu > MG > Parenchymal.pvFB",
+    "brainCellTypes": "Mouse: all < 40; Human: Arterial, EC > Neu > MG > Parenchymal, pvFB",
     "affectedPathway": "protein binding",
     "references": [
       "33773637",
@@ -2609,7 +2609,7 @@
     "mendelianRandomization": "No",
     "evidenceFromOtherOmicsStudies": ["(none found)"],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Human: PVM >> Parenchymal.pvFB >> Mono >> Transport.PC",
+    "brainCellTypes": "Human: PVM >> Parenchymal, pvFB >> Mono >> Transport, PC",
     "affectedPathway": "cell-cell junction",
     "references": [
       "33773637",
@@ -2634,7 +2634,7 @@
     "mendelianRandomization": "No",
     "evidenceFromOtherOmicsStudies": ["(none found)"],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Mouse: all < 40; Human: MG > PVM >> RBC >> Arachnoid.Barrier.FB",
+    "brainCellTypes": "Mouse: all < 40; Human: MG > PVM >> RBC >> Arachnoid Barrier, FB",
     "affectedPathway": "extracellular region",
     "references": [
       "39298701",
@@ -2659,7 +2659,7 @@
     "mendelianRandomization": "No",
     "evidenceFromOtherOmicsStudies": ["(none found)"],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Human: Venous.EC >> Venular.EC > Capillary.EC > Arteriolar.EC",
+    "brainCellTypes": "Human: Venous, EC >> Venular, EC > Capillary, EC > Arteriolar, EC",
     "affectedPathway": "(unknown)",
     "references": [
       "39298701",
@@ -2746,7 +2746,7 @@
       "Proteogenomic MR;WMH"
     ],
     "linkToMonogenicDisease": ["267430", "613092"],
-    "brainCellTypes": "Human: Epen > Dural.Border.FB >> Venous.SMC > Arteriolar.SMC",
+    "brainCellTypes": "Human: Epen > Dural Border, FB >> Venous, SMC > Arteriolar, SMC",
     "affectedPathway": "extracellular space",
     "references": [
       "39417098",
@@ -2771,7 +2771,7 @@
     "mendelianRandomization": "No",
     "evidenceFromOtherOmicsStudies": ["(none found)"],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Mouse: FB; Human: Inner.Arachnoid.FB >> Parenchymal.pvFB >> Pial.FB >> Arachnoid.Barrier.FB",
+    "brainCellTypes": "Mouse: FB; Human: Inner Arachnoid, FB >> Parenchymal, pvFB >> Pial, FB >> Arachnoid Barrier, FB",
     "affectedPathway": "transmembrane transport",
     "references": [
       "33293549",
@@ -2829,7 +2829,7 @@
       "Proteogenomic MR;WMH"
     ],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Mouse: EC>SMC>FB; Human: Venous.SMC > Pial.FB > BC > Inner.Arachnoid.FB",
+    "brainCellTypes": "Mouse: EC>SMC>FB; Human: Venous, SMC > Pial, FB > BC > Inner Arachnoid, FB",
     "affectedPathway": "negative regulation of cell death",
     "references": [
       "39417098",
@@ -2858,7 +2858,7 @@
       "Proteogenomic MR;WMH"
     ],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Mouse: all < 40; Human: Venous.SMC > Pial.FB >> Arteriolar.SMC > Arterial.SMC",
+    "brainCellTypes": "Mouse: all < 40; Human: Venous, SMC > Pial, FB >> Arteriolar, SMC > Arterial, SMC",
     "affectedPathway": "cell junction",
     "references": [
       "39417098",
@@ -2942,7 +2942,7 @@
       "Proteogenomic MR;WMH"
     ],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Mouse: all < 40; Human: Venous.SMC >> Inner.Arachnoid.FB >> Pial.FB >> Dural.Border.FB",
+    "brainCellTypes": "Mouse: all < 40; Human: Venous, SMC >> Inner Arachnoid, FB >> Pial, FB >> Dural Border, FB",
     "affectedPathway": "angiogenesis",
     "references": [
       "39417098",
@@ -2967,7 +2967,7 @@
     "mendelianRandomization": "No",
     "evidenceFromOtherOmicsStudies": ["(none found)"],
     "linkToMonogenicDisease": ["617168"],
-    "brainCellTypes": "Mouse: FB>SMC; Human: Arterial.EC > Epen > Venous.SMC >> Dural.Border.FB",
+    "brainCellTypes": "Mouse: FB>SMC; Human: Arterial, EC > Epen > Venous, SMC >> Dural Border, FB",
     "affectedPathway": "blood vessel development",
     "references": [
       "33773637",
@@ -2992,7 +2992,7 @@
     "mendelianRandomization": "No",
     "evidenceFromOtherOmicsStudies": ["(none found)"],
     "linkToMonogenicDisease": ["121050", "616118"],
-    "brainCellTypes": "Mouse: all < 40; Human: Dural.Border.FB >> OPC > Mono >> Epen",
+    "brainCellTypes": "Mouse: all < 40; Human: Dural Border, FB >> OPC > Mono >> Epen",
     "affectedPathway": "extracellular matrix structural constituent",
     "references": [
       "30651383",
@@ -3018,7 +3018,7 @@
     "mendelianRandomization": "No",
     "evidenceFromOtherOmicsStudies": ["(none found)"],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Mouse: EC>SMC>AC; Human: PVM >> Mono > Arterial.EC >> Venous.EC",
+    "brainCellTypes": "Mouse: EC>SMC>AC; Human: PVM >> Mono > Arterial, EC >> Venous, EC",
     "affectedPathway": "extracellular space",
     "references": [
       "32358547",
@@ -3047,7 +3047,7 @@
       "Proteogenomic MR;WMH"
     ],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Mouse: all < 40; Human: Arterial.SMC >> Arteriolar.SMC >> PVM >> Mono",
+    "brainCellTypes": "Mouse: all < 40; Human: Arterial, SMC >> Arteriolar, SMC >> PVM >> Mono",
     "affectedPathway": "negative regulation of cell proliferation",
     "references": [
       "39417098",
@@ -3072,7 +3072,7 @@
     "mendelianRandomization": "No",
     "evidenceFromOtherOmicsStudies": ["(none found)"],
     "linkToMonogenicDisease": ["(none found)"],
-    "brainCellTypes": "Mouse: OL>EC>FB; Human: Arteriolar.EC > Capillary.EC > Venular.EC >> Venous.EC",
+    "brainCellTypes": "Mouse: OL>EC>FB; Human: Arteriolar, EC > Capillary, EC > Venular, EC >> Venous, EC",
     "affectedPathway": "regulation of Rho protein signal transduction",
     "references": [
       "30651383",
@@ -3105,7 +3105,7 @@
       "Proteogenomic MR;WMH"
     ],
     "linkToMonogenicDisease": ["239000"],
-    "brainCellTypes": "Mouse: all < 40; Human: Dural.Border.FB >> Epen > Arachnoid.Barrier.FB >> Inner.Arachnoid.FB",
+    "brainCellTypes": "Mouse: all < 40; Human: Dural Border, FB >> Epen > Arachnoid Barrier, FB >> Inner Arachnoid, FB",
     "affectedPathway": "extracellular matrix organization",
     "references": [
       "39417098",
@@ -3134,7 +3134,7 @@
       "Proteogenomic MR;WMH"
     ],
     "linkToMonogenicDisease": ["309300"],
-    "brainCellTypes": "Mouse: all < 40; Human: AC >> Venous.SMC >> OPC >> Pial.FB",
+    "brainCellTypes": "Mouse: all < 40; Human: AC >> Venous, SMC >> OPC >> Pial, FB",
     "affectedPathway": "extracellular region",
     "references": [
       "39417098",

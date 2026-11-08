@@ -214,3 +214,19 @@ to_month <- function(x) {
   iso <- "^\\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])$"
   ifelse(!is.na(x) & grepl(iso, x), substr(x, 1, 7), NA_character_)
 }
+
+# A human cell type as the workbook writes it, in R's make.names() form
+# ("Inner.Arachnoid.FB"), as words then the type: "Inner Arachnoid, FB".
+# Only letters joined by dots are rewritten, so a number keeps its point.
+cell_type_names <- function(x) {
+  as_words <- function(name) {
+    words <- strsplit(name, ".", fixed = TRUE)[[1]]
+    paste(paste(head(words, -1), collapse = " "), tail(words, 1), sep = ", ")
+  }
+  dotted <- "\\b[A-Za-z]+(?:\\.[A-Za-z]+)+\\b"
+  known <- !is.na(x)
+  hits <- gregexpr(dotted, x[known], perl = TRUE)
+  names <- regmatches(x[known], hits)
+  regmatches(x[known], hits) <- lapply(names, \(n) vapply(n, as_words, ""))
+  x
+}

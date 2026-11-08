@@ -110,6 +110,11 @@ finish_references <- function(id, column) {
   }
 }
 
+finish_st1 <- function(t) {
+  t$brain_cell_types_human <- cell_type_names(t$brain_cell_types_human)
+  finish_references("ST1", "references")(t)
+}
+
 finish_st2 <- function(t) {
   year <- parse_count(t$year)
   s <- unparsed("ST2", t, "year", year, "a year")
@@ -244,7 +249,7 @@ SHEETS <- list(
       "pathway_goa_function", "gps_druggability_score_drug_ses",
       "drug_repositioning_candidate", "references"
     ),
-    "st1_genes.csv", build_rows, finish_references("ST1", "references")
+    "st1_genes.csv", build_rows, finish_st1
   ),
   ST2 = sheet_spec(
     "ST2", "SupplementaryTable2",

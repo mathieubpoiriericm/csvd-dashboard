@@ -214,3 +214,16 @@ test_that("reference_tokens finds a repeated DOI written in another case", {
   dois <- "10.1038/S41591-023-02268-W, 10.1038/s41591-023-02268-w"
   expect_equal(reference_tokens(dois)$duplicate, c(FALSE, TRUE))
 })
+
+test_that("cell_type_names writes each dotted atlas name as words, type", {
+  expect_equal(
+    cell_type_names(c(
+      "Transport.PC > Matrix.PC >> Arteriolar.SMC >> Arterial.SMC",
+      "Parenchymal.pvFB >> Inner.Arachnoid.FB >> Pial.FB",
+      "PVM >> Mono", NA
+    )),
+    c("Transport, PC > Matrix, PC >> Arteriolar, SMC >> Arterial, SMC",
+      "Parenchymal, pvFB >> Inner Arachnoid, FB >> Pial, FB",
+      "PVM >> Mono", NA)
+  )
+})
