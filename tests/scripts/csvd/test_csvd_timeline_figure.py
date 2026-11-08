@@ -6,6 +6,7 @@ rule tests that hold for any dataset are in tests/scripts/test_timeline_figure.p
 a fork deletes this tree.
 """
 
+import re
 from collections import Counter
 from pathlib import Path
 
@@ -25,6 +26,19 @@ from scripts.timeline_figure import (
     markers,
     sector_spans,
 )
+
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+
+
+def _gold_only() -> bool:
+    """`GOLD_ONLY` as lib/gold_only.ts sets it, so the skip below lifts with it."""
+    source = (_REPO_ROOT / "lib" / "gold_only.ts").read_text(encoding="utf-8")
+    match = re.search(r"^export const GOLD_ONLY = (true|false);$", source, re.M)
+    assert match, "lib/gold_only.ts no longer declares GOLD_ONLY as a literal"
+    return match.group(1) == "true"
+
+
+_GOLD_ONLY = _gold_only()
 
 # The gold trials fill seven cells: CAA/II, Cognitive Impairment/III and II,
 # Stroke/III and II, SVD/II and I (THN391's "Ib", on its parent's ring).
@@ -110,12 +124,13 @@ class TestLayout:
         assert sum(1 for m in marker_list if m.evidence_ring) == 11
         assert sum(1 for m in marker_list if m.evidence_dash) == 6
 
-    @pytest.mark.skip(
+    @pytest.mark.skipif(
+        _GOLD_ONLY,
         reason=(
             "gold-only: no gold trial is a thin record, so the committed data"
             " cannot exercise the flag; tests/scripts/test_timeline_figure.py"
             " tests its rules on constructed rows"
-        )
+        ),
     )
     def test_the_record_flag_marks_sixteen_thin_records(
         self, trials, encoding

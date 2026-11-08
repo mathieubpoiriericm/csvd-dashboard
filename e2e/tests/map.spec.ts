@@ -130,9 +130,17 @@ test("clicking a marker opens its trial popup", async ({ page }) => {
   const popup = page.locator(".leaflet-popup-content .map-popup");
   await expect(popup).toBeVisible();
   await expect(popup.locator(".popup-title")).not.toBeEmpty();
-  await expect(popup.locator(".popup-status")).toHaveClass(
-    /popup-status-(recruiting|active|completed|terminated|unknown)/,
-  );
+  // A site carries a status badge when its status is stated. Under gold-only
+  // every site takes its trial's table status, which the curated trials leave
+  // unstated, so no popup carries one; with a mix, either is fine here.
+  const badge = popup.locator(".popup-status");
+  if (EXPECTED.map.sitesWithStatus === EXPECTED.map.sites) {
+    await expect(badge).toHaveClass(
+      /popup-status-(recruiting|active|completed|terminated|unknown)/,
+    );
+  } else if (EXPECTED.map.sitesWithStatus === 0) {
+    await expect(badge).toHaveCount(0);
+  }
   await expect(popup.locator(".popup-info-row").first()).toContainText("Drug:");
   await expect(popup.locator(".popup-facility")).not.toBeEmpty();
   await expect(popup.getByRole("link", { name: "View on ClinicalTrials.gov" }))
@@ -219,16 +227,20 @@ test("a hidden list carries the map's content for screen readers", async ({ page
   // The marker paths are augmented for keyboard use after hydration, while
   // this list remains the complete non-spatial alternative for virtual
   // navigation and for the map-load error path. It follows the study-status
-  // filter like the markers do, so it is pinned to the default-visible count
-  // (Completed sites unticked), not the full committed total.
+  // filter like the markers do, so it is pinned to the default-visible count,
+  // not the full committed total.
   const items = page.locator(".visually-hidden li");
   await expect(items).toHaveCount(EXPECTED.map.sitesShown);
 
   // Assert the shape of a location entry, not one facility's name — the
   // first row depends on source ordering that ClinicalTrials.gov may change.
+  // Facility, title, status, registry id; a site whose status is not stated
+  // (every site under gold-only) has no status part.
   if (!NO_SITES) {
     await expect(items.first()).toHaveText(
-      /^.+ — .+ — .+ — NCT\d{8}$/,
+      EXPECTED.map.sitesWithStatus === 0
+        ? /^.+ — .+ — NCT\d{8}$/
+        : /^.+ — .+ — (?:.+ — )?NCT\d{8}$/,
     );
   }
 

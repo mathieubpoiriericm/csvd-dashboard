@@ -2,13 +2,15 @@ import { assert, assertEquals, assertNotEquals } from "@std/assert";
 
 import { cytobands, placeGene, STAINS } from "../lib/cytobands.ts";
 import { genes } from "../lib/data.ts";
+import { computePhenogramLayout } from "../lib/phenogram.ts";
 import { CHROMOSOMES } from "../lib/sorting.ts";
 
 /**
  * `data/cytobands_hg38.json` is the karyogram's geometry and the lookup that
- * places a gene from its `chromosomalLocation`. The last test is the
- * guardrail: a regenerated gene table whose band strings no longer resolve
- * fails here, not silently on the page.
+ * places a gene from its `chromosomalLocation`. The last test holds that a
+ * location the table cannot resolve is reported rather than drawn; the
+ * guardrail on the committed data's own band strings is in
+ * tests/csvd/phenogram_layout_test.ts.
  */
 
 Deno.test("the table carries the 24 human chromosomes in CHROMOSOMES order", () => {
@@ -96,18 +98,17 @@ Deno.test("placeGene refuses a range across the centromere", () => {
   assertNotEquals(placeGene("10q24.33-q25.1"), null);
 });
 
-/**
- * Locations the hand-curated gold table writes that hg38 has no band for.
- * Gold is published verbatim and does not correct them, so the phenogram
- * leaves the gene out instead of guessing. MSMP's "9q13.3": hg38 has no such
- * band.
- */
-const UNPLACEABLE_IN_GOLD: ReadonlySet<string> = new Set(["MSMP 9q13.3"]);
-
-Deno.test("every committed gene's chromosomal location is an exact hg38 band", () => {
+// Which committed locations resolve is a fact about one disease's data:
+// tests/csvd/phenogram_layout_test.ts pins the one gold location hg38 has
+// no band for. What holds for any data is that such a location is reported,
+// never drawn somewhere it is not.
+Deno.test("a committed location with no hg38 band is reported as unplaced, not drawn", () => {
+  const layout = computePhenogramLayout(genes);
   const unresolved = genes
     .filter((gene) => placeGene(gene.chromosomalLocation) === null)
-    .map((gene) => `${gene.gene} ${gene.chromosomalLocation}`)
-    .filter((entry) => !UNPLACEABLE_IN_GOLD.has(entry));
-  assertEquals(unresolved, []);
+    .map((gene) => gene.gene);
+  assertEquals(layout.unplaced.map((gene) => gene.gene), unresolved);
+  const drawn = new Set(layout.blocks.map((block) => block.symbol));
+  for (const symbol of unresolved) assert(!drawn.has(symbol), symbol);
+  assertEquals(layout.blocks.length, genes.length - unresolved.length);
 });

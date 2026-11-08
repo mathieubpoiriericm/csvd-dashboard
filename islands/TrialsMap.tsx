@@ -19,7 +19,11 @@ import { trials } from "../lib/data/trials.ts";
 import type { TrialLocation } from "../lib/types.ts";
 import { formatCount } from "../lib/format.ts";
 import { filterLocationsByStatus } from "../lib/filters.ts";
-import { formatTrialPlace, resolveTrialStatus } from "../lib/trials.ts";
+import {
+  formatTrialPlace,
+  locationsWithTableStatus,
+  resolveTrialStatus,
+} from "../lib/trials.ts";
 import { observeThemeChanges } from "../lib/theme.ts";
 
 const nctKey = (value: string) => value.trim().toUpperCase();
@@ -35,11 +39,17 @@ const MAP_DEFAULT_ZOOM = 2;
 const MAP_CLUSTER_RADIUS_PX = 50;
 
 const TRIALS_BY_NCT = groupBy(trials, (trial) => nctKey(trial.registryId));
+/**
+ * The facilities, labelled and filtered by the status the trials table
+ * publishes under `GOLD_ONLY` and by ClinicalTrials.gov's per-site one
+ * otherwise (`locationsWithTableStatus`).
+ */
+const LOCATIONS = locationsWithTableStatus(trialLocations, trials);
 const COUNTRY_COUNT = uniqueCount(
-  trialLocations.map((location) => location.country).filter(Boolean),
+  LOCATIONS.map((location) => location.country).filter(Boolean),
 );
 const REGISTERED_TRIAL_COUNT = uniqueCount(
-  trialLocations.map((location) => nctKey(location.nctId)),
+  LOCATIONS.map((location) => nctKey(location.nctId)),
 );
 const GENERATED_LABEL = formatLongDate(trialLocationsGeneratedAt);
 
@@ -172,7 +182,7 @@ export default function TrialsMap() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const { values, controls, summary } = useCheckboxFilters(MAP_FILTERS);
   const visibleLocations = useMemo(
-    () => filterLocationsByStatus(trialLocations, values.statuses),
+    () => filterLocationsByStatus(LOCATIONS, values.statuses),
     [values],
   );
   /** Set once Leaflet is up: rebuilds the cluster layer for a location set. */
@@ -439,7 +449,7 @@ export default function TrialsMap() {
         // `getBounds()` on an empty layer group throws "Bounds are not
         // valid." into the outer catch -- replacing the whole map with the
         // load-error alert over a filter selection that filtered everything
-        // out. `trialLocations.length` (the unfiltered 378) would not have
+        // out. `LOCATIONS.length` (the unfiltered 378) would not have
         // caught that.
         if (cluster.getLayers().length > 0) {
           map.fitBounds(
@@ -475,14 +485,14 @@ export default function TrialsMap() {
           />
         ))}
         <p class="map-controls-count" role="status">
-          Showing {visibleLocations.length} of {trialLocations.length} sites
+          Showing {visibleLocations.length} of {LOCATIONS.length} sites
           {summary.length > 0 ? ` · ${summary.join("; ")}` : ""}
         </p>
       </div>
       <div class="map-stats">
         <MapStat
           icon="mapPin"
-          value={trialLocations.length}
+          value={LOCATIONS.length}
           singular="site"
           plural="sites"
         />

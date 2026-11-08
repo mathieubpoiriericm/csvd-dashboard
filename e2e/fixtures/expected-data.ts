@@ -35,7 +35,11 @@ export const INSTITUTE_ALT = EXPECTED.instituteAlt;
 export const INSTITUTE_COPYRIGHT = EXPECTED.instituteCopyright;
 export const MAINTAINER_EMAIL = EXPECTED.maintainerEmail;
 
-/** Rows the two tables show on first paint: genes are unfiltered, trials hide Completed. */
+/**
+ * Rows the two tables show on first paint: genes are unfiltered, and trials
+ * start from the default status selection -- every status but Completed,
+ * Suspended and Unknown, or all of them under gold-only.
+ */
 export const GENE_TOTAL = EXPECTED.geneRows;
 export const TRIAL_TOTAL = EXPECTED.trialRows;
 export const TRIAL_SHOWN = EXPECTED.trialRowsShown;

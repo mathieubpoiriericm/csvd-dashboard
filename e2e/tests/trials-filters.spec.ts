@@ -49,7 +49,9 @@ test.beforeEach(async ({ page }) => {
   await page.goto("/trials");
 });
 
-test("starts with completed, suspended and not-stated trials hidden", async ({ page }) => {
+test("starts from the default status selection", async ({ page }) => {
+  // Every status but Completed, Suspended and Unknown, or Show All under
+  // gold-only (`defaultTrialStatuses`); the fixture derives which.
   await expectSummary(page, DEFAULT_SUMMARY);
   await expectRowCount(page, TRIAL_SHOWN, TRIAL_TOTAL);
   for (const group of [EVIDENCE, REGISTRY, PHASE, POPULATION, SPONSOR]) {
@@ -207,9 +209,10 @@ test("clearing all filters restores every group and the search together", async 
 
   await page.getByRole("button", { name: "Clear all filters" }).click();
 
-  // `reset` returns every group to its seeded default, and the status
-  // group's default is "every status but Completed, Suspended and Unknown"
-  // -- the summary reads that line, not "None".
+  // `reset` returns every group to its seeded default. The status group's
+  // default is "every status but Completed, Suspended and Unknown", whose
+  // line the summary then reads rather than "None" -- or, under gold-only,
+  // Show All, which reads "None".
   await expectSummary(page, DEFAULT_SUMMARY);
   await expectRowCount(page, TRIAL_SHOWN, TRIAL_TOTAL);
   await expect(search).toHaveValue("");

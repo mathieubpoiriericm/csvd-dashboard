@@ -2,12 +2,14 @@ import { assert, assertEquals, assertMatch } from "@std/assert";
 
 import {
   formatTrialPlace,
+  locationsWithTableStatus,
   phaseBarLabel,
   registryLink,
   registryOf,
   resolveTrialStatus,
   splitTargetQualifier,
 } from "../lib/trials.ts";
+import { GOLD_ONLY } from "../lib/gold_only.ts";
 import { STATUS_NOT_STATED, TRIAL_STATUSES } from "../lib/trial_status.ts";
 
 Deno.test("phaseBarLabel names a missing phase rather than printing the sentinel", () => {
@@ -130,4 +132,48 @@ Deno.test("splitTargetQualifier separates a leading label from the symbol", () =
     qualifier: "",
     symbol: "PVRL2:CTB-129P6.4",
   });
+});
+
+Deno.test("map facilities take their trial's table status only under gold-only", () => {
+  const site = {
+    facilityName: "A",
+    city: "B",
+    state: null,
+    country: "C",
+    trialTitle: "T",
+    lat: 0,
+    lon: 0,
+  };
+  const locations = [
+    { ...site, nctId: "NCT00000001", status: "COMPLETED" },
+    { ...site, nctId: "nct00000002 ", status: "RECRUITING" },
+    { ...site, nctId: "NCT00000003", status: "RECRUITING" },
+    { ...site, nctId: "NCT00000004", status: "ACTIVE_NOT_RECRUITING" },
+  ];
+  const table = [
+    { registryId: "NCT00000001", overallStatus: "RECRUITING" },
+    { registryId: "NCT00000001", overallStatus: "COMPLETED" },
+    { registryId: "NCT00000002", overallStatus: "(unknown)" },
+    { registryId: "NCT00000003", overallStatus: "SUSPENDED" },
+  ];
+
+  // Otherwise the geocoder's per-site status stands, untouched.
+  assertEquals(locationsWithTableStatus(locations, table, false), locations);
+
+  // Under gold-only: the trial's first table row, the table's unstated
+  // sentinel as null, and null for a trial the table does not list.
+  assertEquals(
+    locationsWithTableStatus(locations, table, true).map((l) => l.status),
+    ["RECRUITING", null, "SUSPENDED", null],
+  );
+  // The dashboard as built follows GOLD_ONLY.
+  assertEquals(
+    locationsWithTableStatus(locations, table),
+    locationsWithTableStatus(locations, table, GOLD_ONLY),
+  );
+  // Nothing else about a facility changes.
+  assertEquals(
+    locationsWithTableStatus(locations, table, true).map((l) => l.nctId),
+    locations.map((l) => l.nctId),
+  );
 });

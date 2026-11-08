@@ -21,6 +21,7 @@ import { pipelineStatus } from "../lib/data/pipeline.ts";
 import { MAINTAINER, RADAR_TITLE, SITE_TITLE } from "../lib/disease.ts";
 import { DEFAULT_TRIAL_STATUSES } from "../lib/constants.ts";
 import { placeGene } from "../lib/cytobands.ts";
+import { locationsWithTableStatus } from "../lib/trials.ts";
 import { GOLD_ONLY, GOLD_ONLY_NOTICE } from "../lib/gold_only.ts";
 import { filterLocationsByStatus, visibleTrials } from "../lib/filters.ts";
 import type { PipelineRun, SyncRun } from "../lib/types.ts";
@@ -310,7 +311,10 @@ Deno.test("Map route includes map statistics and a complete text alternative", (
   assertStringIncludes(html, "Study status");
   assertEquals(
     (html.match(/<li/g) ?? []).length,
-    filterLocationsByStatus(trialLocations, DEFAULT_TRIAL_STATUSES).length,
+    filterLocationsByStatus(
+      locationsWithTableStatus(trialLocations, trials),
+      DEFAULT_TRIAL_STATUSES,
+    ).length,
   );
   // The error panel is for a Leaflet that failed to load; an empty facility
   // list is not an error and must not render as one.

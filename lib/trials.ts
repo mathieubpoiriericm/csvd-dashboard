@@ -1,5 +1,6 @@
+import { GOLD_ONLY } from "./gold_only.ts";
 import { isAbsent } from "./sentinels.ts";
-import type { TrialLocation } from "./types.ts";
+import type { Trial, TrialLocation } from "./types.ts";
 
 function defineRegistry(
   label: string,
@@ -109,4 +110,38 @@ export function splitTargetQualifier(
 ): { qualifier: string; symbol: string } {
   const qualifier = piece.match(TARGET_QUALIFIER)?.[0] ?? "";
   return { qualifier, symbol: piece.slice(qualifier.length) };
+}
+
+/**
+ * The map's facilities, each with the status the map labels and filters it by.
+ *
+ * Otherwise that is ClinicalTrials.gov's own per-facility status, which
+ * `deno task geocode` writes. Under `GOLD_ONLY` each facility takes its
+ * trial's published Table 2 status instead, so the map says what the table
+ * and the radar say: the curated trials carry no synced status, and the
+ * geocoder's per-site one would contradict them. A status the table leaves
+ * unstated (the export's "(unknown)"), or a facility whose trial the table
+ * does not list, becomes null -- no badge, and filed under Unknown, as the
+ * table files its own unstated rows.
+ */
+export function locationsWithTableStatus(
+  locations: readonly TrialLocation[],
+  trials: readonly Pick<Trial, "registryId" | "overallStatus">[],
+  goldOnly: boolean = GOLD_ONLY,
+): TrialLocation[] {
+  if (!goldOnly) return [...locations];
+  const key = (id: string) => id.trim().toUpperCase();
+  const statusByTrial = new Map<string, string>();
+  for (const trial of trials) {
+    if (!statusByTrial.has(key(trial.registryId))) {
+      statusByTrial.set(key(trial.registryId), trial.overallStatus);
+    }
+  }
+  return locations.map((location) => {
+    const status = statusByTrial.get(key(location.nctId));
+    return {
+      ...location,
+      status: status === undefined || isAbsent(status) ? null : status,
+    };
+  });
 }

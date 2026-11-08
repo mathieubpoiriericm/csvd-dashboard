@@ -51,7 +51,7 @@ import {
   encoding as phenogram,
 } from "../../lib/phenogram.ts";
 import { chromosomeOf } from "../../lib/sorting.ts";
-import { phaseBarLabel } from "../../lib/trials.ts";
+import { locationsWithTableStatus, phaseBarLabel } from "../../lib/trials.ts";
 import {
   computeTimelineLayout,
   encoding as timeline,
@@ -200,8 +200,11 @@ const phasesPresent = [
   ...[...phasesInTable].filter((p) => !PHASE_ORDER.includes(p)).sort(),
 ].map(phaseBarLabel);
 
+// The statuses the map labels and filters by: the trials table's under
+// GOLD_ONLY, ClinicalTrials.gov's per-site ones otherwise.
+const mapLocations = locationsWithTableStatus(trialLocations, trials);
 const shownLocations = filterLocationsByStatus(
-  trialLocations,
+  mapLocations,
   DEFAULT_TRIAL_STATUSES,
 );
 const nctKey = (value: string) => value.trim().toUpperCase();
@@ -294,6 +297,8 @@ const expected = {
   map: {
     sites: trialLocations.length,
     sitesShown: shownLocations.length,
+    /** Sites whose popup carries a status badge (a stated status). */
+    sitesWithStatus: mapLocations.filter((l) => l.status !== null).length,
     countries: uniqueCount(
       trialLocations.map((l) => l.country).filter(Boolean),
     ),
