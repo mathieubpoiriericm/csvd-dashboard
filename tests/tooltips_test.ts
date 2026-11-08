@@ -636,6 +636,34 @@ Deno.test("phenogramTooltip names the location, the evidence and the display lab
   ]);
 });
 
+Deno.test("phenogramTooltip states significant colocalization in words, without the stars", () => {
+  const gene = sampleGene({
+    chromosomalLocation: "1p31.3",
+    evidenceFromOtherOmicsStudies: [
+      "TWAS;Q: a*, b",
+      "Proteomics",
+      "PWAS;c*",
+    ],
+  });
+  const rows = phenogramTooltip(gene).rows;
+  const omics = rows.findIndex((r) => r.label === "Other omics");
+  assertEquals(rows[omics].value, "TWAS (Q: a, b); Proteomics; PWAS (c)");
+  assertEquals(rows[omics + 1], {
+    label: "Significant colocalization",
+    value: "TWAS (Q): a; PWAS: c",
+  });
+});
+
+Deno.test("phenogramTooltip adds no colocalization row when nothing colocalized", () => {
+  const gene = sampleGene({ evidenceFromOtherOmicsStudies: ["TWAS;Q: a, b"] });
+  assertEquals(
+    phenogramTooltip(gene).rows.some((r) =>
+      r.label === "Significant colocalization"
+    ),
+    false,
+  );
+});
+
 Deno.test("phenogramTooltip says None found rather than the sentinel", () => {
   const bare = phenogramTooltip(sampleGene({ chromosomalLocation: "7q31.1" }));
   assertEquals(bare.rows.map((r) => r.value), [
