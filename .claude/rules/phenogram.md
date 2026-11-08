@@ -115,7 +115,7 @@ The SVG is `aria-hidden` decoration. Over it, `ul.phenogram-genes` holds one
 absolutely positioned `<li>` per block, in percent of the viewBox, each wrapping
 `components/Tooltip.tsx` around a visually-hidden name — so hover, Enter,
 Tab-to-link and Escape are the tables' behaviour with no new tooltip code, and
-screen readers get the 87 genes in chromosome order. Pill backgrounds and the
-glyph positions after each symbol are the only measured geometry (`getBBox()` on
-mount and on `document.fonts.ready`); block positions never depend on text
-metrics.
+screen readers get every placed gene in chromosome order. Pill backgrounds and
+the glyph positions after each symbol are the only measured geometry
+(`getBBox()` on mount and on `document.fonts.ready`); block positions never
+depend on text metrics.

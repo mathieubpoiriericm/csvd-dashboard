@@ -81,9 +81,9 @@ function MapStat(
  *
  * Deliberately plain text. The list is `.visually-hidden`, which clips rather
  * than hides, so anchors inside it stay in the tab order — linking every
- * entry would hand sighted keyboard users 173 invisible tab stops on the
- * default selection, and 378 with Show All ticked. The ClinicalTrials.gov
- * links live in the marker popups and on the trials table.
+ * entry would hand sighted keyboard users one invisible tab stop per visible
+ * site, which has run to hundreds. The ClinicalTrials.gov links live in the
+ * marker popups and on the trials table.
  */
 function describeLocation(location: TrialLocation): string {
   return [
@@ -305,8 +305,8 @@ export default function TrialsMap() {
             markers.push(marker);
 
             // The popup body is rendered on demand: building a Preact tree per
-            // visible site -- 173 by default, 378 with Show All ticked -- would
-            // be wasted work for markers most viewers never open.
+            // visible site, which has run to hundreds, would be wasted work for
+            // markers most viewers never open.
             // One host per marker, unmounted on close: Leaflet calls this back on
             // every open, so a fresh host each time would leave a Preact root
             // mounted per open, and `MapPopup` need only grow one effect — a
@@ -449,7 +449,7 @@ export default function TrialsMap() {
         // `getBounds()` on an empty layer group throws "Bounds are not
         // valid." into the outer catch -- replacing the whole map with the
         // load-error alert over a filter selection that filtered everything
-        // out. `LOCATIONS.length` (the unfiltered 378) would not have
+        // out. `LOCATIONS.length` (every site, unfiltered) would not have
         // caught that.
         if (cluster.getLayers().length > 0) {
           map.fitBounds(
