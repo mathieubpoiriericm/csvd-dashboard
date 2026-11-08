@@ -142,7 +142,7 @@ Deno.test("GenesView renders tooltipped values, absent cells and citations from 
   assertStringIncludes(html, 'class="cell-absent"');
   // The study type is its own tooltip, and the detail prints plain after it.
   assertStringIncludes(html, ">TWAS</button>");
-  assertStringIncludes(html, " (<span >whole blood</span>)");
+  assertStringIncludes(html.replace(/<[^>]+>/g, ""), "TWAS (whole blood)");
   // A PMID with no citation record renders as the number itself.
   assertStringIncludes(html, ">10000001<");
   assertStringIncludes(html, "showing 13 of 13 rows");

@@ -42,6 +42,14 @@ Deno.test("an acronym inside an item is boxed", () => {
   assertEquals(text(html), "Qomics (TWAS: a, TWAS)");
 });
 
+Deno.test("a term awaiting clarification prints as written, followed by a ? mark", () => {
+  const html = renderToString(
+    <OmicsEntryView value="Qomics;[?]: a, QQ-RR[?] b*" />,
+  );
+  assertEquals(triggers(html), ["Qomics", "?", "?"]);
+  assertEquals(text(html), "Qomics (?: a, QQ-RR? b)");
+});
+
 Deno.test("AcronymText boxes each acronym and leaves the words around it", () => {
   const html = renderToString(<AcronymText text="multi-trait TWAS and more" />);
   assertEquals(triggers(html), ["TWAS"]);

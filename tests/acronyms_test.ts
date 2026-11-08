@@ -2,6 +2,8 @@ import { assertEquals, assertThrows } from "@std/assert";
 
 import {
   acronymTooltip,
+  CLARIFICATION_MARK,
+  clarificationTooltip,
   splitAcronyms,
   uncoveredAcronyms,
 } from "../lib/acronyms.ts";
@@ -28,9 +30,32 @@ Deno.test("splitAcronyms boxes whole glossary terms, longest first", () => {
   ]);
 });
 
+Deno.test("splitAcronyms boxes an acronym before a hyphenated word, not before another code", () => {
+  assertEquals(splitAcronyms("AB-based", G), [
+    { text: "AB", acronym: true },
+    { text: "-based", acronym: false },
+  ]);
+  assertEquals(splitAcronyms("AB-X9", G), [{ text: "AB-X9", acronym: false }]);
+});
+
+Deno.test("uncoveredAcronyms leaves out a term marked as awaiting clarification", () => {
+  assertEquals(uncoveredAcronyms("ZZ9[?] and QQ-RR[?], ZZ8", G), ["ZZ8"]);
+});
+
+Deno.test("clarificationTooltip says the term is kept as the source wrote it", () => {
+  assertEquals(clarificationTooltip(), {
+    rows: [{
+      label: "Needs clarification",
+      value:
+        "Kept as the curated source wrote it; its meaning is not yet confirmed.",
+    }],
+  });
+  assertEquals(CLARIFICATION_MARK, "[?]");
+});
+
 Deno.test("splitAcronyms never boxes part of a word", () => {
-  assertEquals(splitAcronyms("ABC AB-based xAB", G), [
-    { text: "ABC AB-based xAB", acronym: false },
+  assertEquals(splitAcronyms("ABC xAB", G), [
+    { text: "ABC xAB", acronym: false },
   ]);
   assertEquals(splitAcronyms("AB/X1", G).map((s) => s.text), [
     "AB",
@@ -66,8 +91,8 @@ Deno.test("acronymTooltip gives the name and kind, and colocalization when given
 
 Deno.test("uncoveredAcronyms reports acronym-like tokens the glossary lacks", () => {
   assertEquals(
-    uncoveredAcronyms("AB, ZZ9 and Brain, AB-based, c1, P/Q, ZZ9", G),
-    ["ZZ9", "AB-based"],
+    uncoveredAcronyms("AB, ZZ9 and Brain, AB-based, ZZ-based, c1, P/Q, ZZ9", G),
+    ["ZZ9", "ZZ-based"],
   );
   assertEquals(uncoveredAcronyms("AB here", new Map()), ["AB"]);
 });

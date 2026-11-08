@@ -2,10 +2,12 @@
  * Acronyms in free text: finding them, explaining them, and finding the ones
  * the glossary cannot explain.
  *
- * Matching is case-sensitive and whole-token: a glossary key is only boxed
- * where neither neighbour is a letter, a digit or a hyphen, so `AB` is not
- * found inside `ABC`, `xAB` or `AB-based`, and the longest key wins where two
- * overlap (`WM-PVS` over `PVS`). A slash, a space or punctuation separates.
+ * Matching is case-sensitive and whole-token: a glossary key is boxed only
+ * where no letter, digit or hyphen precedes it and no letter or digit follows
+ * it, so `AB` is not found inside `ABC` or `xAB`. A hyphen may follow when a
+ * lower-case word comes after it (`ML-based`), not another code (`AB-X9`),
+ * and the longest key wins where two overlap (`WM-PVS` over `PVS`). A slash,
+ * a space or punctuation separates.
  */
 
 import { ACRONYMS } from "./disease/acronyms.ts";
@@ -14,6 +16,27 @@ import type { Acronym } from "./types.ts";
 
 /** The tooltip row label that says a tissue colocalized significantly. */
 export const COLOCALIZATION_LABEL = "Significant colocalization";
+
+/**
+ * Written straight after a term the curators have yet to confirm (`HV-PVS[?]`),
+ * or alone where a part is missing (`TWAS;[?]: tissue`). The term stays as
+ * the source wrote it; the cell prints a `?` that says so, and the glossary
+ * is not expected to know it.
+ */
+export const CLARIFICATION_MARK = "[?]";
+
+/** A term and the mark straight after it. */
+const MARKED_TERM = /[A-Za-z0-9-]*\[\?\]/g;
+
+export function clarificationTooltip(): TooltipContent {
+  return {
+    rows: [{
+      label: "Needs clarification",
+      value:
+        "Kept as the curated source wrote it; its meaning is not yet confirmed.",
+    }],
+  };
+}
 
 export interface Segment {
   text: string;
@@ -27,9 +50,10 @@ function patternFor(glossary: ReadonlyMap<string, Acronym>): RegExp | null {
   const keys = [...glossary.keys()]
     .sort((a, b) => b.length - a.length)
     .map((key) => key.replace(/[.*+?^${}()|[\]\\/-]/g, "\\$&"));
-  const pattern = keys.length === 0
-    ? null
-    : new RegExp(`(?<![A-Za-z0-9-])(?:${keys.join("|")})(?![A-Za-z0-9-])`, "g");
+  const pattern = keys.length === 0 ? null : new RegExp(
+    `(?<![A-Za-z0-9-])(?:${keys.join("|")})(?![A-Za-z0-9]|-[A-Z0-9])`,
+    "g",
+  );
   patterns.set(glossary, pattern);
   return pattern;
 }
@@ -83,7 +107,8 @@ export function uncoveredAcronyms(
   glossary: ReadonlyMap<string, Acronym> = ACRONYMS,
 ): string[] {
   const pattern = patternFor(glossary);
-  const rest = pattern ? text.replace(pattern, " ") : text;
+  const unmarked = text.replace(MARKED_TERM, " ");
+  const rest = pattern ? unmarked.replace(pattern, " ") : unmarked;
   const tokens = rest.split(/[^A-Za-z0-9-]+/).filter((token) =>
     // The first test guarantees the match below finds at least one.
     /[A-Z]/.test(token) && token.match(/[A-Z0-9]/g)!.length >= 2
