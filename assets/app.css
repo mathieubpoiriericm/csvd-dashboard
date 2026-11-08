@@ -3571,9 +3571,9 @@ button.adapt-card-head:focus-visible {
 
 /* === TOOLTIP TRIGGERS === */
 
-/* Rest-state border is 2px (not 1px) so the hover change to solid does not
-   widen the box — keeps the hover transition paint-only, with no reflow of
-   the surrounding table cell. */
+/* No underline: the tinted wash is the whole affordance, and a dotted accent
+   line under every value in a data table only added noise. The hover darkens
+   the wash, so the transition stays paint-only. */
 .tooltip-box {
   /* The genes-page tip promises that anything with a background carries a
      tooltip, so the rest state has to be visible on a white cell — a
@@ -3589,17 +3589,13 @@ button.adapt-card-head:focus-visible {
   display: inline-block;
   box-shadow: var(--svd-shadow-xs);
   border: 0;
-  border-bottom: 2px dotted var(--svd-accent);
   cursor: help;
   transition: box-shadow var(--svd-transition),
-    background-color var(--svd-transition),
-    border-bottom-color var(--svd-transition), transform var(--svd-transition);
+    background-color var(--svd-transition), transform var(--svd-transition);
 }
 
 .tooltip-box:hover {
   background-color: color-mix(in oklab, var(--svd-tint) 24%, transparent);
-  border-bottom-color: var(--svd-primary);
-  border-bottom-style: solid;
 }
 
 .tooltip-box-italic {
@@ -4874,8 +4870,8 @@ button.adapt-card-head:focus-visible {
   background: transparent;
   box-shadow: none;
   transform: none;
-  /* Only the wash changes here, so the trigger's four-slot transition would
-     be three dead slots on 63 elements. */
+  /* Only the wash changes here, so the trigger's three-slot transition would
+     be two dead slots on 63 elements. */
   transition: background-color var(--svd-transition);
   cursor: pointer;
 }

@@ -178,7 +178,7 @@ function ReferenceCitation({ pmid }: { pmid: string }) {
  * The references cell: one short citation per PMID, each with its tooltip.
  *
  * The citations are separated by a space and nothing else. Each one is a
- * `.tooltip-box` -- a tinted, dotted-underlined chip with its own padding --
+ * `.tooltip-box` -- a tinted chip with its own padding --
  * so the boundary between two of them is already drawn; a semicolon between
  * them only added a stray mark to a column that is the table's narrowest.
  *

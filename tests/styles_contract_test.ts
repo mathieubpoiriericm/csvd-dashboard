@@ -1930,3 +1930,17 @@ Deno.test("the wizard looks inert until it is live, and a lookup's held button l
   // Spaced by gaps: a status paragraph keeps no global margin.
   assertMatch(css, /\.adapt-status \{\s*margin: 0;/);
 });
+
+Deno.test("the tooltip triggers draw no underline", () => {
+  // The tinted wash is the trigger's whole affordance -- the genes-page tip
+  // promises that anything with a background carries a tooltip -- so a
+  // dotted accent line under every value in a data table only added noise.
+  const underlines = ["border-bottom", "border-bottom-style"].flatMap((p) =>
+    declarationsOf(p).filter((d) => d.selector.includes(".tooltip-box"))
+  );
+  assertEquals(
+    underlines.map((d) => `${d.selector} (app.css:${d.line})`),
+    [],
+    "a .tooltip-box rule draws a bottom border",
+  );
+});
