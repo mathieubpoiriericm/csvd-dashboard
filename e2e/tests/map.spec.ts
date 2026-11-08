@@ -262,8 +262,8 @@ async function openAnyMarker(page: import("@playwright/test").Page) {
     '.leaflet-overlay-pane path.leaflet-interactive[role="button"]:visible',
   );
   const cluster = page.locator(".marker-cluster");
-  const markerInView = () =>
-    marker.evaluateAll((elements) => {
+  const firstInView = (locator: typeof marker) =>
+    locator.evaluateAll((elements) => {
       const map = document.querySelector(".trials-map")!
         .getBoundingClientRect();
       return elements.findIndex((element) => {
@@ -273,11 +273,15 @@ async function openAnyMarker(page: import("@playwright/test").Page) {
         return x > map.left && x < map.right && y > map.top && y < map.bottom;
       });
     });
+  const markerInView = () => firstInView(marker);
 
   await expect(async () => {
     if (await markerInView() === -1) {
-      if (await cluster.count() > 0) {
-        await cluster.first().click();
+      // Leaflet keeps clusters a little past the visible edge in the DOM, so
+      // the first one in document order can sit outside a narrow map.
+      const clusterIndex = await firstInView(cluster);
+      if (clusterIndex >= 0) {
+        await cluster.nth(clusterIndex).click();
       } else {
         await page.getByRole("button", { name: "Zoom in" }).click();
       }

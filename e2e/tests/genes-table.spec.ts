@@ -226,8 +226,17 @@ test("pagination walks the pages and tracks the current one", async ({ page }) =
   await expect(currentPage(page)).toHaveText(String(PAGE_WINDOW));
   await expect(next).toBeEnabled();
 
-  await page.getByRole("button", { name: `Page ${PAGES}`, exact: true })
-    .click();
+  // The window centres on the current page, so with more than ten pages the
+  // last one is still out of reach: keep clicking the window's last button
+  // until it is in it.
+  const lastPage = page.getByRole("button", {
+    name: `Page ${PAGES}`,
+    exact: true,
+  });
+  while (!(await lastPage.isVisible())) {
+    await numberedPages(page).last().click();
+  }
+  await lastPage.click();
   await expect(currentPage(page)).toHaveText(String(PAGES));
   // The last page holds the remainder.
   const remainder = TOTAL - (PAGES - 1) * 10;

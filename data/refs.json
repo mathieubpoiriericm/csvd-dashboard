@@ -1,21 +1,102 @@
 [
   {
-    "pmid": "37063705",
-    "authors": "Morel H, Bailly L, Urbanczyk C, et al.",
-    "title": "Extension of the Clinicoradiologic Spectrum of Newly Described End-Truncating ",
-    "journal": "Neurology. Genetics",
-    "publicationDate": "Jun 2023",
-    "doi": "10.1212/NXG.0000000000200069",
-    "formattedRef": "<b>Morel H, Bailly L, Urbanczyk C, et al.<\/b><br><i>Extension of the Clinicoradiologic Spectrum of Newly Described End-Truncating<\/i><br>Neurology. Genetics (Jun 2023)<br>DOI: 10.1212/NXG.0000000000200069"
+    "pmid": "39298701",
+    "authors": "Muiño E, Carcel-Marquez J, Llucià-Carol L, et al.",
+    "title": "Identification of Genetic Loci Associated With Intracerebral Hemorrhage Using a Multitrait Analysis Approach.",
+    "journal": "Neurology",
+    "publicationDate": "Oct 2024",
+    "doi": "10.1212/WNL.0000000000209666",
+    "formattedRef": "<b>Muiño E, Carcel-Marquez J, Llucià-Carol L, et al.<\/b><br><i>Identification of Genetic Loci Associated With Intracerebral Hemorrhage Using a Multitrait Analysis Approach.<\/i><br>Neurology (Oct 2024)<br>DOI: 10.1212/WNL.0000000000209666"
   },
   {
-    "pmid": "34606115",
-    "authors": "Aloui C, Hervé D, Marenne G, et al.",
-    "title": "End-Truncated LAMB1 Causes a Hippocampal Memory Defect and a Leukoencephalopathy.",
-    "journal": "Annals of neurology",
-    "publicationDate": "Dec 2021",
-    "doi": "10.1002/ana.26242",
-    "formattedRef": "<b>Aloui C, Hervé D, Marenne G, et al.<\/b><br><i>End-truncated LAMB1 Causes a Hippocampal Memory Defect and a Leukoencephalopathy.<\/i><br>Annals of neurology (Dec 2021)<br>DOI: 10.1002/ana.26242"
+    "pmid": "37231261",
+    "authors": "Hao Y, Stuart T, Kowalski MH, et al.",
+    "title": "Dictionary learning for integrative, multimodal and scalable single-cell analysis.",
+    "journal": "Nature biotechnology",
+    "publicationDate": "Feb 2024",
+    "doi": "10.1038/s41587-023-01767-y",
+    "formattedRef": "<b>Hao Y, Stuart T, Kowalski MH, et al.<\/b><br><i>Dictionary learning for integrative, multimodal and scalable single-cell analysis.<\/i><br>Nature biotechnology (Feb 2024)<br>DOI: 10.1038/s41587-023-01767-y"
+  },
+  {
+    "pmid": "38868715",
+    "authors": "Gu Z",
+    "title": "Complex heatmap visualization.",
+    "journal": "iMeta",
+    "publicationDate": "Sep 2022",
+    "doi": "10.1002/imt2.43",
+    "formattedRef": "<b>Gu Z<\/b><br><i>Complex heatmap visualization.<\/i><br>iMeta (Sep 2022)<br>DOI: 10.1002/imt2.43"
+  },
+  {
+    "pmid": "35084939",
+    "authors": "Winkler EA, Kim CN, Ross JM, et al.",
+    "title": "A single-cell atlas of the normal and malformed human brain vasculature.",
+    "journal": "Science (New York, N.Y.)",
+    "publicationDate": "Mar 2022",
+    "doi": "10.1126/science.abi7377",
+    "formattedRef": "<b>Winkler EA, Kim CN, Ross JM, et al.<\/b><br><i>A single-cell atlas of the normal and malformed human brain vasculature.<\/i><br>Science (New York, N.Y.) (Mar 2022)<br>DOI: 10.1126/science.abi7377"
+  },
+  {
+    "pmid": "35165441",
+    "authors": "Yang AC, Vest RT, Kern F, et al.",
+    "title": "A human brain vascular atlas reveals diverse mediators of Alzheimer's risk.",
+    "journal": "Nature",
+    "publicationDate": "Mar 2022",
+    "doi": "10.1038/s41586-021-04369-3",
+    "formattedRef": "<b>Yang AC, Vest RT, Kern F, et al.<\/b><br><i>A human brain vascular atlas reveals diverse mediators of Alzheimer's risk.<\/i><br>Nature (Mar 2022)<br>DOI: 10.1038/s41586-021-04369-3"
+  },
+  {
+    "pmid": "38987604",
+    "authors": "Wälchli T, Ghobrial M, Schwab M, et al.",
+    "title": "Single-cell atlas of the human brain vasculature across development, adulthood and disease.",
+    "journal": "Nature",
+    "publicationDate": "Aug 2024",
+    "doi": "10.1038/s41586-024-07493-y",
+    "formattedRef": "<b>Wälchli T, Ghobrial M, Schwab M, et al.<\/b><br><i>Single-cell atlas of the human brain vasculature across development, adulthood and disease.<\/i><br>Nature (Aug 2024)<br>DOI: 10.1038/s41586-024-07493-y"
+  },
+  {
+    "pmid": "35158371",
+    "authors": "Garcia FJ, Sun N, Lee H, et al.",
+    "title": "Single-cell dissection of the human brain vasculature.",
+    "journal": "Nature",
+    "publicationDate": "Mar 2022",
+    "doi": "10.1038/s41586-022-04521-7",
+    "formattedRef": "<b>Garcia FJ, Sun N, Lee H, et al.<\/b><br><i>Single-cell dissection of the human brain vasculature.<\/i><br>Nature (Mar 2022)<br>DOI: 10.1038/s41586-022-04521-7"
+  },
+  {
+    "pmid": "37824663",
+    "authors": "Siletti K, Hodge R, Mossi Albiach A, et al.",
+    "title": "Transcriptomic diversity of cell types across the adult human brain.",
+    "journal": "Science (New York, N.Y.)",
+    "publicationDate": "Oct 2023",
+    "doi": "10.1126/science.add7046",
+    "formattedRef": "<b>Siletti K, Hodge R, Mossi Albiach A, et al.<\/b><br><i>Transcriptomic diversity of cell types across the adult human brain.<\/i><br>Science (New York, N.Y.) (Oct 2023)<br>DOI: 10.1126/science.add7046"
+  },
+  {
+    "pmid": "29443965",
+    "authors": "Vanlandewijck M, He L, Mäe MA, et al.",
+    "title": "A molecular atlas of cell types and zonation in the brain vasculature.",
+    "journal": "Nature",
+    "publicationDate": "Feb 2018",
+    "doi": "10.1038/nature25739",
+    "formattedRef": "<b>Vanlandewijck M, He L, Mäe MA, et al.<\/b><br><i>A molecular atlas of cell types and zonation in the brain vasculature.<\/i><br>Nature (Feb 2018)<br>DOI: 10.1038/nature25739"
+  },
+  {
+    "pmid": "30129931",
+    "authors": "He L, Vanlandewijck M, Mäe MA, et al.",
+    "title": "Single-cell RNA sequencing of mouse brain and lung vascular and vessel-associated cell types.",
+    "journal": "Scientific data",
+    "publicationDate": "Aug 2018",
+    "doi": "10.1038/sdata.2018.160",
+    "formattedRef": "<b>He L, Vanlandewijck M, Mäe MA, et al.<\/b><br><i>Single-cell RNA sequencing of mouse brain and lung vascular and vessel-associated cell types.<\/i><br>Scientific data (Aug 2018)<br>DOI: 10.1038/sdata.2018.160"
+  },
+  {
+    "pmid": "26063658",
+    "authors": "Verdura E, Hervé D, Scharrer E, et al.",
+    "title": "Heterozygous HTRA1 mutations are associated with autosomal dominant cerebral small vessel disease.",
+    "journal": "Brain : a journal of neurology",
+    "publicationDate": "Aug 2015",
+    "doi": "10.1093/brain/awv155",
+    "formattedRef": "<b>Verdura E, Hervé D, Scharrer E, et al.<\/b><br><i>Heterozygous HTRA1 mutations are associated with autosomal dominant cerebral small vessel disease.<\/i><br>Brain : a journal of neurology (Aug 2015)<br>DOI: 10.1093/brain/awv155"
   },
   {
     "pmid": "33773637",
@@ -27,13 +108,40 @@
     "formattedRef": "<b>Traylor M, Persyn E, Tomppo L, et al.<\/b><br><i>Genetic basis of lacunar stroke: a pooled analysis of individual patient data and genome-wide association studies.<\/i><br>The Lancet. Neurology (May 2021)<br>DOI: 10.1016/S1474-4422(21)00031-4"
   },
   {
-    "pmid": "37069360",
-    "authors": "Duperron MG, Knol MJ, Le Grand Q, et al.",
-    "title": "Genomics of perivascular space burden unravels early mechanisms of cerebral small vessel disease.",
-    "journal": "Nature medicine",
-    "publicationDate": "Apr 2023",
-    "doi": "10.1038/s41591-023-02268-w",
-    "formattedRef": "<b>Duperron MG, Knol MJ, Le Grand Q, et al.<\/b><br><i>Genomics of perivascular space burden unravels early mechanisms of cerebral small vessel disease.<\/i><br>Nature medicine (Apr 2023)<br>DOI: 10.1038/s41591-023-02268-w"
+    "pmid": "36180795",
+    "authors": "Mishra A, Malik R, Hachiya T, et al.",
+    "title": "Stroke genetics informs drug discovery and risk prediction across ancestries.",
+    "journal": "Nature",
+    "publicationDate": "Nov 2022",
+    "doi": "10.1038/s41586-022-05165-3",
+    "formattedRef": "<b>Mishra A, Malik R, Hachiya T, et al.<\/b><br><i>Stroke genetics informs drug discovery and risk prediction across ancestries.<\/i><br>Nature (Nov 2022)<br>DOI: 10.1038/s41586-022-05165-3"
+  },
+  {
+    "pmid": "34626176",
+    "authors": "Malik R, Beaufort N, Frerich S, et al.",
+    "title": "Whole-exome sequencing reveals a role of HTRA1 and EGFL8 in brain white matter hyperintensities.",
+    "journal": "Brain : a journal of neurology",
+    "publicationDate": "Oct 2021",
+    "doi": "10.1093/brain/awab253",
+    "formattedRef": "<b>Malik R, Beaufort N, Frerich S, et al.<\/b><br><i>Whole-exome sequencing reveals a role of HTRA1 and EGFL8 in brain white matter hyperintensities.<\/i><br>Brain : a journal of neurology (Oct 2021)<br>DOI: 10.1093/brain/awab253"
+  },
+  {
+    "pmid": "39196222",
+    "authors": "Malik R, Beaufort N, Li J, et al.",
+    "title": "Genetically proxied HTRA1 protease activity and circulating levels independently predict risk of ischemic stroke and coronary artery disease.",
+    "journal": "Nature cardiovascular research",
+    "publicationDate": "Jun 2024",
+    "doi": "10.1038/s44161-024-00475-3",
+    "formattedRef": "<b>Malik R, Beaufort N, Li J, et al.<\/b><br><i>Genetically proxied HTRA1 protease activity and circulating levels independently predict risk of ischemic stroke and coronary artery disease.<\/i><br>Nature cardiovascular research (Jun 2024)<br>DOI: 10.1038/s44161-024-00475-3"
+  },
+  {
+    "pmid": "39216230",
+    "authors": "McNeilly S, Thomson CR, Gonzalez-Trueba L, et al.",
+    "title": "Collagen IV deficiency causes hypertrophic remodeling and endothelium-dependent hyperpolarization in small vessel disease with intracerebral hemorrhage.",
+    "journal": "EBioMedicine",
+    "publicationDate": "Sep 2024",
+    "doi": "10.1016/j.ebiom.2024.105315",
+    "formattedRef": "<b>McNeilly S, Thomson CR, Gonzalez-Trueba L, et al.<\/b><br><i>Collagen IV deficiency causes hypertrophic remodeling and endothelium-dependent hyperpolarization in small vessel disease with intracerebral hemorrhage.<\/i><br>EBioMedicine (Sep 2024)<br>DOI: 10.1016/j.ebiom.2024.105315"
   },
   {
     "pmid": "31430377",
@@ -54,78 +162,6 @@
     "formattedRef": "<b>Persyn E, Hanscombe KB, Howson JMM, et al.<\/b><br><i>Genome-wide association study of MRI markers of cerebral small vessel disease in 42,310 participants.<\/i><br>Nature communications (May 2020)<br>DOI: 10.1038/s41467-020-15932-3"
   },
   {
-    "pmid": "36180795",
-    "authors": "Mishra A, Malik R, Hachiya T, et al.",
-    "title": "Stroke genetics informs drug discovery and risk prediction across ancestries.",
-    "journal": "Nature",
-    "publicationDate": "Nov 2022",
-    "doi": "10.1038/s41586-022-05165-3",
-    "formattedRef": "<b>Mishra A, Malik R, Hachiya T, et al.<\/b><br><i>Stroke genetics informs drug discovery and risk prediction across ancestries.<\/i><br>Nature (Nov 2022)<br>DOI: 10.1038/s41586-022-05165-3"
-  },
-  {
-    "pmid": "34358307",
-    "authors": "Traylor M, Malik R, Gesierich B, et al.",
-    "title": "The BS variant of C4 protects against age-related loss of white matter microstructural integrity.",
-    "journal": "Brain : a journal of neurology",
-    "publicationDate": "Mar 2022",
-    "doi": "10.1093/brain/awab261",
-    "formattedRef": "<b>Traylor M, Malik R, Gesierich B, et al.<\/b><br><i>The BS variant of C4 protects against age-related loss of white matter microstructural integrity.<\/i><br>Brain : a journal of neurology (Mar 2022)<br>DOI: 10.1093/brain/awab261"
-  },
-  {
-    "pmid": "42907737",
-    "authors": "Zeng Y, Huang X, Yang Y, et al.",
-    "title": "A latent genetic factor underlies multiple component phenotypes of cerebral small vessel disease.",
-    "journal": "BMC neuroscience",
-    "publicationDate": "Jul 2026",
-    "doi": "10.1186/s12868-026-01031-4",
-    "formattedRef": "<b>Zeng Y, Huang X, Yang Y, et al.<\/b><br><i>A latent genetic factor underlies multiple component phenotypes of cerebral small vessel disease.<\/i><br>BMC neuroscience (Jul 2026)<br>DOI: 10.1186/s12868-026-01031-4"
-  },
-  {
-    "pmid": "42890341",
-    "authors": "Zhang Z, Maimaiti A, Li J, et al.",
-    "title": "Cross-trait genetic architecture of intracerebral hemorrhage highlights convergent vascular, hematologic and lipid pathways.",
-    "journal": "Metabolism open",
-    "publicationDate": "Dec 2026",
-    "doi": "10.1016/j.metop.2026.100502",
-    "formattedRef": "<b>Zhang Z, Maimaiti A, Li J, et al.<\/b><br><i>Cross-trait genetic architecture of intracerebral hemorrhage highlights convergent vascular, hematologic and lipid pathways.<\/i><br>Metabolism open (Dec 2026)<br>DOI: 10.1016/j.metop.2026.100502"
-  },
-  {
-    "pmid": "41400577",
-    "authors": "Shlapakova PS, Dobrynina LA, Gnedovskaya EV, et al.",
-    "title": "Prospects and Challenges in Identifying Genetic Determinants of Age-Related Cerebral Small Vessel Disease.",
-    "journal": "Aging and disease",
-    "publicationDate": "Dec 2025",
-    "doi": "10.14336/AD.2025.1272",
-    "formattedRef": "<b>Shlapakova PS, Dobrynina LA, Gnedovskaya EV, et al.<\/b><br><i>Prospects and Challenges in Identifying Genetic Determinants of Age-Related Cerebral Small Vessel Disease.<\/i><br>Aging and disease (Dec 2025)<br>DOI: 10.14336/AD.2025.1272"
-  },
-  {
-    "pmid": "40770913",
-    "authors": "Chakkarai S, Le Grand Q, Shaoxuan LW, et al.",
-    "title": "Unravelling the genetic architecture of cerebral small vessel disease in the context of stroke.",
-    "journal": "Journal of cerebral blood flow and metabolism : official journal of the International Society of Cerebral Blood Flow and Metabolism",
-    "publicationDate": "Jun 2026",
-    "doi": "10.1177/0271678X251362977",
-    "formattedRef": "<b>Chakkarai S, Le Grand Q, Shaoxuan LW, et al.<\/b><br><i>Unravelling the genetic architecture of cerebral small vessel disease in the context of stroke.<\/i><br>Journal of cerebral blood flow and metabolism : official journal of the International Society of Cerebral Blood Flow and Metabolism (Jun 2026)<br>DOI: 10.1177/0271678X251362977"
-  },
-  {
-    "pmid": "40141087",
-    "authors": "Chaar DL, Li Z, Shang L, et al.",
-    "title": "Multi-Ancestry Transcriptome-Wide Association Studies of Cognitive Function, White Matter Hyperintensity, and Alzheimer's Disease.",
-    "journal": "International journal of molecular sciences",
-    "publicationDate": "Mar 2025",
-    "doi": "10.3390/ijms26062443",
-    "formattedRef": "<b>Chaar DL, Li Z, Shang L, et al.<\/b><br><i>Multi-Ancestry Transcriptome-Wide Association Studies of Cognitive Function, White Matter Hyperintensity, and Alzheimer's Disease.<\/i><br>International journal of molecular sciences (Mar 2025)<br>DOI: 10.3390/ijms26062443"
-  },
-  {
-    "pmid": "39965059",
-    "authors": "Markus HS, Joutel A",
-    "title": "The pathogenesis of cerebral small vessel disease and vascular cognitive impairment.",
-    "journal": "Physiological reviews",
-    "publicationDate": "Jul 2025",
-    "doi": "10.1152/physrev.00028.2024",
-    "formattedRef": "<b>Markus HS, Joutel A<\/b><br><i>The pathogenesis of cerebral small vessel disease and vascular cognitive impairment.<\/i><br>Physiological reviews (Jul 2025)<br>DOI: 10.1152/physrev.00028.2024"
-  },
-  {
     "pmid": "33293549",
     "authors": "Sargurupremraj M, Suzuki H, Jian X, et al.",
     "title": "Cerebral small vessel disease genomics and its implications across the lifespan.",
@@ -135,562 +171,13 @@
     "formattedRef": "<b>Sargurupremraj M, Suzuki H, Jian X, et al.<\/b><br><i>Cerebral small vessel disease genomics and its implications across the lifespan.<\/i><br>Nature communications (Dec 2020)<br>DOI: 10.1038/s41467-020-19111-2"
   },
   {
-    "pmid": "35328582",
-    "authors": "Cullell N, Gallego-Fábrega C, Cárcel-Márquez J, et al.",
-    "title": "ICA1L Is Associated with Small Vessel Disease: A Proteome-Wide Association Study in Small Vessel Stroke and Intracerebral Haemorrhage.",
-    "journal": "International journal of molecular sciences",
+    "pmid": "34358307",
+    "authors": "Traylor M, Malik R, Gesierich B, et al.",
+    "title": "The BS variant of C4 protects against age-related loss of white matter microstructural integrity.",
+    "journal": "Brain : a journal of neurology",
     "publicationDate": "Mar 2022",
-    "doi": "10.3390/ijms23063161",
-    "formattedRef": "<b>Cullell N, Gallego-Fábrega C, Cárcel-Márquez J, et al.<\/b><br><i>Ica1l Is Associated with Small Vessel Disease: A Proteome-Wide Association Study in Small Vessel Stroke and Intracerebral Haemorrhage.<\/i><br>International journal of molecular sciences (Mar 2022)<br>DOI: 10.3390/ijms23063161"
-  },
-  {
-    "pmid": "41457966",
-    "authors": "Yu Y, Xia T, Wang Y, et al.",
-    "title": "Genetic Dissection of Plasma Proteins and Blood Pressure in Small Vessel Disease.",
-    "journal": "Hypertension (Dallas, Tex. : 1979)",
-    "publicationDate": "Feb 2026",
-    "doi": "10.1161/HYPERTENSIONAHA.125.25608",
-    "formattedRef": "<b>Yu Y, Xia T, Wang Y, et al.<\/b><br><i>Genetic Dissection of Plasma Proteins and Blood Pressure in Small Vessel Disease.<\/i><br>Hypertension (Dallas, Tex. : 1979) (Feb 2026)<br>DOI: 10.1161/HYPERTENSIONAHA.125.25608"
-  },
-  {
-    "pmid": "42454751",
-    "authors": "Biessels GJ, Debette S, Elahi FM, et al.",
-    "title": "The vascular contribution to dementia: World Stroke Organization scientific statement.",
-    "journal": "International journal of stroke : official journal of the International Stroke Society",
-    "publicationDate": "Oct 2026",
-    "doi": "10.1177/17474930261470506",
-    "formattedRef": "<b>Biessels GJ, Debette S, Elahi FM, et al.<\/b><br><i>The vascular contribution to dementia: World Stroke Organization scientific statement.<\/i><br>International journal of stroke : official journal of the International Stroke Society (Oct 2026)<br>DOI: 10.1177/17474930261470506"
-  },
-  {
-    "pmid": "42403363",
-    "authors": "Jin C, Song X, Sun Y, et al.",
-    "title": "Roles of Microglia in Cerebral Small Vessel Disease.",
-    "journal": "CNS neuroscience & therapeutics",
-    "publicationDate": "Jul 2026",
-    "doi": "10.1002/cns.71007",
-    "formattedRef": "<b>Jin C, Song X, Sun Y, et al.<\/b><br><i>Roles of Microglia in Cerebral Small Vessel Disease.<\/i><br>CNS neuroscience &amp; therapeutics (Jul 2026)<br>DOI: 10.1002/cns.71007"
-  },
-  {
-    "pmid": "41667829",
-    "authors": "Delobel V, Grenier C, Boulestreau R, et al.",
-    "title": "Endothelial TRIM47 regulates blood-brain barrier integrity and cognition via the KEAP1/NRF2 signalling pathway in mice.",
-    "journal": "Communications biology",
-    "publicationDate": "Feb 2026",
-    "doi": "10.1038/s42003-026-09628-5",
-    "formattedRef": "<b>Delobel V, Grenier C, Boulestreau R, et al.<\/b><br><i>Endothelial TRIM47 regulates blood-brain barrier integrity and cognition via the KEAP1/NRF2 signalling pathway in mice.<\/i><br>Communications biology (Feb 2026)<br>DOI: 10.1038/s42003-026-09628-5"
-  },
-  {
-    "pmid": "41554961",
-    "authors": "Asanomi Y, Mitsumori R, Yamakawa A, et al.",
-    "title": "Meta-analyses of genome-wide association studies identify novel loci influencing Japanese white matter hyperintensities.",
-    "journal": "Journal of human genetics",
-    "publicationDate": "Jul 2026",
-    "doi": "10.1038/s10038-026-01454-1",
-    "formattedRef": "<b>Asanomi Y, Mitsumori R, Yamakawa A, et al.<\/b><br><i>Meta-analyses of genome-wide association studies identify novel loci influencing Japanese white matter hyperintensities.<\/i><br>Journal of human genetics (Jul 2026)<br>DOI: 10.1038/s10038-026-01454-1"
-  },
-  {
-    "pmid": "39805841",
-    "authors": "Huang SY, Ge YJ, Ren P, et al.",
-    "title": "Genome-wide association study unravels mechanisms of brain glymphatic activity.",
-    "journal": "Nature communications",
-    "publicationDate": "Jan 2025",
-    "doi": "10.1038/s41467-024-55706-9",
-    "formattedRef": "<b>Huang SY, Ge YJ, Ren P, et al.<\/b><br><i>Genome-wide association study unravels mechanisms of brain glymphatic activity.<\/i><br>Nature communications (Jan 2025)<br>DOI: 10.1038/s41467-024-55706-9"
-  },
-  {
-    "pmid": "41512030",
-    "authors": "Chu YH, Zhang LY, He JY, et al.",
-    "title": "Erk5-mediated microglial ferroptosis drives ischemic white matter damage via the Nfatc4-Clptm1l axis.",
-    "journal": "Proceedings of the National Academy of Sciences of the United States of America",
-    "publicationDate": "Jan 2026",
-    "doi": "10.1073/pnas.2521757123",
-    "formattedRef": "<b>Chu YH, Zhang LY, He JY, et al.<\/b><br><i>Erk5-mediated microglial ferroptosis drives ischemic white matter damage via the Nfatc4-Clptm1l axis.<\/i><br>Proceedings of the National Academy of Sciences of the United States of America (Jan 2026)<br>DOI: 10.1073/pnas.2521757123"
-  },
-  {
-    "pmid": "41266628",
-    "authors": "Caro I, Western D, Namba S, et al.",
-    "title": "Proteogenomics in cerebrospinal fluid and plasma reveals new biological fingerprint of cerebral small vessel disease.",
-    "journal": "Nature aging",
-    "publicationDate": "Dec 2025",
-    "doi": "10.1038/s43587-025-01006-w",
-    "formattedRef": "<b>Caro I, Western D, Namba S, et al.<\/b><br><i>Proteogenomics in cerebrospinal fluid and plasma reveals new biological fingerprint of cerebral small vessel disease.<\/i><br>Nature aging (Dec 2025)<br>DOI: 10.1038/s43587-025-01006-w"
-  },
-  {
-    "pmid": "35511193",
-    "authors": "Mishra A, Duplaà C, Vojinovic D, et al.",
-    "title": "Gene-mapping study of extremes of cerebral small vessel disease reveals TRIM47 as a strong candidate.",
-    "journal": "Brain : a journal of neurology",
-    "publicationDate": "Jun 2022",
-    "doi": "10.1093/brain/awab432",
-    "formattedRef": "<b>Mishra A, Duplaà C, Vojinovic D, et al.<\/b><br><i>Gene-mapping study of extremes of cerebral small vessel disease reveals TRIM47 as a strong candidate.<\/i><br>Brain : a journal of neurology (Jun 2022)<br>DOI: 10.1093/brain/awab432"
-  },
-  {
-    "pmid": "35943854",
-    "authors": "Yang Y, Knol MJ, Wang R, et al.",
-    "title": "Epigenetic and integrative cross-omics analyses of cerebral white matter hyperintensities on MRI.",
-    "journal": "Brain : a journal of neurology",
-    "publicationDate": "Feb 2023",
-    "doi": "10.1093/brain/awac290",
-    "formattedRef": "<b>Yang Y, Knol MJ, Wang R, et al.<\/b><br><i>Epigenetic and integrative cross-omics analyses of cerebral white matter hyperintensities on MRI.<\/i><br>Brain : a journal of neurology (Feb 2023)<br>DOI: 10.1093/brain/awac290"
-  },
-  {
-    "pmid": "39114924",
-    "authors": "Yang XZ, Huang MY, Han F, et al.",
-    "title": "Genome-Wide Mendelian Randomization Study Reveals Druggable Genes for Cerebral Small Vessel Disease.",
-    "journal": "Stroke",
-    "publicationDate": "Sep 2024",
-    "doi": "10.1161/STROKEAHA.124.046544",
-    "formattedRef": "<b>Yang XZ, Huang MY, Han F, et al.<\/b><br><i>Genome-wide Mendelian Randomization Study Reveals Druggable Genes for Cerebral Small Vessel Disease.<\/i><br>Stroke (Sep 2024)<br>DOI: 10.1161/STROKEAHA.124.046544"
-  },
-  {
-    "pmid": "42039925",
-    "authors": "Lennon MJ, Xu Y, Thalamuthu A, et al.",
-    "title": "Druggable genome-wide Mendelian randomization analysis identifies potential treatment targets in vascular dementia.",
-    "journal": "Alzheimer's & dementia (New York, N. Y.)",
-    "publicationDate": "2026",
-    "doi": "10.1002/trc2.70258",
-    "formattedRef": "<b>Lennon MJ, Xu Y, Thalamuthu A, et al.<\/b><br><i>Druggable genome-wide Mendelian randomization analysis identifies potential treatment targets in vascular dementia.<\/i><br>Alzheimer's &amp; dementia (New York, N. Y.) (2026)<br>DOI: 10.1002/trc2.70258"
-  },
-  {
-    "pmid": "30651383",
-    "authors": "Chauhan G, Adams HHH, Satizabal CL, et al.",
-    "title": "Genetic and lifestyle risk factors for MRI-defined brain infarcts in a population-based setting.",
-    "journal": "Neurology",
-    "publicationDate": "Jan 2019",
-    "doi": "10.1212/WNL.0000000000006851",
-    "formattedRef": "<b>Chauhan G, Adams HHH, Satizabal CL, et al.<\/b><br><i>Genetic and lifestyle risk factors for MRI-defined brain infarcts in a population-based setting.<\/i><br>Neurology (Jan 2019)<br>DOI: 10.1212/WNL.0000000000006851"
-  },
-  {
-    "pmid": "41789880",
-    "authors": "Graff MFE, Heeg EEM, Elliott DA, et al.",
-    "title": "Progressive mural cell deficiencies across the lifespan in a foxf2 model of cerebral small vessel disease.",
-    "journal": "eLife",
-    "publicationDate": "Mar 2026",
-    "doi": "10.7554/eLife.106720",
-    "formattedRef": "<b>Graff MFE, Heeg EEM, Elliott DA, et al.<\/b><br><i>Progressive mural cell deficiencies across the lifespan in a foxf2 model of cerebral small vessel disease.<\/i><br>eLife (Mar 2026)<br>DOI: 10.7554/eLife.106720"
-  },
-  {
-    "pmid": "41398477",
-    "authors": "Todorov-Völgyi K, González-Gallego J, Müller SA, et al.",
-    "title": "The stroke risk gene Foxf2 maintains brain endothelial cell function via Tie2 signaling.",
-    "journal": "Nature neuroscience",
-    "publicationDate": "Feb 2026",
-    "doi": "10.1038/s41593-025-02136-5",
-    "formattedRef": "<b>Todorov-Völgyi K, González-Gallego J, Müller SA, et al.<\/b><br><i>The stroke risk gene Foxf2 maintains brain endothelial cell function via Tie2 signaling.<\/i><br>Nature neuroscience (Feb 2026)<br>DOI: 10.1038/s41593-025-02136-5"
-  },
-  {
-    "pmid": "41398476",
-    "authors": "González-Gallego J, Todorov-Völgyi K, Müller SA, et al.",
-    "title": "A fully iPS-cell-derived 3D model of the human blood-brain barrier for exploring neurovascular disease mechanisms and therapeutic interventions.",
-    "journal": "Nature neuroscience",
-    "publicationDate": "Feb 2026",
-    "doi": "10.1038/s41593-025-02123-w",
-    "formattedRef": "<b>González-Gallego J, Todorov-Völgyi K, Müller SA, et al.<\/b><br><i>A fully iPS-cell-derived 3D model of the human blood-brain barrier for exploring neurovascular disease mechanisms and therapeutic interventions.<\/i><br>Nature neuroscience (Feb 2026)<br>DOI: 10.1038/s41593-025-02123-w"
-  },
-  {
-    "pmid": "26063658",
-    "authors": "Verdura E, Hervé D, Scharrer E, et al.",
-    "title": "Heterozygous HTRA1 mutations are associated with autosomal dominant cerebral small vessel disease.",
-    "journal": "Brain : a journal of neurology",
-    "publicationDate": "Aug 2015",
-    "doi": "10.1093/brain/awv155",
-    "formattedRef": "<b>Verdura E, Hervé D, Scharrer E, et al.<\/b><br><i>Heterozygous HTRA1 mutations are associated with autosomal dominant cerebral small vessel disease.<\/i><br>Brain : a journal of neurology (Aug 2015)<br>DOI: 10.1093/brain/awv155"
-  },
-  {
-    "pmid": "33773636",
-    "authors": "Schmidt R, Hofer E",
-    "title": "Identifying novel genetic risk loci for lacunar stroke.",
-    "journal": "The Lancet. Neurology",
-    "publicationDate": "May 2021",
-    "doi": "10.1016/S1474-4422(21)00099-5",
-    "formattedRef": "<b>Schmidt R, Hofer E<\/b><br><i>Identifying novel genetic risk loci for lacunar stroke.<\/i><br>The Lancet. Neurology (May 2021)<br>DOI: 10.1016/S1474-4422(21)00099-5"
-  },
-  {
-    "pmid": "42116316",
-    "authors": "Shu J, Li J",
-    "title": "Autosomal dominant inheritance of a heterozygous mutation in HTRA1: A case report and literature review.",
-    "journal": "Medicine",
-    "publicationDate": "May 2026",
-    "doi": "10.1097/MD.0000000000048528",
-    "formattedRef": "<b>Shu J, Li J<\/b><br><i>Autosomal dominant inheritance of a heterozygous mutation in HTRA1: A case report and literature review.<\/i><br>Medicine (May 2026)<br>DOI: 10.1097/MD.0000000000048528"
-  },
-  {
-    "pmid": "41371679",
-    "authors": "Takasone K, Nakamura K, Shinriki S, et al.",
-    "title": "[A 57-year-old male case of high temperature requirement A serine peptidase 1 (HTRA1)-related cerebral small vessel disease with \"Chocolate Chip Sign\" on ‍susceptibility-weighted imaging].",
-    "journal": "Rinsho shinkeigaku = Clinical neurology",
-    "publicationDate": "Jan 2026",
-    "doi": "10.5692/clinicalneurol.cn-002152",
-    "formattedRef": "<b>Takasone K, Nakamura K, Shinriki S, et al.<\/b><br><i>[A 57-year-old male case of high temperature requirement A serine peptidase 1 (HTRA1)-related cerebral small vessel disease with \"Chocolate Chip Sign\" on ‍susceptibility-weighted imaging].<\/i><br>Rinsho shinkeigaku = Clinical neurology (Jan 2026)<br>DOI: 10.5692/clinicalneurol.cn-002152"
-  },
-  {
-    "pmid": "41200916",
-    "authors": "Granata A, Al-Thani M, Goodwin-Trotman M, et al.",
-    "title": "An iPSC-derived model for drug screening in cerebral small vessel disease.",
-    "journal": "Journal of cerebral blood flow and metabolism : official journal of the International Society of Cerebral Blood Flow and Metabolism",
-    "publicationDate": "Jun 2026",
-    "doi": "10.1177/0271678X251389379",
-    "formattedRef": "<b>Granata A, Al-Thani M, Goodwin-Trotman M, et al.<\/b><br><i>An iPSC-derived model for drug screening in cerebral small vessel disease.<\/i><br>Journal of cerebral blood flow and metabolism : official journal of the International Society of Cerebral Blood Flow and Metabolism (Jun 2026)<br>DOI: 10.1177/0271678X251389379"
-  },
-  {
-    "pmid": "41142321",
-    "authors": "Monte B, Davis J, Zhu X, et al.",
-    "title": "A novel gene edited rat model of cerebral autosomal recessive arteriopathy with subcortical infarcts and leukoencephalopathy (CARASIL).",
-    "journal": "Cerebral circulation - cognition and behavior",
-    "publicationDate": "2025",
-    "doi": "10.1016/j.cccb.2025.100401",
-    "formattedRef": "<b>Monte B, Davis J, Zhu X, et al.<\/b><br><i>A novel gene edited rat model of cerebral autosomal recessive arteriopathy with subcortical infarcts and leukoencephalopathy (CARASIL).<\/i><br>Cerebral circulation - cognition and behavior (2025)<br>DOI: 10.1016/j.cccb.2025.100401"
-  },
-  {
-    "pmid": "41062325",
-    "authors": "Serizawa Y, Masuda H, Handa H, et al.",
-    "title": "Heterozygous HTRA1-related Cerebral Small Vessel Disease with Short Stature and Limbs.",
-    "journal": "Internal medicine (Tokyo, Japan)",
-    "publicationDate": "May 2026",
-    "doi": "10.2169/internalmedicine.6262-25",
-    "formattedRef": "<b>Serizawa Y, Masuda H, Handa H, et al.<\/b><br><i>Heterozygous HTRA1-related Cerebral Small Vessel Disease with Short Stature and Limbs.<\/i><br>Internal medicine (Tokyo, Japan) (May 2026)<br>DOI: 10.2169/internalmedicine.6262-25"
-  },
-  {
-    "pmid": "40898560",
-    "authors": "Gao Y, Zheng Y, Lian J, et al.",
-    "title": "Cerebral small vessel disease related to a heterozygous missense mutation in HTRA1: A case report.",
-    "journal": "Medicine",
-    "publicationDate": "Aug 2025",
-    "doi": "10.1097/MD.0000000000044128",
-    "formattedRef": "<b>Gao Y, Zheng Y, Lian J, et al.<\/b><br><i>Cerebral small vessel disease related to a heterozygous missense mutation in HTRA1: A case report.<\/i><br>Medicine (Aug 2025)<br>DOI: 10.1097/MD.0000000000044128"
-  },
-  {
-    "pmid": "40866829",
-    "authors": "Guo Y, Peng Q, Yang Y, et al.",
-    "title": "Diagnostic performance of \"pons chocolate chip sign\" in heterozygous HTRA1-related cerebral small vessel disease.",
-    "journal": "BMC neurology",
-    "publicationDate": "Aug 2025",
-    "doi": "10.1186/s12883-025-04374-3",
-    "formattedRef": "<b>Guo Y, Peng Q, Yang Y, et al.<\/b><br><i>Diagnostic performance of \"pons chocolate chip sign\" in heterozygous HTRA1-related cerebral small vessel disease.<\/i><br>BMC neurology (Aug 2025)<br>DOI: 10.1186/s12883-025-04374-3"
-  },
-  {
-    "pmid": "40632435",
-    "authors": "Guo Y, Peng Q, Ling C",
-    "title": "Typical \"brainstem chocolate chip sign\" in heterozygous HTRA1-related cerebral small vessel disease.",
-    "journal": "Neurological sciences : official journal of the Italian Neurological Society and of the Italian Society of Clinical Neurophysiology",
-    "publicationDate": "Oct 2025",
-    "doi": "10.1007/s10072-025-08357-7",
-    "formattedRef": "<b>Guo Y, Peng Q, Ling C<\/b><br><i>Typical \"brainstem chocolate chip sign\" in heterozygous HTRA1-related cerebral small vessel disease.<\/i><br>Neurological sciences : official journal of the Italian Neurological Society and of the Italian Society of Clinical Neurophysiology (Oct 2025)<br>DOI: 10.1007/s10072-025-08357-7"
-  },
-  {
-    "pmid": "40607620",
-    "authors": "Lee YC, Chen CH, Chou YT, et al.",
-    "title": "Comparison of clinical and imaging features of cerebral small vessel disease associated with heterozygous HTRA1 and NOTCH3 mutations.",
-    "journal": "International journal of stroke : official journal of the International Stroke Society",
-    "publicationDate": "Jan 2026",
-    "doi": "10.1177/17474930251359110",
-    "formattedRef": "<b>Lee YC, Chen CH, Chou YT, et al.<\/b><br><i>Comparison of clinical and imaging features of cerebral small vessel disease associated with heterozygous HTRA1 and NOTCH3 mutations.<\/i><br>International journal of stroke : official journal of the International Stroke Society (Jan 2026)<br>DOI: 10.1177/17474930251359110"
-  },
-  {
-    "pmid": "40343074",
-    "authors": "Cheng YW, Chen CH, Chen YF, et al.",
-    "title": "Prevalence and Characteristics of Pathogenic Variants in Taiwanese Patients With Cerebral Small Vessel Disease.",
-    "journal": "Neurology. Genetics",
-    "publicationDate": "Jun 2025",
-    "doi": "10.1212/NXG.0000000000200258",
-    "formattedRef": "<b>Cheng YW, Chen CH, Chen YF, et al.<\/b><br><i>Prevalence and Characteristics of Pathogenic Variants in Taiwanese Patients With Cerebral Small Vessel Disease.<\/i><br>Neurology. Genetics (Jun 2025)<br>DOI: 10.1212/NXG.0000000000200258"
-  },
-  {
-    "pmid": "40017561",
-    "authors": "Ando S, Saito R, Kitahara S, et al.",
-    "title": "\"Chocolate Chip Sign\" on Susceptibility-Weighted Imaging: A Novel Neuroimaging Biomarker for HTRA1-Related Cerebral Small Vessel Disease.",
-    "journal": "Neurology. Genetics",
-    "publicationDate": "Apr 2025",
-    "doi": "10.1212/NXG.0000000000200237",
-    "formattedRef": "<b>Ando S, Saito R, Kitahara S, et al.<\/b><br><i>\"Chocolate Chip Sign\" on Susceptibility-Weighted Imaging: A Novel Neuroimaging Biomarker for HTRA1-Related Cerebral Small Vessel Disease.<\/i><br>Neurology. Genetics (Apr 2025)<br>DOI: 10.1212/NXG.0000000000200237"
-  },
-  {
-    "pmid": "39613464",
-    "authors": "Song SN, Li HJ, Liang JL, et al.",
-    "title": "Lentivirus-Mediated Missense Mutation in HtrA1 Leads to Activation of the TGF-β/Smads Pathway and Increased Apoptosis of Mouse Brain Microvascular Endothelial Cells via the Oxidative Stress Pathway.",
-    "journal": "Journal of integrative neuroscience",
-    "publicationDate": "Oct 2024",
-    "doi": "10.31083/j.jin2311201",
-    "formattedRef": "<b>Song SN, Li HJ, Liang JL, et al.<\/b><br><i>Lentivirus-Mediated Missense Mutation in HtrA1 Leads to Activation of the TGF-β/Smads Pathway and Increased Apoptosis of Mouse Brain Microvascular Endothelial Cells via the Oxidative Stress Pathway.<\/i><br>Journal of integrative neuroscience (Oct 2024)<br>DOI: 10.31083/j.jin2311201"
-  },
-  {
-    "pmid": "32913026",
-    "authors": "Knol MJ, Lu D, Traylor M, et al.",
-    "title": "Association of common genetic variants with brain microbleeds: A genome-wide association study.",
-    "journal": "Neurology",
-    "publicationDate": "Dec 2020",
-    "doi": "10.1212/WNL.0000000000010852",
-    "formattedRef": "<b>Knol MJ, Lu D, Traylor M, et al.<\/b><br><i>Association of common genetic variants with brain microbleeds: A genome-wide association study.<\/i><br>Neurology (Dec 2020)<br>DOI: 10.1212/WNL.0000000000010852"
-  },
-  {
-    "pmid": "42304169",
-    "authors": "Marola OJ, Uyar A, Keezer KJ, et al.",
-    "title": "WSB.APP/PS1 mice develop age-dependent cerebral amyloid angiopathy, cerebrovascular dysfunction, and white matter deficits.",
-    "journal": "Alzheimer's & dementia : the journal of the Alzheimer's Association",
-    "publicationDate": "Jun 2026",
-    "doi": "10.1002/alz.71476",
-    "formattedRef": "<b>Marola OJ, Uyar A, Keezer KJ, et al.<\/b><br><i>WSB.APP/PS1 mice develop age-dependent cerebral amyloid angiopathy, cerebrovascular dysfunction, and white matter deficits.<\/i><br>Alzheimer's &amp; dementia : the journal of the Alzheimer's Association (Jun 2026)<br>DOI: 10.1002/alz.71476"
-  },
-  {
-    "pmid": "39818967",
-    "authors": "Sun Z, Harshfield EL, de Leeuw FE, et al.",
-    "title": "Proteins Involved in Endothelial Function and Inflammation Are Implicated in Cerebral Small Vessel Disease.",
-    "journal": "Stroke",
-    "publicationDate": "Mar 2025",
-    "doi": "10.1161/STROKEAHA.124.049079",
-    "formattedRef": "<b>Sun Z, Harshfield EL, de Leeuw FE, et al.<\/b><br><i>Proteins Involved in Endothelial Function and Inflammation Are Implicated in Cerebral Small Vessel Disease.<\/i><br>Stroke (Mar 2025)<br>DOI: 10.1161/STROKEAHA.124.049079"
-  },
-  {
-    "pmid": "38811690",
-    "authors": "Le Grand Q, Tsuchida A, Koch A, et al.",
-    "title": "Diffusion imaging genomics provides novel insight into early mechanisms of cerebral small vessel disease.",
-    "journal": "Molecular psychiatry",
-    "publicationDate": "Nov 2024",
-    "doi": "10.1038/s41380-024-02604-7",
-    "formattedRef": "<b>Le Grand Q, Tsuchida A, Koch A, et al.<\/b><br><i>Diffusion imaging genomics provides novel insight into early mechanisms of cerebral small vessel disease.<\/i><br>Molecular psychiatry (Nov 2024)<br>DOI: 10.1038/s41380-024-02604-7"
-  },
-  {
-    "pmid": "42236496",
-    "authors": "Zhao X, Xie Z, He W, et al.",
-    "title": "Genetic architecture of white matter microstructure captured by unsupervised deep representation learning of fractional anisotropy maps.",
-    "journal": "Nature communications",
-    "publicationDate": "Jun 2026",
-    "doi": "10.1038/s41467-026-73996-z",
-    "formattedRef": "<b>Zhao X, Xie Z, He W, et al.<\/b><br><i>Genetic architecture of white matter microstructure captured by unsupervised deep representation learning of fractional anisotropy maps.<\/i><br>Nature communications (Jun 2026)<br>DOI: 10.1038/s41467-026-73996-z"
-  },
-  {
-    "pmid": "39216230",
-    "authors": "McNeilly S, Thomson CR, Gonzalez-Trueba L, et al.",
-    "title": "Collagen IV deficiency causes hypertrophic remodeling and endothelium-dependent hyperpolarization in small vessel disease with intracerebral hemorrhage.",
-    "journal": "EBioMedicine",
-    "publicationDate": "Sep 2024",
-    "doi": "10.1016/j.ebiom.2024.105315",
-    "formattedRef": "<b>McNeilly S, Thomson CR, Gonzalez-Trueba L, et al.<\/b><br><i>Collagen IV deficiency causes hypertrophic remodeling and endothelium-dependent hyperpolarization in small vessel disease with intracerebral hemorrhage.<\/i><br>EBioMedicine (Sep 2024)<br>DOI: 10.1016/j.ebiom.2024.105315"
-  },
-  {
-    "pmid": "42437605",
-    "authors": "Shah A, Hussain U, Ekpruke C, et al.",
-    "title": "Pontine autosomal dominant microangiopathy with leukoencephalopathy in a Hispanic man without a family history.",
-    "journal": "Journal of stroke and cerebrovascular diseases : the official journal of National Stroke Association",
-    "publicationDate": "Sep 2026",
-    "doi": "10.1016/j.jstrokecerebrovasdis.2026.108700",
-    "formattedRef": "<b>Shah A, Hussain U, Ekpruke C, et al.<\/b><br><i>Pontine autosomal dominant microangiopathy with leukoencephalopathy in a Hispanic man without a family history.<\/i><br>Journal of stroke and cerebrovascular diseases : the official journal of National Stroke Association (Sep 2026)<br>DOI: 10.1016/j.jstrokecerebrovasdis.2026.108700"
-  },
-  {
-    "pmid": "42921483",
-    "authors": "Shi W, Xu H, Pu C, et al.",
-    "title": "Prenatal Diagnosis of Recurrent Fetal Intracranial Hemorrhage and a Maternally Inherited COL4A1 Variant of Uncertain Significance: A Case Report With Maternal Reverse Phenotyping.",
-    "journal": "Clinical case reports",
-    "publicationDate": "Nov 2026",
-    "doi": "10.1002/ccr3.73525",
-    "formattedRef": "<b>Shi W, Xu H, Pu C, et al.<\/b><br><i>Prenatal Diagnosis of Recurrent Fetal Intracranial Hemorrhage and a Maternally Inherited COL4A1 Variant of Uncertain Significance: A Case Report With Maternal Reverse Phenotyping.<\/i><br>Clinical case reports (Nov 2026)<br>DOI: 10.1002/ccr3.73525"
-  },
-  {
-    "pmid": "42886875",
-    "authors": "Alten B, Ullman NL, Porcari G, et al.",
-    "title": "A Primer on COL4A1/COL4A2-Related Cerebral Small Vessel Disease for Neurologists.",
-    "journal": "Neurology",
-    "publicationDate": "Nov 2026",
-    "doi": "10.1212/WNL.0000000000218628",
-    "formattedRef": "<b>Alten B, Ullman NL, Porcari G, et al.<\/b><br><i>A Primer on COL4A1/COL4A2-Related Cerebral Small Vessel Disease for Neurologists.<\/i><br>Neurology (Nov 2026)<br>DOI: 10.1212/WNL.0000000000218628"
-  },
-  {
-    "pmid": "42661427",
-    "authors": "Guyler SK, Maksemous N, Lea RA, et al.",
-    "title": "Identification of Copy Number Variants as a Suspected Cause of Cerebral Small Vessel Disease.",
-    "journal": "Clinical genetics",
-    "publicationDate": "Aug 2026",
-    "doi": "10.1111/cge.70233",
-    "formattedRef": "<b>Guyler SK, Maksemous N, Lea RA, et al.<\/b><br><i>Identification of Copy Number Variants as a Suspected Cause of Cerebral Small Vessel Disease.<\/i><br>Clinical genetics (Aug 2026)<br>DOI: 10.1111/cge.70233"
-  },
-  {
-    "pmid": "42607872",
-    "authors": "Brezzo G, Pokhilko A, Moss J, et al.",
-    "title": "Col4a1 mutation in a mouse model of cerebral small vessel disease causes white matter defects that can be modulated by targeting protein folding.",
-    "journal": "Matrix biology : journal of the International Society for Matrix Biology",
-    "publicationDate": "Aug 2026",
-    "doi": "10.1016/j.matbio.2026.102044",
-    "formattedRef": "<b>Brezzo G, Pokhilko A, Moss J, et al.<\/b><br><i>Col4a1 mutation in a mouse model of cerebral small vessel disease causes white matter defects that can be modulated by targeting protein folding.<\/i><br>Matrix biology : journal of the International Society for Matrix Biology (Aug 2026)<br>DOI: 10.1016/j.matbio.2026.102044"
-  },
-  {
-    "pmid": "42438399",
-    "authors": "Morel H, Dufourd-Delalande S, Bloch W, et al.",
-    "title": "Late Cognitive or Mood Alterations With 'Status Cribrosum' and Diffuse White Matter Lesions: A New Cerebral Small Vessel Disease Phenotype Associated With Rare COL4A1 Variants Located Within Exon 23.",
-    "journal": "European journal of neurology",
-    "publicationDate": "Jul 2026",
-    "doi": "10.1111/ene.70692",
-    "formattedRef": "<b>Morel H, Dufourd-Delalande S, Bloch W, et al.<\/b><br><i>Late Cognitive or Mood Alterations With 'Status Cribrosum' and Diffuse White Matter Lesions: A New Cerebral Small Vessel Disease Phenotype Associated With Rare COL4A1 Variants Located Within Exon 23.<\/i><br>European journal of neurology (Jul 2026)<br>DOI: 10.1111/ene.70692"
-  },
-  {
-    "pmid": "42237372",
-    "authors": "Kanoh T, Oubayashi S, Furukawa K, et al.",
-    "title": "Age-dependent vascular and neurological characteristics of CADASIL are recapitulated in Notch3 mutant zebrafish, implicating a role for type IV collagen in disease progression.",
-    "journal": "Acta neuropathologica communications",
-    "publicationDate": "Jun 2026",
-    "doi": "10.1186/s40478-026-02333-8",
-    "formattedRef": "<b>Kanoh T, Oubayashi S, Furukawa K, et al.<\/b><br><i>Age-dependent vascular and neurological characteristics of CADASIL are recapitulated in Notch3 mutant zebrafish, implicating a role for type IV collagen in disease progression.<\/i><br>Acta neuropathologica communications (Jun 2026)<br>DOI: 10.1186/s40478-026-02333-8"
-  },
-  {
-    "pmid": "42103335",
-    "authors": "Satyadi RS, Connolly DJ, Harkness KA",
-    "title": "Intracerebral haemorrhage associated with collagen type IV alpha 2 gene mutation and familial small vessel disease.",
-    "journal": "BMJ case reports",
-    "publicationDate": "May 2026",
-    "doi": "10.1136/bcr-2025-271023",
-    "formattedRef": "<b>Satyadi RS, Connolly DJ, Harkness KA<\/b><br><i>Intracerebral haemorrhage associated with collagen type IV alpha 2 gene mutation and familial small vessel disease.<\/i><br>BMJ case reports (May 2026)<br>DOI: 10.1136/bcr-2025-271023"
-  },
-  {
-    "pmid": "42065832",
-    "authors": "Yui R, Morizumi T, Ohashi N, et al.",
-    "title": "Internal carotid and vertebrobasilar artery dolichoectasia in patients with cerebral small vessel disease and COL4A1/COL4A2 duplication.",
-    "journal": "Neurogenetics",
-    "publicationDate": "May 2026",
-    "doi": "10.1007/s10048-026-00905-3",
-    "formattedRef": "<b>Yui R, Morizumi T, Ohashi N, et al.<\/b><br><i>Internal carotid and vertebrobasilar artery dolichoectasia in patients with cerebral small vessel disease and COL4A1/COL4A2 duplication.<\/i><br>Neurogenetics (May 2026)<br>DOI: 10.1007/s10048-026-00905-3"
-  },
-  {
-    "pmid": "41784710",
-    "authors": "Hou M, Du J, Qi X, et al.",
-    "title": "COL4A1/COL4A2 gene duplication causing hereditary cerebral small vessel disease in a Chinese patient.",
-    "journal": "Acta neurologica Belgica",
-    "publicationDate": "Jun 2026",
-    "doi": "10.1007/s13760-026-03011-1",
-    "formattedRef": "<b>Hou M, Du J, Qi X, et al.<\/b><br><i>COL4A1/COL4A2 gene duplication causing hereditary cerebral small vessel disease in a Chinese patient.<\/i><br>Acta neurologica Belgica (Jun 2026)<br>DOI: 10.1007/s13760-026-03011-1"
-  },
-  {
-    "pmid": "41499643",
-    "authors": "Muhammad A, Nosrati MSS, Dostmohammadi A, et al.",
-    "title": "Biallelic COL4A2 Variants Associated With Brain Small Vessel Disease and Brain Malformations.",
-    "journal": "Clinical genetics",
-    "publicationDate": "Feb 2026",
-    "doi": "10.1111/cge.70043",
-    "formattedRef": "<b>Muhammad A, Nosrati MSS, Dostmohammadi A, et al.<\/b><br><i>Biallelic COL4A2 Variants Associated With Brain Small Vessel Disease and Brain Malformations.<\/i><br>Clinical genetics (Feb 2026)<br>DOI: 10.1111/cge.70043"
-  },
-  {
-    "pmid": "41480674",
-    "authors": "Hervé D, Lesnik Oberstein SAJ, Pipiras E, et al.",
-    "title": "COL4A1 and COL4A2 Gene Duplication or Triplication as a Genetic Cause of Cerebral Small Vessel Disease in Adults.",
-    "journal": "Stroke",
-    "publicationDate": "Mar 2026",
-    "doi": "10.1161/STROKEAHA.125.053813",
-    "formattedRef": "<b>Hervé D, Lesnik Oberstein SAJ, Pipiras E, et al.<\/b><br><i>COL4A1 and COL4A2 Gene Duplication or Triplication as a Genetic Cause of Cerebral Small Vessel Disease in Adults.<\/i><br>Stroke (Mar 2026)<br>DOI: 10.1161/STROKEAHA.125.053813"
-  },
-  {
-    "pmid": "41312509",
-    "authors": "Garnier-Crussard A, Bani-Sadr A, Quadrio I, et al.",
-    "title": "Late-onset dementia with leukoencephalopathy and a COL4A2 gene variant, causal link or fortuitous association: a case report.",
-    "journal": "Cerebral circulation - cognition and behavior",
-    "publicationDate": "2025",
-    "doi": "10.1016/j.cccb.2025.100518",
-    "formattedRef": "<b>Garnier-Crussard A, Bani-Sadr A, Quadrio I, et al.<\/b><br><i>Late-onset dementia with leukoencephalopathy and a COL4A2 gene variant, causal link or fortuitous association: a case report.<\/i><br>Cerebral circulation - cognition and behavior (2025)<br>DOI: 10.1016/j.cccb.2025.100518"
-  },
-  {
-    "pmid": "41311701",
-    "authors": "Gao X, Wang X, Labelle-Dumais C, et al.",
-    "title": "Multimodal neuroimaging of Col4a1-mutant mouse models of Gould syndrome.",
-    "journal": "Frontiers in neuroscience",
-    "publicationDate": "2025",
-    "doi": "10.3389/fnins.2025.1639871",
-    "formattedRef": "<b>Gao X, Wang X, Labelle-Dumais C, et al.<\/b><br><i>Multimodal neuroimaging of Col4a1-mutant mouse models of Gould syndrome.<\/i><br>Frontiers in neuroscience (2025)<br>DOI: 10.3389/fnins.2025.1639871"
-  },
-  {
-    "pmid": "41052699",
-    "authors": "Kretz A, Arbeiter M, Strobel J, et al.",
-    "title": "Novel COL4A1 missense variant in a case of juvenile stroke.",
-    "journal": "Journal of stroke and cerebrovascular diseases : the official journal of National Stroke Association",
-    "publicationDate": "Dec 2025",
-    "doi": "10.1016/j.jstrokecerebrovasdis.2025.108463",
-    "formattedRef": "<b>Kretz A, Arbeiter M, Strobel J, et al.<\/b><br><i>Novel COL4A1 missense variant in a case of juvenile stroke.<\/i><br>Journal of stroke and cerebrovascular diseases : the official journal of National Stroke Association (Dec 2025)<br>DOI: 10.1016/j.jstrokecerebrovasdis.2025.108463"
-  },
-  {
-    "pmid": "41001161",
-    "authors": "Meshal T, Shawabka AM, Lbraheem K, et al.",
-    "title": "COL4A1-Related Leukoencephalopathy and Microangiopathy: A Case Series of Two Palestinian Siblings.",
-    "journal": "Clinical case reports",
-    "publicationDate": "Oct 2025",
-    "doi": "10.1002/ccr3.70964",
-    "formattedRef": "<b>Meshal T, Shawabka AM, Lbraheem K, et al.<\/b><br><i>COL4A1-Related Leukoencephalopathy and Microangiopathy: A Case Series of Two Palestinian Siblings.<\/i><br>Clinical case reports (Oct 2025)<br>DOI: 10.1002/ccr3.70964"
-  },
-  {
-    "pmid": "40846110",
-    "authors": "Flatman D, Naylor RW, Crilly S, et al.",
-    "title": "Loss of col4a1 in zebrafish recapitulates the cerebrovascular phenotypes associated with monogenic cerebral small vessel disease.",
-    "journal": "Matrix biology : journal of the International Society for Matrix Biology",
-    "publicationDate": "Nov 2025",
-    "doi": "10.1016/j.matbio.2025.08.005",
-    "formattedRef": "<b>Flatman D, Naylor RW, Crilly S, et al.<\/b><br><i>Loss of col4a1 in zebrafish recapitulates the cerebrovascular phenotypes associated with monogenic cerebral small vessel disease.<\/i><br>Matrix biology : journal of the International Society for Matrix Biology (Nov 2025)<br>DOI: 10.1016/j.matbio.2025.08.005"
-  },
-  {
-    "pmid": "40555665",
-    "authors": "Han C, Yan L, Zhang Y, et al.",
-    "title": "[Clinical features and analysis of a case with Brain small vessel disease 1 with ocular anomalies due to variant of COL4A1 gene].",
-    "journal": "Zhonghua yi xue yi chuan xue za zhi = Zhonghua yixue yichuanxue zazhi = Chinese journal of medical genetics",
-    "publicationDate": "Apr 2025",
-    "doi": "10.3760/cma.j.cn511374-20240521-00301",
-    "formattedRef": "<b>Han C, Yan L, Zhang Y, et al.<\/b><br><i>[Clinical features and analysis of a case with Brain small vessel disease 1 with ocular anomalies due to variant of COL4A1 gene].<\/i><br>Zhonghua yi xue yi chuan xue za zhi = Zhonghua yixue yichuanxue zazhi = Chinese journal of medical genetics (Apr 2025)<br>DOI: 10.3760/cma.j.cn511374-20240521-00301"
-  },
-  {
-    "pmid": "40261521",
-    "authors": "Chen L, Li S, Xie F, et al.",
-    "title": "Cerebral small vessel disease associated with COL4A1 and COL4A2 duplication: clinical and MRI features resembling CADASIL.",
-    "journal": "Neurological sciences : official journal of the Italian Neurological Society and of the Italian Society of Clinical Neurophysiology",
-    "publicationDate": "Aug 2025",
-    "doi": "10.1007/s10072-025-08175-x",
-    "formattedRef": "<b>Chen L, Li S, Xie F, et al.<\/b><br><i>Cerebral small vessel disease associated with COL4A1 and COL4A2 duplication: clinical and MRI features resembling CADASIL.<\/i><br>Neurological sciences : official journal of the Italian Neurological Society and of the Italian Society of Clinical Neurophysiology (Aug 2025)<br>DOI: 10.1007/s10072-025-08175-x"
-  },
-  {
-    "pmid": "40123492",
-    "authors": "Maillard A, Pipiras E, Jarnoux P, et al.",
-    "title": "Identity-by-Descent Analysis Uncovering a Founder Event in a Novel Hereditary Small Vessel Cerebral Disease.",
-    "journal": "Stroke",
-    "publicationDate": "May 2025",
-    "doi": "10.1161/STROKEAHA.124.049839",
-    "formattedRef": "<b>Maillard A, Pipiras E, Jarnoux P, et al.<\/b><br><i>Identity-by-Descent Analysis Uncovering a Founder Event in a Novel Hereditary Small Vessel Cerebral Disease.<\/i><br>Stroke (May 2025)<br>DOI: 10.1161/STROKEAHA.124.049839"
-  },
-  {
-    "pmid": "39976879",
-    "authors": "Xie F, Li S, Hu X, et al.",
-    "title": "A patient with pontine autosomal dominant microangiopathy and leukoencephalopathy caused by a de novo 3' untranslated region mutation of COL4A1 gene: case report and literature review.",
-    "journal": "Neurological sciences : official journal of the Italian Neurological Society and of the Italian Society of Clinical Neurophysiology",
-    "publicationDate": "Jun 2025",
-    "doi": "10.1007/s10072-025-08025-w",
-    "formattedRef": "<b>Xie F, Li S, Hu X, et al.<\/b><br><i>A patient with pontine autosomal dominant microangiopathy and leukoencephalopathy caused by a de novo 3' untranslated region mutation of COL4A1 gene: case report and literature review.<\/i><br>Neurological sciences : official journal of the Italian Neurological Society and of the Italian Society of Clinical Neurophysiology (Jun 2025)<br>DOI: 10.1007/s10072-025-08025-w"
-  },
-  {
-    "pmid": "39743006",
-    "authors": "Dunn PJ, Maksemous N, Smith RA, et al.",
-    "title": "Targeted exonic sequencing identifies novel variants in a cerebral small vessel disease cohort.",
-    "journal": "Clinica chimica acta; international journal of clinical chemistry",
-    "publicationDate": "Feb 2025",
-    "doi": "10.1016/j.cca.2024.120120",
-    "formattedRef": "<b>Dunn PJ, Maksemous N, Smith RA, et al.<\/b><br><i>Targeted exonic sequencing identifies novel variants in a cerebral small vessel disease cohort.<\/i><br>Clinica chimica acta; international journal of clinical chemistry (Feb 2025)<br>DOI: 10.1016/j.cca.2024.120120"
-  },
-  {
-    "pmid": "39543785",
-    "authors": "Deshpande T, Hannocks MJ, Kapupara K, et al.",
-    "title": "Microglial activation without peripheral immune cell infiltration characterises mouse and human cerebral small vessel disease.",
-    "journal": "Neuropathology and applied neurobiology",
-    "publicationDate": "Dec 2024",
-    "doi": "10.1111/nan.13015",
-    "formattedRef": "<b>Deshpande T, Hannocks MJ, Kapupara K, et al.<\/b><br><i>Microglial activation without peripheral immune cell infiltration characterises mouse and human cerebral small vessel disease.<\/i><br>Neuropathology and applied neurobiology (Dec 2024)<br>DOI: 10.1111/nan.13015"
-  },
-  {
-    "pmid": "42856351",
-    "authors": "Lavanderos B, Yamasaki E, Sanchez-Solano A, et al.",
-    "title": "Ryanodine receptor cluster remodeling links COL4A2 mutation to cerebral artery dysfunction.",
-    "journal": "bioRxiv : the preprint server for biology",
-    "publicationDate": "Oct 2026",
-    "doi": "10.64898/2026.09.25.754477",
-    "formattedRef": "<b>Lavanderos B, Yamasaki E, Sanchez-Solano A, et al.<\/b><br><i>Ryanodine receptor cluster remodeling links COL4A2 mutation to cerebral artery dysfunction.<\/i><br>bioRxiv : the preprint server for biology (Oct 2026)<br>DOI: 10.64898/2026.09.25.754477"
-  },
-  {
-    "pmid": "42225261",
-    "authors": "Kim H, Seo Y, Kho H, et al.",
-    "title": "A novel mouse model of cerebral microbleeds by targeted Col4a1 editing in adult brain microvessels.",
-    "journal": "Brain : a journal of neurology",
-    "publicationDate": "Jun 2026",
-    "doi": "10.1093/brain/awag048",
-    "formattedRef": "<b>Kim H, Seo Y, Kho H, et al.<\/b><br><i>A novel mouse model of cerebral microbleeds by targeted Col4a1 editing in adult brain microvessels.<\/i><br>Brain : a journal of neurology (Jun 2026)<br>DOI: 10.1093/brain/awag048"
+    "doi": "10.1093/brain/awab261",
+    "formattedRef": "<b>Traylor M, Malik R, Gesierich B, et al.<\/b><br><i>The BS variant of C4 protects against age-related loss of white matter microstructural integrity.<\/i><br>Brain : a journal of neurology (Mar 2022)<br>DOI: 10.1093/brain/awab261"
   },
   {
     "pmid": "19539236",
@@ -711,571 +198,40 @@
     "formattedRef": "<b>Mishra A, Chauhan G, Violleau MH, et al.<\/b><br><i>Association of variants in HTRA1 and NOTCH3 with MRI-defined extremes of cerebral small vessel disease in older subjects.<\/i><br>Brain : a journal of neurology (Apr 2019)<br>DOI: 10.1093/brain/awz024"
   },
   {
-    "pmid": "42684564",
-    "authors": "Hwang J, Iverson A, Woroch A, et al.",
-    "title": "Potential contributors to variable penetrance of NOTCH3 p.Arg1231Cys Variant.",
-    "journal": "Neurogenetics",
-    "publicationDate": "Sep 2026",
-    "doi": "10.1007/s10048-026-00937-9",
-    "formattedRef": "<b>Hwang J, Iverson A, Woroch A, et al.<\/b><br><i>Potential contributors to variable penetrance of NOTCH3 p.Arg1231Cys Variant.<\/i><br>Neurogenetics (Sep 2026)<br>DOI: 10.1007/s10048-026-00937-9"
+    "pmid": "37069360",
+    "authors": "Duperron MG, Knol MJ, Le Grand Q, et al.",
+    "title": "Genomics of perivascular space burden unravels early mechanisms of cerebral small vessel disease.",
+    "journal": "Nature medicine",
+    "publicationDate": "Apr 2023",
+    "doi": "10.1038/s41591-023-02268-w",
+    "formattedRef": "<b>Duperron MG, Knol MJ, Le Grand Q, et al.<\/b><br><i>Genomics of perivascular space burden unravels early mechanisms of cerebral small vessel disease.<\/i><br>Nature medicine (Apr 2023)<br>DOI: 10.1038/s41591-023-02268-w"
   },
   {
-    "pmid": "42650130",
-    "authors": "Bogliardi FM, D'Ambrosio P, Quattromini G, et al.",
-    "title": "A Clinical Genetics-Driven Dual Diagnosis of Prader-Willi Syndrome Due to Mosaic Maternal UPD(15) and NOTCH3-Related CADASIL.",
-    "journal": "Genes",
-    "publicationDate": "Aug 2026",
-    "doi": "10.3390/genes17080937",
-    "formattedRef": "<b>Bogliardi FM, D'Ambrosio P, Quattromini G, et al.<\/b><br><i>A Clinical Genetics-Driven Dual Diagnosis of Prader-Willi Syndrome Due to Mosaic Maternal UPD(15) and NOTCH3-Related CADASIL.<\/i><br>Genes (Aug 2026)<br>DOI: 10.3390/genes17080937"
+    "pmid": "36929019",
+    "authors": "Ding X, Chen Y, Guo C, et al.",
+    "title": "Mutations in ARHGEF15 cause autosomal dominant hereditary cerebral small vessel disease and osteoporotic fracture.",
+    "journal": "Acta neuropathologica",
+    "publicationDate": "May 2023",
+    "doi": "10.1007/s00401-023-02560-6",
+    "formattedRef": "<b>Ding X, Chen Y, Guo C, et al.<\/b><br><i>Mutations in ARHGEF15 cause autosomal dominant hereditary cerebral small vessel disease and osteoporotic fracture.<\/i><br>Acta neuropathologica (May 2023)<br>DOI: 10.1007/s00401-023-02560-6"
   },
   {
-    "pmid": "42533185",
-    "authors": "Wei X, Cui L, Sun L, et al.",
-    "title": "A NOTCH3 p.Gly1105Cys variant in CADASIL: clinical characterization and an updated overview of exon 20 variants.",
-    "journal": "Neurological sciences : official journal of the Italian Neurological Society and of the Italian Society of Clinical Neurophysiology",
-    "publicationDate": "Jul 2026",
-    "doi": "10.1007/s10072-026-09271-2",
-    "formattedRef": "<b>Wei X, Cui L, Sun L, et al.<\/b><br><i>A NOTCH3 p.Gly1105Cys variant in CADASIL: clinical characterization and an updated overview of exon 20 variants.<\/i><br>Neurological sciences : official journal of the Italian Neurological Society and of the Italian Society of Clinical Neurophysiology (Jul 2026)<br>DOI: 10.1007/s10072-026-09271-2"
+    "pmid": "38430071",
+    "authors": "Rutten JW, Cerfontaine MN, Dijkstra KL, et al.",
+    "title": "Bi-allelic NIT1 variants cause a brain small vessel disease characterized by movement disorders, massively dilated perivascular spaces, and intracerebral hemorrhage.",
+    "journal": "Genetics in medicine : official journal of the American College of Medical Genetics",
+    "publicationDate": "Jun 2024",
+    "doi": "10.1016/j.gim.2024.101105",
+    "formattedRef": "<b>Rutten JW, Cerfontaine MN, Dijkstra KL, et al.<\/b><br><i>Bi-allelic NIT1 variants cause a brain small vessel disease characterized by movement disorders, massively dilated perivascular spaces, and intracerebral hemorrhage.<\/i><br>Genetics in medicine : official journal of the American College of Medical Genetics (Jun 2024)<br>DOI: 10.1016/j.gim.2024.101105"
   },
   {
-    "pmid": "42421401",
-    "authors": "Yang WO, Hsu SL, Chung CP, et al.",
-    "title": "Diagnostic Value and Clinical Significance of Temporopolar White-Matter Hyperintensities in CADASIL and Sporadic Small-Vessel Disease.",
-    "journal": "Journal of clinical neurology (Seoul, Korea)",
-    "publicationDate": "Jul 2026",
-    "doi": "10.3988/jcn.2025.0746",
-    "formattedRef": "<b>Yang WO, Hsu SL, Chung CP, et al.<\/b><br><i>Diagnostic Value and Clinical Significance of Temporopolar White-Matter Hyperintensities in CADASIL and Sporadic Small-Vessel Disease.<\/i><br>Journal of clinical neurology (Seoul, Korea) (Jul 2026)<br>DOI: 10.3988/jcn.2025.0746"
-  },
-  {
-    "pmid": "42295277",
-    "authors": "De Lucia N, Ragno M, Cacchiò G, et al.",
-    "title": "Cortical correlates of apathy in cerebral autosomal-dominant arteriopathy with subcortical infarcts and leukoencephalopathy with two different pathogenic mutations in the NOTCH3 gene.",
-    "journal": "Neuropsychology",
-    "publicationDate": "Sep 2026",
-    "doi": "10.1037/neu0001110",
-    "formattedRef": "<b>De Lucia N, Ragno M, Cacchiò G, et al.<\/b><br><i>Cortical correlates of apathy in cerebral autosomal-dominant arteriopathy with subcortical infarcts and leukoencephalopathy with two different pathogenic mutations in the NOTCH3 gene.<\/i><br>Neuropsychology (Sep 2026)<br>DOI: 10.1037/neu0001110"
-  },
-  {
-    "pmid": "42290888",
-    "authors": "Serlin Y, Munn C, Ferrante EA, et al.",
-    "title": "Retinal Vessel Dysfunction in Cerebral Autosomal Dominant Arteriopathy With Subcortical Infarcts and Leukoencephalopathy: An Ultra-Widefield Fluorescein Angiography Study.",
-    "journal": "Neurology open access",
-    "publicationDate": "Mar 2026",
-    "doi": "10.1212/WN9.0000000000000069",
-    "formattedRef": "<b>Serlin Y, Munn C, Ferrante EA, et al.<\/b><br><i>Retinal Vessel Dysfunction in Cerebral Autosomal Dominant Arteriopathy With Subcortical Infarcts and Leukoencephalopathy: An Ultra-Widefield Fluorescein Angiography Study.<\/i><br>Neurology open access (Mar 2026)<br>DOI: 10.1212/WN9.0000000000000069"
-  },
-  {
-    "pmid": "42249339",
-    "authors": "Ahmed AM, Mistry N, Gehad AS, et al.",
-    "title": "Inflammatory CADASIL: the cross-link between CADASIL and multiple sclerosis: a report of two cases and systematic review of the literature.",
-    "journal": "BMC neurology",
-    "publicationDate": "Jun 2026",
-    "doi": "10.1186/s12883-026-04772-1",
-    "formattedRef": "<b>Ahmed AM, Mistry N, Gehad AS, et al.<\/b><br><i>Inflammatory CADASIL: the cross-link between CADASIL and multiple sclerosis: a report of two cases and systematic review of the literature.<\/i><br>BMC neurology (Jun 2026)<br>DOI: 10.1186/s12883-026-04772-1"
-  },
-  {
-    "pmid": "42236108",
-    "authors": "Netterwala A, Mathew T, Bhardwaj S, et al.",
-    "title": "Recognising CADASIL in adults with NPH-like syndrome.",
-    "journal": "BMJ case reports",
-    "publicationDate": "Jun 2026",
-    "doi": "10.1136/bcr-2025-270748",
-    "formattedRef": "<b>Netterwala A, Mathew T, Bhardwaj S, et al.<\/b><br><i>Recognising CADASIL in adults with NPH-like syndrome.<\/i><br>BMJ case reports (Jun 2026)<br>DOI: 10.1136/bcr-2025-270748"
-  },
-  {
-    "pmid": "42177738",
-    "authors": "Sun R, Zhao Z, Che N, et al.",
-    "title": "NOTCH3 signal activation by its extracellular domain accumulation in an iPSC line newly established from a CADASIL patient.",
-    "journal": "Human cell",
-    "publicationDate": "May 2026",
-    "doi": "10.1007/s13577-026-01391-3",
-    "formattedRef": "<b>Sun R, Zhao Z, Che N, et al.<\/b><br><i>NOTCH3 signal activation by its extracellular domain accumulation in an iPSC line newly established from a CADASIL patient.<\/i><br>Human cell (May 2026)<br>DOI: 10.1007/s13577-026-01391-3"
-  },
-  {
-    "pmid": "42147988",
-    "authors": "Lin JX, Gao X, Hou LJ, et al.",
-    "title": "Novel Mutation of NOTCH3 Gene in a Chinese Patient with CADASIL.",
-    "journal": "Balkan journal of medical genetics : BJMG",
-    "publicationDate": "Dec 2025",
-    "doi": "10.2478/bjmg-2025-00025",
-    "formattedRef": "<b>Lin JX, Gao X, Hou LJ, et al.<\/b><br><i>Novel Mutation of NOTCH3 Gene in a Chinese Patient with CADASIL.<\/i><br>Balkan journal of medical genetics : BJMG (Dec 2025)<br>DOI: 10.2478/bjmg-2025-00025"
-  },
-  {
-    "pmid": "42012365",
-    "authors": "Sun R, Li W, Liu N, et al.",
-    "title": "NOTCH3-R544C mutation drives endothelial dysfunction through inflammation, migration impairment, and lipid dysregulation.",
-    "journal": "Journal of Alzheimer's disease : JAD",
-    "publicationDate": "Jun 2026",
-    "doi": "10.1177/13872877261444309",
-    "formattedRef": "<b>Sun R, Li W, Liu N, et al.<\/b><br><i>NOTCH3-R544C mutation drives endothelial dysfunction through inflammation, migration impairment, and lipid dysregulation.<\/i><br>Journal of Alzheimer's disease : JAD (Jun 2026)<br>DOI: 10.1177/13872877261444309"
-  },
-  {
-    "pmid": "42006602",
-    "authors": "Xu W, Zhang C, Liu X, et al.",
-    "title": "Persistent vessel wall enhancement and progression of cerebral microbleeds in CADASIL: a case report.",
-    "journal": "Frontiers in radiology",
-    "publicationDate": "2026",
-    "doi": "10.3389/fradi.2026.1782068",
-    "formattedRef": "<b>Xu W, Zhang C, Liu X, et al.<\/b><br><i>Persistent vessel wall enhancement and progression of cerebral microbleeds in CADASIL: a case report.<\/i><br>Frontiers in radiology (2026)<br>DOI: 10.3389/fradi.2026.1782068"
-  },
-  {
-    "pmid": "41951984",
-    "authors": "Luo Y, Chen J, Li Q, et al.",
-    "title": "Homozygous NOTCH3 c.3373G > A (p.(Glu1125Lys)) in a consanguineous Chinese family presenting with vestibular migraine and epilepsy: Expanding the genotype-phenotype spectrum.",
-    "journal": "Neurogenetics",
-    "publicationDate": "Apr 2026",
-    "doi": "10.1007/s10048-026-00899-y",
-    "formattedRef": "<b>Luo Y, Chen J, Li Q, et al.<\/b><br><i>Homozygous NOTCH3 c.3373G &gt; A (p.(Glu1125Lys)) in a consanguineous Chinese family presenting with vestibular migraine and epilepsy: Expanding the genotype-phenotype spectrum.<\/i><br>Neurogenetics (Apr 2026)<br>DOI: 10.1007/s10048-026-00899-y"
-  },
-  {
-    "pmid": "41947304",
-    "authors": "Lan SC, Liu YH, Lan J, et al.",
-    "title": "An in trans NOTCH3 loss-of-function variant modifies disease severity in CADASIL: A family-based study.",
-    "journal": "Journal of the Chinese Medical Association : JCMA",
-    "publicationDate": "May 2026",
-    "doi": "10.1097/JCMA.0000000000001371",
-    "formattedRef": "<b>Lan SC, Liu YH, Lan J, et al.<\/b><br><i>An in trans NOTCH3 loss-of-function variant modifies disease severity in CADASIL: A family-based study.<\/i><br>Journal of the Chinese Medical Association : JCMA (May 2026)<br>DOI: 10.1097/JCMA.0000000000001371"
-  },
-  {
-    "pmid": "41925165",
-    "authors": "Wu Y, You X, Qiu J",
-    "title": "Kimura's Disease Complicated by Cerebral Autosomal Dominant Arteriopathy With Subcortical Infarcts and Leukoencephalopathy: A Case Report and Review of the Literature.",
-    "journal": "The neurologist",
-    "publicationDate": "May 2026",
-    "doi": "10.1097/NRL.0000000000000665",
-    "formattedRef": "<b>Wu Y, You X, Qiu J<\/b><br><i>Kimura's Disease Complicated by Cerebral Autosomal Dominant Arteriopathy With Subcortical Infarcts and Leukoencephalopathy: A Case Report and Review of the Literature.<\/i><br>The neurologist (May 2026)<br>DOI: 10.1097/NRL.0000000000000665"
-  },
-  {
-    "pmid": "41895274",
-    "authors": "Vila Cuenca M, Tsikari T, Cerfontaine MN, et al.",
-    "title": "3D Vessels-on-Chip using isogenic hiPSC-derived VSMCs reveal NOTCH3-driven alterations in brain small vessel disease.",
-    "journal": "Stem cell reports",
-    "publicationDate": "Apr 2026",
-    "doi": "10.1016/j.stemcr.2026.102863",
-    "formattedRef": "<b>Vila Cuenca M, Tsikari T, Cerfontaine MN, et al.<\/b><br><i>3D Vessels-on-Chip using isogenic hiPSC-derived VSMCs reveal NOTCH3-driven alterations in brain small vessel disease.<\/i><br>Stem cell reports (Apr 2026)<br>DOI: 10.1016/j.stemcr.2026.102863"
-  },
-  {
-    "pmid": "41841652",
-    "authors": "Chen CH, Lin CW, Wu SH, et al.",
-    "title": "NOTCH3 Pathogenic Variant and Risk of Age-Related Macular Degeneration: Findings From the Taiwan Biobank and Small Vessel Disease Registry.",
-    "journal": "Investigative ophthalmology & visual science",
-    "publicationDate": "Mar 2026",
-    "doi": "10.1167/iovs.67.3.37",
-    "formattedRef": "<b>Chen CH, Lin CW, Wu SH, et al.<\/b><br><i>NOTCH3 Pathogenic Variant and Risk of Age-Related Macular Degeneration: Findings From the Taiwan Biobank and Small Vessel Disease Registry.<\/i><br>Investigative ophthalmology &amp; visual science (Mar 2026)<br>DOI: 10.1167/iovs.67.3.37"
-  },
-  {
-    "pmid": "41776534",
-    "authors": "Lee JWL, Ng ASL, Tan EK, et al.",
-    "title": "NOTCH3 Mutations in CADASIL: a multicellular perspective on neurodegeneration.",
-    "journal": "Cell communication and signaling : CCS",
-    "publicationDate": "Mar 2026",
-    "doi": "10.1186/s12964-026-02764-9",
-    "formattedRef": "<b>Lee JWL, Ng ASL, Tan EK, et al.<\/b><br><i>NOTCH3 Mutations in CADASIL: a multicellular perspective on neurodegeneration.<\/i><br>Cell communication and signaling : CCS (Mar 2026)<br>DOI: 10.1186/s12964-026-02764-9"
-  },
-  {
-    "pmid": "41669960",
-    "authors": "Mizuta I, Yamashita F, Sutoh Y, et al.",
-    "title": "Significant Correlation Between White Matter Hyperintensity Volume and Rare NOTCH3 Variants in the General Japanese Population.",
-    "journal": "Geriatrics & gerontology international",
-    "publicationDate": "Feb 2026",
-    "doi": "10.1111/ggi.70400",
-    "formattedRef": "<b>Mizuta I, Yamashita F, Sutoh Y, et al.<\/b><br><i>Significant Correlation Between White Matter Hyperintensity Volume and Rare NOTCH3 Variants in the General Japanese Population.<\/i><br>Geriatrics &amp; gerontology international (Feb 2026)<br>DOI: 10.1111/ggi.70400"
-  },
-  {
-    "pmid": "41669348",
-    "authors": "Liang G, Xu J, Wu Z",
-    "title": "Simultaneous onset of visual dysfunction and cerebral infarction in a young patient with CADASIL: a case report.",
-    "journal": "Frontiers in medicine",
-    "publicationDate": "2026",
-    "doi": "10.3389/fmed.2026.1728053",
-    "formattedRef": "<b>Liang G, Xu J, Wu Z<\/b><br><i>Simultaneous onset of visual dysfunction and cerebral infarction in a young patient with CADASIL: a case report.<\/i><br>Frontiers in medicine (2026)<br>DOI: 10.3389/fmed.2026.1728053"
-  },
-  {
-    "pmid": "41622715",
-    "authors": "Shao W, Oliveira DV, Naia L, et al.",
-    "title": "Impairment of hippocampal gamma oscillations, mitochondria and neurovascular function in CADASIL.",
+    "pmid": "38489591",
+    "authors": "Bergner CG, Breur M, Soto-Bernardini MC, et al.",
+    "title": "Dominant CST3 variants cause adult onset leukodystrophy without amyloid angiopathy.",
     "journal": "Brain : a journal of neurology",
-    "publicationDate": "Sep 2026",
-    "doi": "10.1093/brain/awag033",
-    "formattedRef": "<b>Shao W, Oliveira DV, Naia L, et al.<\/b><br><i>Impairment of hippocampal gamma oscillations, mitochondria and neurovascular function in CADASIL.<\/i><br>Brain : a journal of neurology (Sep 2026)<br>DOI: 10.1093/brain/awag033"
-  },
-  {
-    "pmid": "41614465",
-    "authors": "Neilson SJ, Boadu W, Sitaram A, et al.",
-    "title": "Genotype-phenotype correlations in a Scottish CADASIL cohort and comparison with sporadic small vessel disease.",
-    "journal": "European stroke journal",
-    "publicationDate": "Jan 2026",
-    "doi": "10.1093/esj/23969873251381917",
-    "formattedRef": "<b>Neilson SJ, Boadu W, Sitaram A, et al.<\/b><br><i>Genotype-phenotype correlations in a Scottish CADASIL cohort and comparison with sporadic small vessel disease.<\/i><br>European stroke journal (Jan 2026)<br>DOI: 10.1093/esj/23969873251381917"
-  },
-  {
-    "pmid": "41595517",
-    "authors": "Ferraro C, Giliani S, Pezzini A",
-    "title": "Gene Panel Approach to Screen for Hereditary Cerebral Small Vessel Disease: A Proof-of-Concept Study.",
-    "journal": "Genes",
-    "publicationDate": "Jan 2026",
-    "doi": "10.3390/genes17010098",
-    "formattedRef": "<b>Ferraro C, Giliani S, Pezzini A<\/b><br><i>Gene Panel Approach to Screen for Hereditary Cerebral Small Vessel Disease: A Proof-of-Concept Study.<\/i><br>Genes (Jan 2026)<br>DOI: 10.3390/genes17010098"
-  },
-  {
-    "pmid": "41356923",
-    "authors": "King EL, Aye HH, Abe Hakim E",
-    "title": "Cerebral Small Vessel Disease: Bystander or Culprit?",
-    "journal": "Cureus",
-    "publicationDate": "Nov 2025",
-    "doi": "10.7759/cureus.96026",
-    "formattedRef": "<b>King EL, Aye HH, Abe Hakim E<\/b><br><i>Cerebral Small Vessel Disease: Bystander or Culprit?<\/i><br>Cureus (Nov 2025)<br>DOI: 10.7759/cureus.96026"
-  },
-  {
-    "pmid": "41300806",
-    "authors": "Guyler SK, Tsai J, Maksemous N, et al.",
-    "title": "The Spectrum of NOTCH3 Variants in an Australian CADASIL Cohort.",
-    "journal": "Genes",
-    "publicationDate": "Nov 2025",
-    "doi": "10.3390/genes16111353",
-    "formattedRef": "<b>Guyler SK, Tsai J, Maksemous N, et al.<\/b><br><i>The Spectrum of NOTCH3 Variants in an Australian CADASIL Cohort.<\/i><br>Genes (Nov 2025)<br>DOI: 10.3390/genes16111353"
-  },
-  {
-    "pmid": "41196431",
-    "authors": "Ouskri A, Ihlal H, En-Nasery Z, et al.",
-    "title": "A novel homozygous loss-of-function NOTCH3 variant in a Moroccan patient: expanding the spectrum beyond CADASIL.",
-    "journal": "Neurogenetics",
-    "publicationDate": "Nov 2025",
-    "doi": "10.1007/s10048-025-00862-3",
-    "formattedRef": "<b>Ouskri A, Ihlal H, En-Nasery Z, et al.<\/b><br><i>A novel homozygous loss-of-function NOTCH3 variant in a Moroccan patient: expanding the spectrum beyond CADASIL.<\/i><br>Neurogenetics (Nov 2025)<br>DOI: 10.1007/s10048-025-00862-3"
-  },
-  {
-    "pmid": "41139503",
-    "authors": "Mukai M, Mizuta I, Ohara T, et al.",
-    "title": "[Geographic Distribution of Patients with CADASIL in Japan].",
-    "journal": "Rinsho shinkeigaku = Clinical neurology",
-    "publicationDate": "Nov 2025",
-    "doi": "10.5692/clinicalneurol.cn-002135",
-    "formattedRef": "<b>Mukai M, Mizuta I, Ohara T, et al.<\/b><br><i>[Geographic Distribution of Patients with CADASIL in Japan].<\/i><br>Rinsho shinkeigaku = Clinical neurology (Nov 2025)<br>DOI: 10.5692/clinicalneurol.cn-002135"
-  },
-  {
-    "pmid": "41110835",
-    "authors": "Aygun FB, Özkorkmaz C, Kadayıfcılar S",
-    "title": "Branch retinal vein occlusion as a manifestation of systemic vasculopathy in CADASIL: a multimodal imaging case report.",
-    "journal": "Ophthalmic genetics",
-    "publicationDate": "Apr 2026",
-    "doi": "10.1080/13816810.2025.2573846",
-    "formattedRef": "<b>Aygun FB, Özkorkmaz C, Kadayıfcılar S<\/b><br><i>Branch retinal vein occlusion as a manifestation of systemic vasculopathy in CADASIL: a multimodal imaging case report.<\/i><br>Ophthalmic genetics (Apr 2026)<br>DOI: 10.1080/13816810.2025.2573846"
-  },
-  {
-    "pmid": "41018180",
-    "authors": "Wang Y, Liu Y, Mo H, et al.",
-    "title": "CADASIL or NOTCH3 mutaion spectrum diseases? Interpretation of NOTCH3 mutations and clinical heterogeneity in CADASIL.",
-    "journal": "Frontiers in neurology",
-    "publicationDate": "2025",
-    "doi": "10.3389/fneur.2025.1662012",
-    "formattedRef": "<b>Wang Y, Liu Y, Mo H, et al.<\/b><br><i>CADASIL or NOTCH3 mutaion spectrum diseases? Interpretation of NOTCH3 mutations and clinical heterogeneity in CADASIL.<\/i><br>Frontiers in neurology (2025)<br>DOI: 10.3389/fneur.2025.1662012"
-  },
-  {
-    "pmid": "40999599",
-    "authors": "Zaganas I, Tsiverdis I, Kokosali E, et al.",
-    "title": "Study of the NOTCH3 Gene Reveals the First CADASIL Cases in Crete and a Novel Pathogenic Variant.",
-    "journal": "Brain and behavior",
-    "publicationDate": "Sep 2025",
-    "doi": "10.1002/brb3.70789",
-    "formattedRef": "<b>Zaganas I, Tsiverdis I, Kokosali E, et al.<\/b><br><i>Study of the NOTCH3 Gene Reveals the First CADASIL Cases in Crete and a Novel Pathogenic Variant.<\/i><br>Brain and behavior (Sep 2025)<br>DOI: 10.1002/brb3.70789"
-  },
-  {
-    "pmid": "40982447",
-    "authors": "Cho EH, Lee M, Ki CS, et al.",
-    "title": "Genetic epidemiology of moyamoya disease and CADASIL in over 120,000 healthy Korean individuals: Insights into cerebrovascular disorders.",
-    "journal": "PloS one",
-    "publicationDate": "2025",
-    "doi": "10.1371/journal.pone.0331174",
-    "formattedRef": "<b>Cho EH, Lee M, Ki CS, et al.<\/b><br><i>Genetic epidemiology of moyamoya disease and CADASIL in over 120,000 healthy Korean individuals: Insights into cerebrovascular disorders.<\/i><br>PloS one (2025)<br>DOI: 10.1371/journal.pone.0331174"
-  },
-  {
-    "pmid": "40908978",
-    "authors": "Cheng YW, Chen CH, Chao CC, et al.",
-    "title": "Vascular NOTCH3 Deposition Load: Association With NOTCH3 Genotype and CADASIL Disease Severity.",
-    "journal": "Neurology. Genetics",
-    "publicationDate": "Oct 2025",
-    "doi": "10.1212/NXG.0000000000200288",
-    "formattedRef": "<b>Cheng YW, Chen CH, Chao CC, et al.<\/b><br><i>Vascular NOTCH3 Deposition Load: Association With NOTCH3 Genotype and CADASIL Disease Severity.<\/i><br>Neurology. Genetics (Oct 2025)<br>DOI: 10.1212/NXG.0000000000200288"
-  },
-  {
-    "pmid": "40882175",
-    "authors": "van Asbeck JS, Gravesteijn G, Cerfontaine MN, et al.",
-    "title": "Small Vessel Disease Phenotype Associated With Monoallelic NOTCH3 Loss-of-Function Variants.",
-    "journal": "Neurology",
-    "publicationDate": "Sep 2025",
-    "doi": "10.1212/WNL.0000000000214021",
-    "formattedRef": "<b>van Asbeck JS, Gravesteijn G, Cerfontaine MN, et al.<\/b><br><i>Small Vessel Disease Phenotype Associated With Monoallelic NOTCH3 Loss-of-Function Variants.<\/i><br>Neurology (Sep 2025)<br>DOI: 10.1212/WNL.0000000000214021"
-  },
-  {
-    "pmid": "40879038",
-    "authors": "Hsu SL, Liao YC, Chang FC, et al.",
-    "title": "Commissural Fiber Disruption Is Associated With Symptom Onset in Cerebral Autosomal-Dominant Arteriopathy With Subcortical Infarcts and Leukoencephalopathy.",
-    "journal": "Journal of the American Heart Association",
-    "publicationDate": "Sep 2025",
-    "doi": "10.1161/JAHA.125.043931",
-    "formattedRef": "<b>Hsu SL, Liao YC, Chang FC, et al.<\/b><br><i>Commissural Fiber Disruption Is Associated With Symptom Onset in Cerebral Autosomal-Dominant Arteriopathy With Subcortical Infarcts and Leukoencephalopathy.<\/i><br>Journal of the American Heart Association (Sep 2025)<br>DOI: 10.1161/JAHA.125.043931"
-  },
-  {
-    "pmid": "40854260",
-    "authors": "Sung YF, Yen SY, Yin JH, et al.",
-    "title": "NOTCH3 p.R544C variant in vascular Parkinsonism: Clinical and imaging correlates in a Taiwanese cohort.",
-    "journal": "Parkinsonism & related disorders",
-    "publicationDate": "Oct 2025",
-    "doi": "10.1016/j.parkreldis.2025.107997",
-    "formattedRef": "<b>Sung YF, Yen SY, Yin JH, et al.<\/b><br><i>NOTCH3 p.R544C variant in vascular Parkinsonism: Clinical and imaging correlates in a Taiwanese cohort.<\/i><br>Parkinsonism &amp; related disorders (Oct 2025)<br>DOI: 10.1016/j.parkreldis.2025.107997"
-  },
-  {
-    "pmid": "40518582",
-    "authors": "Ishiyama H, Saito S, Ihara M",
-    "title": "[A Novel Subtype of Cerebral Autosomal Dominant Arteriopathy with Subcortical Infarcts and Leukoencephalopathy (CADASIL): Pro-hemorrhagic CADASIL].",
-    "journal": "Brain and nerve = Shinkei kenkyu no shinpo",
-    "publicationDate": "Jun 2025",
-    "doi": "10.11477/mf.188160960770060721",
-    "formattedRef": "<b>Ishiyama H, Saito S, Ihara M<\/b><br><i>[A Novel Subtype of Cerebral Autosomal Dominant Arteriopathy with Subcortical Infarcts and Leukoencephalopathy (CADASIL): Pro-hemorrhagic CADASIL].<\/i><br>Brain and nerve = Shinkei kenkyu no shinpo (Jun 2025)<br>DOI: 10.11477/mf.188160960770060721"
-  },
-  {
-    "pmid": "40470487",
-    "authors": "Zhao Y, Lu Y, Wang F, et al.",
-    "title": "Mechanistic advances in factors influencing phenotypic variability in cerebral autosomal dominant arteriopathy with subcortical infarcts and leukoencephalopathy: a review.",
-    "journal": "Frontiers in neurology",
-    "publicationDate": "2025",
-    "doi": "10.3389/fneur.2025.1573052",
-    "formattedRef": "<b>Zhao Y, Lu Y, Wang F, et al.<\/b><br><i>Mechanistic advances in factors influencing phenotypic variability in cerebral autosomal dominant arteriopathy with subcortical infarcts and leukoencephalopathy: a review.<\/i><br>Frontiers in neurology (2025)<br>DOI: 10.3389/fneur.2025.1573052"
-  },
-  {
-    "pmid": "40456481",
-    "authors": "Felix-Ilemhenbhio F, Kocsy K, Azzouz M, et al.",
-    "title": "The role of NOTCH3 in CADASIL pathogenesis: insights into novel therapies.",
-    "journal": "Brain research",
-    "publicationDate": "Sep 2025",
-    "doi": "10.1016/j.brainres.2025.149754",
-    "formattedRef": "<b>Felix-Ilemhenbhio F, Kocsy K, Azzouz M, et al.<\/b><br><i>The role of NOTCH3 in CADASIL pathogenesis: insights into novel therapies.<\/i><br>Brain research (Sep 2025)<br>DOI: 10.1016/j.brainres.2025.149754"
-  },
-  {
-    "pmid": "40379656",
-    "authors": "Park JY, Song JY, Chang JY, et al.",
-    "title": "Genetic and imaging features of CADASIL patients with acute ischemic stroke.",
-    "journal": "Scientific reports",
-    "publicationDate": "May 2025",
-    "doi": "10.1038/s41598-025-00220-1",
-    "formattedRef": "<b>Park JY, Song JY, Chang JY, et al.<\/b><br><i>Genetic and imaging features of CADASIL patients with acute ischemic stroke.<\/i><br>Scientific reports (May 2025)<br>DOI: 10.1038/s41598-025-00220-1"
-  },
-  {
-    "pmid": "40319408",
-    "authors": "Okello G, Poole N, Chung D",
-    "title": "\"String hallucinations\": a case of Cerebral Autosomal Dominant Arteriopathy with Subcortical Infarcts and Leukoencephalopathy (CADASIL) with multimodal visual and somatic disturbances.",
-    "journal": "Cognitive neuropsychiatry",
-    "publicationDate": "Mar 2025",
-    "doi": "10.1080/13546805.2025.2490793",
-    "formattedRef": "<b>Okello G, Poole N, Chung D<\/b><br><i>\"String hallucinations\": a case of Cerebral Autosomal Dominant Arteriopathy with Subcortical Infarcts and Leukoencephalopathy (CADASIL) with multimodal visual and somatic disturbances.<\/i><br>Cognitive neuropsychiatry (Mar 2025)<br>DOI: 10.1080/13546805.2025.2490793"
-  },
-  {
-    "pmid": "40301727",
-    "authors": "Heidari P, Taghizadeh M, Vakili O",
-    "title": "Signaling pathways and molecular mechanisms involved in the onset and progression of cerebral autosomal dominant arteriopathy with subcortical infarcts and leukoencephalopathy (CADASIL); a focus on Notch3 signaling.",
-    "journal": "The journal of headache and pain",
-    "publicationDate": "Apr 2025",
-    "doi": "10.1186/s10194-025-02025-z",
-    "formattedRef": "<b>Heidari P, Taghizadeh M, Vakili O<\/b><br><i>Signaling pathways and molecular mechanisms involved in the onset and progression of cerebral autosomal dominant arteriopathy with subcortical infarcts and leukoencephalopathy (CADASIL); a focus on Notch3 signaling.<\/i><br>The journal of headache and pain (Apr 2025)<br>DOI: 10.1186/s10194-025-02025-z"
-  },
-  {
-    "pmid": "40270244",
-    "authors": "Chen CH, Cheng YW, Zhang R, et al.",
-    "title": "Intracerebral Hemorrhage in Patients With CADASIL: Additive Impact of the NOTCH3 R544C Variant and Hypertension?",
-    "journal": "Stroke",
-    "publicationDate": "Aug 2025",
-    "doi": "10.1161/STROKEAHA.124.050484",
-    "formattedRef": "<b>Chen CH, Cheng YW, Zhang R, et al.<\/b><br><i>Intracerebral Hemorrhage in Patients With CADASIL: Additive Impact of the NOTCH3 R544C Variant and Hypertension?<\/i><br>Stroke (Aug 2025)<br>DOI: 10.1161/STROKEAHA.124.050484"
-  },
-  {
-    "pmid": "40265482",
-    "authors": "Cerfontaine MN, Gravesteijn G, Hack RJ, et al.",
-    "title": "Association Between Vascular NOTCH3 Aggregation and Disease Severity in a CADASIL Cohort - Implications for NOTCH3 Variant-Specific Disease Prediction.",
-    "journal": "Annals of neurology",
-    "publicationDate": "Aug 2025",
-    "doi": "10.1002/ana.27240",
-    "formattedRef": "<b>Cerfontaine MN, Gravesteijn G, Hack RJ, et al.<\/b><br><i>Association Between Vascular NOTCH3 Aggregation and Disease Severity in a CADASIL Cohort - Implications for NOTCH3 Variant-Specific Disease Prediction.<\/i><br>Annals of neurology (Aug 2025)<br>DOI: 10.1002/ana.27240"
-  },
-  {
-    "pmid": "40176124",
-    "authors": "Wang Z, Yin J, Chao W, et al.",
-    "title": "Inducing mononuclear cells of patients with CADASIL to construct a CSVD disease model.",
-    "journal": "European journal of medical research",
-    "publicationDate": "Apr 2025",
-    "doi": "10.1186/s40001-025-02491-w",
-    "formattedRef": "<b>Wang Z, Yin J, Chao W, et al.<\/b><br><i>Inducing mononuclear cells of patients with CADASIL to construct a CSVD disease model.<\/i><br>European journal of medical research (Apr 2025)<br>DOI: 10.1186/s40001-025-02491-w"
-  },
-  {
-    "pmid": "40145673",
-    "authors": "Joutel A",
-    "title": "The Pathobiology of Cerebrovascular Lesions in CADASIL Small Vessel Disease.",
-    "journal": "Basic & clinical pharmacology & toxicology",
-    "publicationDate": "May 2025",
-    "doi": "10.1111/bcpt.70028",
-    "formattedRef": "<b>Joutel A<\/b><br><i>The Pathobiology of Cerebrovascular Lesions in CADASIL Small Vessel Disease.<\/i><br>Basic &amp; clinical pharmacology &amp; toxicology (May 2025)<br>DOI: 10.1111/bcpt.70028"
-  },
-  {
-    "pmid": "40117968",
-    "authors": "Chi SC, Chang HH, Liao YC, et al.",
-    "title": "Peripapillary vessel wall changes correlate with disease severity in patients with cerebral autosomal dominant arteriopathy with subcortical infarcts and leukoencephalopathy (CADASIL).",
-    "journal": "Journal of the neurological sciences",
-    "publicationDate": "May 2025",
-    "doi": "10.1016/j.jns.2025.123467",
-    "formattedRef": "<b>Chi SC, Chang HH, Liao YC, et al.<\/b><br><i>Peripapillary vessel wall changes correlate with disease severity in patients with cerebral autosomal dominant arteriopathy with subcortical infarcts and leukoencephalopathy (CADASIL).<\/i><br>Journal of the neurological sciences (May 2025)<br>DOI: 10.1016/j.jns.2025.123467"
-  },
-  {
-    "pmid": "40067051",
-    "authors": "Hu F, Xie W, Fan M, et al.",
-    "title": "Intracerebral Hemorrhage in Autosomal Dominant Cerebral Arteriopathy With Subcortical Infarcts and Leukoencephalopathy.",
-    "journal": "European journal of neurology",
-    "publicationDate": "Mar 2025",
-    "doi": "10.1111/ene.70100",
-    "formattedRef": "<b>Hu F, Xie W, Fan M, et al.<\/b><br><i>Intracerebral Hemorrhage in Autosomal Dominant Cerebral Arteriopathy With Subcortical Infarcts and Leukoencephalopathy.<\/i><br>European journal of neurology (Mar 2025)<br>DOI: 10.1111/ene.70100"
-  },
-  {
-    "pmid": "40016442",
-    "authors": "Bugallo-Casal A, Muiño E, Bravo SB, et al.",
-    "title": "NOTCH3 Variant Position Affects the Phenotype at the Pluripotent Stem Cell Level in CADASIL.",
-    "journal": "Neuromolecular medicine",
-    "publicationDate": "Feb 2025",
-    "doi": "10.1007/s12017-025-08840-6",
-    "formattedRef": "<b>Bugallo-Casal A, Muiño E, Bravo SB, et al.<\/b><br><i>NOTCH3 Variant Position Affects the Phenotype at the Pluripotent Stem Cell Level in CADASIL.<\/i><br>Neuromolecular medicine (Feb 2025)<br>DOI: 10.1007/s12017-025-08840-6"
-  },
-  {
-    "pmid": "39983483",
-    "authors": "Aygar S, Daheron L",
-    "title": "Generation of a human iPSC line with Notch3 R133C mutation by CRISPR/Cas9: A tool for investigating CADASIL and therapeutic targets.",
-    "journal": "Stem cell research",
-    "publicationDate": "Apr 2025",
-    "doi": "10.1016/j.scr.2025.103678",
-    "formattedRef": "<b>Aygar S, Daheron L<\/b><br><i>Generation of a human iPSC line with Notch3 R133C mutation by CRISPR/Cas9: A tool for investigating CADASIL and therapeutic targets.<\/i><br>Stem cell research (Apr 2025)<br>DOI: 10.1016/j.scr.2025.103678"
-  },
-  {
-    "pmid": "41222721",
-    "authors": "Liu Y, Ma YQ, Sun L, et al.",
-    "title": "A Novel Mutation in Exon 10 of the NOTCH3 Gene in Human Cerebral Microvascular Endothelial Cells Induces CADASIL-Like Pathology and the Therapeutic Effect of Edaravone Dexborneol on Hereditary and Non-hereditary Cerebral Small Vessel Disease.",
-    "journal": "Neurochemical research",
-    "publicationDate": "Nov 2025",
-    "doi": "10.1007/s11064-025-04596-4",
-    "formattedRef": "<b>Liu Y, Ma YQ, Sun L, et al.<\/b><br><i>A Novel Mutation in Exon 10 of the NOTCH3 Gene in Human Cerebral Microvascular Endothelial Cells Induces CADASIL-Like Pathology and the Therapeutic Effect of Edaravone Dexborneol on Hereditary and Non-hereditary Cerebral Small Vessel Disease.<\/i><br>Neurochemical research (Nov 2025)<br>DOI: 10.1007/s11064-025-04596-4"
-  },
-  {
-    "pmid": "40764588",
-    "authors": "Hosseini-Alghaderi S, Baron M",
-    "title": "Extracellular domain shedding of NOTCH3 during endocytosis associated with heterogeneity between different CADASIL mutant activation mechanisms.",
-    "journal": "Cell communication and signaling : CCS",
-    "publicationDate": "Aug 2025",
-    "doi": "10.1186/s12964-025-02362-1",
-    "formattedRef": "<b>Hosseini-Alghaderi S, Baron M<\/b><br><i>Extracellular domain shedding of NOTCH3 during endocytosis associated with heterogeneity between different CADASIL mutant activation mechanisms.<\/i><br>Cell communication and signaling : CCS (Aug 2025)<br>DOI: 10.1186/s12964-025-02362-1"
-  },
-  {
-    "pmid": "39924233",
-    "authors": "Mitsutake A, Sakai Y, Tsuboyama Y, et al.",
-    "title": "Bilateral Middle Cerebellar Peduncle Sign in a Patient with Cerebral Autosomal Dominant Arteriopathy with Subcortical Infarcts and Leukoencephalopathy and Coronavirus Disease 2019.",
-    "journal": "Internal medicine (Tokyo, Japan)",
-    "publicationDate": "Apr 2025",
-    "doi": "10.2169/internalmedicine.4826-24",
-    "formattedRef": "<b>Mitsutake A, Sakai Y, Tsuboyama Y, et al.<\/b><br><i>Bilateral Middle Cerebellar Peduncle Sign in a Patient with Cerebral Autosomal Dominant Arteriopathy with Subcortical Infarcts and Leukoencephalopathy and Coronavirus Disease 2019.<\/i><br>Internal medicine (Tokyo, Japan) (Apr 2025)<br>DOI: 10.2169/internalmedicine.4826-24"
-  },
-  {
-    "pmid": "39919799",
-    "authors": "Wurthmann S, Kastrup O, Wurthmann C, et al.",
-    "title": "[Treatment-refractory chronic depression in a CADASIL patient with a symptom-free somatic course: a case report].",
-    "journal": "Fortschritte der Neurologie-Psychiatrie",
-    "publicationDate": "Jul 2025",
-    "doi": "10.1055/a-2512-7605",
-    "formattedRef": "<b>Wurthmann S, Kastrup O, Wurthmann C, et al.<\/b><br><i>[Treatment-refractory chronic depression in a CADASIL patient with a symptom-free somatic course: a case report].<\/i><br>Fortschritte der Neurologie-Psychiatrie (Jul 2025)<br>DOI: 10.1055/a-2512-7605"
-  },
-  {
-    "pmid": "39864627",
-    "authors": "Cartee NMP, Lee SJ, Wu E, et al.",
-    "title": "Light-chain split luciferase assay implicates pathological NOTCH3 thiol reactivity in inherited cerebral small vessel disease.",
-    "journal": "The Journal of biological chemistry",
-    "publicationDate": "Mar 2025",
-    "doi": "10.1016/j.jbc.2025.108224",
-    "formattedRef": "<b>Cartee NMP, Lee SJ, Wu E, et al.<\/b><br><i>Light-chain split luciferase assay implicates pathological NOTCH3 thiol reactivity in inherited cerebral small vessel disease.<\/i><br>The Journal of biological chemistry (Mar 2025)<br>DOI: 10.1016/j.jbc.2025.108224"
-  },
-  {
-    "pmid": "39806999",
-    "authors": "Hsu SL, Liao YC, Chung CP, et al.",
-    "title": "Intracerebral hemorrhage in CADASIL.",
-    "journal": "Journal of the Chinese Medical Association : JCMA",
-    "publicationDate": "Mar 2025",
-    "doi": "10.1097/JCMA.0000000000001206",
-    "formattedRef": "<b>Hsu SL, Liao YC, Chung CP, et al.<\/b><br><i>Intracerebral hemorrhage in CADASIL.<\/i><br>Journal of the Chinese Medical Association : JCMA (Mar 2025)<br>DOI: 10.1097/JCMA.0000000000001206"
-  },
-  {
-    "pmid": "39689282",
-    "authors": "Kaisaridi S, Herve D, Jabouley A, et al.",
-    "title": "Determining Clinical Disease Progression in Symptomatic Patients With CADASIL.",
-    "journal": "Neurology",
-    "publicationDate": "Jan 2025",
-    "doi": "10.1212/WNL.0000000000210193",
-    "formattedRef": "<b>Kaisaridi S, Herve D, Jabouley A, et al.<\/b><br><i>Determining Clinical Disease Progression in Symptomatic Patients With CADASIL.<\/i><br>Neurology (Jan 2025)<br>DOI: 10.1212/WNL.0000000000210193"
-  },
-  {
-    "pmid": "39610302",
-    "authors": "Gravesteijn G, Rutten JW, Cerfontaine MN, et al.",
-    "title": "Disease Severity Staging System for NOTCH3-Associated Small Vessel Disease, Including CADASIL.",
-    "journal": "JAMA neurology",
-    "publicationDate": "Jan 2025",
-    "doi": "10.1001/jamaneurol.2024.4487",
-    "formattedRef": "<b>Gravesteijn G, Rutten JW, Cerfontaine MN, et al.<\/b><br><i>Disease Severity Staging System for NOTCH3-Associated Small Vessel Disease, Including CADASIL.<\/i><br>JAMA neurology (Jan 2025)<br>DOI: 10.1001/jamaneurol.2024.4487"
-  },
-  {
-    "pmid": "39588856",
-    "authors": "Geng Y, Cai C, Li H, et al.",
-    "title": "Short-Term Frequently Relapsing Ischemic Strokes Followed by Rapidly Progressive Dementia in CADASIL: A Case Report and Literature Review.",
-    "journal": "The neurologist",
-    "publicationDate": "May 2025",
-    "doi": "10.1097/NRL.0000000000000601",
-    "formattedRef": "<b>Geng Y, Cai C, Li H, et al.<\/b><br><i>Short-Term Frequently Relapsing Ischemic Strokes Followed by Rapidly Progressive Dementia in CADASIL: A Case Report and Literature Review.<\/i><br>The neurologist (May 2025)<br>DOI: 10.1097/NRL.0000000000000601"
-  },
-  {
-    "pmid": "39547790",
-    "authors": "Sukhonpanich N, Koohi F, Jolly AA, et al.",
-    "title": "Changes in the prognosis of CADASIL over time: a 23-year study in 555 individuals.",
-    "journal": "Journal of neurology, neurosurgery, and psychiatry",
-    "publicationDate": "Jun 2025",
-    "doi": "10.1136/jnnp-2024-334823",
-    "formattedRef": "<b>Sukhonpanich N, Koohi F, Jolly AA, et al.<\/b><br><i>Changes in the prognosis of CADASIL over time: a 23-year study in 555 individuals.<\/i><br>Journal of neurology, neurosurgery, and psychiatry (Jun 2025)<br>DOI: 10.1136/jnnp-2024-334823"
-  },
-  {
-    "pmid": "42002114",
-    "authors": "Ping S, Hu B, Wu D, et al.",
-    "title": "NOTCH3 R545C mutation drives vascular-neuronal dysfunction and cognitive impairment in CADASIL pathogenesis.",
-    "journal": "Neurobiology of disease",
-    "publicationDate": "Jun 2026",
-    "doi": "10.1016/j.nbd.2026.107404",
-    "formattedRef": "<b>Ping S, Hu B, Wu D, et al.<\/b><br><i>NOTCH3 R545C mutation drives vascular-neuronal dysfunction and cognitive impairment in CADASIL pathogenesis.<\/i><br>Neurobiology of disease (Jun 2026)<br>DOI: 10.1016/j.nbd.2026.107404"
-  },
-  {
-    "pmid": "41806331",
-    "authors": "Wang H, Liu X, Gravesteijn G, et al.",
-    "title": "NOTCH3 CADASIL Variant Receptor Aggregation Requires NOTCH3 Wild-Type Receptors: Identification of Highly Selective Inhibitors That Block the Process.",
-    "journal": "FASEB journal : official publication of the Federation of American Societies for Experimental Biology",
-    "publicationDate": "Mar 2026",
-    "doi": "10.1096/fj.202504022R",
-    "formattedRef": "<b>Wang H, Liu X, Gravesteijn G, et al.<\/b><br><i>NOTCH3 CADASIL Variant Receptor Aggregation Requires NOTCH3 Wild-Type Receptors: Identification of Highly Selective Inhibitors That Block the Process.<\/i><br>FASEB journal : official publication of the Federation of American Societies for Experimental Biology (Mar 2026)<br>DOI: 10.1096/fj.202504022R"
-  },
-  {
-    "pmid": "41327223",
-    "authors": "Long L, Wu D, Xiong X, et al.",
-    "title": "Reduced SUMOylation impairs NOTCH3 signaling and cell survival in the pathogenesis of CADASIL.",
-    "journal": "Cell communication and signaling : CCS",
-    "publicationDate": "Dec 2025",
-    "doi": "10.1186/s12964-025-02556-7",
-    "formattedRef": "<b>Long L, Wu D, Xiong X, et al.<\/b><br><i>Reduced SUMOylation impairs NOTCH3 signaling and cell survival in the pathogenesis of CADASIL.<\/i><br>Cell communication and signaling : CCS (Dec 2025)<br>DOI: 10.1186/s12964-025-02556-7"
-  },
-  {
-    "pmid": "39853935",
-    "authors": "Li C, Li H, Men X, et al.",
-    "title": "NOTCH3 Mutation Causes Glymphatic Impairment and Promotes Brain Senescence in CADASIL.",
-    "journal": "CNS neuroscience & therapeutics",
-    "publicationDate": "Jan 2025",
-    "doi": "10.1111/cns.70140",
-    "formattedRef": "<b>Li C, Li H, Men X, et al.<\/b><br><i>NOTCH3 Mutation Causes Glymphatic Impairment and Promotes Brain Senescence in CADASIL.<\/i><br>CNS neuroscience &amp; therapeutics (Jan 2025)<br>DOI: 10.1111/cns.70140"
+    "publicationDate": "Oct 2024",
+    "doi": "10.1093/brain/awae085",
+    "formattedRef": "<b>Bergner CG, Breur M, Soto-Bernardini MC, et al.<\/b><br><i>Dominant CST3 variants cause adult onset leukodystrophy without amyloid angiopathy.<\/i><br>Brain : a journal of neurology (Oct 2024)<br>DOI: 10.1093/brain/awae085"
   },
   {
     "pmid": "27664989",
@@ -1287,58 +243,112 @@
     "formattedRef": "<b>Bugiani M, Kevelam SH, Bakels HS, et al.<\/b><br><i>Cathepsin A-related arteriopathy with strokes and leukoencephalopathy (CARASAL).<\/i><br>Neurology (Oct 2016)<br>DOI: 10.1212/WNL.0000000000003251"
   },
   {
-    "pmid": "41719494",
-    "authors": "Ford AL, Kang P, Fellah S, et al.",
-    "title": "Neuroimaging Biomarkers of Disease Progression and Cognitive Change in Patients With Retinal Vasculopathy With Cerebral Leukoencephalopathy.",
+    "pmid": "2111584",
+    "authors": "Levy E, Carman MD, Fernandez-Madrid IJ, et al.",
+    "title": "Mutation of the Alzheimer's disease amyloid gene in hereditary cerebral hemorrhage, Dutch type.",
+    "journal": "Science (New York, N.Y.)",
+    "publicationDate": "Jun 1990",
+    "doi": "10.1126/science.2111584",
+    "formattedRef": "<b>Levy E, Carman MD, Fernandez-Madrid IJ, et al.<\/b><br><i>Mutation of the Alzheimer's disease amyloid gene in hereditary cerebral hemorrhage, Dutch type.<\/i><br>Science (New York, N.Y.) (Jun 1990)<br>DOI: 10.1126/science.2111584"
+  },
+  {
+    "pmid": "37063705",
+    "authors": "Morel H, Bailly L, Urbanczyk C, et al.",
+    "title": "Extension of the Clinicoradiologic Spectrum of Newly Described End-Truncating ",
+    "journal": "Neurology. Genetics",
+    "publicationDate": "Jun 2023",
+    "doi": "10.1212/NXG.0000000000200069",
+    "formattedRef": "<b>Morel H, Bailly L, Urbanczyk C, et al.<\/b><br><i>Extension of the Clinicoradiologic Spectrum of Newly Described End-Truncating<\/i><br>Neurology. Genetics (Jun 2023)<br>DOI: 10.1212/NXG.0000000000200069"
+  },
+  {
+    "pmid": "34606115",
+    "authors": "Aloui C, Hervé D, Marenne G, et al.",
+    "title": "End-Truncated LAMB1 Causes a Hippocampal Memory Defect and a Leukoencephalopathy.",
+    "journal": "Annals of neurology",
+    "publicationDate": "Dec 2021",
+    "doi": "10.1002/ana.26242",
+    "formattedRef": "<b>Aloui C, Hervé D, Marenne G, et al.<\/b><br><i>End-truncated LAMB1 Causes a Hippocampal Memory Defect and a Leukoencephalopathy.<\/i><br>Annals of neurology (Dec 2021)<br>DOI: 10.1002/ana.26242"
+  },
+  {
+    "pmid": "35511193",
+    "authors": "Mishra A, Duplaà C, Vojinovic D, et al.",
+    "title": "Gene-mapping study of extremes of cerebral small vessel disease reveals TRIM47 as a strong candidate.",
+    "journal": "Brain : a journal of neurology",
+    "publicationDate": "Jun 2022",
+    "doi": "10.1093/brain/awab432",
+    "formattedRef": "<b>Mishra A, Duplaà C, Vojinovic D, et al.<\/b><br><i>Gene-mapping study of extremes of cerebral small vessel disease reveals TRIM47 as a strong candidate.<\/i><br>Brain : a journal of neurology (Jun 2022)<br>DOI: 10.1093/brain/awab432"
+  },
+  {
+    "pmid": "35943854",
+    "authors": "Yang Y, Knol MJ, Wang R, et al.",
+    "title": "Epigenetic and integrative cross-omics analyses of cerebral white matter hyperintensities on MRI.",
+    "journal": "Brain : a journal of neurology",
+    "publicationDate": "Feb 2023",
+    "doi": "10.1093/brain/awac290",
+    "formattedRef": "<b>Yang Y, Knol MJ, Wang R, et al.<\/b><br><i>Epigenetic and integrative cross-omics analyses of cerebral white matter hyperintensities on MRI.<\/i><br>Brain : a journal of neurology (Feb 2023)<br>DOI: 10.1093/brain/awac290"
+  },
+  {
+    "pmid": "41266628",
+    "authors": "Caro I, Western D, Namba S, et al.",
+    "title": "Proteogenomics in cerebrospinal fluid and plasma reveals new biological fingerprint of cerebral small vessel disease.",
+    "journal": "Nature aging",
+    "publicationDate": "Dec 2025",
+    "doi": "10.1038/s43587-025-01006-w",
+    "formattedRef": "<b>Caro I, Western D, Namba S, et al.<\/b><br><i>Proteogenomics in cerebrospinal fluid and plasma reveals new biological fingerprint of cerebral small vessel disease.<\/i><br>Nature aging (Dec 2025)<br>DOI: 10.1038/s43587-025-01006-w"
+  },
+  {
+    "pmid": "32913026",
+    "authors": "Knol MJ, Lu D, Traylor M, et al.",
+    "title": "Association of common genetic variants with brain microbleeds: A genome-wide association study.",
     "journal": "Neurology",
-    "publicationDate": "Mar 2026",
-    "doi": "10.1212/WNL.0000000000214703",
-    "formattedRef": "<b>Ford AL, Kang P, Fellah S, et al.<\/b><br><i>Neuroimaging Biomarkers of Disease Progression and Cognitive Change in Patients With Retinal Vasculopathy With Cerebral Leukoencephalopathy.<\/i><br>Neurology (Mar 2026)<br>DOI: 10.1212/WNL.0000000000214703"
+    "publicationDate": "Dec 2020",
+    "doi": "10.1212/WNL.0000000000010852",
+    "formattedRef": "<b>Knol MJ, Lu D, Traylor M, et al.<\/b><br><i>Association of common genetic variants with brain microbleeds: A genome-wide association study.<\/i><br>Neurology (Dec 2020)<br>DOI: 10.1212/WNL.0000000000010852"
   },
   {
-    "pmid": "40476824",
-    "authors": "McGlasson S, Reid K, Klingseisen A, et al.",
-    "title": "Misdirected yet intact TREX1 exonuclease activity causes human cerebral and systemic small vessel disease.",
-    "journal": "Brain : a journal of neurology",
-    "publicationDate": "Aug 2025",
-    "doi": "10.1093/brain/awaf085",
-    "formattedRef": "<b>McGlasson S, Reid K, Klingseisen A, et al.<\/b><br><i>Misdirected yet intact TREX1 exonuclease activity causes human cerebral and systemic small vessel disease.<\/i><br>Brain : a journal of neurology (Aug 2025)<br>DOI: 10.1093/brain/awaf085"
+    "pmid": "24656865",
+    "authors": "Woo D, Falcone GJ, Devan WJ, et al.",
+    "title": "Meta-analysis of genome-wide association studies identifies 1q22 as a susceptibility locus for intracerebral hemorrhage.",
+    "journal": "American journal of human genetics",
+    "publicationDate": "Apr 2014",
+    "doi": "10.1016/j.ajhg.2014.02.012",
+    "formattedRef": "<b>Woo D, Falcone GJ, Devan WJ, et al.<\/b><br><i>Meta-analysis of genome-wide association studies identifies 1q22 as a susceptibility locus for intracerebral hemorrhage.<\/i><br>American journal of human genetics (Apr 2014)<br>DOI: 10.1016/j.ajhg.2014.02.012"
   },
   {
-    "pmid": "42885481",
-    "authors": "Rivier CA, Diaz-Perez S, Bories G, et al.",
-    "title": "Multiomics Profiling Supports Cathepsin B as a Protective Factor in White Matter Hyperintensities and Cognition.",
-    "journal": "Stroke",
-    "publicationDate": "Oct 2026",
-    "doi": "10.1161/STROKEAHA.126.056508",
-    "formattedRef": "<b>Rivier CA, Diaz-Perez S, Bories G, et al.<\/b><br><i>Multiomics Profiling Supports Cathepsin B as a Protective Factor in White Matter Hyperintensities and Cognition.<\/i><br>Stroke (Oct 2026)<br>DOI: 10.1161/STROKEAHA.126.056508"
+    "pmid": "33902304",
+    "authors": "Craps S, Van Wauwe J, De Moudt S, et al.",
+    "title": "Prdm16 Supports Arterial Flow Recovery by Maintaining Endothelial Function.",
+    "journal": "Circulation research",
+    "publicationDate": "Jun 2021",
+    "doi": "10.1161/CIRCRESAHA.120.318501",
+    "formattedRef": "<b>Craps S, Van Wauwe J, De Moudt S, et al.<\/b><br><i>Prdm16 Supports Arterial Flow Recovery by Maintaining Endothelial Function.<\/i><br>Circulation research (Jun 2021)<br>DOI: 10.1161/CIRCRESAHA.120.318501"
   },
   {
-    "pmid": "42040931",
-    "authors": "Rivier C, Diaz-Perez S, Bories G, et al.",
-    "title": "Multiomics Profiling Supports Cathepsin B as a Protective Factor in Cerebral Small Vessel Disease.",
-    "journal": "Research square",
-    "publicationDate": "Apr 2026",
-    "doi": "10.21203/rs.3.rs-9013964/v1",
-    "formattedRef": "<b>Rivier C, Diaz-Perez S, Bories G, et al.<\/b><br><i>Multiomics Profiling Supports Cathepsin B as a Protective Factor in Cerebral Small Vessel Disease.<\/i><br>Research square (Apr 2026)<br>DOI: 10.21203/rs.3.rs-9013964/v1"
+    "pmid": "35328582",
+    "authors": "Cullell N, Gallego-Fábrega C, Cárcel-Márquez J, et al.",
+    "title": "ICA1L Is Associated with Small Vessel Disease: A Proteome-Wide Association Study in Small Vessel Stroke and Intracerebral Haemorrhage.",
+    "journal": "International journal of molecular sciences",
+    "publicationDate": "Mar 2022",
+    "doi": "10.3390/ijms23063161",
+    "formattedRef": "<b>Cullell N, Gallego-Fábrega C, Cárcel-Márquez J, et al.<\/b><br><i>Ica1l Is Associated with Small Vessel Disease: A Proteome-Wide Association Study in Small Vessel Stroke and Intracerebral Haemorrhage.<\/i><br>International journal of molecular sciences (Mar 2022)<br>DOI: 10.3390/ijms23063161"
   },
   {
-    "pmid": "35325079",
-    "authors": "Jickling GC, Ander BP, Zhan X, et al.",
-    "title": "Progression of cerebral white matter hyperintensities is related to leucocyte gene expression.",
-    "journal": "Brain : a journal of neurology",
-    "publicationDate": "Sep 2022",
-    "doi": "10.1093/brain/awac107",
-    "formattedRef": "<b>Jickling GC, Ander BP, Zhan X, et al.<\/b><br><i>Progression of cerebral white matter hyperintensities is related to leucocyte gene expression.<\/i><br>Brain : a journal of neurology (Sep 2022)<br>DOI: 10.1093/brain/awac107"
+    "pmid": "37787451",
+    "authors": "Parodi L, Comeau ME, Georgakis MK, et al.",
+    "title": "Deep Resequencing of the 1q22 Locus in Non-Lobar Intracerebral Hemorrhage.",
+    "journal": "Annals of neurology",
+    "publicationDate": "Feb 2024",
+    "doi": "10.1002/ana.26814",
+    "formattedRef": "<b>Parodi L, Comeau ME, Georgakis MK, et al.<\/b><br><i>Deep Resequencing of the 1q22 Locus in Non-Lobar Intracerebral Hemorrhage.<\/i><br>Annals of neurology (Feb 2024)<br>DOI: 10.1002/ana.26814"
   },
   {
-    "pmid": "37684694",
-    "authors": "Liu S, Men X, Guo Y, et al.",
-    "title": "Gut microbes exacerbate systemic inflammation and behavior disorders in neurologic disease CADASIL.",
-    "journal": "Microbiome",
-    "publicationDate": "Sep 2023",
-    "doi": "10.1186/s40168-023-01638-3",
-    "formattedRef": "<b>Liu S, Men X, Guo Y, et al.<\/b><br><i>Gut microbes exacerbate systemic inflammation and behavior disorders in neurologic disease CADASIL.<\/i><br>Microbiome (Sep 2023)<br>DOI: 10.1186/s40168-023-01638-3"
+    "pmid": "39805841",
+    "authors": "Huang SY, Ge YJ, Ren P, et al.",
+    "title": "Genome-wide association study unravels mechanisms of brain glymphatic activity.",
+    "journal": "Nature communications",
+    "publicationDate": "Jan 2025",
+    "doi": "10.1038/s41467-024-55706-9",
+    "formattedRef": "<b>Huang SY, Ge YJ, Ren P, et al.<\/b><br><i>Genome-wide association study unravels mechanisms of brain glymphatic activity.<\/i><br>Nature communications (Jan 2025)<br>DOI: 10.1038/s41467-024-55706-9"
   },
   {
     "pmid": "15905468",
@@ -1359,147 +369,66 @@
     "formattedRef": "<b>Monet-Leprêtre M, Haddad I, Baron-Menguy C, et al.<\/b><br><i>Abnormal recruitment of extracellular matrix proteins by excess Notch3 ECD: a new pathomechanism in CADASIL.<\/i><br>Brain : a journal of neurology (Jun 2013)<br>DOI: 10.1093/brain/awt092"
   },
   {
-    "pmid": "42512885",
-    "authors": "Atılgan KG, Aylı BI, Aylı MD",
-    "title": "Screening for Fabry Disease Among Dialysis Patients: A Multicenter Cross-Sectional Study in Türkiye with Cascade Screening of Identified Cases.",
-    "journal": "Medicina (Kaunas, Lithuania)",
-    "publicationDate": "Jul 2026",
-    "doi": "10.3390/medicina62071343",
-    "formattedRef": "<b>Atılgan KG, Aylı BI, Aylı MD<\/b><br><i>Screening for Fabry Disease Among Dialysis Patients: A Multicenter Cross-Sectional Study in Türkiye with Cascade Screening of Identified Cases.<\/i><br>Medicina (Kaunas, Lithuania) (Jul 2026)<br>DOI: 10.3390/medicina62071343"
+    "pmid": "39114924",
+    "authors": "Yang XZ, Huang MY, Han F, et al.",
+    "title": "Genome-Wide Mendelian Randomization Study Reveals Druggable Genes for Cerebral Small Vessel Disease.",
+    "journal": "Stroke",
+    "publicationDate": "Sep 2024",
+    "doi": "10.1161/STROKEAHA.124.046544",
+    "formattedRef": "<b>Yang XZ, Huang MY, Han F, et al.<\/b><br><i>Genome-wide Mendelian Randomization Study Reveals Druggable Genes for Cerebral Small Vessel Disease.<\/i><br>Stroke (Sep 2024)<br>DOI: 10.1161/STROKEAHA.124.046544"
   },
   {
-    "pmid": "42379398",
-    "authors": "Salluzzo M, Flotta F, Delprete C, et al.",
-    "title": "Evidence for hippocampal globotriaosylceramide (Gb3) accumulation and spatial memory impairment in a mouse model of Fabry disease.",
-    "journal": "Neurobiology of disease",
-    "publicationDate": "Sep 2026",
-    "doi": "10.1016/j.nbd.2026.107516",
-    "formattedRef": "<b>Salluzzo M, Flotta F, Delprete C, et al.<\/b><br><i>Evidence for hippocampal globotriaosylceramide (Gb3) accumulation and spatial memory impairment in a mouse model of Fabry disease.<\/i><br>Neurobiology of disease (Sep 2026)<br>DOI: 10.1016/j.nbd.2026.107516"
+    "pmid": "37684694",
+    "authors": "Liu S, Men X, Guo Y, et al.",
+    "title": "Gut microbes exacerbate systemic inflammation and behavior disorders in neurologic disease CADASIL.",
+    "journal": "Microbiome",
+    "publicationDate": "Sep 2023",
+    "doi": "10.1186/s40168-023-01638-3",
+    "formattedRef": "<b>Liu S, Men X, Guo Y, et al.<\/b><br><i>Gut microbes exacerbate systemic inflammation and behavior disorders in neurologic disease CADASIL.<\/i><br>Microbiome (Sep 2023)<br>DOI: 10.1186/s40168-023-01638-3"
   },
   {
-    "pmid": "42243880",
-    "authors": "Veldman BCF, van Dussen L, Datema MR, et al.",
-    "title": "The impact of cardiovascular risk factors in non-classical Fabry disease.",
-    "journal": "Orphanet journal of rare diseases",
-    "publicationDate": "Jun 2026",
-    "doi": "10.1186/s13023-026-04425-z",
-    "formattedRef": "<b>Veldman BCF, van Dussen L, Datema MR, et al.<\/b><br><i>The impact of cardiovascular risk factors in non-classical Fabry disease.<\/i><br>Orphanet journal of rare diseases (Jun 2026)<br>DOI: 10.1186/s13023-026-04425-z"
+    "pmid": "18436879",
+    "authors": "Fornage M, Chiang YA, O'Meara ES, et al.",
+    "title": "Biomarkers of Inflammation and MRI-Defined Small Vessel Disease of the Brain: The Cardiovascular Health Study.",
+    "journal": "Stroke",
+    "publicationDate": "Jul 2008",
+    "doi": "10.1161/STROKEAHA.107.508135",
+    "formattedRef": "<b>Fornage M, Chiang YA, O'Meara ES, et al.<\/b><br><i>Biomarkers of Inflammation and MRI-Defined Small Vessel Disease of the Brain: The Cardiovascular Health Study.<\/i><br>Stroke (Jul 2008)<br>DOI: 10.1161/STROKEAHA.107.508135"
   },
   {
-    "pmid": "41402951",
-    "authors": "Choudhury M, Lenders M, Laufer P, et al.",
-    "title": "Impact of migalastat on cerebral outcomes in fabry disease - results from the prospective observational FAMOUS trial.",
-    "journal": "Neurological research and practice",
-    "publicationDate": "Dec 2025",
-    "doi": "10.1186/s42466-025-00440-w",
-    "formattedRef": "<b>Choudhury M, Lenders M, Laufer P, et al.<\/b><br><i>Impact of migalastat on cerebral outcomes in fabry disease - results from the prospective observational FAMOUS trial.<\/i><br>Neurological research and practice (Dec 2025)<br>DOI: 10.1186/s42466-025-00440-w"
+    "pmid": "35325079",
+    "authors": "Jickling GC, Ander BP, Zhan X, et al.",
+    "title": "Progression of cerebral white matter hyperintensities is related to leucocyte gene expression.",
+    "journal": "Brain : a journal of neurology",
+    "publicationDate": "Sep 2022",
+    "doi": "10.1093/brain/awac107",
+    "formattedRef": "<b>Jickling GC, Ander BP, Zhan X, et al.<\/b><br><i>Progression of cerebral white matter hyperintensities is related to leucocyte gene expression.<\/i><br>Brain : a journal of neurology (Sep 2022)<br>DOI: 10.1093/brain/awac107"
   },
   {
-    "pmid": "41204227",
-    "authors": "Théberge ET, Selvage C, Thomas A, et al.",
-    "title": "Risk factors, stroke rates and aspirin prescribing trends in the Canadian Fabry disease initiative cohort.",
-    "journal": "Orphanet journal of rare diseases",
-    "publicationDate": "Nov 2025",
-    "doi": "10.1186/s13023-025-04098-0",
-    "formattedRef": "<b>Théberge ET, Selvage C, Thomas A, et al.<\/b><br><i>Risk factors, stroke rates and aspirin prescribing trends in the Canadian Fabry disease initiative cohort.<\/i><br>Orphanet journal of rare diseases (Nov 2025)<br>DOI: 10.1186/s13023-025-04098-0"
+    "pmid": "38811690",
+    "authors": "Le Grand Q, Tsuchida A, Koch A, et al.",
+    "title": "Diffusion imaging genomics provides novel insight into early mechanisms of cerebral small vessel disease.",
+    "journal": "Molecular psychiatry",
+    "publicationDate": "Nov 2024",
+    "doi": "10.1038/s41380-024-02604-7",
+    "formattedRef": "<b>Le Grand Q, Tsuchida A, Koch A, et al.<\/b><br><i>Diffusion imaging genomics provides novel insight into early mechanisms of cerebral small vessel disease.<\/i><br>Molecular psychiatry (Nov 2024)<br>DOI: 10.1038/s41380-024-02604-7"
   },
   {
-    "pmid": "40362636",
-    "authors": "La Russa A, Siniscalchi A, Bonaventura A, et al.",
-    "title": "Potential Pathogenetic Role of the D313Y Mutation in the GLA Gene in Anderson Fabry Disease: Two Case Reports.",
-    "journal": "International journal of molecular sciences",
-    "publicationDate": "May 2025",
-    "doi": "10.3390/ijms26094400",
-    "formattedRef": "<b>La Russa A, Siniscalchi A, Bonaventura A, et al.<\/b><br><i>Potential Pathogenetic Role of the D313Y Mutation in the GLA Gene in Anderson Fabry Disease: Two Case Reports.<\/i><br>International journal of molecular sciences (May 2025)<br>DOI: 10.3390/ijms26094400"
+    "pmid": "39417098",
+    "authors": "Gomez GT, Shi L, Fohner AE, et al.",
+    "title": "Plasma proteome-wide analysis of cerebral small vessel disease identifies novel biomarkers and disease pathways.",
+    "journal": "medRxiv : the preprint server for health sciences",
+    "publicationDate": "Oct 2024",
+    "doi": "10.1101/2024.10.07.24314972",
+    "formattedRef": "<b>Gomez GT, Shi L, Fohner AE, et al.<\/b><br><i>Plasma proteome-wide analysis of cerebral small vessel disease identifies novel biomarkers and disease pathways.<\/i><br>medRxiv : the preprint server for health sciences (Oct 2024)<br>DOI: 10.1101/2024.10.07.24314972"
   },
   {
-    "pmid": "40002499",
-    "authors": "Di Natale D, Rossi S, Dalla Zanna G, et al.",
-    "title": "Prevalence and Clinical Correlates of Cerebrovascular Alterations in Fabry Disease: A Cross-Sectional Study.",
-    "journal": "Brain sciences",
-    "publicationDate": "Feb 2025",
-    "doi": "10.3390/brainsci15020166",
-    "formattedRef": "<b>Di Natale D, Rossi S, Dalla Zanna G, et al.<\/b><br><i>Prevalence and Clinical Correlates of Cerebrovascular Alterations in Fabry Disease: A Cross-Sectional Study.<\/i><br>Brain sciences (Feb 2025)<br>DOI: 10.3390/brainsci15020166"
-  },
-  {
-    "pmid": "39859188",
-    "authors": "Anania M, Pieruzzi F, Giacalone I, et al.",
-    "title": "Identification of Four New Mutations in the GLA Gene Associated with Anderson-Fabry Disease.",
-    "journal": "International journal of molecular sciences",
-    "publicationDate": "Jan 2025",
-    "doi": "10.3390/ijms26020473",
-    "formattedRef": "<b>Anania M, Pieruzzi F, Giacalone I, et al.<\/b><br><i>Identification of Four New Mutations in the GLA Gene Associated with Anderson-Fabry Disease.<\/i><br>International journal of molecular sciences (Jan 2025)<br>DOI: 10.3390/ijms26020473"
-  },
-  {
-    "pmid": "39859185",
-    "authors": "Giacalone I, Ruzzi L, Anania M, et al.",
-    "title": "The Identification of a Novel Pathogenic Variant of the GLA Gene Associated with a Classic Phenotype of Anderson-Fabry Disease: A Clinical and Molecular Study.",
-    "journal": "International journal of molecular sciences",
-    "publicationDate": "Jan 2025",
-    "doi": "10.3390/ijms26020470",
-    "formattedRef": "<b>Giacalone I, Ruzzi L, Anania M, et al.<\/b><br><i>The Identification of a Novel Pathogenic Variant of the GLA Gene Associated with a Classic Phenotype of Anderson-Fabry Disease: A Clinical and Molecular Study.<\/i><br>International journal of molecular sciences (Jan 2025)<br>DOI: 10.3390/ijms26020470"
-  },
-  {
-    "pmid": "39620496",
-    "authors": "Kimball TN, Rivero-García P, Argaiz ER, et al.",
-    "title": "Genotype-Phenotype Spectrum of 52 Mexican Patients With Fabry Disease: A Novel GLA Variant With Atypical Phenotype.",
-    "journal": "Molecular genetics & genomic medicine",
-    "publicationDate": "Dec 2024",
-    "doi": "10.1002/mgg3.70039",
-    "formattedRef": "<b>Kimball TN, Rivero-García P, Argaiz ER, et al.<\/b><br><i>Genotype-Phenotype Spectrum of 52 Mexican Patients With Fabry Disease: A Novel GLA Variant With Atypical Phenotype.<\/i><br>Molecular genetics &amp; genomic medicine (Dec 2024)<br>DOI: 10.1002/mgg3.70039"
-  },
-  {
-    "pmid": "42481886",
-    "authors": "Guyler SK, Alfayyadh MM, Maksemous N, et al.",
-    "title": "Whole-exome sequencing identifies matrisomal gene associations in monogenic cerebral small vessel disease.",
-    "journal": "Journal of neurology",
-    "publicationDate": "Jul 2026",
-    "doi": "10.1007/s00415-026-14018-2",
-    "formattedRef": "<b>Guyler SK, Alfayyadh MM, Maksemous N, et al.<\/b><br><i>Whole-exome sequencing identifies matrisomal gene associations in monogenic cerebral small vessel disease.<\/i><br>Journal of neurology (Jul 2026)<br>DOI: 10.1007/s00415-026-14018-2"
-  },
-  {
-    "pmid": "41577745",
-    "authors": "Kitahara S, Ando S, Uemura M, et al.",
-    "title": "ABCC6 pathogenic variants are associated with hemorrhagic phenotypes in Japanese patients with severe cerebral small vessel disease.",
-    "journal": "Scientific reports",
-    "publicationDate": "Jan 2026",
-    "doi": "10.1038/s41598-025-33934-3",
-    "formattedRef": "<b>Kitahara S, Ando S, Uemura M, et al.<\/b><br><i>ABCC6 pathogenic variants are associated with hemorrhagic phenotypes in Japanese patients with severe cerebral small vessel disease.<\/i><br>Scientific reports (Jan 2026)<br>DOI: 10.1038/s41598-025-33934-3"
-  },
-  {
-    "pmid": "40725385",
-    "authors": "Zedde M, Pascarella R",
-    "title": "ABCC6 Involvement in Cerebral Small Vessel Disease: Potential Mechanisms and Associations.",
-    "journal": "Genes",
-    "publicationDate": "Jun 2025",
-    "doi": "10.3390/genes16070728",
-    "formattedRef": "<b>Zedde M, Pascarella R<\/b><br><i>ABCC6 Involvement in Cerebral Small Vessel Disease: Potential Mechanisms and Associations.<\/i><br>Genes (Jun 2025)<br>DOI: 10.3390/genes16070728"
-  },
-  {
-    "pmid": "41592617",
-    "authors": "Voesenek BJB, Rutten JW, Mulder MPC, et al.",
-    "title": "A Novel APP p.V742L variant in a patient with ischemic small vessel disease enhances FE65 signalling.",
-    "journal": "Neurobiology of disease",
-    "publicationDate": "Mar 2026",
-    "doi": "10.1016/j.nbd.2026.107280",
-    "formattedRef": "<b>Voesenek BJB, Rutten JW, Mulder MPC, et al.<\/b><br><i>A Novel APP p.V742L variant in a patient with ischemic small vessel disease enhances FE65 signalling.<\/i><br>Neurobiology of disease (Mar 2026)<br>DOI: 10.1016/j.nbd.2026.107280"
-  },
-  {
-    "pmid": "40209571",
-    "authors": "Schipper MR, van Harten TW, Razoux-Schultz AT, et al.",
-    "title": "Cross-sectional and longitudinal quantification of total white matter perivascular space volume fraction in Dutch-type Cerebral Amyloid Angiopathy.",
-    "journal": "NeuroImage. Clinical",
-    "publicationDate": "2025",
-    "doi": "10.1016/j.nicl.2025.103778",
-    "formattedRef": "<b>Schipper MR, van Harten TW, Razoux-Schultz AT, et al.<\/b><br><i>Cross-sectional and longitudinal quantification of total white matter perivascular space volume fraction in Dutch-type Cerebral Amyloid Angiopathy.<\/i><br>NeuroImage. Clinical (2025)<br>DOI: 10.1016/j.nicl.2025.103778"
-  },
-  {
-    "pmid": "41413740",
-    "authors": "Zhou Y, Shen M, Jiang N, et al.",
-    "title": "Decoding neurovascular signatures: advanced imaging insights in DADA2-Related Cerebral Microangiopathy.",
-    "journal": "Neurological sciences : official journal of the Italian Neurological Society and of the Italian Society of Clinical Neurophysiology",
-    "publicationDate": "Dec 2025",
-    "doi": "10.1007/s10072-025-08676-9",
-    "formattedRef": "<b>Zhou Y, Shen M, Jiang N, et al.<\/b><br><i>Decoding neurovascular signatures: advanced imaging insights in DADA2-Related Cerebral Microangiopathy.<\/i><br>Neurological sciences : official journal of the Italian Neurological Society and of the Italian Society of Clinical Neurophysiology (Dec 2025)<br>DOI: 10.1007/s10072-025-08676-9"
+    "pmid": "30651383",
+    "authors": "Chauhan G, Adams HHH, Satizabal CL, et al.",
+    "title": "Genetic and lifestyle risk factors for MRI-defined brain infarcts in a population-based setting.",
+    "journal": "Neurology",
+    "publicationDate": "Jan 2019",
+    "doi": "10.1212/WNL.0000000000006851",
+    "formattedRef": "<b>Chauhan G, Adams HHH, Satizabal CL, et al.<\/b><br><i>Genetic and lifestyle risk factors for MRI-defined brain infarcts in a population-based setting.<\/i><br>Neurology (Jan 2019)<br>DOI: 10.1212/WNL.0000000000006851"
   }
 ]
