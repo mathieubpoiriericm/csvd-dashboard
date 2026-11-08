@@ -187,3 +187,22 @@ Deno.test("a cSVD cell type expands to its glossary name", () => {
     rows: [{ label: "EC", value: "Endothelial Cells" }],
   });
 });
+
+Deno.test("a cSVD cell subtype names the subtype, and a source note is kept", () => {
+  assertEquals(cellTypeTooltip("Matrix, PC"), {
+    rows: [{ label: "Matrix, PC", value: "Matrix Pericytes" }],
+  });
+  assertEquals(cellTypeTooltip("Parenchymal, pvFB"), {
+    rows: [{
+      label: "Parenchymal, pvFB",
+      value: "Parenchymal Perivascular Fibroblasts",
+    }],
+  });
+  assertEquals(cellTypeTooltip("Exc Neu (allen brain atlas)"), {
+    rows: [{
+      label: "Exc Neu",
+      value: "Excitatory Neurons (allen brain atlas)",
+    }],
+  });
+  assertEquals(cellTypeTooltip("Matrix, ZZ"), null);
+});

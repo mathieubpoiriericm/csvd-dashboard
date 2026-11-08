@@ -90,16 +90,20 @@ Deno.test("the cell-type glossary is the manifest's, and an undefined abbreviati
   // returns qualifiers as well as abbreviations. Whether the glossary covers
   // every abbreviation the committed rows use is a fact about one disease's
   // data, pinned in tests/csvd/disease_manifest_test.ts with the names it
-  // leaves undefined. What holds for any data: an abbreviation the glossary
-  // lacks renders as plain text, never as a tooltip with nothing in it.
+  // leaves undefined. What holds for any data: a tooltip always carries a
+  // glossary name, and a part the glossary cannot expand renders as plain
+  // text, never as a tooltip with nothing in it.
   const used = new Set(
     genes.flatMap((g) => splitCellTypes(g.brainCellTypes).parts),
   );
+  const names = Object.values(CELL_TYPE_NAMES);
   for (const part of used) {
-    if (part in CELL_TYPE_NAMES) {
-      assertEquals(cellTypeTooltip(part)?.rows[0].value, CELL_TYPE_NAMES[part]);
-    } else {
-      assertEquals(cellTypeTooltip(part), null, part);
+    const tooltip = cellTypeTooltip(part);
+    if (Object.hasOwn(CELL_TYPE_NAMES, part)) {
+      assertEquals(tooltip?.rows[0].value, CELL_TYPE_NAMES[part]);
+    } else if (tooltip !== null) {
+      const value = tooltip.rows[0].value;
+      assert(names.some((name) => value.includes(name)), part);
     }
   }
 });

@@ -199,12 +199,41 @@ export function referenceTooltip(
 // ABBREVIATIONS
 // -----------------------------------------------------------------------------
 
-/** Expansion for a brain cell type abbreviation. */
-export function cellTypeTooltip(
-  abbreviation: string,
-): TooltipContent | null {
-  const name = CELL_TYPE_NAMES[abbreviation];
-  return name ? { rows: [{ label: abbreviation, value: name }] } : null;
+/** `Matrix, PC`: a subtype qualifier, then the abbreviation it qualifies. */
+const SUBTYPED_CELL_TYPE = /^(.+?),\s*(\S+)$/;
+/** `Exc Neu (allen brain atlas)`: an abbreviation, then a note on its source. */
+const NOTED_CELL_TYPE = /^(.+?)\s*(\([^()]*\))$/;
+
+/**
+ * Expansion for one brain cell type: a bare abbreviation (`PC`), a subtype of
+ * one (`Matrix, PC` -> "Matrix Pericytes"), or one followed by a parenthesised
+ * note (`Exc Neu (allen brain atlas)`), which the expansion keeps.
+ */
+export function cellTypeTooltip(part: string): TooltipContent | null {
+  if (Object.hasOwn(CELL_TYPE_NAMES, part)) {
+    return { rows: [{ label: part, value: CELL_TYPE_NAMES[part] }] };
+  }
+  const subtyped = SUBTYPED_CELL_TYPE.exec(part);
+  if (subtyped && Object.hasOwn(CELL_TYPE_NAMES, subtyped[2])) {
+    const [, subtype, abbreviation] = subtyped;
+    return {
+      rows: [{
+        label: part,
+        value: `${subtype.trim()} ${CELL_TYPE_NAMES[abbreviation]}`,
+      }],
+    };
+  }
+  const noted = NOTED_CELL_TYPE.exec(part);
+  if (noted && Object.hasOwn(CELL_TYPE_NAMES, noted[1])) {
+    const [, abbreviation, note] = noted;
+    return {
+      rows: [{
+        label: abbreviation,
+        value: `${CELL_TYPE_NAMES[abbreviation]} ${note}`,
+      }],
+    };
+  }
+  return null;
 }
 
 /**

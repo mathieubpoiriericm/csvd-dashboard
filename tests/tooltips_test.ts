@@ -176,6 +176,22 @@ Deno.test("unknown cell-type values do not get invented expansions", () => {
   }
 });
 
+Deno.test("a cell subtype names its subtype, and a source note is kept", () => {
+  // The glossary is the fork's own; its first entry stands in for any.
+  const [abbreviation, name] = Object.entries(CELL_TYPE_NAMES)[0] ?? [];
+  if (abbreviation === undefined) return;
+  assertEquals(cellTypeTooltip(`Venous, ${abbreviation}`), {
+    rows: [{ label: `Venous, ${abbreviation}`, value: `Venous ${name}` }],
+  });
+  assertEquals(cellTypeTooltip(`${abbreviation} (some atlas)`), {
+    rows: [{ label: abbreviation, value: `${name} (some atlas)` }],
+  });
+  // Neither form invents a name for an abbreviation the glossary lacks.
+  assert(!Object.hasOwn(CELL_TYPE_NAMES, "ZZQQ"));
+  assertEquals(cellTypeTooltip("Venous, ZZQQ"), null);
+  assertEquals(cellTypeTooltip("ZZQQ (some atlas)"), null);
+});
+
 Deno.test("omicsTooltip reads detail after the actual semicolon", () => {
   assertEquals(omicsTooltip("  TWAS; whole blood  "), {
     rows: [

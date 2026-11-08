@@ -68,7 +68,18 @@
       "MG": "Microglia",
       "OL": "Oligodendrocytes",
       "PC": "Pericytes",
-      "FB": "Fibroblasts"
+      "FB": "Fibroblasts",
+      "pvFB": "Perivascular Fibroblasts",
+      "OPC": "Oligodendrocyte Precursor Cells",
+      "Epen": "Ependymal Cells",
+      "Neu": "Neurons",
+      "Exc Neu": "Excitatory Neurons",
+      "PVM": "Perivascular Macrophages",
+      "Mono": "Monocytes",
+      "Neut": "Neutrophils",
+      "TC": "T Cells",
+      "BC": "B Cells",
+      "RBC": "Red Blood Cells"
     }
   },
   "citationStandard": {
