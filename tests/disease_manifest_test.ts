@@ -98,11 +98,16 @@ Deno.test("the cell-type glossary is the manifest's and covers the committed row
   // and no free-text cell is, because each of those carries a digit, a
   // lowercase letter or a symbol. So this asserts that every abbreviation
   // the rows use is defined, and says nothing about the prose beside them.
+  // Abbreviations the hand-curated gold table's human cell-type column uses
+  // and gold does not define (its footnotes give none for that table). They
+  // render without a tooltip rather than with a definition gold never gave.
+  const undefinedInGold = new Set(["RBC", "OPC", "PVM", "TC", "BC"]);
   const missing = [...used].filter(
     (abbr) =>
       !ABSENT_SENTINELS.has(abbr) &&
       /^[A-Z]+$/.test(abbr) &&
-      !(abbr in CELL_TYPE_NAMES),
+      !(abbr in CELL_TYPE_NAMES) &&
+      !undefinedInGold.has(abbr),
   );
   assertEquals(missing, []);
 });

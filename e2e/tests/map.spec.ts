@@ -278,10 +278,13 @@ async function openAnyMarker(page: import("@playwright/test").Page) {
   await expect(async () => {
     if (await markerInView() === -1) {
       // Leaflet keeps clusters a little past the visible edge in the DOM, so
-      // the first one in document order can sit outside a narrow map.
+      // the first one in document order can sit outside a narrow map. The
+      // click is bounded: the map can still be fitting its bounds, and an
+      // index taken mid-animation may name a cluster that never settles in
+      // view, which an unbounded click waits on until the test times out.
       const clusterIndex = await firstInView(cluster);
       if (clusterIndex >= 0) {
-        await cluster.nth(clusterIndex).click();
+        await cluster.nth(clusterIndex).click({ timeout: 2_000 });
       } else {
         await page.getByRole("button", { name: "Zoom in" }).click();
       }

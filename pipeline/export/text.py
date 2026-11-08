@@ -92,6 +92,13 @@ _TARGET_SPLIT = re.compile(r"[,;/]")
 # symbol up to its trailing digits.
 _PAIR_SHORTHAND = re.compile(r"\b([A-Z][A-Z0-9]*[A-Z])(\d+)/(\d+)\b")
 _NA_WORD = re.compile(r"\bN\s*/\s*A\b", re.IGNORECASE)
+# A curated target may name why the gene is a target before naming it:
+# "GWAS for ischemic stroke: PDE3A", "monogenic disease: APP". The colon has to
+# be followed by whitespace, so a symbol carrying its own colon
+# ("PVRL2:CTB-129P6.4") is left whole. lib/trials.ts's TARGET_QUALIFIER is the
+# dashboard's copy; the two have to agree or a tooltip looks up a key the
+# export never wrote.
+_TARGET_QUALIFIER = re.compile(r"^[^:]*:\s+")
 _TARGET_SENTINELS: Final[frozenset[str]] = frozenset(
     {"", "NA", "N/A", "-", "(NONE)", "(UNKNOWN)"}
 )
@@ -210,12 +217,23 @@ def extract_pmids(value: str | None) -> list[str]:
     )
 
 
+def strip_target_qualifier(target: str) -> str:
+    """The gene symbol a qualified target names, without its leading label.
+
+    "GWAS for ischemic stroke: PDE3A" -> "PDE3A". The cell is published
+    verbatim; only the lookup key loses the label.
+    """
+    return _TARGET_QUALIFIER.sub("", target.strip())
+
+
 def split_genetic_targets(targets: Iterable[str | None]) -> list[str]:
     """Split multi-target trial cells into unique gene symbols, in order.
 
     The N/A sentinel is removed before splitting: slash is also a delimiter,
     so "N/A" would otherwise yield two bogus symbols. The curated pair
-    shorthand is expanded first for the same reason.
+    shorthand is expanded first for the same reason. A leading label
+    ("monogenic disease: APP") is dropped from each symbol
+    (`strip_target_qualifier`).
     """
     seen: dict[str, None] = {}
     for target in targets:
@@ -223,7 +241,7 @@ def split_genetic_targets(targets: Iterable[str | None]) -> list[str]:
             continue
         expanded = _PAIR_SHORTHAND.sub(r"\1\2/\1\3", _NA_WORD.sub("", target))
         for gene in _TARGET_SPLIT.split(expanded):
-            stripped = gene.strip()
+            stripped = strip_target_qualifier(gene)
             if stripped.upper() not in _TARGET_SENTINELS:
                 seen.setdefault(stripped, None)
     return list(seen)

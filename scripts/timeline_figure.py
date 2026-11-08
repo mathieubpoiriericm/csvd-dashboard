@@ -20,6 +20,7 @@ Usage:
 import argparse
 import json
 import math
+import re
 import sys
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -203,6 +204,20 @@ def _unique_drug_count(rows: list[dict[str, str]]) -> int:
     return len({row["drug"] for row in rows})
 
 
+# lib/phases.ts's SUB_PHASE: an upper-case Roman phase followed by a lower-case
+# a or b ("Ib", "IIa"), which the radar draws on its parent phase's ring.
+_SUB_PHASE = re.compile(r"\b(I{1,3}|IV)[ab]\b")
+
+
+def parent_phase(phase: str) -> str:
+    """The phase with every sub-phase collapsed onto its parent ("Ib" -> "I").
+
+    The print figure's copy of `parentPhase` in lib/phases.ts; the two have to
+    agree or the figure and the page place a trial on different rings.
+    """
+    return _SUB_PHASE.sub(r"\1", phase)
+
+
 def _rows_for(trials: list[dict[str, str]], population: str) -> list[dict[str, str]]:
     return [row for row in trials if row["targetPopulation"] == population]
 
@@ -246,7 +261,9 @@ def cells(
     for sector in sectors:
         rows = _rows_for(trials, sector.key)
         for ring in encoding["rings"]:
-            filled = any(row["clinicalTrialPhase"] == ring["phase"] for row in rows)
+            filled = any(
+                parent_phase(row["clinicalTrialPhase"]) == ring["phase"] for row in rows
+            )
             out.append(
                 Cell(
                     population=sector.key,
@@ -337,7 +354,11 @@ def markers(
     for sector in sectors:
         rows = _rows_for(trials, sector.key)
         for ring in encoding["rings"]:
-            in_cell = [r for r in rows if r["clinicalTrialPhase"] == ring["phase"]]
+            in_cell = [
+                r
+                for r in rows
+                if parent_phase(r["clinicalTrialPhase"]) == ring["phase"]
+            ]
             thickness = (ring["outerRadius"] - ring["innerRadius"]) * PLATE_RADIUS
             midpoint = (ring["innerRadius"] + ring["outerRadius"]) / 2 * PLATE_RADIUS
             for j, trial in enumerate(in_cell):

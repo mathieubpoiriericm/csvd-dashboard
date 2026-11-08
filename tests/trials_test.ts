@@ -6,6 +6,7 @@ import {
   registryLink,
   registryOf,
   resolveTrialStatus,
+  splitTargetQualifier,
 } from "../lib/trials.ts";
 import { STATUS_NOT_STATED, TRIAL_STATUSES } from "../lib/trial_status.ts";
 
@@ -109,4 +110,24 @@ Deno.test("every ClinicalTrials.gov status carries a kind, and UNKNOWN is the no
     );
   }
   assertEquals(STATUS_NOT_STATED, "UNKNOWN");
+});
+
+Deno.test("splitTargetQualifier separates a leading label from the symbol", () => {
+  assertEquals(splitTargetQualifier("GWAS for ischemic stroke: PDE3A"), {
+    qualifier: "GWAS for ischemic stroke: ",
+    symbol: "PDE3A",
+  });
+  assertEquals(splitTargetQualifier("monogenic disease: APP"), {
+    qualifier: "monogenic disease: ",
+    symbol: "APP",
+  });
+  // No label, or a colon inside the symbol itself, leaves the piece whole.
+  assertEquals(splitTargetQualifier("GLP1R"), {
+    qualifier: "",
+    symbol: "GLP1R",
+  });
+  assertEquals(splitTargetQualifier("PVRL2:CTB-129P6.4"), {
+    qualifier: "",
+    symbol: "PVRL2:CTB-129P6.4",
+  });
 });

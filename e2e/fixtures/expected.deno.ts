@@ -178,8 +178,11 @@ const impossibleTrial = (() => {
 // ---------------------------------------------------------------------------
 
 const shownTrials = visibleTrials(trials);
+// The statuses the pages start with ticked. Empty when the default is Show
+// All (`GOLD_ONLY`): the status group then starts unconstrained and the
+// banner carries no status fragment.
 const statusLabels = STATUS_CHOICES.filter((c) =>
-  DEFAULT_TRIAL_STATUSES.includes(c.value)
+  c.value !== SHOW_ALL && DEFAULT_TRIAL_STATUSES.includes(c.value)
 ).map((c) => c.label);
 
 /** TanStack's `text` sort: a case-folded basic compare. */
@@ -227,7 +230,9 @@ const expected = {
   geneRows: genes.length,
   trialRows: trials.length,
   trialRowsShown: shownTrials.length,
-  statusSummary: `Study status: ${statusLabels.join(", ")}`,
+  statusSummary: statusLabels.length > 0
+    ? `Study status: ${statusLabels.join(", ")}`
+    : null,
   defaultStatusLabels: statusLabels,
   statusChoiceCount: STATUS_CHOICES.length,
 

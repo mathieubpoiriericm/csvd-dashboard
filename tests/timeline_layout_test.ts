@@ -500,6 +500,21 @@ Deno.test("a population with no trials still gets its sector and grey cells", ()
   }
 });
 
+Deno.test("a sub-phase sits on its parent phase's ring and keeps its own label", () => {
+  const ringI = encoding.rings.find((ring) => ring.phase === "I");
+  assert(ringI, "the encoding has a Phase I ring");
+  const { markers, cells } = computeTimelineLayout([
+    placed({ clinicalTrialPhase: "Ib" }),
+  ]);
+  assertEquals(markers.length, 1);
+  assertEquals(markers[0].phase, "I");
+  assertEquals(markers[0].trial.clinicalTrialPhase, "Ib");
+  assertEquals(
+    cells.filter((cell) => cell.filled).map((cell) => cell.phase),
+    ["I"],
+  );
+});
+
 Deno.test("an empty trial set produces zero-width sectors without dividing by zero", () => {
   const empty = computeTimelineLayout([]);
   const zeros = encoding.populations.map(() => 0);

@@ -88,3 +88,25 @@ export function formatTrialPlace(
     .filter((part): part is string => Boolean(part))
     .join(", ");
 }
+
+/**
+ * A curated target may name why the gene is a target before naming it:
+ * "GWAS for ischemic stroke: PDE3A". The colon has to be followed by
+ * whitespace, so a symbol carrying its own colon is left whole.
+ * `_TARGET_QUALIFIER` in pipeline/export/text.py is the export's copy; the two
+ * have to agree or a tooltip looks up a key the export never wrote.
+ */
+const TARGET_QUALIFIER = /^[^:]*:\s+/;
+
+/**
+ * One piece of a genetic-target cell split into the label in front of the
+ * symbol ("GWAS for ischemic stroke: ", or "" when there is none) and the
+ * symbol itself, so the cell can print both verbatim and look up the symbol
+ * alone.
+ */
+export function splitTargetQualifier(
+  piece: string,
+): { qualifier: string; symbol: string } {
+  const qualifier = piece.match(TARGET_QUALIFIER)?.[0] ?? "";
+  return { qualifier, symbol: piece.slice(qualifier.length) };
+}

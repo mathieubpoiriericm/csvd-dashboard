@@ -29,6 +29,7 @@ import {
   parseDraft,
 } from "../lib/adapt/answers.ts";
 import { placeGene } from "../lib/cytobands.ts";
+import { GOLD_ONLY } from "../lib/gold_only.ts";
 import { encoding as phenogram } from "../lib/phenogram.ts";
 import { encoding as timeline } from "../lib/timeline.ts";
 import { sampleGene, sampleTrial } from "./fixtures/rows.ts";
@@ -176,13 +177,14 @@ Deno.test("Phenogram over no genes draws no chromosome and no unplaced note", ()
 Deno.test("TrialsTimeline draws a marker per visible trial with rings, gaps and both legends", () => {
   const html = renderToString(<TrialsTimeline rows={TRIALS} />);
   // One marker group per visible trial the rings can place; the phase-less
-  // row is counted but drawn nowhere, and the status-less one is neither.
+  // row is counted but drawn nowhere. The status-less one starts hidden with
+  // the rest of Unknown -- except under gold-only, whose default is Show All.
   assertEquals(count(html, 'data-drug="Drug A"'), 2);
-  assertEquals(count(html, 'class="marker"'), 3);
-  assert(!html.includes('data-drug="Drug D"'));
+  assertEquals(count(html, 'class="marker"'), GOLD_ONLY ? 4 : 3);
+  assertEquals(html.includes('data-drug="Drug D"'), GOLD_ONLY);
   assertStringIncludes(html, 'class="evidence"');
   assertStringIncludes(html, 'class="gap"');
-  assertStringIncludes(html, "Showing 4 of 5 trials");
+  assertStringIncludes(html, `Showing ${GOLD_ONLY ? 5 : 4} of 5 trials`);
   assertStringIncludes(html, 'class="timeline-legend-item"');
   assertStringIncludes(html, timeline.populations[0].label.join(" "));
 });
@@ -199,9 +201,10 @@ Deno.test("TrialsView merges a drug's rows and tooltips its targets and registry
   assertStringIncludes(html, "NCT00000001");
   assertStringIncludes(html, "GENE1");
   assertStringIncludes(html, "Recruiting");
-  // The status-less row starts hidden with the rest of Unknown.
-  assertStringIncludes(html, "showing 4 of 5 rows");
-  assert(!html.includes("NCT00000004"));
+  // The status-less row starts hidden with the rest of Unknown, except under
+  // gold-only, whose default is Show All.
+  assertStringIncludes(html, `showing ${GOLD_ONLY ? 5 : 4} of 5 rows`);
+  assertEquals(html.includes("NCT00000004"), GOLD_ONLY);
   assertStringIncludes(html, "Jan 2030");
 });
 

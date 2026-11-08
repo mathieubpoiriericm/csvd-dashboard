@@ -15,6 +15,7 @@ import vocabulary from "../disease/vocabulary.json" with { type: "json" };
 import type { FilterChoice } from "./types.ts";
 import type { IconName } from "../components/Icon.tsx";
 import { POPULATIONS } from "./disease/populations.ts";
+import { GOLD_ONLY } from "./gold_only.ts";
 import { NONE_FOUND, UNKNOWN } from "./sentinels.ts";
 import { parseMonthYear } from "./sorting.ts";
 import { STATUS_NOT_STATED, TRIAL_STATUSES } from "./trial_status.ts";
@@ -218,10 +219,26 @@ const HIDDEN_BY_DEFAULT: ReadonlySet<string> = new Set([
   STATUS_NOT_STATED,
 ]);
 
-/** The first filter default that is not Show-All: the table, radar and map all start from it. */
-export const DEFAULT_TRIAL_STATUSES: readonly string[] = STATUS_CHOICES
-  .map((choice) => choice.value)
-  .filter((value) => value !== SHOW_ALL && !HIDDEN_BY_DEFAULT.has(value));
+/**
+ * The status selection the trials table, radar and map start from.
+ *
+ * Under `GOLD_ONLY` it is Show All, every status the "(unknown)" sentinel
+ * included: the curated trials carry no registry status (nothing syncs it
+ * while only the hand-curated data is published), so all of them read as not
+ * stated, and the run default would open every trials page empty. Otherwise
+ * every status but those in `HIDDEN_BY_DEFAULT`.
+ */
+export function defaultTrialStatuses(
+  goldOnly: boolean = GOLD_ONLY,
+): readonly string[] {
+  if (goldOnly) return [SHOW_ALL];
+  return STATUS_CHOICES
+    .map((choice) => choice.value)
+    .filter((value) => value !== SHOW_ALL && !HIDDEN_BY_DEFAULT.has(value));
+}
+
+/** `defaultTrialStatuses()` as the dashboard is built: the one filter default the pages start from that is not always Show-All. */
+export const DEFAULT_TRIAL_STATUSES: readonly string[] = defaultTrialStatuses();
 
 // -----------------------------------------------------------------------------
 // REGISTRIES AND EXTERNAL LINKS

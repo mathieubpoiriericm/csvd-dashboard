@@ -155,6 +155,20 @@ class TestGetTable2GeneSymbols:
         result = await get_table2_gene_symbols()
         assert result == sorted(set(result))
 
+    async def test_looks_a_labelled_target_up_by_its_symbol(self, mocker):
+        mock_conn = AsyncMock()
+        mock_conn.fetch.return_value = [
+            {"genetic_target": "GWAS for ischemic stroke: PDE3A"},
+            {"genetic_target": "monogenic disease: APP"},
+        ]
+        mock_ctx = AsyncMock()
+        mock_ctx.__aenter__.return_value = mock_conn
+        mocker.patch(
+            "pipeline.external_data_sync.Database.connection", return_value=mock_ctx
+        )
+
+        assert await get_table2_gene_symbols() == ["APP", "PDE3A"]
+
     async def test_skips_non_gene_shaped_token(self, mocker, caplog):
         caplog.set_level(logging.DEBUG, logger="pipeline.external_data_sync")
         mock_conn = AsyncMock()

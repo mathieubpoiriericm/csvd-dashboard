@@ -39,7 +39,13 @@ export const MAINTAINER_EMAIL = EXPECTED.maintainerEmail;
 export const GENE_TOTAL = EXPECTED.geneRows;
 export const TRIAL_TOTAL = EXPECTED.trialRows;
 export const TRIAL_SHOWN = EXPECTED.trialRowsShown;
-export const STATUS_SUMMARY = EXPECTED.statusSummary;
+/** The status group's banner fragment on first paint; null when it starts at Show All (`GOLD_ONLY`). */
+export const STATUS_SUMMARY: string | null = EXPECTED.statusSummary;
+/** The banner summary on first paint: the status fragment, or "None". */
+export const DEFAULT_SUMMARY = STATUS_SUMMARY ?? "None";
+/** `summary` with the status default's fragment after it, when there is one. */
+export const withStatusSummary = (summary: string): string =>
+  STATUS_SUMMARY === null ? summary : `${summary} | ${STATUS_SUMMARY}`;
 
 /** Pages a table of `rows` needs at the default page size of ten. */
 export const pagesFor = (rows: number): number => Math.ceil(rows / 10);

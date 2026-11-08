@@ -1,10 +1,10 @@
 [
   {
-    "name": "GWAS for ischemic stroke: PDE3A",
-    "symbol": "GWAS for ischemic stroke: PDE3A",
-    "uid": null,
-    "description": null,
-    "otheraliases": null
+    "name": "PDE3A",
+    "symbol": "PDE3A",
+    "uid": "5139",
+    "description": "phosphodiesterase 3A",
+    "otheraliases": "CGI-PDE, CGI-PDE A, CGI-PDE-A, HTNB"
   },
   {
     "name": "TUBB4B",
@@ -147,18 +147,18 @@
     "otheraliases": "GC-S-alpha-1, GC-SA3, GCS-alpha-3, GUC1A3, GUCA3, GUCSA3, GUCY1A3, MYMY6"
   },
   {
-    "name": "monogenic disease: APP",
-    "symbol": "monogenic disease: APP",
-    "uid": null,
-    "description": null,
-    "otheraliases": null
+    "name": "APP",
+    "symbol": "APP",
+    "uid": "351",
+    "description": "amyloid beta precursor protein",
+    "otheraliases": "AAA, ABETA, ABPP, AD1, APPI, CTFgamma, CVAP, PN-II, PN2, alpha-sAPP, preA4"
   },
   {
-    "name": "GWAS for ischemic stroke: FGA",
-    "symbol": "GWAS for ischemic stroke: FGA",
-    "uid": null,
-    "description": null,
-    "otheraliases": null
+    "name": "FGA",
+    "symbol": "FGA",
+    "uid": "2243",
+    "description": "fibrinogen alpha chain",
+    "otheraliases": "AMYLD2, Fib2"
   },
   {
     "name": "PLG",

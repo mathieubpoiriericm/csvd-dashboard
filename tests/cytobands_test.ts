@@ -96,9 +96,18 @@ Deno.test("placeGene refuses a range across the centromere", () => {
   assertNotEquals(placeGene("10q24.33-q25.1"), null);
 });
 
+/**
+ * Locations the hand-curated gold table writes that hg38 has no band for.
+ * Gold is published verbatim and does not correct them, so the phenogram
+ * leaves the gene out instead of guessing. MSMP's "9q13.3": hg38 has no such
+ * band.
+ */
+const UNPLACEABLE_IN_GOLD: ReadonlySet<string> = new Set(["MSMP 9q13.3"]);
+
 Deno.test("every committed gene's chromosomal location is an exact hg38 band", () => {
   const unresolved = genes
     .filter((gene) => placeGene(gene.chromosomalLocation) === null)
-    .map((gene) => `${gene.gene} ${gene.chromosomalLocation}`);
+    .map((gene) => `${gene.gene} ${gene.chromosomalLocation}`)
+    .filter((entry) => !UNPLACEABLE_IN_GOLD.has(entry));
   assertEquals(unresolved, []);
 });

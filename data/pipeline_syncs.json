@@ -143,24 +143,24 @@
     }
   },
   {
-    "runTimestamp": "2026-11-08T00:24:02Z",
+    "runTimestamp": "2026-11-08T00:38:08Z",
     "mode": "external_sync",
-    "status": "completed_with_warnings",
-    "durationSeconds": 24.93,
+    "status": "completed",
+    "durationSeconds": 0.424,
     "sources": [
       {
         "key": "ncbi_gene",
         "label": "NCBI Gene",
-        "fetched": 0,
+        "fetched": 2,
         "cached": 137,
         "failed": 0
       },
       {
         "key": "uniprot",
         "label": "UniProt",
-        "fetched": 50,
-        "cached": 65,
-        "failed": 1
+        "fetched": 0,
+        "cached": 116,
+        "failed": 0
       },
       {
         "key": "pubmed_citations",
@@ -172,38 +172,36 @@
     ],
     "apis": [
       {
-        "service": "uniprot",
-        "label": "UniProt",
-        "endpoint": "/uniprotkb/search",
+        "service": "ncbi_eutils",
+        "label": "E-utilities search",
+        "endpoint": "/entrez/eutils/esearch.fcgi",
         "method": "GET",
-        "calls": 52,
-        "ok": 52,
+        "calls": 2,
+        "ok": 2,
         "notFound": 0,
         "errors": 0,
         "retries": 0,
-        "totalMs": 8051.7,
-        "bytes": 142
+        "totalMs": 249.7,
+        "bytes": 0
       },
       {
-        "service": "uniprot",
-        "label": "UniProt",
-        "endpoint": "/uniprotkb/:id",
+        "service": "ncbi_eutils",
+        "label": "E-utilities summary",
+        "endpoint": "/entrez/eutils/esummary.fcgi",
         "method": "GET",
-        "calls": 50,
-        "ok": 50,
+        "calls": 2,
+        "ok": 2,
         "notFound": 0,
         "errors": 0,
         "retries": 0,
-        "totalMs": 16228.1,
-        "bytes": 1311
+        "totalMs": 168.7,
+        "bytes": 0
       }
     ],
     "errors": {
-      "shown": 1,
-      "total": 1,
-      "items": [
-        "UniProt not found: PVRL2:CTB-129P6.4"
-      ]
+      "shown": 0,
+      "total": 0,
+      "items": []
     }
   }
 ]

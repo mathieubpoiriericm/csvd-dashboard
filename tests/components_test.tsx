@@ -536,6 +536,18 @@ Deno.test("GeneticTargets renders an em dash for the absent sentinel, before spl
   assertStringIncludes(leadingSeparator, "COL4A2");
 });
 
+Deno.test("GeneticTargets prints a target's label verbatim and makes only the symbol a tooltip", () => {
+  const html = render(
+    <GeneticTargets value="GWAS for ischemic stroke: PDE3A" />,
+  );
+  // The label is plain text in front of the trigger, which holds the symbol.
+  assertMatch(
+    html,
+    /GWAS for ischemic stroke: <button[^>]*class="tooltip-box[^"]*"[^>]*>PDE3A<\/button>/,
+  );
+  assertEquals((html.match(/class="tooltip-box/g) ?? []).length, 1);
+});
+
 Deno.test("BrainCellTypesCell renders an em dash for the absent sentinel, before splitting", () => {
   const absent = render(<BrainCellTypesCell value="(unknown)" />);
   assertStringIncludes(absent, 'class="cell-absent"');

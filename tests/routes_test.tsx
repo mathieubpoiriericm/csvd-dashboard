@@ -20,6 +20,7 @@ import { genes, trialLocations, trials } from "../lib/data.ts";
 import { pipelineStatus } from "../lib/data/pipeline.ts";
 import { MAINTAINER, RADAR_TITLE, SITE_TITLE } from "../lib/disease.ts";
 import { DEFAULT_TRIAL_STATUSES } from "../lib/constants.ts";
+import { placeGene } from "../lib/cytobands.ts";
 import { GOLD_ONLY, GOLD_ONLY_NOTICE } from "../lib/gold_only.ts";
 import { filterLocationsByStatus, visibleTrials } from "../lib/filters.ts";
 import type { PipelineRun, SyncRun } from "../lib/types.ts";
@@ -259,11 +260,21 @@ Deno.test("Phenogram route server-renders every placed gene and both legends", (
   assertStringIncludes(html, "Genes by chromosomal position");
   assertStringIncludes(html, "Supporting evidence");
   assertStringIncludes(html, "GWAS phenotypes");
+  // A location with no hg38 band (the gold table publishes one verbatim) is
+  // left off the figure and named in the note beneath it instead.
+  const unplaced = genes.filter((gene) =>
+    placeGene(gene.chromosomalLocation) === null
+  );
   assertEquals(
     (html.match(/class="phenogram-block"/g) ?? []).length,
-    genes.length,
+    genes.length - unplaced.length,
   );
-  assertNotMatch(html, /phenogram-unplaced/);
+  if (unplaced.length === 0) {
+    assertNotMatch(html, /phenogram-unplaced/);
+  } else {
+    assertStringIncludes(html, 'class="phenogram-unplaced"');
+    for (const gene of unplaced) assertStringIncludes(html, gene.gene);
+  }
 });
 
 Deno.test("Timeline route server-renders the visible trial markers and its legends", () => {

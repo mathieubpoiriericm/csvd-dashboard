@@ -1,3 +1,4 @@
+import { Fragment } from "preact";
 import { useMemo, useState } from "preact/hooks";
 import { createColumnHelper } from "@tanstack/table-core";
 import type {
@@ -41,7 +42,11 @@ import { trials } from "../lib/data/trials.ts";
 import { filterTrials, normalize } from "../lib/filters.ts";
 import { isAbsent } from "../lib/sentinels.ts";
 import { registryTooltip, trialGeneTooltip } from "../lib/trial_tooltips.ts";
-import { phaseBarLabel, resolveTrialStatus } from "../lib/trials.ts";
+import {
+  phaseBarLabel,
+  resolveTrialStatus,
+  splitTargetQualifier,
+} from "../lib/trials.ts";
 import { compareCompletionDates, completionDateKey } from "../lib/sorting.ts";
 import type { Trial } from "../lib/types.ts";
 
@@ -92,16 +97,18 @@ export function GeneticTargets({ value }: { value: string }) {
     <div class="cell-scroll">
       {pieces.map((piece, index) => {
         if (index % 2 === 1) return piece;
-        const symbol = piece.trim();
+        // A leading label ("GWAS for ischemic stroke: ") prints as plain
+        // text beside the symbol; only the symbol is looked up and italic.
+        const { qualifier, symbol: labelled } = splitTargetQualifier(piece);
+        const symbol = labelled.trim();
         if (!symbol) return piece;
         return (
-          <Tooltip
-            key={`${symbol}-${index}`}
-            content={trialGeneTooltip(symbol)}
-            italic
-          >
-            {piece}
-          </Tooltip>
+          <Fragment key={`${symbol}-${index}`}>
+            {qualifier}
+            <Tooltip content={trialGeneTooltip(symbol)} italic>
+              {labelled}
+            </Tooltip>
+          </Fragment>
         );
       })}
     </div>

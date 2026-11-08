@@ -17,7 +17,7 @@ from pipeline.clinvar_fetch import (
 )
 from pipeline.config import PipelineConfig
 from pipeline.database import Database, fill_missing_chromosomal_locations
-from pipeline.export.text import is_doi
+from pipeline.export.text import is_doi, strip_target_qualifier
 from pipeline.ncbi_gene_fetch import (
     clear_ncbi_cache,
     close_ncbi_client,
@@ -122,7 +122,8 @@ async def get_table2_gene_symbols() -> list[str]:
         if not target:
             continue
         for raw in re.split(r"[,;/]", target):
-            gene = raw.strip()
+            # "GWAS for ischemic stroke: PDE3A" is looked up as PDE3A.
+            gene = strip_target_qualifier(raw)
             if gene.upper() in _GENE_SKIP_TOKENS:
                 continue
             if _GENE_SHAPE.fullmatch(gene):

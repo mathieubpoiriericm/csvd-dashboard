@@ -43,9 +43,9 @@
     "Cholinergic precursor (choline donor)": "#ad92d3",
     "Glutamatergic modulation (NMDA receptor antagonist)": "#226277",
     "Monoaminergic challenge (dopamine and noradrenaline reuptake inhibitor)": "#88c8dd",
-    "Neuroprotective, antioxidant (multiple mechanisms)": "#234f99",
-    "Neuroprotective, antioxidant (free radical scavenger)": "#4270bd",
-    "Neuroprotective, antioxidant (vitamin E analogs)": "#6692db",
+    "Antioxidant (multiple mechanisms)": "#234f99",
+    "Antioxidant (free radical scavenger)": "#4270bd",
+    "Antioxidant (vitamin E analogs)": "#6692db",
     "Neuroprotective, neurotrophic (neuropeptide drug)": "#88b2f7",
     "Neurotrophic (nerve growth factor)": "#83a4e2",
     "Antioxidant (glutathione precursor)": "#267360",
@@ -113,9 +113,9 @@
       "key": "neuroprotective",
       "label": "Neuroprotective",
       "mechanisms": [
-        "Neuroprotective, antioxidant (multiple mechanisms)",
-        "Neuroprotective, antioxidant (free radical scavenger)",
-        "Neuroprotective, antioxidant (vitamin E analogs)",
+        "Antioxidant (multiple mechanisms)",
+        "Antioxidant (free radical scavenger)",
+        "Antioxidant (vitamin E analogs)",
         "Neuroprotective, neurotrophic (neuropeptide drug)",
         "Neurotrophic (nerve growth factor)"
       ]

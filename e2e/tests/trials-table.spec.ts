@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test";
 import {
+  DEFAULT_SUMMARY,
   EXPECTED,
   pagesFor,
-  STATUS_SUMMARY,
   TRIAL_SHOWN,
   TRIAL_TOTAL,
 } from "../fixtures/expected-data.ts";
@@ -47,7 +47,7 @@ test("paginates the trial set, reporting the whole of it", async ({ page }) => {
     await expect(page.locator(".empty-state")).toBeVisible();
   }
   await expect(banner(page)).toHaveText(
-    `Active Filters: ${STATUS_SUMMARY} — showing ${SHOWN} of ${TOTAL} rows`,
+    `Active Filters: ${DEFAULT_SUMMARY} — showing ${SHOWN} of ${TOTAL} rows`,
   );
   // banner() and the pagination span are both scoped by class now that the
   // page carries two role="status" regions -- pin the role explicitly here

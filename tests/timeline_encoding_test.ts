@@ -8,6 +8,7 @@ import {
 import appearance from "../lib/timeline_encoding.json" with { type: "json" };
 import diseaseTimeline from "../disease/timeline.json" with { type: "json" };
 import { trials } from "../lib/data.ts";
+import { parentPhase } from "../lib/phases.ts";
 import { encoding, FLAG_REASONS, OUTER_RADIUS } from "../lib/timeline.ts";
 import { manifest } from "../lib/disease.ts";
 
@@ -133,8 +134,9 @@ Deno.test("every phase in the data has a ring, and the rings tile 0..1", () => {
     "(unknown)",
   ]);
 
+  // A sub-phase ("Ib") is drawn on its parent's ring (`parentPhase`).
   const missing = [...unique(trials.map((t) => t.clinicalTrialPhase))]
-    .filter((phase) => !phases.includes(phase));
+    .filter((phase) => !phases.includes(parentPhase(phase)));
   assertEquals(missing, [], `phases without a ring: ${missing}`);
 
   assertEquals(encoding.rings[0].innerRadius, 0);
