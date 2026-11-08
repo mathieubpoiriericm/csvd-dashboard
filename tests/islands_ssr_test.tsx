@@ -33,6 +33,7 @@ import { GOLD_ONLY } from "../lib/gold_only.ts";
 import { encoding as phenogram } from "../lib/phenogram.ts";
 import { encoding as timeline } from "../lib/timeline.ts";
 import { sampleGene, sampleTrial } from "./fixtures/rows.ts";
+import { escapeHtml } from "./helpers/html.ts";
 
 const count = (html: string, needle: string) => html.split(needle).length - 1;
 
@@ -145,6 +146,21 @@ Deno.test("GenesView renders tooltipped values, absent cells and citations from 
   assertStringIncludes(html, "showing 13 of 13 rows");
   assertStringIncludes(html, "Showing 1–10 of 13");
   assertStringIncludes(html, "Genes by chromosome");
+});
+
+Deno.test("GenesView offers the traits its rows carry under gold-only, and every one otherwise", () => {
+  // GENES carries one trait; the label of any other must be absent under
+  // gold-only and present otherwise.
+  const other = phenogram.traits.find((t) => t.key !== TRAIT.key);
+  const label = (text: string) => `>${escapeHtml(text)}<`;
+  const gold = renderToString(<GenesView rows={GENES} goldOnly />);
+  assertStringIncludes(gold, label(TRAIT.label));
+  const run = renderToString(<GenesView rows={GENES} goldOnly={false} />);
+  assertStringIncludes(run, label(TRAIT.label));
+  if (other) {
+    assert(!gold.includes(label(other.label)), `${other.key} offered`);
+    assertStringIncludes(run, label(other.label));
+  }
 });
 
 Deno.test("Phenogram draws a block per placeable gene and reports the rest", () => {

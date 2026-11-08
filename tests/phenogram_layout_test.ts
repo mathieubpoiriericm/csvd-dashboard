@@ -15,6 +15,7 @@ import {
   chromosomeShapes,
   computePhenogramLayout,
   encoding,
+  phenogramLegend,
   pillsFor,
   resolveCollisions,
 } from "../lib/phenogram.ts";
@@ -265,23 +266,52 @@ Deno.test("chromosomeShapes tolerates partial tables, absent centromeres, and ne
   assertEquals(shape.qArm.height, customEncoding.layout.rowHeight / 2);
 });
 
-Deno.test("the legend lists the disease's families with every trait", () => {
+Deno.test("the layout's legend is the key over its rows", () => {
+  assertEquals(layout.legend, phenogramLegend(genes));
+});
+
+Deno.test("outside gold-only the legend lists the disease's families with every trait", () => {
   // The family order is disease/phenogram.json's, as the encoding test
   // derives it; the trait total is counted from the vocabulary, not
-  // restated, because the list grows by curation decision.
+  // restated, because the list grows by curation decision. No row is
+  // needed: the key does not follow the data.
+  const legend = phenogramLegend([], encoding, false);
   assertEquals(
-    layout.legend.families.map((f) => f.family.key),
+    legend.families.map((f) => f.family.key),
     families.families.map((f) => f.key),
   );
   assertEquals(
-    layout.legend.families.reduce((n, f) => n + f.traits.length, 0),
+    legend.families.reduce((n, f) => n + f.traits.length, 0),
     vocabulary.traits.length,
   );
-  assertEquals(layout.legend.evidence.map((e) => e.shape), [
+  assertEquals(legend.evidence.map((e) => e.shape), [
     "triangle",
     "square",
     "star",
   ]);
+});
+
+Deno.test("under gold-only the legend lists only the traits the rows carry", () => {
+  const first = vocabulary.traits[0];
+  const last = vocabulary.traits.at(-1)!;
+  const rows = [
+    sampleGene({ gwasTrait: [` ${last.key.toUpperCase()} `] }),
+    sampleGene({ gwasTrait: [first.key] }),
+    sampleGene(),
+  ];
+  const legend = phenogramLegend(rows, encoding, true);
+  // Families keep the disease's order; a family no row reaches drops out.
+  assertEquals(
+    legend.families.map((f) => f.family.key),
+    families.families.map((f) => f.key)
+      .filter((key) => key === first.family || key === last.family),
+  );
+  assertEquals(
+    legend.families.flatMap((f) => f.traits.map((t) => t.key)),
+    [...new Set([first.key, last.key])],
+  );
+  assertEquals(legend.evidence, encoding.evidence);
+  assertEquals(phenogramLegend([], encoding, true).families, []);
 });
 
 Deno.test("a gene with an unknown band is reported, not drawn", () => {

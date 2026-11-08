@@ -19,7 +19,6 @@ import {
   TableShell,
 } from "../components/TableShell.tsx";
 import {
-  GWAS_TRAIT_CHOICES,
   hasRealValues,
   OMICS_CHOICES,
   YES_NO_CHOICES,
@@ -29,7 +28,11 @@ import { countBy } from "../lib/collections.ts";
 import { isDoi, shortCitation, toCitation } from "../lib/citations.ts";
 import { referenceByPmid } from "../lib/data/references.ts";
 import { genes } from "../lib/data/genes.ts";
-import { filterGenes, formatOmicsValue } from "../lib/filters.ts";
+import {
+  filterGenes,
+  formatOmicsValue,
+  gwasTraitChoices,
+} from "../lib/filters.ts";
 import { isAbsent } from "../lib/sentinels.ts";
 import { chromosomeOf, CHROMOSOMES } from "../lib/sorting.ts";
 import {
@@ -406,21 +409,24 @@ const COLUMNS = column.columns([
   ),
 ]);
 
-const FILTERS = {
-  mendelianRandomization: {
-    label: "Mendelian randomization performed",
-    choices: YES_NO_CHOICES,
-    mode: "binary",
-  },
-  gwasTraits: {
-    label: "GWAS Traits",
-    choices: GWAS_TRAIT_CHOICES,
-  },
-  omics: {
-    label: "Evidence From Other Omics Studies",
-    choices: OMICS_CHOICES,
-  },
-} as const;
+/** The sidebar's groups; the trait choices follow the rows (`gwasTraitChoices`). */
+function filtersFor(rows: readonly Gene[], goldOnly: boolean) {
+  return {
+    mendelianRandomization: {
+      label: "Mendelian randomization performed",
+      choices: YES_NO_CHOICES,
+      mode: "binary",
+    },
+    gwasTraits: {
+      label: "GWAS Traits",
+      choices: gwasTraitChoices(rows, goldOnly),
+    },
+    omics: {
+      label: "Evidence From Other Omics Studies",
+      choices: OMICS_CHOICES,
+    },
+  } as const;
+}
 
 /** The table without the provenance columns, for `GOLD_ONLY`. */
 const GOLD_COLUMNS = COLUMNS.filter((def) =>
@@ -430,14 +436,18 @@ const GOLD_COLUMNS = COLUMNS.filter((def) =>
 interface GenesViewProps {
   /** The rows to render; the committed table by default. Tests hand in synthetic rows. */
   rows?: readonly Gene[];
-  /** Whether to leave out the provenance columns; `GOLD_ONLY` by default. */
+  /**
+   * Whether to leave out the provenance columns and offer only the traits the
+   * rows carry; `GOLD_ONLY` by default.
+   */
   goldOnly?: boolean;
 }
 
 export default function GenesView(
   { rows = genes, goldOnly = GOLD_ONLY }: GenesViewProps = {},
 ) {
-  const { values, controls, summary, reset } = useCheckboxFilters(FILTERS);
+  const filters = useMemo(() => filtersFor(rows, goldOnly), [rows, goldOnly]);
+  const { values, controls, summary, reset } = useCheckboxFilters(filters);
   const filtered = useMemo(
     () => filterGenes(rows, values),
     [rows, values],

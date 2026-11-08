@@ -44,6 +44,13 @@ where the curated set is meant to be seen whole.
 `visibleTrials()` in `lib/filters.ts` is the same default as a function, for the
 SSR tests and any count that has to agree with the page.
 
+The GWAS trait group offers every vocabulary trait, except **under
+`GOLD_ONLY`, where it offers only the traits a row carries**
+(`gwasTraitChoices`, beside Show All and None Found): the published rows are
+the whole curated set, and a trait no curated row uses would be a choice that
+matches nothing. `tests/data_contract_test.ts` checks reachability against
+those offered choices, not against the vocabulary.
+
 `components/FilterPanel.tsx` owns the sidebar-and-table layout both data pages
 render, and the collapse state with it -- the `is-collapsed` class has to reach
 the grid wrapper as well as the panel, so the panel cannot hold it alone.

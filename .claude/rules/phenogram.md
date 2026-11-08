@@ -46,6 +46,12 @@ Two renderers, one contract, as for the timeline:
   second most extracted trait in `logs/json/pipeline_report_*.json`, 29 times —
   have no filter choice and no phenogram entry, and let `lacunar stroke` be
   labelled `"Lacunar Stroke"` in one file and `"Lacunar stroke"` in another.
+  **Under `GOLD_ONLY` the page offers less than the file**: the GWAS filter
+  (`gwasTraitChoices` in `lib/filters.ts`) and the island's key
+  (`phenogramLegend`) list only the traits a published gene carries, and a
+  family left with none drops out of the key, so no vocabulary term the
+  curators never assigned reaches a page. `GWAS_TRAIT_CHOICES` itself stays
+  the whole vocabulary, and so does the print figure's key.
 - **The prompt is reconciled, not generated.** `pipeline/prompts.py`'s
   canonical-abbreviation sentence stays a frozen literal — it is recorded in
   cassettes and treated as part of the method, so generating it would let an

@@ -198,7 +198,8 @@ test("filter state resets on reload", async ({ page }) => {
 
 test("every group renders its full choice list", async ({ page }) => {
   await expect(filterGroup(page, MR).getByRole("checkbox")).toHaveCount(2);
-  // The vocabulary's traits plus the two sentinels, Show All and None Found.
+  // The offered traits (the vocabulary's, or under gold-only the ones a gene
+  // carries) plus the two sentinels, Show All and None Found.
   await expect(filterGroup(page, GWAS).getByRole("checkbox"))
     .toHaveCount(TRAIT_COUNT + 2);
   // Show All plus every omics choice, None Found among them.

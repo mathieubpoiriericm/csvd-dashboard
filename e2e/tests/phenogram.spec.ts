@@ -1,6 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 
-import { EXPECTED, TRAIT_COUNT } from "../fixtures/expected-data.ts";
+import { EXPECTED } from "../fixtures/expected-data.ts";
 import { tooltip } from "../helpers.ts";
 
 /**
@@ -39,7 +39,7 @@ test("draws every placeable gene on its chromosome, with both legends", async ({
     P.families,
   );
   await expect(page.locator(".phenogram-legend-traits .phenogram-pill"))
-    .toHaveCount(TRAIT_COUNT);
+    .toHaveCount(P.legendTraits);
   // The gene list is interactive on the figure; nothing hidden carries a link.
   await expect(page.locator(".visually-hidden a")).toHaveCount(0);
   await expect(page.locator(".phenogram-unplaced")).toHaveCount(
@@ -128,8 +128,8 @@ test("the phenotype key explains every trait, with a definition where the standa
   await openKey(page);
   const key = page.locator(".phenogram-legend-traits");
   const pills = key.getByRole("button");
-  await expect(pills).toHaveCount(TRAIT_COUNT);
-  test.skip(TRAIT_COUNT === 0, "no trait in the vocabulary");
+  await expect(pills).toHaveCount(P.legendTraits);
+  test.skip(P.legendTraits === 0, "the key lists no trait");
   await pills.first().hover();
   await expect(tooltip(page)).toBeVisible();
   await expect(tooltip(page).locator(".tooltip-row").first()).not.toBeEmpty();

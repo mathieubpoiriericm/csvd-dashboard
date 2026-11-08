@@ -7,6 +7,7 @@ import {
   filterLocationsByStatus,
   filterTrials,
   formatOmicsValue,
+  gwasTraitChoices,
   omicsType,
   visibleTrials,
 } from "../lib/filters.ts";
@@ -17,6 +18,8 @@ import { sampleGene, sampleTrial } from "./fixtures/rows.ts";
 import {
   DEFAULT_TRIAL_STATUSES,
   defaultTrialStatuses,
+  GWAS_TRAIT_CHOICES,
+  NONE_FOUND,
   SHOW_ALL,
   STATUS_CHOICES,
 } from "../lib/constants.ts";
@@ -188,6 +191,40 @@ Deno.test("gene filters compose as an intersection", () => {
 
   assertEquals(combined.length <= gwasOnly.length, true);
   assertEquals(combined.every((g) => g.mendelianRandomization === "Yes"), true);
+});
+
+// -----------------------------------------------------------------------------
+// GWAS trait choices
+// -----------------------------------------------------------------------------
+
+const VOCABULARY_TRAITS = GWAS_TRAIT_CHOICES.filter((choice) =>
+  choice.value !== SHOW_ALL && choice.value !== NONE_FOUND
+);
+
+Deno.test("outside gold-only the trait choices are the whole vocabulary", () => {
+  const carried = [sampleGene({ gwasTrait: [VOCABULARY_TRAITS[0].value] })];
+  assertEquals(gwasTraitChoices(carried, false), GWAS_TRAIT_CHOICES);
+  assertEquals(gwasTraitChoices([], false), GWAS_TRAIT_CHOICES);
+});
+
+Deno.test("under gold-only the trait choices are the traits the rows carry, in vocabulary order", () => {
+  const first = VOCABULARY_TRAITS[0];
+  const last = VOCABULARY_TRAITS.at(-1)!;
+  // Carried out of order, padded and recased: the filters' own comparison.
+  const rows = [
+    sampleGene({ gwasTrait: [` ${last.value.toUpperCase()} `] }),
+    sampleGene({ gwasTrait: [first.value] }),
+    sampleGene(),
+  ];
+  assertEquals(
+    gwasTraitChoices(rows, true).map((choice) => choice.value),
+    [...new Set([SHOW_ALL, NONE_FOUND, first.value, last.value])],
+  );
+  // Show All and None Found are not traits: offered with no row at all.
+  assertEquals(
+    gwasTraitChoices([], true).map((choice) => choice.value),
+    [SHOW_ALL, NONE_FOUND],
+  );
 });
 
 // -----------------------------------------------------------------------------

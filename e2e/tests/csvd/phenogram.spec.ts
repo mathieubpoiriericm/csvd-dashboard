@@ -27,6 +27,10 @@ test("draws 22 chromosomes and 114 gene blocks under eight families", async ({ p
     .toHaveCount(1);
   await expect(figure.locator("g.phenogram-block")).toHaveCount(114);
   await expect(page.locator(".phenogram-legend-family")).toHaveCount(8);
+  // The key's traits are the eighteen a gold gene carries, not the
+  // vocabulary's twenty-one.
+  await expect(page.locator(".phenogram-legend-traits .phenogram-pill"))
+    .toHaveCount(18);
 });
 
 test("the raster's errors are gone: ABO on 9, C6orf195 on 6, COL4A1/2 on 13", async ({ page }) => {

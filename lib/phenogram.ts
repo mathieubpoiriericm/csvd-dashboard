@@ -28,6 +28,7 @@ import {
 import { groupBy, indexBy } from "./collections.ts";
 import { hasRealValues, NONE_FOUND } from "./constants.ts";
 import { normalize } from "./filters.ts";
+import { GOLD_ONLY } from "./gold_only.ts";
 import { CHROMOSOMES } from "./sorting.ts";
 import type { Gene } from "./types.ts";
 
@@ -414,12 +415,33 @@ export function computePhenogramLayout(
     chromosomes,
     blocks,
     unplaced,
-    legend: {
-      families: enc.families.map((family) => ({
+    legend: phenogramLegend(rows, enc),
+  };
+}
+
+/**
+ * The key over `rows`: each family with its traits, and the evidence glyphs.
+ *
+ * Otherwise every vocabulary trait, as the GWAS filter offers. Under
+ * `GOLD_ONLY` only the traits some row carries, as `gwasTraitChoices` does,
+ * and a family left with none drops out, so the key names no phenotype the
+ * curated set does not.
+ */
+export function phenogramLegend(
+  rows: readonly Pick<Gene, "gwasTrait">[],
+  enc: PhenogramEncoding = encoding,
+  goldOnly: boolean = GOLD_ONLY,
+): PhenogramLayout["legend"] {
+  const carried = new Set(rows.flatMap((row) => row.gwasTrait.map(normalize)));
+  const listed = (trait: TraitEncoding) =>
+    !goldOnly || carried.has(normalize(trait.key));
+  return {
+    families: enc.families
+      .map((family) => ({
         family,
-        traits: enc.traits.filter((t) => t.family === family.key),
-      })),
-      evidence: enc.evidence,
-    },
+        traits: enc.traits.filter((t) => t.family === family.key && listed(t)),
+      }))
+      .filter((entry) => entry.traits.length > 0),
+    evidence: enc.evidence,
   };
 }

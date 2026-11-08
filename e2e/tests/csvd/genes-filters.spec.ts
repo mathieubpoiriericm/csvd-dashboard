@@ -5,11 +5,13 @@ import {
   expectRowCount,
   expectSummary,
   filterCount,
+  filterGroup,
 } from "../../helpers.ts";
 
 /**
  * The genes filters over the committed cSVD rows, by trait name: SVS, WMH,
- * PSMD, PVWMH, CMB, WM-PVS and the relabelled Extreme-cSVD. The rules are
+ * PSMD, NODDI, CMB, WM-PVS and the relabelled Extreme-cSVD, and the three
+ * vocabulary traits gold-only leaves out. The rules are
  * tested over derived choices in ../genes-filters.spec.ts; this is the
  * record of what the cSVD data yields, and a fork deletes the whole
  * e2e/tests/csvd/ tree.
@@ -107,4 +109,14 @@ test("CMB and WM-PVS are selectable", async ({ page }) => {
 test("the banner prints Extreme-cSVD, not the wire value extreme-cSVD", async ({ page }) => {
   await choice(page, GWAS, "Extreme-cSVD").check();
   await expectSummary(page, "GWAS Traits: Extreme-cSVD");
+});
+
+test("the vocabulary traits no gold gene carries are not offered", async ({ page }) => {
+  // Under gold-only the group lists the eighteen traits a gold gene carries,
+  // plus Show All and None Found; PVWMH, DWMH and the bare lacunes are
+  // vocabulary no curated row uses.
+  for (const label of ["PVWMH", "DWMH", "Lacunes"]) {
+    await expect(choice(page, GWAS, label)).toHaveCount(0);
+  }
+  await expect(filterGroup(page, GWAS).getByRole("checkbox")).toHaveCount(20);
 });

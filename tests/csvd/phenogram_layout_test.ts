@@ -1,6 +1,7 @@
 /**
  * The cSVD karyogram, pinned: the gold table's 114 placeable genes on 22
- * chromosomes, CENPF's row, the pills, the eight families.
+ * chromosomes, CENPF's row, the pills, the eight families and their gold
+ * traits.
  *
  * The rules that hold for any dataset are in tests/phenogram_layout_test.ts;
  * this file is the record of what the committed cSVD data draws, mirrored in
@@ -145,7 +146,7 @@ Deno.test("pills and glyphs derive from the four evidence columns", () => {
   });
 });
 
-Deno.test("the legend lists the eight families with every trait", () => {
+Deno.test("the legend lists the eight families with the eighteen gold traits", () => {
   assertEquals(layout.legend.families.map((f) => f.family.key), [
     "pvs",
     "diffusion",
@@ -156,8 +157,12 @@ Deno.test("the legend lists the eight families with every trait", () => {
     "lacunes",
     "ich",
   ]);
+  // Under gold-only, every vocabulary trait but the three no gold gene
+  // carries: PVWMH and DWMH (WMH's family keeps WMH) and the bare lacunes
+  // (its family keeps "lacunes (suggestive significance)").
+  const ungold = new Set(["PVWMH", "DWMH", "lacunes"]);
   assertEquals(
-    layout.legend.families.reduce((n, f) => n + f.traits.length, 0),
-    vocabulary.traits.length,
+    layout.legend.families.flatMap((f) => f.traits.map((t) => t.key)),
+    vocabulary.traits.map((t) => t.key).filter((key) => !ungold.has(key)),
   );
 });

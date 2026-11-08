@@ -18,7 +18,13 @@
  * defensive so synthetic callers and older data behave the same way.
  */
 
-import { defaultTrialStatuses, SHOW_ALL, YES_NO_CHOICES } from "./constants.ts";
+import {
+  defaultTrialStatuses,
+  GWAS_TRAIT_CHOICES,
+  NONE_FOUND,
+  SHOW_ALL,
+  YES_NO_CHOICES,
+} from "./constants.ts";
 import { GOLD_ONLY } from "./gold_only.ts";
 import { parentPhase } from "./phases.ts";
 import { isAbsent } from "./sentinels.ts";
@@ -280,6 +286,28 @@ export function visibleTrials(
   goldOnly: boolean = GOLD_ONLY,
 ): Trial[] {
   return filterTrials(rows, defaultTrialFilters(goldOnly));
+}
+
+/**
+ * The GWAS trait group's choices over `rows`.
+ *
+ * Otherwise every vocabulary trait (`GWAS_TRAIT_CHOICES`), so a choice exists
+ * before a run publishes the first gene that carries it. Under `GOLD_ONLY`
+ * only the traits some row carries: the rows are the whole curated set, and a
+ * vocabulary trait the curators never assigned would put a phenotype on the
+ * page that matches nothing. Show All and None Found are not traits, and are
+ * always offered.
+ */
+export function gwasTraitChoices(
+  rows: readonly Pick<Gene, "gwasTrait">[],
+  goldOnly: boolean = GOLD_ONLY,
+): readonly FilterChoice[] {
+  if (!goldOnly) return GWAS_TRAIT_CHOICES;
+  const carried = new Set(rows.flatMap((row) => row.gwasTrait.map(normalize)));
+  return GWAS_TRAIT_CHOICES.filter((choice) =>
+    choice.value === SHOW_ALL || choice.value === NONE_FOUND ||
+    carried.has(normalize(choice.value))
+  );
 }
 
 /** The map's facilities under a status selection. */

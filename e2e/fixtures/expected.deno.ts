@@ -17,7 +17,6 @@
 import {
   DEFAULT_TRIAL_STATUSES,
   formatLongDate,
-  GWAS_TRAIT_CHOICES,
   NONE_FOUND,
   OMICS_CHOICES,
   PHASE_CHOICES,
@@ -43,13 +42,11 @@ import {
   filterGenes,
   filterLocationsByStatus,
   filterTrials,
+  gwasTraitChoices,
   omicsType,
   visibleTrials,
 } from "../../lib/filters.ts";
-import {
-  computePhenogramLayout,
-  encoding as phenogram,
-} from "../../lib/phenogram.ts";
+import { computePhenogramLayout } from "../../lib/phenogram.ts";
 import { chromosomeOf } from "../../lib/sorting.ts";
 import { locationsWithTableStatus, phaseBarLabel } from "../../lib/trials.ts";
 import {
@@ -90,7 +87,8 @@ const countTrials = (
 const choices = (list: readonly { label: string; value: string }[]) =>
   list.filter((c) => c.value !== SHOW_ALL);
 
-const traitChoices = choices(GWAS_TRAIT_CHOICES).filter((c) =>
+// The choices the page offers: under GOLD_ONLY only the traits a gene carries.
+const traitChoices = choices(gwasTraitChoices(genes)).filter((c) =>
   c.value !== NONE_FOUND
 );
 const traits = traitChoices.map((c) => ({
@@ -228,7 +226,8 @@ const expected = {
   instituteAlt: manifest.institute.logo.alt,
   instituteCopyright: manifest.institute.copyright,
   maintainerEmail: manifest.contact.maintainer.email,
-  traitCount: phenogram.traits.length,
+  /** The GWAS group's trait choices, Show All and None Found aside. */
+  traitCount: traitChoices.length,
 
   geneRows: genes.length,
   trialRows: trials.length,
@@ -351,7 +350,11 @@ const expected = {
   phenogram: {
     chromosomes: karyogram.chromosomes.length,
     blocks: karyogram.blocks.length,
-    families: phenogram.families.length,
+    families: karyogram.legend.families.length,
+    legendTraits: karyogram.legend.families.reduce(
+      (n, f) => n + f.traits.length,
+      0,
+    ),
     firstGene: karyogram.blocks[0]?.symbol ?? null,
   },
 
