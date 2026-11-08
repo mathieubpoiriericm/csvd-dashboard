@@ -7,7 +7,9 @@ import { EXPECTED } from "../../fixtures/expected-data.ts";
  * search test in ../audit-regressions.spec.ts uses a derived gene symbol; a
  * fork deletes the whole e2e/tests/csvd/ tree.
  */
-for (const query of ["TWAS (cross tissue)", "0.70"]) {
+// LRRC25's "TWAS (nerve tibial*)" replaced the pipeline's "TWAS (cross
+// tissue)", which the gold table does not carry.
+for (const query of ["TWAS (nerve tibial*)", "0.70"]) {
   test(`gene search finds displayed values: ${query}`, async ({ page }) => {
     test.skip(
       EXPECTED.goldOnly && !query.startsWith("TWAS"),

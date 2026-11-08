@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { EXPECTED } from "../../fixtures/expected-data.ts";
 
 /**
  * The radar over the committed cSVD trials, by drug, registry id and
@@ -25,9 +26,8 @@ test("labels are boxless halos and the evidence ring lifts with its marker", asy
   ) => [...new Set(rects.map((rect) => rect.getAttribute("fill")))]);
   expect(fills).toEqual(["none"]);
 
-  // Cilostazol's Stroke phase III cell holds NCT06530537, recruiting and so
-  // visible by default; its phase II marker is ISRCTN14632228, which has no
-  // ClinicalTrials.gov record and starts hidden under Unknown.
+  // Cilostazol's Stroke phase III cell holds NCT06530537 and LACI-3, both
+  // assessed against a supported target (PDE3A), so each carries a ring.
   const trial = figure.locator(
     'g.drug[data-drug="Cilostazol"][data-pop="Stroke"][data-phase="III"]',
   ).first();
@@ -40,6 +40,10 @@ test("labels are boxless halos and the evidence ring lifts with its marker", asy
   await expect.poll(() => radius(ring)).toBe("16px");
 });
 test("a flagged marker is hollow, and says so in its tooltip and name", async ({ page }) => {
+  test.skip(
+    EXPECTED.goldOnly,
+    "gold-only: no gold trial is a thin record, so no marker is flagged; the flag's rules are tested on constructed rows in tests/timeline_layout_test.ts",
+  );
   await figureSettled(page);
   // NCT02886494 (BAC) is COMPLETED, hidden by the default status filter.
   await page.getByRole("group", { name: /^Study status/ }).getByRole(

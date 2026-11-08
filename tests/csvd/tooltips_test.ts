@@ -98,7 +98,10 @@ Deno.test("phenogramTooltip names the location, the evidence and the NCBI link",
     rows: [
       { label: "Location", value: "1p31.3" },
       { label: "GWAS phenotypes", value: "PSMD" },
-      { label: "Other omics", value: "TWAS (brain frontal cortex)" },
+      {
+        label: "Other omics",
+        value: "TWAS (Brain cerebellum*, brain frontal cortex BA9*)",
+      },
       {
         label: "Monogenic disease",
         value: "Autoinflammation, immune dysregulation, and eosinophilia",
@@ -112,13 +115,15 @@ Deno.test("phenogramTooltip names the location, the evidence and the NCBI link",
   });
 });
 
+// LAMB1's monogenic link is the gold table's OMIM 621424; its GWAS and
+// other-omics cells are still empty, so they carry the None found rows.
 Deno.test("phenogramTooltip says None found rather than the sentinel, and uses display labels", () => {
   const lamb1 = phenogramTooltip(gene("LAMB1"));
   assertEquals(lamb1.rows.map((r) => r.value), [
     "7q31.1",
     "None found",
     "None found",
-    "None found",
+    "621424",
     "No",
   ]);
   assertEquals(

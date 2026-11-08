@@ -4,8 +4,8 @@ import { banner, pageSizeSelect, rows } from "../../helpers.ts";
 
 /**
  * The trials table over the committed cSVD rows, by drug and search term:
- * Acetylsalicyclic acid first, Atorvastatin's three-row merge, the CADASIL
- * and Academic searches, the fifteen-participant trial. The table's
+ * Butylphthalide first, Cilostazol's three-row merge, the CADASIL and
+ * Academic searches, the fifteen-participant trial. The table's
  * behaviour is tested over derived rows in ../trials-table.spec.ts; a fork
  * deletes the whole e2e/tests/csvd/ tree.
  */
@@ -18,24 +18,23 @@ test.beforeEach(async ({ page }) => {
   await page.goto("/trials");
 });
 
-test("opens on Acetylsalicyclic acid", async ({ page }) => {
-  // Acetylcysteine's only trial is Completed and hidden by default, so the
-  // first default-visible drug alphabetically is Acetylsalicyclic acid.
+test("opens on Butylphthalide (NBP)", async ({ page }) => {
+  // The first gold drug alphabetically; under gold-only no status is hidden
+  // by default, so it is the first row of the whole table.
   await expect(rows(page).first().locator("td").first())
-    .toHaveText("Acetylsalicyclic acid");
+    .toHaveText("Butylphthalide (NBP)");
 });
 
-test("merges Atorvastatin's three rows", async ({ page }) => {
-  // Atorvastatin x3 is the widest merge on the first page under the default
-  // ascending-by-drug sort now that Completed trials -- Aspirin's third
-  // registration among them -- are hidden by default.
+test("merges Cilostazol's three rows", async ({ page }) => {
+  // Cilostazol x3 (CVD-Cog, LACI-3 and NCT06530537) is the widest merge on
+  // the first page under the default ascending-by-drug sort.
   const merged = page.locator("td.group-cell");
   await expect(merged.first()).toBeVisible();
 
-  const atorvastatin = page.locator("td.group-cell", {
-    hasText: /^Atorvastatin$/,
+  const cilostazol = page.locator("td.group-cell", {
+    hasText: /^Cilostazol$/,
   });
-  await expect(atorvastatin).toHaveAttribute("rowspan", "3");
+  await expect(cilostazol).toHaveAttribute("rowspan", "3");
 
   // Striping alternates per drug block, not per row, so the parity holds
   // across a merged pair rather than flipping inside it.
@@ -50,10 +49,9 @@ test("merges Atorvastatin's three rows", async ({ page }) => {
 });
 
 test("sorting descending by drug keeps repeated rows merged", async ({ page }) => {
-  // The default-visible set's alphabetically-last drugs (XYWAV, XBD173,
-  // Udenafil, ...) happen to be single-trial, so page 1 at the default size
-  // carries no merge under a descending sort; widen the page to guarantee one
-  // of the six-, four- and three-row groups renders.
+  // Widen the page so the whole table is on it and a merged group renders
+  // under a descending sort wherever it falls (Isosorbide mononitrate's
+  // three rows are the fifth drug group).
   await pageSizeSelect(page).selectOption("100");
 
   const drug = page.getByRole("columnheader", { name: "Drug", exact: true });
@@ -69,23 +67,24 @@ test("sorting descending by drug keeps repeated rows merged", async ({ page }) =
   await expect(page.locator("td.group-cell").first()).toBeVisible();
 });
 
-test("search narrows the trials table to the two visible CADASIL trials", async ({ page }) => {
+test("search narrows the trials table to the two CADASIL trials", async ({ page }) => {
   const search = page.getByRole("searchbox", { name: "Search trials" });
 
   // The global filter spans every column and runs over the default-visible
-  // set, so "CADASIL" catches two of the five trials that name it in their
-  // title and population details -- Cerebrolysin and Edaravone Dexborneol.
-  // Palm tocotrienols complex and Adrenomedullin are Completed and Dabigatran
-  // is Unknown, all three hidden by default.
+  // set, so "CADASIL" catches the two gold trials that name it in their
+  // title or population details -- Cerebrolysin and Palm tocotrienols
+  // complex. Under gold-only no status is hidden by default, so the banner
+  // carries the search alone.
   await search.fill("CADASIL");
+  const status = STATUS_SUMMARY === null ? "" : `${STATUS_SUMMARY} | `;
   await expect(banner(page)).toHaveText(
-    `Active Filters: ${STATUS_SUMMARY} | Search: “CADASIL” — showing 2 of ${TRIAL_TOTAL} rows`,
+    `Active Filters: ${status}Search: “CADASIL” — showing 2 of ${TRIAL_TOTAL} rows`,
   );
   await expect(rows(page)).toHaveCount(2);
   await expect(page.locator(".pagination span").first())
     .toHaveText("Showing 1–2 of 2");
   await expect(rows(page).filter({ hasText: "Cerebrolysin" })).toHaveCount(1);
-  await expect(rows(page).filter({ hasText: "Edaravone Dexborneol" }))
+  await expect(rows(page).filter({ hasText: "Palm tocotrienols complex" }))
     .toHaveCount(1);
 
   await search.fill("");
@@ -103,19 +102,21 @@ test("search results keep alternating drug-group striping", async ({ page }) => 
   await pageSizeSelect(page).selectOption("100");
   // The search box debounces, so wait for the filtered set before reading
   // the stripes: read earlier, the rows still carry the unfiltered parity.
-  await expect(banner(page)).toContainText("showing 29 of 102 rows");
+  await expect(banner(page)).toContainText(
+    `showing 12 of ${TRIAL_TOTAL} rows`,
+  );
 
   await expect(banner(page)).toContainText("Search: “Academic”");
-  await expect(rows(page)).toHaveCount(29);
+  await expect(rows(page)).toHaveCount(12);
   const group = (drug: string) =>
     rows(page).filter({ has: page.getByText(drug, { exact: true }) }).first();
-  // Unsearched, Cerebrolysin sits between Calculus bovis sativus (even) and
-  // Cilostazol (even after it); it matches no Academic row, so the groups
-  // after it shift by one and the stripes have to be recomputed over the
-  // filtered set to keep alternating.
-  await expect(group("Calculus bovis sativus")).toHaveClass("group-even");
+  // Unsearched, Cerebrolysin sits between Butylphthalide (NBP) (even) and
+  // Cilostazol (even after it); it is industry-sponsored and matches no
+  // Academic row, so the groups after it shift by one and the stripes have
+  // to be recomputed over the filtered set to keep alternating.
+  await expect(group("Butylphthalide (NBP)")).toHaveClass("group-even");
   await expect(group("Cilostazol")).toHaveClass("group-odd");
-  await expect(group("Clopidogrel")).toHaveClass("group-even");
+  await expect(group("Colchicine")).toHaveClass("group-even");
 });
 
 test("a gene symbol matches no trial", async ({ page }) => {
@@ -131,27 +132,27 @@ test("the smallest stated enrolment is fifteen", async ({ page }) => {
   ).toHaveAttribute("aria-sort", "ascending");
 
   const sizes = await rows(page).locator("td:nth-child(11)").allInnerTexts();
-  // The one trial with no stated enrolment (Donepezil) is Completed and so
-  // hidden by the default status filter -- every default-visible row here
-  // reads a real number, with no "(unknown)" sentinel to sort ahead of them.
+  // Every gold trial states its enrolment, so every row here reads a real
+  // number, with no "(unknown)" sentinel to sort ahead of them; THN391's
+  // fifteen is the smallest.
   const numbers = sizes.map((size) => Number(size.trim()));
   expect(numbers).not.toContain(NaN);
   expect(numbers[0]).toBe(15);
 });
 
-test("the sticky treatment stays on Drug through Atorvastatin's merged block", async ({ page }) => {
+test("the sticky treatment stays on Drug through Cilostazol's merged block", async ({ page }) => {
   const scroller = page.locator(".table-scroll");
   await scroller.evaluate((el) => {
     el.scrollLeft = el.scrollWidth;
   });
 
   const result = await page.evaluate(() => {
-    const atorvastatinCell = [...document.querySelectorAll("td.group-cell")]
-      .find((td) => td.textContent?.trim() === "Atorvastatin");
-    if (!atorvastatinCell) {
-      throw new Error("Atorvastatin merge cell not found");
+    const mergedCell = [...document.querySelectorAll("td.group-cell")]
+      .find((td) => td.textContent?.trim() === "Cilostazol");
+    if (!mergedCell) {
+      throw new Error("Cilostazol merge cell not found");
     }
-    const openingRow = atorvastatinCell.closest("tr")!;
+    const openingRow = mergedCell.closest("tr")!;
     const continuationRows = [
       openingRow.nextElementSibling as HTMLTableRowElement,
       openingRow.nextElementSibling!.nextElementSibling as HTMLTableRowElement,
@@ -163,7 +164,7 @@ test("the sticky treatment stays on Drug through Atorvastatin's merged block", a
         position: getComputedStyle(firstTd).position,
       };
     });
-    const pinnedStyle = getComputedStyle(atorvastatinCell);
+    const pinnedStyle = getComputedStyle(mergedCell);
     return {
       continuationFirstCells,
       pinnedPosition: pinnedStyle.position,

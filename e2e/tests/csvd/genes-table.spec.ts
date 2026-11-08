@@ -32,13 +32,15 @@ test("search narrows the table to HTRA1 and clearing restores it", async ({ page
   await expect(rows(page)).toHaveCount(10);
 });
 
-test("the pager walks nine pages of ten and lands on the seven-row remainder", async ({ page }) => {
-  // 87 rows at 10 per page = 9 pages, two more than the pager's seven
-  // buttons.
+test("the pager walks twelve pages of ten and lands on the five-row remainder", async ({ page }) => {
+  // 115 rows at 10 per page = 12 pages, five more than the pager's seven
+  // buttons; the window centres on the current page, so each click reaches
+  // two pages further.
   await page.getByRole("button", { name: "Page 7", exact: true }).click();
-  await page.getByRole("button", { name: "Page 8", exact: true }).click();
   await page.getByRole("button", { name: "Page 9", exact: true }).click();
-  await expect(rows(page)).toHaveCount(7);
+  await page.getByRole("button", { name: "Page 11", exact: true }).click();
+  await page.getByRole("button", { name: "Page 12", exact: true }).click();
+  await expect(rows(page)).toHaveCount(5);
   await expect(page.locator(".pagination span").first())
-    .toHaveText("Showing 81–87 of 87");
+    .toHaveText("Showing 111–115 of 115");
 });

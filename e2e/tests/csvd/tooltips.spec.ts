@@ -239,13 +239,15 @@ test.describe("gene tooltips", () => {
   });
 });
 
-// LAMB1's curated Protein column is "(unknown)" -- the export sentinel -- so
-// its cell renders an em dash with no tooltip trigger at all (see
-// components/Absent.tsx). LOX carries a real value ("LYOX") and still has a
-// UniProt lookup record, which is what this needs.
+// LOX's protein reads "LYOX", not its gene symbol, and it has a UniProt
+// lookup record, which is what this needs. The search is debounced, so the
+// hover waits for the narrowed row: under gold-only every first-page row has
+// a protein trigger, and hovering the unsearched first row would open a
+// tooltip the re-render then removes.
 test("hovering the protein shows its UniProt record", async ({ page }) => {
   await page.goto("/genes");
   await page.getByRole("searchbox", { name: "Search genes" }).fill("LOX");
+  await expect(rows(page)).toHaveCount(1);
   await rows(page).first().locator("td").nth(1).locator(".tooltip-box")
     .hover();
 
@@ -376,9 +378,10 @@ test("registry IDs on the trials table carry a registry tooltip", async ({ page 
 
 /** The four single-symbol genetic targets in the curated rows. The table
  * paginates now, so each is searched for rather than counted on page one,
- * and over every status: PLG's one trial, Tranexamic acid
- * (ACTRN12624001477516), has no ClinicalTrials.gov record and starts hidden
- * under Unknown. */
+ * and over every status (the run default hides PLG's one trial, Tranexamic
+ * acid, ACTRN12624001477516, which has no ClinicalTrials.gov record). PDE3A
+ * and APP are labelled in the gold table ("GWAS for ischemic stroke: PDE3A",
+ * "monogenic disease: APP"); the tooltip holds the symbol alone. */
 test("single-symbol genetic targets get tooltips", async ({ page }) => {
   await page.goto("/trials");
   await page.getByRole("group", { name: /^Study status/ }).getByRole(
@@ -397,17 +400,22 @@ test("single-symbol genetic targets get tooltips", async ({ page }) => {
   }
 });
 
+// The gold table names THN391's target as FGA alone, so the soluble
+// guanylate cyclase subunits of the isosorbide mononitrate rows stand in for
+// the fibrinogen chains.
 test("every symbol in a multi-gene target gets its own tooltip", async ({ page }) => {
   await page.goto("/trials");
   await page.getByRole("searchbox", { name: "Search trials" }).fill(
-    "FGA, FGB, FGG",
+    "GUCY1B1, GUCY1B2, GUCY1A2, GUCY1A1",
   );
 
   const targets = rows(page).first().locator(".tooltip-box").filter({
-    hasText: /^(FGA|FGB|FGG)$/,
+    hasText: /^GUCY1[AB][12]$/,
   });
-  await expect(targets).toHaveText(["FGA", "FGB", "FGG"]);
+  await expect(targets).toHaveText(["GUCY1B1", "GUCY1B2", "GUCY1A2", "GUCY1A1"]);
 
   await targets.nth(1).hover();
-  await expect(tooltip(page)).toContainText("fibrinogen beta chain");
+  await expect(tooltip(page)).toContainText(
+    "guanylate cyclase 1 soluble subunit beta 2",
+  );
 });
