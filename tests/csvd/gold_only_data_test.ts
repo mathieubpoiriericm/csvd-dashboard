@@ -21,6 +21,7 @@ import trialGeneInfo from "../../data/gene_info_table2.json" with {
 import omimInfo from "../../data/omim_info.json" with { type: "json" };
 import proteinInfo from "../../data/protein_info.json" with { type: "json" };
 import refs from "../../data/refs.json" with { type: "json" };
+import { publicationCount } from "../../lib/data/summary.ts";
 import table1 from "../../data/table1.json" with { type: "json" };
 import table2 from "../../data/table2.json" with { type: "json" };
 
@@ -121,6 +122,13 @@ Deno.test("the PubMed lookup holds exactly the PMIDs gold cites", () => {
     .map((reference) => reference.trim())
     .filter((reference) => /^\d+$/.test(reference));
   assertEquals(sorted(refs.map((row) => row.pmid)), sorted(pmids));
+});
+
+Deno.test("the Publications count is every reference gold cites, DOIs included", () => {
+  // 48 PMIDs and the 3 DOIs gold cites in place of a PMID.
+  const cited = new Set(table1.flatMap((row) => row.references));
+  assertEquals(publicationCount, cited.size);
+  assertEquals(publicationCount, 51);
 });
 
 Deno.test("the OMIM lookup holds exactly the entries gold links to", () => {

@@ -12,12 +12,15 @@ import {
 import { REFERENCE_NEEDED } from "../lib/sentinels.ts";
 import { sampleGene, sampleTrial } from "./fixtures/rows.ts";
 
-Deno.test("summarize counts distinct genes, drugs, trials and numeric PMIDs", () => {
+Deno.test("summarize counts distinct genes, drugs, trials and publications", () => {
   const summary = summarize(
     [
       sampleGene({ gene: "GENE1", references: ["1", "2"] }),
       sampleGene({ gene: "GENE1", references: ["2", REFERENCE_NEEDED] }),
-      sampleGene({ gene: "GENE2", references: ["0123", "3"] }),
+      sampleGene({
+        gene: "GENE2",
+        references: ["0123", "3", "10.1000/xyz1", " 10.1000/xyz1 ", "10.1/x"],
+      }),
     ],
     [
       sampleTrial({ drug: "Drug A", registryId: "NCT00000001" }),
@@ -29,8 +32,9 @@ Deno.test("summarize counts distinct genes, drugs, trials and numeric PMIDs", ()
     geneCount: 2,
     drugCount: 2,
     trialCount: 2,
-    // "0123" is not a PMID and the sentinel is a gap marker.
-    publicationCount: 3,
+    // Three PMIDs and one DOI, cited twice. "0123" is not a PMID, "10.1/x"
+    // not a DOI, and the sentinel is a gap marker.
+    publicationCount: 4,
   });
 });
 

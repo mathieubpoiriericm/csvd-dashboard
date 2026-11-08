@@ -1,5 +1,6 @@
 /** Headline counts shown on the About page. */
 
+import { isDoi } from "../citations.ts";
 import { uniqueCount } from "../collections.ts";
 import type { Gene, Trial } from "../types.ts";
 import { genes } from "./genes.ts";
@@ -9,7 +10,7 @@ export interface Summary {
   geneCount: number;
   drugCount: number;
   trialCount: number;
-  /** Distinct numeric PMIDs, excluding display sentinels. */
+  /** Distinct publications cited: numeric PMIDs and DOIs, never a sentinel. */
   publicationCount: number;
 }
 
@@ -26,10 +27,14 @@ export function summarize(
     geneCount: uniqueCount(geneRows.map((gene) => gene.gene)),
     drugCount: uniqueCount(trialRows.map((trial) => trial.drug)),
     trialCount: uniqueCount(trialRows.map((trial) => trial.registryId)),
+    // A DOI is how the curators cite a paper they give no PMID for; it is a
+    // publication all the same, and the Genes table links it.
     publicationCount: uniqueCount(
-      geneRows.flatMap((gene) => gene.references).filter((reference) =>
-        /^[1-9]\d*$/.test(reference)
-      ),
+      geneRows.flatMap((gene) => gene.references)
+        .map((reference) => reference.trim())
+        .filter((reference) =>
+          /^[1-9]\d*$/.test(reference) || isDoi(reference)
+        ),
     ),
   };
 }
