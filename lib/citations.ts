@@ -89,3 +89,14 @@ export function shortCitation(reference: Reference): string {
   const name = etAl ? `${author}, et al.` : author;
   return year ? `${name} (${year})` : name;
 }
+
+const DOI = /^10\.\d{4,9}\/\S+$/;
+
+/**
+ * Whether a reference is a DOI (`10.21203/rs.3.rs-5926137/v1`) rather than a
+ * PMID. The curators cite a preprint with no PubMed record by its DOI, and
+ * such a reference has no citation in `data/refs.json` to look up.
+ */
+export function isDoi(reference: string): boolean {
+  return DOI.test(reference.trim());
+}

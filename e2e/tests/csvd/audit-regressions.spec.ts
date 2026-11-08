@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { EXPECTED } from "../../fixtures/expected-data.ts";
 
 /**
  * Two displayed cSVD cell values the global search must find: an omics
@@ -8,6 +9,10 @@ import { expect, test } from "@playwright/test";
  */
 for (const query of ["TWAS (cross tissue)", "0.70"]) {
   test(`gene search finds displayed values: ${query}`, async ({ page }) => {
+    test.skip(
+      EXPECTED.goldOnly && !query.startsWith("TWAS"),
+      "gold-only: the table has no confidence column",
+    );
     await page.goto("/genes");
     await expect(page.locator(".table-controls")).toHaveAttribute(
       "data-hydrated",

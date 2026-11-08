@@ -48,6 +48,7 @@ test("a rapid search burst commits the final text on a large table", async ({ pa
 
 test("pipeline details mount on first opening and survive close and step changes", async ({ page }) => {
   test.skip(!EXPECTED.hasPipelineRun, "no pipeline run recorded");
+  test.skip(EXPECTED.goldOnly, "gold-only: the About page shows no run");
   await page.goto("/");
   await page.waitForSelector('.pipeline-card[data-hydrated="true"]');
   const drawer = page.locator("#pipeline-run-drawer");

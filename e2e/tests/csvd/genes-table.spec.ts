@@ -14,20 +14,19 @@ test.beforeEach(async ({ page }) => {
 test("search narrows the table to HTRA1 and clearing restores it", async ({ page }) => {
   const search = page.getByRole("searchbox", { name: "Search genes" });
 
-  // GLA comes too: the search covers every column, and GLA's source quote
-  // names HTRA1 among the other SVD genes.
+  // HTRA1 alone: the search covers every column, and the one other row
+  // naming HTRA1 names it in its source quote, which the gold-only table
+  // does not show.
   await search.fill("  HTRA1  ");
   await expect(search).toHaveValue("  HTRA1  ");
-  await expect(rows(page)).toHaveCount(2);
+  await expect(rows(page)).toHaveCount(1);
   await expect(rows(page).first().locator("td").first())
     .toHaveText("HTRA1", { useInnerText: true });
-  await expect(rows(page).nth(1).locator("td").first())
-    .toHaveText("GLA", { useInnerText: true });
   await expect(banner(page)).toHaveText(
-    `Active Filters: Search: “HTRA1” — showing 2 of ${GENE_TOTAL} rows`,
+    `Active Filters: Search: “HTRA1” — showing 1 of ${GENE_TOTAL} rows`,
   );
   await expect(page.locator(".pagination span").first())
-    .toHaveText("Showing 1–2 of 2");
+    .toHaveText("Showing 1–1 of 1");
 
   await search.fill("");
   await expect(rows(page)).toHaveCount(10);

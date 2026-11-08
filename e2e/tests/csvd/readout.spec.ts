@@ -23,12 +23,13 @@ test("ticking WMH drains the genes readout from 87 to 45", async ({ page }) => {
   await expect.poll(() => fillHeights(page)).toBeLessThan(full);
 });
 
-test("searching HTRA1 leaves two genes in the readout", async ({ page }) => {
+test("searching HTRA1 leaves one gene in the readout", async ({ page }) => {
   await page.goto("/genes");
-  // HTRA1, and GLA, whose source quote names it.
+  // HTRA1 alone: GLA names it only in its source quote, which the gold-only
+  // table does not show.
   await page.getByRole("searchbox", { name: "Search genes" }).fill("HTRA1");
   await expect(page.locator(".readout-stat-value").first())
-    .toHaveText(/2\s*\/\s*87/);
+    .toHaveText(/1\s*\/\s*87/);
 });
 
 test("searching CADASIL leaves three of the five trials in the readout", async ({ page }) => {

@@ -42,15 +42,19 @@ test("loads one page of the committed gene set", async ({ page }) => {
 });
 
 test("renders the grouped two-row header", async ({ page }) => {
-  const groupRow = page.locator("thead tr").first();
-  await expect(groupRow.locator("th")).toHaveText([
+  // Under gold-only the provenance group and its two columns are left out:
+  // only a pipeline extraction fills them.
+  const groups = [
     "Putative Causal Genes",
     "Genetic and Omics Evidence",
     "Expression Context",
     /References/,
-    "Extraction Provenance",
-  ]);
-  for (const [i, span] of [3, 4, 2, 1, 2].entries()) {
+    ...(EXPECTED.goldOnly ? [] : ["Extraction Provenance"]),
+  ];
+  const spans = EXPECTED.goldOnly ? [3, 4, 2, 1] : [3, 4, 2, 1, 2];
+  const groupRow = page.locator("thead tr").first();
+  await expect(groupRow.locator("th")).toHaveText(groups);
+  for (const [i, span] of spans.entries()) {
     await expect(groupRow.locator("th").nth(i))
       .toHaveAttribute("colspan", String(span));
   }
@@ -62,7 +66,9 @@ test("renders the grouped two-row header", async ({ page }) => {
   // is excluded from the leaf row below.
   await expect(groupRow.locator("th").nth(3)).toHaveAttribute("rowspan", "2");
   await expect(groupRow.locator("th").nth(3)).toHaveAttribute("scope", "col");
-  await expect(page.locator("thead tr").nth(1).locator("th")).toHaveCount(11);
+  await expect(page.locator("thead tr").nth(1).locator("th")).toHaveCount(
+    EXPECTED.goldOnly ? 9 : 11,
+  );
   await expect(page.locator('thead tr:nth-child(2) th:not([scope="col"])'))
     .toHaveCount(0);
 });
@@ -119,9 +125,11 @@ test("the sticky header stays pinned while the body scrolls, and the two header 
 });
 
 test("every leaf column can be sorted with a keyboard-focusable button", async ({ page }) => {
+  // Gold-only leaves out the two provenance columns.
+  const leaves = EXPECTED.goldOnly ? 9 : 11;
   const leafHeaders = page.locator("thead tr").nth(1).locator("th");
-  await expect(leafHeaders).toHaveCount(11);
-  for (let i = 0; i < 11; i++) {
+  await expect(leafHeaders).toHaveCount(leaves);
+  for (let i = 0; i < leaves; i++) {
     await expect(leafHeaders.nth(i)).toHaveClass(/sortable/);
     await expect(leafHeaders.nth(i)).toHaveAttribute("aria-sort", "none");
   }

@@ -204,15 +204,49 @@ export function cellTypeTooltip(
 }
 
 /**
- * Splits a "FB>PC>SMC" style string into abbreviations and the separators
- * between them, so each abbreviation can carry its own tooltip.
+ * One chain of cell types: the abbreviations and the separators between them,
+ * under the label the value gave the chain, if any.
+ */
+export interface CellTypeChain {
+  /** `Mouse` in `Mouse: FB>PC`; null for a chain written without a label. */
+  label: string | null;
+  parts: string[];
+  /** `>` or `<`, doubled (`>>`) where the value doubles it. */
+  separators: string[];
+}
+
+const CELL_TYPE_SEPARATOR = /<<|>>|<|>/g;
+const LABELLED_CHAIN = /^\s*([A-Za-z][A-Za-z ]*?)\s*:(.*)$/s;
+
+function splitChain(value: string): Omit<CellTypeChain, "label"> {
+  const parts = value.split(CELL_TYPE_SEPARATOR).map((p) => p.trim())
+    .filter(Boolean);
+  const separators = [...value.matchAll(CELL_TYPE_SEPARATOR)].map((m) => m[0]);
+  return { parts, separators };
+}
+
+/**
+ * Splits a cell-type value into abbreviations and the separators between
+ * them, so each abbreviation can carry its own tooltip.
+ *
+ * Two forms are read. The plain one is a single chain, `FB>PC>SMC`. The
+ * labelled one is several chains separated by `;`, each named before a colon,
+ * `Mouse: FB>PC; Human: Matrix.PC >> Venous.SMC`; it is taken as labelled only
+ * when every `;`-separated segment carries a label, so free text that happens
+ * to hold a colon stays one plain chain. `parts` is every chain's
+ * abbreviations, in order.
  */
 export function splitCellTypes(
   value: string,
-): { parts: string[]; separators: string[] } {
-  const parts = value.split(/[<>]/).map((p) => p.trim()).filter(Boolean);
-  const separators = [...value.matchAll(/[<>]/g)].map((m) => m[0]);
-  return { parts, separators };
+): { parts: string[]; chains: CellTypeChain[] } {
+  const labelled = value.split(";").map((segment) =>
+    LABELLED_CHAIN.exec(segment)
+  );
+  const chains =
+    labelled.every((match): match is RegExpExecArray => match !== null)
+      ? labelled.map((match) => ({ label: match[1], ...splitChain(match[2]) }))
+      : [{ label: null, ...splitChain(value) }];
+  return { parts: chains.flatMap((chain) => chain.parts), chains };
 }
 
 /** Expansion for an omics evidence string, e.g. "TWAS;whole blood". */

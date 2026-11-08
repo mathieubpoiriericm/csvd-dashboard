@@ -20,6 +20,7 @@ import { genes, trialLocations, trials } from "../lib/data.ts";
 import { pipelineStatus } from "../lib/data/pipeline.ts";
 import { MAINTAINER, RADAR_TITLE, SITE_TITLE } from "../lib/disease.ts";
 import { DEFAULT_TRIAL_STATUSES } from "../lib/constants.ts";
+import { GOLD_ONLY, GOLD_ONLY_NOTICE } from "../lib/gold_only.ts";
 import { filterLocationsByStatus, visibleTrials } from "../lib/filters.ts";
 import type { PipelineRun, SyncRun } from "../lib/types.ts";
 import { escapeHtml } from "./helpers/html.ts";
@@ -58,7 +59,9 @@ Deno.test("a recorded run replaces the summary card with the widget", () => {
   // rendering in tests/pipeline_widget_test.tsx, and its presence on a
   // real page by e2e/tests/about.spec.ts, which builds the app and
   // asserts six step rows when a report exists.
-  const html = renderToString(<AboutContent run={RECORDED_RUN} />);
+  const html = renderToString(
+    <AboutContent goldOnly={false} run={RECORDED_RUN} />,
+  );
   assertNotMatch(html, /value-box-row/);
   assertNotMatch(html, /pipeline-status-timestamp/);
 });
@@ -66,6 +69,7 @@ Deno.test("a recorded run replaces the summary card with the widget", () => {
 Deno.test("the summary card is the fallback when no report was recorded", () => {
   const html = renderToString(
     <AboutContent
+      goldOnly={false}
       run={null}
       status={{
         runTimestamp: "2026-08-30T12:00:00Z",
@@ -81,7 +85,9 @@ Deno.test("the summary card is the fallback when no report was recorded", () => 
 });
 
 Deno.test("neither block renders when the pipeline has recorded nothing", () => {
-  const html = renderToString(<AboutContent run={null} status={null} />);
+  const html = renderToString(
+    <AboutContent goldOnly={false} run={null} status={null} />,
+  );
   assertNotMatch(html, /Last Pipeline Run/);
   assertStringIncludes(html, "Data update date unavailable");
 });
@@ -102,7 +108,11 @@ const RECORDED_REFRESH = {
 
 Deno.test("the refreshes block renders beside the widget", () => {
   const html = renderToString(
-    <AboutContent run={RECORDED_RUN} syncs={[RECORDED_REFRESH]} />,
+    <AboutContent
+      goldOnly={false}
+      run={RECORDED_RUN}
+      syncs={[RECORDED_REFRESH]}
+    />,
   );
   assertStringIncludes(html, "Reference Data Refreshes");
   assertStringIncludes(html, "Disease annotations");
@@ -113,6 +123,7 @@ Deno.test("the refreshes block renders beside the fallback card too", () => {
   // is not one of them, so it does not have to wait for a run report.
   const html = renderToString(
     <AboutContent
+      goldOnly={false}
       run={null}
       status={{
         runTimestamp: "2026-08-30T12:00:00Z",
@@ -130,22 +141,27 @@ Deno.test("the refreshes block renders beside the fallback card too", () => {
 
 Deno.test("no refresh recorded means no refreshes block", () => {
   const html = renderToString(
-    <AboutContent run={RECORDED_RUN} syncs={[]} />,
+    <AboutContent goldOnly={false} run={RECORDED_RUN} syncs={[]} />,
   );
   assertNotMatch(html, /Reference Data Refreshes/);
 });
 
-Deno.test("About route renders its warning, totals, and the recorded run", () => {
+Deno.test("About route renders its warning, totals, and the gold-only notice", () => {
   const html = render(About);
   assertStringIncludes(html, "still a work in progress");
   assertStringIncludes(html, "Dashboard totals");
   assertStringIncludes(html, "Putative Causal Genes");
   assertStringIncludes(html, "Publications");
   assertStringIncludes(html, MAINTAINER.email);
-  // data/pipeline_status.json is `null` until the pipeline records its
-  // first run -- which is where a fork starts -- so which card renders is
-  // read off the committed file rather than assumed.
-  if (pipelineStatus === null) {
+  // The route renders whichever branch the switch selects; the run branch
+  // is covered above through `goldOnly={false}`.
+  if (GOLD_ONLY) {
+    assertStringIncludes(html, GOLD_ONLY_NOTICE);
+    assertNotMatch(html, /Last Pipeline Run/);
+  } else if (pipelineStatus === null) {
+    // data/pipeline_status.json is `null` until the pipeline records its
+    // first run -- which is where a fork starts -- so which card renders is
+    // read off the committed file rather than assumed.
     assertStringIncludes(html, "Data update date unavailable");
     assertNotMatch(html, /Last Pipeline Run/);
   } else {
@@ -162,7 +178,9 @@ Deno.test("About content reports an unavailable date when no run is recorded", (
   // tests are about the *fallback* card, which only renders when no report
   // was recorded, and they passed for a while only because
   // data/pipeline_run.json happened to be `null`.
-  const html = renderToString(<AboutContent status={null} run={null} />);
+  const html = renderToString(
+    <AboutContent goldOnly={false} status={null} run={null} />,
+  );
   assertStringIncludes(html, "Data update date unavailable");
   assertNotMatch(html, /Last Pipeline Run/);
 });
@@ -170,6 +188,7 @@ Deno.test("About content reports an unavailable date when no run is recorded", (
 Deno.test("About content renders a complete pipeline run summary", () => {
   const html = renderToString(
     <AboutContent
+      goldOnly={false}
       run={null}
       status={{
         runTimestamp: "2026-08-30T12:00:00Z",
@@ -191,6 +210,7 @@ Deno.test("About content renders a complete pipeline run summary", () => {
 Deno.test("About content keeps a complete run visible when its date is invalid", () => {
   const html = renderToString(
     <AboutContent
+      goldOnly={false}
       run={null}
       status={{
         runTimestamp: "invalid",

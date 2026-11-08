@@ -10,7 +10,7 @@
 
 import { assert, assertEquals } from "@std/assert";
 
-import { shortCitation, toCitation } from "../lib/citations.ts";
+import { isDoi, shortCitation, toCitation } from "../lib/citations.ts";
 import { referenceByPmid } from "../lib/data.ts";
 import type { Reference } from "../lib/types.ts";
 
@@ -105,4 +105,13 @@ Deno.test("every committed reference composes a real citation", () => {
     assert(!short.startsWith("PMID "), `${pmid} fell back to its PMID`);
     assert(/\(\d{4}\)$/.test(short), `${pmid} has no year: ${short}`);
   }
+});
+
+Deno.test("a DOI is told apart from a PMID", () => {
+  assert(isDoi("10.21203/rs.3.rs-5926137/v1"));
+  assert(isDoi(" 10.1212/NXG.0000000000200069 "));
+  assert(!isDoi("37063705"));
+  assert(!isDoi("(none found)"));
+  assert(!isDoi("10.1/x"));
+  assert(!isDoi("10.21203/"));
 });

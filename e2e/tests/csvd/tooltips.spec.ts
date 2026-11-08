@@ -298,8 +298,9 @@ test("a PMID shows its citation and links to PubMed", async ({ page }) => {
   await page.getByRole("searchbox", { name: "Search genes" }).fill("LAMB1");
 
   // The cell itself is the short citation now; the panel is the whole record.
-  // References is the 10th of 12 columns (Source Quote, Confidence follow
-  // it), so it is addressed by position rather than .last().
+  // References is the 10th column (Source Quote and Confidence follow it
+  // unless gold-only leaves them out), so it is addressed by position rather
+  // than .last().
   const cell = rows(page).first().locator("td").nth(9);
   await expect(cell).toContainText("Morel, H., et al. (2023)");
 

@@ -16,6 +16,7 @@
  */
 import {
   DEFAULT_TRIAL_STATUSES,
+  formatLongDate,
   GWAS_TRAIT_CHOICES,
   NONE_FOUND,
   OMICS_CHOICES,
@@ -33,6 +34,11 @@ import { pipelineRun } from "../../lib/data/pipeline_run.ts";
 import { summarize } from "../../lib/data/summary.ts";
 import { trials } from "../../lib/data/trials.ts";
 import { manifest } from "../../lib/disease.ts";
+import {
+  GOLD_DATA_DATE,
+  GOLD_ONLY,
+  GOLD_ONLY_NOTICE,
+} from "../../lib/gold_only.ts";
 import {
   filterGenes,
   filterLocationsByStatus,
@@ -341,6 +347,11 @@ const expected = {
 
   hasPipelineStatus: pipelineStatus !== null,
   hasPipelineRun: pipelineRun !== null,
+
+  /** The gold-only switch, and what the About page says while it is on. */
+  goldOnly: GOLD_ONLY,
+  goldOnlyNotice: GOLD_ONLY_NOTICE,
+  goldDataDate: formatLongDate(GOLD_DATA_DATE),
 };
 
 export type Expected = typeof expected;

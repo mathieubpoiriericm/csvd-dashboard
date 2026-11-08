@@ -17,6 +17,11 @@ import PipelineRunView from "../islands/PipelineRun.tsx";
 import { PipelineSyncs } from "../components/PipelineSyncs.tsx";
 import { pipelineSyncs } from "../lib/data/pipeline_syncs.ts";
 import {
+  GOLD_DATA_DATE,
+  GOLD_ONLY,
+  GOLD_ONLY_NOTICE,
+} from "../lib/gold_only.ts";
+import {
   ABOUT,
   ABOUT_LEDE,
   ABOUT_TITLE,
@@ -181,6 +186,14 @@ interface AboutContentProps {
   status?: PipelineStatus | null;
   run?: PipelineRun | null;
   syncs?: SyncRun[];
+  /**
+   * Whether only the hand-curated data is published (`GOLD_ONLY` by
+   * default). It dates the data from the curated release and puts the
+   * notice where the run report and the refreshes would be, since no run
+   * fed what the page shows. The tests pass `false` to render the run
+   * branch.
+   */
+  goldOnly?: boolean;
 }
 
 type PipelineCount = Exclude<keyof PipelineStatus, "runTimestamp">;
@@ -192,14 +205,64 @@ const PIPELINE_COUNTS: ReadonlyArray<[PipelineCount, string]> = [
   ["genesValidated", "Genes Validated"],
 ];
 
+/** The run report, or its summary-card fallback, and the refreshes. */
+function PipelineReports(
+  { run, status, syncs }: {
+    run: PipelineRun | null;
+    status: PipelineStatus | null;
+    syncs: SyncRun[];
+  },
+) {
+  const runDateLabel = formatLongDate(status?.runTimestamp);
+
+  return (
+    <>
+      {
+        /* The widget when a run has recorded a full report; the summary
+          card otherwise. data/pipeline_run.json is `null` until the first
+          run writes one, and a database that has not taken migration 009
+          (the run report column) keeps it that way, so the fallback is a
+          real state rather than a defensive branch. */
+      }
+      {run ? <PipelineRunView /> : status && (
+        <div class="card">
+          <div class="card-body">
+            <h2 class="card-title">Last Pipeline Run</h2>
+            <p class="pipeline-status-timestamp">
+              {runDateLabel ?? "Date unavailable"}
+            </p>
+            <div class="value-box-row">
+              {PIPELINE_COUNTS.map(([key, label]) => (
+                <ValueBox key={key} label={label} value={status[key]} />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {
+        /* The reference-data refreshes, beside whichever of the two above
+          rendered rather than instead of one: a refresh is a different
+          event from a run, not a second account of the same one. It sits
+          above the two-column grid whose right column is Data Sources, the
+          panel whose names it echoes. */
+      }
+      <PipelineSyncs runs={syncs} />
+    </>
+  );
+}
+
 export function AboutContent(
   {
     status = pipelineStatus,
     run = pipelineRun,
     syncs = pipelineSyncs,
+    goldOnly = GOLD_ONLY,
   }: AboutContentProps,
 ) {
-  const runDateLabel = formatLongDate(status?.runTimestamp);
+  const dataDateLabel = formatLongDate(
+    goldOnly ? GOLD_DATA_DATE : status?.runTimestamp,
+  );
 
   return (
     <Page
@@ -222,11 +285,13 @@ export function AboutContent(
                 beside .about-lede. */
               }
               <div class="about-hero-head">
-                {runDateLabel
+                {dataDateLabel
                   ? (
                     <span class="date-badge">
                       <Icon name="calendar" />
-                      Up to date as of {runDateLabel}
+                      {goldOnly
+                        ? "Hand-curated data as of"
+                        : "Up to date as of"} {dataDateLabel}
                     </span>
                   )
                   : (
@@ -264,37 +329,15 @@ export function AboutContent(
         </>
       }
     >
-      {
-        /* The widget when a run has recorded a full report; the summary
-          card otherwise. data/pipeline_run.json is `null` until the first
-          run writes one, and a database that has not taken migration 009
-          (the run report column) keeps it that way, so the fallback is a
-          real state rather than a defensive branch. */
-      }
-      {run ? <PipelineRunView /> : status && (
-        <div class="card">
-          <div class="card-body">
-            <h2 class="card-title">Last Pipeline Run</h2>
-            <p class="pipeline-status-timestamp">
-              {runDateLabel ?? "Date unavailable"}
-            </p>
-            <div class="value-box-row">
-              {PIPELINE_COUNTS.map(([key, label]) => (
-                <ValueBox key={key} label={label} value={status[key]} />
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {
-        /* The reference-data refreshes, beside whichever of the two above
-          rendered rather than instead of one: a refresh is a different
-          event from a run, not a second account of the same one. It sits
-          above the two-column grid whose right column is Data Sources, the
-          panel whose names it echoes. */
-      }
-      <PipelineSyncs runs={syncs} />
+      {goldOnly
+        ? (
+          /* No run fed what the page shows, so neither account of one, nor
+            the refreshes, belongs here: the notice stands in their place. */
+          <p class="notice notice-warning about-gold-notice">
+            {GOLD_ONLY_NOTICE}
+          </p>
+        )
+        : <PipelineReports run={run} status={status} syncs={syncs} />}
 
       <div class="about-grid">
         <div class="card">
