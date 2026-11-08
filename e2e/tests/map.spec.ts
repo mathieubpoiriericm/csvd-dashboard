@@ -235,7 +235,7 @@ test("a hidden list carries the map's content for screen readers", async ({ page
   // Assert the shape of a location entry, not one facility's name — the
   // first row depends on source ordering that ClinicalTrials.gov may change.
   // Facility, title, status, registry id; a site whose status is not stated
-  // (every site under gold-only) has no status part.
+  // has no status part.
   if (!NO_SITES) {
     await expect(items.first()).toHaveText(
       EXPECTED.map.sitesWithStatus === 0

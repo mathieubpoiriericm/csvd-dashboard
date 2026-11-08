@@ -90,6 +90,20 @@ Deno.test("Table 2 publishes exactly the gold trials", () => {
   assertEquals(sorted(table2.map((row) => row.registryId)), sorted(goldIds));
 });
 
+Deno.test("a gold trial's status is ClinicalTrials.gov's, and unstated elsewhere", () => {
+  // The status sweep reads the NCT ids alone; the other registries have no
+  // status to read. A terminated or withdrawn trial would not publish at all,
+  // so the row count above already says none is.
+  for (const row of table2) {
+    const registered = /^NCT\d{8}$/.test(row.registryId);
+    assertEquals(
+      row.overallStatus !== "(unknown)",
+      registered,
+      `${row.registryId} / ${row.drug}: ${row.overallStatus}`,
+    );
+  }
+});
+
 const goldGenes = sorted(goldColumn("st1_genes.csv", "gene"));
 
 Deno.test("the NCBI and UniProt lookups are keyed by exactly the gold genes", () => {

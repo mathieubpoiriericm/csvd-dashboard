@@ -29,7 +29,7 @@
     "estimatedCompletionDate": "12/2026",
     "primaryOutcome": "Neuropsychological performance at up to 27 months",
     "sponsorType": "Industry (Ever Neuro Pharma GmbH)",
-    "overallStatus": "(unknown)"
+    "overallStatus": "ACTIVE_NOT_RECRUITING"
   },
   {
     "drug": "Cilostazol",
@@ -77,7 +77,7 @@
     "estimatedCompletionDate": "8/2031",
     "primaryOutcome": "Recurrent stroke at up to 4 years",
     "sponsorType": "Academic",
-    "overallStatus": "(unknown)"
+    "overallStatus": "RECRUITING"
   },
   {
     "drug": "Colchicine",
@@ -93,7 +93,7 @@
     "estimatedCompletionDate": "12/2027",
     "primaryOutcome": "Adverse events and adherence at 1 year",
     "sponsorType": "Academic",
-    "overallStatus": "(unknown)"
+    "overallStatus": "RECRUITING"
   },
   {
     "drug": "Edaravone (with or without dexborneol)",
@@ -125,7 +125,7 @@
     "estimatedCompletionDate": "10/2028",
     "primaryOutcome": "Composite of all-cause mortality, mRS ≥2, recurrent stroke, changes in MoCA and VaDAS-Cog scores at 24 weeks",
     "sponsorType": "Academic",
-    "overallStatus": "(unknown)"
+    "overallStatus": "RECRUITING"
   },
   {
     "drug": "Exenatide",
@@ -141,7 +141,7 @@
     "estimatedCompletionDate": "12/2026",
     "primaryOutcome": "Change in PSMD at 78 weeks",
     "sponsorType": "Academic",
-    "overallStatus": "(unknown)"
+    "overallStatus": "RECRUITING"
   },
   {
     "drug": "Isosorbide mononitrate",
@@ -205,7 +205,7 @@
     "estimatedCompletionDate": "11/2029",
     "primaryOutcome": "Annualised rate of new lobar CMB on MRI at 24 months",
     "sponsorType": "Industry (Alnylam Pharmaceuticals)",
-    "overallStatus": "(unknown)"
+    "overallStatus": "ACTIVE_NOT_RECRUITING"
   },
   {
     "drug": "Palm tocotrienols complex (HOV-12020)",
@@ -221,7 +221,7 @@
     "estimatedCompletionDate": "Completed",
     "primaryOutcome": "Stroke, worsening of functional or cognitive status at 24 months",
     "sponsorType": "Industry (Hovid Berhad)",
-    "overallStatus": "(unknown)"
+    "overallStatus": "COMPLETED"
   },
   {
     "drug": "THN391",
@@ -237,7 +237,7 @@
     "estimatedCompletionDate": "9/2026",
     "primaryOutcome": "Safety and tolerability of multiple doses at 24 weeks",
     "sponsorType": "Industry (Therini Bio)",
-    "overallStatus": "(unknown)"
+    "overallStatus": "ACTIVE_NOT_RECRUITING"
   },
   {
     "drug": "Tranexamic acid",

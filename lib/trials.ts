@@ -118,11 +118,10 @@ export function splitTargetQualifier(
  * Otherwise that is ClinicalTrials.gov's own per-facility status, which
  * `deno task geocode` writes. Under `GOLD_ONLY` each facility takes its
  * trial's published Table 2 status instead, so the map says what the table
- * and the radar say: the curated trials carry no synced status, and the
- * geocoder's per-site one would contradict them. A status the table leaves
- * unstated (the export's "(unknown)"), or a facility whose trial the table
- * does not list, becomes null -- no badge, and filed under Unknown, as the
- * table files its own unstated rows.
+ * and the radar say rather than a per-site status that can disagree with the
+ * trial's own. A status the table leaves unstated (the export's "(unknown)"),
+ * or a facility whose trial the table does not list, becomes null -- no badge,
+ * and filed under Unknown, as the table files its own unstated rows.
  */
 export function locationsWithTableStatus(
   locations: readonly TrialLocation[],

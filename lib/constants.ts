@@ -223,10 +223,11 @@ const HIDDEN_BY_DEFAULT: ReadonlySet<string> = new Set([
  * The status selection the trials table, radar and map start from.
  *
  * Under `GOLD_ONLY` it is Show All, every status the "(unknown)" sentinel
- * included: the curated trials carry no registry status (nothing syncs it
- * while only the hand-curated data is published), so all of them read as not
- * stated, and the run default would open every trials page empty. Otherwise
- * every status but those in `HIDDEN_BY_DEFAULT`.
+ * included: a curated trial registered outside ClinicalTrials.gov carries no
+ * registry status and reads as not stated, so the run default would hide
+ * every such trial, and every completed one, from all three trials pages,
+ * where the curated set is meant to be seen whole. Otherwise every status but
+ * those in `HIDDEN_BY_DEFAULT`.
  */
 export function defaultTrialStatuses(
   goldOnly: boolean = GOLD_ONLY,
