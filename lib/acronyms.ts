@@ -33,7 +33,7 @@ export function clarificationTooltip(): TooltipContent {
     rows: [{
       label: "Needs clarification",
       value:
-        "Kept as the curated source wrote it; its meaning is not yet confirmed.",
+        "The curated source leaves this point unclear, and the curators have yet to settle it.",
     }],
   };
 }

@@ -42,12 +42,14 @@ Deno.test("uncoveredAcronyms leaves out a term marked as awaiting clarification"
   assertEquals(uncoveredAcronyms("ZZ9[?] and QQ-RR[?], ZZ8", G), ["ZZ8"]);
 });
 
-Deno.test("clarificationTooltip says the term is kept as the source wrote it", () => {
+Deno.test("clarificationTooltip says the point is open, whatever the mark stands for", () => {
+  // The mark follows an unconfirmed term, an item whose colocalization is
+  // unclear, or stands where the source gives no biomarker at all.
   assertEquals(clarificationTooltip(), {
     rows: [{
       label: "Needs clarification",
       value:
-        "Kept as the curated source wrote it; its meaning is not yet confirmed.",
+        "The curated source leaves this point unclear, and the curators have yet to settle it.",
     }],
   });
   assertEquals(CLARIFICATION_MARK, "[?]");

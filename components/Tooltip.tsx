@@ -138,6 +138,8 @@ function registerTooltip(entry: Registration): () => void {
 interface TooltipProps {
   content: TooltipContent | null;
   italic?: boolean;
+  /** The trigger's accessible name, for a trigger whose text alone is no name (`?`). */
+  label?: string;
   children: preact.ComponentChildren;
 }
 
@@ -161,7 +163,7 @@ interface TooltipProps {
  * Positioning is the only part left to JavaScript: CSS anchor positioning would
  * do it declaratively but is not supported widely enough yet.
  */
-export function Tooltip({ content, italic, children }: TooltipProps) {
+export function Tooltip({ content, italic, label, children }: TooltipProps) {
   const popoverId = useId();
   const trigger = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLSpanElement>(null);
@@ -258,6 +260,7 @@ export function Tooltip({ content, italic, children }: TooltipProps) {
         popovertargetaction="show"
         aria-expanded={open}
         aria-controls={popoverId}
+        aria-label={label}
       >
         {children}
       </button>

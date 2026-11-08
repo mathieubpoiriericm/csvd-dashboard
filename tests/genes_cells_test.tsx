@@ -50,6 +50,18 @@ Deno.test("a term awaiting clarification prints as written, followed by a ? mark
   assertEquals(text(html), "Qomics (?: a, QQ-RR? b)");
 });
 
+Deno.test("plain text beside an acronym is escaped once, not twice", () => {
+  const html = renderToString(<AcronymText text="a & TWAS > b" />);
+  const text = html.replace(/<[^>]+>/g, "");
+  // `&` escaped once; `>` needs no escape in HTML text and gets none.
+  assertEquals(text, "a &amp; TWAS > b");
+});
+
+Deno.test("the ? mark is a button named for what it means", () => {
+  const html = renderToString(<AcronymText text="QQ[?]" />);
+  assertEquals(html.includes('aria-label="Needs clarification"'), true);
+});
+
 Deno.test("AcronymText boxes each acronym and leaves the words around it", () => {
   const html = renderToString(<AcronymText text="multi-trait TWAS and more" />);
   assertEquals(triggers(html), ["TWAS"]);
