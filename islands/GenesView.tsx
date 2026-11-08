@@ -11,6 +11,8 @@ import { CheckboxFilter } from "../components/CheckboxFilter.tsx";
 import { useCheckboxFilters } from "../components/useCheckboxFilters.ts";
 import { DensityReadout } from "../components/DensityReadout.tsx";
 import { FilterPanel } from "../components/FilterPanel.tsx";
+import { AcronymText } from "../components/AcronymText.tsx";
+import { OmicsEntryView } from "../components/OmicsEntryView.tsx";
 import { Tooltip } from "../components/Tooltip.tsx";
 import {
   selectShellState,
@@ -39,7 +41,6 @@ import {
   cellTypeText,
   cellTypeTooltip,
   geneTooltip,
-  omicsTooltip,
   omimTooltip,
   proteinTooltip,
   referenceTooltip,
@@ -126,6 +127,24 @@ function TooltippedValues(
                 {format ? format(value) : value}
               </Tooltip>
             )}
+        </span>
+      ))}
+    </>
+  );
+}
+
+/**
+ * The GWAS trait cell: every acronym in a trait is its own tooltip, so
+ * `MTAG (all ICH, SVS, WMH, FA, MD, AD)` is seven, and the absent sentinel
+ * renders as `<Absent />`.
+ */
+function TraitValues({ values }: { values: readonly string[] }) {
+  return (
+    <>
+      {values.map((value, index) => (
+        <span key={`${value}-${index}`}>
+          {index > 0 && ", "}
+          {isAbsent(value) ? <Absent /> : <AcronymText text={value} />}
         </span>
       ))}
     </>
@@ -371,7 +390,7 @@ const COLUMNS = column.columns([
   column.accessor((row) => asText(row.gwasTrait), {
     id: "gwasTrait",
     header: "GWAS Trait",
-    cell: ({ row }) => <TooltippedValues values={row.original.gwasTrait} />,
+    cell: ({ row }) => <TraitValues values={row.original.gwasTrait} />,
   }),
   column.accessor((row) => presentOrUndefined(row.mendelianRandomization), {
     id: "mendelianRandomization",
@@ -383,13 +402,13 @@ const COLUMNS = column.columns([
     {
       id: "evidenceFromOtherOmicsStudies",
       header: "Evidence From Other Omics Studies",
-      cell: ({ row }) => (
-        <TooltippedValues
-          values={row.original.evidenceFromOtherOmicsStudies}
-          tooltipFor={omicsTooltip}
-          format={formatOmicsValue}
-        />
-      ),
+      cell: ({ row }) =>
+        row.original.evidenceFromOtherOmicsStudies.map((value, index) => (
+          <span key={`${value}-${index}`}>
+            {index > 0 && ", "}
+            <OmicsEntryView value={value} />
+          </span>
+        )),
     },
   ),
   column.accessor((row) => asText(row.linkToMonogenicDisease), {

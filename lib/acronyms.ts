@@ -85,7 +85,8 @@ export function uncoveredAcronyms(
   const pattern = patternFor(glossary);
   const rest = pattern ? text.replace(pattern, " ") : text;
   const tokens = rest.split(/[^A-Za-z0-9-]+/).filter((token) =>
-    /[A-Z]/.test(token) && (token.match(/[A-Z0-9]/g) ?? []).length >= 2
+    // The first test guarantees the match below finds at least one.
+    /[A-Z]/.test(token) && token.match(/[A-Z0-9]/g)!.length >= 2
   );
   return [...new Set(tokens)];
 }

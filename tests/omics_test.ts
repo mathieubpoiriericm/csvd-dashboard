@@ -42,6 +42,7 @@ Deno.test("parseOmicsEntry: no colon means no biomarker; commas in parentheses s
   assertEquals(parseOmicsEntry("TWAS;Q (x>1): a").biomarker, "Q (x>1)");
   assertEquals(parseOmicsEntry("  TWAS ; ").type, "TWAS");
   assertEquals(parseOmicsEntry("TWAS;Q:").items, []);
+  assertEquals(parseOmicsEntry("TWAS;: a").biomarker, null);
 });
 
 Deno.test("formatOmicsEntry prints the format with no asterisk", () => {

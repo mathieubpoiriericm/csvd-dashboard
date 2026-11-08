@@ -121,7 +121,7 @@ Deno.test("phenogramTooltip names the location, the evidence and the NCBI link",
       { label: "GWAS phenotypes", value: "PSMD" },
       {
         label: "Other omics",
-        value: "TWAS (Brain cerebellum*, brain frontal cortex BA9*)",
+        value: "TWAS (Brain cerebellum, brain frontal cortex BA9)",
       },
       {
         label: "Monogenic disease",
