@@ -607,10 +607,15 @@ Deno.test("GenesView: every filter group's legend is its one true name", () => {
 });
 
 Deno.test("GenesView: a GWAS trait choice carries its long name as a visually-hidden description", () => {
-  const html = render(<GenesView />);
+  // A row carries the trait, so it is offered under gold-only too, which
+  // lists only the traits the rows carry.
+  const trait = vocabulary.traits[0];
+  const html = render(
+    <GenesView rows={[sampleGene({ gwasTrait: [trait.key] })]} />,
+  );
   assertStringIncludes(
     html,
-    `class="visually-hidden">, ${escapeHtml(vocabulary.traits[0].name)}`,
+    `class="visually-hidden">, ${escapeHtml(trait.name)}`,
   );
 });
 
