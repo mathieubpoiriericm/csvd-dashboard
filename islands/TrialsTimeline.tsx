@@ -450,7 +450,8 @@ function drugTooltip(
     title: marker.trial.drug,
     swatch: marker.color,
     tag: {
-      label: `${marker.populationLabel} · Phase ${marker.phase}`,
+      label:
+        `${marker.populationLabel} · Phase ${marker.trial.clinicalTrialPhase}`,
       color: layout.sectors.find((s) => s.key === marker.population)?.band,
     },
     rows: [
@@ -617,7 +618,8 @@ function TrialDrawer({ layout, marker, closeRef, onClose }: TrialDrawerProps) {
                   )?.band,
                 }}
               >
-                {marker.populationLabel} · Phase {marker.phase}
+                {marker.populationLabel} · Phase{" "}
+                {marker.trial.clinicalTrialPhase}
               </span>
             </div>
             <button
@@ -1407,7 +1409,7 @@ export default function TrialsTimeline(
                     role="button"
                     aria-controls={DRAWER_ID}
                     aria-expanded={active === marker.index ? "true" : "false"}
-                    aria-label={`${marker.trial.drug}, Phase ${marker.phase}, ${marker.populationLabel}${
+                    aria-label={`${marker.trial.drug}, Phase ${marker.trial.clinicalTrialPhase}, ${marker.populationLabel}${
                       marker.flagReasons.length > 0
                         ? `, ${encoding.recordFlag.label}`
                         : ""

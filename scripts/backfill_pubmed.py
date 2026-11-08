@@ -35,7 +35,8 @@ from dotenv import load_dotenv
 
 from pipeline.config import PipelineConfig
 from pipeline.database import Database
-from pipeline.main import run_pipeline
+from pipeline.gold_only import gold_only
+from pipeline.main import _refuse_while_gold_only, run_pipeline
 
 logger = logging.getLogger(__name__)
 
@@ -127,7 +128,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s"
     )
-    args = _build_parser().parse_args(argv)
+    parser = _build_parser()
+    args = parser.parse_args(argv)
+    # run_pipeline does not check the switch, so a backfill would merge genes
+    # the curators never wrote. Reuse pipeline.main's refusal, as a --pubmed
+    # run; a gold_only() ValueError propagates and fails closed.
+    _refuse_while_gold_only(
+        parser, argparse.Namespace(pubmed=True, clinical_trials=False), gold_only()
+    )
 
     try:
         windows = plan_windows(args.days_back, args.step)

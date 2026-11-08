@@ -40,16 +40,18 @@ with PMID 42607872's at 0.95. No pair in the table was written by hand.
 `tests/pipeline/test_database_integration.py` merges the pair both ways round
 against a real database.
 
-**A gene the pipeline admits carries two placeholders, and the export publishes
-neither as a fact.** `_build_combined_gene_data` stores `chromosomal_location`
+**A gene the pipeline admits carries two placeholders, and the export
+sentinels only the band.** `_build_combined_gene_data` stores `chromosomal_location`
 as `""` -- nothing in `pipeline/` derives a cytogenetic band, the curators write
 it -- and stores the gene symbol in `protein` when no paper named a protein.
 `clean_gene_row` fills the first with `"(unknown)"`, because a string-typed,
 sentinel-typed column publishing JSON `null` fails `tests/data_contract_test.ts`
 and `lib/data/genes.ts` would rewrite it to `"(unknown)"` at runtime anyway,
 hiding the gap instead of reporting it; the phenogram then lists the gene as
-unplaced rather than guessing a band. It maps the second to `"(unknown)"` too,
-on **exact** equality with the gene symbol -- the same test both write paths in
-`pipeline/database.py` use to decide the protein is still missing, and exact
-because `EphB4` for `EPHB4` and `Epo` for `EPO` are real curated names that a
-case-insensitive rule would erase.
+unplaced rather than guessing a band. The second it publishes as stored.
+It used to map a protein equal to the gene symbol to `"(unknown)"`, the test
+both write paths in `pipeline/database.py` still use to decide the protein is
+missing; it stopped when the curated gold table became the published data,
+because gold names most proteins by their gene symbol and gold is published
+verbatim. A gene a run admits with no protein named therefore shows its symbol
+in the Protein column until a later run fills it.

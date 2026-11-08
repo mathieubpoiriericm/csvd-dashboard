@@ -62,6 +62,23 @@ test("the totals stay on one line down to a small phone", async ({ page }) => {
 });
 
 /**
+ * While only the hand-curated data is published, the About page says so in
+ * place of the run report: no run fed what it shows, so neither account of
+ * one, nor the reference-data refreshes, renders.
+ */
+test("says only the hand-curated data is shown, in place of the run", async ({ page }) => {
+  test.skip(!EXPECTED.goldOnly, "the gold-only switch is off");
+  await expect(page.locator(".about-gold-notice")).toHaveText(
+    EXPECTED.goldOnlyNotice,
+  );
+  await expect(page.getByRole("heading", { name: "Last Pipeline Run" }))
+    .toHaveCount(0);
+  await expect(page.locator(".pipeline-card")).toHaveCount(0);
+  await expect(page.locator(".pipeline-status-timestamp")).toHaveCount(0);
+  await expect(page.locator(".pipeline-sync")).toHaveCount(0);
+});
+
+/**
  * The About page reports the last run one of two ways, and never both.
  *
  * The widget (islands/PipelineRun.tsx) renders when data/pipeline_run.json
@@ -71,6 +88,8 @@ test("the totals stay on one line down to a small phone", async ({ page }) => {
  * every run, while the block either renders or it does not.
  */
 test("reports the last run exactly once", async ({ page }) => {
+  test.skip(EXPECTED.goldOnly, "gold-only: the notice replaces the run");
+  await expect(page.locator(".about-gold-notice")).toHaveCount(0);
   const recorded = EXPECTED.hasPipelineRun || EXPECTED.hasPipelineStatus;
   await expect(page.getByRole("heading", { name: "Last Pipeline Run" }))
     .toHaveCount(recorded ? 1 : 0);
@@ -172,7 +191,16 @@ test("no page scrolls sideways, down to the narrowest phone", async ({ page }) =
   }
 });
 
-test("dates the data from the recorded run, or says none is recorded", async ({ page }) => {
+test("dates the data from the curated release or the recorded run, or says neither is", async ({ page }) => {
+  if (EXPECTED.goldOnly) {
+    // The curated release has a date of its own, whatever the pipeline
+    // recorded.
+    await expect(page.locator(".date-unavailable")).toHaveCount(0);
+    await expect(page.locator(".date-badge")).toHaveText(
+      `Hand-curated data as of ${EXPECTED.goldDataDate}`,
+    );
+    return;
+  }
   // data/pipeline_status.json is `null` until the pipeline records its first
   // run -- which is where a fork starts -- so which badge renders is read
   // off the committed file rather than assumed.

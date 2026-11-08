@@ -50,6 +50,21 @@ Three things about the arrangement are load-bearing:
   is deliberately _not_ normalized: `clean_omics_value` coerces free-text prose
   into a list, so what counts as one entry is a curation judgment.
 
+**The omics column has two stored forms.** Prose, which `clean_omics_value`
+splits and rewrites (the chain in `pipeline/export/tables.py`), and a JSON array
+of wire-form `Type;detail` entries, which it publishes verbatim through the type
+gate alone. The array exists for the curated gold table (`scripts/load_gold.py`):
+its `*` colocalization markers, its second `:` ("TWAS;AIS: Cross-tissue
+sCCA3*"), its `_` and its nested parentheses cannot survive the prose chain.
+`stored_omics` in `scripts/restore_from_json.py` is the one writer: it emits
+prose whenever prose exports back to the same entries and the array only
+otherwise, so every row stored before the array existed is byte-identical. The
+array's `;` are escaped as `\u003b`, so both merge statements in
+`merge_genes_transactional` -- which split the column on `;`, de-duplicate and
+rejoin -- see it as one element; the prose a later run appends after it is
+cleaned by the prose chain and published after the array's entries
+(`tests/pipeline/test_load_gold_integration.py`).
+
 `scripts/backfill_gene_lists.py` populated the tables from the old columns using
 the export's own parsers. It is run as a module
 (`uv run python -m scripts.backfill_gene_lists`), not as a path, and on a

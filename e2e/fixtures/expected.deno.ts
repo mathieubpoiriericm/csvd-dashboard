@@ -16,7 +16,7 @@
  */
 import {
   DEFAULT_TRIAL_STATUSES,
-  GWAS_TRAIT_CHOICES,
+  formatLongDate,
   NONE_FOUND,
   OMICS_CHOICES,
   PHASE_CHOICES,
@@ -34,18 +34,21 @@ import { summarize } from "../../lib/data/summary.ts";
 import { trials } from "../../lib/data/trials.ts";
 import { manifest } from "../../lib/disease.ts";
 import {
+  GOLD_DATA_DATE,
+  GOLD_ONLY,
+  GOLD_ONLY_NOTICE,
+} from "../../lib/gold_only.ts";
+import {
   filterGenes,
   filterLocationsByStatus,
   filterTrials,
+  gwasTraitChoices,
   omicsType,
   visibleTrials,
 } from "../../lib/filters.ts";
-import {
-  computePhenogramLayout,
-  encoding as phenogram,
-} from "../../lib/phenogram.ts";
+import { computePhenogramLayout } from "../../lib/phenogram.ts";
 import { chromosomeOf } from "../../lib/sorting.ts";
-import { phaseBarLabel } from "../../lib/trials.ts";
+import { locationsWithTableStatus, phaseBarLabel } from "../../lib/trials.ts";
 import {
   computeTimelineLayout,
   encoding as timeline,
@@ -84,7 +87,8 @@ const countTrials = (
 const choices = (list: readonly { label: string; value: string }[]) =>
   list.filter((c) => c.value !== SHOW_ALL);
 
-const traitChoices = choices(GWAS_TRAIT_CHOICES).filter((c) =>
+// The choices the page offers: under GOLD_ONLY only the traits a gene carries.
+const traitChoices = choices(gwasTraitChoices(genes)).filter((c) =>
   c.value !== NONE_FOUND
 );
 const traits = traitChoices.map((c) => ({
@@ -172,8 +176,11 @@ const impossibleTrial = (() => {
 // ---------------------------------------------------------------------------
 
 const shownTrials = visibleTrials(trials);
+// The statuses the pages start with ticked. Empty when the default is Show
+// All (`GOLD_ONLY`): the status group then starts unconstrained and the
+// banner carries no status fragment.
 const statusLabels = STATUS_CHOICES.filter((c) =>
-  DEFAULT_TRIAL_STATUSES.includes(c.value)
+  c.value !== SHOW_ALL && DEFAULT_TRIAL_STATUSES.includes(c.value)
 ).map((c) => c.label);
 
 /** TanStack's `text` sort: a case-folded basic compare. */
@@ -191,8 +198,11 @@ const phasesPresent = [
   ...[...phasesInTable].filter((p) => !PHASE_ORDER.includes(p)).sort(),
 ].map(phaseBarLabel);
 
+// The statuses the map labels and filters by: the trials table's under
+// GOLD_ONLY, ClinicalTrials.gov's per-site ones otherwise.
+const mapLocations = locationsWithTableStatus(trialLocations, trials);
 const shownLocations = filterLocationsByStatus(
-  trialLocations,
+  mapLocations,
   DEFAULT_TRIAL_STATUSES,
 );
 const nctKey = (value: string) => value.trim().toUpperCase();
@@ -216,12 +226,15 @@ const expected = {
   instituteAlt: manifest.institute.logo.alt,
   instituteCopyright: manifest.institute.copyright,
   maintainerEmail: manifest.contact.maintainer.email,
-  traitCount: phenogram.traits.length,
+  /** The GWAS group's trait choices, Show All and None Found aside. */
+  traitCount: traitChoices.length,
 
   geneRows: genes.length,
   trialRows: trials.length,
   trialRowsShown: shownTrials.length,
-  statusSummary: `Study status: ${statusLabels.join(", ")}`,
+  statusSummary: statusLabels.length > 0
+    ? `Study status: ${statusLabels.join(", ")}`
+    : null,
   defaultStatusLabels: statusLabels,
   statusChoiceCount: STATUS_CHOICES.length,
 
@@ -283,6 +296,8 @@ const expected = {
   map: {
     sites: trialLocations.length,
     sitesShown: shownLocations.length,
+    /** Sites whose popup carries a status badge (a stated status). */
+    sitesWithStatus: mapLocations.filter((l) => l.status !== null).length,
     countries: uniqueCount(
       trialLocations.map((l) => l.country).filter(Boolean),
     ),
@@ -335,12 +350,21 @@ const expected = {
   phenogram: {
     chromosomes: karyogram.chromosomes.length,
     blocks: karyogram.blocks.length,
-    families: phenogram.families.length,
+    families: karyogram.legend.families.length,
+    legendTraits: karyogram.legend.families.reduce(
+      (n, f) => n + f.traits.length,
+      0,
+    ),
     firstGene: karyogram.blocks[0]?.symbol ?? null,
   },
 
   hasPipelineStatus: pipelineStatus !== null,
   hasPipelineRun: pipelineRun !== null,
+
+  /** The gold-only switch, and what the About page says while it is on. */
+  goldOnly: GOLD_ONLY,
+  goldOnlyNotice: GOLD_ONLY_NOTICE,
+  goldDataDate: formatLongDate(GOLD_DATA_DATE),
 };
 
 export type Expected = typeof expected;

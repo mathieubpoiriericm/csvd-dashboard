@@ -792,7 +792,7 @@ The app reads static JSON from `data/`, imported at build time.
 | `gene_info_table2.json` | one row per Table 2 genetic target   | `ncbi_gene_info` cache              |
 | `protein_info.json`     | one row per Table 1 gene             | `uniprot_info` cache                |
 | `refs.json`             | one row per cited PMID               | `pubmed_citations` cache            |
-| `omim_info.json`        | one row per OMIM entry               | `disease/omim_info.csv`             |
+| `omim_info.json`        | one row per OMIM entry a gene links  | `disease/omim_info.csv`             |
 | `gene_annotations.json` | one row per `(gene, disease)`        | `gene_annotations` table (pivoted)  |
 | `pipeline_status.json`  | one object, or `null` until a run    | `pipeline_runs` table               |
 | `pipeline_run.json`     | one report, or `null` until a run    | `pipeline_runs.run_report`          |

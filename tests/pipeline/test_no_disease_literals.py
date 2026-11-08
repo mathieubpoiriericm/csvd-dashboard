@@ -97,6 +97,13 @@ _ALLOWED: dict[tuple[str, str], str] = {
         "pipeline/uniprot_fetch.py",
         "LINC01600",
     ): _RETIRED_SYMBOL,
+    (
+        "scripts/load_gold.py",
+        "SVD",
+    ): (
+        "a target-population group the curators gave three gold trials, a "
+        "data value keyed by registry ID in POPULATION_GROUP"
+    ),
 }
 
 

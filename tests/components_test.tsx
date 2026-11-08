@@ -536,6 +536,20 @@ Deno.test("GeneticTargets renders an em dash for the absent sentinel, before spl
   assertStringIncludes(leadingSeparator, "COL4A2");
 });
 
+Deno.test("GeneticTargets prints a target's label verbatim and makes only the symbol a tooltip", () => {
+  const html = render(
+    <GeneticTargets value="GWAS for ischemic stroke: PDE3A" />,
+  );
+  // The label is plain text in front of the symbol's own element: a tooltip
+  // trigger where the export has an NCBI record for it, italic text where it
+  // has none (the empty export). Either way the label is not inside it.
+  assertMatch(
+    html,
+    /GWAS for ischemic stroke: <(button|i)\b[^>]*>PDE3A<\/\1>/,
+  );
+  assertEquals((html.match(/class="tooltip-box/g) ?? []).length <= 1, true);
+});
+
 Deno.test("BrainCellTypesCell renders an em dash for the absent sentinel, before splitting", () => {
   const absent = render(<BrainCellTypesCell value="(unknown)" />);
   assertStringIncludes(absent, 'class="cell-absent"');
@@ -593,10 +607,15 @@ Deno.test("GenesView: every filter group's legend is its one true name", () => {
 });
 
 Deno.test("GenesView: a GWAS trait choice carries its long name as a visually-hidden description", () => {
-  const html = render(<GenesView />);
+  // A row carries the trait, so it is offered under gold-only too, which
+  // lists only the traits the rows carry.
+  const trait = vocabulary.traits[0];
+  const html = render(
+    <GenesView rows={[sampleGene({ gwasTrait: [trait.key] })]} />,
+  );
   assertStringIncludes(
     html,
-    `class="visually-hidden">, ${escapeHtml(vocabulary.traits[0].name)}`,
+    `class="visually-hidden">, ${escapeHtml(trait.name)}`,
   );
 });
 

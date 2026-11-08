@@ -1,3 +1,4 @@
+import json
 import logging
 import re
 from pathlib import Path
@@ -210,7 +211,7 @@ def test_gene_row_produces_the_display_contract() -> None:
     assert row["Evidence From Other Omics Studies"] == ["(none found)"]
     assert row["Link to Monogenic Disease"] == ["(none found)"]
     assert row["Brain Cell Types"] == "all"
-    assert row["Affected Pathway"] == "extracellular matrix organization"
+    assert row["Affected Pathway"] == "Extracellular Matrix Organization"
     assert row["References"] == ["37063705", "34606115"]
 
 
@@ -273,14 +274,19 @@ def test_a_pipeline_inserted_gene_publishes_a_location_sentinel() -> None:
     assert row["Chromosomal Location"] == "(unknown)"
 
 
-def test_the_gene_symbol_placeholder_is_not_published_as_a_protein_name() -> None:
-    """The merge stores the symbol when no paper named a protein, and both
-    write paths in pipeline/database.py read `protein = gene` back as "still
-    missing". The export says the same thing rather than showing a gene
-    symbol in the Protein column.
+def test_a_protein_named_by_the_gene_symbol_is_published_verbatim() -> None:
+    """The curated gold table names most proteins by the gene symbol, and
+    gold is published as written. (The merge's own placeholder -- the symbol
+    stored when no paper named a protein -- now publishes the same way.)
     """
     row = clean_gene_row({"gene": "BTN3A2", "protein": "BTN3A2"})
-    assert row["Protein"] == "(unknown)"
+    assert row["Protein"] == "BTN3A2"
+
+
+def test_a_missing_protein_publishes_the_sentinel() -> None:
+    assert clean_gene_row({"gene": "BTN3A2", "protein": None})["Protein"] == (
+        "(unknown)"
+    )
 
 
 @pytest.mark.parametrize(("gene", "protein"), [("EPHB4", "EphB4"), ("EPO", "Epo")])
@@ -636,3 +642,76 @@ def test_the_dashboards_absent_sentinels_are_the_ones_the_export_writes() -> Non
     )
     missing = {sentinel for sentinel in sentinels if f'"{sentinel}"' not in tables}
     assert not missing, f"the export never writes {sorted(missing)}"
+
+
+@pytest.mark.parametrize(
+    "entry",
+    [
+        "Proteogenomic MR;WMH",
+        "Fine-mapping;multiancestry fine-mapping",
+        "Experimental;CRISPR, experimental",
+    ],
+)
+def test_the_curated_evidence_types_are_filter_reachable(entry: str) -> None:
+    """The three types the curated sheet's folded columns introduce.
+
+    The wire form passes the gate whole. Through `clean_gene_row` the
+    prose cleanup rewrites ";" to ", " first, so the detail after the type
+    is split off (and dropped when it is not itself a type), but the type
+    survives and is never replaced by the "(none found)" sentinel.
+    """
+    assert _publishable_omics([entry], "gold") == [entry]
+
+    published = clean_gene_row(
+        {"gene": "ABC", "evidence_from_other_omics_studies": entry}
+    )["Evidence From Other Omics Studies"]
+    assert published
+    assert "(none found)" not in published
+    assert all(
+        element.split(";")[0].strip().lower() in _OMICS_TYPE_KEYS
+        for element in published
+    )
+
+
+# ---------------------------------------------------------------------------
+# Omics stored already split -- a JSON array of wire-form entries
+# ---------------------------------------------------------------------------
+
+
+def test_omics_stored_as_a_json_array_publishes_each_entry_verbatim() -> None:
+    """Prose cannot carry every curated wording through the chain above: it
+    strips "*", turns every ":" into ";" and splits on commas outside
+    parentheses. A value stored as a JSON array of wire-form entries is
+    already split, so each entry is published as written -- through the same
+    type gate, and with nothing else rewritten.
+    """
+    stored = json.dumps(
+        ["TWAS;TRAIT-A: tissue one*, (age>65): tissue two_x", "Proteomics"]
+    )
+    assert clean_omics_value(stored) == [
+        "TWAS;TRAIT-A: tissue one*, (age>65): tissue two_x",
+        "Proteomics",
+    ]
+
+
+def test_omics_stored_as_a_json_array_still_gates_the_type(caplog) -> None:
+    stored = json.dumps(["colocalization;tissue*", "Proteomics (plasma)"])
+    with caplog.at_level(logging.INFO, logger="pipeline.export.tables"):
+        assert clean_omics_value(stored, "ABC1") == ["Proteomics;plasma"]
+    assert "no filterable study type" in caplog.text
+
+
+def test_omics_prose_a_merge_appended_after_the_array_is_cleaned_as_prose() -> (
+    None
+):
+    """The gene merge appends the extraction's prose after the stored value,
+    joined on ";" (`merge_genes_transactional`). The array's own semicolons
+    are escaped, so the merge sees it as one element and leaves it whole.
+    """
+    stored = json.dumps(["TWAS;a: b*"]).replace(";", "\\u003b")
+    assert ";" not in stored
+    assert clean_omics_value(f"{stored};PWAS:brain*") == ["TWAS;a: b*", "PWAS;brain"]
+
+
+def test_omics_prose_that_merely_starts_with_a_bracket_is_prose() -> None:
+    assert clean_omics_value("[TWAS]") == ["(none found)"]

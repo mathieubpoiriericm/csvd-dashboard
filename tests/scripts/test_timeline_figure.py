@@ -27,6 +27,7 @@ from scripts.timeline_figure import (
     load_trials,
     main,
     markers,
+    parent_phase,
     resolve_evidence_state,
     resolve_record_flag,
     sector_spans,
@@ -65,6 +66,23 @@ def _trial(encoding: dict, **overrides: Any) -> dict[str, str]:
     }
     row.update(overrides)
     return row
+
+
+class TestSubPhases:
+    def test_a_sub_phase_collapses_onto_its_parent(self) -> None:
+        assert parent_phase("Ib") == "I"
+        assert parent_phase("IIa") == "II"
+        assert parent_phase("I/IIb") == "I/II"
+        for phase in ("I", "II/III", "(unknown)", "ib", "IIB", "Iberian"):
+            assert parent_phase(phase) == phase
+
+    def test_a_sub_phase_trial_is_drawn_on_its_parent_ring(self, encoding) -> None:
+        trial = _trial(encoding, clinicalTrialPhase="Ib")
+        sectors = sector_spans([trial], encoding)
+        (marker,) = markers([trial], encoding, sectors)
+        assert marker.phase == "I"
+        filled = [c.phase for c in cells([trial], encoding, sectors) if c.filled]
+        assert filled == ["I"]
 
 
 class TestLayout:

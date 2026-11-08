@@ -89,3 +89,18 @@ export function shortCitation(reference: Reference): string {
   const name = etAl ? `${author}, et al.` : author;
   return year ? `${name} (${year})` : name;
 }
+
+const DOI = /^10\.[0-9]{4,9}\/\S+$/;
+
+/**
+ * Whether a reference is a DOI (`10.21203/rs.3.rs-5926137/v1`) rather than a
+ * PMID. The curators cite a preprint with no PubMed record by its DOI, and
+ * such a reference has no citation in `data/refs.json` to look up.
+ *
+ * `is_doi` in `pipeline/export/text.py` is the same rule -- the export keeps
+ * what it accepts out of every PubMed lookup -- and both are tested over
+ * `tests/fixtures/doi_cases.json`.
+ */
+export function isDoi(reference: string): boolean {
+  return DOI.test(reference.trim());
+}

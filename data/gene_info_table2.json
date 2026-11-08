@@ -161,20 +161,6 @@
     "otheraliases": "AMYLD2, Fib2"
   },
   {
-    "name": "FGB",
-    "symbol": "FGB",
-    "uid": "2244",
-    "description": "fibrinogen beta chain",
-    "otheraliases": "HEL-S-78p"
-  },
-  {
-    "name": "FGG",
-    "symbol": "FGG",
-    "uid": "2266",
-    "description": "fibrinogen gamma chain",
-    "otheraliases": ""
-  },
-  {
     "name": "PLG",
     "symbol": "PLG",
     "uid": "5340",

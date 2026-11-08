@@ -36,11 +36,15 @@ The figure has two renderers and one contract:
   `tests/timeline_encoding_test.ts` fails when the committed data contains a
   population, phase, mechanism or evidence value the file does not cover, when
   two mechanisms share a colour, or when a mechanism sits in no family or in
-  two. Add the entry; do not widen the test. The palette is one hue per family
-  with lightness steps inside it — eleven pairwise-distinct hues cannot clear a
-  colour-vision check, so identity rides the drug label beside every marker and
-  the legend, and the colour says the family first. Do not "fix" it back to
-  eleven unrelated hues.
+  two. Add the entry; do not widen the test. The one shared colour it admits
+  is a mechanism two curated releases spell differently -- the gold sheet's
+  three `Antioxidant (…)` beside the earlier `Neuroprotective, antioxidant
+  (…)` -- whose spellings both stay so either release's data keeps its
+  colours: one colour, one family, and never both spellings in one dataset.
+  The palette is one hue per family with lightness steps inside it — eleven
+  pairwise-distinct hues cannot clear a colour-vision check, so identity rides
+  the drug label beside every marker and the legend, and the colour says the
+  family first. Do not "fix" it back to eleven unrelated hues.
 - `lib/timeline.ts` (island) and `scripts/timeline_figure.py` (print, via
   `deno task figure`) each implement the same layout rule: sector span ∝ unique
   drugs per population; markers at `(j+1)/(m+1)` of the sector in table order;

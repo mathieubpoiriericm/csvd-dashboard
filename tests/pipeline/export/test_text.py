@@ -10,6 +10,7 @@ from pipeline.export.text import (
     normalize_text,
     normalize_yes_no,
     split_genetic_targets,
+    strip_target_qualifier,
 )
 from pipeline.export.writer import to_camel
 
@@ -454,3 +455,15 @@ def test_clean_column_name_matches_the_dashboards_committed_headers() -> None:
         rename = _TRIALS_RENAMED_AFTER_CLEAN_COLUMN_NAME.get(column, lambda s: s)
         expected_label = rename(label)
         assert trials_headers[key] == expected_label, column
+
+
+def test_a_target_label_is_dropped_from_the_lookup_symbol() -> None:
+    """The curated cell names why the gene is a target; the key is the gene."""
+    assert strip_target_qualifier("GWAS for ischemic stroke: PDE3A") == "PDE3A"
+    assert strip_target_qualifier(" monogenic disease: APP ") == "APP"
+    assert strip_target_qualifier("GLP1R") == "GLP1R"
+    # A colon with no space after it is part of the symbol.
+    assert strip_target_qualifier("PVRL2:CTB-129P6.4") == "PVRL2:CTB-129P6.4"
+    assert split_genetic_targets(
+        ["GWAS for ischemic stroke: FGA", "monogenic disease: APP, PLG"]
+    ) == ["FGA", "APP", "PLG"]

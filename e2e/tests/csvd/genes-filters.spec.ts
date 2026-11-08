@@ -5,11 +5,13 @@ import {
   expectRowCount,
   expectSummary,
   filterCount,
+  filterGroup,
 } from "../../helpers.ts";
 
 /**
  * The genes filters over the committed cSVD rows, by trait name: SVS, WMH,
- * PSMD, PVWMH, CMB, WM-PVS and the relabelled Extreme-cSVD. The rules are
+ * PSMD, NODDI, CMB, WM-PVS and the relabelled Extreme-cSVD, and the three
+ * vocabulary traits gold-only leaves out. The rules are
  * tested over derived choices in ../genes-filters.spec.ts; this is the
  * record of what the cSVD data yields, and a fork deletes the whole
  * e2e/tests/csvd/ tree.
@@ -22,21 +24,21 @@ test.beforeEach(async ({ page }) => {
   await page.goto("/genes");
 });
 
-test("picking SVS clears Show All and filters to its twenty-nine genes", async ({ page }) => {
+test("picking SVS clears Show All and filters to its sixteen genes", async ({ page }) => {
   await choice(page, GWAS, "SVS").check();
 
   await expect(choice(page, GWAS, "Show All")).not.toBeChecked();
   await expect(filterCount(page, GWAS)).toHaveText("1");
-  await expectRowCount(page, 29, GENE_TOTAL);
+  await expectRowCount(page, 16, GENE_TOTAL);
   await expectSummary(page, "GWAS Traits: SVS");
 });
 
 test("WMH and PSMD union", async ({ page }) => {
   await choice(page, GWAS, "WMH").check();
-  await expectRowCount(page, 45, GENE_TOTAL);
+  await expectRowCount(page, 19, GENE_TOTAL);
 
   await choice(page, GWAS, "PSMD").check();
-  await expectRowCount(page, 48, GENE_TOTAL);
+  await expectRowCount(page, 23, GENE_TOTAL);
   await expectSummary(page, "GWAS Traits: WMH, PSMD");
   await expect(filterCount(page, GWAS)).toHaveText("2");
 });
@@ -45,7 +47,7 @@ test("WMH and PSMD union", async ({ page }) => {
  * The R original compared trait strings raw and silently dropped rows stored
  * with a trailing space ("WMH ", "PSMD "). filterGenes normalizes both sides.
  *
- * The committed data no longer carries a padded WMH value -- all 45 are exact
+ * The committed data no longer carries a padded WMH value -- all 19 are exact
  * -- because `data_contract_test.ts` now fails on edge whitespace and the
  * export trims on the way out, so the padding cannot come back. This is kept
  * as a regression guard on the normalizing itself rather than as a live
@@ -54,13 +56,18 @@ test("WMH and PSMD union", async ({ page }) => {
  */
 test("trait matching ignores trailing whitespace in the data", async ({ page }) => {
   await choice(page, GWAS, "WMH").check();
-  await expectRowCount(page, 45, GENE_TOTAL);
+  await expectRowCount(page, 19, GENE_TOTAL);
 });
 
-/** The data holds lowercase "proteomics" against a "Proteomics" choice. */
+/**
+ * The pipeline's rows held lowercase "proteomics" against a "Proteomics"
+ * choice. The gold table publishes "Proteomics" as the choice spells it, so
+ * like the whitespace test above this is now a regression guard on the
+ * normalizing rather than a live example of it.
+ */
 test("omics matching ignores case differences in the data", async ({ page }) => {
   await choice(page, OMICS, "Proteomics").check();
-  await expectRowCount(page, 25, GENE_TOTAL);
+  await expectRowCount(page, 56, GENE_TOTAL);
   await expectSummary(page, "Evidence From Other Omics Studies: Proteomics");
 });
 
@@ -68,7 +75,7 @@ test("Mendelian randomisation and Proteomics intersect", async ({ page }) => {
   await choice(page, MR, "No").uncheck();
   await choice(page, OMICS, "Proteomics").check();
 
-  await expectRowCount(page, 22, GENE_TOTAL);
+  await expectRowCount(page, 55, GENE_TOTAL);
   await expectSummary(
     page,
     "Mendelian randomization performed: Yes | Evidence From Other Omics Studies: Proteomics",
@@ -91,15 +98,25 @@ test("no Mendelian-randomisation gene carries NODDI", async ({ page }) => {
 
 test("CMB and WM-PVS are selectable", async ({ page }) => {
   await choice(page, GWAS, "CMB").check();
-  // APOE and COL4A1/2 were the first two; the 365-day run added four more.
-  await expectRowCount(page, 6, GENE_TOTAL);
+  // APOE alone in the gold table; the pipeline's runs had taken it to six.
+  await expectRowCount(page, 1, GENE_TOTAL);
 
   await choice(page, GWAS, "CMB").uncheck();
   await choice(page, GWAS, "WM-PVS").check();
-  await expectRowCount(page, 16, GENE_TOTAL);
+  await expectRowCount(page, 13, GENE_TOTAL);
 });
 
 test("the banner prints Extreme-cSVD, not the wire value extreme-cSVD", async ({ page }) => {
   await choice(page, GWAS, "Extreme-cSVD").check();
   await expectSummary(page, "GWAS Traits: Extreme-cSVD");
+});
+
+test("the vocabulary traits no gold gene carries are not offered", async ({ page }) => {
+  // Under gold-only the group lists the eighteen traits a gold gene carries,
+  // plus Show All and None Found; PVWMH, DWMH and the bare lacunes are
+  // vocabulary no curated row uses.
+  for (const label of ["PVWMH", "DWMH", "Lacunes"]) {
+    await expect(choice(page, GWAS, label)).toHaveCount(0);
+  }
+  await expect(filterGroup(page, GWAS).getByRole("checkbox")).toHaveCount(20);
 });

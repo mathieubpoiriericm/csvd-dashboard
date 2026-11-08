@@ -1,199 +1,10 @@
 [
   {
-    "name": "LAMB1",
-    "symbol": "LAMB1",
-    "uid": "3912",
-    "description": "laminin subunit beta 1",
-    "otheraliases": "CLM, LIS5, LKBMH, LUCAO"
-  },
-  {
-    "name": "LOX",
-    "symbol": "LOX",
-    "uid": "4015",
-    "description": "lysyl oxidase",
-    "otheraliases": "AAT10"
-  },
-  {
-    "name": "VWA2",
-    "symbol": "VWA2",
-    "uid": "340706",
-    "description": "von Willebrand factor A domain containing 2",
-    "otheraliases": "AMACO, CCSP-2, CCSP2, NET42"
-  },
-  {
-    "name": "NBEAL1",
-    "symbol": "NBEAL1",
-    "uid": "65065",
-    "description": "neurobeachin like 1",
-    "otheraliases": "A530083I02Rik, ALS2CR16, ALS2CR17"
-  },
-  {
-    "name": "ICA1L",
-    "symbol": "ICA1L",
-    "uid": "130026",
-    "description": "islet cell autoantigen 1 like",
-    "otheraliases": "ALS2CR14, ALS2CR15"
-  },
-  {
-    "name": "LAMC1",
-    "symbol": "LAMC1",
-    "uid": "3915",
-    "description": "laminin subunit gamma 1",
-    "otheraliases": "LAMB2"
-  },
-  {
-    "name": "SMG6",
-    "symbol": "SMG6",
-    "uid": "23293",
-    "description": "SMG6 nonsense mediated mRNA decay factor",
-    "otheraliases": "C17orf31, EST1A, SMG-6, hEST1A, hSMG5/7a"
-  },
-  {
-    "name": "JAK1",
-    "symbol": "JAK1",
-    "uid": "3716",
-    "description": "Janus kinase 1",
-    "otheraliases": "AIIDE, JAK1A, JAK1B, JTK3"
-  },
-  {
-    "name": "TRIM47",
-    "symbol": "TRIM47",
-    "uid": "91107",
-    "description": "tripartite motif containing 47",
-    "otheraliases": "GOA, RNF100"
-  },
-  {
-    "name": "ITGB5",
-    "symbol": "ITGB5",
-    "uid": "3693",
-    "description": "integrin subunit beta 5",
-    "otheraliases": ""
-  },
-  {
-    "name": "LPAR1",
-    "symbol": "LPAR1",
-    "uid": "1902",
-    "description": "lysophosphatidic acid receptor 1",
-    "otheraliases": "EDG2, Gpcr26, LPA1, Mrec1.3, VZG1, edg-2, rec.1.3, vzg-1"
-  },
-  {
-    "name": "LRRC25",
-    "symbol": "LRRC25",
-    "uid": "126364",
-    "description": "leucine rich repeat containing 25",
-    "otheraliases": "MAPA"
-  },
-  {
-    "name": "SMIM19",
-    "symbol": "SMIM19",
-    "uid": "114926",
-    "description": "small integral membrane protein 19",
-    "otheraliases": "C8orf40"
-  },
-  {
-    "name": "UMPS",
-    "symbol": "UMPS",
-    "uid": "7372",
-    "description": "uridine monophosphate synthetase",
-    "otheraliases": "ODC, OPRT"
-  },
-  {
-    "name": "NMT1",
-    "symbol": "NMT1",
-    "uid": "4836",
-    "description": "N-myristoyltransferase 1",
-    "otheraliases": "HsNMT1, NMT"
-  },
-  {
-    "name": "CCDC88C",
-    "symbol": "CCDC88C",
-    "uid": "440193",
-    "description": "coiled-coil and HOOK domain protein 88C",
-    "otheraliases": "DAPLE, HKRP2, HYC1, KIAA1509, SCA40"
-  },
-  {
-    "name": "DEGS2",
-    "symbol": "DEGS2",
-    "uid": "123099",
-    "description": "delta 4-desaturase, sphingolipid 2",
-    "otheraliases": "C14orf66, DES2, FADS8"
-  },
-  {
-    "name": "KLHL24",
-    "symbol": "KLHL24",
-    "uid": "54800",
-    "description": "kelch like family member 24",
-    "otheraliases": "CMH29, DRE1, EBS6, EBSSH, KRIP6"
-  },
-  {
-    "name": "SLC13A3",
-    "symbol": "SLC13A3",
-    "uid": "64849",
-    "description": "solute carrier family 13 member 3",
-    "otheraliases": "ARLIAK, NADC3, NaC3, SDCT2"
-  },
-  {
-    "name": "WNT7A",
-    "symbol": "WNT7A",
-    "uid": "7476",
-    "description": "Wnt family member 7A",
-    "otheraliases": "SANTOS, Wnt-7a"
-  },
-  {
-    "name": "PLEKHG1",
-    "symbol": "PLEKHG1",
-    "uid": "57480",
-    "description": "pleckstrin homology and RhoGEF domain containing G1",
-    "otheraliases": "ARHGEF41"
-  },
-  {
-    "name": "NID2",
-    "symbol": "NID2",
-    "uid": "22795",
-    "description": "nidogen 2",
-    "otheraliases": "NID-2"
-  },
-  {
-    "name": "KCNK2",
-    "symbol": "KCNK2",
-    "uid": "3776",
-    "description": "potassium two pore domain channel subfamily K member 2",
-    "otheraliases": "K2p2.1, TPKC1, TREK, TREK-1, TREK1, hTREK-1c, hTREK-1e"
-  },
-  {
-    "name": "SH3YL1",
-    "symbol": "SH3YL1",
-    "uid": "26751",
-    "description": "SH3 and SYLF domain containing 1",
-    "otheraliases": "RAY"
-  },
-  {
-    "name": "SH3PXD2A",
-    "symbol": "SH3PXD2A",
-    "uid": "9644",
-    "description": "SH3 and PX domains 2A",
-    "otheraliases": "FISH, SH3MD1, TKS5"
-  },
-  {
-    "name": "EFEMP1",
-    "symbol": "EFEMP1",
-    "uid": "2202",
-    "description": "EGF-like fibulin extracellular matrix protein 1",
-    "otheraliases": "ARCL1D, DHRD, DRAD, FBLN3, FBNL, FIBL-3, GLC1H, MLVT, MTLV, S1-5"
-  },
-  {
-    "name": "FBN2",
-    "symbol": "FBN2",
-    "uid": "2201",
-    "description": "fibrillin 2",
-    "otheraliases": "CCA, DA9, EOMD"
-  },
-  {
-    "name": "FOXF2",
-    "symbol": "FOXF2",
-    "uid": "2295",
-    "description": "forkhead box F2",
-    "otheraliases": "FKHL6, FREAC-2, FREAC2"
+    "name": "STN1",
+    "symbol": "STN1",
+    "uid": "79991",
+    "description": "STN1 subunit of CST complex",
+    "otheraliases": "AAF-44, AAF44, CRMCC2, OBFC1, RPA-32, bA541N10.2"
   },
   {
     "name": "HTRA1",
@@ -201,69 +12,6 @@
     "uid": "5654",
     "description": "HtrA serine peptidase 1",
     "otheraliases": "ARMD7, CADASIL2, CARASIL, CARASIL2, HtrA, L56, ORF480, PRSS11"
-  },
-  {
-    "name": "C6orf195",
-    "symbol": "LINC01600",
-    "uid": "154386",
-    "description": "long independently transcribed non-coding RNA 1600",
-    "otheraliases": "C6orf195, bA145H9.2"
-  },
-  {
-    "name": "GFAP",
-    "symbol": "GFAP",
-    "uid": "2670",
-    "description": "glial fibrillary acidic protein",
-    "otheraliases": "ALXDRD"
-  },
-  {
-    "name": "CENPF",
-    "symbol": "CENPF",
-    "uid": "1063",
-    "description": "centromere protein F",
-    "otheraliases": "CENF, CILD31, PRO1779, STROMS, hcp-1"
-  },
-  {
-    "name": "ADAMTSL4",
-    "symbol": "ADAMTSL4",
-    "uid": "54507",
-    "description": "ADAMTS like 4",
-    "otheraliases": "ADAMTSL-4, ECTOL2, TSRC1"
-  },
-  {
-    "name": "APOE",
-    "symbol": "APOE",
-    "uid": "348",
-    "description": "apolipoprotein E",
-    "otheraliases": "AD2, APO-E, ApoE4, LDLCQ5, LPG"
-  },
-  {
-    "name": "VCAN",
-    "symbol": "VCAN",
-    "uid": "1462",
-    "description": "versican",
-    "otheraliases": "CSPG2, ERVR, GHAP, PG-M, WGN, WGN1"
-  },
-  {
-    "name": "HBEGF",
-    "symbol": "HBEGF",
-    "uid": "1839",
-    "description": "heparin binding EGF like growth factor",
-    "otheraliases": "DTR, DTS, DTSF, HB-EGF, HEGFL"
-  },
-  {
-    "name": "CALCRL",
-    "symbol": "CALCRL",
-    "uid": "10203",
-    "description": "calcitonin receptor like receptor",
-    "otheraliases": "CGRPR, CRLR, LMPHM8"
-  },
-  {
-    "name": "CARF",
-    "symbol": "CARF",
-    "uid": "79800",
-    "description": "calcium responsive transcription factor",
-    "otheraliases": "ALS2CR8, NYD-SP24"
   },
   {
     "name": "COL4A1/2",
@@ -280,11 +28,46 @@
     "otheraliases": "BSVD2, BSVD2A, BSVD2B, ICH, POREN2"
   },
   {
+    "name": "TRIM47",
+    "symbol": "TRIM47",
+    "uid": "91107",
+    "description": "tripartite motif containing 47",
+    "otheraliases": "GOA, RNF100"
+  },
+  {
     "name": "NOTCH3",
     "symbol": "NOTCH3",
     "uid": "4854",
     "description": "notch receptor 3",
     "otheraliases": "CADASIL, CADASIL1, CARASIL1, CASIL, FPLD1, IMF2, LMNS"
+  },
+  {
+    "name": "FOXF2",
+    "symbol": "FOXF2",
+    "uid": "2295",
+    "description": "forkhead box F2",
+    "otheraliases": "FKHL6, FREAC-2, FREAC2"
+  },
+  {
+    "name": "ARHGEF15",
+    "symbol": "ARHGEF15",
+    "uid": "22899",
+    "description": "Rho guanine nucleotide exchange factor 15",
+    "otheraliases": "ARGEF15, BSVD5, E5, Ephexin5, Vsm-RhoGEF"
+  },
+  {
+    "name": "NIT1",
+    "symbol": "NIT1",
+    "uid": "4817",
+    "description": "nitrilase 1",
+    "otheraliases": "BSVD4"
+  },
+  {
+    "name": "CST3",
+    "symbol": "CST3",
+    "uid": "1471",
+    "description": "cystatin C",
+    "otheraliases": "ADLDWA, ARMD11, HEL-S-2"
   },
   {
     "name": "CTSA",
@@ -294,6 +77,13 @@
     "otheraliases": "BSVD6, GLB2, GSL, NGBE, PPCA, PPGB"
   },
   {
+    "name": "APP",
+    "symbol": "APP",
+    "uid": "351",
+    "description": "amyloid beta precursor protein",
+    "otheraliases": "AAA, ABETA, ABPP, AD1, APPI, CTFgamma, CVAP, PN-II, PN2, alpha-sAPP, preA4"
+  },
+  {
     "name": "TREX1",
     "symbol": "TREX1",
     "uid": "11277",
@@ -301,11 +91,242 @@
     "otheraliases": "AGS1, CRV, DRN3, HERNS, RVCLS"
   },
   {
-    "name": "ARSB",
-    "symbol": "ARSB",
-    "uid": "411",
-    "description": "arylsulfatase B",
-    "otheraliases": "ASB, G4S, MPS6"
+    "name": "LAMB1",
+    "symbol": "LAMB1",
+    "uid": "3912",
+    "description": "laminin subunit beta 1",
+    "otheraliases": "CLM, LIS5, LKBMH, LUCAO"
+  },
+  {
+    "name": "SH3PXD2A",
+    "symbol": "SH3PXD2A",
+    "uid": "9644",
+    "description": "SH3 and PX domains 2A",
+    "otheraliases": "FISH, SH3MD1, TKS5"
+  },
+  {
+    "name": "CCDC88C",
+    "symbol": "CCDC88C",
+    "uid": "440193",
+    "description": "coiled-coil and HOOK domain protein 88C",
+    "otheraliases": "DAPLE, HKRP2, HYC1, KIAA1509, SCA40"
+  },
+  {
+    "name": "DEGS2",
+    "symbol": "DEGS2",
+    "uid": "123099",
+    "description": "delta 4-desaturase, sphingolipid 2",
+    "otheraliases": "C14orf66, DES2, FADS8"
+  },
+  {
+    "name": "SMG6",
+    "symbol": "SMG6",
+    "uid": "23293",
+    "description": "SMG6 nonsense mediated mRNA decay factor",
+    "otheraliases": "C17orf31, EST1A, SMG-6, hEST1A, hSMG5/7a"
+  },
+  {
+    "name": "NMT1",
+    "symbol": "NMT1",
+    "uid": "4836",
+    "description": "N-myristoyltransferase 1",
+    "otheraliases": "HsNMT1, NMT"
+  },
+  {
+    "name": "LRRC25",
+    "symbol": "LRRC25",
+    "uid": "126364",
+    "description": "leucine rich repeat containing 25",
+    "otheraliases": "MAPA"
+  },
+  {
+    "name": "APOE",
+    "symbol": "APOE",
+    "uid": "348",
+    "description": "apolipoprotein E",
+    "otheraliases": "AD2, APO-E, ApoE4, LDLCQ5, LPG"
+  },
+  {
+    "name": "JAK1",
+    "symbol": "JAK1",
+    "uid": "3716",
+    "description": "Janus kinase 1",
+    "otheraliases": "AIIDE, JAK1A, JAK1B, JTK3"
+  },
+  {
+    "name": "PRDM16",
+    "symbol": "PRDM16",
+    "uid": "63976",
+    "description": "PR/SET domain 16",
+    "otheraliases": "CMD1LL, KMT8F, LVNC8, MEL1, PFM13"
+  },
+  {
+    "name": "ADAMTSL4",
+    "symbol": "ADAMTSL4",
+    "uid": "54507",
+    "description": "ADAMTS like 4",
+    "otheraliases": "ADAMTSL-4, ECTOL2, TSRC1"
+  },
+  {
+    "name": "SLC25A44",
+    "symbol": "SLC25A44",
+    "uid": "9673",
+    "description": "solute carrier family 25 member 44",
+    "otheraliases": ""
+  },
+  {
+    "name": "LAMC1",
+    "symbol": "LAMC1",
+    "uid": "3915",
+    "description": "laminin subunit gamma 1",
+    "otheraliases": "LAMB2"
+  },
+  {
+    "name": "FAM177B",
+    "symbol": "FAM177B",
+    "uid": "400823",
+    "description": "family with sequence similarity 177 member B",
+    "otheraliases": ""
+  },
+  {
+    "name": "SLC13A3",
+    "symbol": "SLC13A3",
+    "uid": "64849",
+    "description": "solute carrier family 13 member 3",
+    "otheraliases": "ARLIAK, NADC3, NaC3, SDCT2"
+  },
+  {
+    "name": "EFEMP1",
+    "symbol": "EFEMP1",
+    "uid": "2202",
+    "description": "EGF-like fibulin extracellular matrix protein 1",
+    "otheraliases": "ARCL1D, DHRD, DRAD, FBLN3, FBNL, FIBL-3, GLC1H, MLVT, MTLV, S1-5"
+  },
+  {
+    "name": "CALCRL",
+    "symbol": "CALCRL",
+    "uid": "10203",
+    "description": "calcitonin receptor like receptor",
+    "otheraliases": "CGRPR, CRLR, LMPHM8"
+  },
+  {
+    "name": "NBEAL1",
+    "symbol": "NBEAL1",
+    "uid": "65065",
+    "description": "neurobeachin like 1",
+    "otheraliases": "A530083I02Rik, ALS2CR16, ALS2CR17"
+  },
+  {
+    "name": "ICA1L",
+    "symbol": "ICA1L",
+    "uid": "130026",
+    "description": "islet cell autoantigen 1 like",
+    "otheraliases": "ALS2CR14, ALS2CR15"
+  },
+  {
+    "name": "CARF",
+    "symbol": "CARF",
+    "uid": "79800",
+    "description": "calcium responsive transcription factor",
+    "otheraliases": "ALS2CR8, NYD-SP24"
+  },
+  {
+    "name": "WDR12",
+    "symbol": "WDR12",
+    "uid": "55759",
+    "description": "WD repeat domain 12",
+    "otheraliases": "YTM1"
+  },
+  {
+    "name": "ULK4",
+    "symbol": "ULK4",
+    "uid": "54986",
+    "description": "unc-51 like kinase 4",
+    "otheraliases": "FAM7C1, REC01035"
+  },
+  {
+    "name": "ITGB5",
+    "symbol": "ITGB5",
+    "uid": "3693",
+    "description": "integrin subunit beta 5",
+    "otheraliases": ""
+  },
+  {
+    "name": "UMPS",
+    "symbol": "UMPS",
+    "uid": "7372",
+    "description": "uridine monophosphate synthetase",
+    "otheraliases": "ODC, OPRT"
+  },
+  {
+    "name": "KLHL24",
+    "symbol": "KLHL24",
+    "uid": "54800",
+    "description": "kelch like family member 24",
+    "otheraliases": "CMH29, DRE1, EBS6, EBSSH, KRIP6"
+  },
+  {
+    "name": "PMF1",
+    "symbol": "PMF1",
+    "uid": "11243",
+    "description": "polyamine modulated factor 1",
+    "otheraliases": ""
+  },
+  {
+    "name": "C6orf195",
+    "symbol": "LINC01600",
+    "uid": "154386",
+    "description": "long independently transcribed non-coding RNA 1600",
+    "otheraliases": "C6orf195, bA145H9.2"
+  },
+  {
+    "name": "SMIM19",
+    "symbol": "SMIM19",
+    "uid": "114926",
+    "description": "small integral membrane protein 19",
+    "otheraliases": "C8orf40"
+  },
+  {
+    "name": "LPAR1",
+    "symbol": "LPAR1",
+    "uid": "1902",
+    "description": "lysophosphatidic acid receptor 1",
+    "otheraliases": "EDG2, Gpcr26, LPA1, Mrec1.3, VZG1, edg-2, rec.1.3, vzg-1"
+  },
+  {
+    "name": "CST6",
+    "symbol": "CST6",
+    "uid": "1474",
+    "description": "cystatin E/M",
+    "otheraliases": "ECTD15"
+  },
+  {
+    "name": "TAPBPL",
+    "symbol": "TAPBPL",
+    "uid": "55080",
+    "description": "TAP binding protein like",
+    "otheraliases": "TAPBP-R, TAPBPR"
+  },
+  {
+    "name": "NTN4",
+    "symbol": "NTN4",
+    "uid": "59277",
+    "description": "netrin 4",
+    "otheraliases": "PRO3091"
+  },
+  {
+    "name": "COCH",
+    "symbol": "COCH",
+    "uid": "1690",
+    "description": "cochlin",
+    "otheraliases": "COCH-5B2, COCH5B2, DFNA9, DFNB110"
+  },
+  {
+    "name": "PRSS8",
+    "symbol": "PRSS8",
+    "uid": "5652",
+    "description": "serine protease 8",
+    "otheraliases": "CAP1, PROSTASIN"
   },
   {
     "name": "GP1BA",
@@ -315,11 +336,137 @@
     "otheraliases": "BDPLT1, BDPLT3, BSS, CD42B, CD42b-alpha, DBPLT3, GP1B, GPIbA, GPIbalpha, HPA-2, VWDP"
   },
   {
+    "name": "TMEM190",
+    "symbol": "TMEM190",
+    "uid": "147744",
+    "description": "transmembrane protein 190",
+    "otheraliases": "MDAC1"
+  },
+  {
+    "name": "PCSK9",
+    "symbol": "PCSK9",
+    "uid": "255738",
+    "description": "proprotein convertase subtilisin/kexin type 9",
+    "otheraliases": "FH3, FHCL3, HCHOLA3, LDLCQ1, NARC-1, NARC1, PC9"
+  },
+  {
+    "name": "CTSS",
+    "symbol": "CTSS",
+    "uid": "1520",
+    "description": "cathepsin S",
+    "otheraliases": ""
+  },
+  {
+    "name": "FCGR3A",
+    "symbol": "FCGR3A",
+    "uid": "2214",
+    "description": "Fc gamma receptor IIIa",
+    "otheraliases": "CD16-II, CD16A, FCG3, FCGR3, FCRIIIA, FcGRIIIA, IGFR3, IMD20"
+  },
+  {
     "name": "LAMC2",
     "symbol": "LAMC2",
     "uid": "3918",
     "description": "laminin subunit gamma 2",
     "otheraliases": "B2T, BM600, CSF, EBR2, EBR2A, JEB3A, JEB3B, LAMB2T, LAMNB2"
+  },
+  {
+    "name": "ERO1B",
+    "symbol": "ERO1B",
+    "uid": "56605",
+    "description": "endoplasmic reticulum oxidoreductase 1 beta",
+    "otheraliases": "ERO1LB, Ero1beta"
+  },
+  {
+    "name": "COL6A1",
+    "symbol": "COL6A1",
+    "uid": "1291",
+    "description": "collagen type VI alpha 1 chain",
+    "otheraliases": "BTHLM1, BTHLM1A, OPLL, UCHMD1, UCHMD1A"
+  },
+  {
+    "name": "SERPIND1",
+    "symbol": "SERPIND1",
+    "uid": "3053",
+    "description": "serpin family D member 1",
+    "otheraliases": "D22S673, HC2, HCF2, HCII, HLS2, LS2, THPH10"
+  },
+  {
+    "name": "ACP1",
+    "symbol": "ACP1",
+    "uid": "52",
+    "description": "acid phosphatase 1",
+    "otheraliases": "HAAP, LMW-PTP, LMWPTP"
+  },
+  {
+    "name": "PLA2R1",
+    "symbol": "PLA2R1",
+    "uid": "22925",
+    "description": "phospholipase A2 receptor 1",
+    "otheraliases": "CLEC13C, PLA2-R, PLA2G1R, PLA2IR, PLA2R"
+  },
+  {
+    "name": "TFPI",
+    "symbol": "TFPI",
+    "uid": "7035",
+    "description": "tissue factor pathway inhibitor",
+    "otheraliases": "EPI, LACI, TFI, TFPI1"
+  },
+  {
+    "name": "HIBCH",
+    "symbol": "HIBCH",
+    "uid": "26275",
+    "description": "3-hydroxyisobutyryl-CoA hydrolase",
+    "otheraliases": "HIBYLCOAH"
+  },
+  {
+    "name": "LTF",
+    "symbol": "LTF",
+    "uid": "4057",
+    "description": "lactotransferrin",
+    "otheraliases": "GIG12, HEL110, HLF2, LF"
+  },
+  {
+    "name": "POGLUT1",
+    "symbol": "POGLUT1",
+    "uid": "56983",
+    "description": "protein O-glucosyltransferase 1",
+    "otheraliases": "C3orf9, CLP46, KDELCL1, KTELC1, LGMD2Z, LGMDR21, MDS010, MDSRP, Rumi, hCLP46"
+  },
+  {
+    "name": "TLR1",
+    "symbol": "TLR1",
+    "uid": "7096",
+    "description": "toll like receptor 1",
+    "otheraliases": "CD281, TIL, TIL. LPRS5, rsc786"
+  },
+  {
+    "name": "ARSB",
+    "symbol": "ARSB",
+    "uid": "411",
+    "description": "arylsulfatase B",
+    "otheraliases": "ASB, G4S, MPS6"
+  },
+  {
+    "name": "HAPLN1",
+    "symbol": "HAPLN1",
+    "uid": "1404",
+    "description": "hyaluronan and proteoglycan link protein 1",
+    "otheraliases": "CRT1, CRTL1"
+  },
+  {
+    "name": "PAM",
+    "symbol": "PAM",
+    "uid": "5066",
+    "description": "peptidylglycine alpha-amidating monooxygenase",
+    "otheraliases": "PAL, PAM-1, PHM"
+  },
+  {
+    "name": "HAVCR2",
+    "symbol": "HAVCR2",
+    "uid": "84868",
+    "description": "hepatitis A virus cellular receptor 2",
+    "otheraliases": "CD366, HAVcr-2, KIM-3, SPTCL, TIM3, TIMD-3, TIMD3, Tim-3"
   },
   {
     "name": "BTN2A1",
@@ -343,32 +490,18 @@
     "otheraliases": "BTF3, BTN3.3"
   },
   {
-    "name": "COL6A1",
-    "symbol": "COL6A1",
-    "uid": "1291",
-    "description": "collagen type VI alpha 1 chain",
-    "otheraliases": "BTHLM1, BTHLM1A, OPLL, UCHMD1, UCHMD1A"
+    "name": "IL6",
+    "symbol": "IL6",
+    "uid": "3569",
+    "description": "interleukin 6",
+    "otheraliases": "BSF-2, BSF2, CDF, HGF, HSF, IFN-beta-2, IFNB2, IL-6"
   },
   {
-    "name": "CTSB",
-    "symbol": "CTSB",
-    "uid": "1508",
-    "description": "cathepsin B",
-    "otheraliases": "APPS, CPSB, KWE, RECEUP"
-  },
-  {
-    "name": "CTSS",
-    "symbol": "CTSS",
-    "uid": "1520",
-    "description": "cathepsin S",
-    "otheraliases": ""
-  },
-  {
-    "name": "CST6",
-    "symbol": "CST6",
-    "uid": "1474",
-    "description": "cystatin E/M",
-    "otheraliases": "ECTD15"
+    "name": "GPNMB",
+    "symbol": "GPNMB",
+    "uid": "10457",
+    "description": "glycoprotein nmb",
+    "otheraliases": "HGFIN, NMB, PLCA3"
   },
   {
     "name": "EPHB4",
@@ -385,27 +518,6 @@
     "otheraliases": "DBAL, ECYT5, EP, MVCD2"
   },
   {
-    "name": "IL6",
-    "symbol": "IL6",
-    "uid": "3569",
-    "description": "interleukin 6",
-    "otheraliases": "BSF-2, BSF2, CDF, HGF, HSF, IFN-beta-2, IFNB2, IL-6"
-  },
-  {
-    "name": "LTF",
-    "symbol": "LTF",
-    "uid": "4057",
-    "description": "lactotransferrin",
-    "otheraliases": "GIG12, HEL110, HLF2, LF"
-  },
-  {
-    "name": "PCSK9",
-    "symbol": "PCSK9",
-    "uid": "255738",
-    "description": "proprotein convertase subtilisin/kexin type 9",
-    "otheraliases": "FH3, FHCL3, HCHOLA3, LDLCQ1, NARC-1, NARC1, PC9"
-  },
-  {
     "name": "PILRA",
     "symbol": "PILRA",
     "uid": "29992",
@@ -413,32 +525,46 @@
     "otheraliases": "FDF03"
   },
   {
-    "name": "PRSS8",
-    "symbol": "PRSS8",
-    "uid": "5652",
-    "description": "serine protease 8",
-    "otheraliases": "CAP1, PROSTASIN"
+    "name": "CTSB",
+    "symbol": "CTSB",
+    "uid": "1508",
+    "description": "cathepsin B",
+    "otheraliases": "APPS, CPSB, KWE, RECEUP"
   },
   {
-    "name": "TFPI",
-    "symbol": "TFPI",
-    "uid": "7035",
-    "description": "tissue factor pathway inhibitor",
-    "otheraliases": "EPI, LACI, TFI, TFPI1"
+    "name": "DEFB1",
+    "symbol": "DEFB1",
+    "uid": "1672",
+    "description": "defensin beta 1",
+    "otheraliases": "BD1, DEFB-1, DEFB101, HBD1"
   },
   {
-    "name": "TIMP3",
-    "symbol": "TIMP3",
-    "uid": "7078",
-    "description": "TIMP metallopeptidase inhibitor 3",
-    "otheraliases": "HSMRK222, K222, K222TA2, SFD"
+    "name": "CCN3",
+    "symbol": "CCN3",
+    "uid": "4856",
+    "description": "cellular communication network factor 3",
+    "otheraliases": "IBP-9, IGFBP-9, IGFBP9, NOV, NOVh"
   },
   {
-    "name": "TLR1",
-    "symbol": "TLR1",
-    "uid": "7096",
-    "description": "toll like receptor 1",
-    "otheraliases": "CD281, TIL, TIL. LPRS5, rsc786"
+    "name": "NUDT2",
+    "symbol": "NUDT2",
+    "uid": "318",
+    "description": "nudix hydrolase 2",
+    "otheraliases": "APAH1, IDDPN"
+  },
+  {
+    "name": "MSMP",
+    "symbol": "MSMP",
+    "uid": "692094",
+    "description": "microseminoprotein, prostate associated",
+    "otheraliases": "PSMP"
+  },
+  {
+    "name": "TNC",
+    "symbol": "TNC",
+    "uid": "3371",
+    "description": "tenascin C",
+    "otheraliases": "150-225, DFNA56, GMEM, GP, HXB, JI, TN, TN-C"
   },
   {
     "name": "ABO",
@@ -448,123 +574,74 @@
     "otheraliases": "A3GALNT, A3GALT1, GTA, GTB, NAGAT"
   },
   {
-    "name": "ICOSLG",
-    "symbol": "ICOSLG",
-    "uid": "23308",
-    "description": "inducible T cell costimulator ligand",
-    "otheraliases": "B7-H2, B7H2, B7RP-1, B7RP1, B7h, CD275, GL50, ICOS-L, ICOSL, IMD119, LICOS"
+    "name": "VCAN",
+    "symbol": "VCAN",
+    "uid": "1462",
+    "description": "versican",
+    "otheraliases": "CSPG2, ERVR, GHAP, PG-M, WGN, WGN1"
   },
   {
-    "name": "WBP2",
-    "symbol": "WBP2",
-    "uid": "23558",
-    "description": "WW domain binding protein 2",
-    "otheraliases": "DFNB107, GRAMD6, WBP-2"
+    "name": "VWA2",
+    "symbol": "VWA2",
+    "uid": "340706",
+    "description": "von Willebrand factor A domain containing 2",
+    "otheraliases": "AMACO, CCSP-2, CCSP2, NET42"
   },
   {
-    "name": "TRIM65",
-    "symbol": "TRIM65",
-    "uid": "201292",
-    "description": "tripartite motif containing 65",
-    "otheraliases": "4732463G12Rik"
+    "name": "SPI1",
+    "symbol": "SPI1",
+    "uid": "6688",
+    "description": "Spi-1 proto-oncogene",
+    "otheraliases": "AGM10, OF, PU.1, SFPI1, SPI-1, SPI-A"
   },
   {
-    "name": "UNK",
-    "symbol": "UNK",
-    "uid": "85451",
-    "description": "unk zinc finger",
-    "otheraliases": "UNKEMPT, ZC3H5, ZC3HDC5"
+    "name": "SLC39A13",
+    "symbol": "SLC39A13",
+    "uid": "91252",
+    "description": "solute carrier family 39 member 13",
+    "otheraliases": "EDSSPD3, LZT-Hs9, SCDEDS, ZIP13"
   },
   {
-    "name": "GALK1",
-    "symbol": "GALK1",
-    "uid": "2584",
-    "description": "galactokinase 1",
-    "otheraliases": "GALK, GK1, HEL-S-19"
+    "name": "PSMC3",
+    "symbol": "PSMC3",
+    "uid": "5702",
+    "description": "proteasome 26S subunit, ATPase 3",
+    "otheraliases": "DCIDP, EBNDS, RPT5, TBP1"
   },
   {
-    "name": "NEURL1",
-    "symbol": "NEURL1",
-    "uid": "9148",
-    "description": "neuralized E3 ubiquitin protein ligase 1",
-    "otheraliases": "NEUR1, NEURL, RNF67, bA416N2.1, neu, neu-1"
+    "name": "RAPSN",
+    "symbol": "RAPSN",
+    "uid": "5913",
+    "description": "receptor associated protein of the synapse",
+    "otheraliases": "CMS11, CMS4C, FADS, RAPSYN, RNF205"
   },
   {
-    "name": "STN1",
-    "symbol": "STN1",
-    "uid": "79991",
-    "description": "STN1 subunit of CST complex",
-    "otheraliases": "AAF-44, AAF44, CRMCC2, OBFC1, RPA-32, bA541N10.2"
+    "name": "TAGLN",
+    "symbol": "TAGLN",
+    "uid": "6876",
+    "description": "transgelin",
+    "otheraliases": "SM22, SM22-alpha, SMCC, TAGLN1, TGLN, WS3-10"
   },
   {
-    "name": "RPL12P16",
-    "symbol": "RPL12P16",
-    "uid": "100130447",
-    "description": "ribosomal protein L12 pseudogene 16",
-    "otheraliases": "RPL12_4_315"
+    "name": "CLSTN3",
+    "symbol": "CLSTN3",
+    "uid": "9746",
+    "description": "calsyntenin 3",
+    "otheraliases": "CDHR14, CSTN3, alcbeta"
   },
   {
-    "name": "ZSCAN9",
-    "symbol": "ZSCAN9",
-    "uid": "7746",
-    "description": "zinc finger and SCAN domain containing 9",
-    "otheraliases": "PRD51, ZNF193"
+    "name": "TRHDE",
+    "symbol": "TRHDE",
+    "uid": "29953",
+    "description": "thyrotropin releasing hormone degrading enzyme",
+    "otheraliases": "PAP-II, PGPEP2, TRH-DE"
   },
   {
-    "name": "FAM117B",
-    "symbol": "FAM117B",
-    "uid": "150864",
-    "description": "family with sequence similarity 117 member B",
-    "otheraliases": "ALS2CR13"
-  },
-  {
-    "name": "GLA",
-    "symbol": "GLA",
-    "uid": "2717",
-    "description": "galactosidase alpha",
-    "otheraliases": "GALA"
-  },
-  {
-    "name": "ABCC6",
-    "symbol": "ABCC6",
-    "uid": "368",
-    "description": "ATP binding cassette subfamily C member 6",
-    "otheraliases": "ABC34, ARA, EST349056, GACI2, MLP1, MOAT-E, MOATE, MRP6, PXE, PXE1, URG7"
-  },
-  {
-    "name": "DCAKD",
-    "symbol": "DCAKD",
-    "uid": "79877",
-    "description": "dephospho-CoA kinase domain containing",
-    "otheraliases": ""
-  },
-  {
-    "name": "APP",
-    "symbol": "APP",
-    "uid": "351",
-    "description": "amyloid beta precursor protein",
-    "otheraliases": "AAA, ABETA, ABPP, AD1, APPI, CTFgamma, CVAP, PN-II, PN2, alpha-sAPP, preA4"
-  },
-  {
-    "name": "ADA2",
-    "symbol": "ADA2",
-    "uid": "51816",
-    "description": "adenosine deaminase 2",
-    "otheraliases": "ADGF, CECR1, IDGFL, PAN, SNEDS, VAIHS"
-  },
-  {
-    "name": "FBF1",
-    "symbol": "FBF1",
-    "uid": "85302",
-    "description": "Fas binding factor 1",
-    "otheraliases": "Alb, FBF-1"
-  },
-  {
-    "name": "MAPK7",
-    "symbol": "MAPK7",
-    "uid": "5598",
-    "description": "mitogen-activated protein kinase 7",
-    "otheraliases": "BMK1, ERK4, ERK5, PRKM7"
+    "name": "NID2",
+    "symbol": "NID2",
+    "uid": "22795",
+    "description": "nidogen 2",
+    "otheraliases": "NID-2"
   },
   {
     "name": "ZCCHC14",
@@ -574,45 +651,164 @@
     "otheraliases": "BDG-29, BDG29"
   },
   {
-    "name": "ULK4",
-    "symbol": "ULK4",
-    "uid": "54986",
-    "description": "unc-51 like kinase 4",
-    "otheraliases": "FAM7C1, REC01035"
+    "name": "OMG",
+    "symbol": "OMG",
+    "uid": "4974",
+    "description": "oligodendrocyte myelin glycoprotein",
+    "otheraliases": "OMGP"
   },
   {
-    "name": "SLK",
-    "symbol": "SLK",
-    "uid": "9748",
-    "description": "STE20 like kinase",
-    "otheraliases": "LOSK, STK2, bA16H23.1, se20-9"
+    "name": "GFAP",
+    "symbol": "GFAP",
+    "uid": "2670",
+    "description": "glial fibrillary acidic protein",
+    "otheraliases": "ALXDRD"
   },
   {
-    "name": "ALCAM",
-    "symbol": "ALCAM",
-    "uid": "214",
-    "description": "activated leukocyte cell adhesion molecule",
-    "otheraliases": "CD166, MEMD"
+    "name": "ZBTB14",
+    "symbol": "ZBTB14",
+    "uid": "7541",
+    "description": "zinc finger and BTB domain containing 14",
+    "otheraliases": "ZF5, ZFP-161, ZFP-5, ZFP161, ZNF478"
   },
   {
-    "name": "GJC1",
-    "symbol": "GJC1",
-    "uid": "10052",
-    "description": "gap junction protein gamma 1",
-    "otheraliases": "CX45, GJA7"
+    "name": "EPB41L3",
+    "symbol": "EPB41L3",
+    "uid": "23136",
+    "description": "erythrocyte membrane protein band 4.1 like 3",
+    "otheraliases": "4.1B, DAL-1, DAL1"
   },
   {
-    "name": "SLC25A44",
-    "symbol": "SLC25A44",
-    "uid": "9673",
-    "description": "solute carrier family 25 member 44",
-    "otheraliases": ""
+    "name": "APOC1",
+    "symbol": "APOC1",
+    "uid": "341",
+    "description": "apolipoprotein C1",
+    "otheraliases": "APOC1B, Apo-CI, ApoC-I, apo-CIB, apoC-IB"
   },
   {
-    "name": "EPHA2",
-    "symbol": "EPHA2",
-    "uid": "1969",
-    "description": "EPH receptor A2",
-    "otheraliases": "ARCC2, CTPA, CTPP1, CTRCT6, ECK"
+    "name": "PVRL2:CTB-129P6.4",
+    "symbol": "PVRL2:CTB-129P6.4",
+    "uid": null,
+    "description": null,
+    "otheraliases": null
+  },
+  {
+    "name": "EPHA10",
+    "symbol": "EPHA10",
+    "uid": "284656",
+    "description": "EPH receptor A10",
+    "otheraliases": "DFNA88"
+  },
+  {
+    "name": "RSPO1",
+    "symbol": "RSPO1",
+    "uid": "284654",
+    "description": "R-spondin 1",
+    "otheraliases": "CRISTIN3, RSPO"
+  },
+  {
+    "name": "REN",
+    "symbol": "REN",
+    "uid": "5972",
+    "description": "renin",
+    "otheraliases": "ADTKD4, HNFJ2, RTD"
+  },
+  {
+    "name": "KCNK2",
+    "symbol": "KCNK2",
+    "uid": "3776",
+    "description": "potassium two pore domain channel subfamily K member 2",
+    "otheraliases": "K2p2.1, TPKC1, TREK, TREK-1, TREK1, hTREK-1c, hTREK-1e"
+  },
+  {
+    "name": "CENPF",
+    "symbol": "CENPF",
+    "uid": "1063",
+    "description": "centromere protein F",
+    "otheraliases": "CENF, CILD31, PRO1779, STROMS, hcp-1"
+  },
+  {
+    "name": "SRSF6",
+    "symbol": "SRSF6",
+    "uid": "6431",
+    "description": "serine and arginine rich splicing factor 6",
+    "otheraliases": "B52, HEL-S-91, SFRS6, SRP55"
+  },
+  {
+    "name": "MPST",
+    "symbol": "MPST",
+    "uid": "4357",
+    "description": "mercaptopyruvate sulfurtransferase",
+    "otheraliases": "MST, TST2, TUM1"
+  },
+  {
+    "name": "NPTXR",
+    "symbol": "NPTXR",
+    "uid": "23467",
+    "description": "neuronal pentraxin receptor",
+    "otheraliases": "NPR"
+  },
+  {
+    "name": "WNT7A",
+    "symbol": "WNT7A",
+    "uid": "7476",
+    "description": "Wnt family member 7A",
+    "otheraliases": "SANTOS, Wnt-7a"
+  },
+  {
+    "name": "ESM1",
+    "symbol": "ESM1",
+    "uid": "11082",
+    "description": "endothelial cell specific molecule 1",
+    "otheraliases": "endocan"
+  },
+  {
+    "name": "LOX",
+    "symbol": "LOX",
+    "uid": "4015",
+    "description": "lysyl oxidase",
+    "otheraliases": "AAT10"
+  },
+  {
+    "name": "FBN2",
+    "symbol": "FBN2",
+    "uid": "2201",
+    "description": "fibrillin 2",
+    "otheraliases": "CCA, DA9, EOMD"
+  },
+  {
+    "name": "HBEGF",
+    "symbol": "HBEGF",
+    "uid": "1839",
+    "description": "heparin binding EGF like growth factor",
+    "otheraliases": "DTR, DTS, DTSF, HB-EGF, HEGFL"
+  },
+  {
+    "name": "HSPA1B",
+    "symbol": "HSPA1B",
+    "uid": "3304",
+    "description": "heat shock protein family A (Hsp70) member 1B",
+    "otheraliases": "HSP70-1, HSP70-1B, HSP70-2, HSP70.1, HSP70.2, HSP72, HSPA1, HSX70"
+  },
+  {
+    "name": "PLEKHG1",
+    "symbol": "PLEKHG1",
+    "uid": "57480",
+    "description": "pleckstrin homology and RhoGEF domain containing G1",
+    "otheraliases": "ARHGEF41"
+  },
+  {
+    "name": "TNFRSF11B",
+    "symbol": "TNFRSF11B",
+    "uid": "4982",
+    "description": "TNF receptor superfamily member 11b",
+    "otheraliases": "OCIF, OPG, PDB5, TR1"
+  },
+  {
+    "name": "CHRDL1",
+    "symbol": "CHRDL1",
+    "uid": "91851",
+    "description": "chordin like 1",
+    "otheraliases": "CHL, MGC1, MGCN, NRLN1, VOPT, dA141H5.1"
   }
 ]

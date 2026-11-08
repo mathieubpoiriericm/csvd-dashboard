@@ -99,7 +99,7 @@ async def test_the_container_is_migrated_to_a_single_head() -> None:
         )
 
     names = {row["column_name"] for row in columns}
-    assert version == "015"
+    assert version == "016"
     # The three migration 009 adds. Their absence is not a schema detail:
     # without them the run report has nowhere to be stored and the About
     # page silently falls back to its summary card.
@@ -861,6 +861,18 @@ async def test_ncbi_fills_an_empty_band_and_never_a_curated_one() -> None:
             await conn.execute(
                 "DELETE FROM ncbi_gene_info WHERE gene_symbol LIKE 'ZZTOP%'"
             )
+
+
+async def test_a_doi_reference_is_stored_whole(scratch_gene) -> None:
+    """Migration 016: a 27-character DOI overflowed VARCHAR(20)."""
+    doi = "10.21203/rs.3.rs-5926137/v1"
+    await merge_genes_transactional(
+        [_gene_row(references=["39298701", doi])], []
+    )
+    assert await _list_values("gene_references", "pmid") == [
+        (0, "39298701"),
+        (1, doi),
+    ]
 
 
 async def test_the_ledger_records_the_extraction_model() -> None:

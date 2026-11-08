@@ -158,6 +158,9 @@ _OMICS_TYPES: Final[frozenset[str]] = frozenset(
         "PWAS",
         "Proteomics",
         "WES/WGS",
+        "Proteogenomic MR",
+        "Fine-mapping",
+        "Experimental",
         _MENTR_LABEL,
     }
 )
@@ -262,11 +265,48 @@ _UNKNOWN_COLUMNS: Final[tuple[str, ...]] = (
 )
 
 
+_JSON_DECODER: Final = json.JSONDecoder()
+
+
+def _stored_entries(value: str) -> tuple[list[str], str] | None:
+    """A value stored already split: a JSON array of wire-form entries, and
+    whatever prose follows it.
+
+    Curated wording the chain below would rewrite -- the "*" colocalization
+    markers, a second ":", a comma outside parentheses inside one study -- is
+    stored this way (`stored_omics` in scripts/restore_from_json.py), its ";"
+    escaped as \\u003b so the gene merge's ";" split sees one element. The
+    merge appends an extraction's prose after it, joined on ";"; that tail is
+    returned for the chain. None for anything else, which is prose.
+    """
+    if not value.startswith("["):
+        return None
+    try:
+        entries, end = _JSON_DECODER.raw_decode(value)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(entries, list) or not all(
+        isinstance(entry, str) and entry.strip() for entry in entries
+    ):
+        return None
+    return entries, value[end:]
+
+
 def clean_omics_value(value: str | None, gene: str | None = None) -> list[str]:
     """Apply the omics-evidence transformation chain, split, then gate.
 
+    A value stored already split skips the chain: its entries are gated as
+    they are, and only prose a merge appended after them goes through it.
     `gene` only names the row in the log line an unfilterable element writes.
     """
+    if value and (stored := _stored_entries(value)) is not None:
+        entries, tail = stored
+        appended = [
+            entry
+            for entry in clean_omics_value(tail.strip(" ;") or None, gene)
+            if entry != "(none found)"
+        ]
+        return _publishable_omics([*entries, *appended], gene) or ["(none found)"]
     text = value or ""
     text = text.replace("*", "")
     # Remove only genuinely empty separators; deleting one merely because
@@ -344,23 +384,22 @@ def clean_gene_row(row: dict[str, Any]) -> dict[str, Any]:
         out.get("Chromosomal Location"), "(unknown)"
     )
 
-    # The merge stores the gene symbol when no paper named a protein, and
-    # both write paths in pipeline/database.py read `protein = gene` back as
-    # "still missing" so a later run can fill it. The export applies that same
-    # rule rather than publishing a gene symbol in the Protein column. Exact
-    # equality, as the SQL uses: "EphB4" for EPHB4 and "Epo" for EPO are real
-    # protein names, written the way proteins are written.
-    protein = out.get("Protein")
-    out["Protein"] = fill_missing_text(
-        None if protein == out["Gene"] else protein, "(unknown)"
-    )
+    # Published as stored. The merge stores the gene symbol when no paper
+    # named a protein, and both write paths in pipeline/database.py read
+    # `protein = gene` back as "still missing" so a later run can fill it --
+    # but the export no longer second-guesses it: the curated gold table
+    # names most proteins by their gene symbol, and gold is published
+    # verbatim.
+    out["Protein"] = fill_missing_text(out.get("Protein"), "(unknown)")
 
     cell_types = _ALL_WORD.sub("all", out.get("Brain Cell Types") or "")
     out["Brain Cell Types"] = fill_missing_text(cell_types or None, "(unknown)")
 
+    # Published as stored, case included: a pathway names Wnt, Notch or Rho
+    # as proper nouns, and lowercasing it rewrote the curated wording.
     out["Affected Pathway"] = fill_missing_text(
         out.get("Affected Pathway"), "(unknown)"
-    ).lower()
+    )
 
     out["Mendelian Randomization"] = (
         "Yes" if out["Mendelian Randomization"] else "No"

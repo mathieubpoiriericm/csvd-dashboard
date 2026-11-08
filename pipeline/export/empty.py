@@ -15,9 +15,9 @@ Two files are deliberately handled differently from `run_export`:
   `scripts/fetch_cytobands.py`, genome reference rather than disease data,
   and the phenogram cannot draw without it.
 
-`omim_info.json` is rendered from `disease/omim_info.csv` exactly as the
-database export renders it: the CSV is a disease file the new-disease skill
-replaces, so the JSON follows it rather than being blanked.
+`omim_info.json` is rendered from `disease/omim_info.csv` by the same rule the
+database export uses, `referenced_omim_rows`: only the entries a published
+gene links to. The empty export publishes no genes, so it publishes none.
 """
 
 import argparse
@@ -29,7 +29,7 @@ from pathlib import Path
 from typing import Final
 
 from pipeline.config import PROJECT_ROOT
-from pipeline.export.omim import read_omim_csv
+from pipeline.export.omim import read_omim_csv, referenced_omim_rows
 from pipeline.export.publish import publish_atomically
 from pipeline.export.writer import write_rows, write_value
 
@@ -84,7 +84,9 @@ def write_empty_export(
         write_value(
             {"nctIds": [], "generatedAt": stamp, "locations": []}, stage(GEOCODED)
         )
-        write_rows(read_omim_csv(), stage(OMIM))
+        # No published gene links to anything, so this is empty; it goes
+        # through the export's own rule so the two cannot drift apart.
+        write_rows(referenced_omim_rows(read_omim_csv(), ()), stage(OMIM))
         publish_atomically(staged, target_dir)
     return {name: target_dir / name for name in staged}
 

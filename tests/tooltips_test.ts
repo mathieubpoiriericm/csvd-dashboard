@@ -183,9 +183,16 @@ Deno.test("omicsTooltip handles a known type without tissue and rejects unknown 
 Deno.test("splitCellTypes preserves directional separators and ignores blanks", () => {
   assertEquals(splitCellTypes(" FB > PC < SMC "), {
     parts: ["FB", "PC", "SMC"],
-    separators: [">", "<"],
+    chains: [{
+      label: null,
+      parts: ["FB", "PC", "SMC"],
+      separators: [">", "<"],
+    }],
   });
-  assertEquals(splitCellTypes(" <> "), { parts: [], separators: ["<", ">"] });
+  assertEquals(splitCellTypes(" <> "), {
+    parts: [],
+    chains: [{ label: null, parts: [], separators: ["<", ">"] }],
+  });
 });
 
 Deno.test("registry links use resolvable public URL forms", () => {

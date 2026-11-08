@@ -9,6 +9,12 @@ description: "Use when running the pipeline over a long --days-back window: chec
 uv run python -m pipeline.main --pubmed --days-back 365 --export
 ```
 
+**Not while gold-only is on.** `pipeline.main` refuses `--pubmed` -- and so
+every `--days-back` window, `--batch` included -- and `scripts.backfill_pubmed`
+refuses too, before any network or database work, while `GOLD_ONLY` is true in
+`lib/gold_only.ts`, because the dashboard then publishes only the
+hand-curated data. The undo checklist in that file's doc comment comes first.
+
 `--days-back 365` is one run, and `_merge_processed_batch` is step 5 of 6: genes
 reach the database and `record_processed_pmids_batch` writes the PMIDs only once
 every paper has been extracted. Measured on 2026-11-03, a two-year window

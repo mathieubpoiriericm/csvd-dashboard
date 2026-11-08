@@ -1,35 +1,35 @@
 [
   {
-    "runTimestamp": "2026-11-03T18:45:52Z",
+    "runTimestamp": "2026-11-08T00:24:38Z",
     "mode": "annotation_sync",
     "status": "completed",
-    "durationSeconds": 14.843,
+    "durationSeconds": 54.735,
     "sources": [
       {
         "key": "clinvar",
         "label": "ClinVar",
-        "fetched": 1,
-        "cached": 87,
+        "fetched": 115,
+        "cached": 0,
         "failed": 0
       },
       {
         "key": "orphadata",
         "label": "Orphadata",
-        "fetched": 1,
-        "cached": 87,
+        "fetched": 115,
+        "cached": 0,
         "failed": 0
       },
       {
         "key": "opentargets",
         "label": "Open Targets",
-        "fetched": 1,
-        "cached": 87,
+        "fetched": 115,
+        "cached": 0,
         "failed": 0
       },
       {
         "key": "opentargets_drugs",
         "label": "Open Targets drug records",
-        "fetched": 105,
+        "fetched": 11,
         "cached": 0,
         "failed": 0
       }
@@ -40,51 +40,25 @@
         "label": "Open Targets",
         "endpoint": "/api/v4/graphql",
         "method": "POST",
-        "calls": 109,
-        "ok": 109,
+        "calls": 244,
+        "ok": 244,
         "notFound": 0,
         "errors": 0,
         "retries": 0,
-        "totalMs": 19099.9,
+        "totalMs": 37895.8,
         "bytes": 0
-      },
-      {
-        "service": "orphadata",
-        "label": "Orphadata",
-        "endpoint": "/rd-cross-referencing/orphacodes/:id",
-        "method": "GET",
-        "calls": 5,
-        "ok": 5,
-        "notFound": 0,
-        "errors": 0,
-        "retries": 0,
-        "totalMs": 4769.8,
-        "bytes": 4910
-      },
-      {
-        "service": "orphadata",
-        "label": "Orphadata",
-        "endpoint": "/rd-phenotypes/orphacodes/:id",
-        "method": "GET",
-        "calls": 5,
-        "ok": 2,
-        "notFound": 3,
-        "errors": 0,
-        "retries": 0,
-        "totalMs": 739.2,
-        "bytes": 2281
       },
       {
         "service": "ncbi_eutils",
         "label": "E-utilities summary",
         "endpoint": "/entrez/eutils/esummary.fcgi",
         "method": "POST",
-        "calls": 2,
-        "ok": 2,
+        "calls": 129,
+        "ok": 119,
         "notFound": 0,
-        "errors": 0,
+        "errors": 10,
         "retries": 0,
-        "totalMs": 8501.5,
+        "totalMs": 186488.0,
         "bytes": 0
       },
       {
@@ -92,13 +66,39 @@
         "label": "E-utilities search",
         "endpoint": "/entrez/eutils/esearch.fcgi",
         "method": "GET",
-        "calls": 1,
-        "ok": 1,
+        "calls": 122,
+        "ok": 116,
+        "notFound": 0,
+        "errors": 6,
+        "retries": 0,
+        "totalMs": 10875.4,
+        "bytes": 0
+      },
+      {
+        "service": "orphadata",
+        "label": "Orphadata",
+        "endpoint": "/rd-cross-referencing/orphacodes/:id",
+        "method": "GET",
+        "calls": 103,
+        "ok": 103,
         "notFound": 0,
         "errors": 0,
         "retries": 0,
-        "totalMs": 170.3,
-        "bytes": 0
+        "totalMs": 16614.5,
+        "bytes": 107100
+      },
+      {
+        "service": "orphadata",
+        "label": "Orphadata",
+        "endpoint": "/rd-phenotypes/orphacodes/:id",
+        "method": "GET",
+        "calls": 103,
+        "ok": 65,
+        "notFound": 38,
+        "errors": 0,
+        "retries": 0,
+        "totalMs": 12573.8,
+        "bytes": 74950
       }
     ],
     "errors": {
@@ -143,30 +143,30 @@
     }
   },
   {
-    "runTimestamp": "2026-11-05T18:36:47Z",
+    "runTimestamp": "2026-11-08T00:38:08Z",
     "mode": "external_sync",
     "status": "completed",
-    "durationSeconds": 2.796,
+    "durationSeconds": 0.424,
     "sources": [
       {
         "key": "ncbi_gene",
         "label": "NCBI Gene",
-        "fetched": 3,
-        "cached": 110,
+        "fetched": 2,
+        "cached": 137,
         "failed": 0
       },
       {
         "key": "uniprot",
         "label": "UniProt",
-        "fetched": 3,
-        "cached": 85,
+        "fetched": 0,
+        "cached": 116,
         "failed": 0
       },
       {
         "key": "pubmed_citations",
         "label": "PubMed citations",
         "fetched": 0,
-        "cached": 167,
+        "cached": 48,
         "failed": 0
       }
     ],
@@ -176,12 +176,12 @@
         "label": "E-utilities search",
         "endpoint": "/entrez/eutils/esearch.fcgi",
         "method": "GET",
-        "calls": 3,
-        "ok": 3,
+        "calls": 2,
+        "ok": 2,
         "notFound": 0,
         "errors": 0,
         "retries": 0,
-        "totalMs": 454.2,
+        "totalMs": 249.7,
         "bytes": 0
       },
       {
@@ -189,38 +189,12 @@
         "label": "E-utilities summary",
         "endpoint": "/entrez/eutils/esummary.fcgi",
         "method": "GET",
-        "calls": 3,
-        "ok": 3,
+        "calls": 2,
+        "ok": 2,
         "notFound": 0,
         "errors": 0,
         "retries": 0,
-        "totalMs": 488.1,
-        "bytes": 0
-      },
-      {
-        "service": "uniprot",
-        "label": "UniProt",
-        "endpoint": "/uniprotkb/:id",
-        "method": "GET",
-        "calls": 3,
-        "ok": 3,
-        "notFound": 0,
-        "errors": 0,
-        "retries": 0,
-        "totalMs": 671.1,
-        "bytes": 0
-      },
-      {
-        "service": "uniprot",
-        "label": "UniProt",
-        "endpoint": "/uniprotkb/search",
-        "method": "GET",
-        "calls": 3,
-        "ok": 3,
-        "notFound": 0,
-        "errors": 0,
-        "retries": 0,
-        "totalMs": 2789.6,
+        "totalMs": 168.7,
         "bytes": 0
       }
     ],

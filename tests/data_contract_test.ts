@@ -1,7 +1,6 @@
 import { assert, assertEquals } from "@std/assert";
 
 import {
-  GWAS_TRAIT_CHOICES,
   OMICS_CHOICES,
   PHASE_CHOICES,
   POPULATION_CHOICES,
@@ -17,7 +16,7 @@ import {
   trialLocationsGeneratedAt,
   trials,
 } from "../lib/data.ts";
-import { filterGenes, filterTrials } from "../lib/filters.ts";
+import { filterGenes, filterTrials, gwasTraitChoices } from "../lib/filters.ts";
 import type { Gene, Trial } from "../lib/types.ts";
 import rawGeocodedJson from "../data/geocoded_trials.json" with {
   type: "json",
@@ -414,9 +413,12 @@ Deno.test("the public data boundary normalizes legacy text sentinels", () => {
   }
 });
 
+/** The trait choices the Genes page offers over the committed rows. */
+const TRAIT_CHOICES = gwasTraitChoices(genes);
+
 Deno.test("every committed GWAS trait is available as a filter choice", () => {
   const choices = new Set(
-    GWAS_TRAIT_CHOICES.map((choice) => choice.value.trim().toLowerCase()),
+    TRAIT_CHOICES.map((choice) => choice.value.trim().toLowerCase()),
   );
   const missing = [
     ...new Set(genes.flatMap((gene) => gene.gwasTrait)),
@@ -442,7 +444,7 @@ Deno.test("every generated category is reachable through its filter", () => {
       `${gene.gene} has an unfilterable Mendelian-randomization value`,
     );
     assert(
-      GWAS_TRAIT_CHOICES.filter((choice) => choice.value !== SHOW_ALL).some(
+      TRAIT_CHOICES.filter((choice) => choice.value !== SHOW_ALL).some(
         (choice) =>
           filterGenes([gene], {
             ...geneDefaults,

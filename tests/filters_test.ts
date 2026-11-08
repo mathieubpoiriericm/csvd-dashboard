@@ -7,6 +7,7 @@ import {
   filterLocationsByStatus,
   filterTrials,
   formatOmicsValue,
+  gwasTraitChoices,
   omicsType,
   visibleTrials,
 } from "../lib/filters.ts";
@@ -16,10 +17,17 @@ import type { Trial } from "../lib/types.ts";
 import { sampleGene, sampleTrial } from "./fixtures/rows.ts";
 import {
   DEFAULT_TRIAL_STATUSES,
+  defaultTrialStatuses,
+  GWAS_TRAIT_CHOICES,
+  NONE_FOUND,
   SHOW_ALL,
   STATUS_CHOICES,
 } from "../lib/constants.ts";
+import { GOLD_ONLY } from "../lib/gold_only.ts";
 import { UNKNOWN } from "../lib/sentinels.ts";
+
+/** The run default, which `GOLD_ONLY` replaces with Show All. */
+const RUN_TRIAL_STATUSES = defaultTrialStatuses(false);
 
 const NO_GENE_FILTERS = {
   mendelianRandomization: ["Yes", "No"],
@@ -186,6 +194,40 @@ Deno.test("gene filters compose as an intersection", () => {
 });
 
 // -----------------------------------------------------------------------------
+// GWAS trait choices
+// -----------------------------------------------------------------------------
+
+const VOCABULARY_TRAITS = GWAS_TRAIT_CHOICES.filter((choice) =>
+  choice.value !== SHOW_ALL && choice.value !== NONE_FOUND
+);
+
+Deno.test("outside gold-only the trait choices are the whole vocabulary", () => {
+  const carried = [sampleGene({ gwasTrait: [VOCABULARY_TRAITS[0].value] })];
+  assertEquals(gwasTraitChoices(carried, false), GWAS_TRAIT_CHOICES);
+  assertEquals(gwasTraitChoices([], false), GWAS_TRAIT_CHOICES);
+});
+
+Deno.test("under gold-only the trait choices are the traits the rows carry, in vocabulary order", () => {
+  const first = VOCABULARY_TRAITS[0];
+  const last = VOCABULARY_TRAITS.at(-1)!;
+  // Carried out of order, padded and recased: the filters' own comparison.
+  const rows = [
+    sampleGene({ gwasTrait: [` ${last.value.toUpperCase()} `] }),
+    sampleGene({ gwasTrait: [first.value] }),
+    sampleGene(),
+  ];
+  assertEquals(
+    gwasTraitChoices(rows, true).map((choice) => choice.value),
+    [...new Set([SHOW_ALL, NONE_FOUND, first.value, last.value])],
+  );
+  // Show All and None Found are not traits: offered with no row at all.
+  assertEquals(
+    gwasTraitChoices([], true).map((choice) => choice.value),
+    [SHOW_ALL, NONE_FOUND],
+  );
+});
+
+// -----------------------------------------------------------------------------
 // Trial filters
 // -----------------------------------------------------------------------------
 
@@ -230,6 +272,24 @@ Deno.test("registry filter keeps only the selected registries", () => {
   for (const trial of trials) {
     assert(registryOf(trial.registryId) !== null, trial.registryId);
   }
+});
+
+Deno.test("a sub-phase is selected by its parent phase", () => {
+  const phased = (clinicalTrialPhase: string) => [{
+    ...sampleTrial(),
+    clinicalTrialPhase,
+  }];
+  const selects = (phase: string, choice: string) =>
+    filterTrials(phased(phase), { ...NO_TRIAL_FILTERS, phases: [choice] })
+      .length === 1;
+
+  assert(selects("Ib", "I"));
+  assert(!selects("Ib", "II"));
+  assert(selects("IIa", "II"));
+  assert(!selects("IIa", "I"));
+  assert(selects("I/IIb", "I") && selects("I/IIb", "II"));
+  // A lower-case numeral is not a phase, so "ib" is still compared whole.
+  assert(!selects("ib", "I"));
 });
 
 Deno.test("phase matching ignores Roman-numeral letters inside words", () => {
@@ -330,7 +390,7 @@ Deno.test("buildFilterSummary prints choice labels, not wire values", () => {
   ]);
 });
 
-Deno.test("status choices derive from the vocabulary and the default hides Completed, Suspended and Unknown", () => {
+Deno.test("status choices derive from the vocabulary and the run default hides Completed, Suspended and Unknown", () => {
   const values = STATUS_CHOICES.map((c) => c.value);
   assertEquals(values[0], SHOW_ALL);
   assert(
@@ -340,24 +400,55 @@ Deno.test("status choices derive from the vocabulary and the default hides Compl
   assert(!values.includes("TERMINATED") && !values.includes("WITHDRAWN"));
   const hidden = new Set([SHOW_ALL, "COMPLETED", "SUSPENDED", "UNKNOWN"]);
   assertEquals(
-    DEFAULT_TRIAL_STATUSES,
+    RUN_TRIAL_STATUSES,
     values.filter((v) => !hidden.has(v)),
   );
 });
 
-Deno.test("the default trial selection hides completed, suspended and not-stated trials", () => {
-  const rows = [
-    "RECRUITING",
-    "ACTIVE_NOT_RECRUITING",
-    "COMPLETED",
-    "SUSPENDED",
-    "UNKNOWN",
-    UNKNOWN,
-  ].map((overallStatus) => ({ ...sampleTrial(), overallStatus }));
-  assertEquals(visibleTrials(rows).map((r) => r.overallStatus), [
+Deno.test("under gold-only the default status selection is Show All", () => {
+  assertEquals(defaultTrialStatuses(true), [SHOW_ALL]);
+  assertEquals(
+    DEFAULT_TRIAL_STATUSES,
+    GOLD_ONLY ? [SHOW_ALL] : RUN_TRIAL_STATUSES,
+  );
+  assertEquals(defaultTrialFilters(true).statuses, [SHOW_ALL]);
+  assertEquals(defaultTrialFilters(false).statuses, RUN_TRIAL_STATUSES);
+  assertEquals(defaultTrialFilters().statuses, DEFAULT_TRIAL_STATUSES);
+});
+
+const EVERY_STATUS = [
+  "RECRUITING",
+  "ACTIVE_NOT_RECRUITING",
+  "COMPLETED",
+  "SUSPENDED",
+  "UNKNOWN",
+  UNKNOWN,
+];
+
+Deno.test("the run's default trial selection hides completed, suspended and not-stated trials", () => {
+  const rows = EVERY_STATUS.map((overallStatus) => ({
+    ...sampleTrial(),
+    overallStatus,
+  }));
+  assertEquals(visibleTrials(rows, false).map((r) => r.overallStatus), [
     "RECRUITING",
     "ACTIVE_NOT_RECRUITING",
   ]);
+});
+
+Deno.test("the gold-only default trial selection shows every status, not stated included", () => {
+  const rows = EVERY_STATUS.map((overallStatus) => ({
+    ...sampleTrial(),
+    overallStatus,
+  }));
+  assertEquals(
+    visibleTrials(rows, true).map((r) => r.overallStatus),
+    EVERY_STATUS,
+  );
+  assertEquals(
+    visibleTrials(rows).length,
+    GOLD_ONLY ? EVERY_STATUS.length : 2,
+  );
 });
 
 Deno.test("status filtering folds the export sentinel onto the UNKNOWN choice", () => {
@@ -375,11 +466,10 @@ Deno.test("status filtering folds the export sentinel onto the UNKNOWN choice", 
   assertEquals(only(["RECRUITING"]), [" recruiting "]);
   assertEquals(only(["UNKNOWN"]), ["UNKNOWN", UNKNOWN]);
   assertEquals(only([SHOW_ALL]).length, 4);
-  // The default leaves Unknown unticked, so it hides the sentinel with it.
-  assertEquals(visibleTrials(rows).map((r) => r.overallStatus), [
+  // The run default leaves Unknown unticked, so it hides the sentinel with it.
+  assertEquals(visibleTrials(rows, false).map((r) => r.overallStatus), [
     " recruiting ",
   ]);
-  assertEquals(defaultTrialFilters().statuses, DEFAULT_TRIAL_STATUSES);
 });
 
 Deno.test("location status filtering treats a null status as not stated", () => {
@@ -401,16 +491,21 @@ Deno.test("location status filtering treats a null status as not stated", () => 
     1,
   );
   assertEquals(filterLocationsByStatus([site], [SHOW_ALL]).length, 1);
-  // The default hides a site whose status is not stated, as it hides
-  // Suspended and Completed ones.
+  // The run default hides a site whose status is not stated, as it hides
+  // Suspended and Completed ones; the gold-only default hides none.
+  const sites = [
+    site,
+    { ...site, status: "SUSPENDED" },
+    { ...site, status: "COMPLETED" },
+    { ...site, status: "RECRUITING" },
+  ];
   assertEquals(
-    filterLocationsByStatus([
-      site,
-      { ...site, status: "SUSPENDED" },
-      { ...site, status: "COMPLETED" },
-      { ...site, status: "RECRUITING" },
-    ], DEFAULT_TRIAL_STATUSES).map((l) => l.status),
+    filterLocationsByStatus(sites, RUN_TRIAL_STATUSES).map((l) => l.status),
     ["RECRUITING"],
+  );
+  assertEquals(
+    filterLocationsByStatus(sites, defaultTrialStatuses(true)).length,
+    sites.length,
   );
 });
 

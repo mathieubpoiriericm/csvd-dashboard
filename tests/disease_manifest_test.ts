@@ -19,8 +19,7 @@ import {
 } from "../lib/constants.ts";
 import { genes } from "../lib/data/genes.ts";
 import { type Schema, schemaErrors } from "../lib/adapt/schema.ts";
-import { splitCellTypes } from "../lib/tooltips.ts";
-import { ABSENT_SENTINELS } from "../lib/sentinels.ts";
+import { cellTypeTooltip, splitCellTypes } from "../lib/tooltips.ts";
 
 // The committed values themselves are pinned in tests/csvd/disease_manifest_test.ts.
 Deno.test("the manifest normalizes to the committed document", () => {
@@ -84,27 +83,25 @@ Deno.test("POPULATION_CHOICES is Show All followed by the manifest's populations
   ]);
 });
 
-Deno.test("the cell-type glossary is the manifest's and covers the committed rows", () => {
+Deno.test("the cell-type glossary is the manifest's, and an undefined abbreviation gets no tooltip", () => {
   assertEquals(CELL_TYPE_NAMES, manifest.cellTypes.glossary);
   assertEquals(CELL_TYPES_LABEL, manifest.cellTypes.label);
+  // `brainCellTypes` is a curated free-text column, so `splitCellTypes`
+  // returns qualifiers as well as abbreviations. Whether the glossary covers
+  // every abbreviation the committed rows use is a fact about one disease's
+  // data, pinned in tests/csvd/disease_manifest_test.ts with the names it
+  // leaves undefined. What holds for any data: an abbreviation the glossary
+  // lacks renders as plain text, never as a tooltip with nothing in it.
   const used = new Set(
     genes.flatMap((g) => splitCellTypes(g.brainCellTypes).parts),
   );
-  // `brainCellTypes` is a curated free-text column, so `splitCellTypes`
-  // returns qualifiers as well as abbreviations -- "all<40", "EC (arterial)"
-  // and similar prose the glossary was never meant to define. The filter
-  // keeps only what looks like an abbreviation: an uppercase-alphabetic
-  // token, which every glossary key is (EC, SMC, VSMC, AC, MG, OL, PC, FB)
-  // and no free-text cell is, because each of those carries a digit, a
-  // lowercase letter or a symbol. So this asserts that every abbreviation
-  // the rows use is defined, and says nothing about the prose beside them.
-  const missing = [...used].filter(
-    (abbr) =>
-      !ABSENT_SENTINELS.has(abbr) &&
-      /^[A-Z]+$/.test(abbr) &&
-      !(abbr in CELL_TYPE_NAMES),
-  );
-  assertEquals(missing, []);
+  for (const part of used) {
+    if (part in CELL_TYPE_NAMES) {
+      assertEquals(cellTypeTooltip(part)?.rows[0].value, CELL_TYPE_NAMES[part]);
+    } else {
+      assertEquals(cellTypeTooltip(part), null, part);
+    }
+  }
 });
 
 Deno.test("site strings derive from the manifest", () => {

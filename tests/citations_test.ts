@@ -10,9 +10,10 @@
 
 import { assert, assertEquals } from "@std/assert";
 
-import { shortCitation, toCitation } from "../lib/citations.ts";
+import { isDoi, shortCitation, toCitation } from "../lib/citations.ts";
 import { referenceByPmid } from "../lib/data.ts";
 import type { Reference } from "../lib/types.ts";
+import doiCases from "./fixtures/doi_cases.json" with { type: "json" };
 
 function reference(fields: Partial<Reference>): Reference {
   return {
@@ -105,4 +106,10 @@ Deno.test("every committed reference composes a real citation", () => {
     assert(!short.startsWith("PMID "), `${pmid} fell back to its PMID`);
     assert(/\(\d{4}\)$/.test(short), `${pmid} has no year: ${short}`);
   }
+});
+
+Deno.test("a DOI is told apart from a PMID, by the rule the pipeline uses", () => {
+  // The same cases tests/pipeline/test_doi_references.py runs is_doi over.
+  for (const value of doiCases.doi) assert(isDoi(value), value);
+  for (const value of doiCases.notDoi) assert(!isDoi(value), value);
 });

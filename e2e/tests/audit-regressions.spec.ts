@@ -18,6 +18,7 @@ test("gene search finds a displayed gene symbol", async ({ page }) => {
 
 test("confidence sorts numerically with missing scores last in both directions", async ({ page }) => {
   test.skip(GENE_TOTAL === 0, "no committed genes to sort");
+  test.skip(EXPECTED.goldOnly, "gold-only: the table has no Confidence column");
   await page.goto("/genes");
   await pageSizeSelect(page).selectOption("100");
   await wholePage(page);

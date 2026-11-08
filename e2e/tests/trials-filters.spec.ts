@@ -7,11 +7,12 @@ import {
   filterGroup,
 } from "../helpers.ts";
 import {
+  DEFAULT_SUMMARY,
   EXPECTED,
   POPULATION_LABEL,
-  STATUS_SUMMARY,
   TRIAL_SHOWN,
   TRIAL_TOTAL,
+  withStatusSummary,
 } from "../fixtures/expected-data.ts";
 
 /**
@@ -36,33 +37,38 @@ const T = EXPECTED.trials;
  * The status group starts constrained (every status but Completed, Suspended
  * and Unknown), so its summary fragment rides along in the banner whenever
  * any other group is also active -- it is always last, since `statuses` is
- * the last key in `FILTERS`.
+ * the last key in `FILTERS`. Under `GOLD_ONLY` it starts at Show All instead
+ * and adds nothing; `withStatusSummary` covers both.
  */
+/** The status group's count badge on first paint. */
+const DEFAULT_STATUS_COUNT = EXPECTED.defaultStatusLabels.length > 0
+  ? String(EXPECTED.defaultStatusLabels.length)
+  : "All";
 
 test.beforeEach(async ({ page }) => {
   await page.goto("/trials");
 });
 
-test("starts with completed, suspended and not-stated trials hidden", async ({ page }) => {
-  await expectSummary(page, STATUS_SUMMARY);
+test("starts from the default status selection", async ({ page }) => {
+  // Every status but Completed, Suspended and Unknown, or Show All under
+  // gold-only (`defaultTrialStatuses`); the fixture derives which.
+  await expectSummary(page, DEFAULT_SUMMARY);
   await expectRowCount(page, TRIAL_SHOWN, TRIAL_TOTAL);
   for (const group of [EVIDENCE, REGISTRY, PHASE, POPULATION, SPONSOR]) {
     await expect(filterCount(page, group)).toHaveText("All");
   }
-  await expect(filterCount(page, STATUS)).toHaveText(
-    String(EXPECTED.defaultStatusLabels.length),
-  );
+  await expect(filterCount(page, STATUS)).toHaveText(DEFAULT_STATUS_COUNT);
 });
 
 test("the genetic-evidence binary group constrains at one selection", async ({ page }) => {
   await choice(page, EVIDENCE, "No").uncheck();
   await expectRowCount(page, T.evidenceYes, TRIAL_TOTAL);
-  await expectSummary(page, `Genetic evidence: Yes | ${STATUS_SUMMARY}`);
+  await expectSummary(page, withStatusSummary(`Genetic evidence: Yes`));
 
   await choice(page, EVIDENCE, "No").check();
   await choice(page, EVIDENCE, "Yes").uncheck();
   await expectRowCount(page, T.evidenceNo, TRIAL_TOTAL);
-  await expectSummary(page, `Genetic evidence: No | ${STATUS_SUMMARY}`);
+  await expectSummary(page, withStatusSummary(`Genetic evidence: No`));
 });
 
 /** The registry is derived from the ID prefix, not stored as its own column. */
@@ -72,7 +78,7 @@ test("registry filtering keys off the ID prefix", async ({ page }) => {
     await expectRowCount(page, registry.shown, TRIAL_TOTAL);
     await expectSummary(
       page,
-      `Clinical Trial Registry: ${registry.label} | ${STATUS_SUMMARY}`,
+      withStatusSummary(`Clinical Trial Registry: ${registry.label}`),
     );
     await choice(page, REGISTRY, registry.label).uncheck();
   }
@@ -84,7 +90,7 @@ test("registry filtering keys off the ID prefix", async ({ page }) => {
   await expectRowCount(page, T.registryUnion!, TRIAL_TOTAL);
   await expectSummary(
     page,
-    `Clinical Trial Registry: ${first.label}, ${second.label} | ${STATUS_SUMMARY}`,
+    withStatusSummary(`Clinical Trial Registry: ${first.label}, ${second.label}`),
   );
 });
 
@@ -100,7 +106,7 @@ test("phase I does not match phase II or III", async ({ page }) => {
   await expectRowCount(page, one.shown, TRIAL_TOTAL);
   await expectSummary(
     page,
-    `Clinical Trial Phase: ${one.label} | ${STATUS_SUMMARY}`,
+    withStatusSummary(`Clinical Trial Phase: ${one.label}`),
   );
 
   await choice(page, PHASE, one.label).uncheck();
@@ -112,7 +118,7 @@ test("phase I does not match phase II or III", async ({ page }) => {
   await expectRowCount(page, T.phaseUnion!, TRIAL_TOTAL);
   await expectSummary(
     page,
-    `Clinical Trial Phase: ${two.label}, ${three.label} | ${STATUS_SUMMARY}`,
+    withStatusSummary(`Clinical Trial Phase: ${two.label}, ${three.label}`),
   );
 });
 
@@ -122,7 +128,7 @@ test("population filtering", async ({ page }) => {
     await expectRowCount(page, population.shown, TRIAL_TOTAL);
     await expectSummary(
       page,
-      `${POPULATION}: ${population.label} | ${STATUS_SUMMARY}`,
+      withStatusSummary(`${POPULATION}: ${population.label}`),
     );
     await choice(page, POPULATION, population.label).uncheck();
   }
@@ -138,7 +144,7 @@ test("sponsor filtering handles industry subtypes", async ({ page }) => {
   await expectRowCount(page, academic.shown, TRIAL_TOTAL);
   await expectSummary(
     page,
-    `Sponsor Type: ${academic.label} | ${STATUS_SUMMARY}`,
+    withStatusSummary(`Sponsor Type: ${academic.label}`),
   );
 
   await choice(page, SPONSOR, academic.label).uncheck();
@@ -154,7 +160,7 @@ test("groups intersect", async ({ page }) => {
   await expectRowCount(page, shown, TRIAL_TOTAL);
   await expectSummary(
     page,
-    `Clinical Trial Registry: ${registry.label} | Clinical Trial Phase: ${phase.label} | ${STATUS_SUMMARY}`,
+    withStatusSummary(`Clinical Trial Registry: ${registry.label} | Clinical Trial Phase: ${phase.label}`),
   );
 });
 
@@ -168,7 +174,7 @@ test("impossible combinations show the empty state", async ({ page }) => {
   await expectRowCount(page, 0, TRIAL_TOTAL);
   await expectSummary(
     page,
-    `Clinical Trial Phase: ${phase.label} | ${POPULATION}: ${population.label} | ${STATUS_SUMMARY}`,
+    withStatusSummary(`Clinical Trial Phase: ${phase.label} | ${POPULATION}: ${population.label}`),
   );
 });
 
@@ -203,10 +209,11 @@ test("clearing all filters restores every group and the search together", async 
 
   await page.getByRole("button", { name: "Clear all filters" }).click();
 
-  // `reset` returns every group to its seeded default, and the status
-  // group's default is "every status but Completed, Suspended and Unknown"
-  // -- the summary reads that line, not "None".
-  await expectSummary(page, STATUS_SUMMARY);
+  // `reset` returns every group to its seeded default. The status group's
+  // default is "every status but Completed, Suspended and Unknown", whose
+  // line the summary then reads rather than "None" -- or, under gold-only,
+  // Show All, which reads "None".
+  await expectSummary(page, DEFAULT_SUMMARY);
   await expectRowCount(page, TRIAL_SHOWN, TRIAL_TOTAL);
   await expect(search).toHaveValue("");
   await expect(search).toBeFocused();
@@ -221,10 +228,13 @@ test("clearing all filters restores every group and the search together", async 
       }),
     ).toHaveCount(1);
   }
-  await expect(choice(page, STATUS, "Show All")).not.toBeChecked();
+  const startsAtShowAll = EXPECTED.defaultStatusLabels.length === 0;
+  await expect(choice(page, STATUS, "Show All")).toBeChecked({
+    checked: startsAtShowAll,
+  });
   await expect(
     filterGroup(page, STATUS).getByRole("checkbox", { checked: true }),
-  ).toHaveCount(EXPECTED.defaultStatusLabels.length);
+  ).toHaveCount(startsAtShowAll ? 1 : EXPECTED.defaultStatusLabels.length);
 
   const first = T.phases[0];
   await choice(page, PHASE, first.label).check();

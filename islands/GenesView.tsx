@@ -19,17 +19,20 @@ import {
   TableShell,
 } from "../components/TableShell.tsx";
 import {
-  GWAS_TRAIT_CHOICES,
   hasRealValues,
   OMICS_CHOICES,
   YES_NO_CHOICES,
 } from "../lib/constants.ts";
 import { CELL_TYPES_LABEL } from "../lib/disease/cell_types.ts";
 import { countBy } from "../lib/collections.ts";
-import { shortCitation, toCitation } from "../lib/citations.ts";
+import { isDoi, shortCitation, toCitation } from "../lib/citations.ts";
 import { referenceByPmid } from "../lib/data/references.ts";
 import { genes } from "../lib/data/genes.ts";
-import { filterGenes, formatOmicsValue } from "../lib/filters.ts";
+import {
+  filterGenes,
+  formatOmicsValue,
+  gwasTraitChoices,
+} from "../lib/filters.ts";
 import { isAbsent } from "../lib/sentinels.ts";
 import { chromosomeOf, CHROMOSOMES } from "../lib/sorting.ts";
 import {
@@ -42,6 +45,7 @@ import {
   splitCellTypes,
 } from "../lib/tooltips.ts";
 import { formatConfidence } from "../lib/format.ts";
+import { GOLD_ONLY } from "../lib/gold_only.ts";
 import type { TooltipContent } from "../lib/tooltip_content.ts";
 import type { Gene } from "../lib/types.ts";
 
@@ -62,6 +66,19 @@ const HEADER_GROUPS = [
   },
   { label: "Extraction Provenance", span: 2, border: true },
 ] as const;
+
+/**
+ * The columns only a pipeline extraction fills. The hand-curated rows carry
+ * neither a source quote nor a confidence score, so under `GOLD_ONLY` the two
+ * columns and their header group are left out rather than shown empty.
+ */
+const PROVENANCE_COLUMNS: ReadonlySet<string> = new Set([
+  "sourceQuote",
+  "confidence",
+]);
+const GOLD_HEADER_GROUPS = HEADER_GROUPS.filter((group) =>
+  group.label !== "Extraction Provenance"
+);
 
 /** Columns that start a visual group, matching the header group boundaries. */
 const GROUP_START_COLUMNS = new Set([
@@ -181,12 +198,35 @@ function ReferenceCitations({ values }: { values: readonly string[] }) {
       {values.map((pmid, index) => (
         <span key={`${pmid}-${index}`}>
           {index > 0 && " "}
-          <Tooltip content={referenceTooltip(pmid)}>
-            <ReferenceCitation pmid={pmid} />
-          </Tooltip>
+          {isDoi(pmid)
+            ? <DoiReference doi={pmid.trim()} />
+            : (
+              <Tooltip content={referenceTooltip(pmid)}>
+                <ReferenceCitation pmid={pmid} />
+              </Tooltip>
+            )}
         </span>
       ))}
     </div>
+  );
+}
+
+/**
+ * A reference the curators cite by DOI -- a preprint with no PMID, so no
+ * PubMed citation to show. The DOI itself is the citation: it reads as a link
+ * to the resolver rather than as a PMID whose citation failed to resolve.
+ * A DOI suffix may hold any printable character, so the link encodes it
+ * (`%` and non-ASCII above all) while the text shows it as written.
+ */
+function DoiReference({ doi }: { doi: string }) {
+  return (
+    <a
+      href={`https://doi.org/${encodeURI(doi)}`}
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      {doi}
+    </a>
   );
 }
 
@@ -206,24 +246,21 @@ function referencesKey(values: readonly string[]): string | undefined {
 }
 
 /**
- * The brain cell types cell: each abbreviation gets its own tooltip, unless
- * the value is one of the export's absent sentinels, which renders as
- * `<Absent />` before any splitting is attempted.
- *
- * A part the vocabulary does not recognise renders plain rather than sinking
- * the whole cell back to raw text: one unrecognised abbreviation in a chain
- * used to cost the tooltip on every other part in it too.
- */
-/**
  * The cell types as the cell prints them -- `FB > PC > SMC` for the stored
- * `FB>PC>SMC` -- so the search box finds what the reader can see.
+ * `FB>PC>SMC`, `Mouse: FB > PC; Human: EC` for a labelled value -- so the
+ * search box finds what the reader can see.
  */
 function cellTypesText(value: string): string {
-  const { parts, separators } = splitCellTypes(value);
+  const { parts, chains } = splitCellTypes(value);
   if (parts.length === 0) return value;
-  return parts
-    .map((part, i) => i > 0 ? `${separators[i - 1] ?? ">"} ${part}` : part)
-    .join(" ");
+  return chains
+    .map(({ label, parts, separators }) => {
+      const chain = parts
+        .map((part, i) => i > 0 ? `${separators[i - 1] ?? ">"} ${part}` : part)
+        .join(" ");
+      return label === null ? chain : `${label}: ${chain}`;
+    })
+    .join("; ");
 }
 
 /**
@@ -238,18 +275,34 @@ function cellTypesKey(value: string): string | undefined {
   return shown === value ? value : `${value} ${shown}`;
 }
 
+/**
+ * The brain cell types cell: each abbreviation gets its own tooltip, unless
+ * the value is one of the export's absent sentinels, which renders as
+ * `<Absent />` before any splitting is attempted.
+ *
+ * A part the vocabulary does not recognise renders plain rather than sinking
+ * the whole cell back to raw text: one unrecognised abbreviation in a chain
+ * used to cost the tooltip on every other part in it too. A labelled value
+ * prints each chain after its label, the chains separated by `;` as stored.
+ */
 export function BrainCellTypesCell({ value }: { value: string }) {
   if (isAbsent(value)) return <Absent />;
 
-  const { parts, separators } = splitCellTypes(value);
+  const { parts, chains } = splitCellTypes(value);
   if (parts.length === 0) return value;
 
   return (
     <>
-      {parts.map((part, i) => (
-        <span key={part + i}>
-          {i > 0 && ` ${separators[i - 1] ?? ">"} `}
-          <Tooltip content={cellTypeTooltip(part)}>{part}</Tooltip>
+      {chains.map(({ label, parts, separators }, c) => (
+        <span key={`${label}-${c}`}>
+          {c > 0 && "; "}
+          {label !== null && `${label}: `}
+          {parts.map((part, i) => (
+            <span key={part + i}>
+              {i > 0 && ` ${separators[i - 1] ?? ">"} `}
+              <Tooltip content={cellTypeTooltip(part)}>{part}</Tooltip>
+            </span>
+          ))}
         </span>
       ))}
     </>
@@ -358,29 +411,45 @@ const COLUMNS = column.columns([
   ),
 ]);
 
-const FILTERS = {
-  mendelianRandomization: {
-    label: "Mendelian randomization performed",
-    choices: YES_NO_CHOICES,
-    mode: "binary",
-  },
-  gwasTraits: {
-    label: "GWAS Traits",
-    choices: GWAS_TRAIT_CHOICES,
-  },
-  omics: {
-    label: "Evidence From Other Omics Studies",
-    choices: OMICS_CHOICES,
-  },
-} as const;
+/** The sidebar's groups; the trait choices follow the rows (`gwasTraitChoices`). */
+function filtersFor(rows: readonly Gene[], goldOnly: boolean) {
+  return {
+    mendelianRandomization: {
+      label: "Mendelian randomization performed",
+      choices: YES_NO_CHOICES,
+      mode: "binary",
+    },
+    gwasTraits: {
+      label: "GWAS Traits",
+      choices: gwasTraitChoices(rows, goldOnly),
+    },
+    omics: {
+      label: "Evidence From Other Omics Studies",
+      choices: OMICS_CHOICES,
+    },
+  } as const;
+}
+
+/** The table without the provenance columns, for `GOLD_ONLY`. */
+const GOLD_COLUMNS = COLUMNS.filter((def) =>
+  !("id" in def && def.id !== undefined && PROVENANCE_COLUMNS.has(def.id))
+);
 
 interface GenesViewProps {
   /** The rows to render; the committed table by default. Tests hand in synthetic rows. */
   rows?: readonly Gene[];
+  /**
+   * Whether to leave out the provenance columns and offer only the traits the
+   * rows carry; `GOLD_ONLY` by default.
+   */
+  goldOnly?: boolean;
 }
 
-export default function GenesView({ rows = genes }: GenesViewProps = {}) {
-  const { values, controls, summary, reset } = useCheckboxFilters(FILTERS);
+export default function GenesView(
+  { rows = genes, goldOnly = GOLD_ONLY }: GenesViewProps = {},
+) {
+  const filters = useMemo(() => filtersFor(rows, goldOnly), [rows, goldOnly]);
+  const { values, controls, summary, reset } = useCheckboxFilters(filters);
   const filtered = useMemo(
     () => filterGenes(rows, values),
     [rows, values],
@@ -394,7 +463,7 @@ export default function GenesView({ rows = genes }: GenesViewProps = {}) {
   const table = useTable({
     features: SHELL_FEATURES,
     data: filtered,
-    columns: COLUMNS,
+    columns: goldOnly ? GOLD_COLUMNS : COLUMNS,
     initialState: { pagination: { pageIndex: 0, pageSize: 10 } },
     // A column's key is `undefined` exactly where its cell shows the absent
     // dash (`presentOrUndefined`), and those rows sort last either way.
@@ -456,7 +525,7 @@ export default function GenesView({ rows = genes }: GenesViewProps = {}) {
 
       <TableShell
         table={table}
-        headerGroups={HEADER_GROUPS}
+        headerGroups={goldOnly ? GOLD_HEADER_GROUPS : HEADER_GROUPS}
         groupStartColumns={GROUP_START_COLUMNS}
         identityColumn="gene"
         filterSummary={summary}

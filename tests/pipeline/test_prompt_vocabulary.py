@@ -78,6 +78,20 @@ _ADMITTED_UNASKED: Final[dict[str, str]] = {
         "data/table1.json. Reconciling them is a curation decision, not a "
         "test change."
     ),
+    **{
+        term: (
+            "Curated gold traits, review period. The dashboard shows only "
+            "the hand-curated gold data for now, and its wording is not the "
+            "prompt's."
+        )
+        for term in (
+            "MTAG (all ICH, SVS, WMH, FA, MD, AD)",
+            "ICH",
+            "non-lobar ICH",
+            "All ICH & lobar ICH only",
+            "lacunes (suggestive significance)",
+        )
+    },
 }
 
 

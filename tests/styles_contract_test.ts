@@ -1549,7 +1549,26 @@ Deno.test("the About notice is not a framed surface", () => {
   const warning = css.match(/\.notice-warning\s*\{([^}]*)\}/)?.[1] ?? "";
   assertMatch(warning, /--svd-notice-color:\s*var\(--svd-color-danger\);/);
   assert(!/--svd-tint/.test(notice), "the notice reads no recipe parameter");
-  assert(!/\.notice(?:-warning)?::after/.test(css), "no corner marks");
+  assert(
+    !/\.notice(?:-warning|-neutral)?::after/.test(css),
+    "no corner marks",
+  );
+});
+
+Deno.test("the neutral notice takes the accent, in both themes", () => {
+  // The gold-only note informs; in the danger red it read as an alarm.
+  const neutral = css.match(/\.notice-neutral\s*\{([^}]*)\}/)?.[1] ?? "";
+  assertMatch(neutral, /--svd-notice-color:\s*var\(--svd-color-accent\);/);
+  for (const theme of ["light", "dark"] as const) {
+    const stripe = tokenValue("--svd-color-accent", theme);
+    assert(
+      stripe !== tokenValue("--svd-color-danger", theme),
+      `${theme}: the neutral stripe is the danger colour`,
+    );
+    // WCAG 1.4.11: the stripe is the notice's one non-text cue.
+    const ratio = contrast(stripe, tokenValue("--svd-surface", theme));
+    assert(ratio >= 3, `${theme} stripe: ${ratio.toFixed(2)}:1`);
+  }
 });
 
 Deno.test("a tip box is a note, not a framed panel", () => {

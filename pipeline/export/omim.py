@@ -15,6 +15,8 @@ arrive that way.
 
 import csv
 import io
+import re
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any, Final
 
@@ -30,6 +32,10 @@ _COLUMNS: Final[tuple[str, ...]] = (
 )
 
 DEFAULT_OMIM_CSV: Final[Path] = OMIM_CSV_PATH
+
+# A published monogenic link is a six-digit MIM number or a sentinel such as
+# "(none found)"; only the numbers name an OMIM entry.
+_MIM_NUMBER: Final[re.Pattern[str]] = re.compile(r"\d{6}")
 
 
 def read_omim_csv(path: Path = DEFAULT_OMIM_CSV) -> list[dict[str, Any]]:
@@ -53,3 +59,19 @@ def read_omim_csv(path: Path = DEFAULT_OMIM_CSV) -> list[dict[str, Any]]:
             row[column] = int(value) if column == "omim_num" and value else value
         rows.append(row)
     return rows
+
+
+def referenced_omim_rows(
+    rows: Iterable[dict[str, Any]], links: Iterable[str]
+) -> list[dict[str, Any]]:
+    """The OMIM rows a published gene links to, in the CSV's order.
+
+    `disease/omim_info.csv` is a reference table that outlives the genes
+    that cite it: a row for a gene curation removed, or a number nobody
+    links to, would otherwise ship in a public bundle and be read as part
+    of the dashboard's evidence. `links` are the published genes' monogenic
+    links; anything in them that is not a six-digit number is ignored.
+    """
+    numbers = (link.strip() for link in links)
+    wanted = {int(number) for number in numbers if _MIM_NUMBER.fullmatch(number)}
+    return [row for row in rows if row["omim_num"] in wanted]

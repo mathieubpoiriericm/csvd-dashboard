@@ -2575,6 +2575,14 @@ svg {
   --svd-notice-color: var(--svd-color-danger);
 }
 
+/* A notice that informs rather than warns -- the gold-only note on the About
+   page says what the data is, not that something went wrong -- so it takes
+   the accent, the page's own steel, instead of the danger red. The dark
+   blocks override the accent, so the stripe follows the theme. */
+.notice-neutral {
+  --svd-notice-color: var(--svd-color-accent);
+}
+
 /* === ADAPT WIZARD === */
 
 /* One column of steps; the stepper is a rail of buttons above the current

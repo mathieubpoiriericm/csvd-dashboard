@@ -1,0 +1,24 @@
+{
+  "$comment": "The DOI rule's cases, read by both of its tests -- tests/citations_test.ts for lib/citations.ts's isDoi and tests/pipeline/test_doi_references.py for pipeline/export/text.py's is_doi -- so the two predicates cannot drift apart. A DOI is 10., a registrant code of four to nine ASCII digits, a slash and a suffix with no whitespace, around any surrounding whitespace.",
+  "doi": [
+    "10.21203/rs.3.rs-5926137/v1",
+    " 10.1212/NXG.0000000000200069 ",
+    "10.1016/S1474-4422(23)00131-X",
+    "10.123456789/x"
+  ],
+  "notDoi": [
+    "37063705",
+    "(none found)",
+    "(reference needed)",
+    "",
+    "1/2",
+    "10.1000",
+    "10.1/x",
+    "10.1234567890/x",
+    "10.21203/",
+    "10.1234/two words",
+    "10.1234/a b",
+    "10.١٢٣٤/x",
+    "doi:10.1234/x"
+  ]
+}

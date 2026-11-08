@@ -1,7 +1,7 @@
 /**
- * The cSVD radar, pinned: four sectors and their drug counts, the nine empty
- * cells, 102 markers, the evidence-ring and record-flag tallies, the 13
- * families and 46 mechanisms the committed rows draw.
+ * The cSVD radar, pinned: four sectors and their drug counts, the 21 empty
+ * cells, 16 markers, the evidence-ring tallies, the 6 families and 11
+ * mechanisms the committed gold rows draw.
  *
  * The rules that hold for any dataset are in tests/timeline_layout_test.ts;
  * this file is the record of what the committed cSVD data draws, mirrored in
@@ -11,23 +11,38 @@
 import { assert, assertAlmostEquals, assertEquals } from "@std/assert";
 
 import { trials } from "../../lib/data.ts";
+import { GOLD_ONLY } from "../../lib/gold_only.ts";
 import { computeTimelineLayout, encoding } from "../../lib/timeline.ts";
 
 const layout = computeTimelineLayout(trials);
 
-/** Empty cells on the committed data — the Python test pins the same list. */
+/**
+ * Empty cells on the committed data — the Python test pins the same list.
+ * The gold trials fill seven cells: CAA/II, Cognitive Impairment/III and II,
+ * Stroke/III and II, SVD/II and I (THN391's "Ib", on its parent's ring).
+ */
 const EMPTY_CELLS = [
   ["CAA", "IV"],
+  ["CAA", "III"],
   ["CAA", "II/III"],
+  ["CAA", "I/II"],
   ["CAA", "I"],
   ["CAA", "(unknown)"],
+  ["Cognitive Impairment", "IV"],
+  ["Cognitive Impairment", "II/III"],
   ["Cognitive Impairment", "I/II"],
+  ["Cognitive Impairment", "I"],
+  ["Cognitive Impairment", "(unknown)"],
+  ["Stroke", "IV"],
+  ["Stroke", "II/III"],
+  ["Stroke", "I/II"],
   ["Stroke", "I"],
-  // SVD/III emptied when the three arms of NCT03082014 -- amlodipine,
-  // losartan and atenolol, all TERMINATED -- stopped being published.
+  ["Stroke", "(unknown)"],
+  ["SVD", "IV"],
   ["SVD", "III"],
   ["SVD", "II/III"],
   ["SVD", "I/II"],
+  ["SVD", "(unknown)"],
 ];
 
 Deno.test("sector spans are proportional to unique drugs and sum to a full turn", () => {
@@ -37,17 +52,17 @@ Deno.test("sector spans are proportional to unique drugs and sum to a full turn"
     "Stroke",
     "SVD",
   ]);
-  assertEquals(layout.sectors.map((s) => s.drugCount), [8, 32, 14, 23]);
-  // 77 unique drugs over the four populations; CAA holds 8 of them.
-  assertAlmostEquals(layout.sectors[0].endDeg, 8 / 77 * 360, 1e-9);
+  assertEquals(layout.sectors.map((s) => s.drugCount), [3, 2, 4, 3]);
+  // 12 unique drugs over the four populations; CAA holds 3 of them.
+  assertAlmostEquals(layout.sectors[0].endDeg, 3 / 12 * 360, 1e-9);
   assertAlmostEquals(
     layout.sectors[2].endDeg - layout.sectors[2].startDeg,
-    14 / 77 * 360,
+    4 / 12 * 360,
     1e-9,
   );
 });
 
-Deno.test("twenty-eight cells, nine of them empty", () => {
+Deno.test("twenty-eight cells, twenty-one of them empty", () => {
   assertEquals(layout.cells.length, 28);
   const empty = layout.cells.filter((c) => !c.filled)
     .map((c) => [c.population, c.phase]);
@@ -55,20 +70,19 @@ Deno.test("twenty-eight cells, nine of them empty", () => {
 });
 
 Deno.test("every committed trial is a marker", () => {
-  assertEquals(layout.markers.length, 102);
+  assertEquals(layout.markers.length, 16);
 });
 
-Deno.test("the seven unphased SVD trials share a cell and alternate their radius", () => {
-  // This was the pair of stroke trials until one of them, NCT03783754, was
-  // published as TERMINATED and stopped being drawn.
+Deno.test("the six Phase III Stroke trials share a cell and alternate their radius", () => {
+  // Before gold-only this was the seven unphased SVD trials; the gold table
+  // states a phase for every trial, and Stroke/III is its fullest cell.
   const shared = layout.markers.filter((m) =>
-    m.population === "SVD" && m.phase === "(unknown)"
+    m.population === "Stroke" && m.phase === "III"
   );
-  assertEquals(shared.length, 7);
+  assertEquals(shared.length, 6);
   assert(shared[0].r < shared[1].r);
-  // Twice 18 % of the unknown-phase ring's thickness (0.15 of the 416
-  // radius, which the two seamless rings deliberately did not narrow).
-  assertAlmostEquals(shared[1].r - shared[0].r, 2 * 0.18 * 62.4, 1e-9);
+  // Twice 18 % of the Phase III ring's thickness (0.09 of the 416 radius).
+  assertAlmostEquals(shared[1].r - shared[0].r, 2 * 0.18 * 0.09 * 416, 1e-9);
 });
 
 Deno.test("population labels anchor away from the centre line and wrap the SVD label", () => {
@@ -96,27 +110,33 @@ Deno.test("a rim band frames each of the four populated sectors", () => {
   assertEquals(partial.rimBands.map((b) => b.population), ["Stroke"]);
 });
 
-Deno.test("the family legend carries 13 families and 46 mechanisms", () => {
-  // "Other targeted" emptied when NCT04334408 (fremanezumab, WITHDRAWN)
-  // stopped being published; the encoding keeps the entry.
-  assertEquals(layout.familyLegend.length, 13);
-  assertEquals(layout.familyLegend.flatMap((f) => f.entries).length, 46);
+Deno.test("the family legend carries 6 families and 11 mechanisms", () => {
+  // The legend lists only what the rows draw; the encoding keeps every
+  // family and mechanism the pipeline's trials used.
+  assertEquals(layout.familyLegend.length, 6);
+  assertEquals(layout.familyLegend.flatMap((f) => f.entries).length, 11);
 });
 
 Deno.test("genetics assessed is a ring; only a bare default draws none", () => {
-  // 90 of the committed rows carry `geneticEvidence: "No"` with no target
-  // named: the sweep that added them defaulted the column rather than
-  // assessing it. Those are `unassessed`, and the nine rows that name a target
-  // are the real negative findings.
+  // Five gold rows carry `geneticEvidence: "No"` with no target named, so
+  // genetics was not assessed for them; the six that name a target and say
+  // No are the real negative findings, and five name a supported target.
   const states = layout.markers.map((m) => m.evidenceState);
-  assertEquals(states.filter((s) => s === "supported").length, 12);
-  assertEquals(states.filter((s) => s === "unsupported").length, 9);
-  assertEquals(states.filter((s) => s === "unassessed").length, 81);
-  assertEquals(layout.markers.filter((m) => m.evidenceRing).length, 21);
-  assertEquals(layout.markers.filter((m) => m.evidenceDash).length, 9);
+  assertEquals(states.filter((s) => s === "supported").length, 5);
+  assertEquals(states.filter((s) => s === "unsupported").length, 6);
+  assertEquals(states.filter((s) => s === "unassessed").length, 5);
+  assertEquals(layout.markers.filter((m) => m.evidenceRing).length, 11);
+  assertEquals(layout.markers.filter((m) => m.evidenceDash).length, 6);
 });
 
-Deno.test("the record flag marks 16 thin records, by named reason", () => {
+// Gold-only: no gold trial is a thin record -- every mechanism is
+// characterised and every enrolment and completion date stated -- so the
+// committed data cannot exercise the flag. Its rules are tested on synthetic
+// rows in tests/timeline_layout_test.ts.
+Deno.test({
+  name: "the record flag marks 16 thin records, by named reason",
+  ignore: GOLD_ONLY,
+}, () => {
   const flagged = layout.markers.filter((m) => m.flagReasons.length > 0);
   assertEquals(flagged.length, 16);
   const counts = new Map<string, number>();
@@ -134,12 +154,12 @@ Deno.test("the record flag marks 16 thin records, by named reason", () => {
   assertEquals(multiple.map((m) => m.trial.registryId), []);
 });
 
-Deno.test("the Stroke trials alone fill six of the seven rings", () => {
+Deno.test("the Stroke trials alone fill two of the seven rings", () => {
   const stroke = trials.filter((t) => t.targetPopulation === "Stroke");
   const partial = computeTimelineLayout(stroke);
   assertEquals(partial.sectors.length, 4);
   assertEquals(partial.sectors.filter((s) => s.drugCount === 0).length, 3);
-  assertEquals(partial.cells.filter((c) => c.filled).length, 6);
+  assertEquals(partial.cells.filter((c) => c.filled).length, 2);
   assertEquals(partial.markers.length, stroke.length);
   const sector = partial.sectors.find((s) => s.key === "Stroke")!;
   assertEquals([sector.startDeg, sector.endDeg], [0, 360]);

@@ -1720,6 +1720,13 @@ class TestExternalSyncAndDispatcher:
 
 
 class TestMainCli:
+    @pytest.fixture(autouse=True)
+    def _not_gold_only(self, monkeypatch) -> None:
+        # The online-mode cases select --clinical-trials or the bare --pubmed
+        # default, which main() refuses while GOLD_ONLY is true; the refusal
+        # has its own tests in tests/pipeline/test_gold_only.py.
+        monkeypatch.setattr(pipeline_main, "gold_only", lambda: False)
+
     def test_local_pdf_mode_dispatches(
         self, tmp_path: Path, monkeypatch, mocker
     ) -> None:
@@ -2657,6 +2664,8 @@ class TestCliEdges:
             "pipeline.main._run_selected_pipelines",
             new=AsyncMock(side_effect=asyncio.CancelledError),
         )
+        # A bare run selects --pubmed, which gold-only would refuse first.
+        monkeypatch.setattr(pipeline_main, "gold_only", lambda: False)
         monkeypatch.setattr(pipeline_main.sys, "argv", ["pipeline"])
 
         with pytest.raises(SystemExit) as exc_info:

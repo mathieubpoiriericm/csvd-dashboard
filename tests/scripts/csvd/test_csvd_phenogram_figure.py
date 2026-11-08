@@ -1,4 +1,4 @@
-"""The cSVD karyogram, pinned: the 20 chromosomes, 87 blocks, CENPF's row.
+"""The cSVD karyogram, pinned: the 22 chromosomes, 114 blocks, CENPF's row.
 
 The numbers here are the ones tests/csvd/phenogram_layout_test.ts pins for
 lib/phenogram.ts over the committed cSVD genes. The rules that hold for any
@@ -36,10 +36,12 @@ DRAWN = [
     "9",
     "10",
     "11",
+    "12",
     "13",
     "14",
     "16",
     "17",
+    "18",
     "19",
     "20",
     "21",
@@ -73,13 +75,17 @@ def by_gene(layout, symbol: str):
 
 
 class TestPlacement:
-    def test_every_gene_is_placed_on_twenty_chromosomes(self, layout) -> None:
-        # X joined the list when the 365-day run added GLA (Xq22.1) and 18
-        # when it added AQP4 (18q11.2); the 2026-11-03 re-extraction found
-        # GLA again but not AQP4. Mirrored in
-        # tests/csvd/phenogram_layout_test.ts.
-        assert len(layout.blocks) == 87
-        assert layout.unplaced == ()
+    def test_every_placeable_gene_is_placed_on_twenty_two_chromosomes(
+        self, layout
+    ) -> None:
+        # The gold-only switch publishes the hand-curated table, which puts
+        # genes on 12 and 18 as well and writes MSMP's band as "9q13.3", which
+        # hg38 does not have: gold is published verbatim, so MSMP is left off
+        # the figure. Mirrored in tests/csvd/phenogram_layout_test.ts.
+        assert len(layout.blocks) == 114
+        assert [
+            f"{g['gene']} {g['chromosomalLocation']}" for g in layout.unplaced
+        ] == ["MSMP 9q13.3"]
         assert [c.name for c in layout.chromosomes] == DRAWN
         assert [[c.name for c in row] for row in layout.rows] == [
             DRAWN[:10],
@@ -102,7 +108,7 @@ class TestPlacement:
         """
         cenpf = by_gene(layout, "CENPF")
         assert cenpf.marker_y == pytest.approx(699.0086508393023)
-        assert cenpf.y == pytest.approx(642)
+        assert cenpf.y == pytest.approx(572)
 
 
 class TestEncoding:
@@ -111,7 +117,8 @@ class TestEncoding:
     ) -> None:
         cenpf = by_gene(layout, "CENPF")
         assert [p.label for p in cenpf.pills] == ["WM-PVS", "HIP-PVS", "PSMD"]
-        assert [g.key for g in cenpf.glyphs] == ["omics", "monogenic"]
+        # Gold gives CENPF no other-omics entry, so the omics glyph is gone.
+        assert [g.key for g in cenpf.glyphs] == ["monogenic"]
         assert cenpf.pills[0].fill == "#d8edff"
         assert cenpf.pills[0].stroke == "#2a78d6"
         assert cenpf.height == block_height(3, encoding["layout"]) == 64
@@ -122,8 +129,9 @@ class TestEncoding:
             "monogenic",
             "mr",
         ]
+        # LAMB1 carries gold's OMIM 621424, so it has the monogenic glyph.
         lamb1 = next(g for g in genes if g["gene"] == "LAMB1")
-        assert glyphs_for(lamb1, encoding) == ()
+        assert [g.key for g in glyphs_for(lamb1, encoding)] == ["monogenic"]
 
 
 class TestRender:
@@ -138,7 +146,7 @@ class TestRender:
         target = tmp_path / "phenogram.svg"
         fig.savefig(target, format="svg", bbox_inches="tight")
         svg = target.read_text(encoding="utf-8")
-        assert svg.count('id="gene-') == 87
+        assert svg.count('id="gene-') == 114
         # A gene symbol can carry a "/" (COL4A1/2); the gid is sanitized so
         # the id stays a valid XML Name.
         assert 'id="gene-COL4A1-2"' in svg
@@ -146,7 +154,7 @@ class TestRender:
         # Text stays text: real <text> elements, not glyph outlines. Comments
         # and gids carry the symbols regardless of svg.fonttype, so look for
         # the symbol as element content.
-        assert svg.count("<text") >= 87
+        assert svg.count("<text") >= 114
         assert re.search(r"<text[^>]*>(?:<tspan[^>]*>)?COL4A1/2<", svg)
 
     def test_main_draws_the_committed_figure(self, tmp_path: Path) -> None:

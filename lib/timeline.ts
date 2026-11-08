@@ -17,6 +17,7 @@
 import appearanceJson from "./timeline_encoding.json" with { type: "json" };
 import diseaseJson from "../disease/timeline.json" with { type: "json" };
 import { groupBy, uniqueCount } from "./collections.ts";
+import { parentPhase } from "./phases.ts";
 import type { Trial } from "./types.ts";
 import { NONE, UNKNOWN } from "./sentinels.ts";
 
@@ -192,6 +193,11 @@ export interface Marker {
   trial: Trial;
   population: string;
   populationLabel: string;
+  /**
+   * The ring the marker sits on. A sub-phase sits on its parent's ring
+   * (`parentPhase`), so text that names the trial's phase prints
+   * `trial.clinicalTrialPhase` instead.
+   */
   phase: string;
   thetaDeg: number;
   r: number;
@@ -431,7 +437,7 @@ export function computeTimelineLayout(
     const populationRows = rowsByPopulation.get(sector.key) ?? [];
     for (const ring of enc.rings) {
       const inCell = populationRows.filter((row) =>
-        row.clinicalTrialPhase === ring.phase
+        parentPhase(row.clinicalTrialPhase) === ring.phase
       );
       const filled = inCell.length > 0;
       cells.push({

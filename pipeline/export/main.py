@@ -6,9 +6,9 @@ Replaces data-prep/export.R. Run with:  uv run python -m pipeline.export.main
 import asyncio
 import logging
 import tempfile
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from pathlib import Path
-from typing import Final
+from typing import Any, Final
 
 import asyncpg
 from dotenv import load_dotenv
@@ -25,10 +25,10 @@ from pipeline.export.lookups import (
     read_sync_runs,
     read_uniprot_info,
 )
-from pipeline.export.omim import read_omim_csv
+from pipeline.export.omim import read_omim_csv, referenced_omim_rows
 from pipeline.export.publish import publish_atomically
 from pipeline.export.tables import clean_gene_row, clean_trial_row
-from pipeline.export.text import split_genetic_targets
+from pipeline.export.text import is_doi, split_genetic_targets
 from pipeline.export.writer import to_camel, write_rows, write_value
 
 logger = logging.getLogger(__name__)
@@ -75,6 +75,22 @@ _GENE_COLUMNS: Final[tuple[str, ...]] = (
 def _publishable(row: Mapping[str, object]) -> dict[str, object]:
     """Drop database-only metadata."""
     return {key: value for key, value in row.items() if key not in _METADATA_COLUMNS}
+
+
+def _pubmed_ids(genes: Iterable[Mapping[str, Any]]) -> list[str]:
+    """The distinct PMIDs among the genes' references, in first-seen order.
+
+    A DOI reference has no PubMed citation, so it gets no refs.json row; the
+    dashboard links it to doi.org from the reference id itself.
+    """
+    return list(
+        dict.fromkeys(
+            ref
+            for row in genes
+            for ref in row["References"]
+            if not is_doi(ref) and ref.isdigit() and not ref.startswith("0")
+        )
+    )
 
 
 def _gene_select() -> str:
@@ -320,18 +336,17 @@ async def run_export(target_dir: Path | None = None) -> None:
         write_rows(await read_uniprot_info(gene_symbols), stage("protein_info.json"))
 
         step("[6/11] PubMed references")
-        pmids = list(
-            dict.fromkeys(
-                ref
-                for row in genes
-                for ref in row["References"]
-                if ref.isdigit() and not ref.startswith("0")
-            )
-        )
+        pmids = _pubmed_ids(genes)
         write_rows(await read_pubmed_refs(pmids), stage("refs.json"))
 
         step("[7/11] OMIM reference table")
-        write_rows(read_omim_csv(), stage("omim_info.json"))
+        monogenic_links = [
+            link for row in genes for link in row["Link to Monogenic Disease"]
+        ]
+        write_rows(
+            referenced_omim_rows(read_omim_csv(), monogenic_links),
+            stage("omim_info.json"),
+        )
 
         step("[8/11] Latest pipeline run status")
         write_value(await read_pipeline_status(), stage("pipeline_status.json"))

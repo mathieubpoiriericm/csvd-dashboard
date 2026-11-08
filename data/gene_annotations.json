@@ -1,268 +1,5 @@
 [
   {
-    "geneSymbol": "ABCC6",
-    "groupKey": "MONDO:0008333",
-    "diseaseName": "Pseudoxanthoma elasticum, forme fruste",
-    "omimId": "177850",
-    "mondoId": "MONDO:0008333",
-    "orphacode": "758",
-    "medgenId": "C1867450",
-    "omimSeries": [],
-    "classification": "Pathogenic/Likely pathogenic",
-    "recordCount": 64,
-    "relatedXrefs": [
-      {
-        "id": "MONDO:0009925",
-        "relation": "E"
-      },
-      {
-        "id": "MeSH:D011561",
-        "relation": "E"
-      },
-      {
-        "id": "OMIM:264800",
-        "relation": "E"
-      },
-      {
-        "id": "UMLS:C0033847",
-        "relation": "E"
-      }
-    ],
-    "sourceVersions": {
-      "clinvar": null,
-      "orphadata": "2026-06-23 07:53:50"
-    }
-  },
-  {
-    "geneSymbol": "ABCC6",
-    "groupKey": "MONDO:0009925",
-    "diseaseName": "Autosomal recessive inherited pseudoxanthoma elasticum",
-    "omimId": "264800",
-    "mondoId": "MONDO:0009925",
-    "orphacode": "758",
-    "medgenId": "CN032334",
-    "omimSeries": [],
-    "classification": "Pathogenic/Likely pathogenic",
-    "recordCount": 136,
-    "relatedXrefs": [
-      {
-        "id": "MeSH:D011561",
-        "relation": "E"
-      },
-      {
-        "id": "OMIM:177850",
-        "relation": "BTNT"
-      },
-      {
-        "id": "UMLS:C0033847",
-        "relation": "E"
-      }
-    ],
-    "sourceVersions": {
-      "clinvar": null,
-      "orphadata": "2026-06-23 07:53:50"
-    }
-  },
-  {
-    "geneSymbol": "ABCC6",
-    "groupKey": "MONDO:0013768",
-    "diseaseName": "Arterial calcification, generalized, of infancy, 2",
-    "omimId": "614473",
-    "mondoId": "MONDO:0013768",
-    "orphacode": "51608",
-    "medgenId": "C3276161",
-    "omimSeries": [],
-    "classification": "Pathogenic/Likely pathogenic",
-    "recordCount": 75,
-    "relatedXrefs": [
-      {
-        "id": "MONDO:0018870",
-        "relation": "E"
-      },
-      {
-        "id": "MeSH:C537440",
-        "relation": "E"
-      },
-      {
-        "id": "OMIM:208000",
-        "relation": "BTNT"
-      },
-      {
-        "id": "UMLS:C1859727",
-        "relation": "E"
-      }
-    ],
-    "sourceVersions": {
-      "clinvar": null,
-      "orphadata": "2026-06-23 07:53:50"
-    }
-  },
-  {
-    "geneSymbol": "ABCC6",
-    "groupKey": "MONDO:0016175",
-    "diseaseName": "Cutis laxa",
-    "omimId": null,
-    "mondoId": "MONDO:0016175",
-    "orphacode": "209",
-    "medgenId": "C0010495",
-    "omimSeries": [],
-    "classification": "Pathogenic",
-    "recordCount": 1,
-    "relatedXrefs": [
-      {
-        "id": "MeSH:D003483",
-        "relation": "E"
-      },
-      {
-        "id": "UMLS:C0010495",
-        "relation": "E"
-      }
-    ],
-    "sourceVersions": {
-      "clinvar": null,
-      "orphadata": "2026-06-23 07:53:50"
-    }
-  },
-  {
-    "geneSymbol": "ABCC6",
-    "groupKey": "MONDO:0019118",
-    "diseaseName": "Retinal dystrophy",
-    "omimId": null,
-    "mondoId": "MONDO:0019118",
-    "orphacode": "71862",
-    "medgenId": "C0854723",
-    "omimSeries": [],
-    "classification": "Pathogenic/Likely pathogenic",
-    "recordCount": 3,
-    "relatedXrefs": [
-      {
-        "id": "MeSH:D058499",
-        "relation": null
-      }
-    ],
-    "sourceVersions": {
-      "clinvar": null
-    }
-  },
-  {
-    "geneSymbol": "ABCC6",
-    "groupKey": "MONDO:0024308",
-    "diseaseName": "Pseudoxanthoma elasticum",
-    "omimId": null,
-    "mondoId": "MONDO:0024308",
-    "orphacode": null,
-    "medgenId": "C0033847",
-    "omimSeries": [],
-    "classification": "Pathogenic",
-    "recordCount": 2,
-    "relatedXrefs": [],
-    "sourceVersions": {
-      "clinvar": null
-    }
-  },
-  {
-    "geneSymbol": "ABCC6",
-    "groupKey": "MONDO:0100091",
-    "diseaseName": "Inherited pseudoxanthoma elasticum",
-    "omimId": null,
-    "mondoId": "MONDO:0100091",
-    "orphacode": null,
-    "medgenId": "C1274225",
-    "omimSeries": [],
-    "classification": "Pathogenic",
-    "recordCount": 1,
-    "relatedXrefs": [],
-    "sourceVersions": {
-      "clinvar": null
-    }
-  },
-  {
-    "geneSymbol": "ABCC6",
-    "groupKey": "MONDO:0100097",
-    "diseaseName": "Congenital alveolar dysplasia due to TBX4",
-    "omimId": null,
-    "mondoId": "MONDO:0100097",
-    "orphacode": null,
-    "medgenId": "CN305465",
-    "omimSeries": [],
-    "classification": "Pathogenic/Likely pathogenic",
-    "recordCount": 1,
-    "relatedXrefs": [],
-    "sourceVersions": {
-      "clinvar": null
-    }
-  },
-  {
-    "geneSymbol": "ADA2",
-    "groupKey": "MONDO:0008436",
-    "diseaseName": "Sneddon syndrome",
-    "omimId": "182410",
-    "mondoId": "MONDO:0008436",
-    "orphacode": "820",
-    "medgenId": "C0282492",
-    "omimSeries": [],
-    "classification": "Pathogenic/Likely pathogenic",
-    "recordCount": 23,
-    "relatedXrefs": [
-      {
-        "id": "MeSH:D018860",
-        "relation": "E"
-      },
-      {
-        "id": "UMLS:C0282492",
-        "relation": "E"
-      }
-    ],
-    "sourceVersions": {
-      "clinvar": null,
-      "orphadata": "2026-06-23 07:53:50"
-    }
-  },
-  {
-    "geneSymbol": "ADA2",
-    "groupKey": "MONDO:0014306",
-    "diseaseName": "Deficiency of adenosine deaminase 2",
-    "omimId": "615688",
-    "mondoId": "MONDO:0014306",
-    "orphacode": "404553",
-    "medgenId": "C3887654",
-    "omimSeries": [],
-    "classification": "Pathogenic",
-    "recordCount": 77,
-    "relatedXrefs": [
-      {
-        "id": "UMLS:C4749403",
-        "relation": "E"
-      }
-    ],
-    "sourceVersions": {
-      "clinvar": null,
-      "orphadata": "2026-06-23 07:53:50"
-    }
-  },
-  {
-    "geneSymbol": "ADA2",
-    "groupKey": "MONDO:0019751",
-    "diseaseName": "Autoinflammatory syndrome",
-    "omimId": null,
-    "mondoId": "MONDO:0019751",
-    "orphacode": "93665",
-    "medgenId": "C3890737",
-    "omimSeries": [],
-    "classification": "Pathogenic/Likely pathogenic",
-    "recordCount": 6,
-    "relatedXrefs": [
-      {
-        "id": "UMLS:C3890737",
-        "relation": "E"
-      }
-    ],
-    "sourceVersions": {
-      "clinvar": null,
-      "orphadata": "2026-06-23 07:53:50"
-    }
-  },
-  {
     "geneSymbol": "ADAMTSL4",
     "groupKey": "MONDO:0009152",
     "diseaseName": "Ectopia lentis 2, isolated, autosomal recessive",
@@ -999,6 +736,22 @@
     }
   },
   {
+    "geneSymbol": "ARHGEF15",
+    "groupKey": "MONDO:0979880",
+    "diseaseName": "Brain small vessel disease 5 with osteoporosis",
+    "omimId": "621331",
+    "mondoId": "MONDO:0979880",
+    "orphacode": null,
+    "medgenId": "C6065905",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 3,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
     "geneSymbol": "ARSB",
     "groupKey": "MONDO:0009661",
     "diseaseName": "Mucopolysaccharidosis type 6",
@@ -1160,6 +913,376 @@
       },
       {
         "id": "UMLS:C5681197",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "COCH",
+    "groupKey": "MONDO:0005365",
+    "diseaseName": "Hearing impairment",
+    "omimId": null,
+    "mondoId": "MONDO:0005365",
+    "orphacode": null,
+    "medgenId": "C1384666",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "COCH",
+    "groupKey": "MONDO:0011058",
+    "diseaseName": "Autosomal dominant nonsyndromic hearing loss 9",
+    "omimId": "601369",
+    "mondoId": "MONDO:0011058",
+    "orphacode": "90635",
+    "medgenId": "C1832425",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 7,
+    "relatedXrefs": [
+      {
+        "id": "MONDO:0019587",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:600101",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:600652",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:600965",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:600994",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:601316",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:601317",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:601412",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:601543",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:601544",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:601868",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:602459",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:603622",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:603964",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:604717",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:605192",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:605583",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:606012",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:606282",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:606346",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:606451",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:606705",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:607017",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:607197",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:607453",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:607841",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:608224",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:608372",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:608394",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:608641",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:608645",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:608652",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:609129",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:609965",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:612431",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:612642",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:612643",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:612644",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:613074",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:613558",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:614152",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:614211",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:614614",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:615629",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:615649",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:615654",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616044",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616340",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616357",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616697",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616707",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616968",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616969",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:617605",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:617606",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:617663",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618094",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618140",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618410",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618533",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618778",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618787",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618915",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619081",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619086",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619274",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:620227",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:621556",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C5779548",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "COCH",
+    "groupKey": "MONDO:0019497",
+    "diseaseName": "Nonsyndromic genetic hearing loss",
+    "omimId": null,
+    "mondoId": "MONDO:0019497",
+    "orphacode": "87884",
+    "medgenId": "C5680182",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 2,
+    "relatedXrefs": [
+      {
+        "id": "UMLS:C5680182",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "COCH",
+    "groupKey": "MONDO:0054860",
+    "diseaseName": "Hearing loss, autosomal recessive 110",
+    "omimId": "618094",
+    "mondoId": "MONDO:0054860",
+    "orphacode": null,
+    "medgenId": "C4748162",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 5,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "COCH",
+    "groupKey": "Orphanet:96210",
+    "diseaseName": "Rare genetic deafness",
+    "omimId": null,
+    "mondoId": null,
+    "orphacode": "96210",
+    "medgenId": "C5680250",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [
+      {
+        "id": "UMLS:C5680250",
         "relation": "E"
       }
     ],
@@ -1705,6 +1828,60 @@
     }
   },
   {
+    "geneSymbol": "CST3",
+    "groupKey": "MONDO:0007098",
+    "diseaseName": "Hereditary cerebral amyloid angiopathy, Icelandic type",
+    "omimId": "105150",
+    "mondoId": "MONDO:0007098",
+    "orphacode": "100008",
+    "medgenId": "C1527338",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [
+      {
+        "id": "MONDO:0005620",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:605714",
+        "relation": "BTNT"
+      },
+      {
+        "id": "Orphanet:85458",
+        "relation": null
+      },
+      {
+        "id": "UMLS:C1510489",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C1527338",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "CST3",
+    "groupKey": "MONDO:0979226",
+    "diseaseName": "Leukodystrophy, adult-onset, autosomal dominant, without amyloid angiopathy",
+    "omimId": "621214",
+    "mondoId": "MONDO:0979226",
+    "orphacode": null,
+    "medgenId": "C6012728",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
     "geneSymbol": "CST6",
     "groupKey": "MONDO:0032804",
     "diseaseName": "Ectodermal dysplasia 15, hypohidrotic/hair type",
@@ -2014,228 +2191,13 @@
     }
   },
   {
-    "geneSymbol": "EPHA2",
-    "groupKey": "MONDO:0005129",
-    "diseaseName": "Cataract",
-    "omimId": null,
-    "mondoId": "MONDO:0005129",
+    "geneSymbol": "EPHA10",
+    "groupKey": "MONDO:0859527",
+    "diseaseName": "Hearing loss, autosomal dominant 88",
+    "omimId": "620283",
+    "mondoId": "MONDO:0859527",
     "orphacode": null,
-    "medgenId": "C0086543",
-    "omimSeries": ["PS116200"],
-    "classification": "Pathogenic",
-    "recordCount": 1,
-    "relatedXrefs": [
-      {
-        "id": "MeSH:D002386",
-        "relation": null
-      }
-    ],
-    "sourceVersions": {
-      "clinvar": null
-    }
-  },
-  {
-    "geneSymbol": "EPHA2",
-    "groupKey": "MONDO:0007288",
-    "diseaseName": "Cataract 6 multiple types",
-    "omimId": "116600",
-    "mondoId": "MONDO:0007288",
-    "orphacode": "91492",
-    "medgenId": "C1861825",
-    "omimSeries": [],
-    "classification": "Pathogenic",
-    "recordCount": 10,
-    "relatedXrefs": [
-      {
-        "id": "MONDO:0011060",
-        "relation": "E"
-      },
-      {
-        "id": "OMIM:115650",
-        "relation": "BTNT"
-      },
-      {
-        "id": "OMIM:115660",
-        "relation": "BTNT"
-      },
-      {
-        "id": "OMIM:115665",
-        "relation": "BTNT"
-      },
-      {
-        "id": "OMIM:115700",
-        "relation": "BTNT"
-      },
-      {
-        "id": "OMIM:115800",
-        "relation": "BTNT"
-      },
-      {
-        "id": "OMIM:115900",
-        "relation": "BTNT"
-      },
-      {
-        "id": "OMIM:116100",
-        "relation": "BTNT"
-      },
-      {
-        "id": "OMIM:116200",
-        "relation": "BTNT"
-      },
-      {
-        "id": "OMIM:116300",
-        "relation": "BTNT"
-      },
-      {
-        "id": "OMIM:116400",
-        "relation": "BTNT"
-      },
-      {
-        "id": "OMIM:116700",
-        "relation": "BTNT"
-      },
-      {
-        "id": "OMIM:116800",
-        "relation": "BTNT"
-      },
-      {
-        "id": "OMIM:212500",
-        "relation": "BTNT"
-      },
-      {
-        "id": "OMIM:302200",
-        "relation": "BTNT"
-      },
-      {
-        "id": "OMIM:600881",
-        "relation": "BTNT"
-      },
-      {
-        "id": "OMIM:601202",
-        "relation": "BTNT"
-      },
-      {
-        "id": "OMIM:601547",
-        "relation": "BTNT"
-      },
-      {
-        "id": "OMIM:601885",
-        "relation": "BTNT"
-      },
-      {
-        "id": "OMIM:604219",
-        "relation": "BTNT"
-      },
-      {
-        "id": "OMIM:604307",
-        "relation": "BTNT"
-      },
-      {
-        "id": "OMIM:605387",
-        "relation": "BTNT"
-      },
-      {
-        "id": "OMIM:605728",
-        "relation": "BTNT"
-      },
-      {
-        "id": "OMIM:605749",
-        "relation": "BTNT"
-      },
-      {
-        "id": "OMIM:607304",
-        "relation": "BTNT"
-      },
-      {
-        "id": "OMIM:609376",
-        "relation": "BTNT"
-      },
-      {
-        "id": "OMIM:609741",
-        "relation": "BTNT"
-      },
-      {
-        "id": "OMIM:610019",
-        "relation": "BTNT"
-      },
-      {
-        "id": "OMIM:610202",
-        "relation": "BTNT"
-      },
-      {
-        "id": "OMIM:610425",
-        "relation": "BTNT"
-      },
-      {
-        "id": "OMIM:610623",
-        "relation": "BTNT"
-      },
-      {
-        "id": "OMIM:611391",
-        "relation": "BTNT"
-      },
-      {
-        "id": "OMIM:611544",
-        "relation": "BTNT"
-      },
-      {
-        "id": "OMIM:611597",
-        "relation": "NTBT"
-      },
-      {
-        "id": "OMIM:613763",
-        "relation": "BTNT"
-      },
-      {
-        "id": "OMIM:614422",
-        "relation": "BTNT"
-      },
-      {
-        "id": "OMIM:614691",
-        "relation": "BTNT"
-      },
-      {
-        "id": "OMIM:615188",
-        "relation": "BTNT"
-      },
-      {
-        "id": "OMIM:615274",
-        "relation": "BTNT"
-      },
-      {
-        "id": "OMIM:615277",
-        "relation": "BTNT"
-      },
-      {
-        "id": "OMIM:616279",
-        "relation": "BTNT"
-      },
-      {
-        "id": "OMIM:616509",
-        "relation": "BTNT"
-      },
-      {
-        "id": "OMIM:616851",
-        "relation": "BTNT"
-      },
-      {
-        "id": "UMLS:C5925050",
-        "relation": "E"
-      }
-    ],
-    "sourceVersions": {
-      "clinvar": null,
-      "orphadata": "2026-06-23 07:53:50"
-    }
-  },
-  {
-    "geneSymbol": "EPHA2",
-    "groupKey": "MONDO:0019172",
-    "diseaseName": "Congenital aniridia",
-    "omimId": null,
-    "mondoId": "MONDO:0019172",
-    "orphacode": null,
-    "medgenId": "C0003076",
+    "medgenId": "C5830355",
     "omimSeries": [],
     "classification": "Pathogenic",
     "recordCount": 1,
@@ -2510,116 +2472,6 @@
     }
   },
   {
-    "geneSymbol": "GALK1",
-    "groupKey": "MONDO:0009183",
-    "diseaseName": "Junctional epidermolysis bullosa with pyloric atresia",
-    "omimId": "226730",
-    "mondoId": "MONDO:0009183",
-    "orphacode": "79403",
-    "medgenId": "C5676875",
-    "omimSeries": [],
-    "classification": "Pathogenic",
-    "recordCount": 10,
-    "relatedXrefs": [
-      {
-        "id": "MeSH:C535377",
-        "relation": "E"
-      },
-      {
-        "id": "OMIM:619817",
-        "relation": "BTNT"
-      },
-      {
-        "id": "UMLS:C1856934",
-        "relation": "E"
-      }
-    ],
-    "sourceVersions": {
-      "clinvar": null,
-      "orphadata": "2026-06-23 07:53:50"
-    }
-  },
-  {
-    "geneSymbol": "GALK1",
-    "groupKey": "MONDO:0009255",
-    "diseaseName": "Deficiency of galactokinase",
-    "omimId": "230200",
-    "mondoId": "MONDO:0009255",
-    "orphacode": "352",
-    "medgenId": "C0268155",
-    "omimSeries": [],
-    "classification": "Pathogenic",
-    "recordCount": 82,
-    "relatedXrefs": [
-      {
-        "id": "MONDO:0018116",
-        "relation": "E"
-      },
-      {
-        "id": "MeSH:D005693",
-        "relation": "E"
-      },
-      {
-        "id": "Orphanet:79237",
-        "relation": null
-      },
-      {
-        "id": "UMLS:C0016952",
-        "relation": "E"
-      },
-      {
-        "id": "UMLS:C0268155",
-        "relation": "E"
-      }
-    ],
-    "sourceVersions": {
-      "clinvar": null,
-      "orphadata": "2026-06-23 07:53:50"
-    }
-  },
-  {
-    "geneSymbol": "GALK1",
-    "groupKey": "MONDO:0017612",
-    "diseaseName": "Junctional epidermolysis bullosa",
-    "omimId": null,
-    "mondoId": "MONDO:0017612",
-    "orphacode": "305",
-    "medgenId": "C0079301",
-    "omimSeries": ["PS226650"],
-    "classification": "Pathogenic/Likely pathogenic",
-    "recordCount": 1,
-    "relatedXrefs": [
-      {
-        "id": "MeSH:D016109",
-        "relation": "E"
-      },
-      {
-        "id": "UMLS:C0079301",
-        "relation": "E"
-      }
-    ],
-    "sourceVersions": {
-      "clinvar": null,
-      "orphadata": "2026-06-23 07:53:50"
-    }
-  },
-  {
-    "geneSymbol": "GALK1",
-    "groupKey": "MONDO:0030768",
-    "diseaseName": "Epidermolysis bullosa, junctional 5A, intermediate",
-    "omimId": "619816",
-    "mondoId": "MONDO:0030768",
-    "orphacode": null,
-    "medgenId": "C5676956",
-    "omimSeries": [],
-    "classification": "Pathogenic/Likely pathogenic",
-    "recordCount": 7,
-    "relatedXrefs": [],
-    "sourceVersions": {
-      "clinvar": null
-    }
-  },
-  {
     "geneSymbol": "GFAP",
     "groupKey": "MONDO:0008752",
     "diseaseName": "Alexander disease",
@@ -2659,58 +2511,6 @@
     "relatedXrefs": [
       {
         "id": "UMLS:C4284592",
-        "relation": "E"
-      }
-    ],
-    "sourceVersions": {
-      "clinvar": null,
-      "orphadata": "2026-06-23 07:53:50"
-    }
-  },
-  {
-    "geneSymbol": "GLA",
-    "groupKey": "MONDO:0007369",
-    "diseaseName": "Hereditary coproporphyria",
-    "omimId": "121300",
-    "mondoId": "MONDO:0007369",
-    "orphacode": "79273",
-    "medgenId": "C0162531",
-    "omimSeries": [],
-    "classification": "Pathogenic/Likely pathogenic",
-    "recordCount": 1,
-    "relatedXrefs": [
-      {
-        "id": "MeSH:D046349",
-        "relation": "E"
-      },
-      {
-        "id": "UMLS:C0162531",
-        "relation": "E"
-      }
-    ],
-    "sourceVersions": {
-      "clinvar": null,
-      "orphadata": "2026-06-23 07:53:50"
-    }
-  },
-  {
-    "geneSymbol": "GLA",
-    "groupKey": "MONDO:0010526",
-    "diseaseName": "Fabry disease",
-    "omimId": "301500",
-    "mondoId": "MONDO:0010526",
-    "orphacode": "324",
-    "medgenId": "C0002986",
-    "omimSeries": [],
-    "classification": "Pathogenic",
-    "recordCount": 476,
-    "relatedXrefs": [
-      {
-        "id": "MeSH:D000795",
-        "relation": "E"
-      },
-      {
-        "id": "UMLS:C0002986",
         "relation": "E"
       }
     ],
@@ -2844,6 +2644,48 @@
     "relatedXrefs": [],
     "sourceVersions": {
       "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "GPNMB",
+    "groupKey": "MONDO:0054765",
+    "diseaseName": "Amyloidosis, primary localized cutaneous, 3",
+    "omimId": "617920",
+    "mondoId": "MONDO:0054765",
+    "orphacode": null,
+    "medgenId": "C4554421",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 9,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "HIBCH",
+    "groupKey": "MONDO:0009603",
+    "diseaseName": "3-hydroxyisobutyryl-CoA hydrolase deficiency",
+    "omimId": "250620",
+    "mondoId": "MONDO:0009603",
+    "orphacode": "88639",
+    "medgenId": "C0342738",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 19,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:C562803",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C0342738",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
     }
   },
   {
@@ -3409,34 +3251,13 @@
     }
   },
   {
-    "geneSymbol": "MAPK7",
-    "groupKey": "MONDO:0005148",
-    "diseaseName": "Type 2 diabetes mellitus",
-    "omimId": "125853",
-    "mondoId": "MONDO:0005148",
+    "geneSymbol": "NIT1",
+    "groupKey": "MONDO:0979873",
+    "diseaseName": "Brain small vessel disease 4",
+    "omimId": "621313",
+    "mondoId": "MONDO:0979873",
     "orphacode": null,
-    "medgenId": "C0011860",
-    "omimSeries": [],
-    "classification": "Pathogenic",
-    "recordCount": 1,
-    "relatedXrefs": [
-      {
-        "id": "MeSH:D003924",
-        "relation": null
-      }
-    ],
-    "sourceVersions": {
-      "clinvar": null
-    }
-  },
-  {
-    "geneSymbol": "MAPK7",
-    "groupKey": "MONDO:0008419",
-    "diseaseName": "Scoliosis, isolated, susceptibility to, 1",
-    "omimId": "181800",
-    "mondoId": "MONDO:0008419",
-    "orphacode": null,
-    "medgenId": "C2700406",
+    "medgenId": "C6065902",
     "omimSeries": [],
     "classification": "Pathogenic",
     "recordCount": 3,
@@ -3684,6 +3505,477 @@
     }
   },
   {
+    "geneSymbol": "NUDT2",
+    "groupKey": "MONDO:0100038",
+    "diseaseName": "Complex neurodevelopmental disorder",
+    "omimId": null,
+    "mondoId": "MONDO:0100038",
+    "orphacode": "528084",
+    "medgenId": "C5568766",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [
+      {
+        "id": "OMIM:300558",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:300659",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:300978",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:301029",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:309590",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:606053",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:615761",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616083",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616351",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616393",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:617435",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:617516",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:617787",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:617864",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618009",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618060",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618089",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618292",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618302",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618342",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618425",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618430",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618443",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618470",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618505",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618512",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618569",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618653",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618659",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618672",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618707",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618718",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618741",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618748",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618793",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618859",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618872",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618890",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618906",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618914",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618922",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618971",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618974",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619000",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619004",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619005",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619031",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619033",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619056",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619072",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619076",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619083",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619091",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619092",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619099",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619149",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619157",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619188",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619189",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619194",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619243",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619244",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619264",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619268",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619306",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619311",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619314",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619320",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619376",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619460",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619467",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619470",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619475",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619488",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619503",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619522",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619548",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619580",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619595",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619694",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619762",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619775",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619833",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619873",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619876",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619877",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619880",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619908",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619910",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619934",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619955",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619971",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:620012",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:620029",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:620065",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:620066",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:620086",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:620098",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:620191",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:620242",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:620292",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:620317",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:620450",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:620455",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:620511",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:620688",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:620782",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:621285",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C5568766",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "NUDT2",
+    "groupKey": "MONDO:0859240",
+    "diseaseName": "Intellectual developmental disorder with or without peripheral neuropathy",
+    "omimId": "619844",
+    "mondoId": "MONDO:0859240",
+    "orphacode": "694937",
+    "medgenId": "C5676969",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
     "geneSymbol": "PCSK9",
     "groupKey": "MONDO:0005439",
     "diseaseName": "Familial hypercholesterolemia",
@@ -3808,6 +4100,1250 @@
     }
   },
   {
+    "geneSymbol": "POGLUT1",
+    "groupKey": "MONDO:0014307",
+    "diseaseName": "Dowling-Degos disease 4",
+    "omimId": "615696",
+    "mondoId": "MONDO:0014307",
+    "orphacode": "79145",
+    "medgenId": "C3810313",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 2,
+    "relatedXrefs": [
+      {
+        "id": "MONDO:0008371",
+        "relation": "E"
+      },
+      {
+        "id": "MeSH:C562924",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:179850",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:615327",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:615674",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C3714534",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "POGLUT1",
+    "groupKey": "MONDO:0014977",
+    "diseaseName": "Autosomal recessive limb-girdle muscular dystrophy type 2R1",
+    "omimId": "617232",
+    "mondoId": "MONDO:0014977",
+    "orphacode": "480682",
+    "medgenId": "C4310660",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 3,
+    "relatedXrefs": [
+      {
+        "id": "UMLS:C4310660",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "PRDM16",
+    "groupKey": "MONDO:0014152",
+    "diseaseName": "Left ventricular noncompaction 8",
+    "omimId": "615373",
+    "mondoId": "MONDO:0014152",
+    "orphacode": "154",
+    "medgenId": "C3809288",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 3,
+    "relatedXrefs": [
+      {
+        "id": "MONDO:0015470",
+        "relation": "E"
+      },
+      {
+        "id": "MONDO:0018901",
+        "relation": "E"
+      },
+      {
+        "id": "MONDO:0700335",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:115200",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:302045",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:600884",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:601154",
+        "relation": "NTBT"
+      },
+      {
+        "id": "OMIM:601493",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:601494",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:604145",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:604169",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:604288",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:604765",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:605582",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:606685",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:607482",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:608569",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:609470",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:609909",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:609915",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:611407",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:611615",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:611878",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:611879",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:611880",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:612158",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:612877",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:613122",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:613172",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:613252",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:613286",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:613424",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:613426",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:613642",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:613694",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:613697",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:613881",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:614672",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:615092",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:615184",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:615235",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:615248",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:615396",
+        "relation": "NTBT"
+      },
+      {
+        "id": "OMIM:615916",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:617047",
+        "relation": "NTBT"
+      },
+      {
+        "id": "OMIM:618189",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619371",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619492",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619747",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619897",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:620203",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:620462",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:621595",
+        "relation": "BTNT"
+      },
+      {
+        "id": "Orphanet:54260",
+        "relation": null
+      },
+      {
+        "id": "UMLS:C1960469",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C5679590",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "PRDM16",
+    "groupKey": "MONDO:0800367",
+    "diseaseName": "Cardiomyopathy, dilated, 1LL",
+    "omimId": null,
+    "mondoId": "MONDO:0800367",
+    "orphacode": null,
+    "medgenId": "C3809289",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "PSMC3",
+    "groupKey": "MONDO:0000087",
+    "diseaseName": "Polymicrogyria",
+    "omimId": null,
+    "mondoId": "MONDO:0000087",
+    "orphacode": "35981",
+    "medgenId": "C0266464",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:D065706",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C0266464",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "PSMC3",
+    "groupKey": "MONDO:0000158",
+    "diseaseName": "Developmental dysplasia of the hip",
+    "omimId": null,
+    "mondoId": "MONDO:0000158",
+    "orphacode": null,
+    "medgenId": "C4551649",
+    "omimSeries": ["PS142700"],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "PSMC3",
+    "groupKey": "MONDO:0001149",
+    "diseaseName": "Microcephaly",
+    "omimId": null,
+    "mondoId": "MONDO:0001149",
+    "orphacode": null,
+    "medgenId": "C4551563",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "PSMC3",
+    "groupKey": "MONDO:0011827",
+    "diseaseName": "Patent ductus arteriosus",
+    "omimId": null,
+    "mondoId": "MONDO:0011827",
+    "orphacode": null,
+    "medgenId": "C0013274",
+    "omimSeries": ["PS607411"],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "PSMC3",
+    "groupKey": "MONDO:0020295",
+    "diseaseName": "Abnormality of the pulmonary veins",
+    "omimId": null,
+    "mondoId": "MONDO:0020295",
+    "orphacode": "98729",
+    "medgenId": "C0265914",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [
+      {
+        "id": "UMLS:C0265914",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "PSMC3",
+    "groupKey": "MONDO:0020434",
+    "diseaseName": "Atrial septal defect, ostium secundum type",
+    "omimId": null,
+    "mondoId": "MONDO:0020434",
+    "orphacode": "99103",
+    "medgenId": "C0344724",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [
+      {
+        "id": "OMIM:611363",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:614089",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:614430",
+        "relation": "NTBT"
+      },
+      {
+        "id": "UMLS:C0344724",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "PSMC3",
+    "groupKey": "MONDO:0020439",
+    "diseaseName": "Patent foramen ovale",
+    "omimId": null,
+    "mondoId": "MONDO:0020439",
+    "orphacode": null,
+    "medgenId": "C0016522",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "PSMC3",
+    "groupKey": "MONDO:0700092",
+    "diseaseName": "Neurodevelopmental disorder",
+    "omimId": null,
+    "mondoId": "MONDO:0700092",
+    "orphacode": null,
+    "medgenId": "C1535926",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:D065886",
+        "relation": null
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "PSMC3",
+    "groupKey": "MONDO:0859159",
+    "diseaseName": "Deafness, cataract, impaired intellectual development, and polyneuropathy",
+    "omimId": "619354",
+    "mondoId": "MONDO:0859159",
+    "orphacode": null,
+    "medgenId": "C5543482",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "PSMC3",
+    "groupKey": "MONDO:0981163",
+    "diseaseName": "Ebstein-Bezieau neurodevelopmental syndrome",
+    "omimId": "621539",
+    "mondoId": "MONDO:0981163",
+    "orphacode": null,
+    "medgenId": "CN381040",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 5,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "RAPSN",
+    "groupKey": "MONDO:0005336",
+    "diseaseName": "Myopathy",
+    "omimId": null,
+    "mondoId": "MONDO:0005336",
+    "orphacode": null,
+    "medgenId": "C0026848",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 2,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:D009135",
+        "relation": null
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "RAPSN",
+    "groupKey": "MONDO:0012157",
+    "diseaseName": "Congenital myasthenic syndrome 4C",
+    "omimId": "608931",
+    "mondoId": "MONDO:0012157",
+    "orphacode": "590",
+    "medgenId": "C1837091",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [
+      {
+        "id": "MONDO:0018940",
+        "relation": "E"
+      },
+      {
+        "id": "MeSH:D020294",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:254190",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:254210",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:254300",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:601462",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:603034",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:605809",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:608930",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:610542",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:614198",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:614750",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:615120",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616040",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616224",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616227",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616228",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616304",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616313",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616314",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616321",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616322",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616323",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616324",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616325",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616326",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616330",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616720",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:617143",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:617239",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618197",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618198",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618323",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619461",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:620451",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:621455",
+        "relation": "NTBT"
+      },
+      {
+        "id": "UMLS:C0751882",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "RAPSN",
+    "groupKey": "MONDO:0014588",
+    "diseaseName": "Congenital myasthenic syndrome 11",
+    "omimId": "616326",
+    "mondoId": "MONDO:0014588",
+    "orphacode": "590",
+    "medgenId": "C4225367",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 101,
+    "relatedXrefs": [
+      {
+        "id": "MONDO:0018940",
+        "relation": "E"
+      },
+      {
+        "id": "MeSH:D020294",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:254190",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:254210",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:254300",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:601462",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:603034",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:605809",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:608930",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:608931",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:610542",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:614198",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:614750",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:615120",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616040",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616224",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616227",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616228",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616304",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616313",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616314",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616321",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616322",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616323",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616324",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616325",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616330",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616720",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:617143",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:617239",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618197",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618198",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618323",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619461",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:620451",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:621455",
+        "relation": "NTBT"
+      },
+      {
+        "id": "UMLS:C0751882",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "RAPSN",
+    "groupKey": "MONDO:0015193",
+    "diseaseName": "Hydrops fetalis",
+    "omimId": null,
+    "mondoId": "MONDO:0015193",
+    "orphacode": "1041",
+    "medgenId": "C0020305",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 2,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:D015160",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:236750",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C0020305",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "RAPSN",
+    "groupKey": "MONDO:0018940",
+    "diseaseName": "Congenital myasthenic syndrome",
+    "omimId": null,
+    "mondoId": "MONDO:0018940",
+    "orphacode": "590",
+    "medgenId": "C0751882",
+    "omimSeries": ["PS601462"],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 30,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:D020294",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:254190",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:254210",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:254300",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:601462",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:603034",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:605809",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:608930",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:608931",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:610542",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:614198",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:614750",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:615120",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616040",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616224",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616227",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616228",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616304",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616313",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616314",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616321",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616322",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616323",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616324",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616325",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616326",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616330",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616720",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:617143",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:617239",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618197",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618198",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618323",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619461",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:620451",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:621455",
+        "relation": "NTBT"
+      },
+      {
+        "id": "UMLS:C0751882",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "RAPSN",
+    "groupKey": "MONDO:0100101",
+    "diseaseName": "Fetal akinesia deformation sequence 1",
+    "omimId": "208150",
+    "mondoId": "MONDO:0100101",
+    "orphacode": "994",
+    "medgenId": "C1276035",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 76,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:C536647",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:300073",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:617194",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618388",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618389",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618393",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618975",
+        "relation": "ND"
+      },
+      {
+        "id": "UMLS:C1276035",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "RAPSN",
+    "groupKey": "MONDO:0100102",
+    "diseaseName": "Fetal akinesia deformation sequence 2",
+    "omimId": "618388",
+    "mondoId": "MONDO:0100102",
+    "orphacode": null,
+    "medgenId": "C4760576",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 51,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "REN",
+    "groupKey": "MONDO:0009970",
+    "diseaseName": "Renal tubular dysgenesis of genetic origin",
+    "omimId": "267430",
+    "mondoId": "MONDO:0009970",
+    "orphacode": "97369",
+    "medgenId": "C5681536",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 4,
+    "relatedXrefs": [
+      {
+        "id": "UMLS:C5681536",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "REN",
+    "groupKey": "MONDO:0013128",
+    "diseaseName": "Familial juvenile hyperuricemic nephropathy type 2",
+    "omimId": "613092",
+    "mondoId": "MONDO:0013128",
+    "orphacode": "217330",
+    "medgenId": "C2751310",
+    "omimSeries": [],
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 9,
+    "relatedXrefs": [
+      {
+        "id": "UMLS:C4303080",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "REN",
+    "groupKey": "MONDO:0017609",
+    "diseaseName": "Renal tubular dysgenesis",
+    "omimId": null,
+    "mondoId": "MONDO:0017609",
+    "orphacode": "3033",
+    "medgenId": "C0266313",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 3,
+    "relatedXrefs": [
+      {
+        "id": "OMIM:267430",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C0266313",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "RSPO1",
+    "groupKey": "MONDO:0012530",
+    "diseaseName": "Palmoplantar keratoderma-XX sex reversal-predisposition to squamous cell carcinoma syndrome",
+    "omimId": "610644",
+    "mondoId": "MONDO:0012530",
+    "orphacode": "85112",
+    "medgenId": "C3149931",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 2,
+    "relatedXrefs": [
+      {
+        "id": "UMLS:C4302748",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "SERPIND1",
+    "groupKey": "MONDO:0012876",
+    "diseaseName": "Heparin cofactor II deficiency",
+    "omimId": "612356",
+    "mondoId": "MONDO:0012876",
+    "orphacode": null,
+    "medgenId": "C0398626",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 3,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
     "geneSymbol": "SLC13A3",
     "groupKey": "MONDO:0032716",
     "diseaseName": "Leukoencephalopathy, acute reversible, with increased urinary alpha-ketoglutarate",
@@ -3830,6 +5366,74 @@
     }
   },
   {
+    "geneSymbol": "SLC39A13",
+    "groupKey": "MONDO:0012873",
+    "diseaseName": "Ehlers-Danlos syndrome, spondylodysplastic type, 3",
+    "omimId": "612350",
+    "mondoId": "MONDO:0012873",
+    "orphacode": "157965",
+    "medgenId": "C2676510",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:C567340",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C2676510",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "SPI1",
+    "groupKey": "MONDO:0015977",
+    "diseaseName": "Agammaglobulinemia",
+    "omimId": null,
+    "mondoId": "MONDO:0015977",
+    "orphacode": "183669",
+    "medgenId": "C0001768",
+    "omimSeries": ["PS601495"],
+    "classification": "Pathogenic",
+    "recordCount": 17,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:D000361",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C0001768",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "SPI1",
+    "groupKey": "MONDO:0030529",
+    "diseaseName": "Agammaglobulinemia 10, autosomal dominant",
+    "omimId": "619707",
+    "mondoId": "MONDO:0030529",
+    "orphacode": null,
+    "medgenId": "C5676900",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 5,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
     "geneSymbol": "STN1",
     "groupKey": "MONDO:0015026",
     "diseaseName": "Cerebroretinal microangiopathy with calcifications and cysts 2",
@@ -3846,39 +5450,23 @@
     }
   },
   {
-    "geneSymbol": "TIMP3",
-    "groupKey": "MONDO:0005283",
-    "diseaseName": "Retinal disorder",
-    "omimId": null,
-    "mondoId": "MONDO:0005283",
-    "orphacode": null,
-    "medgenId": "C0035309",
+    "geneSymbol": "TAPBPL",
+    "groupKey": "MONDO:0007164",
+    "diseaseName": "Spastic ataxia 1",
+    "omimId": "108600",
+    "mondoId": "MONDO:0007164",
+    "orphacode": "251282",
+    "medgenId": "C1970107",
     "omimSeries": [],
-    "classification": "Pathogenic",
-    "recordCount": 1,
-    "relatedXrefs": [],
-    "sourceVersions": {
-      "clinvar": null
-    }
-  },
-  {
-    "geneSymbol": "TIMP3",
-    "groupKey": "MONDO:0007640",
-    "diseaseName": "Sorsby fundus dystrophy",
-    "omimId": "136900",
-    "mondoId": "MONDO:0007640",
-    "orphacode": "59181",
-    "medgenId": "C1850938",
-    "omimSeries": [],
-    "classification": "Pathogenic",
-    "recordCount": 1,
+    "classification": "Pathogenic/Likely pathogenic",
+    "recordCount": 3,
     "relatedXrefs": [
       {
-        "id": "MeSH:C564992",
+        "id": "MeSH:C566993",
         "relation": "E"
       },
       {
-        "id": "UMLS:C1850938",
+        "id": "UMLS:C1970107",
         "relation": "E"
       }
     ],
@@ -3888,22 +5476,17 @@
     }
   },
   {
-    "geneSymbol": "TIMP3",
-    "groupKey": "MONDO:0019118",
-    "diseaseName": "Retinal dystrophy",
-    "omimId": null,
-    "mondoId": "MONDO:0019118",
-    "orphacode": "71862",
-    "medgenId": "C0854723",
+    "geneSymbol": "TAPBPL",
+    "groupKey": "MONDO:0032675",
+    "diseaseName": "Myasthenic syndrome, congenital, 25, presynaptic",
+    "omimId": "618323",
+    "mondoId": "MONDO:0032675",
+    "orphacode": null,
+    "medgenId": "C5193027",
     "omimSeries": [],
     "classification": "Pathogenic",
-    "recordCount": 3,
-    "relatedXrefs": [
-      {
-        "id": "MeSH:D058499",
-        "relation": null
-      }
-    ],
+    "recordCount": 4,
+    "relatedXrefs": [],
     "sourceVersions": {
       "clinvar": null
     }
@@ -3922,6 +5505,342 @@
     "relatedXrefs": [],
     "sourceVersions": {
       "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "TNC",
+    "groupKey": "MONDO:0014283",
+    "diseaseName": "Autosomal dominant nonsyndromic hearing loss 56",
+    "omimId": "615629",
+    "mondoId": "MONDO:0014283",
+    "orphacode": "90635",
+    "medgenId": "C3810170",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 3,
+    "relatedXrefs": [
+      {
+        "id": "MONDO:0019587",
+        "relation": "E"
+      },
+      {
+        "id": "OMIM:600101",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:600652",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:600965",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:600994",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:601316",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:601317",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:601369",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:601412",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:601543",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:601544",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:601868",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:602459",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:603622",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:603964",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:604717",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:605192",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:605583",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:606012",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:606282",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:606346",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:606451",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:606705",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:607017",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:607197",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:607453",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:607841",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:608224",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:608372",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:608394",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:608641",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:608645",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:608652",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:609129",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:609965",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:612431",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:612642",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:612643",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:612644",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:613074",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:613558",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:614152",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:614211",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:614614",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:615649",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:615654",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616044",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616340",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616357",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616697",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616707",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616968",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:616969",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:617605",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:617606",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:617663",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618094",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618140",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618410",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618533",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618778",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618787",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:618915",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619081",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619086",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:619274",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:620227",
+        "relation": "BTNT"
+      },
+      {
+        "id": "OMIM:621556",
+        "relation": "BTNT"
+      },
+      {
+        "id": "UMLS:C5779548",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
+    }
+  },
+  {
+    "geneSymbol": "TNFRSF11B",
+    "groupKey": "MONDO:0005578",
+    "diseaseName": "Arthritis",
+    "omimId": null,
+    "mondoId": "MONDO:0005578",
+    "orphacode": null,
+    "medgenId": "C0003864",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 1,
+    "relatedXrefs": [],
+    "sourceVersions": {
+      "clinvar": null
+    }
+  },
+  {
+    "geneSymbol": "TNFRSF11B",
+    "groupKey": "MONDO:0009394",
+    "diseaseName": "Hyperphosphatasemia with bone disease",
+    "omimId": "239000",
+    "mondoId": "MONDO:0009394",
+    "orphacode": "2801",
+    "medgenId": "C0268414",
+    "omimSeries": [],
+    "classification": "Pathogenic",
+    "recordCount": 5,
+    "relatedXrefs": [
+      {
+        "id": "MeSH:C537701",
+        "relation": "E"
+      },
+      {
+        "id": "UMLS:C0268414",
+        "relation": "E"
+      }
+    ],
+    "sourceVersions": {
+      "clinvar": null,
+      "orphadata": "2026-06-23 07:53:50"
     }
   },
   {

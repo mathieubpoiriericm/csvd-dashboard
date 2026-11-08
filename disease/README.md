@@ -69,29 +69,33 @@ monogenic)" on the radar.
 `SVD_QUERY` in `pipeline/pubmed_search.py` is built from the search terms in
 `pipeline.json`, and its recall is measured rather than assumed.
 `tests/pipeline/csvd/test_query_recall.py` intersects it with a `[uid]`
-disjunction over a gold set of 183 PMIDs -- the 168 the dashboard cites, and 15
-it cited before the 2026-11-03 re-extraction that the query should still find --
-so recall is exact rather than sampled and never meets PubMed's 9,999-record
-`esearch` cap -- it bounds a result set that can never exceed the gold set.
-`recall_gold.csv` holds the same 183 PMIDs for the generic harness, and
-`recall_baseline.json` the figure the last
+disjunction over a gold set of 204 PMIDs -- the 183 the pipeline-built table
+cited up to the 2026-11-03 re-extraction, plus the 21 references the
+hand-curated gold table adds -- so recall is exact rather than sampled and never
+meets PubMed's 9,999-record `esearch` cap -- it bounds a result set that can
+never exceed the gold set. `recall_gold.csv` holds the same 204 PMIDs for the
+generic harness, so the denominator does not move when the published table does,
+and `recall_baseline.json` the figure the last
 `scripts.measure_recall --write-baseline` recorded.
 
-It retrieves **178 of 183**. The third branch, `MESH_TERMS AND GENETIC_TERMS`,
-reaches papers that never write the disease name out in the title or abstract
-and recovers 62 of the 183 on its own; its genetics gate is what keeps
-`"White Matter"[MeSH]` from quadrupling ingestion. The two Title/Abstract
-branches both `AND` on `"cerebral small vessel disease"[Title/Abstract]`, which
-is therefore the ceiling on them: the ten `GENETIC_TERMS` and seven
-`MARKER_TERMS` are precision filters and **contribute no recall at all**, and a
-test pins that so widening either list in the belief that it helps fails loudly.
+It retrieves **184 of 204** (178 of the first 183). The third branch,
+`MESH_TERMS AND GENETIC_TERMS`, reaches papers that never write the disease name
+out in the title or abstract and recovers 64 of the 204 on its own; its genetics
+gate is what keeps `"White Matter"[MeSH]` from quadrupling ingestion. The two
+Title/Abstract branches both `AND` on
+`"cerebral small vessel disease"[Title/Abstract]`, which is therefore the
+ceiling on them: the ten `GENETIC_TERMS` and seven `MARKER_TERMS` are precision
+filters and **contribute no recall at all**, and a test pins that so widening
+either list in the belief that it helps fails loudly.
 
 The five misses are the same five at gold sets of 29, 32, 111, 178 and 183
 papers, which on its own proves nothing: every reference a run adds came from a
 paper the query itself retrieved, so it could never be missed. The evidence is
 the 28 hand-curated references of the 31 August baseline, which the query did
 not choose: it retrieves 23 of them, and all five misses are among them. They
-are pinned with a reason each in `_MISSED`.
+are pinned with a reason each in `_MISSED`. The gold table's references add
+fifteen misses, most of them the single-cell atlases and methods papers it cites
+for its cell-type columns rather than cSVD papers the query should find.
 
 Retrieval precision is not measured. The argument for the MeSH branch is a
 volume argument -- 43% more papers for six more gold ones -- not a relevance

@@ -46,6 +46,12 @@ Two renderers, one contract, as for the timeline:
   second most extracted trait in `logs/json/pipeline_report_*.json`, 29 times —
   have no filter choice and no phenogram entry, and let `lacunar stroke` be
   labelled `"Lacunar Stroke"` in one file and `"Lacunar stroke"` in another.
+  **Under `GOLD_ONLY` the page offers less than the file**: the GWAS filter
+  (`gwasTraitChoices` in `lib/filters.ts`) and the island's key
+  (`phenogramLegend`) list only the traits a published gene carries, and a
+  family left with none drops out of the key, so no vocabulary term the
+  curators never assigned reaches a page. `GWAS_TRAIT_CHOICES` itself stays
+  the whole vocabulary, and so does the print figure's key.
 - **The prompt is reconciled, not generated.** `pipeline/prompts.py`'s
   canonical-abbreviation sentence stays a frozen literal — it is recorded in
   cassettes and treated as part of the method, so generating it would let an
@@ -109,7 +115,7 @@ The SVG is `aria-hidden` decoration. Over it, `ul.phenogram-genes` holds one
 absolutely positioned `<li>` per block, in percent of the viewBox, each wrapping
 `components/Tooltip.tsx` around a visually-hidden name — so hover, Enter,
 Tab-to-link and Escape are the tables' behaviour with no new tooltip code, and
-screen readers get the 87 genes in chromosome order. Pill backgrounds and the
-glyph positions after each symbol are the only measured geometry (`getBBox()` on
-mount and on `document.fonts.ready`); block positions never depend on text
-metrics.
+screen readers get every placed gene in chromosome order. Pill backgrounds and
+the glyph positions after each symbol are the only measured geometry
+(`getBBox()` on mount and on `document.fonts.ready`); block positions never
+depend on text metrics.

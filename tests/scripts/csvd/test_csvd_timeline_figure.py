@@ -26,18 +26,35 @@ from scripts.timeline_figure import (
     sector_spans,
 )
 
+from pipeline.gold_only import gold_only
+
+# `GOLD_ONLY` as lib/gold_only.ts sets it, so the skip below lifts with it.
+_GOLD_ONLY = gold_only()
+
+# The gold trials fill seven cells: CAA/II, Cognitive Impairment/III and II,
+# Stroke/III and II, SVD/II and I (THN391's "Ib", on its parent's ring).
 EMPTY_CELLS = [
     ("CAA", "IV"),
+    ("CAA", "III"),
     ("CAA", "II/III"),
+    ("CAA", "I/II"),
     ("CAA", "I"),
     ("CAA", "(unknown)"),
+    ("Cognitive Impairment", "IV"),
+    ("Cognitive Impairment", "II/III"),
     ("Cognitive Impairment", "I/II"),
+    ("Cognitive Impairment", "I"),
+    ("Cognitive Impairment", "(unknown)"),
+    ("Stroke", "IV"),
+    ("Stroke", "II/III"),
+    ("Stroke", "I/II"),
     ("Stroke", "I"),
-    # SVD/III emptied when the three arms of NCT03082014 -- amlodipine,
-    # losartan and atenolol, all TERMINATED -- stopped being published.
+    ("Stroke", "(unknown)"),
+    ("SVD", "IV"),
     ("SVD", "III"),
     ("SVD", "II/III"),
     ("SVD", "I/II"),
+    ("SVD", "(unknown)"),
 ]
 
 
@@ -60,20 +77,20 @@ class TestLayout:
             "Stroke",
             "SVD",
         ]
-        assert [s.drug_count for s in sectors] == [8, 32, 14, 23]
+        assert [s.drug_count for s in sectors] == [3, 2, 4, 3]
         assert sectors[0].start_deg == 0
-        # 77 unique drugs over the four populations; CAA holds 8 of them.
-        assert sectors[0].end_deg == pytest.approx(8 / 77 * 360)
+        # 12 unique drugs over the four populations; CAA holds 3 of them.
+        assert sectors[0].end_deg == pytest.approx(3 / 12 * 360)
         assert sectors[2].end_deg - sectors[2].start_deg == pytest.approx(
-            14 / 77 * 360
+            4 / 12 * 360
         )
         assert sectors[-1].end_deg == pytest.approx(360)
 
     def test_every_cell_with_the_expected_empties(self, trials, encoding) -> None:
         sectors = sector_spans(trials, encoding)
         cell_list = cells(trials, encoding, sectors)
-        # Four populations over seven rings; nine are empty, because only
-        # eight trials are registered as seamless.
+        # Four populations over seven rings; 21 are empty, because the 16
+        # gold trials sit in phases II and III, and one in I.
         assert len(cell_list) == 28
         assert [(c.population, c.phase) for c in cell_list if not c.filled] == (
             EMPTY_CELLS
@@ -82,8 +99,8 @@ class TestLayout:
     def test_every_marker_is_drawn(self, trials, encoding) -> None:
         sectors = sector_spans(trials, encoding)
         marker_list = markers(trials, encoding, sectors)
-        assert len(marker_list) == 102
-        assert [m.index for m in marker_list] == list(range(102))
+        assert len(marker_list) == 16
+        assert [m.index for m in marker_list] == list(range(16))
 
     def test_genetics_assessed_is_a_ring_and_a_bare_default_is_not(
         self, trials, encoding
@@ -92,12 +109,20 @@ class TestLayout:
         sectors = sector_spans(trials, encoding)
         marker_list = markers(trials, encoding, sectors)
         states = [m.evidence_state for m in marker_list]
-        assert states.count("supported") == 12
-        assert states.count("unsupported") == 9
-        assert states.count("unassessed") == 81
-        assert sum(1 for m in marker_list if m.evidence_ring) == 21
-        assert sum(1 for m in marker_list if m.evidence_dash) == 9
+        assert states.count("supported") == 5
+        assert states.count("unsupported") == 6
+        assert states.count("unassessed") == 5
+        assert sum(1 for m in marker_list if m.evidence_ring) == 11
+        assert sum(1 for m in marker_list if m.evidence_dash) == 6
 
+    @pytest.mark.skipif(
+        _GOLD_ONLY,
+        reason=(
+            "gold-only: no gold trial is a thin record, so the committed data"
+            " cannot exercise the flag; tests/scripts/test_timeline_figure.py"
+            " tests its rules on constructed rows"
+        ),
+    )
     def test_the_record_flag_marks_sixteen_thin_records(
         self, trials, encoding
     ) -> None:
@@ -129,18 +154,17 @@ class TestLayout:
 
     def test_shared_cell_markers_differ_in_radius(self, trials, encoding) -> None:
         sectors = sector_spans(trials, encoding)
-        # The SVD trials the registry states no phase for. This was the pair
-        # of stroke trials until one of them, NCT03783754, was published as
-        # TERMINATED and stopped being drawn.
+        # The six Phase III Stroke trials, the gold table's fullest cell.
+        # Before gold-only this was the seven SVD trials with no phase; the
+        # gold table states a phase for every trial.
         shared = [
             m
             for m in markers(trials, encoding, sectors)
-            if m.population == "SVD" and m.phase == "(unknown)"
+            if m.population == "Stroke" and m.phase == "III"
         ]
-        assert len(shared) == 7
-        # Twice 18 % of the unknown-phase ring's thickness (0.15 of radius
-        # 100, which the two seamless rings deliberately did not narrow).
-        assert shared[1].r - shared[0].r == pytest.approx(2 * 0.18 * 15)
+        assert len(shared) == 6
+        # Twice 18 % of the Phase III ring's thickness (0.09 of radius 100).
+        assert shared[1].r - shared[0].r == pytest.approx(2 * 0.18 * 9)
 
 
 class TestRender:
@@ -151,19 +175,20 @@ class TestRender:
         target = tmp_path / "timeline.svg"
         fig.savefig(target, format="svg", bbox_inches="tight")
         svg = target.read_text(encoding="utf-8")
-        assert svg.count('id="marker-') == 102
-        assert svg.count('id="label-') == 102
+        assert svg.count('id="marker-') == 16
+        assert svg.count('id="label-') == 16
         # One band per populated sector; one ring per trial whose genetics
         # somebody assessed, and one hollow centre per flagged record.
         assert svg.count('id="band-') == 4
-        assert svg.count('id="ring-') == 21
-        assert svg.count('id="gap-') == 16
+        assert svg.count('id="ring-') == 11
+        # No gold trial is a thin record, so no marker has a hollow centre.
+        assert svg.count('id="gap-') == 0
         # A leader line per label the separation pass moved further than its
         # own height. How many that is depends on the rendered text metrics,
         # so it is bounded rather than pinned -- but it is never none, because
         # the placement pass has to move labels to clear this figure at all.
         leaders = svg.count('id="leader-')
-        assert 0 < leaders <= 102
+        assert 0 < leaders <= 16
         assert "Any SVD" in svg
         # Text stays text: no glyph outlines in place of the drug names.
         assert "Cilostazol" in svg

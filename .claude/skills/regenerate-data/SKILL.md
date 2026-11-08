@@ -15,10 +15,20 @@ deno task data:empty  # pipeline/export/empty.py   → the empty start, no datab
 ```
 
 `data:empty` is not a regeneration: it writes every file empty or `null` (the
-OMIM table from the CSV, the cytobands untouched) so a fork, or the
+OMIM table too, since it publishes only entries a published gene links to; the
+cytobands untouched) so a fork, or the
 `empty-data` CI job, starts from a state every suite passes on. Running it here
 throws the committed data away in the working tree; `git checkout -- data`
 brings it back.
+
+**While `GOLD_ONLY` is true in `lib/gold_only.ts`, the database holds the
+hand-curated gold tables alone** (written by `scripts/load_gold.py` from
+`disease/gold/out/`). `deno task data` and `deno task geocode` publish them as
+they publish anything else, and `--sync-external-data` and `--sync-annotations`
+still refresh the lookups for their keys, but `pipeline.main` refuses `--pubmed`
+and `--clinical-trials`, which would add rows the curators did not write. The
+way back, the pre-gold dump included, is the undo checklist in that file's doc
+comment.
 
 `--export` does the same work as `deno task data` at the end of a live pipeline
 run (`uv run python -m pipeline.main --clinical-trials --export`), leaving the

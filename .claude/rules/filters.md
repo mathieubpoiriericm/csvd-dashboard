@@ -36,8 +36,20 @@ reports it on first paint, which is intended -- it is what tells a viewer those
 trials are hidden. Unknown also answers for a trial with no ClinicalTrials.gov
 record (`matchesStatus`), so the default hides every ISRCTN, ANZCTR and ChiCTR
 trial from the table and the radar too; that was chosen, not overlooked.
+**Under `GOLD_ONLY` (`lib/gold_only.ts`) the default is Show All instead**
+(`defaultTrialStatuses`): a curated trial registered outside
+ClinicalTrials.gov carries no status and reads as Unknown, so the run default
+would hide every such trial, and every completed one, from all three pages,
+where the curated set is meant to be seen whole.
 `visibleTrials()` in `lib/filters.ts` is the same default as a function, for the
 SSR tests and any count that has to agree with the page.
+
+The GWAS trait group offers every vocabulary trait, except **under
+`GOLD_ONLY`, where it offers only the traits a row carries**
+(`gwasTraitChoices`, beside Show All and None Found): the published rows are
+the whole curated set, and a trait no curated row uses would be a choice that
+matches nothing. `tests/data_contract_test.ts` checks reachability against
+those offered choices, not against the vocabulary.
 
 `components/FilterPanel.tsx` owns the sidebar-and-table layout both data pages
 render, and the collapse state with it -- the `is-collapsed` class has to reach

@@ -19,10 +19,14 @@
  */
 
 import {
-  DEFAULT_TRIAL_STATUSES,
+  defaultTrialStatuses,
+  GWAS_TRAIT_CHOICES,
+  NONE_FOUND,
   SHOW_ALL,
   YES_NO_CHOICES,
 } from "./constants.ts";
+import { GOLD_ONLY } from "./gold_only.ts";
+import { parentPhase } from "./phases.ts";
 import { isAbsent } from "./sentinels.ts";
 import { STATUS_NOT_STATED } from "./trial_status.ts";
 import type { FilterChoice, Gene, Trial, TrialLocation } from "./types.ts";
@@ -151,6 +155,7 @@ export interface TrialFilters {
 /**
  * Phase labels in the data are free text ("Phase II", "II/III"). A trial
  * matches a selected phase when that roman numeral appears as a whole token.
+ * A sub-phase ("Ib") is matched as its parent (`parentPhase`).
  */
 function matchesPhase(
   phase: string,
@@ -158,7 +163,8 @@ function matchesPhase(
 ): boolean {
   // Word boundaries matter here. Splitting on non-Roman characters treats the
   // "i" in free-text values such as "Clinical Trial Phase II" as Phase I.
-  const tokens = phase.match(/\b(?:IX|IV|V?I{1,3}|X)\b/gi) ?? [];
+  const tokens = parentPhase(phase).match(/\b(?:IX|IV|V?I{1,3}|X)\b/gi) ??
+    [];
   // A value carrying no numeral at all is still a phase the data states --
   // "(unknown)" is what the export writes when the registry declares none --
   // so it is compared whole. Without this the sentinel matches no choice and
@@ -256,21 +262,52 @@ export function filterTrials(
   });
 }
 
-/** Every group unconstrained except status, which starts without Completed, Suspended and Unknown. */
-export function defaultTrialFilters(): TrialFilters {
+/**
+ * Every group unconstrained except status, which starts from
+ * `defaultTrialStatuses(goldOnly)`: everything under `GOLD_ONLY`, otherwise
+ * without Completed, Suspended and Unknown.
+ */
+export function defaultTrialFilters(
+  goldOnly: boolean = GOLD_ONLY,
+): TrialFilters {
   return {
     geneticEvidence: YES_NO_CHOICES.map((choice) => choice.value),
     registries: [SHOW_ALL],
     phases: [SHOW_ALL],
     populations: [SHOW_ALL],
     sponsors: [SHOW_ALL],
-    statuses: [...DEFAULT_TRIAL_STATUSES],
+    statuses: [...defaultTrialStatuses(goldOnly)],
   };
 }
 
 /** The rows a page shows before anyone touches a filter. */
-export function visibleTrials(rows: readonly Trial[]): Trial[] {
-  return filterTrials(rows, defaultTrialFilters());
+export function visibleTrials(
+  rows: readonly Trial[],
+  goldOnly: boolean = GOLD_ONLY,
+): Trial[] {
+  return filterTrials(rows, defaultTrialFilters(goldOnly));
+}
+
+/**
+ * The GWAS trait group's choices over `rows`.
+ *
+ * Otherwise every vocabulary trait (`GWAS_TRAIT_CHOICES`), so a choice exists
+ * before a run publishes the first gene that carries it. Under `GOLD_ONLY`
+ * only the traits some row carries: the rows are the whole curated set, and a
+ * vocabulary trait the curators never assigned would put a phenotype on the
+ * page that matches nothing. Show All and None Found are not traits, and are
+ * always offered.
+ */
+export function gwasTraitChoices(
+  rows: readonly Pick<Gene, "gwasTrait">[],
+  goldOnly: boolean = GOLD_ONLY,
+): readonly FilterChoice[] {
+  if (!goldOnly) return GWAS_TRAIT_CHOICES;
+  const carried = new Set(rows.flatMap((row) => row.gwasTrait.map(normalize)));
+  return GWAS_TRAIT_CHOICES.filter((choice) =>
+    choice.value === SHOW_ALL || choice.value === NONE_FOUND ||
+    carried.has(normalize(choice.value))
+  );
 }
 
 /** The map's facilities under a status selection. */

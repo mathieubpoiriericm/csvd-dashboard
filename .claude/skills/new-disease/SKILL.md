@@ -79,7 +79,14 @@ from a lookup you ran and can show, never from what a disease "probably" has.
       rationale from questions 2 and 3, "How to cite: pending". Then
       `deno fmt disease/README.md`; the check gate formats Markdown too.
 3. **`deno task data:empty`** — every `data/*.json` empty or `null`, the OMIM
-   table from the CSV, the cytobands untouched. No database is needed.
+   table too (it publishes only the entries a published gene links to, and
+   no gene is published yet), the cytobands untouched. No database is needed.
+   **Then set `GOLD_ONLY = false` in `lib/gold_only.ts`.** Upstream switches
+   it on while its own data is limited to its hand-curated tables; on in a
+   fork, the About page would show upstream's curated-data notice in place of
+   the run report, the Genes page would offer only the traits a gene
+   carries, and `pipeline.main` would refuse the `--pubmed` and
+   `--clinical-trials` runs the fork needs.
 4. **Remove the four cSVD test trees** with one command:
    `git rm -r tests/csvd e2e/tests/csvd tests/pipeline/csvd tests/scripts/csvd`.
    Everything left holds for any disease, bar one recording: the cSVD recall

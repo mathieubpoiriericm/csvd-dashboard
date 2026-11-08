@@ -25,6 +25,8 @@ from scripts.restore_from_json import (
     trial_from_wire,
 )
 
+from pipeline.export.tables import clean_omics_value
+
 _DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 
 _POPULATED_GENE: dict[str, Any] = {
@@ -119,6 +121,27 @@ def test_the_omics_sentinel_is_not_stored() -> None:
     assert stored_omics(["(none found)"]) is None
 
 
+@pytest.mark.parametrize(
+    "entries",
+    [
+        ["TWAS;TRAIT-A: tissue one*"],  # a "*" and a second ":"
+        ["TWAS;tissue one, (age>65): tissue two", "PWAS;x"],  # nested parentheses
+        ["TWAS;Whole_Blood"],  # an underscore
+    ],
+)
+def test_entries_prose_cannot_carry_are_stored_as_an_array(
+    entries: list[str],
+) -> None:
+    """Prose is kept whenever it exports back to the entries; when it would
+    not, the entries are stored already split, and the export publishes
+    them as they are."""
+    stored = stored_omics(entries)
+    assert stored is not None
+    assert stored.startswith("[")
+    assert ";" not in stored  # one element to the gene merge's ";" split
+    assert clean_omics_value(stored) == entries
+
+
 # ------------------------------------------------------------------ genes
 
 
@@ -206,14 +229,15 @@ def test_every_committed_row_round_trips_through_the_export() -> None:
 
 
 def test_a_row_the_export_could_not_have_written_is_refused(tmp_path: Path) -> None:
-    """The export lowercases the pathway, so a capitalised one cannot be
-    restored faithfully -- re-exporting it would change the file."""
+    """The export lowercases the word "ALL" in the cell types, so a row
+    publishing it cannot be restored faithfully -- re-exporting it would
+    change the file."""
     data = _write_export(
         tmp_path / "data",
-        table1=[{**_POPULATED_GENE, "affectedPathway": "Angiogenesis"}],
+        table1=[{**_POPULATED_GENE, "brainCellTypes": "ALL"}],
     )
 
-    with pytest.raises(RestoreRefused, match=r"ABC1.*affectedPathway"):
+    with pytest.raises(RestoreRefused, match=r"ABC1.*brainCellTypes"):
         build_plan(data, tmp_path / "logs")
 
 

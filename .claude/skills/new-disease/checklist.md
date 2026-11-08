@@ -30,6 +30,8 @@ the reason; nothing is quietly skipped.
 ## The start
 
 - [ ] `deno task data:empty`.
+- [ ] `GOLD_ONLY = false` in `lib/gold_only.ts` — upstream's gold-only switch,
+      which a fork never inherits (`SKILL.md`, step 3).
 - [ ] `git rm -r tests/csvd e2e/tests/csvd tests/pipeline/csvd tests/scripts/csvd`.
 - [ ] `git rm -r tests/pipeline/cassettes/test_query_recall_gold` — the cSVD
       recall recordings, which `--record-mode=once` would replay in place of

@@ -1,11 +1,12 @@
 import { expect, type Page, test } from "@playwright/test";
 
+import { EXPECTED } from "../../fixtures/expected-data.ts";
 import { tooltip } from "../../helpers.ts";
 
 /**
- * The karyogram over the committed cSVD genes, by name: 20 chromosomes and
- * 87 blocks, ABO on 9, LAMB1's tooltip, EPHA2 first and GLA last, SLK's band
- * range, WMH's STRIVE-2 definition. The figure's behaviour is tested over derived counts
+ * The karyogram over the committed cSVD genes, by name: 22 chromosomes and
+ * 114 blocks, ABO on 9, LAMB1's tooltip, PRDM16 first and CHRDL1 last, WMH's
+ * STRIVE-2 definition. The figure's behaviour is tested over derived counts
  * in ../phenogram.spec.ts; a fork deletes the whole e2e/tests/csvd/ tree.
  */
 
@@ -17,14 +18,19 @@ async function figureSettled(page: Page) {
   await page.evaluate(() => document.fonts.ready);
 }
 
-test("draws 20 chromosomes and 87 gene blocks under seven families", async ({ page }) => {
+// The gold table's 115 genes less MSMP, whose "9q13.3" is not an hg38 band.
+test("draws 22 chromosomes and 114 gene blocks under eight families", async ({ page }) => {
   await figureSettled(page);
   const figure = page.locator(FIGURE);
-  await expect(figure.locator("g.phenogram-chromosome")).toHaveCount(20);
+  await expect(figure.locator("g.phenogram-chromosome")).toHaveCount(22);
   await expect(figure.locator('g.phenogram-chromosome[data-chromosome="13"]'))
     .toHaveCount(1);
-  await expect(figure.locator("g.phenogram-block")).toHaveCount(87);
-  await expect(page.locator(".phenogram-legend-family")).toHaveCount(7);
+  await expect(figure.locator("g.phenogram-block")).toHaveCount(114);
+  await expect(page.locator(".phenogram-legend-family")).toHaveCount(8);
+  // The key's traits are the eighteen a gold gene carries, not the
+  // vocabulary's twenty-one.
+  await expect(page.locator(".phenogram-legend-traits .phenogram-pill"))
+    .toHaveCount(18);
 });
 
 test("the raster's errors are gone: ABO on 9, C6orf195 on 6, COL4A1/2 on 13", async ({ page }) => {
@@ -65,23 +71,35 @@ test("hovering LAMB1 opens its tooltip and the keyboard reaches the NCBI link", 
   await expect(lamb1).toBeFocused();
 });
 
-test("gene buttons run from EPHA2 to GLA and name CENPF's evidence", async ({ page }) => {
-  await figureSettled(page);
-  const names = await page.locator(".phenogram-genes button").evaluateAll(
+const geneButtonNames = (page: Page) =>
+  page.locator(".phenogram-genes button").evaluateAll(
     (buttons) => buttons.map((b) => b.textContent?.trim() ?? ""),
   );
-  expect(names[0]).toMatch(
-    /^EPHA2, 1p36\.13\. GWAS phenotypes: WMH, MD, FA\./,
+
+test("gene buttons run from PRDM16 to CHRDL1 and name CENPF's evidence", async ({ page }) => {
+  await figureSettled(page);
+  const names = await geneButtonNames(page);
+  expect(names[0]).toMatch(/^PRDM16, 1p36\.32\. GWAS phenotypes: SVS\./);
+  // Gold gives CENPF no other-omics entry, so only its monogenic link is
+  // named beside the traits.
+  expect(names.find((n) => n.startsWith("CENPF,"))).toBe(
+    "CENPF, 1q41. GWAS phenotypes: WM-PVS, HIP-PVS, PSMD. " +
+      "Other evidence: Monogenic disease.",
   );
+  expect(names.at(-1)).toMatch(/^CHRDL1, Xq23\./);
+});
+
+test("a gene across a band edge is placed and named whole", async ({ page }) => {
+  test.skip(
+    EXPECTED.goldOnly,
+    "gold-only: no gold gene's location spans a band edge (SLK, 10q24.33-q25.1, is not in the gold table)",
+  );
+  await figureSettled(page);
+  const names = await geneButtonNames(page);
   // NCBI's range for a gene across a band edge is placed, and named whole.
   expect(names.find((n) => n.startsWith("SLK,"))).toMatch(
     /^SLK, 10q24\.33-q25\.1\./,
   );
-  expect(names.find((n) => n.startsWith("CENPF,"))).toBe(
-    "CENPF, 1q41. GWAS phenotypes: WM-PVS, HIP-PVS, PSMD. " +
-      "Other evidence: Other omics, Monogenic disease.",
-  );
-  expect(names.at(-1)).toMatch(/^GLA, Xq22\.1\./);
 });
 
 test("the phenotype key explains WMH with its STRIVE-2 definition", async ({ page }) => {

@@ -38,6 +38,11 @@ Two invariants the TypeScript side depends on:
    wire form `Proteomics;plasma, CSF`, which keeps the detail and makes the type
    reachable; one whose leading type is outside the vocabulary is dropped and
    logged per gene, the disposition an untracked GWAS trait already gets.
+   **A stored value may instead be a JSON array of wire-form entries**, which
+   skips the prose chain and passes only that type gate -- the form curated
+   gold wording is stored in, because the chain strips `*`, rewrites every `:`
+   and `_`, and splits nested parentheses. `.claude/rules/gene-lists.md` has
+   the details.
    `GeneAnnotation` adds two more, `omimSeries` and `relatedXrefs`, which are
    the one place a list normalizes to **empty** rather than to a sentinel entry:
    most diseases have no related concept at all, and `textList`'s fallback would
