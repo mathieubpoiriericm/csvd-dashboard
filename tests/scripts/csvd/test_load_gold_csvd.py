@@ -78,33 +78,33 @@ def test_stn1_links_only_its_omim_number() -> None:
 
 
 def test_colocalization_stars_and_details_survive_the_export() -> None:
-    """ST1's footnote: "*" marks significant colocalization. The gold cell is
-    "TWAS AIS: Cross-tissue sCCA3*;"."""
+    """ST1's footnote: "*" marks significant colocalization. The gold cell,
+    as corrections.csv writes it, is "TWAS AIS: cross-tissue sCCA3*"."""
     assert export_gene(_gene("HTRA1"))["evidenceFromOtherOmicsStudies"] == [
-        "TWAS;AIS: Cross-tissue sCCA3*",
-        "WES/WGS;stroke, WMH (burden of rare variants)",
-        "Proteogenomic MR;HV-PVS",
+        "TWAS;AIS: cross-tissue sCCA3*",
+        "WES/WGS;stroke & WMH: burden of rare variants",
+        "Proteogenomic MR;HV-PVS[?]",
     ]
 
 
-def test_a_multiline_cell_keeps_every_study_verbatim() -> None:
+def test_a_multiline_cell_keeps_every_study() -> None:
     published = export_gene(_gene("TRIM47"))["evidenceFromOtherOmicsStudies"]
     assert published == [
-        "TWAS;PSMD: Brain anterior cingulate cortex BA24*, brain cerebellar "
-        "hemisphere, brain cortex*, brain frontal cortex BA9*, (Age>65): cells "
-        "cultured fibroblasts*, brain hippocampus",
+        "TWAS;PSMD: brain anterior cingulate cortex BA24*, brain cerebellar "
+        "hemisphere, brain cortex*, brain frontal cortex BA9*, (Age>65)[?]: "
+        "cells cultured fibroblasts*, brain hippocampus",
         "PWAS;PSMD: dPFC*",
-        "TWAS;WMH: CMC brain dlPFC qTTL, brain hippocampus*, brain cerebellum*, "
-        "brain cerebellar hemisphere*, artery tibial",
+        "TWAS;WMH: CMC: brain dlPFC qTTL[?], brain hippocampus*, brain "
+        "cerebellum*, brain cerebellar hemisphere*, artery tibial",
     ]
 
 
-def test_the_mentr_sentence_and_fine_mapping_keep_their_wording() -> None:
+def test_the_mentr_sentence_keeps_its_wording() -> None:
     assert export_gene(_gene("SH3PXD2A"))["evidenceFromOtherOmicsStudies"] == [
-        "TWAS;AS: Cross-tissue sCCA3*",
+        "TWAS;AS: cross-tissue sCCA3*",
         "mutation effect prediction on ncRNA transcription;Evidence for causal "
         "implication from ML-based functional prediction (MENTR)",
-        "Fine-mapping;multiancestry fine-mapping",
+        "Fine-mapping;multi-ancestry",
     ]
 
 
@@ -113,3 +113,33 @@ def test_cell_types_carry_both_species() -> None:
         "Mouse: AC>OL>FB; Human: MG > RBC >> OPC > OL"
     )
     assert _gene("STN1").columns["brain_cell_types"] == "Mouse: FB"
+
+
+def _omics(symbol: str) -> list[str]:
+    return export_gene(_gene(symbol))["evidenceFromOtherOmicsStudies"]
+
+
+def test_omics_entries_follow_the_reviewed_format() -> None:
+    """The 2026-11-08 review's rewrites, through corrections.csv. NMT1's is
+    the curator's own worked example; a `[?]` marks what the curator left
+    verbatim for clarification."""
+    assert _omics("NMT1")[0] == (
+        "TWAS;WMH: nerve tibial, brain spinal cord cervical C1, brain"
+        " hippocampus, brain caudate basal ganglia*, brain anterior cingulate"
+        " cortex BA24*, heart left ventricle*, artery tibial, artery coronary*,"
+        " artery aorta*, YFS: blood*, CMC: brain (RNA-Seq)"
+    )
+    assert _omics("SMG6") == [
+        "TWAS;[?]: cells cultured fibroblasts, brain frontal cortex BA9*"
+    ]
+    assert _omics("HTRA1")[2] == "Proteogenomic MR;HV-PVS[?]"
+    assert _omics("PMF1")[0] == (
+        "WES/WGS;non-lobar ICH: 1q22 locus resequencing, multivariable MR"
+        " (PMF1 overexpression)"
+    )
+    assert _omics("SH3PXD2A")[2] == "Fine-mapping;multi-ancestry"
+
+
+def test_a_bare_proteomics_entry_beside_proteomics_wmh_is_gone() -> None:
+    assert _omics("TAGLN") == ["Proteomics;WMH", "Proteogenomic MR;WMH"]
+    assert _omics("CHRDL1") == ["Proteomics;WMH", "Proteogenomic MR;WMH"]

@@ -187,6 +187,18 @@
         }
       }
     },
+    "acronyms": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["kind"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "kind": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
     "citationStandard": {
       "oneOf": [
         { "type": "null" },

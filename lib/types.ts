@@ -295,7 +295,18 @@ export interface DiseaseManifest {
   populations: Population[];
   populationField: { label: string; detailsLabel: string };
   cellTypes: { label: string; glossary: Record<string, string> };
+  /**
+   * The disease's acronyms for the trait and omics columns' tooltips. A null
+   * name is taken from the trait vocabulary (`lib/disease/acronyms.ts`).
+   */
+  acronyms: Record<string, { name: string | null; kind: string }>;
   citationStandard: CitationStandard | null;
+}
+
+/** One glossary entry: what an acronym stands for, and what kind of thing it is. */
+export interface Acronym {
+  name: string;
+  kind: string;
 }
 
 export interface PaperCounts {

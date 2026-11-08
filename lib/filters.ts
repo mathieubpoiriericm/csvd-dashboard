@@ -26,6 +26,7 @@ import {
   YES_NO_CHOICES,
 } from "./constants.ts";
 import { GOLD_ONLY } from "./gold_only.ts";
+import { formatOmicsEntry, parseOmicsEntry } from "./omics.ts";
 import { parentPhase } from "./phases.ts";
 import { isAbsent } from "./sentinels.ts";
 import { STATUS_NOT_STATED } from "./trial_status.ts";
@@ -53,13 +54,12 @@ export function omicsType(value: string): string {
   return value.split(";")[0].trim();
 }
 
-/** The wire form `Type;detail` as the cell shows it: `Type (detail)`. */
+/**
+ * The wire form `Type;detail` as the cell shows it, `Type (detail)`, with the
+ * `*` colocalization markers left for the tooltips (`lib/omics.ts`).
+ */
 export function formatOmicsValue(value: string): string {
-  const semicolon = value.indexOf(";");
-  if (semicolon === -1) return value.trim();
-  const detail = value.slice(semicolon + 1).trim();
-  const type = value.slice(0, semicolon).trim();
-  return detail ? `${type} (${detail})` : type;
+  return formatOmicsEntry(parseOmicsEntry(value));
 }
 
 /** Whether a selection constrains its rows under the UI's selection rules. */

@@ -192,6 +192,27 @@ def test_multiline_omics_split() -> None:
     ]
 
 
+def test_a_study_may_lead_with_any_published_type() -> None:
+    """A study written with its type first takes that type, in the filter's
+    spelling, whatever the type -- so a curated entry can be written in the
+    wire form's own order, and a `[?]` clarification mark rides through."""
+    gene = gene_from_gold(
+        _gene_row(
+            other_omics=(
+                "WES/WGS TRAIT-A: a locus, a follow-up (a gene)\n"
+                "fine-mapping: multi-ancestry\n"
+                "TWAS [?]: tissue one*, tissue two[?]"
+            )
+        ),
+        [],
+    )
+    assert export_gene(gene)["evidenceFromOtherOmicsStudies"] == [
+        "WES/WGS;TRAIT-A: a locus, a follow-up (a gene)",
+        "Fine-mapping;multi-ancestry",
+        "TWAS;[?]: tissue one*, tissue two[?]",
+    ]
+
+
 def test_traits_split_on_commas_and_semicolons_outside_parentheses() -> None:
     if len(_TRAIT_KEYS) < 2:
         pytest.skip("disease/vocabulary.json carries fewer than two traits")

@@ -15,8 +15,8 @@ ST1,gene,2,7b9f3a4f,STN1 (OBFC1),STN1,OBFC1 is the previous HGNC symbol of STN1
 ST1,gene,,,PVRL2:CTB-129P6.4,PVRL2:CTB-129P6.4,locus label as published in the MTAG study (PMID 39298701)
 ST6,platform,,,SomaScan 7K assay,SomaScan 7K,"one form for SomaScan platforms: ""SomaScan"" plus its version"
 ST6,platform,,,Somascan assay,SomaScan 5K,"one form for SomaScan platforms: ""SomaScan"" plus its version; Shi 2021 (PMID 34604499) measured 5032 proteins, the 5K assay"
-ST1,other_omics,,,"TWAS HIP-PVS: Nerve tibial, brain cerebellar hemisphere*, brain cerebellum*, heart left ventricle*, heart artial appendage*, artery tibial*, artery aorta, peripheral blood, whole blood","TWAS HIP-PVS: Nerve tibial, brain cerebellar hemisphere*, brain cerebellum*, heart left ventricle*, heart atrial appendage*, artery tibial*, artery aorta, peripheral blood, whole blood",typo: atrial appendage
-ST1,other_omics,,,"TWAS WM-PVS: Nerve tibial, heart artial appendage*, artery tibial","TWAS WM-PVS: Nerve tibial, heart atrial appendage*, artery tibial",typo: atrial appendage
+ST1,other_omics,,,"TWAS HIP-PVS: Nerve tibial, brain cerebellar hemisphere*, brain cerebellum*, heart left ventricle*, heart artial appendage*, artery tibial*, artery aorta, peripheral blood, whole blood","TWAS HIP-PVS: nerve tibial, brain cerebellar hemisphere*, brain cerebellum*, heart left ventricle*, heart atrial appendage*, artery tibial*, artery aorta, peripheral blood, whole blood","typo: atrial appendage; then Omics format (2026-11-08 review): one entry shape, lower-case tissues, dataset: tissue"
+ST1,other_omics,,,"TWAS WM-PVS: Nerve tibial, heart artial appendage*, artery tibial","TWAS WM-PVS: nerve tibial, heart atrial appendage*, artery tibial","typo: atrial appendage; then Omics format (2026-11-08 review): one entry shape, lower-case tissues, dataset: tissue"
 ST2,description,,,"Extension of GPS that incorporations both rare and common variant associations from machine learning-based continuous phenotypes, to predict main indications of drug targets.","Extension of GPS that incorporates both rare and common variant associations from machine learning-based continuous phenotypes, to predict main indications of drug targets.",typo: incorporates
 ST5,other_indications,,,symptomic relief of intermittent claudication*,symptomatic relief of intermittent claudication*,typo: symptomatic
 ST6,population,,,sympomatic cSVD,symptomatic cSVD,typo: symptomatic
@@ -45,3 +45,122 @@ ST1,references,15,402f23da,"32358547,33293549,33773637,35511193,34358307,https:/
 ST1,references,21,7d6103d6,"32913026, 24656865, 41266628, 10.1212/WNL.0000000000209666,37231261,38868715,35084939,35165441,38987604,35158371,37824663,29443965,30129931","32913026, 24656865, 41266628, 39298701,37231261,38868715,35084939,35165441,38987604,35158371,37824663,29443965,30129931","DOI of a published paper cited elsewhere by its PMID: 10.1212/WNL.0000000000209666 is PMID 39298701 (Muino 2024, Neurology)"
 ST1,references,32,7237768c,"31430377,32358547,33293549,33773637,35328582,34358307,36180795,37069360,https://doi.org/10.21203/rs.3.rs-5926137/v1, 10.1212/WNL.0000000000209666,37231261,38868715,35084939,35165441,38987604,35158371,37824663,29443965,30129931","31430377,32358547,33293549,33773637,35328582,34358307,36180795,37069360,https://doi.org/10.21203/rs.3.rs-5926137/v1, 39298701,37231261,38868715,35084939,35165441,38987604,35158371,37824663,29443965,30129931","DOI of a published paper cited elsewhere by its PMID: 10.1212/WNL.0000000000209666 is PMID 39298701 (Muino 2024, Neurology)"
 ST1,references,56,aa155b92,"41266628; 10.1038/s41591-023-02268-w,37231261,38868715,35084939,35165441,38987604,35158371,37824663,29443965,30129931","41266628; 37069360,37231261,38868715,35084939,35165441,38987604,35158371,37824663,29443965,30129931","DOI of a published paper cited elsewhere by its PMID: 10.1038/s41591-023-02268-w is PMID 37069360 (Duperron 2023, Nat Med)"
+ST1,other_omics,3,3f837909,TWAS AIS: Cross-tissue sCCA3*;,TWAS AIS: cross-tissue sCCA3*,"Omics format (2026-11-08 review): one entry shape, lower-case tissues, dataset: tissue"
+ST1,ngs_rare_deleterious_or_protective_variant,3,3f837909,"stroke, WMH (burden of rare variants)",stroke & WMH: burden of rare variants,"Omics format (2026-11-08 review): one entry shape, lower-case tissues, dataset: tissue"
+ST1,proteogenomics_mr,3,3f837909,HV-PVS,HV-PVS[?],"HV-PVS is no known trait: kept as written, marked for clarification (2026-11-08 review)"
+ST1,other_omics,5,d2c7159a,"TWAS PSMD: Brain anterior cingulate cortex BA24*, brain cerebellar hemisphere, brain cortex*, brain frontal cortex BA9*, (Age>65): cells cultured fibroblasts*, brain hippocampus
+PWAS PSMD: dPFC*
+TWAS WMH: CMC brain dlPFC qTTL, brain hippocampus*, brain cerebellum*, brain cerebellar hemisphere*, artery tibial","TWAS PSMD: brain anterior cingulate cortex BA24*, brain cerebellar hemisphere, brain cortex*, brain frontal cortex BA9*, (Age>65)[?]: cells cultured fibroblasts*, brain hippocampus
+PWAS PSMD: dPFC*
+TWAS WMH: CMC: brain dlPFC qTTL[?], brain hippocampus*, brain cerebellum*, brain cerebellar hemisphere*, artery tibial","Omics format (2026-11-08 review): one entry shape, lower-case tissues, dataset: tissue; (Age>65) placement and qTTL kept as written, marked for clarification"
+ST1,ngs_rare_deleterious_or_protective_variant,6,802a254b,extreme-cSVD gene-based tests,extreme-cSVD: gene-based tests,"Omics format (2026-11-08 review): one entry shape, lower-case tissues, dataset: tissue"
+ST1,other_incl_experimental,7,625d5d33,"CRISPR, experimental",CRISPR,Omics format (2026-11-08 review): 'experimental' repeated the type
+ST1,other_omics,15,402f23da,"TWAS AS: Cross-tissue sCCA3*
+Evidence for causal implication from ML-based functional prediction (MENTR); multiancestry fine-mapping","TWAS AS: cross-tissue sCCA3*
+Evidence for causal implication from ML-based functional prediction (MENTR)
+fine-mapping: multi-ancestry","Omics format (2026-11-08 review): one entry shape, lower-case tissues, dataset: tissue"
+ST1,other_omics,18,9463b1d4,"TWAS: Cells cultured fibroblasts, brain frontal cortex BA9*","TWAS [?]: cells cultured fibroblasts, brain frontal cortex BA9*","Omics format (2026-11-08 review): biomarker not stated in the source, marked for clarification"
+ST1,other_omics,19,e7dc3800,"TWAS WMH: nerve tibial, brain spinal cord cervical c1, brain hippocampus, brain caudate basal ganglia*, brain anterior cingulate cortex BA24*, heart left ventricle*, artery tibial, artery coronary*, artery aorta*, YFS blood*, CMC brain (RNA-Seq)","TWAS WMH: nerve tibial, brain spinal cord cervical C1, brain hippocampus, brain caudate basal ganglia*, brain anterior cingulate cortex BA24*, heart left ventricle*, artery tibial, artery coronary*, artery aorta*, YFS: blood*, CMC: brain (RNA-Seq)","Omics format (2026-11-08 review): one entry shape, lower-case tissues, dataset: tissue"
+ST1,other_omics,20,5daa7b88,TWAS:nerve tibial*,TWAS [?]: nerve tibial*,"Omics format (2026-11-08 review): biomarker not stated in the source, marked for clarification"
+ST1,other_omics,22,aa37f2a8,"TWAS: Brain cerebellum*, brain frontal cortex BA9*","TWAS [?]: brain cerebellum*, brain frontal cortex BA9*","Omics format (2026-11-08 review): biomarker not stated in the source, marked for clarification"
+ST1,other_incl_experimental,23,0ce9eb37,"arterial specific endothelial growth factor, indispensable for arterial flow recovery under pathological challenge, by maintaining endothelial function","mouse model: arterial endothelial function, arterial flow recovery",Omics format (2026-11-08 review): the sentence summarised from PMID 33902304
+ST1,other_omics,24,7d5322fa,"TWAS WMH: Heart atrial appendage*, Artery Tibial*","TWAS WMH: heart atrial appendage*, artery tibial*","Omics format (2026-11-08 review): one entry shape, lower-case tissues, dataset: tissue"
+ST1,other_omics,25,00402723,"TWAS multi-trait WMH & lacunar stroke: Aortic artery*, tibial artery*;
+TWAS WMH: Artery aorta*, artery tibial*
+TWAS AS: Artery aorta, artery tibial, cross-tissue sCCA1, cross-tissue sCCA2*, cross-tissue sCCA3
+TWAS AIS: Artery aorta, artery tibial, cross-tissue sCCA1, cross-tissue sCCA2*","TWAS multi-trait WMH & lacunar stroke: artery aorta*, artery tibial*
+TWAS WMH: artery aorta*, artery tibial*
+TWAS AS: artery aorta, artery tibial, cross-tissue sCCA1, cross-tissue sCCA2*, cross-tissue sCCA3
+TWAS AIS: artery aorta, artery tibial, cross-tissue sCCA1, cross-tissue sCCA2*","Omics format (2026-11-08 review): one entry shape, lower-case tissues, dataset: tissue"
+ST1,other_omics,27,cd6b762d,"TWAS WMH: Artery aorta*
+TWAS FA: Artery aorta*
+TWAS lacunar stroke: Aortic artery*
+TWAS multi-trait (lacunar stroke & WMH): CMC brain, aortic artery*
+TWAS AS & AIS: artery aorta*
+TWAS PSMD: Artery aorta*","TWAS WMH: artery aorta*
+TWAS FA: artery aorta*
+TWAS lacunar stroke: artery aorta*
+TWAS multi-trait WMH & lacunar stroke: CMC: brain, artery aorta*
+TWAS AS & AIS: artery aorta*
+TWAS PSMD: artery aorta*","Omics format (2026-11-08 review): one entry shape, lower-case tissues, dataset: tissue"
+ST1,other_omics,29,640b6fed,"Proteomics;
+TWAS WMH: CMC brain (RNA-Seq)*","proteomics
+TWAS WMH: CMC: brain (RNA-Seq)*","Omics format (2026-11-08 review): one entry shape, lower-case tissues, dataset: tissue"
+ST1,other_omics,30,e86294bf,"TWAS WMH: Nerve tibial*, brain cerebellum, artery tibial*, artery coronary*, artery aorta*, NTR peripheral blood*
+TWAS PSMD: Whole blood*, brain cerebellum*","TWAS WMH: nerve tibial*, brain cerebellum, artery tibial*, artery coronary*, artery aorta*, NTR: peripheral blood*
+TWAS PSMD: whole blood*, brain cerebellum*","Omics format (2026-11-08 review): one entry shape, lower-case tissues, dataset: tissue"
+ST1,other_omics,31,16b31c5d,"TWAS WMH: Artery aorta, artery coronary*, artery tibial*, CMC brain (RNA-Seq)*;
+TWAS FA: Artery aorta, artery coronary, artery tibial;
+TWAS lacunar stroke: CMC brain*, aortic artery*, coronary artery*, tibial artery*
+TWAS AS & AIS: Artery aorta*, artery coronary*, artery tibial*, cross-tissue sCCA1,* sCCA2 and sCCA3*
+TWAS SVS: Artery coronary*, cross-tissue sCCA1* and sCCA3*
+TWAS BG-PVS: Nerve tibial*, artery tibial*, artery coronary*, artery aorta*
+TWAS PSMD: Artery coronary*, artery tibial*","TWAS WMH: artery aorta, artery coronary*, artery tibial*, CMC: brain (RNA-Seq)*
+TWAS FA: artery aorta, artery coronary, artery tibial
+TWAS lacunar stroke: CMC: brain*, artery aorta*, artery coronary*, artery tibial*
+TWAS AS & AIS: artery aorta*, artery coronary*, artery tibial*, cross-tissue sCCA1*, cross-tissue sCCA2[?], cross-tissue sCCA3*
+TWAS SVS: artery coronary*, cross-tissue sCCA1*, cross-tissue sCCA3*
+TWAS BG-PVS: nerve tibial*, artery tibial*, artery coronary*, artery aorta*
+TWAS PSMD: artery coronary*, artery tibial*","Omics format (2026-11-08 review): one entry shape, lower-case tissues, dataset: tissue; whether sCCA2 colocalized is unclear in the source, marked for clarification"
+ST1,other_omics,32,7237768c,"TWAS WMH & FA: Artery tibial*, CMC brain (RNA-Seq)*
+TWAS WMH: dlPFC, nerve tibial*, CMC brain dlPFC sQTL*, brain frontal cortex BA9*, heart left ventricle
+TWAS lacunar stroke: CMC brain*, tibial artery*
+TWAS (MTAG of All ICH-SVS, WMH, FA, MD and AD): Brain frontal cortex BA9*, brain cortex*, brain anterior cingulate cortex BA24*
+TWAS AS: Artery tibial*, brain frontal cortex BA9*, Brain dlPFC (RNA-Seq)*, cross-tissue sCCA1
+TWAS AIS: Artery tibial*, brain frontal cortex BA9, Brain dlPFC (RNA-Seq)*, cross-tissue sCCA1
+TWAS SVS: Brain frontal cortex BA9*, Brain dlPFC (RNA-Seq)*
+TWAS BG-PVS: Nerve tibial, brain frontal cortex BA9*, Brain dlPFC (RNA-Seq)*, artery tibial
+TWAS PSMD): Cells cultured fibroblasts*, (Age>65) brain cortex*
+PWAS AS, AIS, PSMD, SVS & non-lobar ICH: dPFC*","TWAS WMH & FA: artery tibial*, CMC: brain (RNA-Seq)*
+TWAS WMH: dlPFC, nerve tibial*, CMC: brain dlPFC sQTL*, brain frontal cortex BA9*, heart left ventricle
+TWAS lacunar stroke: CMC: brain*, artery tibial*
+TWAS MTAG (all ICH, SVS, WMH, FA, MD, AD): brain frontal cortex BA9*, brain cortex*, brain anterior cingulate cortex BA24*
+TWAS AS: artery tibial*, brain frontal cortex BA9*, brain dlPFC (RNA-Seq)*, cross-tissue sCCA1
+TWAS AIS: artery tibial*, brain frontal cortex BA9, brain dlPFC (RNA-Seq)*, cross-tissue sCCA1
+TWAS SVS: brain frontal cortex BA9*, brain dlPFC (RNA-Seq)*
+TWAS BG-PVS: nerve tibial, brain frontal cortex BA9*, brain dlPFC (RNA-Seq)*, artery tibial
+TWAS PSMD: cells cultured fibroblasts*, (Age>65)[?] brain cortex*
+PWAS AS, AIS, PSMD, SVS & non-lobar ICH: dPFC*","Omics format (2026-11-08 review): one entry shape, lower-case tissues, dataset: tissue; the MTAG named as the GWAS Trait column names it; (Age>65) placement kept as written, marked for clarification"
+ST1,other_omics,33,84f87dde,"TWAS WMH: Heart atrial appendage*, artery tibial*, CMC brain (RNA-Seq)
+TWAS FA: Artery tibial, CMC brain (RNA-Seq)
+TWAS lacunar stroke: CMC brain*
+TWAS PSMD (Age>65): Brain spinal cord cervical c-1*, heart atrial appendage*","TWAS WMH: heart atrial appendage*, artery tibial*, CMC: brain (RNA-Seq)
+TWAS FA: artery tibial, CMC: brain (RNA-Seq)
+TWAS lacunar stroke: CMC: brain*
+TWAS PSMD (Age>65): brain spinal cord cervical C1*, heart atrial appendage*","Omics format (2026-11-08 review): one entry shape, lower-case tissues, dataset: tissue"
+ST1,other_omics,34,989d6f28,TWAS PSMD: Brain nucleus accumbens basal ganglia*,TWAS PSMD: brain nucleus accumbens basal ganglia*,"Omics format (2026-11-08 review): one entry shape, lower-case tissues, dataset: tissue"
+ST1,other_omics,35,063a6abe,"TWAS lacunar stroke: CMC brain*, tibial artery*, whole blood*, YFS whole blood*
+TWAS multi-trait WMH & lacunar stroke: CMC brain*, aortic artery*, tibial artery*, whole blood*, YFS whole blood*","TWAS lacunar stroke: CMC: brain*, artery tibial*, whole blood*, YFS: whole blood*
+TWAS multi-trait WMH & lacunar stroke: CMC: brain*, artery aorta*, artery tibial*, whole blood*, YFS: whole blood*","Omics format (2026-11-08 review): one entry shape, lower-case tissues, dataset: tissue"
+ST1,other_omics,36,0754e906,"TWAS WM-PVS: Nerve tibial, whole blood*","TWAS WM-PVS: nerve tibial, whole blood*","Omics format (2026-11-08 review): one entry shape, lower-case tissues, dataset: tissue"
+ST1,other_omics,37,55f25e19,TWAS WM-PVS:whole blood*;,TWAS WM-PVS: whole blood*,"Omics format (2026-11-08 review): one entry shape, lower-case tissues, dataset: tissue"
+ST1,other_omics,38,9e0e53ba,"TWAS WMH: Nerve tibial*, CMC brain dlPFC sQTL*, brain putamen basal ganglia*, brain hypothalamus*, brain hippocampus*, brain frontal cortex BA9*, brain cortex*, brain cerebellum*, brain caudate basal ganglia*, whole blood*","TWAS WMH: nerve tibial*, CMC: brain dlPFC sQTL*, brain putamen basal ganglia*, brain hypothalamus*, brain hippocampus*, brain frontal cortex BA9*, brain cortex*, brain cerebellum*, brain caudate basal ganglia*, whole blood*","Omics format (2026-11-08 review): one entry shape, lower-case tissues, dataset: tissue"
+ST1,other_omics,39,4d1c9df5,sequencing and multivariable Mendelian randomization demonstrating that PMF1 overexpression could be causally related to non-lobar ICH risk,"WES/WGS non-lobar ICH: 1q22 locus resequencing, multivariable MR (PMF1 overexpression)",Omics format (2026-11-08 review): the sentence summarised from PMID 37787451
+ST1,other_omics,41,7b873179,"TWAS WM-PVS: nerve tibial*, brain caudate BG*, brain cerebellar hemisphere*, brain cerebellum*, brain cortex*, brain hippocampus*, brain nucleus accumbens BG*, brain putamen BG*, brain spinal cord cervical c1*, brain frontal cortex BA9*, heart left ventricle*, heart atrial appendage*, artery tibial*, artery coronary*, artery aorta*","TWAS WM-PVS: nerve tibial*, brain caudate basal ganglia*, brain cerebellar hemisphere*, brain cerebellum*, brain cortex*, brain hippocampus*, brain nucleus accumbens basal ganglia*, brain putamen basal ganglia*, brain spinal cord cervical C1*, brain frontal cortex BA9*, heart left ventricle*, heart atrial appendage*, artery tibial*, artery coronary*, artery aorta*","Omics format (2026-11-08 review): one entry shape, lower-case tissues, dataset: tissue"
+ST1,proteogenomics_mr,67,681212ec,WMH/PVS,WMH & PVS,Omics format (2026-11-08 review): written as PILRA and CTSB write it
+ST1,other_omics,69,d1f69c04,"proteomics;
+TWAS FA: Whole_Blood*;
+TWAS MD: Artery Coronary*","proteomics
+TWAS FA: whole blood*
+TWAS MD: artery coronary*","Omics format (2026-11-08 review): one entry shape, lower-case tissues, dataset: tissue"
+ST1,other_omics,82,32e4f327,"proteomics;
+TWAS AS: Artery aorta*;
+TWAS AIS: Artery aorta*, artery coronary*, artery tibial*, heart left ventricle*, heart atrial appendage*
+TWAS CES: Artery aorta*, artery tibial*, heart atrial appendage*","proteomics
+TWAS AS: artery aorta*
+TWAS AIS: artery aorta*, artery coronary*, artery tibial*, heart left ventricle*, heart atrial appendage*
+TWAS CES: artery aorta*, artery tibial*, heart atrial appendage*","Omics format (2026-11-08 review): one entry shape, lower-case tissues, dataset: tissue"
+ST1,other_omics,83,be93e114,TWAS FA & MD: YFS Blood; proteomics (plasma),TWAS FA & MD: YFS: blood; proteomics (plasma),"Omics format (2026-11-08 review): one entry shape, lower-case tissues, dataset: tissue"
+ST1,other_omics,89,413b5908,proteomics,,"Omics format (2026-11-08 review): the bare Proteomics entry duplicated Proteomics (WMH), PMID 39417098"
+ST1,other_omics,90,71a33aab,proteomics,,"Omics format (2026-11-08 review): the bare Proteomics entry duplicated Proteomics (WMH), PMID 39417098"
+ST1,other_omics,94,87c65ec1,proteomics,,"Omics format (2026-11-08 review): the bare Proteomics entry duplicated Proteomics (WMH), PMID 39417098"
+ST1,other_omics,100,c26fae44,proteomics,,"Omics format (2026-11-08 review): the bare Proteomics entry duplicated Proteomics (WMH), PMID 39417098"
+ST1,other_omics,101,2357b93b,proteomics,,"Omics format (2026-11-08 review): the bare Proteomics entry duplicated Proteomics (WMH), PMID 39417098"
+ST1,other_omics,102,5b6527ee,proteomics,,"Omics format (2026-11-08 review): the bare Proteomics entry duplicated Proteomics (WMH), PMID 39417098"
+ST1,other_omics,105,1216575e,proteomics,,"Omics format (2026-11-08 review): the bare Proteomics entry duplicated Proteomics (WMH), PMID 39417098"
+ST1,other_omics,106,a446edad,proteomics,,"Omics format (2026-11-08 review): the bare Proteomics entry duplicated Proteomics (WMH), PMID 39417098"
+ST1,other_omics,107,e52e2efa,proteomics,,"Omics format (2026-11-08 review): the bare Proteomics entry duplicated Proteomics (WMH), PMID 39417098"
+ST1,other_omics,109,ca7523af,proteomics,,"Omics format (2026-11-08 review): the bare Proteomics entry duplicated Proteomics (WMH), PMID 39417098"
+ST1,other_omics,113,3fdf5b77,proteomics,,"Omics format (2026-11-08 review): the bare Proteomics entry duplicated Proteomics (WMH), PMID 39417098"
+ST1,other_omics,115,2c8d8706,proteomics,,"Omics format (2026-11-08 review): the bare Proteomics entry duplicated Proteomics (WMH), PMID 39417098"
+ST1,other_omics,116,1812c429,proteomics,,"Omics format (2026-11-08 review): the bare Proteomics entry duplicated Proteomics (WMH), PMID 39417098"

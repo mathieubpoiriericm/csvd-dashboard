@@ -5,7 +5,9 @@ import { geneInfoByName } from "./data/gene_info.ts";
 import { omimByNumber } from "./data/omim.ts";
 import vocabulary from "../disease/vocabulary.json" with { type: "json" };
 import { citationLink, definitionLabel } from "./disease/citation.ts";
+import { COLOCALIZATION_LABEL } from "./acronyms.ts";
 import { formatOmicsValue } from "./filters.ts";
+import { colocalizedItems, parseOmicsEntry } from "./omics.ts";
 import type { TraitEncoding } from "./phenogram.ts";
 import {
   ncbiGeneLink,
@@ -30,6 +32,25 @@ function joined(
 ): string {
   const present = values.filter((value) => value !== NONE_FOUND);
   return present.length ? present.map(render).join("; ") : "None found";
+}
+
+/**
+ * The tissues that colocalized significantly, entry by entry -- the panel's
+ * stand-in for the `*` the omics row no longer prints, and absent when no
+ * entry has one.
+ */
+function colocalizationRows(values: readonly string[]): TooltipRow[] {
+  const entries = values.map(parseOmicsEntry).flatMap((entry) => {
+    const items = colocalizedItems(entry);
+    if (items.length === 0) return [];
+    const study = entry.biomarker
+      ? `${entry.type} (${entry.biomarker})`
+      : entry.type;
+    return [`${study}: ${items.join(", ")}`];
+  });
+  return entries.length > 0
+    ? [{ label: COLOCALIZATION_LABEL, value: entries.join("; ") }]
+    : [];
 }
 
 /** The two caches the panel resolves against; tests hand in their own. */
@@ -58,6 +79,7 @@ export function phenogramTooltip(
       label: "Other omics",
       value: joined(gene.evidenceFromOtherOmicsStudies, formatOmicsValue),
     },
+    ...colocalizationRows(gene.evidenceFromOtherOmicsStudies),
     {
       label: "Monogenic disease",
       value: joined(

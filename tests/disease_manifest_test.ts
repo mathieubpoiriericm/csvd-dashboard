@@ -384,3 +384,29 @@ Deno.test("no gene symbol reaches the files every visitor downloads before login
   }
   assertEquals(hits, []);
 });
+
+Deno.test("a manifest without acronyms normalizes to an empty glossary", () => {
+  const raw = structuredClone(manifestJson) as Record<string, unknown>;
+  delete raw.acronyms;
+  assertEquals(normalizeManifest(raw).acronyms, {});
+});
+
+Deno.test("an acronym's name is optional and its kind is trimmed", () => {
+  const raw = {
+    ...structuredClone(manifestJson),
+    acronyms: { " AB ": { kind: " k " }, CD: { name: " Charlie ", kind: "k" } },
+  };
+  assertEquals(normalizeManifest(raw).acronyms, {
+    AB: { name: null, kind: "k" },
+    CD: { name: "Charlie", kind: "k" },
+  });
+});
+
+Deno.test("an acronym with no kind is refused", () => {
+  const raw = { ...structuredClone(manifestJson), acronyms: { AB: {} } };
+  assertThrows(
+    () => normalizeManifest(raw),
+    Error,
+    "missing acronyms.AB.kind",
+  );
+});

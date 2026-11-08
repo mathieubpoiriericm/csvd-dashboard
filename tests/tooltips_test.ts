@@ -5,14 +5,15 @@ import {
   cellTypeTooltip,
   citationRows,
   geneTooltip,
-  omicsTooltip,
   omimTooltip,
   proteinTooltip,
   referenceRows,
   referenceTooltip,
   splitCellTypes,
   splitSubtype,
+  studyTypeTooltip,
 } from "../lib/tooltips.ts";
+import { parseOmicsEntry } from "../lib/omics.ts";
 import { CELL_TYPE_NAMES } from "../lib/disease/cell_types.ts";
 import {
   geneInfoTooltip,
@@ -217,20 +218,43 @@ Deno.test("a cell subtype splits from its abbreviation, and prints without the c
   assertEquals(cellTypeText("Venous, ZZQQ"), "Venous, ZZQQ");
 });
 
-Deno.test("omicsTooltip reads detail after the actual semicolon", () => {
-  assertEquals(omicsTooltip("  TWAS; whole blood  "), {
-    rows: [
-      { label: "TWAS", value: "Transcriptome-Wide Association Study" },
-      { label: "Tissue", value: "whole blood" },
-    ],
-  });
+const OMICS_GLOSSARY = new Map([
+  ["TWAS", {
+    name: "Transcriptome-Wide Association Study",
+    kind: "omics methodology",
+  }],
+]);
+
+Deno.test("studyTypeTooltip names the method and lists every colocalized item", () => {
+  assertEquals(
+    studyTypeTooltip(parseOmicsEntry("TWAS;Q: a*, b, c*"), OMICS_GLOSSARY),
+    {
+      rows: [
+        {
+          label: "TWAS",
+          value: "Transcriptome-Wide Association Study · omics methodology",
+        },
+        { label: "Significant colocalization", value: "a, c" },
+      ],
+    },
+  );
 });
 
-Deno.test("omicsTooltip handles a known type without tissue and rejects unknown types", () => {
-  assertEquals(omicsTooltip("EWAS"), {
-    rows: [{ label: "EWAS", value: "Epigenome-Wide Association Study" }],
-  });
-  assertEquals(omicsTooltip("metabolomics; plasma"), null);
+Deno.test("studyTypeTooltip keeps colocalization for a type the glossary lacks, and is null with nothing to say", () => {
+  assertEquals(
+    studyTypeTooltip(parseOmicsEntry("Other;Q: a*"), OMICS_GLOSSARY),
+    { rows: [{ label: "Significant colocalization", value: "a" }] },
+  );
+  assertEquals(
+    studyTypeTooltip(parseOmicsEntry("TWAS;artery aorta*"), OMICS_GLOSSARY)
+      ?.rows[1],
+    { label: "Significant colocalization", value: "artery aorta" },
+  );
+  assertEquals(
+    studyTypeTooltip(parseOmicsEntry("Other;Q: a"), OMICS_GLOSSARY),
+    null,
+  );
+  assertEquals(studyTypeTooltip(parseOmicsEntry("TWAS"))?.rows.length, 1);
 });
 
 Deno.test("splitCellTypes preserves directional separators and ignores blanks", () => {
@@ -610,6 +634,34 @@ Deno.test("phenogramTooltip names the location, the evidence and the display lab
     { label: "Monogenic disease", value: "999999" },
     { label: "Mendelian randomization", value: "No" },
   ]);
+});
+
+Deno.test("phenogramTooltip states significant colocalization in words, without the stars", () => {
+  const gene = sampleGene({
+    chromosomalLocation: "1p31.3",
+    evidenceFromOtherOmicsStudies: [
+      "TWAS;Q: a*, b",
+      "Proteomics",
+      "PWAS;c*",
+    ],
+  });
+  const rows = phenogramTooltip(gene).rows;
+  const omics = rows.findIndex((r) => r.label === "Other omics");
+  assertEquals(rows[omics].value, "TWAS (Q: a, b); Proteomics; PWAS (c)");
+  assertEquals(rows[omics + 1], {
+    label: "Significant colocalization",
+    value: "TWAS (Q): a; PWAS: c",
+  });
+});
+
+Deno.test("phenogramTooltip adds no colocalization row when nothing colocalized", () => {
+  const gene = sampleGene({ evidenceFromOtherOmicsStudies: ["TWAS;Q: a, b"] });
+  assertEquals(
+    phenogramTooltip(gene).rows.some((r) =>
+      r.label === "Significant colocalization"
+    ),
+    false,
+  );
 });
 
 Deno.test("phenogramTooltip says None found rather than the sentinel", () => {

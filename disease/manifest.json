@@ -87,5 +87,24 @@
     "label": "Duering, M. et al. Neuroimaging standards for research into small vessel disease—advances since 2013. The Lancet Neurology 22, 602–618 (2023).",
     "doi": "10.1016/S1474-4422(23)00131-X",
     "linkLabel": "View STRIVE-2 (Lancet Neurol 2023)"
+  },
+  "acronyms": {
+    "WMH": { "kind": "cSVD MRI biomarker" },
+    "PVS": { "name": "Perivascular spaces", "kind": "cSVD MRI biomarker" },
+    "WM-PVS": { "kind": "cSVD MRI biomarker" },
+    "BG-PVS": { "kind": "cSVD MRI biomarker" },
+    "HIP-PVS": { "kind": "cSVD MRI biomarker" },
+    "PSMD": { "kind": "cSVD MRI biomarker" },
+    "FA": { "kind": "cSVD MRI biomarker" },
+    "MD": { "kind": "cSVD MRI biomarker" },
+    "NODDI": { "kind": "cSVD MRI biomarker" },
+    "CMB": { "kind": "cSVD MRI biomarker" },
+    "extreme-cSVD": { "kind": "cSVD phenotype" },
+    "SVS": { "kind": "clinical outcome" },
+    "AS": { "name": "Any stroke", "kind": "clinical outcome" },
+    "AIS": { "name": "Any ischaemic stroke", "kind": "clinical outcome" },
+    "CES": { "name": "Cardioembolic stroke", "kind": "clinical outcome" },
+    "ICH": { "name": "Intracerebral haemorrhage", "kind": "clinical outcome" },
+    "AD": { "name": "Alzheimer's disease", "kind": "clinical outcome" }
   }
 }

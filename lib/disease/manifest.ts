@@ -45,6 +45,23 @@ function stringMap(value: unknown): Record<string, string> {
 }
 
 /**
+ * The optional `acronyms` glossary: absent means none. A name may be left out
+ * for a trait the vocabulary already names; a kind may not.
+ */
+function acronymMap(value: unknown): DiseaseManifest["acronyms"] {
+  const out: DiseaseManifest["acronyms"] = {};
+  for (const [rawKey, entry] of Object.entries(record(value))) {
+    const key = rawKey.trim();
+    const source = record(entry);
+    out[key] = {
+      name: optional(source, "name"),
+      kind: required(source, "kind", `acronyms.${key}.kind`),
+    };
+  }
+  return out;
+}
+
+/**
  * A DOI as the manifest means it: the identifier alone. One copied as its
  * own address or cited with "doi:" in front is written by hand often
  * enough, and either would link to https://doi.org/https://doi.org/….
@@ -195,6 +212,7 @@ export function normalizeManifest(raw: unknown): DiseaseManifest {
       label: required(cellTypes, "label", "cellTypes.label"),
       glossary: stringMap(cellTypes.glossary),
     },
+    acronyms: acronymMap(source.acronyms),
     citationStandard: citationStandard(source.citationStandard),
   };
 }

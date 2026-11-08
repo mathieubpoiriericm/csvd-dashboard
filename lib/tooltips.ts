@@ -9,18 +9,16 @@
  * attribute nesting, no startup precomputation.
  */
 
-import {
-  CELL_TYPE_NAMES,
-  OMICS_FULL_NAMES,
-  PUBMED_BASE_URL,
-} from "./constants.ts";
+import { acronymTooltip, COLOCALIZATION_LABEL } from "./acronyms.ts";
+import { CELL_TYPE_NAMES, PUBMED_BASE_URL } from "./constants.ts";
 import { isDoi, toCitation } from "./citations.ts";
 import { geneInfoByName } from "./data/gene_info.ts";
 import { omimByNumber } from "./data/omim.ts";
 import { proteinInfoByGene } from "./data/protein_info.ts";
 import { referenceByPmid } from "./data/references.ts";
-import { omicsType } from "./filters.ts";
-import type { GeneInfo, ProteinInfo, Reference } from "./types.ts";
+import { ACRONYMS } from "./disease/acronyms.ts";
+import { colocalizedItems, type OmicsEntry } from "./omics.ts";
+import type { Acronym, GeneInfo, ProteinInfo, Reference } from "./types.ts";
 import {
   geneInfoTooltip,
   omimEntryTooltip,
@@ -306,16 +304,22 @@ export function splitCellTypes(
   return { parts: chains.flatMap((chain) => chain.parts), chains };
 }
 
-/** Expansion for an omics evidence string, e.g. "TWAS;whole blood". */
-export function omicsTooltip(value: string): TooltipContent | null {
-  const type = omicsType(value);
-  const fullName = OMICS_FULL_NAMES[type.toUpperCase()];
-  if (!fullName) return null;
-
-  const semicolon = value.indexOf(";");
-  const detail = semicolon === -1 ? "" : value.slice(semicolon + 1).trim();
-  const rows: TooltipRow[] = [{ label: type, value: fullName }];
-  if (detail) rows.push({ label: "Tissue", value: detail });
-
-  return { rows };
+/**
+ * The study type's tooltip: what the method is, when the glossary knows it,
+ * and every item of the entry that colocalized significantly. This is the
+ * one place the whole list is, so an item with no acronym of its own to
+ * hover is never left out; null when there is nothing to say.
+ */
+export function studyTypeTooltip(
+  entry: OmicsEntry,
+  glossary: ReadonlyMap<string, Acronym> = ACRONYMS,
+): TooltipContent | null {
+  const rows: TooltipRow[] = [
+    ...acronymTooltip(entry.type, undefined, glossary)?.rows ?? [],
+  ];
+  const colocalized = colocalizedItems(entry);
+  if (colocalized.length > 0) {
+    rows.push({ label: COLOCALIZATION_LABEL, value: colocalized.join(", ") });
+  }
+  return rows.length > 0 ? { rows } : null;
 }
