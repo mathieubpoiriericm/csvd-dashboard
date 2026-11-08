@@ -195,7 +195,7 @@ monogenic)", not "SVD") and the "CADASIL" search counts in
 **A phase the radar cannot place is an error.** `lib/timeline.ts` and
 `scripts/timeline_figure.py` both place a trial by comparing
 `clinicalTrialPhase` to the ring's phase for **equality**, and the rings are
-`III`, `II`, `I`. A synced `IV`, `N/A`, `Early Phase I` or multi-phase `II/III`
+`IV`, `III`, `II`, `I`. A synced `N/A`, `Early Phase I` or multi-phase `II/III`
 still matches the table's token filter, so the table and the figure would
 disagree about the trial set with nothing said. `RADAR_PHASES` is read from
 `lib/timeline_encoding.json` rather than restated, and `_unplaceable_phases`

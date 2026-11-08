@@ -216,13 +216,14 @@ Filters:
 
 ### Trials Radar (`/timeline`)
 
-The trials radar: one sector per declared population × seven phase rings (I to
-IV, the seamless I/II and II/III designs, and phase not stated) × one marker per
-trial, drawn as SVG from `lib/timeline.ts` and filtered by study status. The
-mechanisms of action are grouped into families in `disease/timeline.json` and
-coloured one hue per family with lightness steps inside it, because that many
-pairwise-distinct hues cannot clear a colour-vision check — identity rides the
-drug label and the legend, and the colour says the family first.
+The trials radar: one sector per declared population × four phase rings (I to
+IV; a seamless I/II or II/III design, or an unstated phase, is left off) × one
+marker per trial, drawn as SVG from `lib/timeline.ts` and filtered by study
+status. The mechanisms of action are grouped into families in
+`disease/timeline.json` and coloured one hue per family with lightness steps
+inside it, because that many pairwise-distinct hues cannot clear a colour-vision
+check — identity rides the drug label and the legend, and the colour says the
+family first.
 
 Record confidence is two derived channels — nothing is stored, and no curator
 marks anything:

@@ -199,27 +199,23 @@ _PHASE_DISPLAY_MAP: Final[Mapping[str, str]] = MappingProxyType(
 # published label to the ring's phase for equality -- lib/timeline.ts and
 # scripts/timeline_figure.py both do. A label outside that set still passes
 # the table's token filter, so the table and the figure disagree about the
-# trial set with nothing said. The two seamless designs the registry
-# actually uses, "II/III" and "I/II", have rings of their own; what is left
-# unplaceable is "Early Phase I" and the rarer joins ("I/III", "III/IV").
+# trial set with nothing said. The rings are IV, III, II and I, so a
+# seamless design ("II/III", "I/II"), "N/A", "Early Phase I" and the rarer
+# joins are all unplaceable, and Table 2 lists them with no marker.
 # Read from the encoding rather than restated, so adding a ring is one edit.
 _TIMELINE_ENCODING: Final[Path] = PROJECT_ROOT / "lib" / "timeline_encoding.json"
 
 
 def _load_ring_phases() -> frozenset[str]:
-    """The phase labels the trials radar has a ring for, as *records* spell them.
+    """The phase labels the trials radar has a ring for.
 
-    The encoding names its rings in wire spelling, because that is what
-    `lib/timeline.ts` compares the published row against. One of them differs
-    from what a record carries: the registry states "N/A", and
-    `fill_missing_text` folds that to the "(unknown)" sentinel on the way out
-    (`pipeline/export/tables.py`). Comparing a record's phase against the wire
-    name would report every N/A trial as unplaceable when the radar draws it
-    on the outermost ring.
+    A ring for an unstated phase would need folding: the encoding names
+    rings in wire spelling, where `fill_missing_text` has turned the
+    registry's "N/A" into "(unknown)" (`pipeline/export/tables.py`). The
+    radar has no such ring, so the two spellings agree on every ring it has.
     """
     with _TIMELINE_ENCODING.open(encoding="utf-8") as handle:
-        rings = [ring["phase"] for ring in json.load(handle)["rings"]]
-    return frozenset("N/A" if phase == "(unknown)" else phase for phase in rings)
+        return frozenset(ring["phase"] for ring in json.load(handle)["rings"])
 
 
 RADAR_PHASES: Final[frozenset[str]] = _load_ring_phases()

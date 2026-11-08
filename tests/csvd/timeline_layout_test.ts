@@ -24,25 +24,13 @@ const layout = computeTimelineLayout(trials);
 const EMPTY_CELLS = [
   ["CAA", "IV"],
   ["CAA", "III"],
-  ["CAA", "II/III"],
-  ["CAA", "I/II"],
   ["CAA", "I"],
-  ["CAA", "(unknown)"],
   ["Cognitive Impairment", "IV"],
-  ["Cognitive Impairment", "II/III"],
-  ["Cognitive Impairment", "I/II"],
   ["Cognitive Impairment", "I"],
-  ["Cognitive Impairment", "(unknown)"],
   ["Stroke", "IV"],
-  ["Stroke", "II/III"],
-  ["Stroke", "I/II"],
   ["Stroke", "I"],
-  ["Stroke", "(unknown)"],
   ["SVD", "IV"],
   ["SVD", "III"],
-  ["SVD", "II/III"],
-  ["SVD", "I/II"],
-  ["SVD", "(unknown)"],
 ];
 
 Deno.test("sector spans are proportional to unique drugs and sum to a full turn", () => {
@@ -62,8 +50,8 @@ Deno.test("sector spans are proportional to unique drugs and sum to a full turn"
   );
 });
 
-Deno.test("twenty-eight cells, twenty-one of them empty", () => {
-  assertEquals(layout.cells.length, 28);
+Deno.test("sixteen cells, nine of them empty", () => {
+  assertEquals(layout.cells.length, 16);
   const empty = layout.cells.filter((c) => !c.filled)
     .map((c) => [c.population, c.phase]);
   assertEquals(empty, EMPTY_CELLS);
@@ -81,8 +69,8 @@ Deno.test("the six Phase III Stroke trials share a cell and alternate their radi
   );
   assertEquals(shared.length, 6);
   assert(shared[0].r < shared[1].r);
-  // Twice 18 % of the Phase III ring's thickness (0.09 of the 416 radius).
-  assertAlmostEquals(shared[1].r - shared[0].r, 2 * 0.18 * 0.09 * 416, 1e-9);
+  // Twice 18 % of the Phase III ring's thickness (0.2 of the 416 radius).
+  assertAlmostEquals(shared[1].r - shared[0].r, 2 * 0.18 * 0.2 * 416, 1e-9);
 });
 
 Deno.test("population labels anchor away from the centre line and wrap the SVD label", () => {
@@ -154,7 +142,7 @@ Deno.test({
   assertEquals(multiple.map((m) => m.trial.registryId), []);
 });
 
-Deno.test("the Stroke trials alone fill two of the seven rings", () => {
+Deno.test("the Stroke trials alone fill two of the four rings", () => {
   const stroke = trials.filter((t) => t.targetPopulation === "Stroke");
   const partial = computeTimelineLayout(stroke);
   assertEquals(partial.sectors.length, 4);

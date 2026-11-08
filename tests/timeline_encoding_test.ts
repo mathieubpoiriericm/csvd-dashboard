@@ -121,19 +121,11 @@ Deno.test("the unknown-mechanism colour is encoded once and is no family's colou
 
 Deno.test("every phase in the data has a ring, and the rings tile 0..1", () => {
   const phases = encoding.rings.map((r) => r.phase);
-  // Seven bands, ordered inward-to-outward by how far a trial has advanced.
-  // A seamless trial gets a band of its own rather than being collapsed onto
-  // one of its components: the print figure has no drawer, so a II/III trial
-  // drawn on the III ring would state a phase the registry does not.
-  assertEquals(phases, [
-    "IV",
-    "III",
-    "II/III",
-    "II",
-    "I/II",
-    "I",
-    "(unknown)",
-  ]);
+  // Four bands, ordered inward-to-outward by how far a trial has advanced.
+  // A seamless (II/III, I/II) or unstated phase has no band and is left off
+  // the radar -- see "The radar draws four phases" in
+  // `.claude/rules/timeline.md`.
+  assertEquals(phases, ["IV", "III", "II", "I"]);
 
   // A sub-phase ("Ib") is drawn on its parent's ring (`parentPhase`).
   const missing = [...unique(trials.map((t) => t.clinicalTrialPhase))]
@@ -147,16 +139,17 @@ Deno.test("every phase in the data has a ring, and the rings tile 0..1", () => {
   // midpoint, so a thinner outermost band pushes the outermost markers --
   // and the drug labels outside them -- towards the plate edge, where the
   // margin is only CANVAS/2 - OUTER_RADIUS = 120 units. Narrowing it from
-  // 0.15 to 0.10 when the two seamless rings were added moved those markers
+  // 0.15 to 0.10 when two seamless rings were added moved those markers
   // 6.7 units out and tipped the 22-character "Stellate ganglion block"
   // over the right edge under Linux font metrics, while it still fitted on
   // macOS -- so the local suite passed and CI did not. This pins the
   // resulting radius rather than the width, because that is what the label
-  // layout actually has to clear.
+  // layout actually has to clear. Phase I's 0.2 band puts it 6.7 units
+  // inside the 396.032 the seven-ring plate's outermost band reached.
   const outermost = encoding.rings.at(-1)!;
   const staggered = ((outermost.innerRadius + outermost.outerRadius) / 2 +
     0.18 * (outermost.outerRadius - outermost.innerRadius)) * OUTER_RADIUS;
-  assertAlmostEquals(staggered, 396.032, 1e-9);
+  assertAlmostEquals(staggered, 389.376, 1e-9);
   for (let i = 0; i < encoding.rings.length; i++) {
     const ring = encoding.rings[i];
     assert(ring.outerRadius > ring.innerRadius, `${ring.phase}: empty ring`);
