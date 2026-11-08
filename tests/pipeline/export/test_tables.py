@@ -274,14 +274,19 @@ def test_a_pipeline_inserted_gene_publishes_a_location_sentinel() -> None:
     assert row["Chromosomal Location"] == "(unknown)"
 
 
-def test_the_gene_symbol_placeholder_is_not_published_as_a_protein_name() -> None:
-    """The merge stores the symbol when no paper named a protein, and both
-    write paths in pipeline/database.py read `protein = gene` back as "still
-    missing". The export says the same thing rather than showing a gene
-    symbol in the Protein column.
+def test_a_protein_named_by_the_gene_symbol_is_published_verbatim() -> None:
+    """The curated gold table names most proteins by the gene symbol, and
+    gold is published as written. (The merge's own placeholder -- the symbol
+    stored when no paper named a protein -- now publishes the same way.)
     """
     row = clean_gene_row({"gene": "BTN3A2", "protein": "BTN3A2"})
-    assert row["Protein"] == "(unknown)"
+    assert row["Protein"] == "BTN3A2"
+
+
+def test_a_missing_protein_publishes_the_sentinel() -> None:
+    assert clean_gene_row({"gene": "BTN3A2", "protein": None})["Protein"] == (
+        "(unknown)"
+    )
 
 
 @pytest.mark.parametrize(("gene", "protein"), [("EPHB4", "EphB4"), ("EPO", "Epo")])

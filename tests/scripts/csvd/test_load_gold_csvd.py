@@ -11,6 +11,7 @@ from scripts.load_gold import _GOLD_DIR, GoldPlan, build_gold_plan
 from scripts.restore_from_json import GeneRestore, export_gene
 
 from pipeline.disease import VOCABULARY_PATH
+from pipeline.export.main import _is_curated_trial, _is_running_trial
 from pipeline.export.text import is_doi
 
 
@@ -26,6 +27,17 @@ def _gene(symbol: str) -> GeneRestore:
 def test_the_plan_has_every_gold_gene_and_trial() -> None:
     assert len(_plan().genes) == 115
     assert len(_plan().trials) == 16
+
+
+def test_every_gold_trial_is_published() -> None:
+    trials = _plan().trials
+    assert len(trials) == 16
+    assert all(_is_curated_trial(t) and _is_running_trial(t) for t in trials)
+
+
+def test_a_protein_named_by_its_gene_symbol_is_published() -> None:
+    assert export_gene(_gene("HTRA1"))["protein"] == "HTRA1"
+    assert export_gene(_gene("STN1"))["protein"] == "STN1 (OBFC1)"
 
 
 def test_every_published_trait_is_in_the_vocabulary() -> None:

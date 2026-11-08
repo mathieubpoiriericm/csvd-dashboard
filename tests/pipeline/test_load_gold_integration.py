@@ -10,11 +10,13 @@ in tests/pipeline/conftest.py. Skips unless `CSVD_TEST_DB_URL` (or the
 container runtime) provides a throwaway database.
 """
 
+from typing import Any
+
 import pytest
 from scripts.load_gold import GoldPlan, write_gold_plan
 from scripts.restore_from_json import GeneRestore, stored_omics
 
-from pipeline.database import Database
+from pipeline.database import Database, merge_genes_transactional
 from pipeline.export.main import read_published_genes
 
 pytestmark = pytest.mark.usefixtures("database_env")
@@ -125,3 +127,43 @@ async def test_the_export_publishes_the_curated_omics_wording() -> None:
     assert gene["evidenceFromOtherOmicsStudies"] == _ENTRIES
     assert gene["references"] == ["11111111", "10.21203/rs.3.rs-0000000/v1"]
     assert gene["brainCellTypes"] == "Mouse: EC; Human: PC > EC"
+
+
+def _merged_row(omics: str) -> dict[str, Any]:
+    """A `_build_combined_gene_data`-shaped row for the loaded gene."""
+    return {
+        "protein": "ABC protein one",
+        "gene": "ABC1",
+        "chromosomal_location": "",
+        "gwas_trait": [],
+        "mendelian_randomization": False,
+        "evidence_from_other_omics_studies": omics,
+        "brain_cell_types": "",
+        "affected_pathway": "",
+        "references": ["44444444"],
+        "source_quote": "A sentence.",
+        "confidence": 0.9,
+    }
+
+
+@pytest.mark.parametrize("path", ["update", "insert-on-conflict"])
+async def test_a_later_merge_appends_to_a_stored_array_without_breaking_it(
+    path: str,
+) -> None:
+    """Both merge statements split the stored omics on ";" and rejoin the
+    pieces; the array's escaped semicolons keep it one piece, so the curated
+    entries still publish verbatim and the extraction's prose follows them."""
+    await write_gold_plan(_plan())
+    row = _merged_row("PWAS:brain*;TWAS:tissue")
+    if path == "update":
+        await merge_genes_transactional([], [row])
+    else:
+        await merge_genes_transactional([row], [])
+
+    (gene,) = await read_published_genes()
+
+    assert gene["evidenceFromOtherOmicsStudies"] == [
+        *_ENTRIES,
+        "PWAS;brain",
+        "TWAS;tissue",
+    ]

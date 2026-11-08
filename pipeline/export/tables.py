@@ -384,16 +384,13 @@ def clean_gene_row(row: dict[str, Any]) -> dict[str, Any]:
         out.get("Chromosomal Location"), "(unknown)"
     )
 
-    # The merge stores the gene symbol when no paper named a protein, and
-    # both write paths in pipeline/database.py read `protein = gene` back as
-    # "still missing" so a later run can fill it. The export applies that same
-    # rule rather than publishing a gene symbol in the Protein column. Exact
-    # equality, as the SQL uses: "EphB4" for EPHB4 and "Epo" for EPO are real
-    # protein names, written the way proteins are written.
-    protein = out.get("Protein")
-    out["Protein"] = fill_missing_text(
-        None if protein == out["Gene"] else protein, "(unknown)"
-    )
+    # Published as stored. The merge stores the gene symbol when no paper
+    # named a protein, and both write paths in pipeline/database.py read
+    # `protein = gene` back as "still missing" so a later run can fill it --
+    # but the export no longer second-guesses it: the curated gold table
+    # names most proteins by their gene symbol, and gold is published
+    # verbatim.
+    out["Protein"] = fill_missing_text(out.get("Protein"), "(unknown)")
 
     cell_types = _ALL_WORD.sub("all", out.get("Brain Cell Types") or "")
     out["Brain Cell Types"] = fill_missing_text(cell_types or None, "(unknown)")

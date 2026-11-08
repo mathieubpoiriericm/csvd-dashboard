@@ -99,7 +99,7 @@ async def test_the_container_is_migrated_to_a_single_head() -> None:
         )
 
     names = {row["column_name"] for row in columns}
-    assert version == "015"
+    assert version == "016"
     # The three migration 009 adds. Their absence is not a schema detail:
     # without them the run report has nowhere to be stored and the About
     # page silently falls back to its summary card.

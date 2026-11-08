@@ -21,12 +21,17 @@ naming each row, for:
 - a non-empty suspects.csv -- a cell the clean-up could not vouch for;
 - a trial whose registry ID has no group in `POPULATION_GROUP`, or two trials
   with one (registry ID, drug);
-- a value longer than its column;
+- a value longer than its column, a completion date that is not YYYY-MM or a
+  target size that is not a count;
 - a GWAS trait that is not a vocabulary key once the synonyms are folded;
-- an omics entry, trait, monogenic link or reference the export would not
-  publish exactly as built here -- the export's own `clean_gene_row` is the
-  judge, so wording it would drop or rewrite is a refusal rather than a
-  silently different dataset.
+- a protein, band, cell-type string, pathway, omics entry, trait, monogenic
+  link or reference the export would not publish exactly as built here --
+  the export's own `clean_gene_row` is the judge, so wording it would drop
+  or rewrite is a refusal rather than a silently different dataset. The one
+  tolerance is case in the cell types and the pathway, which the export
+  lowercases ("ALL < 40", "Wnt signaling pathway") by long-standing
+  convention;
+- a trial row the export's `clean_trial_row` cannot read.
 
 How a gold cell becomes a stored value:
 
@@ -255,6 +260,19 @@ def gene_from_gold(row: Mapping[str, str], references: Sequence[str]) -> GeneRes
     )
 
 
+# The scalar columns the export publishes from a gold cell, by stored name and
+# wire key. The export lowercases the pathway and the word "ALL" in the cell
+# types -- a display convention the published data has always had -- so
+# those two are compared without case; any other difference is a refusal.
+_SCALAR_KEYS: Final = (
+    ("protein", "protein"),
+    ("chromosomal_location", "chromosomalLocation"),
+    ("brain_cell_types", "brainCellTypes"),
+    ("affected_pathway", "affectedPathway"),
+)
+_CASE_FREE_COLUMNS: Final = frozenset({"brain_cell_types", "affected_pathway"})
+
+
 def _gene_failures(
     row: Mapping[str, str], gene: GeneRestore, trait_keys: frozenset[str]
 ) -> list[str]:
@@ -275,6 +293,16 @@ def _gene_failures(
         if len(value) > width
     ]
     published = export_gene(gene)
+    for column, key in _SCALAR_KEYS:
+        built = gene.columns[column] or "(unknown)"
+        if column in _CASE_FREE_COLUMNS:
+            same = published[key].casefold() == built.casefold()
+        else:
+            same = published[key] == built
+        if not same:
+            failures.append(
+                f"the export would publish {key} {published[key]!r}, not {built!r}"
+            )
     for key, built in (
         ("evidenceFromOtherOmicsStudies", _omics_entries(row) or ["(none found)"]),
         ("gwasTrait", gene.traits or ["(none found)"]),
@@ -290,12 +318,19 @@ def _gene_failures(
 # ------------------------------------------------------------ clinical trials
 
 
+_YEAR_MONTH: Final = re.compile(r"^(\d{4})-(0[1-9]|1[0-2])$")
+
+
 def _completion(row: Mapping[str, str]) -> str | None:
     """`M/YYYY`, the wire form of every other date in the table, or the
     curators' note when ST3 gives no date."""
     if date := _blank(row["estimated_completion"]):
-        year, month = date.split("-")
-        return f"{int(month)}/{year}"
+        if not (match := _YEAR_MONTH.match(date)):
+            raise GoldRefused(
+                f"trial {row['registry_id'].strip()}: estimated_completion "
+                f"{date!r} is not YYYY-MM"
+            )
+        return f"{int(match.group(2))}/{match.group(1)}"
     return _blank(row["completion_note"])
 
 
@@ -307,6 +342,8 @@ def trial_from_gold(row: Mapping[str, str]) -> dict[str, Any]:
             f"trial {registry_id}: no target-population group in POPULATION_GROUP"
         )
     target_n = _blank(row["target_n"])
+    if target_n is not None and not (target_n.isascii() and target_n.isdigit()):
+        raise GoldRefused(f"trial {registry_id}: target_n {target_n!r} is not a count")
     return {
         "drug": _blank(row["agent"]),
         "mechanism_of_action": _blank(row["mechanism_of_action"]),
@@ -377,7 +414,10 @@ def build_gold_plan(gold_dir: Path) -> GoldPlan:
             for column, width in _TRIAL_WIDTHS.items()
             if (value := trial[column]) is not None and len(value) > width
         ]
-        clean_trial_row(dict(trial))  # raises on a row the export cannot read
+        try:
+            clean_trial_row(dict(trial))
+        except Exception as exc:  # any row the export cannot read is refused
+            failures.append(f"{name}: the export cannot read it ({exc!r})")
         trials.append(trial)
 
     if failures:
@@ -449,7 +489,7 @@ def main(argv: list[str] | None = None) -> None:
     )
     print(
         f"{len(plan.genes)} genes, {len(plan.trials)} trials; every row "
-        "publishes as built."
+        "publishes as built (cell types and pathways up to case)."
     )
     print(f"Target database: {target}")
     if not args.write:

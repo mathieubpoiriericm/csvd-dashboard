@@ -340,6 +340,9 @@ def test_the_plan_attaches_st1_references_in_position_order(tmp_path: Path) -> N
         ({"genes": [_gene_row(chr_location="x" * 51)]}, "chromosomal_location"),
         ({"trials": [_trial_row(trial_phase="x" * 21)]}, "clinical_trial_phase"),
         ({"genes": [_gene_row(), _gene_row(source_row="3")]}, "duplicate"),
+        ({"trials": [_trial_row(estimated_completion="July 2028")]}, "YYYY-MM"),
+        ({"trials": [_trial_row(estimated_completion="2028-13")]}, "YYYY-MM"),
+        ({"trials": [_trial_row(target_n="about 100")]}, "target_n"),
     ],
 )
 def test_the_plan_refuses(
@@ -347,3 +350,46 @@ def test_the_plan_refuses(
 ) -> None:
     with pytest.raises(GoldRefused, match=reason):
         build_gold_plan(_gold_dir(tmp_path, **files))
+
+
+def test_a_scalar_the_export_would_rewrite_is_refused(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real = load_gold.export_gene
+
+    def rewriting(gene: Any) -> dict[str, Any]:
+        return real(gene) | {"protein": "(unknown)"}
+
+    monkeypatch.setattr(load_gold, "export_gene", rewriting)
+    with pytest.raises(GoldRefused, match="protein"):
+        build_gold_plan(_gold_dir(tmp_path))
+
+
+def test_case_is_the_only_tolerated_rewrite(tmp_path: Path) -> None:
+    """The export lowercases "ALL" in the cell types and the whole pathway;
+    gold spelt with capitals loads, and publishes lowercased."""
+    plan = build_gold_plan(
+        _gold_dir(
+            tmp_path,
+            genes=[
+                _gene_row(
+                    brain_cell_types_mice="ALL < 40",
+                    pathway_goa_function="Wnt signaling pathway",
+                )
+            ],
+        )
+    )
+    published = export_gene(plan.genes[0])
+    assert published["brainCellTypes"] == "Mouse: all < 40"
+    assert published["affectedPathway"] == "wnt signaling pathway"
+
+
+def test_a_trial_the_export_cannot_read_is_refused_not_raised(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def unreadable(row: dict[str, Any]) -> dict[str, Any]:
+        raise KeyError("Genetic Target")
+
+    monkeypatch.setattr(load_gold, "clean_trial_row", unreadable)
+    with pytest.raises(GoldRefused, match="cannot read"):
+        build_gold_plan(_gold_dir(tmp_path))
