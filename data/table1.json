@@ -403,7 +403,7 @@
     "evidenceFromOtherOmicsStudies": ["TWAS;WMH: dlPFC*"],
     "linkToMonogenicDisease": ["236600", "616053"],
     "brainCellTypes": "Mouse: all < 40; Human: TC >> Epen >> Capillary.EC > BC",
-    "affectedPathway": "wnt signaling pathway",
+    "affectedPathway": "Wnt signaling pathway",
     "references": [
       "33293549",
       "35511193",
@@ -962,7 +962,7 @@
     ],
     "linkToMonogenicDisease": ["(none found)"],
     "brainCellTypes": "Mouse: all < 40; Human: OPC > Neu > OL >> AC",
-    "affectedPathway": "notch signaling pathway",
+    "affectedPathway": "Notch signaling pathway",
     "references": [
       "32358547",
       "33773637",
@@ -1688,7 +1688,7 @@
     "evidenceFromOtherOmicsStudies": ["Proteomics", "Proteogenomic MR;PVS"],
     "linkToMonogenicDisease": ["615696", "617232"],
     "brainCellTypes": "Mouse: FB>EC>PC; Human: Arteriolar.EC > OPC > Arterial.EC > PVM",
-    "affectedPathway": "notch signaling pathway",
+    "affectedPathway": "Notch signaling pathway",
     "references": [
       "41266628",
       "37231261",
@@ -2913,7 +2913,7 @@
     "evidenceFromOtherOmicsStudies": ["(none found)"],
     "linkToMonogenicDisease": ["228930", "276820", "613005"],
     "brainCellTypes": "Mouse: AC; Human: Neu >> AC >> TC > OPC",
-    "affectedPathway": "wnt signaling pathway",
+    "affectedPathway": "Wnt signaling pathway",
     "references": [
       "34358307",
       "37069360",
@@ -3073,7 +3073,7 @@
     "evidenceFromOtherOmicsStudies": ["(none found)"],
     "linkToMonogenicDisease": ["(none found)"],
     "brainCellTypes": "Mouse: OL>EC>FB; Human: Arteriolar.EC > Capillary.EC > Venular.EC >> Venous.EC",
-    "affectedPathway": "regulation of rho protein signal transduction",
+    "affectedPathway": "regulation of Rho protein signal transduction",
     "references": [
       "30651383",
       "32358547",

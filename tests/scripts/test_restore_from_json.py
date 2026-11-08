@@ -229,14 +229,15 @@ def test_every_committed_row_round_trips_through_the_export() -> None:
 
 
 def test_a_row_the_export_could_not_have_written_is_refused(tmp_path: Path) -> None:
-    """The export lowercases the pathway, so a capitalised one cannot be
-    restored faithfully -- re-exporting it would change the file."""
+    """The export lowercases the word "ALL" in the cell types, so a row
+    publishing it cannot be restored faithfully -- re-exporting it would
+    change the file."""
     data = _write_export(
         tmp_path / "data",
-        table1=[{**_POPULATED_GENE, "affectedPathway": "Angiogenesis"}],
+        table1=[{**_POPULATED_GENE, "brainCellTypes": "ALL"}],
     )
 
-    with pytest.raises(RestoreRefused, match=r"ABC1.*affectedPathway"):
+    with pytest.raises(RestoreRefused, match=r"ABC1.*brainCellTypes"):
         build_plan(data, tmp_path / "logs")
 
 

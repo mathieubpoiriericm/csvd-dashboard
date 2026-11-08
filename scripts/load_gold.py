@@ -28,9 +28,8 @@ naming each row, for:
   link or reference the export would not publish exactly as built here --
   the export's own `clean_gene_row` is the judge, so wording it would drop
   or rewrite is a refusal rather than a silently different dataset. The one
-  tolerance is case in the cell types and the pathway, which the export
-  lowercases ("ALL < 40", "Wnt signaling pathway") by long-standing
-  convention;
+  tolerance is case in the cell types, where the export lowercases the word
+  "ALL" ("ALL < 40") by long-standing convention;
 - a trial row the export's `clean_trial_row` cannot read.
 
 How a gold cell becomes a stored value:
@@ -261,16 +260,17 @@ def gene_from_gold(row: Mapping[str, str], references: Sequence[str]) -> GeneRes
 
 
 # The scalar columns the export publishes from a gold cell, by stored name and
-# wire key. The export lowercases the pathway and the word "ALL" in the cell
-# types -- a display convention the published data has always had -- so
-# those two are compared without case; any other difference is a refusal.
+# wire key. The export lowercases the word "ALL" in the cell types -- a
+# display convention the published data has always had -- so that column is
+# compared without case; any other difference is a refusal, the pathway's
+# case included.
 _SCALAR_KEYS: Final = (
     ("protein", "protein"),
     ("chromosomal_location", "chromosomalLocation"),
     ("brain_cell_types", "brainCellTypes"),
     ("affected_pathway", "affectedPathway"),
 )
-_CASE_FREE_COLUMNS: Final = frozenset({"brain_cell_types", "affected_pathway"})
+_CASE_FREE_COLUMNS: Final = frozenset({"brain_cell_types"})
 
 
 def _gene_failures(
@@ -489,7 +489,7 @@ def main(argv: list[str] | None = None) -> None:
     )
     print(
         f"{len(plan.genes)} genes, {len(plan.trials)} trials; every row "
-        "publishes as built (cell types and pathways up to case)."
+        "publishes as built (cell types up to case)."
     )
     print(f"Target database: {target}")
     if not args.write:

@@ -46,8 +46,8 @@ What does not: ids and timestamps (rows are renumbered in file order, which
 is the order the export reads them in), gene_annotations (empty until
 `--sync-annotations`; the export keeps the committed gene_annotations.json
 meanwhile), and every spelling the export normalises -- trait synonyms come
-back folded, pathways lowercased, the omics prose in the shape the export
-splits it from.
+back folded, "ALL" in the cell types lowercased, the omics prose in the shape
+the export splits it from.
 
 Run it as a module, not as a path: `uv run scripts/...` puts scripts/ on
 sys.path rather than the repo root, and the pipeline imports below would not

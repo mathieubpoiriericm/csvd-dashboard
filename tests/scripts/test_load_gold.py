@@ -366,22 +366,43 @@ def test_a_scalar_the_export_would_rewrite_is_refused(
 
 
 def test_case_is_the_only_tolerated_rewrite(tmp_path: Path) -> None:
-    """The export lowercases "ALL" in the cell types and the whole pathway;
-    gold spelt with capitals loads, and publishes lowercased."""
+    """The export lowercases "ALL" in the cell types; gold spelt with capitals
+    loads, and publishes lowercased. The pathway publishes as gold writes it."""
     plan = build_gold_plan(
         _gold_dir(
             tmp_path,
             genes=[
                 _gene_row(
                     brain_cell_types_mice="ALL < 40",
-                    pathway_goa_function="Wnt signaling pathway",
+                    pathway_goa_function="Wnt/Notch signaling pathway",
                 )
             ],
         )
     )
     published = export_gene(plan.genes[0])
     assert published["brainCellTypes"] == "Mouse: all < 40"
-    assert published["affectedPathway"] == "wnt signaling pathway"
+    assert published["affectedPathway"] == "Wnt/Notch signaling pathway"
+
+
+def test_a_pathway_whose_case_the_export_would_change_is_refused(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Case is tolerated in the cell types alone: an export that lowercased the
+    pathway again would rewrite gold's proper nouns, so the plan refuses it."""
+    real = load_gold.export_gene
+
+    def lowercasing(gene: Any) -> dict[str, Any]:
+        published = real(gene)
+        return published | {"affectedPathway": published["affectedPathway"].lower()}
+
+    monkeypatch.setattr(load_gold, "export_gene", lowercasing)
+    with pytest.raises(GoldRefused, match="affectedPathway"):
+        build_gold_plan(
+            _gold_dir(
+                tmp_path,
+                genes=[_gene_row(pathway_goa_function="Wnt signaling pathway")],
+            )
+        )
 
 
 def test_a_trial_the_export_cannot_read_is_refused_not_raised(

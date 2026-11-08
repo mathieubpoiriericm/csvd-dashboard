@@ -211,7 +211,7 @@ def test_gene_row_produces_the_display_contract() -> None:
     assert row["Evidence From Other Omics Studies"] == ["(none found)"]
     assert row["Link to Monogenic Disease"] == ["(none found)"]
     assert row["Brain Cell Types"] == "all"
-    assert row["Affected Pathway"] == "extracellular matrix organization"
+    assert row["Affected Pathway"] == "Extracellular Matrix Organization"
     assert row["References"] == ["37063705", "34606115"]
 
 

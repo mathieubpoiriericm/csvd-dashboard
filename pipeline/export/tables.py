@@ -395,9 +395,11 @@ def clean_gene_row(row: dict[str, Any]) -> dict[str, Any]:
     cell_types = _ALL_WORD.sub("all", out.get("Brain Cell Types") or "")
     out["Brain Cell Types"] = fill_missing_text(cell_types or None, "(unknown)")
 
+    # Published as stored, case included: a pathway names Wnt, Notch or Rho
+    # as proper nouns, and lowercasing it rewrote the curated wording.
     out["Affected Pathway"] = fill_missing_text(
         out.get("Affected Pathway"), "(unknown)"
-    ).lower()
+    )
 
     out["Mendelian Randomization"] = (
         "Yes" if out["Mendelian Randomization"] else "No"
