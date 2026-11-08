@@ -14,7 +14,7 @@ import {
   OMICS_FULL_NAMES,
   PUBMED_BASE_URL,
 } from "./constants.ts";
-import { toCitation } from "./citations.ts";
+import { isDoi, toCitation } from "./citations.ts";
 import { geneInfoByName } from "./data/gene_info.ts";
 import { omimByNumber } from "./data/omim.ts";
 import { proteinInfoByGene } from "./data/protein_info.ts";
@@ -176,7 +176,10 @@ export function referenceRows(reference: Reference): TooltipRow[] {
   return rows.length > 0 ? rows : citationRows(reference.formattedRef);
 }
 
-/** Formatted citation for a PMID; the lookup defaults to the committed cache. */
+/**
+ * Formatted citation for a PMID, or for a preprint cited by DOI; the lookup
+ * defaults to the committed cache.
+ */
 export function referenceTooltip(
   pmid: string,
   lookup: ReadonlyMap<string, Reference> = referenceByPmid,
@@ -185,10 +188,11 @@ export function referenceTooltip(
   const reference = lookup.get(id);
   if (!reference) return null;
 
-  return {
-    rows: referenceRows(reference),
-    links: [{ href: `${PUBMED_BASE_URL}${id}`, label: "View on PubMed" }],
-  };
+  // A preprint cited by DOI has no PubMed record to link to.
+  const link = isDoi(id)
+    ? { href: `https://doi.org/${encodeURI(id)}`, label: "View on doi.org" }
+    : { href: `${PUBMED_BASE_URL}${id}`, label: "View on PubMed" };
+  return { rows: referenceRows(reference), links: [link] };
 }
 
 // -----------------------------------------------------------------------------

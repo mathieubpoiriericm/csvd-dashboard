@@ -111,8 +111,9 @@ Deno.test("the full Genes table keeps the provenance columns", () => {
   assertStringIncludes(html, "col-confidence");
 });
 
-Deno.test("a DOI reference links to the resolver, showing the DOI", () => {
-  const doi = "10.21203/rs.3.rs-5926137/v1";
+Deno.test("a DOI reference with no citation links to the resolver, showing the DOI", () => {
+  // No refs.json row: a cited preprint renders as a citation instead.
+  const doi = "10.1000/uncited.1";
   const html = renderToString(
     <GenesView rows={[sampleGene({ references: ["10000001", doi] })]} />,
   );

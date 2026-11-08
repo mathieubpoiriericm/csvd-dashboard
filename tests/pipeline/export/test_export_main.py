@@ -336,7 +336,7 @@ class TestRunExport:
         self, tmp_path: Path, mocker
     ) -> None:
         """Mirrors export.R's extract_unique_pmids: grep('^[1-9][0-9]*$', ...)
-        after flattening the References list-column.
+        after flattening the References list-column, plus DOIs.
         """
         mocker.patch("pipeline.export.main._read_table", side_effect=_fake_read_table)
         mocker.patch(
@@ -413,7 +413,12 @@ class TestRunExport:
 
         await run_export(target_dir=tmp_path / "data")
 
-        assert mock_pubmed.call_args.args[0] == ["37063705", "7654321"]
+        # A preprint's DOI is a citation key too (read from Europe PMC).
+        assert mock_pubmed.call_args.args[0] == [
+            "37063705",
+            "7654321",
+            "10.21203/rs.3.rs-5926137/v1",
+        ]
 
     async def test_a_failure_partway_through_leaves_target_dir_untouched(
         self, tmp_path: Path, mocker

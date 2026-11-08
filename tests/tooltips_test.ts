@@ -129,6 +129,18 @@ Deno.test("referenceTooltip builds rows and the PubMed link from a lookup row", 
   });
 });
 
+Deno.test("referenceTooltip links a preprint cited by DOI to the resolver", () => {
+  const doi = "10.1000/50%-é";
+  const lookup = new Map([[
+    doi,
+    bareReference({ pmid: doi, authors: "Author A", doi }),
+  ]]);
+  assertEquals(referenceTooltip(doi, lookup)?.links, [{
+    href: "https://doi.org/10.1000/50%25-%C3%A9",
+    label: "View on doi.org",
+  }]);
+});
+
 Deno.test("citationRows safely decodes supported entities and fallback citations", () => {
   assertEquals(
     citationRows(

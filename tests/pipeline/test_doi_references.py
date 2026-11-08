@@ -1,4 +1,4 @@
-"""DOI gene references: told apart from PMIDs and kept out of PubMed lookups."""
+"""DOI gene references: told apart from PMIDs, and cited from Europe PMC."""
 
 import json
 from pathlib import Path
@@ -31,15 +31,15 @@ def test_is_doi_refuses_what_the_genes_table_does_not(value: str) -> None:
     assert is_doi(value) is False
 
 
-def test_the_export_collects_no_doi_as_a_pmid() -> None:
+def test_the_export_reads_a_doi_citation_beside_the_pmids() -> None:
     genes = [
         {"References": ["39298701", _DOI]},
-        {"References": [_DOI, "12345678", "39298701"]},
+        {"References": [f" {_DOI}", "12345678", "39298701"]},
     ]
-    assert _pubmed_ids(genes) == ["39298701", "12345678"]
+    assert _pubmed_ids(genes) == ["39298701", _DOI, "12345678"]
 
 
-async def test_sync_external_data_skips_a_doi_reference(mocker) -> None:
+async def test_sync_external_data_keeps_a_doi_reference_whole(mocker) -> None:
     conn = AsyncMock()
     conn.fetch = AsyncMock(return_value=[{"pmid": _DOI}, {"pmid": "12345678"}])
     ctx = AsyncMock()
@@ -47,4 +47,5 @@ async def test_sync_external_data_skips_a_doi_reference(mocker) -> None:
     ctx.__aexit__ = AsyncMock(return_value=None)
     mocker.patch("pipeline.external_data_sync.Database.connection", return_value=ctx)
 
-    assert await get_all_pmids() == ["12345678"]
+    # Whole, not scanned for PMIDs: "5926137" is not one.
+    assert await get_all_pmids() == [_DOI, "12345678"]

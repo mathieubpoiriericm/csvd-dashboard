@@ -2,10 +2,16 @@
 
 Fetches citation details (authors, title, journal, DOI) from PubMed
 and formats them for dashboard display.
+
+A reference the curators cite by DOI -- a preprint with no PubMed record --
+is read from Europe PMC instead, which indexes preprints (source ``PPR``), and
+cached under the DOI in the same table, so the Genes table cites it like any
+other paper rather than showing the bare DOI.
 """
 
 import asyncio
 import html
+import json
 import logging
 import re
 from collections import OrderedDict
@@ -13,9 +19,11 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Final
 
+import httpx
 from lxml import etree  # type: ignore[import-untyped]
 
 from pipeline import ncbi_http
+from pipeline.api_telemetry import record_transport_failure
 from pipeline.cache_utils import (
     SyncResult,
     make_log_progress,
@@ -28,6 +36,8 @@ from pipeline.config import (
     SAFE_XML_PARSER,
     PipelineConfig,
 )
+from pipeline.europepmc import SEARCH_URL as EUROPEPMC_SEARCH_URL
+from pipeline.export.text import is_doi
 from pipeline.http_client import AsyncHttpClientManager
 
 logger = logging.getLogger(__name__)
@@ -180,19 +190,21 @@ def _format_citation(
 async def fetch_pubmed_citation(
     pmid: str, config: PipelineConfig | None = None
 ) -> PubMedCitation | None:
-    """Fetch citation details for a single PMID.
+    """Fetch citation details for a single PMID, or for a preprint's DOI.
 
     Results are cached; concurrent callers for the same PMID share one
-    in-flight fetch via ``single_flight_get``.
+    in-flight fetch via ``single_flight_get``. A DOI goes to Europe PMC,
+    since PubMed has no record under one.
     """
     pmid = pmid.strip()
+    fetch = _fetch_preprint_uncached if is_doi(pmid) else _fetch_pubmed_uncached
     return await single_flight_get(
         pmid,
         cache=_citation_cache,
         cache_lock=_get_cache_lock(),
         in_flight=_in_flight,
         semaphore=_get_ncbi_semaphore(config),
-        fetch_fn=lambda: _fetch_pubmed_uncached(pmid),
+        fetch_fn=lambda: fetch(pmid),
         label="PubMed citation cache",
     )
 
@@ -216,6 +228,103 @@ async def _fetch_pubmed_uncached(pmid: str) -> PubMedCitation | None:
         return None
 
     return _parse_pubmed_xml(pmid, resp.content)
+
+
+async def _fetch_preprint_uncached(doi: str) -> PubMedCitation | None:
+    """Internal: a preprint's citation from Europe PMC, by DOI, uncached.
+
+    None on a transport or HTTP failure -- not a fact about the DOI, so
+    nothing is stored and the next sync asks again. A DOI Europe PMC does
+    not know comes back as a citation with no title, which the sync does
+    not store either.
+    """
+    params = {
+        "query": f'DOI:"{doi}"',
+        "resultType": "core",
+        "format": "json",
+        "pageSize": "1",
+    }
+    client = await _client_manager.get()
+    try:
+        response = await client.get(EUROPEPMC_SEARCH_URL, params=params)
+        response.raise_for_status()
+        results = response.json().get("resultList", {}).get("result", [])
+    except httpx.RequestError as exc:
+        record_transport_failure(EUROPEPMC_SEARCH_URL)
+        logger.warning("Europe PMC citation lookup failed for DOI %s: %s", doi, exc)
+        return None
+    except (httpx.HTTPError, json.JSONDecodeError) as exc:
+        logger.warning("Europe PMC citation lookup failed for DOI %s: %s", doi, exc)
+        return None
+
+    if not results:
+        logger.warning(f"No Europe PMC record found for DOI {doi}")
+        return PubMedCitation(
+            pmid=doi,
+            authors=None,
+            title=None,
+            journal=None,
+            publication_date=None,
+            doi=doi,
+            formatted_ref=f"DOI: {doi} (citation not available)",
+        )
+    return _parse_europepmc_record(doi, results[0])
+
+
+_MONTHS: Final[tuple[str, ...]] = (
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+)  # fmt: skip
+
+
+def _europepmc_date(record: dict[str, Any]) -> str | None:
+    """``Feb 2025`` from ``firstPublicationDate``, PubMed's ``Month Year``.
+
+    The year alone when the record carries no full date.
+    """
+    date = str(record.get("firstPublicationDate") or "")
+    match = re.fullmatch(r"(\d{4})-(\d{2})-\d{2}", date)
+    if match and 1 <= int(match[2]) <= 12:
+        return f"{_MONTHS[int(match[2]) - 1]} {match[1]}"
+    year = str(record.get("pubYear") or "").strip()
+    return year or None
+
+
+def _europepmc_authors(record: dict[str, Any]) -> list[str]:
+    """``LastName Initials`` for each author, as PubMed's records give them."""
+    authors = (record.get("authorList") or {}).get("author") or []
+    names: list[str] = []
+    for author in authors:
+        last_name = str(author.get("lastName") or "").strip()
+        initials = str(author.get("initials") or "").strip()
+        if last_name:
+            names.append(f"{last_name} {initials}".strip())
+        elif collective := str(author.get("collectiveName") or "").strip():
+            names.append(collective)
+    return names
+
+
+def _parse_europepmc_record(doi: str, record: dict[str, Any]) -> PubMedCitation:
+    """A Europe PMC search record as a citation keyed by ``doi``.
+
+    A preprint has no journal; its server (``Research Square``) stands in
+    for one, as a book's title does for a PubMed book chapter.
+    """
+    journal_info = (record.get("journalInfo") or {}).get("journal") or {}
+    book = record.get("bookOrReportDetails") or {}
+    journal = str(journal_info.get("title") or book.get("publisher") or "").strip()
+    authors = _format_authors(_europepmc_authors(record))
+    title = str(record.get("title") or "").strip()
+    pub_date = _europepmc_date(record)
+    return PubMedCitation(
+        pmid=doi,
+        authors=authors or None,
+        title=title or None,
+        journal=journal or None,
+        publication_date=pub_date,
+        doi=doi,
+        formatted_ref=_format_citation(authors, title, journal, pub_date, doi),
+    )
 
 
 def _joined_text(parent: Any, path: str) -> str:

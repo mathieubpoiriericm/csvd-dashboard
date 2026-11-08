@@ -22,6 +22,7 @@ from pydantic import ValidationError
 from pipeline.annotations import lookup_symbols
 from pipeline.api_telemetry import relabel_api_rows
 from pipeline.database import Database
+from pipeline.export.text import is_doi
 from pipeline.run_report import PipelineRunReport
 from pipeline.sync_report import SyncRunReport
 from pipeline.xrefs import is_omim_series, xref_prefix
@@ -180,7 +181,9 @@ async def read_pubmed_refs(pmids: Sequence[str]) -> list[dict[str, Any]]:
             "journal": None,
             "publication_date": None,
             "doi": None,
-            "formatted_ref": lambda key: f"PMID: {key} (citation not available)",
+            "formatted_ref": lambda key: (
+                f"{'DOI' if is_doi(key) else 'PMID'}: {key} (citation not available)"
+            ),
         },
     )
 

@@ -46,6 +46,7 @@ const SHARED_MODULES = [
   "lib/sentinels.ts",
   "lib/normalize.ts",
   "lib/collections.ts",
+  "lib/citations.ts",
 ];
 
 /** Vite's `manualChunks`: the protected chunks, and the public one beside them. */

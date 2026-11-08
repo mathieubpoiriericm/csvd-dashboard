@@ -37,11 +37,14 @@ import pipeline.main as pipeline_main
 from pipeline.config import PipelineConfig
 from pipeline.database import (
     Database,
+    get_cached_pubmed_citations,
     merge_genes_transactional,
     record_pipeline_run,
     record_processed_pmids_batch,
+    upsert_pubmed_citations_batch,
 )
 from pipeline.export.lookups import read_pipeline_run
+from pipeline.pubmed_citations import PubMedCitation
 from pipeline.run_errors import RunError
 from pipeline.run_report import build_run_report
 from pipeline.steps import PIPELINE_STEPS, StepRecorder
@@ -99,7 +102,7 @@ async def test_the_container_is_migrated_to_a_single_head() -> None:
         )
 
     names = {row["column_name"] for row in columns}
-    assert version == "016"
+    assert version == "017"
     # The three migration 009 adds. Their absence is not a schema detail:
     # without them the run report has nowhere to be stored and the About
     # page silently falls back to its summary card.
@@ -873,6 +876,29 @@ async def test_a_doi_reference_is_stored_whole(scratch_gene) -> None:
         (0, "39298701"),
         (1, doi),
     ]
+
+
+async def test_a_preprint_citation_is_cached_under_its_doi() -> None:
+    """Migration 017: a preprint's citation is keyed by its 27-character DOI."""
+    doi = "10.21203/rs.3.rs-5926137/v1"
+    async with Database.connection() as conn:
+        await conn.execute("DELETE FROM pubmed_citations WHERE pmid = $1", doi)
+    citation = PubMedCitation(
+        pmid=doi,
+        authors="Debette S, Saba Y, Suzuki H, et al.",
+        title="A preprint",
+        journal="Research Square",
+        publication_date="Feb 2025",
+        doi=doi,
+        formatted_ref="<b>Debette S</b>",
+    )
+    try:
+        await upsert_pubmed_citations_batch([citation])
+        cached = await get_cached_pubmed_citations([doi])
+        assert cached[doi]["journal"] == "Research Square"
+    finally:
+        async with Database.connection() as conn:
+            await conn.execute("DELETE FROM pubmed_citations WHERE pmid = $1", doi)
 
 
 async def test_the_ledger_records_the_extraction_model() -> None:

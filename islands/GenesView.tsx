@@ -198,7 +198,7 @@ function ReferenceCitations({ values }: { values: readonly string[] }) {
       {values.map((pmid, index) => (
         <span key={`${pmid}-${index}`}>
           {index > 0 && " "}
-          {isDoi(pmid)
+          {isDoi(pmid) && !hasCitation(pmid)
             ? <DoiReference doi={pmid.trim()} />
             : (
               <Tooltip content={referenceTooltip(pmid)}>
@@ -212,9 +212,22 @@ function ReferenceCitations({ values }: { values: readonly string[] }) {
 }
 
 /**
- * A reference the curators cite by DOI -- a preprint with no PMID, so no
- * PubMed citation to show. The DOI itself is the citation: it reads as a link
- * to the resolver rather than as a PMID whose citation failed to resolve.
+ * Whether a reference has a citation to show: a first author, at least.
+ *
+ * A preprint the curators cite by DOI has one once the citation sync has read
+ * it from Europe PMC, and is then cited like any PMID; until then it falls back
+ * to `DoiReference`.
+ */
+function hasCitation(id: string): boolean {
+  const reference = referenceByPmid.get(id.trim());
+  return reference !== undefined && toCitation(reference).author !== "";
+}
+
+/**
+ * A reference the curators cite by DOI whose citation never resolved -- a
+ * preprint Europe PMC does not index, say. The DOI itself is the citation: it
+ * reads as a link to the resolver rather than as a PMID whose citation failed
+ * to resolve.
  * A DOI suffix may hold any printable character, so the link encodes it
  * (`%` and non-ASCII above all) while the text shows it as written.
  */

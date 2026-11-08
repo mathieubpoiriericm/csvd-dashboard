@@ -78,17 +78,17 @@ def _publishable(row: Mapping[str, object]) -> dict[str, object]:
 
 
 def _pubmed_ids(genes: Iterable[Mapping[str, Any]]) -> list[str]:
-    """The distinct PMIDs among the genes' references, in first-seen order.
+    """The distinct citation keys among the genes' references, first-seen order.
 
-    A DOI reference has no PubMed citation, so it gets no refs.json row; the
-    dashboard links it to doi.org from the reference id itself.
+    A PMID, or a DOI: a preprint's citation is cached under its DOI (read
+    from Europe PMC), so it gets a refs.json row like any other paper.
     """
     return list(
         dict.fromkeys(
-            ref
+            ref.strip() if is_doi(ref) else ref
             for row in genes
             for ref in row["References"]
-            if not is_doi(ref) and ref.isdigit() and not ref.startswith("0")
+            if is_doi(ref) or (ref.isdigit() and not ref.startswith("0"))
         )
     )
 
