@@ -157,11 +157,10 @@ export const REGISTRY_CHOICES: readonly FilterChoice[] = [
 export const PHASE_CHOICES: readonly FilterChoice[] = [
   { label: "Show All", value: SHOW_ALL },
   // A seamless design ("II/III", "I/II") deliberately gets no choice of its
-  // own, though the radar gives it a ring: `matchesPhase` reads each Roman
-  // token, so a II/III trial already answers both "Phase II" and
-  // "Phase III" -- which is what the table is asked, "does this trial cover
-  // phase II". The figure is asked something else, "where does this marker
-  // go", and there a band of its own is the only honest answer.
+  // own: `matchesPhase` reads each Roman token, so a II/III trial already
+  // answers both "Phase II" and "Phase III" -- which is what the table is
+  // asked, "does this trial cover phase II". (The radar has no ring for it
+  // and leaves it off; see `.claude/rules/timeline.md`.)
   { label: "Phase I", value: "I" },
   { label: "Phase II", value: "II" },
   { label: "Phase III", value: "III" },

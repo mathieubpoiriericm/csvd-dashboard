@@ -288,14 +288,11 @@ Deno.test("phase labels stack on the 12 o'clock boundary at ring midpoints", () 
   assertEquals(layout.phaseLabels.map((l) => l.phase), [
     "IV",
     "III",
-    "II/III",
     "II",
-    "I/II",
     "I",
-    "(unknown)",
   ]);
   // CENTER.y less each ring's midpoint radius, on the 416-unit plate.
-  const ys = [400.8, 298.88, 261.44, 224, 186.56, 149.12, 99.2];
+  const ys = [400.8, 276, 192.8, 109.6];
   layout.phaseLabels.forEach((label, i) => {
     assertEquals(label.point.x, 536);
     assertAlmostEquals(label.point.y, ys[i], 1e-9);
@@ -436,8 +433,8 @@ Deno.test("record-flag rules fire on the exact values and nothing near them", ()
     resolveRecordFlag({ ...clean, estimatedCompletionDate: "8/2019" }),
     [],
   );
-  // Nor is a phase the registry never stated — the encoding gives it a ring of
-  // its own, so the geometry already says so.
+  // Nor is a phase the registry never stated -- the radar has no ring for
+  // it, so the trial is left off the figure rather than flagged on it.
   assertEquals(
     resolveRecordFlag({ ...clean, clinicalTrialPhase: "(unknown)" }),
     [],
@@ -513,6 +510,16 @@ Deno.test("a sub-phase sits on its parent phase's ring and keeps its own label",
     cells.filter((cell) => cell.filled).map((cell) => cell.phase),
     ["I"],
   );
+});
+
+Deno.test("a seamless or unstated phase is left off the radar", () => {
+  const { markers, cells } = computeTimelineLayout([
+    placed({ clinicalTrialPhase: "II/III" }),
+    placed({ clinicalTrialPhase: "I/II" }),
+    placed({ clinicalTrialPhase: "(unknown)" }),
+  ]);
+  assertEquals(markers, []);
+  assertEquals(cells.filter((cell) => cell.filled), []);
 });
 
 Deno.test("an empty trial set produces zero-width sectors without dividing by zero", () => {

@@ -322,26 +322,12 @@ class TestRadarPhases:
             (_REPO_ROOT / "lib" / "timeline_encoding.json").read_text(encoding="utf-8")
         )
         rings = frozenset(ring["phase"] for ring in encoding["rings"])
-        # The encoding names the unphased ring in wire spelling; a record
-        # carries the registry's own "N/A". _load_ring_phases folds one to
-        # the other, so the two sets agree on everything else.
-        assert rings - {"(unknown)"} == RADAR_PHASES - {"N/A"}
-        assert (
-            frozenset({"I", "I/II", "II", "II/III", "III", "IV", "N/A"})
-            == RADAR_PHASES
-        )
+        assert rings == RADAR_PHASES
+        assert frozenset({"I", "II", "III", "IV"}) == RADAR_PHASES
 
-    @pytest.mark.parametrize("label", ["I/II", "II/III"])
-    def test_a_seamless_trial_has_a_ring_of_its_own(self, label):
-        """The two joins the registry actually uses are placeable.
-
-        Collapsing them onto a component ring would have the print figure --
-        which has no drawer to correct it -- state a phase the registry
-        does not: NCT03451591 is LACI-2, a seamless II/III trial.
-        """
-        assert label in RADAR_PHASES
-
-    @pytest.mark.parametrize("label", ["Early Phase I", "I/III", "III/IV"])
+    @pytest.mark.parametrize(
+        "label", ["I/II", "II/III", "N/A", "Early Phase I", "I/III", "III/IV"]
+    )
     def test_the_labels_the_radar_cannot_place(self, label):
         """lib/timeline.ts and scripts/timeline_figure.py both compare the
         published phase to the ring's for equality, so a label with no ring
@@ -374,12 +360,20 @@ class TestUnplaceablePhases:
             ("NCT1", "Early Phase I")
         ]
 
-    @pytest.mark.parametrize("phase", ["II", "II/III", "I/II"])
+    @pytest.mark.parametrize("phase", ["I", "II", "III", "IV"])
     def test_a_ring_phase_is_not_reported(self, phase):
-        """The two seamless joins have rings of their own now."""
         records = [self._record("NCT1", phase)]
 
         assert _unplaceable_phases(records, frozenset({"NCT1"})) == []
+
+    @pytest.mark.parametrize("phase", ["II/III", "I/II", "N/A"])
+    def test_a_seamless_or_unstated_phase_is_reported(self, phase):
+        """The radar draws four phases; these publish in Table 2 alone."""
+        records = [self._record("NCT1", phase)]
+
+        assert _unplaceable_phases(records, frozenset({"NCT1"})) == [
+            ("NCT1", phase)
+        ]
 
     def test_a_discovery_is_not_reported(self):
         """It is not published until a curator fills the population in, and

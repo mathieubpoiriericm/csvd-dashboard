@@ -100,25 +100,26 @@ Two things it deliberately does not do. **It never claims a value is wrong** —
 `pipeline/opentargets_drugs.py` measured that every textual-agreement rule it
 tried flagged a pair known to agree, and refuses to emit a machine verdict; this
 says thin or self-declared uncharacterised, nothing more. And **a phase of
-`"(unknown)"` is not a flag**: the encoding gives it a first-class outermost
-ring and `PHASE_CHOICES` calls it "Phase not stated", so the geometry already
-says it. A completion date in the past is not one either — 69 committed rows
-have one, because they are completed trials.
+`"(unknown)"` is not a flag**: the radar has no ring for it, so such a trial is
+not on the figure to be flagged. A completion date in the past is not one
+either — 69 committed rows have one, because they are completed trials.
 
-**A seamless trial gets a ring of its own, and that is a correction rather than
-a flourish.** The rings are seven now --
-`IV, III, II/III, II, I/II, I,
-(unknown)` outward -- because both renderers
-place a marker by comparing `clinicalTrialPhase` to the ring's phase for
-**equality**, so the `II/III` and `I/II` ClinicalTrials.gov registers for a
-seamless design matched no ring and was drawn nowhere while Table 2 listed it.
-Collapsing one onto a component ring was the cheaper fix and is wrong for the
-artifact that matters most: the print figure has no drawer, so a reader of
-`deno task figure` output would have no way to recover that NCT03451591 is
-LACI-2, a phase II/III trial, from a marker sitting on the III ring.
-`_unplaceable_phases` in `pipeline/clinical_trials_fetch.py` reports what is
-left -- `Early Phase I` and the rarer joins -- and reads `RADAR_PHASES` off this
-encoding, so adding a ring stays one edit.
+**The radar draws four phases, and a trial in any other is left off it.** The
+rings are `IV, III, II, I` outward. Both renderers place a marker by comparing
+`clinicalTrialPhase` to the ring's phase for **equality**, so a seamless
+`II/III` or `I/II`, an unstated phase, `Early Phase I` and the rarer joins
+match no ring: Table 2 lists the trial and the radar draws nothing for it. That
+is deliberate. The rings were seven for a while -- the two seamless designs and
+`(unknown)` had bands of their own, so the print figure, which has no drawer,
+would not show LACI-2 (NCT03451591, a phase II/III trial) on the III ring --
+but the curated release has no trial in any of the three, so they drew as
+empty bands, and on 2026-11-08 they were removed with the drop-off accepted
+for pipeline-fetched trials. Do not fold such a trial onto a component ring
+instead: that states a phase the registry does not. `_unplaceable_phases` in
+`pipeline/clinical_trials_fetch.py` reports every curated row with no ring and
+reads `RADAR_PHASES` off this encoding, so adding a ring back stays one edit --
+though a `(unknown)` ring would need `_load_ring_phases` to fold the registry's
+`N/A` onto it again, as it did before.
 
 **The outermost band may not be narrowed to make room for a new ring**, and that
 is the trap this cost. A marker sits at its ring's midpoint, so a thinner
@@ -127,17 +128,18 @@ outermost band pushes the outermost markers -- and the drug labels outside them
 = 120 units. Splitting `0.4..1.0` into six equal `0.1` bands moved them 6.7
 units out and tipped the 22-character "Stellate ganglion block" over the right
 edge under **Linux** font metrics while it still fitted on macOS -- so the local
-suite passed and CI failed. The five inner bands are `0.09` and `(unknown)`
-keeps its `0.15`; `tests/timeline_encoding_test.ts` pins the resulting radius
-rather than the width, because the radius is what the label layout has to clear.
+suite passed and CI failed. The three outer bands are `0.2` each now, which
+puts Phase I's staggered markers 6.7 units _inside_ where the seven-ring plate's
+`(unknown)` band had them; `tests/timeline_encoding_test.ts` pins the resulting
+radius rather than the width, because the radius is what the label layout has
+to clear.
 
-**It gets no `PHASE_CHOICES` entry, though**, and the asymmetry is deliberate.
-`matchesPhase` in `lib/filters.ts` reads each Roman token, so a `II/III` trial
-already answers both "Phase II" and "Phase III" -- which is the question the
-table is asked, _does this trial cover phase II_. A choice whose value is the
-literal `"II/III"` would match nothing, because the tokens are compared and
-neither is that string. The figure is asked a different question, _where does
-this marker go_, and only there does a band of its own make sense.
+**A seamless trial gets no `PHASE_CHOICES` entry either**, for a different
+reason. `matchesPhase` in `lib/filters.ts` reads each Roman token, so a
+`II/III` trial already answers both "Phase II" and "Phase III" -- which is the
+question the table is asked, _does this trial cover phase II_. A choice whose
+value is the literal `"II/III"` would match nothing, because the tokens are
+compared and neither is that string.
 
 Labels have no boxes. They are ink text with a plate-coloured halo
 (`paint-order: stroke` in the island); the `rect.label-bg` the e2e reads is

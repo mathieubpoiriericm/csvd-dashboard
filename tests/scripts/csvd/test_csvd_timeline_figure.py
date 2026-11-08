@@ -36,25 +36,13 @@ _GOLD_ONLY = gold_only()
 EMPTY_CELLS = [
     ("CAA", "IV"),
     ("CAA", "III"),
-    ("CAA", "II/III"),
-    ("CAA", "I/II"),
     ("CAA", "I"),
-    ("CAA", "(unknown)"),
     ("Cognitive Impairment", "IV"),
-    ("Cognitive Impairment", "II/III"),
-    ("Cognitive Impairment", "I/II"),
     ("Cognitive Impairment", "I"),
-    ("Cognitive Impairment", "(unknown)"),
     ("Stroke", "IV"),
-    ("Stroke", "II/III"),
-    ("Stroke", "I/II"),
     ("Stroke", "I"),
-    ("Stroke", "(unknown)"),
     ("SVD", "IV"),
     ("SVD", "III"),
-    ("SVD", "II/III"),
-    ("SVD", "I/II"),
-    ("SVD", "(unknown)"),
 ]
 
 
@@ -89,9 +77,9 @@ class TestLayout:
     def test_every_cell_with_the_expected_empties(self, trials, encoding) -> None:
         sectors = sector_spans(trials, encoding)
         cell_list = cells(trials, encoding, sectors)
-        # Four populations over seven rings; 21 are empty, because the 16
+        # Four populations over four rings; 9 are empty, because the 16
         # gold trials sit in phases II and III, and one in I.
-        assert len(cell_list) == 28
+        assert len(cell_list) == 16
         assert [(c.population, c.phase) for c in cell_list if not c.filled] == (
             EMPTY_CELLS
         )
@@ -163,8 +151,8 @@ class TestLayout:
             if m.population == "Stroke" and m.phase == "III"
         ]
         assert len(shared) == 6
-        # Twice 18 % of the Phase III ring's thickness (0.09 of radius 100).
-        assert shared[1].r - shared[0].r == pytest.approx(2 * 0.18 * 9)
+        # Twice 18 % of the Phase III ring's thickness (0.2 of radius 100).
+        assert shared[1].r - shared[0].r == pytest.approx(2 * 0.18 * 20)
 
 
 class TestRender:

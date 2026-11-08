@@ -76,6 +76,15 @@ class TestSubPhases:
         for phase in ("I", "II/III", "(unknown)", "ib", "IIB", "Iberian"):
             assert parent_phase(phase) == phase
 
+    def test_a_seamless_or_unstated_phase_is_left_off(self, encoding) -> None:
+        trials = [
+            _trial(encoding, clinicalTrialPhase=phase)
+            for phase in ("II/III", "I/II", "(unknown)")
+        ]
+        sectors = sector_spans(trials, encoding)
+        assert markers(trials, encoding, sectors) == []
+        assert [c for c in cells(trials, encoding, sectors) if c.filled] == []
+
     def test_a_sub_phase_trial_is_drawn_on_its_parent_ring(self, encoding) -> None:
         trial = _trial(encoding, clinicalTrialPhase="Ib")
         sectors = sector_spans([trial], encoding)
@@ -201,7 +210,7 @@ class TestLayout:
             {**clean, "estimatedCompletionDate": "(unknown)"}, encoding
         ) == ("completion-unstated",)
         # A completed trial is not a thin record, and a phase the registry
-        # never stated has a ring of its own.
+        # never stated is left off the radar rather than flagged on it.
         past = {**clean, "estimatedCompletionDate": "8/2019"}
         assert resolve_record_flag(past, encoding) == ()
         assert (

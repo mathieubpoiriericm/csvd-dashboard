@@ -110,7 +110,7 @@ const TRIALS = [
     registryId: "ISRCTN00000003",
     targetPopulation: timeline.populations.at(-1)!.key,
     mechanismOfAction: UNCHARACTERISED ?? MECHANISM,
-    clinicalTrialPhase: "(unknown)",
+    clinicalTrialPhase: "I",
     targetSampleSize: "(unknown)",
     sponsorType: "Industry",
   }),
