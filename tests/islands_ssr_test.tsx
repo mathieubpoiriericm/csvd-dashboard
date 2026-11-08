@@ -163,6 +163,15 @@ Deno.test("GenesView offers the traits its rows carry under gold-only, and every
   }
 });
 
+Deno.test("GenesView links a DOI reference to the resolver, encoded", () => {
+  const doi = "10.1000/50%-é";
+  const html = renderToString(
+    <GenesView rows={[sampleGene({ references: [doi] })]} />,
+  );
+  assertStringIncludes(html, 'href="https://doi.org/10.1000/50%25-%C3%A9"');
+  assertStringIncludes(html, `>${doi}</a>`);
+});
+
 Deno.test("Phenogram draws a block per placeable gene and reports the rest", () => {
   const html = renderToString(<Phenogram rows={GENES} />);
   const placed = GENES.filter((g) => placeGene(g.chromosomalLocation) !== null);
