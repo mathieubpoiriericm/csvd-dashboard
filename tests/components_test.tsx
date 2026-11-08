@@ -540,12 +540,14 @@ Deno.test("GeneticTargets prints a target's label verbatim and makes only the sy
   const html = render(
     <GeneticTargets value="GWAS for ischemic stroke: PDE3A" />,
   );
-  // The label is plain text in front of the trigger, which holds the symbol.
+  // The label is plain text in front of the symbol's own element: a tooltip
+  // trigger where the export has an NCBI record for it, italic text where it
+  // has none (the empty export). Either way the label is not inside it.
   assertMatch(
     html,
-    /GWAS for ischemic stroke: <button[^>]*class="tooltip-box[^"]*"[^>]*>PDE3A<\/button>/,
+    /GWAS for ischemic stroke: <(button|i)\b[^>]*>PDE3A<\/\1>/,
   );
-  assertEquals((html.match(/class="tooltip-box/g) ?? []).length, 1);
+  assertEquals((html.match(/class="tooltip-box/g) ?? []).length <= 1, true);
 });
 
 Deno.test("BrainCellTypesCell renders an em dash for the absent sentinel, before splitting", () => {

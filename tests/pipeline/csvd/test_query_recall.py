@@ -94,7 +94,8 @@ def _entrez_contact(monkeypatch: pytest.MonkeyPatch) -> None:
 # test_extraction_golden.py: re-measure and update when the query changes on
 # purpose; do not edit a figure to turn a red run green.
 
-# SVD_QUERY retrieves 178 of the 183 gold papers: the 167 this dashboard cites
+# Until the gold-only switch (the last paragraph below) SVD_QUERY retrieved
+# 178 of the 183 gold papers: the 167 this dashboard cited
 # and 16 it no longer does, kept in disease/recall_gold.csv so the figure stays
 # comparable -- 15 cited before the 2026-11-03 reset, and PMID 40796891, whose
 # one gene, CDKN2A, curation removed the same day (a mouse AAV-p16
@@ -137,7 +138,9 @@ def _entrez_contact(monkeypatch: pytest.MonkeyPatch) -> None:
 #
 # On 2026-11-07 the dashboard switched to the hand-curated gold tables only
 # (disease/gold/out/), whose references replace the pipeline-extracted ones in
-# data/table1.json: 204 gold PMIDs, 184 retrieved, the anchor-only figure 120,
+# data/table1.json. Its 21 new references joined disease/recall_gold.csv, as
+# the earlier table's had, so the denominator is the same on the empty export:
+# 204 gold PMIDs, 184 retrieved, the anchor-only figure 120,
 # so the MeSH branch recovers 64. The five long-standing misses are still
 # missed; the fifteen new ones are curated references the query never chose,
 # and most are not cSVD papers at all: the brain-vasculature single-cell
