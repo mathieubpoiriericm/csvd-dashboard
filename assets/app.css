@@ -4654,11 +4654,15 @@ button.adapt-card-head:focus-visible {
 .timeline-drawer {
   flex: 0 0 20rem;
   position: sticky;
-  /* Clears the sticky navbar and keeps long records operable; --svd-navbar-h
-     already tracks the bar's height at every width. */
+  /* Clears the sticky navbar; --svd-navbar-h already tracks the bar's height
+     at every width. */
   top: var(--svd-navbar-h);
+  /* The room a record is fitted into, never a scrollport. A scrollport clips
+     the registration marks' overlay at its negative inset and counts the 6px
+     it reaches past the edge as overflow, so every record scrolled both ways.
+     The island zooms a taller record's body down to fit (`fitDrawer`), and
+     past its floor sets `data-fit="page"` below and lets the page scroll. */
   max-height: calc(100vh - var(--svd-navbar-h) - var(--svd-space-6));
-  overflow-y: auto;
   padding: var(--svd-space-4);
   /* The frame comes from the surface recipe; the fill is its own, and is one
      of the few legitimate overrides of --svd-tint-base: the drawer floats
@@ -4670,6 +4674,10 @@ button.adapt-card-head:focus-visible {
   font-size: var(--svd-text-base);
 }
 
+.timeline-drawer[data-fit="page"] {
+  max-height: none;
+}
+
 .timeline-drawer-head {
   display: flex;
   align-items: flex-start;
@@ -4678,9 +4686,16 @@ button.adapt-card-head:focus-visible {
   margin-bottom: var(--svd-space-3);
 }
 
+/* A flex child: without the floor, an unbroken drug name would set the
+   head's width and push the close button past the drawer's edge. */
+.timeline-drawer-head > div {
+  min-width: 0;
+}
+
 .timeline-drawer-head h2 {
   margin: 0;
   color: var(--svd-primary);
+  overflow-wrap: anywhere;
 }
 
 .timeline-drawer-swatch {
@@ -4745,10 +4760,16 @@ button.adapt-card-head:focus-visible {
   padding-left: var(--svd-space-5);
 }
 
+/* A narrow label column, its names wrapping onto two lines ("Estimated /
+   Completion Date"), so the values get most of the 20rem; a max-content
+   column left them a strip, and the longest record ran 826px. With the
+   smaller value step and tighter rows below, it is about 623px. `minmax(0,
+   1fr)` and `anywhere` let an unbroken value -- a registry ID, a URL -- wrap
+   rather than widen the grid past the drawer. */
 .timeline-drawer-fields {
   margin: 0;
   display: grid;
-  grid-template-columns: max-content 1fr;
+  grid-template-columns: 6.5rem minmax(0, 1fr);
 }
 
 .timeline-drawer-fields > div {
@@ -4757,7 +4778,8 @@ button.adapt-card-head:focus-visible {
 
 .timeline-drawer-fields dt,
 .timeline-drawer-fields dd {
-  padding: var(--svd-space-2) 0;
+  padding: var(--svd-space-1) 0;
+  overflow-wrap: anywhere;
 }
 
 /* The field names are eyebrows in the accent, the same grammar the tooltip's
@@ -4775,6 +4797,8 @@ button.adapt-card-head:focus-visible {
 .timeline-drawer-fields dd {
   margin: 0;
   color: var(--svd-ink);
+  font-size: var(--svd-text-sm);
+  line-height: var(--svd-leading-snug);
 }
 
 /* A rule between fields. The wrapper divs are `display: contents` and generate
@@ -4798,7 +4822,6 @@ button.adapt-card-head:focus-visible {
     width: 100%;
     position: relative;
     max-height: none;
-    overflow-y: visible;
     /* A relative box still honours `top`. Without this reset the panel kept
        the sticky rule's `top: var(--svd-navbar-h)` and sat 152px below its
        slot at 1000px, overlapping the plate by the same amount. */

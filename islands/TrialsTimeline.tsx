@@ -18,6 +18,7 @@ import {
 import { useCheckboxFilters } from "../components/useCheckboxFilters.ts";
 import { useEscapeKey } from "../components/useEscapeKey.ts";
 import { DEFAULT_TRIAL_STATUSES, STATUS_CHOICES } from "../lib/constants.ts";
+import { fitZoom } from "../lib/drawer_fit.ts";
 import { POPULATION_FIELD } from "../lib/disease/populations.ts";
 import { RADAR_TITLE } from "../lib/disease/site.ts";
 import { trials } from "../lib/data/trials.ts";
@@ -588,9 +589,54 @@ interface TrialDrawerProps {
   onClose: () => void;
 }
 
+/**
+ * Zooms the record down until it fits the drawer's `max-height`, which is the
+ * room under the navbar, so the drawer never needs a scrollbar. Where that
+ * height is `none` -- stacked above the plate, or in print -- the record has
+ * all the room it needs. Past `DRAWER_FIT_FLOOR` the drawer drops its cap
+ * (`data-fit="page"`) and grows, and the page scrolls instead.
+ *
+ * The zoom is on the body rather than the drawer, so the drawer keeps its
+ * width and the plate beside it does not move. A zoomed body also lays its
+ * lines out wider in its own units, which is what lets a small step down
+ * gain a whole line.
+ */
+function fitDrawer(drawer: HTMLElement, body: HTMLElement) {
+  delete drawer.dataset.fit;
+  body.style.zoom = "";
+  const style = getComputedStyle(drawer);
+  const cap = parseFloat(style.maxHeight);
+  if (!Number.isFinite(cap)) return;
+  // border-box: the cap includes the drawer's own padding and border.
+  const room = cap - parseFloat(style.paddingTop) -
+    parseFloat(style.paddingBottom) - parseFloat(style.borderTopWidth) -
+    parseFloat(style.borderBottomWidth);
+  const { zoom, fits } = fitZoom((candidate) => {
+    body.style.zoom = String(candidate);
+    return body.getBoundingClientRect().height;
+  }, room);
+  body.style.zoom = zoom === 1 ? "" : String(zoom);
+  if (!fits) drawer.dataset.fit = "page";
+}
+
 function TrialDrawer({ layout, marker, closeRef, onClose }: TrialDrawerProps) {
+  const drawerRef = useRef<HTMLElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  // A layout effect, so the record is never painted at the wrong size first.
+  useLayoutEffect(() => {
+    const drawer = drawerRef.current;
+    const body = bodyRef.current;
+    if (!marker || !drawer || !body) return;
+    const fit = () => fitDrawer(drawer, body);
+    fit();
+    globalThis.addEventListener("resize", fit);
+    return () => globalThis.removeEventListener("resize", fit);
+  }, [marker]);
+
   return (
     <aside
+      ref={drawerRef}
       id={DRAWER_ID}
       class="timeline-drawer"
       role="region"
@@ -599,7 +645,7 @@ function TrialDrawer({ layout, marker, closeRef, onClose }: TrialDrawerProps) {
       inert={!marker}
     >
       {marker && (
-        <>
+        <div ref={bodyRef} class="timeline-drawer-body">
           <div class="timeline-drawer-head">
             <div>
               <h2>
@@ -653,7 +699,7 @@ function TrialDrawer({ layout, marker, closeRef, onClose }: TrialDrawerProps) {
               </div>
             ))}
           </dl>
-        </>
+        </div>
       )}
     </aside>
   );

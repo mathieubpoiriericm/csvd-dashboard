@@ -395,7 +395,7 @@ test("the trial drawer has pointer and keyboard close controls", async ({ page }
   await expect(trial).toBeFocused();
 });
 
-test("the sticky trial drawer clears the navbar and scrolls long records", async ({ page }) => {
+test("the sticky trial drawer clears the navbar and shows the whole record", async ({ page }) => {
   test.skip(T.markers === 0, NO_MARKER);
   await page.setViewportSize({ width: 1512, height: 800 });
   await figureSettled(page);
@@ -416,16 +416,113 @@ test("the sticky trial drawer clears the navbar and scrolls long records", async
       return {
         clearsNavbar: rect.top >= navbar.bottom,
         fitsViewport: rect.bottom <= globalThis.innerHeight,
-        scrollable: drawer.scrollHeight > drawer.clientHeight,
-        overflowY: getComputedStyle(drawer).overflowY,
+        overflow: getComputedStyle(drawer).overflow,
       };
     })
   ).toEqual({
     clearsNavbar: true,
     fitsViewport: true,
-    scrollable: true,
-    overflowY: "auto",
+    overflow: "visible",
   });
+});
+
+/**
+ * Opens every trial's drawer in turn and reports, per record, whether the
+ * drawer could scroll (it must never be a scrollport), whether any of its
+ * text pokes past its edge, and -- once the drawer is stuck under the navbar
+ * -- whether the whole record is on screen and at what zoom.
+ */
+async function everyRecord(page: Page) {
+  const markers = page.locator("g.drug circle.marker");
+  const drawer = page.locator("#timeline-drawer");
+  const close = page.getByRole("button", { name: "Close trial details" });
+  const records = [];
+  for (let i = 0; i < T.markers; i++) {
+    await markers.nth(i).click();
+    await expect(close).toBeFocused();
+    const top = await drawer.evaluate((element) =>
+      element.getBoundingClientRect().top + globalThis.scrollY
+    );
+    await page.evaluate((y) => globalThis.scrollTo(0, y), top);
+    records.push(
+      await drawer.evaluate((element) => {
+        const box = element.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        const body = element.querySelector(".timeline-drawer-body");
+        const spills = [...element.querySelectorAll("*")]
+          .filter((child) => {
+            const rect = child.getBoundingClientRect();
+            return rect.width > 0 && (
+              rect.left < box.left - 0.5 || rect.right > box.right + 0.5 ||
+              rect.top < box.top - 0.5 || rect.bottom > box.bottom + 0.5
+            );
+          })
+          .map((child) => child.textContent?.slice(0, 30));
+        return {
+          drug: element.querySelector("h2")!.textContent,
+          overflow: style.overflow,
+          spills,
+          onScreen: box.bottom <= globalThis.innerHeight,
+          zoom: body ? Number(getComputedStyle(body).zoom) : 1,
+          fit: element.dataset.fit ?? null,
+        };
+      }),
+    );
+    await close.click();
+  }
+  return records;
+}
+
+for (
+  const [width, height] of [[1440, 900], [1366, 768], [1280, 720]] as const
+) {
+  test(`at ${width}x${height} every trial record fits its drawer with no scrollbar`, async ({ page }) => {
+    test.skip(T.markers === 0, NO_MARKER);
+    await page.setViewportSize({ width, height });
+    await figureSettled(page);
+    for (const record of await everyRecord(page)) {
+      expect(record, record.drug ?? "").toMatchObject({
+        overflow: "visible",
+        spills: [],
+        onScreen: true,
+        fit: null,
+      });
+      expect(record.zoom).toBeGreaterThanOrEqual(0.85);
+    }
+  });
+}
+
+test("a window too short for a record at the floor zoom lets the page scroll, not the drawer", async ({ page }) => {
+  test.skip(T.markers === 0, NO_MARKER);
+  await page.setViewportSize({ width: 1280, height: 520 });
+  await figureSettled(page);
+  const records = await everyRecord(page);
+  for (const record of records) {
+    // The box grows to hold the record: nothing spills, nothing scrolls.
+    expect(record, record.drug ?? "").toMatchObject({
+      overflow: "visible",
+      spills: [],
+    });
+    if (record.fit === "page") expect(record.zoom).toBe(0.85);
+    else expect(record.onScreen).toBe(true);
+  }
+  expect(records.some((record) => record.fit === "page")).toBe(true);
+});
+
+test("stacked above the plate, every trial record fits its drawer with no scrollbar", async ({ page }) => {
+  test.skip(T.markers === 0, NO_MARKER);
+  for (const [width, height] of [[1000, 800], [390, 844]] as const) {
+    await page.setViewportSize({ width, height });
+    await figureSettled(page);
+    for (const record of await everyRecord(page)) {
+      expect(record, `${record.drug} at ${width}px`).toMatchObject({
+        overflow: "visible",
+        spills: [],
+        zoom: 1,
+        fit: null,
+      });
+    }
+  }
 });
 
 // F34 fix round 2: .timeline-layout:has(.timeline-drawer:not([hidden]))
