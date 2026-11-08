@@ -183,6 +183,23 @@ keep theirs. Because the tooltip is `aria-hidden`, dropping the field names
 costs no assistive-technology user anything; the drawer's `<dt>`s are the
 accessible text.
 
+**The drawer never scrolls, in either direction.** It used to be a scrollport
+(`overflow-y: auto` under a viewport-height cap), and that scrolled every record
+both ways by 6px whatever its length: a scrollport clips the registration
+marks' `::after` at its negative inset and counts the `--svd-mark-out` it
+reaches past the edge as overflow. Now the cap is only the room a record is
+fitted into. The labels sit in a 6.5rem column and wrap, the values take
+`--svd-text-sm`, and the rows are `--svd-space-1` apart, which brought the
+longest committed record from 826px to about 623px -- whole at 1440x900. A
+record still taller than the room is zoomed down (`fitDrawer` in the island,
+`fitZoom` in `lib/drawer_fit.ts`) on its `.timeline-drawer-body`, not the
+drawer, so the drawer keeps its 20rem and the plate does not shift. The floor is
+`DRAWER_FIT_FLOOR`, 0.85, which keeps a value near 11px; past it the drawer sets
+`data-fit="page"`, drops its cap and grows, and the page scrolls instead. The
+e2e opens every record at 1440x900, 1366x768 and 1280x720 and fails on a
+scrollport, on any descendant past the drawer's edge, or on a record not wholly
+on screen once the drawer is stuck.
+
 Two SVG details are load-bearing: attribute names on SVG elements are
 case-sensitive, so the groups carry `tabindex`, not `tabIndex` (Preact writes
 the prop name verbatim, and a `tabIndex` attribute makes nothing focusable);

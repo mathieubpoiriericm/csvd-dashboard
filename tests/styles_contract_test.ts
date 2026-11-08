@@ -748,19 +748,35 @@ Deno.test("every surface that declares recipe parameters joins the recipe", () =
   );
 });
 
-Deno.test("sticky timeline drawers clear either navbar and scroll internally", () => {
+Deno.test("sticky timeline drawers clear either navbar and never scroll", () => {
   // Same token, same reasoning as .sidebar-section above: no width-specific
-  // override needed on the drawer itself any more.
+  // override needed on the drawer itself any more. The max-height is the room
+  // the island fits a record into, not a scrollport.
   assertMatch(
     css,
-    /\.timeline-drawer\s*\{\s*flex: 0 0 20rem;\s*position: sticky;[^}]*top: var\(--svd-navbar-h\);\s*max-height: calc\(100vh - var\(--svd-navbar-h\) - var\(--svd-space-6\)\);\s*overflow-y: auto;/s,
+    /\.timeline-drawer\s*\{\s*flex: 0 0 20rem;\s*position: sticky;[^}]*top: var\(--svd-navbar-h\);\s*(?:\/\*[\s\S]*?\*\/\s*)?max-height: calc\(100vh - var\(--svd-navbar-h\) - var\(--svd-space-6\)\);/s,
+  );
+  // A scrollport clips the registration marks' overlay at its negative
+  // inset, and the 6px it reaches past the edge scrolled the drawer both
+  // ways on every record. No rule may make the drawer one again.
+  const drawerRules = [...css.matchAll(/\.timeline-drawer\s*\{([^}]*)\}/g)]
+    .map((match) => match[1]);
+  assert(drawerRules.length > 0, "expected a .timeline-drawer rule");
+  for (const body of drawerRules) {
+    assert(!/overflow(?:-[xy])?:\s*(?:auto|scroll|hidden)/.test(body), body);
+  }
+  // A record too tall to fit even at the island's floor zoom lets the page
+  // scroll instead.
+  assertMatch(
+    css,
+    /\.timeline-drawer\[data-fit="page"\]\s*\{\s*max-height: none;\s*\}/,
   );
   // Un-stuck, not un-positioned -- see `.sidebar-section` above. This is the
   // rule that found the distinction: with `static`, at 390px with a record
   // open, the drawer's marks measured 402px against a 390px viewport.
   assertMatch(
     css,
-    /@media \(max-width: 1100px\) \{[^}]*\.timeline-drawer \{[^}]*position: relative;\s*max-height: none;\s*overflow-y: visible;\s*(?:\/\*[\s\S]*?\*\/\s*)?top: auto;/s,
+    /@media \(max-width: 1100px\) \{[^}]*\.timeline-drawer \{[^}]*position: relative;\s*max-height: none;\s*(?:\/\*[\s\S]*?\*\/\s*)?top: auto;/s,
   );
 });
 
