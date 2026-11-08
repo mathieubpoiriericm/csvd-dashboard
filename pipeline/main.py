@@ -50,6 +50,7 @@ __lazy_modules__ = frozenset(
         "pipeline.disease",
         "pipeline.event_log",
         "pipeline.extraction_models",
+        "pipeline.gold_only",
         "pipeline.http_client",
         "pipeline.llm_extraction",
         "pipeline.notifications",
@@ -260,6 +261,7 @@ from pipeline.database import (
 from pipeline.disease import load_disease
 from pipeline.event_log import EventLog
 from pipeline.extraction_models import ExtractionRefusedError, GeneEntry, ServedBy
+from pipeline.gold_only import gold_only
 from pipeline.http_client import AsyncHttpClientManager
 from pipeline.llm_extraction import (
     ExtractionFailedError,
@@ -3349,10 +3351,49 @@ def _prepare_cli_args(
     return args
 
 
+# The two modes that put rows the curators did not write into the tables the
+# export publishes: PubMed extraction merges genes, and ClinicalTrials.gov
+# discovery inserts trials. The syncs only fill lookup and annotation caches
+# for keys already there, so they stay allowed.
+_REFUSED_WHILE_GOLD_ONLY: Final = (
+    ("pubmed", "--pubmed"),
+    ("clinical_trials", "--clinical-trials"),
+)
+
+
+def _refuse_while_gold_only(
+    parser: argparse.ArgumentParser,
+    args: argparse.Namespace,
+    gold_only_on: bool,
+) -> None:
+    """Refuse --pubmed and --clinical-trials while the dashboard is gold-only.
+
+    ``GOLD_ONLY`` in lib/gold_only.ts means the dashboard publishes only the
+    hand-curated data, so a run that adds genes or trials would put rows on
+    the pages that the curators never wrote, at the next export. Called on
+    the arguments ``_prepare_cli_args`` returns, so a bare invocation -- which
+    selects --pubmed -- is refused too.
+    """
+    if not gold_only_on:
+        return
+    refused = [flag for name, flag in _REFUSED_WHILE_GOLD_ONLY if getattr(args, name)]
+    if refused:
+        parser.error(
+            f"{' and '.join(refused)} refused: GOLD_ONLY is true in"
+            " lib/gold_only.ts, so the dashboard publishes only the"
+            " hand-curated data and this run would add rows it must not show"
+            " (a bare run selects --pubmed). Undo gold-only first, by the undo"
+            " checklist in lib/gold_only.ts's doc comment. --sync-external-data"
+            " and --sync-annotations still run, with or without --export, and"
+            " `deno task data` exports on its own."
+        )
+
+
 def main() -> None:
     """CLI entry point."""
     parser = _build_parser()
     args = _prepare_cli_args(parser, parser.parse_args())
+    _refuse_while_gold_only(parser, args, gold_only())
 
     config = PipelineConfig()
     # Inert unless the run goes through `deno task tracy:run`.

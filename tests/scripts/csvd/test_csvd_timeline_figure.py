@@ -6,7 +6,6 @@ rule tests that hold for any dataset are in tests/scripts/test_timeline_figure.p
 a fork deletes this tree.
 """
 
-import re
 from collections import Counter
 from pathlib import Path
 
@@ -27,18 +26,10 @@ from scripts.timeline_figure import (
     sector_spans,
 )
 
-_REPO_ROOT = Path(__file__).resolve().parents[3]
+from pipeline.gold_only import gold_only
 
-
-def _gold_only() -> bool:
-    """`GOLD_ONLY` as lib/gold_only.ts sets it, so the skip below lifts with it."""
-    source = (_REPO_ROOT / "lib" / "gold_only.ts").read_text(encoding="utf-8")
-    match = re.search(r"^export const GOLD_ONLY = (true|false);$", source, re.M)
-    assert match, "lib/gold_only.ts no longer declares GOLD_ONLY as a literal"
-    return match.group(1) == "true"
-
-
-_GOLD_ONLY = _gold_only()
+# `GOLD_ONLY` as lib/gold_only.ts sets it, so the skip below lifts with it.
+_GOLD_ONLY = gold_only()
 
 # The gold trials fill seven cells: CAA/II, Cognitive Impairment/III and II,
 # Stroke/III and II, SVD/II and I (THN391's "Ib", on its parent's ring).
