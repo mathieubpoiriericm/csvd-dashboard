@@ -172,12 +172,27 @@ _TRAIT_SEPARATOR: Final = re.compile(rf"[,;]{_OUTSIDE_PARENS}")
 _STUDY_SEPARATOR: Final = re.compile(rf"\n|;{_OUTSIDE_PARENS}")
 
 # A study that leads with its type: "TWAS AIS: tissue*" is the TWAS
-# "AIS: tissue*". The type takes the omics filter's spelling.
-_LEADING_TYPE: Final = re.compile(
-    r"^(TWAS|PWAS|EWAS|proteomics)\b\s*:?\s*(.*)$", re.IGNORECASE | re.DOTALL
-)
+# "AIS: tissue*". The type takes the omics filter's spelling. Every published
+# type can lead, so a curated rewrite can put any entry in the wire form's own
+# order ("WES/WGS non-lobar ICH: …", "Fine-mapping: multi-ancestry").
 _TYPE_SPELLING: Final[Mapping[str, str]] = MappingProxyType(
-    {"twas": "TWAS", "pwas": "PWAS", "ewas": "EWAS", "proteomics": "Proteomics"}
+    {
+        spelling.lower(): spelling
+        for spelling in (
+            "TWAS",
+            "PWAS",
+            "EWAS",
+            "Proteomics",
+            "WES/WGS",
+            "Fine-mapping",
+            "Proteogenomic MR",
+            "Experimental",
+        )
+    }
+)
+_LEADING_TYPE: Final = re.compile(
+    rf"^({'|'.join(re.escape(kind) for kind in _TYPE_SPELLING)})\b\s*:?\s*(.*)$",
+    re.IGNORECASE | re.DOTALL,
 )
 # A study named by its method rather than by a type: the whole sentence is
 # the detail, under the type the method belongs to.
