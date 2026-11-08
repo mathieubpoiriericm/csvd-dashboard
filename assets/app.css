@@ -5197,8 +5197,9 @@ button.adapt-card-head:focus-visible {
     font-size: var(--svd-text-2xl);
   }
 
-  /* The row still never wraps -- the badge stacks above the figure so four
-     cells fit, and the labels take the rest of the width.
+  /* Above 480px the row stays one line -- the badge stacks above the
+     figure so four cells fit, and the labels take the rest of the width.
+     Below that it becomes two rows of two (see the rule after this block).
 
      The drawn grid costs more horizontal chrome than the gap-and-rule row it
      replaced: four cells of padding plus four hairlines, against three rules
@@ -5222,6 +5223,21 @@ button.adapt-card-head:focus-visible {
      this the label sets the track and the row spills out of its own card. */
   .about-kpi-label {
     overflow-wrap: anywhere;
+  }
+}
+
+/* Below this a quarter of the hero is narrower than an uppercase
+   "PUBLICATIONS" (~90px at the label's 12px floor), and `anywhere` above
+   then split it as "PUBLICATION / S". Two rows of two give each label half
+   the hero, which fits every word whole down to 320px. */
+@media (max-width: 480px) {
+  .about-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* A wide cell shows the stacked badge off-centre above centred text. */
+  .about-kpi {
+    align-items: center;
   }
 }
 

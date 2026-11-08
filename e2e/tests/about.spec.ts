@@ -36,19 +36,20 @@ test("the dashboard totals report the committed dataset", async ({ page }) => {
 });
 
 /**
- * The four figures are required to stay on one line at every width: the row is
- * four equal fractions that shrink rather than wrap, and the figure scales with
- * `clamp()`. This is the assertion that would catch a reflow back to two rows.
+ * The four figures read as one row above 480px, and as two rows of two at
+ * 480px and below. A quarter of a phone's hero is narrower than an uppercase
+ * "PUBLICATIONS", and `overflow-wrap: anywhere` then split it as
+ * "PUBLICATION / S"; half of one fits every label whole.
  */
-test("the totals stay on one line down to a small phone", async ({ page }) => {
-  for (const width of [1440, 900, 600, 380]) {
+test("the totals keep one row above 480px, two rows at and below", async ({ page }) => {
+  for (const [width, rows] of [[1440, 1], [900, 1], [600, 1], [481, 1], [480, 2], [380, 2], [320, 2]]) {
     await page.setViewportSize({ width, height: 900 });
 
     const tops = await page.locator(".about-kpi").evaluateAll((cells) =>
       cells.map((cell) => Math.round(cell.getBoundingClientRect().top))
     );
     expect(tops, `four cells at ${width}px`).toHaveLength(4);
-    expect(new Set(tops).size, `one line at ${width}px`).toBe(1);
+    expect(new Set(tops).size, `${rows} row(s) at ${width}px`).toBe(rows);
 
     // The row must also fit the hero rather than spilling out of it.
     const fits = await page.locator(".about-kpis").evaluate((row) => {
@@ -58,6 +59,25 @@ test("the totals stay on one line down to a small phone", async ({ page }) => {
           body.getBoundingClientRect().right + 0.5;
     });
     expect(fits, `the row fits the hero at ${width}px`).toBe(true);
+
+    // No label may break inside a word: each word draws on one line.
+    const split = await page.locator(".about-kpi-label").evaluateAll((labels) =>
+      labels.flatMap((label) => {
+        const text = label.firstChild as Text;
+        const out: string[] = [];
+        for (const m of text.data.matchAll(/\S+/g)) {
+          const range = document.createRange();
+          range.setStart(text, m.index!);
+          range.setEnd(text, m.index! + m[0].length);
+          const lines = new Set(
+            [...range.getClientRects()].map((r) => Math.round(r.top)),
+          );
+          if (lines.size > 1) out.push(m[0]);
+        }
+        return out;
+      })
+    );
+    expect(split, `words split across lines at ${width}px`).toEqual([]);
   }
 });
 
