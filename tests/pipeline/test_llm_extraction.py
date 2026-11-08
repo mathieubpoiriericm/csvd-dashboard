@@ -41,7 +41,7 @@ class TestGeneEntryModel:
             protein_name="Serine protease HTRA1",
             gwas_trait=[tracked_traits[0]],
             mendelian_randomization=True,
-            omics_evidence=["TWAS"],
+            omics_evidence=[{"study_type": "TWAS"}],
             confidence=0.95,
             causal_evidence_summary="Strong evidence",
             pmid="12345678",

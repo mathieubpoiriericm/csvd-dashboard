@@ -713,5 +713,31 @@ def test_omics_prose_a_merge_appended_after_the_array_is_cleaned_as_prose() -> (
     assert clean_omics_value(f"{stored};PWAS:brain*") == ["TWAS;a: b*", "PWAS;brain"]
 
 
+def test_omics_stored_as_several_arrays_publishes_every_entry_once() -> None:
+    """A curated row's array, then the arrays later runs stored (prompt v8
+    stores its studies the same way), joined on ";" by the gene merge: every
+    entry publishes, in order, a study two arrays share only once, and prose
+    after the last array is still cleaned as prose."""
+
+    def array(entries: list[str]) -> str:
+        return json.dumps(entries).replace(";", "\\u003b")
+
+    stored = ";".join(
+        [
+            array(["TWAS;a: b*", "Proteomics"]),
+            array(["TWAS;a: b*", "PWAS;c"]),
+            " " + array(["EWAS"]),
+            "PWAS:brain*",
+        ]
+    )
+    assert clean_omics_value(stored) == [
+        "TWAS;a: b*",
+        "Proteomics",
+        "PWAS;c",
+        "EWAS",
+        "PWAS;brain",
+    ]
+
+
 def test_omics_prose_that_merely_starts_with_a_bracket_is_prose() -> None:
     assert clean_omics_value("[TWAS]") == ["(none found)"]

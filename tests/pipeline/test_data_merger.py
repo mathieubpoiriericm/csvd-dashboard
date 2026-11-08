@@ -13,6 +13,11 @@ from pipeline.data_merger import (
     merge_gene_entries,
     reverse_aliases,
 )
+from pipeline.export.tables import clean_omics_value
+from pipeline.omics import OmicsEvidence, OmicsItem
+
+TWAS = {"study_type": "TWAS"}
+PWAS = {"study_type": "PWAS"}
 
 
 def _build_gene_data(entry):
@@ -54,15 +59,29 @@ class TestFormatOmics:
     def test_empty(self):
         assert format_omics([]) == ""
 
-    def test_single(self):
-        assert format_omics(["TWAS"]) == "TWAS*"
+    def test_an_extraction_claims_no_colocalization_it_did_not_report(self):
+        """The blanket "*" every label used to get read, under the column's
+        footnote, as a significant colocalization nobody checked."""
+        stored = format_omics([OmicsEvidence(study_type="TWAS", biomarker="Q")])
+        assert stored == '["TWAS\\u003bQ"]'
+        assert "*" not in stored
 
-    def test_multiple(self):
-        assert format_omics(["TWAS", "PWAS"]) == "TWAS*;PWAS*"
+    def test_a_reported_colocalization_is_starred_on_its_item(self):
+        evidence = OmicsEvidence(
+            study_type="TWAS",
+            biomarker="Q",
+            items=[OmicsItem(text="a", colocalized=True), OmicsItem(text="b")],
+        )
+        assert format_omics([evidence]) == '["TWAS\\u003bQ: a*, b"]'
 
-    def test_three_types(self):
-        result = format_omics(["TWAS", "PWAS", "EWAS"])
-        assert result == "TWAS*;PWAS*;EWAS*"
+    def test_duplicate_studies_are_stored_once(self):
+        twas = OmicsEvidence(study_type="TWAS", biomarker="Q")
+        pwas = OmicsEvidence(study_type="PWAS")
+        assert format_omics([twas, pwas, twas]) == '["TWAS\\u003bQ", "PWAS"]'
+
+    def test_the_stored_array_publishes_as_its_entries(self):
+        stored = format_omics([OmicsEvidence(study_type="TWAS", biomarker="Q")])
+        assert clean_omics_value(stored) == ["TWAS;Q"]
 
 
 # ---------------------------------------------------------------------------
@@ -227,9 +246,9 @@ class TestBuildGeneData:
         assert data["mendelian_randomization"] is False
 
     def test_omics_evidence_formatted(self, make_gene_entry):
-        entry = make_gene_entry(omics_evidence=["TWAS", "PWAS"])
+        entry = make_gene_entry(omics_evidence=[TWAS, PWAS])
         data = _build_gene_data(entry)
-        assert data["evidence_from_other_omics_studies"] == "TWAS*;PWAS*"
+        assert data["evidence_from_other_omics_studies"] == '["TWAS", "PWAS"]'
 
     def test_empty_defaults(self, make_gene_entry):
         entry = make_gene_entry()
@@ -323,7 +342,7 @@ class TestMergeGeneEntries:
             confidence=0.50,
             mendelian_randomization=True,
             gwas_trait=[tracked_traits[0]],
-            omics_evidence=["TWAS"],
+            omics_evidence=[TWAS],
         )
 
         await merge_gene_entries([entry])
@@ -355,7 +374,7 @@ class TestMergeGeneEntries:
             confidence=0.80,
             mendelian_randomization=True,
             gwas_trait=[tracked_traits[0]],
-            omics_evidence=["TWAS"],
+            omics_evidence=[TWAS],
         )
 
         await merge_gene_entries([entry])
@@ -364,7 +383,7 @@ class TestMergeGeneEntries:
         (row,) = to_update
         assert row["mendelian_randomization"] is True
         assert row["gwas_trait"] == [tracked_traits[0]]
-        assert row["evidence_from_other_omics_studies"] == "TWAS*"
+        assert row["evidence_from_other_omics_studies"] == '["TWAS"]'
 
     async def test_a_low_confidence_entry_does_not_create_a_new_gene(
         self, make_gene_entry, mocker, caplog
@@ -514,7 +533,7 @@ class TestMergeGeneEntries:
                 gene_symbol="NOTCH3",
                 pmid="111",
                 gwas_trait=[a],
-                omics_evidence=["TWAS"],
+                omics_evidence=[TWAS],
                 source_quote="First paper's NOTCH3 quote.",
                 confidence=0.60,
             ),
@@ -522,7 +541,7 @@ class TestMergeGeneEntries:
                 gene_symbol="NOTCH3",
                 pmid="222",
                 gwas_trait=[b],
-                omics_evidence=["PWAS"],
+                omics_evidence=[PWAS],
                 source_quote="Second paper's NOTCH3 quote.",
                 confidence=0.95,
             ),
@@ -547,8 +566,10 @@ class TestMergeGeneEntries:
         assert merged["gene"] == "NOTCH3"
         assert a in merged["gwas_trait"]
         assert b in merged["gwas_trait"]
-        assert "TWAS*" in merged["evidence_from_other_omics_studies"]
-        assert "PWAS*" in merged["evidence_from_other_omics_studies"]
+        assert clean_omics_value(merged["evidence_from_other_omics_studies"]) == [
+            "TWAS",
+            "PWAS",
+        ]
         assert "111" in merged["references"]
         assert "222" in merged["references"]
         # source_quote and confidence come from the entry the insert floor

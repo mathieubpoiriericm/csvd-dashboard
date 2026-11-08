@@ -16,8 +16,10 @@ import pytest
 from scripts.load_gold import GoldPlan, write_gold_plan
 from scripts.restore_from_json import GeneRestore, stored_omics
 
+from pipeline.data_merger import format_omics
 from pipeline.database import Database, merge_genes_transactional
 from pipeline.export.main import read_published_genes
+from pipeline.omics import OmicsEvidence, OmicsItem
 
 pytestmark = pytest.mark.usefixtures("database_env")
 
@@ -165,5 +167,39 @@ async def test_a_later_merge_appends_to_a_stored_array_without_breaking_it(
     assert gene["evidenceFromOtherOmicsStudies"] == [
         *_ENTRIES,
         "PWAS;brain",
+        "TWAS;tissue",
+    ]
+
+
+@pytest.mark.parametrize("path", ["update", "insert-on-conflict"])
+async def test_a_later_runs_array_publishes_after_the_curated_one(
+    path: str,
+) -> None:
+    """Since prompt v8 a run stores its studies as an array too
+    (`format_omics`). Merged behind the curated array, it is a second escaped
+    piece, so the export reads both: the curated entries, then the run's,
+    the run's `*` only where it reported a colocalization."""
+    await write_gold_plan(_plan())
+    run = format_omics(
+        [
+            OmicsEvidence(
+                study_type="PWAS",
+                biomarker="TRAIT-B",
+                items=[OmicsItem(text="brain", colocalized=True)],
+            ),
+            OmicsEvidence(study_type="TWAS", items=[OmicsItem(text="tissue")]),
+        ]
+    )
+    row = _merged_row(run)
+    if path == "update":
+        await merge_genes_transactional([], [row])
+    else:
+        await merge_genes_transactional([row], [])
+
+    (gene,) = await read_published_genes()
+
+    assert gene["evidenceFromOtherOmicsStudies"] == [
+        *_ENTRIES,
+        "PWAS;TRAIT-B: brain*",
         "TWAS;tissue",
     ]

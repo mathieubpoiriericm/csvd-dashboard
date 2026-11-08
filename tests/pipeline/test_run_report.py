@@ -375,6 +375,32 @@ class TestDetail:
         assert gene.omics_evidence == ["MAGMA"]
         assert gene.mendelian_randomization is False
 
+    def test_a_structured_study_is_published_in_its_wire_form(self) -> None:
+        """Prompt v8's studies reach papers_detail as dicts; the report keeps
+        publishing strings, so a report stored before v8 still validates."""
+        gene = _gene("HTRA1")
+        gene["omics_evidence"] = [
+            {
+                "study_type": "TWAS",
+                "biomarker": "Q",
+                "items": [{"text": "a", "colocalized": True}],
+            }
+        ]
+        report = _report(
+            papers_detail=[
+                {
+                    "pmid": "1",
+                    "source": "europepmc",
+                    "fulltext": True,
+                    "gene_count": 1,
+                    "genes": [gene],
+                    "rejected_genes": [],
+                    "processing_time": 1.0,
+                }
+            ],
+        )
+        assert report.accepted_genes.items[0].omics_evidence == ["TWAS;Q: a*"]
+
     def test_insert_floor_rejections_join_the_rejected_list(self) -> None:
         # They were logged by symbol and counted nowhere before, so the
         # drawer would have shown an acceptance rate that overstated.

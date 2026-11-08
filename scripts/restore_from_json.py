@@ -73,6 +73,7 @@ from pipeline.database import Database
 from pipeline.export.tables import clean_gene_row, clean_omics_value, clean_trial_row
 from pipeline.export.text import clean_column_name
 from pipeline.export.writer import to_camel
+from pipeline.omics import omics_array
 
 _ROOT: Final = Path(__file__).resolve().parent.parent
 
@@ -146,7 +147,7 @@ def stored_omics(entries: list[str]) -> str | None:
     prose = ", ".join(stored)
     if clean_omics_value(prose) == entries:
         return prose
-    return json.dumps(entries, ensure_ascii=False).replace(";", "\\u003b")
+    return omics_array(entries)
 
 
 def gene_from_wire(row: Mapping[str, Any]) -> GeneRestore:

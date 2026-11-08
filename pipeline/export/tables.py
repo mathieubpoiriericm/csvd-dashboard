@@ -21,6 +21,7 @@ from pipeline.export.text import (
     normalize_text,
     normalize_yes_no,
 )
+from pipeline.omics import MENTR_LABEL, MENTR_SENTENCE, OMICS_STUDY_TYPES
 
 logger = logging.getLogger(__name__)
 
@@ -133,10 +134,8 @@ _COMPLETED_UNPUBLISHED = re.compile(
     r"^Completed\s*[,;]?\s*unpublish(?:ed)?$", re.IGNORECASE
 )
 
-_MENTR_SENTENCE: Final[str] = (
-    "Evidence for causal implication from ML-based functional prediction (MENTR)"
-)
-_MENTR_LABEL: Final[str] = "mutation effect prediction on ncRNA transcription"
+_MENTR_SENTENCE: Final[str] = MENTR_SENTENCE
+_MENTR_LABEL: Final[str] = MENTR_LABEL
 
 # The omics study types the dashboard can select, mirrored from
 # `lib/constants.ts`'s OMICS_CHOICES minus "all" (which means "no filter").
@@ -149,20 +148,10 @@ _MENTR_LABEL: Final[str] = "mutation effect prediction on ncRNA transcription"
 # vocabulary has to be enforced here, the way the untracked GWAS traits are.
 # Reconciled against the TypeScript file by
 # tests/pipeline/export/test_tables.py, so adding a choice there is what adds
-# it here.
+# it here -- in `OMICS_STUDY_TYPES` (pipeline/omics.py), which is also the
+# extraction's enum.
 _OMICS_TYPES: Final[frozenset[str]] = frozenset(
-    {
-        "(none found)",
-        "EWAS",
-        "TWAS",
-        "PWAS",
-        "Proteomics",
-        "WES/WGS",
-        "Proteogenomic MR",
-        "Fine-mapping",
-        "Experimental",
-        _MENTR_LABEL,
-    }
+    {"(none found)", *OMICS_STUDY_TYPES}
 )
 _OMICS_TYPE_KEYS: Final[frozenset[str]] = frozenset(
     name.lower() for name in _OMICS_TYPES
@@ -276,20 +265,30 @@ def _stored_entries(value: str) -> tuple[list[str], str] | None:
     markers, a second ":", a comma outside parentheses inside one study -- is
     stored this way (`stored_omics` in scripts/restore_from_json.py), its ";"
     escaped as \\u003b so the gene merge's ";" split sees one element. The
-    merge appends an extraction's prose after it, joined on ";"; that tail is
-    returned for the chain. None for anything else, which is prose.
+    merge appends what a later run extracted after it, joined on ";" -- since
+    prompt v8 another such array (`format_omics`), before it prose -- so every
+    leading array is read, a study two of them share is kept once, and what
+    follows the last is returned for the chain. None for anything else, which
+    is prose.
     """
     if not value.startswith("["):
         return None
-    try:
-        entries, end = _JSON_DECODER.raw_decode(value)
-    except json.JSONDecodeError:
+    entries: list[str] = []
+    rest = value
+    while rest.startswith("["):
+        try:
+            array, end = _JSON_DECODER.raw_decode(rest)
+        except json.JSONDecodeError:
+            break
+        if not isinstance(array, list) or not all(
+            isinstance(entry, str) and entry.strip() for entry in array
+        ):
+            break
+        entries.extend(array)
+        rest = rest[end:].lstrip(" ;")
+    if rest is value:
         return None
-    if not isinstance(entries, list) or not all(
-        isinstance(entry, str) and entry.strip() for entry in entries
-    ):
-        return None
-    return entries, value[end:]
+    return list(dict.fromkeys(entries)), rest
 
 
 def clean_omics_value(value: str | None, gene: str | None = None) -> list[str]:
