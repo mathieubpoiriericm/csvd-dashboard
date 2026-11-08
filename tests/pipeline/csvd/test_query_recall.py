@@ -135,6 +135,17 @@ def _entrez_contact(monkeypatch: pytest.MonkeyPatch) -> None:
 # back in the table after the reset: 178/183, the same five missed, and the
 # anchor-only figure 116, so the MeSH branch recovers 62.
 #
+# On 2026-11-07 the dashboard switched to the hand-curated gold tables only
+# (disease/gold/out/), whose references replace the pipeline-extracted ones in
+# data/table1.json: 204 gold PMIDs, 184 retrieved, the anchor-only figure 120,
+# so the MeSH branch recovers 64. The five long-standing misses are still
+# missed; the fifteen new ones are curated references the query never chose,
+# and most are not cSVD papers at all: the brain-vasculature single-cell
+# atlases and methods papers (29443965, 35084939, 37231261, 38868715 ...) the
+# gold tables cite for their cell-type columns, plus ICH and stroke genetics
+# that name no cSVD phrase or heading, and 2111584 from 1990. They say
+# nothing about a regression of the query, which did not change.
+#
 # Re-recorded against live PubMed each time: the committed cassettes are
 # POSTed bodies, which VCR's default matchers do not compare, so a stale one
 # answers a changed gold set with the old response and the new PMIDs read as
@@ -149,7 +160,8 @@ def _entrez_contact(monkeypatch: pytest.MonkeyPatch) -> None:
 #             out of the prompt's scope.
 #   39805841  one of the digit-recovered references.
 #   30651383, 37063705  carry neither the phrase nor a cSVD MeSH heading.
-_SVD_QUERY_RECALL: Final[int] = 178
+_SVD_QUERY_RECALL: Final[int] = 184
+_GOLD_TOTAL: Final[int] = 204
 _MISSED: Final[frozenset[str]] = frozenset(
     {
         "23649698",
@@ -157,6 +169,22 @@ _MISSED: Final[frozenset[str]] = frozenset(
         "36180795",
         "37063705",
         "39805841",
+        # The fifteen curated references the gold-only switch added.
+        "18436879",
+        "2111584",
+        "24656865",
+        "29443965",
+        "30129931",
+        "33902304",
+        "35084939",
+        "35158371",
+        "35165441",
+        "37231261",
+        "37824663",
+        "38868715",
+        "38987604",
+        "39196222",
+        "39298701",
     }
 )
 
@@ -184,10 +212,12 @@ async def test_svd_query_recall_matches_the_recorded_baseline() -> None:
     gold = gold_pmids()
     result = await measure_recall(SVD_QUERY, gold)
 
-    assert result.total == 183, f"gold set changed: {result.total} PMIDs, was 183"
+    assert result.total == _GOLD_TOTAL, (
+        f"gold set changed: {result.total} PMIDs, was {_GOLD_TOTAL}"
+    )
     assert len(result.matched) == _SVD_QUERY_RECALL, (
         f"SVD_QUERY recall moved to {len(result.matched)}/{result.total}, "
-        f"was {_SVD_QUERY_RECALL}/183. If the query changed on purpose, "
+        f"was {_SVD_QUERY_RECALL}/{_GOLD_TOTAL}. If the query changed on purpose, "
         "re-measure and update _SVD_QUERY_RECALL and _MISSED together."
     )
     assert result.missed == _MISSED
@@ -260,8 +290,8 @@ async def test_the_anchor_still_caps_the_title_abstract_branches() -> None:
 
     The papers the MeSH branch recovers are exactly the gap between this
     number and the full query's. It was six against a 32-paper gold set and
-    was 32 against a 111-paper one, 60 against a 178-paper one and is 62
-    against a 183-paper one -- the
+    was 32 against a 111-paper one, 60 against a 178-paper one, 62 against
+    a 183-paper one and is 64 against the 204-paper gold-only set -- the
     branch is worth far more than the small set suggested, because a gold set
     of that size was mostly papers that name the phrase outright.
     """
@@ -271,9 +301,9 @@ async def test_the_anchor_still_caps_the_title_abstract_branches() -> None:
     anchor_only = await measure_recall(anchor, gold)
     full = await measure_recall(SVD_QUERY, gold)
 
-    assert len(anchor_only.matched) == 116
+    assert len(anchor_only.matched) == 120
     assert anchor_only.matched < full.matched
-    assert len(full.matched - anchor_only.matched) == 62
+    assert len(full.matched - anchor_only.matched) == 64
 
 
 def test_the_recorded_anchor_requests_carry_the_current_queries() -> None:

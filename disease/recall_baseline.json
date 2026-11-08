@@ -1,14 +1,29 @@
 {
   "$comment": "Written by scripts/measure_recall.py --write-baseline; replayed by tests/pipeline/test_query_recall_gold.py against its cassette.",
-  "measuredAt": "2026-11-03T18:47:23Z",
+  "measuredAt": "2026-11-08T00:38:25Z",
   "querySha256": "3abde0131ec89afcb1c2951ed9b7730a286252e7214cf6f1f8abac2b4a3615ed",
-  "total": 183,
-  "matched": 178,
+  "total": 204,
+  "matched": 184,
   "missed": [
+    "18436879",
+    "2111584",
     "23649698",
+    "24656865",
+    "29443965",
+    "30129931",
     "30651383",
+    "33902304",
+    "35084939",
+    "35158371",
+    "35165441",
     "36180795",
     "37063705",
+    "37231261",
+    "37824663",
+    "38868715",
+    "38987604",
+    "39196222",
+    "39298701",
     "39805841"
   ]
 }
