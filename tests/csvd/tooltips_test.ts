@@ -190,11 +190,11 @@ Deno.test("a cSVD cell type expands to its glossary name", () => {
 
 Deno.test("a cSVD cell subtype names the subtype, and a source note is kept", () => {
   assertEquals(cellTypeTooltip("Matrix, PC"), {
-    rows: [{ label: "Matrix, PC", value: "Matrix Pericytes" }],
+    rows: [{ label: "Matrix PC", value: "Matrix Pericytes" }],
   });
   assertEquals(cellTypeTooltip("Parenchymal, pvFB"), {
     rows: [{
-      label: "Parenchymal, pvFB",
+      label: "Parenchymal pvFB",
       value: "Parenchymal Perivascular Fibroblasts",
     }],
   });

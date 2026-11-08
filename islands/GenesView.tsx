@@ -36,6 +36,7 @@ import {
 import { isAbsent } from "../lib/sentinels.ts";
 import { chromosomeOf, CHROMOSOMES } from "../lib/sorting.ts";
 import {
+  cellTypeText,
   cellTypeTooltip,
   geneTooltip,
   omicsTooltip,
@@ -43,6 +44,7 @@ import {
   proteinTooltip,
   referenceTooltip,
   splitCellTypes,
+  splitSubtype,
 } from "../lib/tooltips.ts";
 import { formatConfidence } from "../lib/format.ts";
 import { GOLD_ONLY } from "../lib/gold_only.ts";
@@ -260,8 +262,8 @@ function referencesKey(values: readonly string[]): string | undefined {
 
 /**
  * The cell types as the cell prints them -- `FB > PC > SMC` for the stored
- * `FB>PC>SMC`, `Mouse: FB > PC; Human: EC` for a labelled value -- so the
- * search box finds what the reader can see.
+ * `FB>PC>SMC`, `Mouse: FB > PC; Human: Matrix PC` for a labelled value with a
+ * subtype -- so the search box finds what the reader can see.
  */
 function cellTypesText(value: string): string {
   const { parts, chains } = splitCellTypes(value);
@@ -269,6 +271,7 @@ function cellTypesText(value: string): string {
   return chains
     .map(({ label, parts, separators }) => {
       const chain = parts
+        .map(cellTypeText)
         .map((part, i) => i > 0 ? `${separators[i - 1] ?? ">"} ${part}` : part)
         .join(" ");
       return label === null ? chain : `${label}: ${chain}`;
@@ -297,6 +300,10 @@ function cellTypesKey(value: string): string | undefined {
  * the whole cell back to raw text: one unrecognised abbreviation in a chain
  * used to cost the tooltip on every other part in it too. A labelled value
  * prints each chain after its label, the chains separated by `;` as stored.
+ * A subtype prints plain before its abbreviation, `Matrix PC`, and only the
+ * abbreviation is boxed. The two sit in one `nowrap` span: a line may break
+ * before an inline-block even after U+00A0, and did, leaving "Capillary" at
+ * the end of one line and its box at the start of the next.
  */
 export function BrainCellTypesCell({ value }: { value: string }) {
   if (isAbsent(value)) return <Absent />;
@@ -310,12 +317,20 @@ export function BrainCellTypesCell({ value }: { value: string }) {
         <span key={`${label}-${c}`}>
           {c > 0 && "; "}
           {label !== null && `${label}: `}
-          {parts.map((part, i) => (
-            <span key={part + i}>
-              {i > 0 && ` ${separators[i - 1] ?? ">"} `}
-              <Tooltip content={cellTypeTooltip(part)}>{part}</Tooltip>
-            </span>
-          ))}
+          {parts.map((part, i) => {
+            const { subtype, abbreviation } = splitSubtype(part);
+            const term = (
+              <Tooltip content={cellTypeTooltip(part)}>{abbreviation}</Tooltip>
+            );
+            return (
+              <span key={part + i}>
+                {i > 0 && ` ${separators[i - 1] ?? ">"} `}
+                {subtype === null
+                  ? term
+                  : <span class="cell-subtype">{`${subtype} `}{term}</span>}
+              </span>
+            );
+          })}
         </span>
       ))}
     </>

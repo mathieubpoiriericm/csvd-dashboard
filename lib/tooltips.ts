@@ -205,21 +205,45 @@ const SUBTYPED_CELL_TYPE = /^(.+?),\s*(\S+)$/;
 const NOTED_CELL_TYPE = /^(.+?)\s*(\([^()]*\))$/;
 
 /**
+ * One cell type split into the subtype qualifying it, if any, and the
+ * abbreviation: `Matrix, PC` is `Matrix` and `PC`.
+ *
+ * The comma is the stored form's and stays there, because it is what marks
+ * where the subtype ends: an abbreviation can itself hold a space (`Exc Neu`).
+ * It is only read as a subtype when the glossary defines what follows it, so
+ * free text holding a comma comes back whole, with no subtype.
+ */
+export function splitSubtype(
+  part: string,
+): { subtype: string | null; abbreviation: string } {
+  const subtyped = SUBTYPED_CELL_TYPE.exec(part);
+  return subtyped && Object.hasOwn(CELL_TYPE_NAMES, subtyped[2])
+    ? { subtype: subtyped[1].trim(), abbreviation: subtyped[2] }
+    : { subtype: null, abbreviation: part };
+}
+
+/** A cell type as the cell prints it: `Matrix PC` for the stored `Matrix, PC`. */
+export function cellTypeText(part: string): string {
+  const { subtype, abbreviation } = splitSubtype(part);
+  return subtype === null ? abbreviation : `${subtype} ${abbreviation}`;
+}
+
+/**
  * Expansion for one brain cell type: a bare abbreviation (`PC`), a subtype of
- * one (`Matrix, PC` -> "Matrix Pericytes"), or one followed by a parenthesised
- * note (`Exc Neu (allen brain atlas)`), which the expansion keeps.
+ * one (`Matrix, PC` -> "Matrix Pericytes", under the printed `Matrix PC`), or
+ * one followed by a parenthesised note (`Exc Neu (allen brain atlas)`), which
+ * the expansion keeps.
  */
 export function cellTypeTooltip(part: string): TooltipContent | null {
   if (Object.hasOwn(CELL_TYPE_NAMES, part)) {
     return { rows: [{ label: part, value: CELL_TYPE_NAMES[part] }] };
   }
-  const subtyped = SUBTYPED_CELL_TYPE.exec(part);
-  if (subtyped && Object.hasOwn(CELL_TYPE_NAMES, subtyped[2])) {
-    const [, subtype, abbreviation] = subtyped;
+  const { subtype, abbreviation } = splitSubtype(part);
+  if (subtype !== null) {
     return {
       rows: [{
-        label: part,
-        value: `${subtype.trim()} ${CELL_TYPE_NAMES[abbreviation]}`,
+        label: cellTypeText(part),
+        value: `${subtype} ${CELL_TYPE_NAMES[abbreviation]}`,
       }],
     };
   }
