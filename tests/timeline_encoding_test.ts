@@ -7,6 +7,7 @@ import {
 
 import appearance from "../lib/timeline_encoding.json" with { type: "json" };
 import diseaseTimeline from "../disease/timeline.json" with { type: "json" };
+import { groupBy } from "../lib/collections.ts";
 import { trials } from "../lib/data.ts";
 import { parentPhase } from "../lib/phases.ts";
 import { encoding, FLAG_REASONS, OUTER_RADIUS } from "../lib/timeline.ts";
@@ -180,11 +181,33 @@ Deno.test("every mechanism in the data has its own distinct colour", () => {
 
   const values = Object.values(colours);
   for (const value of values) assert(HEX.test(value), `bad colour ${value}`);
-  assertEquals(
-    unique(values.map((v) => v.toLowerCase())).size,
-    values.length,
-    "two mechanisms share a colour",
+
+  // A colour is one mechanism's. The one exception is a mechanism two curated
+  // releases spell differently: both spellings stay, so the data of either
+  // release keeps its colours, and they share one colour in one family. No
+  // dataset may carry both, or two drugs would read as one mechanism.
+  const familyOf = new Map(
+    (raw.families ?? []).flatMap((family) =>
+      family.mechanisms.map((mechanism) => [mechanism, family.key] as const)
+    ),
   );
+  const present = unique(trials.map((t) => t.mechanismOfAction));
+  const byColour = groupBy(
+    Object.keys(colours),
+    (mechanism) => colours[mechanism].toLowerCase(),
+  );
+  for (const [colour, names] of byColour) {
+    if (names.length < 2) continue;
+    assertEquals(
+      unique(names.map((name) => familyOf.get(name))).size,
+      1,
+      `${names.join(" / ")} share ${colour} across two families`,
+    );
+    assert(
+      names.filter((name) => present.has(name)).length <= 1,
+      `the data carries ${names.join(" and ")}, which share ${colour}`,
+    );
+  }
 });
 
 Deno.test("genetic evidence is three states, and only the unassessed one draws no ring", () => {

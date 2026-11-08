@@ -1,5 +1,5 @@
 {
-  "$comment": "The radar's disease content: the sectors (populations, in the manifest's order, with label lines and colours), the curated mechanism strings with their colours, the fallback colour, and the mechanism families. Rings, rim band, evidence states and the record flag are registry facts and stay in lib/timeline_encoding.json.",
+  "$comment": "The radar's disease content: the sectors (populations, in the manifest's order, with label lines and colours), the curated mechanism strings with their colours (a mechanism spelt two ways by two curated releases keeps both spellings, on one colour in one family), the fallback colour, and the mechanism families. Rings, rim band, evidence states and the record flag are registry facts and stay in lib/timeline_encoding.json.",
   "populations": [
     {
       "key": "CAA",
@@ -44,8 +44,11 @@
     "Glutamatergic modulation (NMDA receptor antagonist)": "#226277",
     "Monoaminergic challenge (dopamine and noradrenaline reuptake inhibitor)": "#88c8dd",
     "Antioxidant (multiple mechanisms)": "#234f99",
+    "Neuroprotective, antioxidant (multiple mechanisms)": "#234f99",
     "Antioxidant (free radical scavenger)": "#4270bd",
+    "Neuroprotective, antioxidant (free radical scavenger)": "#4270bd",
     "Antioxidant (vitamin E analogs)": "#6692db",
+    "Neuroprotective, antioxidant (vitamin E analogs)": "#6692db",
     "Neuroprotective, neurotrophic (neuropeptide drug)": "#88b2f7",
     "Neurotrophic (nerve growth factor)": "#83a4e2",
     "Antioxidant (glutathione precursor)": "#267360",
@@ -114,8 +117,11 @@
       "label": "Neuroprotective",
       "mechanisms": [
         "Antioxidant (multiple mechanisms)",
+        "Neuroprotective, antioxidant (multiple mechanisms)",
         "Antioxidant (free radical scavenger)",
+        "Neuroprotective, antioxidant (free radical scavenger)",
         "Antioxidant (vitamin E analogs)",
+        "Neuroprotective, antioxidant (vitamin E analogs)",
         "Neuroprotective, neurotrophic (neuropeptide drug)",
         "Neurotrophic (nerve growth factor)"
       ]
