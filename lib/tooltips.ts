@@ -235,7 +235,7 @@ function splitChain(value: string): Omit<CellTypeChain, "label"> {
  *
  * Two forms are read. The plain one is a single chain, `FB>PC>SMC`. The
  * labelled one is several chains separated by `;`, each named before a colon,
- * `Mouse: FB>PC; Human: Matrix.PC >> Venous.SMC`; it is taken as labelled only
+ * `Mouse: FB>PC; Human: Matrix, PC >> Venous, SMC`; it is taken as labelled only
  * when every `;`-separated segment carries a label, so free text that happens
  * to hold a colon stays one plain chain. `parts` is every chain's
  * abbreviations, in order.

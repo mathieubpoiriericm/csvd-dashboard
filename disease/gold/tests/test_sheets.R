@@ -61,3 +61,12 @@ test_that("ST6 reports a p-value outside [0, 1] as unparsed", {
   expect_equal(s$rule, "unparsed")
   expect_equal(s$column, "pval")
 })
+
+test_that("finishing ST1 writes the human cell types without dots", {
+  t <- tibble::tibble(source_row = 2L, brain_cell_types_mice = "EC>PC",
+                      brain_cell_types_human = "Dural.Border.FB > Venous.EC",
+                      references = "37069360")
+  out <- SHEETS$ST1$finish(t)$table
+  expect_equal(out$brain_cell_types_human, "Dural Border, FB > Venous, EC")
+  expect_equal(out$brain_cell_types_mice, "EC>PC")
+})

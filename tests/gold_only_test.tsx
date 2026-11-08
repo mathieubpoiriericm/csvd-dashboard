@@ -125,14 +125,14 @@ Deno.test("a DOI reference with no citation links to the resolver, showing the D
 
 Deno.test("splitCellTypes reads a labelled value as one chain per label", () => {
   assertEquals(
-    splitCellTypes("Mouse: FB>PC; Human: Matrix.PC >> Venous.SMC"),
+    splitCellTypes("Mouse: FB>PC; Human: Matrix, PC >> Venous, SMC"),
     {
-      parts: ["FB", "PC", "Matrix.PC", "Venous.SMC"],
+      parts: ["FB", "PC", "Matrix, PC", "Venous, SMC"],
       chains: [
         { label: "Mouse", parts: ["FB", "PC"], separators: [">"] },
         {
           label: "Human",
-          parts: ["Matrix.PC", "Venous.SMC"],
+          parts: ["Matrix, PC", "Venous, SMC"],
           separators: [">>"],
         },
       ],
@@ -157,10 +157,10 @@ Deno.test("a value that is not labelled throughout stays one plain chain", () =>
 
 Deno.test("the cell prints each chain under its label", () => {
   const html = renderToString(
-    <BrainCellTypesCell value="Mouse: FB>PC; Human: Matrix.PC >> Venous.SMC" />,
+    <BrainCellTypesCell value="Mouse: FB>PC; Human: Matrix, PC >> Venous, SMC" />,
   );
   const text = html.replace(/<[^>]*>/g, "");
   assertStringIncludes(text, "Mouse: ");
   assertStringIncludes(text, "; Human: ");
-  assertStringIncludes(text, "Matrix.PC >> Venous.SMC");
+  assertStringIncludes(text, "Matrix, PC >> Venous, SMC");
 });
