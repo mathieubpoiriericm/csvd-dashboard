@@ -584,6 +584,23 @@ Deno.test("BrainCellTypesCell renders an em dash for the absent sentinel, before
   assertEquals(mixed.match(/tooltip-box/g)?.length, 1);
 });
 
+Deno.test("BrainCellTypesCell prints a subtype before its abbreviation, boxing only the abbreviation", () => {
+  // The abbreviation is the manifest's glossary, whatever it holds.
+  const [known] = Object.keys(CELL_TYPE_NAMES);
+  if (known === undefined) return;
+  const html = render(<BrainCellTypesCell value={`Arteriolar, ${known}`} />);
+  // No comma, and one unbreakable group: a space before an inline-block is a
+  // wrap opportunity even when it is U+00A0, so only `.cell-subtype`'s
+  // `nowrap` keeps the subtype from ending a line apart from its box.
+  assertStringIncludes(html, `<span class="cell-subtype">Arteriolar <button`);
+  assertNotMatch(html, /Arteriolar,/);
+  const boxed = [
+    ...html.matchAll(/<button[^>]*class="tooltip-box[^>]*>([^<]*)</g),
+  ]
+    .map((m) => m[1]);
+  assertEquals(boxed, [escapeHtml(known)]);
+});
+
 // -----------------------------------------------------------------------------
 // F57: every filter group must use the same term in its sidebar legend and in
 // the "Active Filters:" readout built from it. `CheckboxFilterConfig` carries

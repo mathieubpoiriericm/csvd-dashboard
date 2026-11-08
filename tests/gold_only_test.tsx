@@ -162,5 +162,7 @@ Deno.test("the cell prints each chain under its label", () => {
   const text = html.replace(/<[^>]*>/g, "");
   assertStringIncludes(text, "Mouse: ");
   assertStringIncludes(text, "; Human: ");
-  assertStringIncludes(text, "Matrix, PC >> Venous, SMC");
+  // Glossary-independent: whether "Matrix, PC" prints as a subtype is a fact
+  // about the glossary, tested in tests/components_test.tsx.
+  assertStringIncludes(text, "PC >> Venous");
 });

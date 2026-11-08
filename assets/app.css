@@ -1797,6 +1797,12 @@ svg {
   color: var(--svd-ink-muted);
 }
 
+/* "Arteriolar" and its boxed "SMC" wrap as one. The tooltip panel inside
+   resets `white-space` itself, so its prose still wraps. */
+.cell-subtype {
+  white-space: nowrap;
+}
+
 .table-scroll {
   overflow-x: auto;
   /* Establishes the containing block for absolutely positioned descendants

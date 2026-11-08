@@ -1,6 +1,7 @@
 import { assert, assertEquals, assertNotMatch } from "@std/assert";
 
 import {
+  cellTypeText,
   cellTypeTooltip,
   citationRows,
   geneTooltip,
@@ -10,6 +11,7 @@ import {
   referenceRows,
   referenceTooltip,
   splitCellTypes,
+  splitSubtype,
 } from "../lib/tooltips.ts";
 import { CELL_TYPE_NAMES } from "../lib/disease/cell_types.ts";
 import {
@@ -181,7 +183,7 @@ Deno.test("a cell subtype names its subtype, and a source note is kept", () => {
   const [abbreviation, name] = Object.entries(CELL_TYPE_NAMES)[0] ?? [];
   if (abbreviation === undefined) return;
   assertEquals(cellTypeTooltip(`Venous, ${abbreviation}`), {
-    rows: [{ label: `Venous, ${abbreviation}`, value: `Venous ${name}` }],
+    rows: [{ label: `Venous ${abbreviation}`, value: `Venous ${name}` }],
   });
   assertEquals(cellTypeTooltip(`${abbreviation} (some atlas)`), {
     rows: [{ label: abbreviation, value: `${name} (some atlas)` }],
@@ -190,6 +192,29 @@ Deno.test("a cell subtype names its subtype, and a source note is kept", () => {
   assert(!Object.hasOwn(CELL_TYPE_NAMES, "ZZQQ"));
   assertEquals(cellTypeTooltip("Venous, ZZQQ"), null);
   assertEquals(cellTypeTooltip("ZZQQ (some atlas)"), null);
+});
+
+Deno.test("a cell subtype splits from its abbreviation, and prints without the comma", () => {
+  // The glossary is the fork's own; its first entry stands in for any.
+  const [abbreviation] = Object.keys(CELL_TYPE_NAMES);
+  if (abbreviation === undefined) return;
+  assertEquals(splitSubtype(`Inner Arachnoid, ${abbreviation}`), {
+    subtype: "Inner Arachnoid",
+    abbreviation,
+  });
+  assertEquals(
+    cellTypeText(`Inner Arachnoid, ${abbreviation}`),
+    `Inner Arachnoid ${abbreviation}`,
+  );
+  // A bare abbreviation, and a comma before something the glossary lacks,
+  // are left as written.
+  assertEquals(splitSubtype(abbreviation), { subtype: null, abbreviation });
+  assert(!Object.hasOwn(CELL_TYPE_NAMES, "ZZQQ"));
+  assertEquals(splitSubtype("Venous, ZZQQ"), {
+    subtype: null,
+    abbreviation: "Venous, ZZQQ",
+  });
+  assertEquals(cellTypeText("Venous, ZZQQ"), "Venous, ZZQQ");
 });
 
 Deno.test("omicsTooltip reads detail after the actual semicolon", () => {
