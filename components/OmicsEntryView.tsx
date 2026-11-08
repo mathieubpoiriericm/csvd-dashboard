@@ -7,7 +7,7 @@ import { Tooltip } from "./Tooltip.tsx";
 
 /**
  * One omics evidence entry as the cell prints it,
- * `TWAS (WMH: artery aorta, YFS: blood)`, with no `*`.
+ * `TWAS (<biomarker>: artery aorta, YFS: blood)`, with no `*`.
  *
  * The study type carries the entry's colocalization list, so it is one hover
  * target whenever it has that or a glossary entry to show; otherwise its

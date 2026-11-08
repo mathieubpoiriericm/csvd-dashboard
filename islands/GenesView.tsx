@@ -135,7 +135,7 @@ function TooltippedValues(
 
 /**
  * The GWAS trait cell: every acronym in a trait is its own tooltip, so
- * `MTAG (all ICH, SVS, WMH, FA, MD, AD)` is seven, and the absent sentinel
+ * a compound trait naming six acronyms is seven tooltips, and the absent sentinel
  * renders as `<Absent />`.
  */
 function TraitValues({ values }: { values: readonly string[] }) {
