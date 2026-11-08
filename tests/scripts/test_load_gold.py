@@ -230,6 +230,19 @@ def test_trial_completion_note_used_when_date_blank() -> None:
     assert trial["estimated_completion_date"] == "Completed"
 
 
+def test_trial_completion_note_appended_to_a_date() -> None:
+    """The spec: completion_note is appended to the completion date."""
+    trial = trial_from_gold(
+        _trial_row(
+            estimated_completion="2028-07", completion_note="primary completion"
+        )
+    )
+    assert trial["estimated_completion_date"] == "7/2028 (primary completion)"
+    assert clean_trial_row(dict(trial))["Estimated Completion Date"] == (
+        "7/2028 (primary completion)"
+    )
+
+
 def test_unknown_registry_refused() -> None:
     with pytest.raises(GoldRefused, match="REG-9999"):
         trial_from_gold(_trial_row(registry_id="REG-9999"))

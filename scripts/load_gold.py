@@ -45,6 +45,9 @@ How a gold cell becomes a stored value:
 - Monogenic links are the six-digit OMIM numbers in the `monogenic` prose;
   references are ST1's rows of references.csv, PMIDs and DOIs as written.
 - source_quote and confidence stay NULL: no extraction wrote these rows.
+- A trial's completion is its YYYY-MM as "M/YYYY", with `completion_note`
+  appended in parentheses when ST3 gives both, or the note alone; a result
+  over the column's width is refused like any other.
 
 Three ST1 columns are deliberately not loaded: tier, the GPS druggability
 score and the drug-repositioning candidate. The run history, the refreshes
@@ -322,16 +325,19 @@ _YEAR_MONTH: Final = re.compile(r"^(\d{4})-(0[1-9]|1[0-2])$")
 
 
 def _completion(row: Mapping[str, str]) -> str | None:
-    """`M/YYYY`, the wire form of every other date in the table, or the
-    curators' note when ST3 gives no date."""
+    """`M/YYYY`, the wire form of every other date in the table, with the
+    curators' note appended in parentheses when ST3 gives one; the note alone
+    when it gives no date."""
+    note = _blank(row["completion_note"])
     if date := _blank(row["estimated_completion"]):
         if not (match := _YEAR_MONTH.match(date)):
             raise GoldRefused(
                 f"trial {row['registry_id'].strip()}: estimated_completion "
                 f"{date!r} is not YYYY-MM"
             )
-        return f"{int(match.group(2))}/{match.group(1)}"
-    return _blank(row["completion_note"])
+        month_year = f"{int(match.group(2))}/{match.group(1)}"
+        return f"{month_year} ({note})" if note else month_year
+    return note
 
 
 def trial_from_gold(row: Mapping[str, str]) -> dict[str, Any]:
