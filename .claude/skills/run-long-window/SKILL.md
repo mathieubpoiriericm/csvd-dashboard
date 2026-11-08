@@ -10,7 +10,8 @@ uv run python -m pipeline.main --pubmed --days-back 365 --export
 ```
 
 **Not while gold-only is on.** `pipeline.main` refuses `--pubmed` -- and so
-every `--days-back` window, `--batch` included -- while `GOLD_ONLY` is true in
+every `--days-back` window, `--batch` included -- and `scripts.backfill_pubmed`
+refuses too, before any network or database work, while `GOLD_ONLY` is true in
 `lib/gold_only.ts`, because the dashboard then publishes only the
 hand-curated data. The undo checklist in that file's doc comment comes first.
 

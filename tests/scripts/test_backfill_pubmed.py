@@ -7,7 +7,7 @@ either -- unless it is named: `uv run pytest tests/scripts`.
 from unittest.mock import AsyncMock, call
 
 import pytest
-from scripts.backfill_pubmed import plan_windows, run_backfill
+from scripts.backfill_pubmed import main, plan_windows, run_backfill
 
 from pipeline.quality_metrics import PipelineMetrics
 
@@ -91,3 +91,39 @@ class TestRunBackfill:
 
         assert run_pipeline.await_count == 2
         close.assert_awaited_once()
+
+
+class TestGoldOnlyGuard:
+    def test_refuses_while_gold_only_is_on(self, mocker, capsys) -> None:
+        mocker.patch("scripts.backfill_pubmed.gold_only", return_value=True)
+        asyncio_run = mocker.patch("scripts.backfill_pubmed.asyncio.run")
+
+        with pytest.raises(SystemExit) as exc:
+            main([])
+
+        assert exc.value.code == 2
+        assert "GOLD_ONLY" in capsys.readouterr().err
+        asyncio_run.assert_not_called()
+
+    def test_a_reader_failure_fails_closed(self, mocker) -> None:
+        mocker.patch(
+            "scripts.backfill_pubmed.gold_only", side_effect=ValueError("reshaped")
+        )
+        asyncio_run = mocker.patch("scripts.backfill_pubmed.asyncio.run")
+
+        with pytest.raises(ValueError):
+            main([])
+
+        asyncio_run.assert_not_called()
+
+    def test_proceeds_past_the_guard_when_off(self, mocker) -> None:
+        mocker.patch("scripts.backfill_pubmed.gold_only", return_value=False)
+        mocker.patch("scripts.backfill_pubmed.load_dotenv")
+        run = mocker.patch(
+            "scripts.backfill_pubmed.run_backfill",
+            new=AsyncMock(return_value=[1, 2]),
+        )
+
+        assert main(["--days-back", "60", "--step", "30"]) == 0
+
+        assert run.await_args == call([30, 60], use_batch_api=False)
