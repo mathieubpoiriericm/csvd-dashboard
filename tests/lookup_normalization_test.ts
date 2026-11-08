@@ -163,3 +163,19 @@ Deno.test("reference lookup requires a string PMID and makes display fields safe
   );
   assertEquals([...indexReferencesByPmid(undefined)], []);
 });
+
+Deno.test("reference lookup keeps a preprint keyed by its DOI", () => {
+  const doi = "10.1000/preprint.1";
+  assertEquals(
+    [...indexReferencesByPmid([{ pmid: doi }])],
+    [[doi, {
+      pmid: doi,
+      authors: null,
+      title: null,
+      journal: null,
+      publicationDate: null,
+      doi: null,
+      formattedRef: `DOI: ${doi} (citation not available)`,
+    }]],
+  );
+});

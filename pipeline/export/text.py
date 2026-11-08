@@ -180,12 +180,10 @@ def is_doi(reference: str) -> bool:
     """True for a DOI reference: gene_references holds PMIDs and DOIs alike.
 
     The rule is the Genes table's (`isDoi` in lib/citations.ts), surrounding
-    whitespace aside, so a reference this skips in the PubMed lookups is one
-    the page links to doi.org; both are tested over
-    tests/fixtures/doi_cases.json. A PMID is all digits. Every PubMed lookup
-    (the export's citation read, the lookup-cache refresh,
-    --sync-external-data) must skip what this accepts, because PubMed has no
-    record under a DOI.
+    whitespace aside; both are tested over tests/fixtures/doi_cases.json. A
+    PMID is all digits. PubMed has no record under a DOI, so the citation
+    sync reads what this accepts from Europe PMC instead
+    (pipeline.pubmed_citations), and the page links it to doi.org.
     """
     return _DOI.fullmatch(reference.strip()) is not None
 

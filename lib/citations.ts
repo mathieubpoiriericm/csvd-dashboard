@@ -94,8 +94,9 @@ const DOI = /^10\.[0-9]{4,9}\/\S+$/;
 
 /**
  * Whether a reference is a DOI (`10.21203/rs.3.rs-5926137/v1`) rather than a
- * PMID. The curators cite a preprint with no PubMed record by its DOI, and
- * such a reference has no citation in `data/refs.json` to look up.
+ * PMID. The curators cite a preprint with no PubMed record by its DOI; the
+ * citation sync reads its citation from Europe PMC, and `data/refs.json`
+ * carries it under the DOI when it found one.
  *
  * `is_doi` in `pipeline/export/text.py` is the same rule -- the export keeps
  * what it accepts out of every PubMed lookup -- and both are tested over

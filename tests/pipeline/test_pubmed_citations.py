@@ -9,9 +9,11 @@ from pipeline.config import PipelineConfig
 from pipeline.pubmed_citations import (
     PubMedCitation,
     SyncResult,
+    _fetch_preprint_uncached,
     _fetch_pubmed_uncached,
     _format_authors,
     _format_citation,
+    _parse_europepmc_record,
     _parse_pubmed_xml,
     _title_case,
     clear_pubmed_cache,
@@ -551,6 +553,119 @@ class TestFetchPubmedUncached:
         assert result is not None
         assert result.pmid == "12345678"
         assert result.title == "Gene discovery in SVD"
+
+
+# ---------------------------------------------------------------------------
+# Preprints, by DOI, from Europe PMC
+# ---------------------------------------------------------------------------
+
+_PREPRINT_DOI = "10.21203/rs.3.rs-5926137/v1"
+
+_PREPRINT_RECORD = {
+    "source": "PPR",
+    "doi": _PREPRINT_DOI,
+    "title": "Genomics of diffusion-imaging <in> SVD",
+    "authorList": {
+        "author": [
+            {"lastName": "Debette", "initials": "S"},
+            {"lastName": "Saba", "initials": "Y"},
+            {"collectiveName": "The CHARGE consortium"},
+            {"lastName": "Suzuki", "initials": "H"},
+        ]
+    },
+    "pubYear": "2025",
+    "firstPublicationDate": "2025-02-14",
+    "bookOrReportDetails": {"publisher": "Research Square"},
+}
+
+
+def _europepmc_client(mocker, *, response=None, side_effect=None):
+    mock_client = AsyncMock()
+    mock_client.get = AsyncMock(return_value=response, side_effect=side_effect)
+    mocker.patch(
+        "pipeline.pubmed_citations._client_manager.get", return_value=mock_client
+    )
+    return mock_client
+
+
+class TestPreprintCitations:
+    def test_parse_keys_the_citation_by_doi(self):
+        citation = _parse_europepmc_record(_PREPRINT_DOI, _PREPRINT_RECORD)
+        assert citation.pmid == _PREPRINT_DOI
+        assert citation.doi == _PREPRINT_DOI
+        assert citation.authors == "Debette S, Saba Y, The CHARGE consortium, et al."
+        # The preprint server stands in for the journal.
+        assert citation.journal == "Research Square"
+        assert citation.publication_date == "Feb 2025"
+        assert "&lt;in&gt;" in citation.formatted_ref
+
+    def test_parse_prefers_a_journal_and_falls_back_to_the_year(self):
+        record = {
+            **_PREPRINT_RECORD,
+            "journalInfo": {"journal": {"title": "Nature"}},
+            "firstPublicationDate": None,
+        }
+        citation = _parse_europepmc_record(_PREPRINT_DOI, record)
+        assert citation.journal == "Nature"
+        assert citation.publication_date == "2025"
+
+    async def test_fetch_asks_europe_pmc_by_doi(self, mocker):
+        body = {"resultList": {"result": [_PREPRINT_RECORD]}}
+        client = _europepmc_client(
+            mocker,
+            response=httpx.Response(
+                200, json=body, request=httpx.Request("GET", "https://x")
+            ),
+        )
+        citation = await _fetch_preprint_uncached(_PREPRINT_DOI)
+        assert citation is not None and citation.title is not None
+        assert client.get.await_args.kwargs["params"]["query"] == (
+            f'DOI:"{_PREPRINT_DOI}"'
+        )
+
+    async def test_fetch_of_an_unknown_doi_has_no_title(self, mocker):
+        _europepmc_client(
+            mocker,
+            response=httpx.Response(
+                200,
+                json={"resultList": {"result": []}},
+                request=httpx.Request("GET", "https://x"),
+            ),
+        )
+        citation = await _fetch_preprint_uncached(_PREPRINT_DOI)
+        assert citation is not None
+        assert citation.title is None
+
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            {"side_effect": httpx.ConnectError("reset")},
+            {
+                "response": httpx.Response(
+                    503, request=httpx.Request("GET", "https://x")
+                )
+            },
+            {
+                "response": httpx.Response(
+                    200, content=b"<html>", request=httpx.Request("GET", "https://x")
+                )
+            },
+        ],
+    )
+    async def test_fetch_failure_returns_none(self, mocker, kwargs):
+        _europepmc_client(mocker, **kwargs)
+        assert await _fetch_preprint_uncached(_PREPRINT_DOI) is None
+
+    async def test_fetch_pubmed_citation_routes_a_doi_to_europe_pmc(self, mocker):
+        expected = PubMedCitation(_PREPRINT_DOI, "a", "t", "j", None, None, "ref")
+        preprint = mocker.patch(
+            "pipeline.pubmed_citations._fetch_preprint_uncached",
+            return_value=expected,
+        )
+        pubmed = mocker.patch("pipeline.pubmed_citations._fetch_pubmed_uncached")
+        assert await fetch_pubmed_citation(_PREPRINT_DOI) is expected
+        preprint.assert_awaited_once_with(_PREPRINT_DOI)
+        pubmed.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

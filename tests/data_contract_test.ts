@@ -36,6 +36,7 @@ import rawProteinInfoJson from "../data/protein_info.json" with {
   type: "json",
 };
 import rawReferencesJson from "../data/refs.json" with { type: "json" };
+import { isDoi } from "../lib/citations.ts";
 import rawGenesJson from "../data/table1.json" with { type: "json" };
 import rawTrialsJson from "../data/table2.json" with { type: "json" };
 
@@ -311,9 +312,11 @@ Deno.test("generated tooltip lookups satisfy their runtime contracts", () => {
   const references = rawReferencesJson as Array<Record<string, unknown>>;
   assertUniqueKeys(references, "pmid", "refs");
   for (const [index, row] of references.entries()) {
+    // A preprint the curators cite by DOI is keyed by the DOI.
     assert(
-      typeof row.pmid === "string" && /^[1-9]\d*$/.test(row.pmid),
-      `refs row ${index} needs a numeric PMID`,
+      typeof row.pmid === "string" &&
+        (/^[1-9]\d*$/.test(row.pmid) || isDoi(row.pmid)),
+      `refs row ${index} needs a numeric PMID or a DOI`,
     );
     assert(
       typeof row.formattedRef === "string" && row.formattedRef.trim() !== "",

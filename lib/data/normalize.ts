@@ -9,6 +9,7 @@ import type {
   Reference,
 } from "../types.ts";
 import { list, nullableText, record } from "../normalize.ts";
+import { isDoi } from "../citations.ts";
 
 export { list, nullableText, record };
 
@@ -112,7 +113,9 @@ export function normalizeOmimEntry(value: unknown): OmimEntry | null {
 export function normalizeReference(value: unknown): Reference | null {
   const source = record(value);
   const pmid = nullableText(source.pmid);
-  if (pmid === null || !/^\d+$/.test(pmid)) return null;
+  // A PMID, or the DOI a preprint with no PubMed record is cited by.
+  if (pmid === null || !(/^\d+$/.test(pmid) || isDoi(pmid))) return null;
+  const label = isDoi(pmid) ? "DOI" : "PMID";
   return {
     pmid,
     authors: nullableText(source.authors),
@@ -122,7 +125,7 @@ export function normalizeReference(value: unknown): Reference | null {
     doi: nullableText(source.doi),
     formattedRef: text(
       source.formattedRef,
-      `PMID: ${pmid} (citation not available)`,
+      `${label}: ${pmid} (citation not available)`,
     ),
   };
 }

@@ -10,6 +10,7 @@
  * that slipped a gene, trial, reference or lookup in shows up here.
  */
 import { assertEquals } from "@std/assert";
+import { isDoi } from "../../lib/citations.ts";
 
 import annotations from "../../data/gene_annotations.json" with {
   type: "json",
@@ -114,14 +115,17 @@ Deno.test("the NCBI and UniProt lookups are keyed by exactly the gold genes", ()
   assertEquals(sorted(proteinInfo.map((row) => row.gene)), goldGenes);
 });
 
-Deno.test("the PubMed lookup holds exactly the PMIDs gold cites", () => {
-  // References are separated by ";" or ","; a DOI reference has no PubMed
-  // record and so no row.
-  const pmids = goldColumn("st1_genes.csv", "references")
+Deno.test("the citation lookup holds exactly the references gold cites", () => {
+  // References are separated by ";" or ","; the preprint cited by DOI has its
+  // citation from Europe PMC, under the DOI.
+  const cited = goldColumn("st1_genes.csv", "references")
     .flatMap((cell) => cell.split(/[;,]/))
     .map((reference) => reference.trim())
-    .filter((reference) => /^\d+$/.test(reference));
-  assertEquals(sorted(refs.map((row) => row.pmid)), sorted(pmids));
+    .filter((reference) => /^\d+$/.test(reference) || isDoi(reference));
+  assertEquals(
+    sorted(refs.map((row) => row.pmid)),
+    sorted([...new Set(cited)]),
+  );
 });
 
 Deno.test("the Publications count is every reference gold cites, DOIs included", () => {

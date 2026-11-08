@@ -135,7 +135,7 @@ async def get_table2_gene_symbols() -> list[str]:
 
 
 async def get_all_pmids() -> list[str]:
-    """Every unique PMID the curated genes cite.
+    """Every unique PMID, and every preprint DOI, the curated genes cite.
 
     Reads ``gene_references``, not ``genes."references"``: migration 006
     dropped that column once the join table carried the values, so the old
@@ -156,7 +156,14 @@ async def get_all_pmids() -> list[str]:
     all_pmids: set[str] = set()
     for row in rows:
         pmid = row["pmid"]
-        if pmid and not is_doi(str(pmid)):
+        if not pmid:
+            continue
+        # A DOI is kept whole: the citation sync reads a preprint's from
+        # Europe PMC under it. Scanned for PMIDs, its digits ("5926137")
+        # were once mistaken for one.
+        if is_doi(str(pmid)):
+            all_pmids.add(str(pmid).strip())
+        else:
             all_pmids.update(extract_pmids_from_text(str(pmid)))
 
     return sorted(all_pmids)
