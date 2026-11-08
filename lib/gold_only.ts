@@ -32,6 +32,12 @@
  * - `disease/timeline.json` keeps the gold mechanism spellings as extra keys
  *   beside the earlier ones;
  * - the export no longer lowercases the affected pathway.
+ *
+ * The rows the dump brings back predate the 2026-11-08 omics review, so their
+ * omics evidence is in the old wording (`TWAS;nerve tibial*`, `YFS blood`)
+ * and some of its acronyms have no glossary entry. The display still reads
+ * it, but `tests/acronym_coverage_test.ts` will name each such acronym until
+ * the glossary or the rows catch up.
  */
 
 /** Whether the dashboard shows only the hand-curated data. */
