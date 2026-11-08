@@ -61,6 +61,8 @@ Deno.test("gold-only About shows the notice and the curated date, and no run", (
     />,
   );
   assertStringIncludes(html, GOLD_ONLY_NOTICE);
+  // It informs, so it wears the neutral notice, not the warning's red.
+  assertStringIncludes(html, 'class="notice notice-neutral about-gold-notice"');
   assertStringIncludes(html, "Hand-curated data as of November 6, 2026");
   assertNotMatch(html, /Up to date as of/);
   assertNotMatch(html, /Last Pipeline Run/);

@@ -333,7 +333,7 @@ export function AboutContent(
         ? (
           /* No run fed what the page shows, so neither account of one, nor
             the refreshes, belongs here: the notice stands in their place. */
-          <p class="notice notice-warning about-gold-notice">
+          <p class="notice notice-neutral about-gold-notice">
             {GOLD_ONLY_NOTICE}
           </p>
         )
