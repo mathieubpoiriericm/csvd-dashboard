@@ -267,4 +267,54 @@ export const GENERIC_ACRONYMS: Readonly<Record<string, Acronym>> = {
   },
   PWAS: { name: "Proteome-Wide Association Study", kind: "omics methodology" },
   EWAS: { name: "Epigenome-Wide Association Study", kind: "omics methodology" },
+  "WES/WGS": {
+    name: "Whole-exome / whole-genome sequencing",
+    kind: "omics methodology",
+  },
+  MR: { name: "Mendelian randomization", kind: "statistical method" },
+  MTAG: { name: "Multi-Trait Analysis of GWAS", kind: "statistical method" },
+  MENTR: {
+    name: "Mutation Effect prediction on ncRNA TRanscription",
+    kind: "computational method",
+  },
+  ML: { name: "Machine learning", kind: "computational method" },
+  ncRNA: { name: "Non-coding RNA", kind: "molecule" },
+  "RNA-Seq": { name: "RNA sequencing", kind: "lab method" },
+  CRISPR: { name: "CRISPR-Cas genome editing", kind: "lab method" },
+  sQTL: { name: "Splicing quantitative trait locus", kind: "molecular trait" },
+  sCCA1: {
+    name:
+      "Cross-tissue expression feature 1, from sparse canonical correlation analysis of GTEx tissues",
+    kind: "expression model",
+  },
+  sCCA2: {
+    name:
+      "Cross-tissue expression feature 2, from sparse canonical correlation analysis of GTEx tissues",
+    kind: "expression model",
+  },
+  sCCA3: {
+    name:
+      "Cross-tissue expression feature 3, from sparse canonical correlation analysis of GTEx tissues",
+    kind: "expression model",
+  },
+  YFS: { name: "Young Finns Study", kind: "reference dataset (whole blood)" },
+  CMC: {
+    name: "CommonMind Consortium",
+    kind: "reference dataset (dorsolateral prefrontal cortex)",
+  },
+  NTR: {
+    name: "Netherlands Twin Register",
+    kind: "reference dataset (peripheral blood)",
+  },
+  dlPFC: {
+    name: "Dorsolateral prefrontal cortex",
+    kind: "anatomical location",
+  },
+  dPFC: { name: "Dorsolateral prefrontal cortex", kind: "anatomical location" },
+  BA9: { name: "Brodmann area 9", kind: "anatomical location" },
+  BA24: { name: "Brodmann area 24", kind: "anatomical location" },
+  C1: {
+    name: "First cervical segment of the spinal cord",
+    kind: "anatomical location",
+  },
 };
