@@ -12,7 +12,7 @@
  */
 
 import vocabulary from "../disease/vocabulary.json" with { type: "json" };
-import type { FilterChoice } from "./types.ts";
+import type { Acronym, FilterChoice } from "./types.ts";
 import type { IconName } from "../components/Icon.tsx";
 import { POPULATIONS } from "./disease/populations.ts";
 import { GOLD_ONLY } from "./gold_only.ts";
@@ -254,9 +254,17 @@ export { CELL_TYPE_NAMES } from "./disease/cell_types.ts";
 // ABBREVIATION EXPANSIONS
 // -----------------------------------------------------------------------------
 
-/** Omics study-type abbreviations. */
-export const OMICS_FULL_NAMES: Record<string, string> = {
-  PWAS: "Proteome-Wide Association Study",
-  EWAS: "Epigenome-Wide Association Study",
-  TWAS: "Transcriptome-Wide Association Study",
+/**
+ * Acronyms that mean the same thing whatever the disease: omics methods,
+ * anatomy, reference datasets, lab methods. The disease's own terms live in
+ * `disease/manifest.json`'s `acronyms`, which override these on a clash;
+ * `lib/disease/acronyms.ts` merges the two.
+ */
+export const GENERIC_ACRONYMS: Readonly<Record<string, Acronym>> = {
+  TWAS: {
+    name: "Transcriptome-Wide Association Study",
+    kind: "omics methodology",
+  },
+  PWAS: { name: "Proteome-Wide Association Study", kind: "omics methodology" },
+  EWAS: { name: "Epigenome-Wide Association Study", kind: "omics methodology" },
 };

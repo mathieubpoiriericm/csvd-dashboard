@@ -11,7 +11,7 @@
 
 import {
   CELL_TYPE_NAMES,
-  OMICS_FULL_NAMES,
+  GENERIC_ACRONYMS,
   PUBMED_BASE_URL,
 } from "./constants.ts";
 import { isDoi, toCitation } from "./citations.ts";
@@ -309,7 +309,7 @@ export function splitCellTypes(
 /** Expansion for an omics evidence string, e.g. "TWAS;whole blood". */
 export function omicsTooltip(value: string): TooltipContent | null {
   const type = omicsType(value);
-  const fullName = OMICS_FULL_NAMES[type.toUpperCase()];
+  const fullName = GENERIC_ACRONYMS[type.toUpperCase()]?.name;
   if (!fullName) return null;
 
   const semicolon = value.indexOf(";");
