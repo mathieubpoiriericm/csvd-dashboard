@@ -3,8 +3,20 @@
 Separates prompt engineering from API call logic so prompts can be
 iterated on without touching extraction code.
 
-v7 is the only prompt. v1-v3 were the pre-provenance lineage and v6
+v8 is the only prompt. v1-v3 were the pre-provenance lineage and v6
 contains v5 verbatim, so none of them said anything v6 does not.
+
+v8 is v7 asking for structured omics evidence: each study's type (the
+published vocabulary, `OMICS_STUDY_TYPES`), the biomarker it tested and the
+items the gene was significant in, each flagged when the paper reports
+significant colocalization there -- so a gene the pipeline adds arrives in
+the curated table's format. v7 asked for bare labels ("TWAS",
+"colocalization", "MAGMA") that the export then dropped or starred, and its
+`omics_evidence=[...]` examples would teach a shape the v8 schema refuses, so
+v7 left the table the way v6 did and a run naming it is refused. Its rendered
+prompt for this repository's disease hashed (`prompt_sha256`) to e94fa49c33a2788a4901d3e1fcd242712735b624309c4834c1e85531b0b303bb,
+the value earlier run reports carry; its bytes are the v6 fixtures in
+`tests/pipeline/csvd/fixtures/`.
 
 v4 was kept for a while because v6 is *not* a superset of it: v5 loosened
 two of v4's exclusion guards, accepting "even a single mention as an MTAG
@@ -20,11 +32,11 @@ more genes, not fewer (144 against 138), and the genes it added were LOC
 identifiers and an antisense RNA. The guards are ruled out rather than
 assumed, so v4 is gone with them.
 
-v7 is v6 with every disease noun moved to `disease/prompt.md`;
-`tests/pipeline/test_prompt_assembly.py` pins the disease's rendering to the
-v6 bytes, so the recall baseline and the golden cassettes are v7's too. What
-stays here is the method -- the inclusion rule, the strategy, the rubric's
-tiers -- and what moved is the disease it is aimed at.
+v7 was v6 with every disease noun moved to `disease/prompt.md`, and v8 keeps
+that split; `tests/pipeline/csvd/test_csvd_prompt_assembly.py` pins this
+repository's rendering to the v6 bytes but for the omics lines it lists. What stays here
+is the method -- the inclusion rule, the strategy, the rubric's tiers -- and
+what moved is the disease it is aimed at.
 
 PROMPT_VERSIONS_WITHOUT_PROVENANCE still derives from the table and is now
 empty -- the machinery stays, because a future version that forgets the
@@ -40,6 +52,7 @@ from types import MappingProxyType
 from typing import Final
 
 from pipeline.disease import Disease, load_disease
+from pipeline.omics import OMICS_STUDY_TYPES
 
 logger = logging.getLogger(__name__)
 
@@ -124,13 +137,13 @@ def _refuse_orphan_sections(sections: Iterable[str], used: Container[str]) -> No
 
 
 # ---------------------------------------------------------------------------
-# V7 templates (v6's method, with the disease nouns in disease/prompt.md)
+# V8 templates (v6's method, the disease nouns in disease/prompt.md, structured omics)
 # ---------------------------------------------------------------------------
 
 # One system prompt, shared by every surviving version: v4, v5 and v6 all
 # aliased v3's literal, so the chain of aliases said nothing the name does
 # not.
-_SYSTEM_TEMPLATE_V7: Final[str] = (
+_SYSTEM_TEMPLATE_V8: Final[str] = (
     "You are a systematic reviewer specializing in {{ disease.name }} "
     "({{ disease.abbreviation }}) genetics. You maintain a curated database of "
     "genes with putative causal links to {{ disease.abbreviation }}, identified "
@@ -209,7 +222,7 @@ def _render_steps(disease_steps: str, *, monogenic: bool = True) -> str:
     return "\n".join(f"{n}. {body}" for n, body in enumerate(items, 1))
 
 
-_INSTRUCTIONS_TEMPLATE_V7: Final[str] = """\
+_INSTRUCTIONS_TEMPLATE_V8: Final[str] = """\
 <instructions>
 <task>
 Extract all genes with putative causal links to {{ disease.name }} ({{ disease.abbreviation }}) from the research paper provided.
@@ -233,7 +246,7 @@ For each gene, record the following:
 - gene_symbol: Official HGNC gene symbol (human). Convert animal model nomenclature to human orthologs.
 - gwas_trait: Use ONLY these canonical abbreviations: {{ traits.canonical }}. Do not use full phenotype names.
 - mendelian_randomization: Set to true only if the paper presents MR evidence for this gene. In causal_evidence_summary, distinguish whether the gene is an MR exposure (drug target) vs. a direct {{ disease.abbreviation }}-associated gene.
-- omics_evidence: Type of omics/analytical study. Use labels such as: "TWAS", "PWAS", "EWAS", "colocalization", "MAGMA", "MTAG", "pQTL-MR", "WES/WGS", "cell-type enrichment", "scRNA-seq annotation", "PRS", "fine-mapping".
+- omics_evidence: One entry per omics or analytical study the paper reports for this gene, other than the GWAS itself. For each: study_type, one of {{ omics.study_types }} ("Experimental" for functional or animal-model work); biomarker, the phenotype the study tested, using the canonical trait abbreviations above where one applies; items, each tissue, cell type or reference dataset the gene was significant in, written as the paper names it (a reference dataset as "<dataset>: <tissue>", e.g. "YFS: blood"), with colocalized set to true only when the paper reports significant colocalization for that tissue, and as a last item any other evidence the study adds (e.g. "RNA-Seq"). Colocalization, MAGMA, MTAG and PRS are not study types: colocalization is the per-item flag, and the others belong to the GWAS evidence.
 - confidence: A score from 0.0 to 1.0 (see scoring rubric below).
 - causal_evidence_summary: 1-3 sentences explaining WHY the paper considers this gene causally linked. {{ guidance.specificity_note }} For MR evidence, clarify whether the gene is a direct association or an exposure/drug target.
 </field_guidance>
@@ -301,6 +314,11 @@ def _assemble(disease: Disease) -> tuple[str, str]:
     sections: dict[str, str] = dict(disease.prompt_sections)
     sections["disease.name"] = disease.name
     sections["disease.abbreviation"] = disease.abbreviation
+    # The schema's enum, so what the model is asked for and what it may say
+    # cannot drift apart.
+    sections["omics.study_types"] = ", ".join(
+        f'"{study_type}"' for study_type in OMICS_STUDY_TYPES
+    )
     sections["rubric.monogenic_clause"] = (
         render_prompt(
             _MONOGENIC_EXAMPLES_CLAUSE,
@@ -318,28 +336,28 @@ def _assemble(disease: Disease) -> tuple[str, str]:
         steps_template, _named_by(steps_template, sections)
     )
     system = render_prompt(
-        _SYSTEM_TEMPLATE_V7, _named_by(_SYSTEM_TEMPLATE_V7, sections)
+        _SYSTEM_TEMPLATE_V8, _named_by(_SYSTEM_TEMPLATE_V8, sections)
     )
     instructions = render_prompt(
-        _INSTRUCTIONS_TEMPLATE_V7, _named_by(_INSTRUCTIONS_TEMPLATE_V7, sections)
+        _INSTRUCTIONS_TEMPLATE_V8, _named_by(_INSTRUCTIONS_TEMPLATE_V8, sections)
     )
     _refuse_orphan_sections(
         disease.prompt_sections,
         set(_SLOT.findall(steps_template))
-        | set(_SLOT.findall(_SYSTEM_TEMPLATE_V7))
-        | set(_SLOT.findall(_INSTRUCTIONS_TEMPLATE_V7))
+        | set(_SLOT.findall(_SYSTEM_TEMPLATE_V8))
+        | set(_SLOT.findall(_INSTRUCTIONS_TEMPLATE_V8))
         | {"strategy.disease_steps"}
         | _MONOGENIC_SECTIONS,
     )
     return system, instructions
 
 
-def _assemble_v7() -> tuple[str, str]:
+def _assemble_v8() -> tuple[str, str]:
     """Render the templates against the disease file, once at import."""
     return _assemble(load_disease())
 
 
-_PROMPTS: Final[Mapping[str, tuple[str, str]]] = MappingProxyType({"v7": _assemble_v7()})
+_PROMPTS: Final[Mapping[str, tuple[str, str]]] = MappingProxyType({"v8": _assemble_v8()})
 
 
 _PROVENANCE_HEADING: Final[str] = "## Provenance"
@@ -353,7 +371,7 @@ PROMPT_VERSIONS: Final[frozenset[str]] = frozenset(_PROMPTS)
 # The production version: the default PipelineConfig.prompt_version takes and
 # the one build_extraction_prompt and prompt_sha256 render when not told
 # otherwise. One name, so promoting a v8 is one edit rather than three.
-PROMPT_VERSION: Final[str] = "v7"
+PROMPT_VERSION: Final[str] = "v8"
 assert PROMPT_VERSION in PROMPT_VERSIONS
 
 # Prompt versions that do not instruct the model to copy a verbatim

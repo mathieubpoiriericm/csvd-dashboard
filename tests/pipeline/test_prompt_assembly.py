@@ -1,8 +1,9 @@
-"""The v7 template renderer: slots, orphans, step numbering, the hash.
+"""The v8 template renderer: slots, orphans, step numbering, the hash.
 
-The byte-identity record -- v7 plus this repository's disease file equals
-the v6 literals -- is tests/pipeline/csvd/test_prompt_assembly.py, because
-it pins one disease's rendering; everything here holds for any disease file.
+The byte-identity record -- v8 plus this repository's disease file equals
+the v6 literals but for the omics lines -- is
+tests/pipeline/csvd/test_csvd_prompt_assembly.py, because it pins one
+disease's rendering; everything here holds for any disease file.
 """
 
 import dataclasses
@@ -23,12 +24,12 @@ from pipeline.prompts import (
 )
 
 
-def test_only_v7_exists() -> None:
-    assert set(PROMPT_VERSIONS) == {"v7"}
+def test_only_v8_exists() -> None:
+    assert set(PROMPT_VERSIONS) == {"v8"}
 
 
 def test_prompt_sha256_covers_system_and_instructions() -> None:
-    system, instructions = _PROMPTS["v7"]
+    system, instructions = _PROMPTS["v8"]
     expected = hashlib.sha256(
         system.encode("utf-8") + b"\n\n" + instructions.encode("utf-8")
     ).hexdigest()

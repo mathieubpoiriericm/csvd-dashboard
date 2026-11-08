@@ -29,7 +29,7 @@ class TestFingerprint:
 
         assert base != other
         assert base["model"] == "claude-opus-5-5"
-        assert base["prompt_version"] == "v7"
+        assert base["prompt_version"] == "v8"
 
     def test_it_covers_the_rendered_prompt_bytes(self) -> None:
         # The prompt version name alone stopped being enough once half the

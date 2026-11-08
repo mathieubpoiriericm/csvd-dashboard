@@ -121,7 +121,7 @@ the two models recover 38/46 and 39/46 of the pooled genes.
 
 **Quote the 81%** -- the clean subset is the one that measures extraction rather
 than recall of the prompt. 13 of the 36 gold genes are named verbatim in the
-rendered v7 prompt -- the `<example>` blocks that name them live in `prompt.md`,
+rendered v8 prompt -- the `<example>` blocks that name them live in `prompt.md`,
 not the template in `pipeline/prompts.py` -- six of them with their expected
 trait and confidence, and `test_the_prompt_names_part_of_its_own_answer_key`
 pins that count so a prompt edit naming another gold gene fails instead of

@@ -111,7 +111,7 @@ from a lookup you ran and can show, never from what a disease "probably" has.
 | `disease/timeline.json`         | `lib/timeline.ts`, `lib/timeline_encoding.json`, `scripts/timeline_figure.py`                                                                 |
 | `disease/phenogram.json`        | `lib/phenogram.ts`, `lib/phenogram_encoding.json`, `scripts/phenogram_figure.py`                                                              |
 | `disease/omim_info.csv`         | `pipeline/export/tables.py` (`read_omim_csv`) → `data/omim_info.json`; `scripts/reconcile_omim.py`                                            |
-| `disease/prompt.md`             | `pipeline/disease.py` → `pipeline/prompts.py` (the v7 template's slots)                                                                       |
+| `disease/prompt.md`             | `pipeline/disease.py` → `pipeline/prompts.py` (the v8 template's slots)                                                                       |
 | `disease/recall_gold.csv`       | `pipeline/query_eval.py` → `scripts/measure_recall.py`, `tests/pipeline/test_query_recall_gold.py`                                            |
 | `disease/recall_baseline.json`  | `tests/pipeline/test_query_recall_gold.py` (skips while absent)                                                                               |
 | `disease/README.md`             | people                                                                                                                                        |

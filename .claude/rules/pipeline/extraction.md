@@ -135,15 +135,28 @@ statement about it. The recall and quote figures in `provenance.md` and
 `high` on 2026-11-02, where the same eight calls cost $2.48 against Opus 5's
 $3.72, on 77,177 output tokens against 101,007.
 
-## The prompt is v7: a template plus `disease/prompt.md`, and v4's guards were measured rather than assumed
+## The prompt is v8: a template plus `disease/prompt.md`, and v4's guards were measured rather than assumed
 
 `pipeline/prompts.py` holds the methodology as a template with
 `{{ section.id }}` slots and `disease/prompt.md` holds the disease prose, one
 `## id` per slot. `render_prompt` refuses an unknown slot, an unreferenced
 section and a residual `{{`, and
-`tests/pipeline/csvd/test_csvd_prompt_assembly.py` pins the cSVD rendering
-byte-identical to the v6 literals (sha256 `70908abc…`), which is why the recall
-baseline and the golden cassettes carried over without re-recording.
+`tests/pipeline/csvd/test_csvd_prompt_assembly.py` pins the cSVD rendering to
+the v6 literals (sha256 `70908abc…`) byte for byte, but for the pairs its
+`_V8_CHANGES` lists.
+
+**v8 asks for structured omics evidence**, and that is the only thing it
+changed. `omics_evidence` is a list of studies -- `study_type` from
+`OMICS_STUDY_TYPES` in `pipeline/omics.py` (the export's own vocabulary, so the
+enum and the filter cannot drift), a `biomarker`, and `items` each with a
+`colocalized` flag -- written to the curated table's wire form
+(`TWAS;WMH: artery aorta*`) and stored as the JSON array the export publishes
+verbatim. The study types reach the prompt through the computed
+`{{ omics.study_types }}` slot rather than prose. v7 asked for bare labels and
+every one was stored with a `*`, which under the column's footnote claimed a
+colocalization nobody checked; v7 left the table, and its hash is in the
+`prompts.py` docstring. The golden cassettes were re-recorded for v8 (see
+`not-proven.md`).
 `prompt_sha256()` hashes the rendered system prompt and instructions together,
 because the version name stopped being enough the moment half the prompt moved
 into a data file.
