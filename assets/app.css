@@ -3688,14 +3688,28 @@ button.adapt-card-head:focus-visible {
   transition: opacity var(--svd-transition);
 }
 
+/*
+ * A tooltip never shows a scrollbar. Tooltip.tsx widens a tall panel and lets
+ * it slide anywhere in the viewport until it fits, so this cap is only reached
+ * where the viewport is too narrow to widen into (a phone, a 320px window).
+ * There the body still scrolls -- by wheel, touch, or Tab to the link -- but
+ * draws no bar. `dvh`, not `vh`: on mobile `vh` is the largest viewport, taller
+ * than what is visible while the browser's toolbar shows.
+ */
 .tooltip-pop-scroll {
   display: block;
-  max-height: calc(100vh - 16px);
+  max-height: calc(100dvh - 16px);
   overflow-x: hidden;
   overflow-y: auto;
   overflow-wrap: anywhere;
+  scrollbar-width: none;
+  column-gap: var(--svd-space-6);
   padding: var(--svd-space-3) var(--svd-space-4);
   border-radius: inherit;
+}
+
+.tooltip-pop-scroll::-webkit-scrollbar {
+  display: none;
 }
 
 .tooltip-pop:popover-open {
@@ -3720,6 +3734,9 @@ button.adapt-card-head:focus-visible {
 
 .tooltip-row {
   display: block;
+  /* Tooltip.tsx sets columns on a panel of many short rows too tall for the
+     viewport; a row never splits across two of them. */
+  break-inside: avoid;
 }
 
 .tooltip-row strong {

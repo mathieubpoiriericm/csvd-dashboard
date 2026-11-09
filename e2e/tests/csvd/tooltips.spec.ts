@@ -107,7 +107,33 @@ test.describe("gene tooltips", () => {
     await expect(trigger).toHaveAttribute("aria-expanded", "false");
   });
 
-  test("a long popover fits and scrolls inside a 320px viewport", async ({ page }) => {
+  test("a popover taller than the space beside its trigger fits without scrolling", async ({ page }) => {
+    // COL4A1/2's panel lists two member genes: taller than a 600px window
+    // allows above or below the row, so it used to scroll there.
+    await page.setViewportSize({ width: 1024, height: 600 });
+    await page.reload();
+    await page.getByRole("searchbox", { name: "Search genes" }).fill("COL4A1");
+    const trigger = rows(page).first().locator("td").first().locator(
+      ".tooltip-box",
+    );
+    await trigger.hover();
+    const panel = tooltip(page);
+    await expect(panel).toBeVisible();
+
+    const box = await panel.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.y).toBeGreaterThanOrEqual(7);
+    expect(box!.y + box!.height).toBeLessThanOrEqual(593);
+    const body = await panel.locator(".tooltip-pop-scroll").evaluate((
+      element,
+    ) => ({
+      clientHeight: element.clientHeight,
+      scrollHeight: element.scrollHeight,
+    }));
+    expect(body.scrollHeight).toBeLessThanOrEqual(body.clientHeight);
+  });
+
+  test("a long popover fits and scrolls without a scrollbar inside a 320px viewport", async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 320 });
     await page.reload();
     await page.getByRole("searchbox", { name: "Search genes" }).fill("LAMB1");
@@ -133,9 +159,14 @@ test.describe("gene tooltips", () => {
       scrollHeight: element.scrollHeight,
       overflowY: getComputedStyle(element).overflowY,
       overflowWrap: getComputedStyle(element).overflowWrap,
+      scrollbarWidth: getComputedStyle(element).scrollbarWidth,
+      gutter: element.offsetWidth - element.clientWidth,
     }));
+    // Nothing wider to grow into: the last resort scrolls, with no bar.
     expect(dimensions.scrollHeight).toBeGreaterThan(dimensions.clientHeight);
     expect(dimensions.overflowY).toBe("auto");
+    expect(dimensions.scrollbarWidth).toBe("none");
+    expect(dimensions.gutter).toBe(0);
     expect(dimensions.overflowWrap).toBe("anywhere");
 
     await page.keyboard.press("Escape");

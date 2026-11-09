@@ -6,7 +6,6 @@ import {
   flip,
   offset,
   shift,
-  size,
 } from "@floating-ui/dom";
 
 import type { TooltipContent } from "../lib/tooltip_content.ts";
@@ -40,6 +39,50 @@ const OPPOSITE_SIDE = {
  * "^" and the part pointing at the trigger had none.
  */
 const ARROW_ROTATION = { bottom: 45, left: 135, top: 225, right: 315 } as const;
+
+/**
+ * Widens a panel too tall for the viewport until it fits, so its content is
+ * never cut off behind a scrollbar. The CSS width cap is right for a short
+ * panel; a long one (a gene's full omics list, a citation's abstract-length
+ * title list) is better read a little wider than scrolled. Only when the
+ * viewport is too narrow to widen into does the scrollport's own cap take
+ * over, and that one draws no scrollbar (app.css).
+ *
+ * Reset on every pass: autoUpdate re-runs this on resize, and a panel widened
+ * for a short window must narrow again when the window grows.
+ */
+function fitToViewport(pop: HTMLElement): void {
+  pop.style.maxWidth = "";
+  pop.style.width = "";
+  const body = pop.querySelector<HTMLElement>(".tooltip-pop-scroll");
+  if (!body) return;
+  body.style.columnCount = "";
+  const root = pop.ownerDocument.documentElement;
+  const maxHeight = root.clientHeight - 2 * VIEWPORT_PADDING_PX;
+  const maxWidth = root.clientWidth - 2 * VIEWPORT_PADDING_PX;
+  // `scrollHeight`, not the box: the scrollport's CSS cap would hide the
+  // very overflow this measures. Text reflows non-linearly, so a few rounds.
+  for (let round = 0; round < 4; round++) {
+    const height = body.scrollHeight;
+    const width = pop.getBoundingClientRect().width;
+    if (height <= maxHeight || width >= maxWidth) return;
+    const wider = Math.ceil((width * height / maxHeight) * 1.1);
+    pop.style.maxWidth = `${Math.min(maxWidth, Math.max(wider, width + 40))}px`;
+    if (pop.getBoundingClientRect().width > width + 1) continue;
+    // Nothing wrapped wider: the rows are short and simply many (an alias
+    // key's member genes), so stack them side by side instead.
+    // A multicol box's max-content width is one column's, not the sum, so
+    // the panel is sized to hold every column outright.
+    const gap = parseFloat(getComputedStyle(body).columnGap) || 0;
+    const columns = Math.ceil((height * 1.15) / maxHeight);
+    const total = Math.ceil(columns * width + (columns - 1) * gap);
+    if (columns < 2 || total > maxWidth) return;
+    body.style.columnCount = String(columns);
+    pop.style.maxWidth = `${total}px`;
+    pop.style.width = `${total}px`;
+    return;
+  }
+}
 
 /** `toggle` carries `newState`, which Deno's DOM lib does not model yet. */
 type ToggleLike = Event & { newState?: "open" | "closed" };
@@ -184,6 +227,7 @@ export function Tooltip({ content, italic, label, children }: TooltipProps) {
     if (!open || !button || !pop || !tip) return;
     let active = true;
     const position = async () => {
+      fitToViewport(pop);
       const { x, y, placement, middlewareData } = await computePosition(
         button,
         pop,
@@ -192,24 +236,17 @@ export function Tooltip({ content, italic, label, children }: TooltipProps) {
           placement: "top",
           middleware: [
             offset(ARROW_SIZE_PX + 2),
-            flip(),
-            shift({ padding: VIEWPORT_PADDING_PX }),
-            size({
+            // Below, then beside: a tall panel that fits neither above nor
+            // below a table cell often fits next to it.
+            flip({
+              fallbackPlacements: ["bottom", "right", "left"],
               padding: VIEWPORT_PADDING_PX,
-              apply({ availableHeight, elements }) {
-                const scrollport = elements.floating.querySelector<HTMLElement>(
-                  ".tooltip-pop-scroll",
-                );
-                if (scrollport) {
-                  scrollport.style.maxHeight = `${
-                    Math.max(
-                      0,
-                      availableHeight,
-                    )
-                  }px`;
-                }
-              },
             }),
+            // `crossAxis` lets a panel that fits on no side slide over its
+            // own trigger rather than run off the viewport's edge, which is
+            // what used to force the scrollbar: the panel was capped to the
+            // space on one side of the trigger, not to the viewport.
+            shift({ padding: VIEWPORT_PADDING_PX, crossAxis: true }),
             arrow({ element: tip }),
           ],
         },
@@ -230,6 +267,12 @@ export function Tooltip({ content, italic, label, children }: TooltipProps) {
       tip.style.bottom = "";
       tip.style[OPPOSITE_SIDE[side]] = `${-ARROW_SIZE_PX / 2}px`;
       tip.style.transform = `rotate(${ARROW_ROTATION[side]}deg)`;
+      // A panel slid over its trigger has nothing to point at: the arrow
+      // would hang off its edge at some unrelated row.
+      const slid = side === "top" || side === "bottom"
+        ? middlewareData.shift?.y
+        : middlewareData.shift?.x;
+      tip.hidden = Math.abs(slid ?? 0) > 0.5;
 
       // Revealed only once placed, so it never paints at the UA default
       // position for a frame while computePosition resolves.
