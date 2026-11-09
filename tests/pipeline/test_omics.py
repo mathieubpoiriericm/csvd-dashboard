@@ -31,7 +31,7 @@ def test_to_wire_writes_the_format_and_stars_only_colocalized_items() -> None:
     assert to_wire(OmicsEvidence(study_type="TWAS", biomarker="Q")) == "TWAS;Q"
     assert (
         to_wire(OmicsEvidence(study_type="TWAS", items=[OmicsItem(text="a;b*")]))
-        == "TWAS;a,b"
+        == "TWAS;a, b"
     )
 
 
@@ -58,6 +58,21 @@ def test_an_unbalanced_parenthesis_cannot_spread_a_colocalization() -> None:
     assert to_wire(evidence) == "TWAS;Q: brain cortex, whole blood, artery aorta*"
     balanced = OmicsEvidence(study_type="TWAS", items=[OmicsItem(text="a (b, c)")])
     assert to_wire(balanced) == "TWAS;a (b, c)"
+
+
+def test_an_item_naming_several_tissues_stars_each_of_them() -> None:
+    """The display splits items on commas outside parentheses, so an item
+    the model wrote as "brain, heart" colocalized would otherwise star only
+    "heart" -- every tissue it names carries the item's flag instead."""
+    evidence = OmicsEvidence(
+        study_type="TWAS",
+        biomarker="Q",
+        items=[
+            OmicsItem(text="brain, heart", colocalized=True),
+            OmicsItem(text="nerve (tibial, sural)"),
+        ],
+    )
+    assert to_wire(evidence) == "TWAS;Q: brain*, heart*, nerve (tibial, sural)"
 
 
 def test_the_study_type_is_the_published_vocabulary() -> None:

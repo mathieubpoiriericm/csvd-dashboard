@@ -121,6 +121,24 @@ async def test_the_gold_rows_replace_what_was_there() -> None:
     assert (new_gene, new_trial) == (2, 2)
 
 
+async def test_a_reload_keeps_the_registry_status_a_refresh_filled_in() -> None:
+    """The gold tables carry no ClinicalTrials.gov status; a refresh fills
+    it afterwards. Reloading the gold tables used to wipe it, publishing
+    every curated NCT trial as "(unknown)" until the next refresh."""
+    await write_gold_plan(_plan())
+    async with Database.connection() as conn:
+        await conn.execute(
+            "UPDATE clinical_trials SET overall_status = 'RECRUITING'"
+        )
+    await write_gold_plan(_plan())
+    async with Database.connection() as conn:
+        status = await conn.fetchval(
+            "SELECT overall_status FROM clinical_trials WHERE registry_id = $1",
+            "REG-0001",
+        )
+    assert status == "RECRUITING"
+
+
 async def test_the_export_publishes_the_curated_omics_wording() -> None:
     await write_gold_plan(_plan())
 

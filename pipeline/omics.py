@@ -146,12 +146,34 @@ def _clean(text: str) -> str:
     return " ".join(text.split())
 
 
+def _top_level_parts(text: str) -> list[str]:
+    """`text` cut at every comma outside parentheses -- where the display
+    (`lib/omics.ts`) will cut it -- so each part can carry the item's flag."""
+    parts: list[str] = []
+    depth = start = 0
+    for index, char in enumerate(text):
+        if char == "(":
+            depth += 1
+        elif char == ")":
+            depth = max(0, depth - 1)
+        elif char == "," and depth == 0:
+            parts.append(text[start:index])
+            start = index + 1
+    parts.append(text[start:])
+    return [part.strip() for part in parts if part.strip()]
+
+
 def to_wire(evidence: OmicsEvidence) -> str:
-    """`Type`, `Type;biomarker`, `Type;biomarker: a*, b` or `Type;a*, b`."""
+    """`Type`, `Type;biomarker`, `Type;biomarker: a*, b` or `Type;a*, b`.
+
+    An item naming several tissues ("brain, heart") is written as that many
+    items, each with the item's flag, since the display reads every comma
+    outside parentheses as a new item.
+    """
     items = ", ".join(
-        _clean(item.text) + ("*" if item.colocalized else "")
+        part + ("*" if item.colocalized else "")
         for item in evidence.items
-        if _clean(item.text)
+        for part in _top_level_parts(_clean(item.text))
     )
     biomarker = _clean(evidence.biomarker or "")
     detail = f"{biomarker}: {items}" if biomarker and items else biomarker or items

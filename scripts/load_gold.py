@@ -90,6 +90,7 @@ from pipeline.export.tables import (
     clean_trial_row,
     publishable_traits,
 )
+from pipeline.omics import OMICS_STUDY_TYPES
 
 _ROOT: Final = Path(__file__).resolve().parent.parent
 _GOLD_DIR: Final = _ROOT / "disease" / "gold" / "out"
@@ -173,25 +174,18 @@ _STUDY_SEPARATOR: Final = re.compile(rf"\n|;{_OUTSIDE_PARENS}")
 
 # A study that leads with its type: "TWAS AIS: tissue*" is the TWAS
 # "AIS: tissue*". The type takes the omics filter's spelling. Every published
-# type can lead, so a curated rewrite can put any entry in the wire form's own
-# order ("WES/WGS non-lobar ICH: …", "Fine-mapping: multi-ancestry").
+# type can lead (`OMICS_STUDY_TYPES`, the export's own vocabulary), so a
+# curated rewrite can put any entry in the wire form's own order
+# ("WES/WGS non-lobar ICH: …", "Fine-mapping: multi-ancestry"). Longest first,
+# so a type that begins another never takes its place in the alternation.
 _TYPE_SPELLING: Final[Mapping[str, str]] = MappingProxyType(
-    {
-        spelling.lower(): spelling
-        for spelling in (
-            "TWAS",
-            "PWAS",
-            "EWAS",
-            "Proteomics",
-            "WES/WGS",
-            "Fine-mapping",
-            "Proteogenomic MR",
-            "Experimental",
-        )
-    }
+    {spelling.lower(): spelling for spelling in OMICS_STUDY_TYPES}
+)
+_LEADING_TYPES: Final = "|".join(
+    re.escape(kind) for kind in sorted(_TYPE_SPELLING, key=len, reverse=True)
 )
 _LEADING_TYPE: Final = re.compile(
-    rf"^({'|'.join(re.escape(kind) for kind in _TYPE_SPELLING)})\b\s*:?\s*(.*)$",
+    rf"^({_LEADING_TYPES})\b\s*:?\s*(.*)$",
     re.IGNORECASE | re.DOTALL,
 )
 # A study named by its method rather than by a type: the whole sentence is
@@ -465,8 +459,19 @@ _COUNTED_TABLES: Final = (
 
 async def write_gold_plan(plan: GoldPlan) -> dict[str, int]:
     """Replace the genes and trials with the plan's, in one transaction, so a
-    failure leaves the database as it was."""
+    failure leaves the database as it was.
+
+    A trial's ClinicalTrials.gov status is not gold data -- the gold tables
+    carry none, and a refresh (`update_trial_statuses`) fills it afterwards --
+    so it is carried across the replacement by registry id. Reloading used to
+    wipe it, and every curated NCT trial published as "(unknown)" until the
+    next refresh.
+    """
     async with Database.connection() as conn, conn.transaction():
+        statuses = await conn.fetch(
+            "SELECT DISTINCT registry_id, overall_status FROM clinical_trials "
+            "WHERE registry_id IS NOT NULL AND overall_status IS NOT NULL"
+        )
         for table in _REPLACED_TABLES:
             # Interpolating is safe: every name is a module constant.
             await conn.execute(f"DELETE FROM {table}")
@@ -479,6 +484,11 @@ async def write_gold_plan(plan: GoldPlan) -> dict[str, int]:
             ],
         )
         await _advance_sequence(conn, "clinical_trials")
+        await conn.executemany(
+            "UPDATE clinical_trials SET overall_status = $2 "
+            "WHERE registry_id = $1 AND overall_status IS NULL",
+            [(row["registry_id"], row["overall_status"]) for row in statuses],
+        )
         return {
             table: await conn.fetchval(f"SELECT count(*) FROM {table}")
             for table in _COUNTED_TABLES
