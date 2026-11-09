@@ -1,6 +1,11 @@
 import { expect } from "@playwright/test";
 import { writeFile } from "node:fs/promises";
-import { INTERACTION_SCENARIOS, ROUTES, settle } from "./scenarios.mjs";
+import {
+  INTERACTION_SCENARIOS,
+  ROUTES,
+  settle,
+  skipReason,
+} from "./scenarios.mjs";
 import { zonesFromTrace } from "./tracy.mjs";
 
 /** Retained DOM/listeners and heap, measured after warm-up and explicit GC. */
@@ -49,6 +54,12 @@ export async function runLifecycle(
       await page.goto(`${base}${scenario.route}`);
       await scenario.ready(page);
       await settle(page);
+      const reason = await skipReason(page, scenario);
+      if (reason) {
+        report.status = "skipped";
+        report.reason = reason;
+        continue;
+      }
       const cdp = await context.newCDPSession(page);
       const cycle = async () => {
         await scenario.act(page);

@@ -39,8 +39,23 @@ import {
   LOAD_SCENARIOS,
   ROUTES,
   settle,
+  skipReason,
   VIEWPORTS,
 } from "./scenarios.mjs";
+
+/** Why `scenario` cannot run here (see `skipReason`), from one page load. */
+async function preflight(browser, storageState, scenario) {
+  if (!scenario.needs) return null;
+  const context = await browser.newContext({ storageState });
+  try {
+    const page = await context.newPage();
+    await page.goto(`${BASE}${scenario.route}`);
+    await scenario.ready(page);
+    return await skipReason(page, scenario);
+  } finally {
+    await context.close();
+  }
+}
 
 const PASSPHRASE = "e2e passphrase: correct horse battery staple";
 const BASE = process.env.PERF_BASE_URL ?? "http://localhost:8000";
@@ -565,6 +580,13 @@ try {
   for (const scenario of args.includes("--lifecycle-only") ? [] : all) {
     process.stdout.write(`  ${scenario.id} … `);
     try {
+      const reason = await preflight(browser, storageState, scenario);
+      if (reason) {
+        results.push({ id: scenario.id, status: "skipped", reason });
+        console.log(`skipped: ${reason}`);
+        await persist();
+        continue;
+      }
       const summary = await runScenario(
         browser,
         storageState,
