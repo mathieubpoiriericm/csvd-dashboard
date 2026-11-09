@@ -6448,7 +6448,10 @@ details.pipeline-apis:not([open]) > ul {
 .timeline-mini-figure {
   --svd-focus-color: var(--svd-figure-ink);
   display: block;
-  width: 100%;
+  /* A nameless radar gains nothing past a phone's width, and phone mode
+     reaches 1100px windows when the labels stop fitting there. */
+  width: min(100%, 28rem);
+  margin-inline: auto;
   height: auto;
   font-family: var(--svd-font);
 }

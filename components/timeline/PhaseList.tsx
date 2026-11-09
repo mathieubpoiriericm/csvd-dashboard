@@ -28,10 +28,12 @@ export function PhaseList(
   { layout, activeIndex, onActivate, rowRef }: PhaseListProps,
 ) {
   const groups = groupMarkersByPhase(layout.markers);
+  // True whether the selection matched no trial, matched only trials with
+  // no ring, or there are no trials at all.
   if (groups.length === 0) {
     return (
       <p class="timeline-list-empty">
-        No trials match the selected statuses.
+        None of the selected trials sits on a phase ring.
       </p>
     );
   }

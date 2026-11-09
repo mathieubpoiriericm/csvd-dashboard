@@ -68,7 +68,7 @@ Deno.test("an empty layout says so instead of listing", () => {
   const html = list(null, empty);
   assertStringIncludes(
     html,
-    '<p class="timeline-list-empty">No trials match the selected statuses.</p>',
+    '<p class="timeline-list-empty">None of the selected trials sits on a phase ring.</p>',
   );
   assert(!html.includes("<button"));
 });

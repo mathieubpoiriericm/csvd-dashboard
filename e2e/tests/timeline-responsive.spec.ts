@@ -2,6 +2,7 @@ import { expect, type Page, test } from "@playwright/test";
 import { EXPECTED } from "../fixtures/expected-data.ts";
 import { choice, filterGroup } from "../helpers.ts";
 import {
+  cleanSweep,
   radarFloor,
   radarMode,
   recordTriggers,
@@ -37,13 +38,7 @@ function scrollsSideways(page: Page) {
   );
 }
 
-const CLEAN = {
-  misfit: [],
-  clipped: [],
-  touching: [],
-  onBand: [],
-  boxes: T.labels,
-};
+const CLEAN = cleanSweep(T.labels);
 
 for (
   const [width, height] of [

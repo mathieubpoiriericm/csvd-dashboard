@@ -6,8 +6,9 @@ import { expect, type Page } from "@playwright/test";
  */
 
 /**
- * misfit/clipped/touching/onBand/boxes over whatever the plate currently
- * shows. Shared between the default (67-of-102) figure and the full one
+ * misfit/clipped/touching/colliding/onBand/boxes over whatever the plate
+ * currently shows, with `control` proving the overlap test can fire. A clean
+ * radar equals `cleanSweep(labels)`. Shared between the default (67-of-102) figure and the full one
  * reached by ticking Show All in the status group, so the population-label
  * plate correction (islands/TrialsTimeline.tsx) is checked against both the
  * layout it was built for and the committed layout it must stay inert on -- the latter is
@@ -60,39 +61,68 @@ export function sweepLabelFit(page: Page) {
       boxes++;
     }
 
-    // Every label -- a drug's or a population's -- against every marker, not
-    // just its own: `separateLabels` treats every marker as an obstacle for a
-    // drug label, and the population-label plate clamp only pulls a label
-    // clear of the canvas edge, not clear of a marker it might land on
-    // instead. drugs[j] names the marker in a touching pair.
+    // Every label against every marker and every other label, the way the
+    // island's own `countFaults` counts them. A label lying across a marker
+    // -- any marker, not just its own -- is a label handed to the wrong
+    // trial: `separateLabels` treats every marker as an obstacle for a drug
+    // label, and the population-label plate clamp only pulls a label clear
+    // of the canvas edge, not clear of a marker it might land on instead.
+    // drugs[j] names the marker in a touching pair.
+    type Rect = { left: number; right: number; top: number; bottom: number };
+    const meet = (a: Rect, b: Rect) =>
+      !(a.right < b.left || a.left > b.right ||
+        a.bottom < b.top || a.top > b.bottom);
     const drugs = [
       ...document.querySelectorAll("svg.timeline-figure g.drug"),
     ];
     const markers = drugs.map((drug) =>
       drug.querySelector("circle.marker")!.getBoundingClientRect()
     );
-    const drugLabels = drugs.map((drug) => ({
-      name: drug.getAttribute("data-drug") ?? "?",
-      rect: drug.querySelector("rect.label-bg")!.getBoundingClientRect(),
-    }));
-    const popLabels = [
-      ...document.querySelectorAll("svg.timeline-figure g.pop-label"),
-    ].map((pop) => ({
-      name: `pop-${pop.getAttribute("data-pop")}`,
-      rect: pop.querySelector("rect.label-bg")!.getBoundingClientRect(),
-    }));
-    for (const label of [...drugLabels, ...popLabels]) {
+    const labels = [
+      ...drugs.map((drug) => ({
+        name: `${drug.getAttribute("data-drug")} [${
+          drug.getAttribute("data-pop")
+        }/${drug.getAttribute("data-phase")}]`,
+        rect: drug.querySelector("rect.label-bg")!.getBoundingClientRect(),
+      })),
+      ...[
+        ...document.querySelectorAll("svg.timeline-figure g.pop-label"),
+      ].map((pop) => ({
+        name: `pop-${pop.getAttribute("data-pop")}`,
+        rect: pop.querySelector("rect.label-bg")!.getBoundingClientRect(),
+      })),
+      ...[
+        ...document.querySelectorAll("svg.timeline-figure g.phase-label"),
+      ].map((phase) => ({
+        name: `phase-${phase.getAttribute("data-phase")}`,
+        rect: phase.querySelector("rect.label-bg")!.getBoundingClientRect(),
+      })),
+    ];
+    for (const label of labels) {
       for (let j = 0; j < markers.length; j++) {
-        const marker = markers[j];
-        const apart = marker.right < label.rect.left ||
-          marker.left > label.rect.right ||
-          marker.bottom < label.rect.top || marker.top > label.rect.bottom;
-        if (apart) continue;
+        if (!meet(label.rect, markers[j])) continue;
         touching.push(
           `${label.name} on ${drugs[j].getAttribute("data-drug")}`,
         );
       }
     }
+    // Named, not counted: if another machine's metrics leave a pair
+    // touching, the fix is a wider search in lib/timeline.ts, and that needs
+    // to know which cell failed rather than only how many did.
+    const colliding: string[] = [];
+    for (let i = 0; i < labels.length; i++) {
+      for (let j = i + 1; j < labels.length; j++) {
+        if (!meet(labels[i].rect, labels[j].rect)) continue;
+        colliding.push(`${labels[i].name} on ${labels[j].name}`);
+      }
+    }
+    // Two boxes built to overlap, run through the same test: `colliding` is
+    // pinned at zero, and this is what proves it could have been anything
+    // else.
+    const control = meet(
+      { left: 0, right: 10, top: 0, bottom: 10 },
+      { left: 5, right: 15, top: 5, bottom: 15 },
+    );
 
     // A population label may lie on no rim band -- least of all its own,
     // which sits POPULATION_LABEL_OFFSET units inside it and is the element
@@ -136,8 +166,21 @@ export function sweepLabelFit(page: Page) {
       }
     }
 
-    return { misfit, clipped, touching, onBand, boxes };
+    return { misfit, clipped, touching, colliding, onBand, boxes, control };
   });
+}
+
+/** What `sweepLabelFit` returns for a clean plate of `boxes` labels. */
+export function cleanSweep(boxes: number) {
+  return {
+    misfit: [],
+    clipped: [],
+    touching: [],
+    colliding: [],
+    onBand: [],
+    boxes,
+    control: true,
+  };
 }
 
 /** The layout the island chose: `data-mode` on `.timeline-layout`. */
