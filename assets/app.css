@@ -1803,6 +1803,14 @@ svg {
   white-space: nowrap;
 }
 
+/* The trait column's minimum would otherwise be its longest chip, and the
+   table sits in its "even the minimums don't fit" mode (see F17 below), so a
+   compound trait stacked one acronym per line. The floor lets a trait naming
+   six acronyms wrap over two or three lines. */
+.data-table td.col-gwasTrait {
+  min-width: 11rem;
+}
+
 .table-scroll {
   overflow-x: auto;
   /* Establishes the containing block for absolutely positioned descendants
@@ -3606,6 +3614,18 @@ button.adapt-card-head:focus-visible {
 
 .tooltip-box-italic {
   font-style: italic;
+}
+
+/* An acronym inside running text (components/AcronymText.tsx and the study
+   type in components/OmicsEntryView.tsx): half the chip's side padding, so a
+   list of them reads "AB, CD" rather than "AB , CD". `.acronym-glue` holds
+   the punctuation around a chip on its line. */
+.acronym-text .tooltip-box {
+  padding-inline: var(--svd-space-1);
+}
+
+.acronym-glue {
+  white-space: nowrap;
 }
 
 /* === TOOLTIP POPOVER === */

@@ -4,10 +4,12 @@ import {
   acronymTooltip,
   CLARIFICATION_MARK,
   clarificationTooltip,
+  glossaryGaps,
   splitAcronyms,
   uncoveredAcronyms,
 } from "../lib/acronyms.ts";
 import { ACRONYMS, resolveAcronyms } from "../lib/disease/acronyms.ts";
+import { sampleGene } from "./fixtures/rows.ts";
 
 const GENERIC = { AB: { name: "Alpha Beta", kind: "k1" } };
 
@@ -97,6 +99,53 @@ Deno.test("uncoveredAcronyms reports acronym-like tokens the glossary lacks", ()
     ["ZZ9", "ZZ-based"],
   );
   assertEquals(uncoveredAcronyms("AB here", new Map()), ["AB"]);
+});
+
+Deno.test("glossaryGaps enforces traits and study types on every row, and only reports a run's own words", () => {
+  const rows = [
+    sampleGene({
+      gene: "G1",
+      sourceQuote: "(not yet extracted)",
+      gwasTrait: ["AB and ZZ1"],
+      evidenceFromOtherOmicsStudies: ["QQ8;QQ7: x"],
+    }),
+    sampleGene({
+      gene: "G2",
+      sourceQuote: "A sentence.",
+      gwasTrait: ["ZZ2"],
+      evidenceFromOtherOmicsStudies: ["QQ6;QQ9: G2 tissue*, YY7[?] x, ZZ5"],
+    }),
+  ];
+  const glossary = new Map([...G, ["TWAS", { name: "T", kind: "k" }]]);
+  assertEquals(glossaryGaps(rows, glossary), {
+    enforced: ["G1: ZZ1", "G1: QQ8", "G1: QQ7", "G2: ZZ2", "G2: QQ6"],
+    reported: ["G2: QQ9", "G2: ZZ5"],
+  });
+});
+
+Deno.test("a gene symbol in any case, or leading a hyphenated word, is no gap", () => {
+  const row = sampleGene({
+    gene: "QFX9",
+    sourceQuote: "A sentence.",
+    evidenceFromOtherOmicsStudies: [
+      "TWAS;Q: Qfx9 deletion, Qfx9-deficient mice, ZZ4",
+      "TWAS;Qfx9 knockdown",
+    ],
+  });
+  assertEquals(glossaryGaps([row]), { enforced: [], reported: ["QFX9: ZZ4"] });
+});
+
+Deno.test("uncoveredAcronyms takes a protein variant for no acronym", () => {
+  assertEquals(uncoveredAcronyms("R187W and p.G755R, Q12X, ZZ4", G), ["ZZ4"]);
+});
+
+Deno.test("glossaryGaps reads the resolved glossary by default", () => {
+  // TWAS is generic, so this holds on any disease's manifest and on empty data.
+  const row = sampleGene({
+    sourceQuote: "A sentence.",
+    evidenceFromOtherOmicsStudies: ["TWAS;QQ9: x"],
+  });
+  assertEquals(glossaryGaps([row]), { enforced: [], reported: ["GENE1: QQ9"] });
 });
 
 Deno.test("the defaults read the resolved glossary, generic terms included", () => {

@@ -107,14 +107,10 @@ function asText(
 interface TooltippedValuesProps {
   values: readonly string[];
   tooltipFor?: (value: string) => TooltipContent | null;
-  /** How each value renders as the trigger text; the raw value by default. */
-  format?: (value: string) => string;
 }
 
 /** Comma-separated values that each carry their own optional tooltip. */
-function TooltippedValues(
-  { values, tooltipFor, format }: TooltippedValuesProps,
-) {
+function TooltippedValues({ values, tooltipFor }: TooltippedValuesProps) {
   return (
     <>
       {values.map((value, index) => (
@@ -124,7 +120,7 @@ function TooltippedValues(
             ? <Absent />
             : (
               <Tooltip content={tooltipFor?.(value) ?? null}>
-                {format ? format(value) : value}
+                {value}
               </Tooltip>
             )}
         </span>
@@ -136,17 +132,28 @@ function TooltippedValues(
 /**
  * The GWAS trait cell: every acronym in a trait is its own tooltip, so
  * a compound trait naming six acronyms is seven tooltips, and the absent sentinel
- * renders as `<Absent />`.
+ * renders as `<Absent />`. Each comma goes inside the value it follows, so
+ * a wrapped line never starts with one.
  */
 function TraitValues({ values }: { values: readonly string[] }) {
   return (
     <>
-      {values.map((value, index) => (
-        <span key={`${value}-${index}`}>
-          {index > 0 && ", "}
-          {isAbsent(value) ? <Absent /> : <AcronymText text={value} />}
-        </span>
-      ))}
+      {values.map((value, index) => {
+        const comma = index < values.length - 1 ? "," : "";
+        return (
+          <span key={`${value}-${index}`}>
+            {index > 0 && " "}
+            {isAbsent(value)
+              ? (
+                <>
+                  <Absent />
+                  {comma}
+                </>
+              )
+              : <AcronymText text={value + comma} />}
+          </span>
+        );
+      })}
     </>
   );
 }
@@ -403,10 +410,13 @@ const COLUMNS = column.columns([
       id: "evidenceFromOtherOmicsStudies",
       header: "Evidence From Other Omics Studies",
       cell: ({ row }) =>
-        row.original.evidenceFromOtherOmicsStudies.map((value, index) => (
+        row.original.evidenceFromOtherOmicsStudies.map((value, index, all) => (
           <span key={`${value}-${index}`}>
-            {index > 0 && ", "}
-            <OmicsEntryView value={value} />
+            {index > 0 && " "}
+            <OmicsEntryView
+              value={value}
+              suffix={index < all.length - 1 ? "," : ""}
+            />
           </span>
         )),
     },

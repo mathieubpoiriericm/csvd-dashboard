@@ -138,11 +138,14 @@ const PAGE_SIZES = [10, 25, 50, 100];
 
 /**
  * New rows drawn in the frame that answers an interaction; the rest of the
- * page follows once that frame has painted (lib/row_batches.ts). Twenty-five
- * fill the scrollport at every tested viewport: its height is capped near the
- * viewport's and the shortest /genes row is 59px.
+ * page follows once that frame has painted (lib/row_batches.ts). Twenty
+ * still fill the scrollport at every tested viewport: its height is capped
+ * near the viewport's and the shortest /genes row is 59px. It was 25 until
+ * every trait and omics acronym became a tooltip of its own (about 490 on
+ * /genes), which took the page-size change from a 120 ms event to 144 ms at
+ * 4x throttling; 20 measures 120 ms again.
  */
-const FIRST_BATCH = 25;
+const FIRST_BATCH = 20;
 
 /**
  * How long the table waits after the last keystroke before it re-filters.

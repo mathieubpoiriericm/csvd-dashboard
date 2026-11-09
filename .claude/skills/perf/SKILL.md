@@ -23,7 +23,11 @@ captures are the `tracy` skill. A missing binary fails the run's preflight, and
 so does a failed conversion;
 `node e2e/perf/run.mjs --no-trace` records the in-page metrics alone. Each run
 writes its numbers to a timestamped directory under `e2e/perf/artifacts/`,
-gitignored too. **Read INP, not blocking time, for the interaction scenarios** —
+gitignored too. A scenario that `needs` an element the page does not render is
+reported as skipped, with the reason, rather than failed on a timeout: while
+`GOLD_ONLY` is on the About page has no run widget, so `about/toggle-step` and
+`about/drawer` (lifecycle included) skip and the run still exits 0.
+**Read INP, not blocking time, for the interaction scenarios** —
 the `longtask` API only reports tasks over 50 ms, so blocking time ignores
 everything below that and rises when the same work consolidates into fewer,
 longer tasks.

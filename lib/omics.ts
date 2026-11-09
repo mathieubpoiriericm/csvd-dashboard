@@ -43,19 +43,32 @@ function splitTopLevel(text: string, separator: string): string[] {
   return parts;
 }
 
+/**
+ * Written straight after a term the curators have yet to confirm (`XX[?]`),
+ * or alone where a part is missing (`TWAS;[?]: tissue`). The cell prints it
+ * as a boxed `?` (components/AcronymText.tsx); every text-only surface --
+ * the search key, a tooltip's row, the phenogram panel, the run drawer --
+ * prints a bare `?` through `printed`.
+ */
+export const CLARIFICATION_MARK = "[?]";
+
+/** Stored text as a text-only surface prints it. */
+export function printed(text: string): string {
+  return text.replaceAll(CLARIFICATION_MARK, "?");
+}
+
+const unstarred = (text: string) => text.replaceAll("*", "").trim();
+
 function item(raw: string): OmicsItem {
-  return {
-    text: raw.replaceAll("*", "").trim(),
-    colocalized: raw.includes("*"),
-  };
+  return { text: unstarred(raw), colocalized: raw.includes("*") };
 }
 
 export function parseOmicsEntry(value: string): OmicsEntry {
   const semicolon = value.indexOf(";");
-  const type = (semicolon === -1 ? value : value.slice(0, semicolon)).trim();
+  const type = unstarred(semicolon === -1 ? value : value.slice(0, semicolon));
   const detail = semicolon === -1 ? "" : value.slice(semicolon + 1).trim();
   const [head, ...rest] = splitTopLevel(detail, ":");
-  const biomarker = rest.length > 0 ? head.trim() || null : null;
+  const biomarker = rest.length > 0 ? unstarred(head) || null : null;
   const listed = rest.length > 0 ? rest.join(":") : head;
   const items = splitTopLevel(listed, ",")
     .map(item)
@@ -63,18 +76,23 @@ export function parseOmicsEntry(value: string): OmicsEntry {
   return { type, biomarker, items };
 }
 
-/** The entry as the cell prints it, without a single `*`. */
+/** The entry as a text-only surface prints it: no `*`, and `?` for `[?]`. */
 export function formatOmicsEntry(entry: OmicsEntry): string {
   const items = entry.items.map((entry) => entry.text).join(", ");
   const detail = entry.biomarker
     ? items ? `${entry.biomarker}: ${items}` : entry.biomarker
     : items;
-  return detail ? `${entry.type} (${detail})` : entry.type;
+  return printed(detail ? `${entry.type} (${detail})` : entry.type);
 }
 
 /** The items that colocalized significantly, as printed. */
 export function colocalizedItems(entry: OmicsEntry): string[] {
   return entry.items.filter((item) => item.colocalized).map((item) =>
-    item.text
+    printed(item.text)
   );
+}
+
+/** An item's printed text when it colocalized significantly, else undefined. */
+export function colocalizedText(item: OmicsItem): string | undefined {
+  return item.colocalized ? printed(item.text) : undefined;
 }

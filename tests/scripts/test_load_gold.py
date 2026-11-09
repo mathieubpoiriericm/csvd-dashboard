@@ -26,6 +26,7 @@ from scripts.restore_from_json import export_gene
 from pipeline.disease import VOCABULARY_PATH
 from pipeline.export.main import _is_curated_trial, _is_running_trial
 from pipeline.export.tables import clean_trial_row
+from pipeline.omics import OMICS_STUDY_TYPES
 
 _TRAIT_KEYS = [
     trait["key"]
@@ -211,6 +212,13 @@ def test_a_study_may_lead_with_any_published_type() -> None:
         "Fine-mapping;multi-ancestry",
         "TWAS;[?]: tissue one*, tissue two[?]",
     ]
+
+
+@pytest.mark.parametrize("kind", OMICS_STUDY_TYPES)
+def test_every_published_study_type_can_lead_a_study(kind: str) -> None:
+    """The loader's list is the export's own vocabulary, not a copy of it."""
+    gene = gene_from_gold(_gene_row(other_omics=f"{kind.lower()} TRAIT-A: x"), [])
+    assert export_gene(gene)["evidenceFromOtherOmicsStudies"] == [f"{kind};TRAIT-A: x"]
 
 
 def test_traits_split_on_commas_and_semicolons_outside_parentheses() -> None:

@@ -33,6 +33,7 @@ const KEYWORDS = new Set([
   "required",
   "properties",
   "additionalProperties",
+  "propertyNames",
 ]);
 /** Keywords that assert nothing about a value. */
 const ANNOTATIONS = new Set([
@@ -61,7 +62,8 @@ export function unhandledKeywords(schema: Schema): string[] {
       } else if (keyword === "oneOf") {
         for (const child of value as Schema[]) walk(child);
       } else if (
-        (keyword === "items" || keyword === "additionalProperties") &&
+        (keyword === "items" || keyword === "additionalProperties" ||
+          keyword === "propertyNames") &&
         typeof value === "object" && value !== null
       ) {
         walk(value as Schema);
@@ -185,7 +187,11 @@ export function schemaErrors(
         errors.push(`${path}.${key}: required, missing`);
       }
     }
+    const names = node.propertyNames as Schema | undefined;
     for (const [key, entry] of Object.entries(record)) {
+      if (names) {
+        errors.push(...schemaErrors(names, key, root, `${path} key '${key}'`));
+      }
       const child = Object.hasOwn(properties, key)
         ? properties[key]
         : typeof extra === "object" && extra !== null

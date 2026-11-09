@@ -402,6 +402,29 @@ Deno.test("an acronym's name is optional and its kind is trimmed", () => {
   });
 });
 
+Deno.test("a blank acronym key is refused by the schema and the normalizer", async () => {
+  const raw = {
+    ...structuredClone(manifestJson),
+    acronyms: { " ": { name: "Blank", kind: "k" } },
+  };
+  assertThrows(() => normalizeManifest(raw), Error, "blank acronym key");
+  const schema = await readDiseaseJson("manifest.schema.json");
+  assert(schemaErrors(schema, raw, schema, "manifest.json").length > 0);
+});
+
+Deno.test("two acronym keys that trim to one are refused", () => {
+  // Otherwise the later entry silently replaces the earlier one.
+  const raw = {
+    ...structuredClone(manifestJson),
+    acronyms: { AB: { kind: "k1" }, "AB ": { kind: "k2" } },
+  };
+  assertThrows(
+    () => normalizeManifest(raw),
+    Error,
+    "duplicate acronym key 'AB'",
+  );
+});
+
 Deno.test("an acronym with no kind is refused", () => {
   const raw = { ...structuredClone(manifestJson), acronyms: { AB: {} } };
   assertThrows(

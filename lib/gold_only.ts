@@ -36,8 +36,9 @@
  * The rows the dump brings back predate the 2026-11-08 omics review, so their
  * omics evidence is in the old wording (`TWAS;nerve tibial*`, `YFS blood`)
  * and some of its acronyms have no glossary entry. The display still reads
- * it, but `tests/acronym_coverage_test.ts` will name each such acronym until
- * the glossary or the rows catch up.
+ * it, but `tests/acronym_coverage_test.ts` will fail on each such acronym in
+ * a curated row, a trait or a study type, and warn on one in a run's own
+ * words, until the glossary or the rows catch up.
  */
 
 /** Whether the dashboard shows only the hand-curated data. */

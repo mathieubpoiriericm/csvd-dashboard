@@ -40,13 +40,21 @@ _V8_OMICS_GUIDANCE = (
     'transcription" ("Experimental" for functional or animal-model work); '
     "biomarker, the phenotype the study tested, using the canonical trait "
     "abbreviations above where one applies; items, each tissue, cell type or "
-    "reference dataset the gene was significant in, written as the paper names "
-    'it (a reference dataset as "<dataset>: <tissue>", e.g. "YFS: blood"), with '
-    "colocalized set to true only when the paper reports significant "
-    "colocalization for that tissue, and as a last item any other evidence the "
-    'study adds (e.g. "RNA-Seq"). Colocalization, MAGMA, MTAG and PRS are not '
-    "study types: colocalization is the per-item flag, and the others belong to "
-    "the GWAS evidence."
+    "reference dataset the gene was significant in, named as specifically as "
+    'the paper names it (a reference dataset as "<dataset>: <tissue>", e.g. '
+    '"YFS: blood"), with colocalized set to true only when the paper reports '
+    "significant colocalization for that named tissue, and as a last item any "
+    'other evidence the study adds, in a few words (e.g. "RNA-Seq"). Each item '
+    "is a name, never a sentence: methods and effect sizes belong in "
+    "causal_evidence_summary. For Experimental, the items are instead each "
+    'model or intervention, in a few words (e.g. "Trim47-deficient mice"). '
+    "When the paper names no specific tissue -- only "
+    '"multiple tissues", or the reference panels it used -- give no items '
+    "rather than a summary. SMR on expression QTLs is a TWAS and on protein "
+    "QTLs a Proteogenomic MR; list a tissue for it only where the result was "
+    "significant and passed the HEIDI test. Colocalization, MAGMA, MTAG and "
+    "PRS are not study types: colocalization is the per-item flag, and the "
+    "others belong to the GWAS evidence."
 )
 
 # Each (v6/v7 text, v8 text) pair occurs exactly once in the v6 fixture.
@@ -64,6 +72,12 @@ _V8_CHANGES = (
         'omics_evidence=[{"study_type": "TWAS", "biomarker": "WMH"}]',
     ),
     (', omics_evidence=["MTAG"], confidence=0.60', ", confidence=0.60"),
+    (
+        'gene_symbol="FOXF2", gwas_trait=["SVS", "WMH"], confidence=0.9',
+        'gene_symbol="FOXF2", gwas_trait=["SVS", "WMH"], omics_evidence=[{'
+        '"study_type": "Experimental", "items": [{"text": "endothelial Foxf2 '
+        'deletion in mice"}, {"text": "Tie2 agonist rescue"}]}], confidence=0.9',
+    ),
     (
         "as transcriptome-wide significant (p = 2.8e-6) with colocalization",
         "as transcriptome-wide significant in brain cortex (p = 2.8e-6) with "

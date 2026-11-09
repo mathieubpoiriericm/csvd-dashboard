@@ -67,9 +67,10 @@ export function rows(page: Page): Locator {
 
 /**
  * Waits until the table has drawn its whole page. A page of many new rows
- * draws the rows already on screen and 25 new ones in its first frame, and the
- * rest once that frame has painted (lib/row_batches.ts), with the table
- * aria-busy in between, so a check that reads every row waits here first.
+ * draws the rows already on screen and 20 new ones (`FIRST_BATCH` in
+ * components/TableShell.tsx) in its first frame, and the rest once that frame
+ * has painted (lib/row_batches.ts), with the table aria-busy in between, so a
+ * check that reads every row waits here first.
  */
 export async function wholePage(page: Page) {
   await expect(page.locator("table.data-table")).not.toHaveAttribute(

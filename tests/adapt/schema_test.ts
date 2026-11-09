@@ -164,6 +164,18 @@ Deno.test("an own key named like an object property is checked as any other", ()
   ]);
 });
 
+Deno.test("propertyNames checks every key of an object", () => {
+  const named: Schema = {
+    type: "object",
+    propertyNames: { pattern: "\\S" },
+    additionalProperties: { type: "string" },
+  };
+  assertEquals(schemaErrors(named, { a: "x", " ": "y" }, named, "doc"), [
+    "doc key ' ': does not match \\S",
+  ]);
+  assertEquals(unhandledKeywords(named), []);
+});
+
 Deno.test("a keyword it does not handle, or a $ref it cannot resolve, throws", () => {
   const unknown: Schema = { type: "string", format: "email" };
   assertThrows(() => schemaErrors(unknown, "a", unknown, "doc"));

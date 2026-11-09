@@ -1,25 +1,23 @@
 import { assertEquals } from "@std/assert";
 
-import { uncoveredAcronyms } from "../lib/acronyms.ts";
+import { glossaryGaps } from "../lib/acronyms.ts";
 import { genes } from "../lib/data/genes.ts";
-import { formatOmicsValue } from "../lib/filters.ts";
-import { isAbsent } from "../lib/sentinels.ts";
 
 // Derived from whatever rows are committed, so it holds for any disease and
-// passes trivially on `deno task data:empty`. A gene symbol written in prose
-// is no acronym, and the public glossary must never hold one; a term marked
-// `[?]` awaits the curators, so the glossary cannot know it yet.
-Deno.test("every acronym in the trait and omics columns has a glossary entry", () => {
-  const symbols = new Set(genes.map((gene) => gene.gene));
-  const missing = genes.flatMap((gene) =>
-    [
-      ...gene.gwasTrait,
-      ...gene.evidenceFromOtherOmicsStudies.map(formatOmicsValue),
-    ]
-      .filter((value) => !isAbsent(value))
-      .flatMap((value) => uncoveredAcronyms(value))
-      .filter((token) => !symbols.has(token))
-      .map((token) => `${gene.gene}: ${token}`)
-  );
-  assertEquals(missing, []);
+// passes trivially on `deno task data:empty`. The traits and study types
+// come from closed vocabularies and a curated row's wording was reviewed, so
+// a gap in any of them is a manifest bug and fails here. A biomarker or item
+// a pipeline run wrote is the model's own words, which name methods the
+// glossary has not met yet: that is a reason to grow the glossary, not to
+// hold a deploy back, so those gaps are a GitHub warning on the run instead.
+Deno.test("every acronym in the trait and omics columns a run cannot coin has a glossary entry", () => {
+  const { enforced, reported } = glossaryGaps(genes);
+  if (reported.length > 0) {
+    // A workflow command: GitHub shows it as an annotation on the CI run,
+    // which a passing test's console output never reaches.
+    console.log(
+      `::warning title=Acronyms with no glossary entry::${reported.join("; ")}`,
+    );
+  }
+  assertEquals(enforced, []);
 });

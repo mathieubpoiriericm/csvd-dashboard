@@ -326,12 +326,12 @@ test("chromosomal location sorts by chromosome number", async ({ page }) => {
 });
 
 // The frame that answers a page-size change carries the rows already drawn and
-// at most 25 new ones (lib/row_batches.ts); the rest follow once it has
+// at most 20 new ones (lib/row_batches.ts); the rest follow once it has
 // painted, and the table is aria-busy until they do. At 4x CPU throttling this
-// took the change from a 184 ms event to 64 ms.
+// took the change from a 184 ms event to 64 ms (see .claude/rules/tables.md).
 test("a larger page draws its first rows first, then the rest", async ({ page }) => {
   const shown = Math.min(TOTAL, 100);
-  test.skip(shown <= 10 + 25, "too few rows to need a second batch");
+  test.skip(shown <= 10 + 20, "too few rows to need a second batch");
   await page.waitForSelector('.table-controls[data-hydrated="true"]');
   await page.evaluate(() => {
     const table = document.querySelector("table.data-table")!;
@@ -355,6 +355,6 @@ test("a larger page draws its first rows first, then the rest", async ({ page })
   const drawn = await page.evaluate(() =>
     (window as unknown as { drawn: unknown[] }).drawn
   );
-  expect(drawn[0]).toEqual({ rows: 10 + 25, busy: "true" });
+  expect(drawn[0]).toEqual({ rows: 10 + 20, busy: "true" });
   expect(drawn.at(-1)).toEqual({ rows: shown, busy: null });
 });

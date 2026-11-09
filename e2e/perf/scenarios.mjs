@@ -4,7 +4,28 @@ const ROWS = "table.data-table tbody tr";
 const ready = (selector) => (page) => page.waitForSelector(selector);
 const tableReady = ready('.table-controls[data-hydrated="true"]');
 const timelineReady = ready('.timeline-layout[data-hydrated="true"]');
-const aboutReady = ready('.pipeline-card[data-hydrated="true"]');
+// While GOLD_ONLY (lib/gold_only.ts) is on, the About page shows a notice in
+// place of the run widget, so the page is ready when either has arrived.
+const aboutReady = ready(
+  '.pipeline-card[data-hydrated="true"], .about-gold-notice',
+);
+/** What the run widget's interactions need, and why it can be missing. */
+const RUN_WIDGET = {
+  needs: ".pipeline-card",
+  missingBecause: "the About page shows no run while GOLD_ONLY is on",
+};
+
+/**
+ * Why `scenario` cannot run on the page as loaded, or null. A scenario that
+ * names an element it `needs` is skipped with this reason, rather than
+ * failing on a timeout, when the page renders none.
+ */
+export async function skipReason(page, scenario) {
+  if (!scenario.needs) return null;
+  return await page.locator(scenario.needs).count() === 0
+    ? `no ${scenario.needs}: ${scenario.missingBecause}`
+    : null;
+}
 const phenogramReady = ready('.phenogram-layout[data-hydrated="true"]');
 const mapReady = ready(".leaflet-container .leaflet-marker-icon");
 
@@ -301,7 +322,7 @@ export const INTERACTION_SCENARIOS = [
     const button = page.locator(".pipeline-step-head:not([disabled])").first();
     await button.click();
     await expect(button).toHaveAttribute("aria-expanded", "true");
-  }),
+  }, RUN_WIDGET),
   interaction("about/drawer", aboutReady, async (page) => {
     await page.getByRole("button", {
       name: "View everything this run recorded",
@@ -312,7 +333,7 @@ export const INTERACTION_SCENARIOS = [
       .toBeFocused();
     await page.keyboard.press("Escape");
     await expect(page.locator("#pipeline-run-drawer")).toBeHidden();
-  }),
+  }, RUN_WIDGET),
   interaction("map/zoom", mapReady, async (page) => {
     const before = await page.locator(".leaflet-marker-icon").first()
       .getAttribute("style");
