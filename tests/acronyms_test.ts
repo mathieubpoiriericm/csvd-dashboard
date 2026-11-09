@@ -4,10 +4,12 @@ import {
   acronymTooltip,
   CLARIFICATION_MARK,
   clarificationTooltip,
+  glossaryGaps,
   splitAcronyms,
   uncoveredAcronyms,
 } from "../lib/acronyms.ts";
 import { ACRONYMS, resolveAcronyms } from "../lib/disease/acronyms.ts";
+import { sampleGene } from "./fixtures/rows.ts";
 
 const GENERIC = { AB: { name: "Alpha Beta", kind: "k1" } };
 
@@ -97,6 +99,26 @@ Deno.test("uncoveredAcronyms reports acronym-like tokens the glossary lacks", ()
     ["ZZ9", "ZZ-based"],
   );
   assertEquals(uncoveredAcronyms("AB here", new Map()), ["AB"]);
+});
+
+Deno.test("glossaryGaps holds curated rows to the glossary and only reports extracted ones", () => {
+  const rows = [
+    sampleGene({
+      gene: "G1",
+      sourceQuote: "(not yet extracted)",
+      gwasTrait: ["AB and ZZ1"],
+    }),
+    sampleGene({
+      gene: "G2",
+      sourceQuote: "A sentence.",
+      evidenceFromOtherOmicsStudies: ["TWAS;QQ9: G2 tissue*, YY7[?] x"],
+    }),
+  ];
+  const glossary = new Map([...G, ["TWAS", { name: "T", kind: "k" }]]);
+  assertEquals(glossaryGaps(rows, glossary), {
+    curated: ["G1: ZZ1"],
+    extracted: ["G2: QQ9"],
+  });
 });
 
 Deno.test("the defaults read the resolved glossary, generic terms included", () => {

@@ -16,10 +16,46 @@
 
 import { ACRONYMS } from "./disease/acronyms.ts";
 import { CLARIFICATION_MARK } from "./omics.ts";
+import { isAbsent } from "./sentinels.ts";
 import type { TooltipContent, TooltipRow } from "./tooltip_content.ts";
-import type { Acronym } from "./types.ts";
+import type { Acronym, Gene } from "./types.ts";
 
 export { CLARIFICATION_MARK };
+
+/**
+ * The acronyms in the trait and omics columns no glossary entry covers, as
+ * `GENE: TOKEN`, split by who wrote the row.
+ *
+ * `curated` rows -- no extraction quote -- are the dataset as reviewed, and
+ * `tests/acronym_coverage_test.ts` holds them to an empty list. `extracted`
+ * rows are what a pipeline run wrote in the model's own words; their gaps
+ * are reported for the glossary to catch up with, and never block a deploy.
+ * A gene symbol written in prose is no acronym, and a term marked
+ * `CLARIFICATION_MARK` awaits the curators, so neither counts.
+ */
+export function glossaryGaps(
+  genes: readonly Gene[],
+  glossary: ReadonlyMap<string, Acronym> = ACRONYMS,
+): { curated: string[]; extracted: string[] } {
+  const symbols = new Set(genes.map((gene) => gene.gene));
+  const gaps = { curated: [] as string[], extracted: [] as string[] };
+  for (const gene of genes) {
+    const missing = [
+      ...gene.gwasTrait,
+      // The stored value, not the printed one: the mark is what exempts the
+      // term before it, and printing turns it into a bare `?`.
+      ...gene.evidenceFromOtherOmicsStudies.map((v) => v.replaceAll("*", "")),
+    ]
+      .filter((value) => !isAbsent(value))
+      .flatMap((value) => uncoveredAcronyms(value, glossary))
+      .filter((token) => !symbols.has(token));
+    const side = isAbsent(gene.sourceQuote) ? gaps.curated : gaps.extracted;
+    side.push(
+      ...[...new Set(missing)].map((token) => `${gene.gene}: ${token}`),
+    );
+  }
+  return gaps;
+}
 
 /** The tooltip row label that says a tissue colocalized significantly. */
 export const COLOCALIZATION_LABEL = "Significant colocalization";
