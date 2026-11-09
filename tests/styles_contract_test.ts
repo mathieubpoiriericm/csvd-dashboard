@@ -1575,6 +1575,14 @@ Deno.test("the neutral notice takes the accent, in both themes", () => {
   // The gold-only note informs; in the danger red it read as an alarm.
   const neutral = css.match(/\.notice-neutral\s*\{([^}]*)\}/)?.[1] ?? "";
   assertMatch(neutral, /--svd-notice-color:\s*var\(--svd-color-accent\);/);
+  // The shared 6% wash of the light accent rounds to white on the light
+  // surface, so the neutral notice names a pale steel of its own.
+  assertMatch(neutral, /background:\s*var\(--svd-notice-neutral-wash\);/);
+  assert(
+    tokenValue("--svd-notice-neutral-wash", "light") !==
+      tokenValue("--svd-surface", "light"),
+    "light: the neutral wash is the surface",
+  );
   for (const theme of ["light", "dark"] as const) {
     const stripe = tokenValue("--svd-color-accent", theme);
     assert(

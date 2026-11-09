@@ -270,10 +270,17 @@ export function AboutContent(
       header={
         <>
           <p class="notice notice-warning about-warning">
-            <strong>
-              This is a preview of a dashboard that is still a work in progress.
-            </strong>
+            This is a preview of a dashboard that is still a work in progress.
           </p>
+
+          {goldOnly && (
+            /* No run fed what the page shows, so neither account of one, nor
+              the refreshes, belongs on the page: the notice says so, under
+              the preview warning. */
+            <p class="notice notice-neutral about-gold-notice">
+              {GOLD_ONLY_NOTICE}
+            </p>
+          )}
 
           <div class="card about-hero">
             <div class="card-body">
@@ -329,15 +336,7 @@ export function AboutContent(
         </>
       }
     >
-      {goldOnly
-        ? (
-          /* No run fed what the page shows, so neither account of one, nor
-            the refreshes, belongs here: the notice stands in their place. */
-          <p class="notice notice-neutral about-gold-notice">
-            {GOLD_ONLY_NOTICE}
-          </p>
-        )
-        : <PipelineReports run={run} status={status} syncs={syncs} />}
+      {!goldOnly && <PipelineReports run={run} status={status} syncs={syncs} />}
 
       <div class="about-grid">
         <div class="card">

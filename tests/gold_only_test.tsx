@@ -8,6 +8,7 @@
  */
 
 import {
+  assert,
   assertEquals,
   assertNotMatch,
   assertStringIncludes,
@@ -63,6 +64,11 @@ Deno.test("gold-only About shows the notice and the curated date, and no run", (
   assertStringIncludes(html, GOLD_ONLY_NOTICE);
   // It informs, so it wears the neutral notice, not the warning's red.
   assertStringIncludes(html, 'class="notice notice-neutral about-gold-notice"');
+  // It sits directly under the preview warning, above the hero.
+  const warning = html.indexOf("about-warning");
+  const notice = html.indexOf("about-gold-notice");
+  assert(warning !== -1 && warning < notice, "the notice follows the warning");
+  assert(notice < html.indexOf("about-hero"), "the notice precedes the hero");
   assertStringIncludes(html, "Hand-curated data as of November 6, 2026");
   assertNotMatch(html, /Up to date as of/);
   assertNotMatch(html, /Last Pipeline Run/);

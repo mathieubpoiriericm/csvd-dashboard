@@ -148,6 +148,10 @@
   --svd-color-primary: var(--svd-steel-800);
   --svd-color-accent: var(--svd-steel-600);
   --svd-color-accent-text: var(--svd-steel-700);
+  /* The neutral notice's wash. The 6% mix every notice takes is visible on
+     the dark surface but rounds to white on the light one, so the light
+     theme names the pale steel outright. */
+  --svd-notice-neutral-wash: var(--svd-steel-100);
   --svd-color-ok: var(--svd-green-500);
   --svd-color-danger: var(--svd-red-600);
   --svd-color-danger-text: var(--svd-red-700);
@@ -530,6 +534,11 @@
     --svd-color-primary: var(--svd-steel-400);
     --svd-color-accent: var(--svd-steel-400);
     --svd-color-accent-text: var(--svd-steel-300);
+    --svd-notice-neutral-wash: color-mix(
+      in oklab,
+      var(--svd-steel-400) 6%,
+      var(--svd-steel-925)
+    );
     --svd-color-ok: var(--svd-green-400);
     --svd-color-danger: var(--svd-red-400);
     --svd-color-danger-text: var(--svd-red-300);
@@ -590,6 +599,11 @@
   --svd-color-primary: var(--svd-steel-400);
   --svd-color-accent: var(--svd-steel-400);
   --svd-color-accent-text: var(--svd-steel-300);
+  --svd-notice-neutral-wash: color-mix(
+    in oklab,
+    var(--svd-steel-400) 6%,
+    var(--svd-steel-925)
+  );
   --svd-color-ok: var(--svd-green-400);
   --svd-color-danger: var(--svd-red-400);
   --svd-color-danger-text: var(--svd-red-300);
@@ -2595,6 +2609,7 @@ svg {
    blocks override the accent, so the stripe follows the theme. */
 .notice-neutral {
   --svd-notice-color: var(--svd-color-accent);
+  background: var(--svd-notice-neutral-wash);
 }
 
 /* === ADAPT WIZARD === */
