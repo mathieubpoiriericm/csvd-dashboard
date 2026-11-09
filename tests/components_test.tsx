@@ -431,7 +431,7 @@ Deno.test("Tooltip renders plain children or a stable deferred popover shell", (
   assertStringIncludes(html, "tooltip-box-italic");
   assertStringIncludes(html, 'popovertargetaction="show"');
   assertStringIncludes(html, 'popover="auto"');
-  assertNotMatch(html, /tooltip-pop-scroll|<strong>Field|Open record/);
+  assertNotMatch(html, /tooltip-pop-body|<strong>Field|Open record/);
 
   const withoutLink = render(
     <Tooltip content={{ rows: [{ label: "Only", value: "Row" }] }}>

@@ -41,46 +41,66 @@ const OPPOSITE_SIDE = {
 const ARROW_ROTATION = { bottom: 45, left: 135, top: 225, right: 315 } as const;
 
 /**
- * Widens a panel too tall for the viewport until it fits, so its content is
- * never cut off behind a scrollbar. The CSS width cap is right for a short
- * panel; a long one (a gene's full omics list, a citation's abstract-length
- * title list) is better read a little wider than scrolled. Only when the
- * viewport is too narrow to widen into does the scrollport's own cap take
- * over, and that one draws no scrollbar (app.css).
+ * Makes a panel fit the viewport whole, so no content is ever cut off and the
+ * panel never needs to scroll. The CSS width cap is right for a short panel;
+ * a long one (a gene's full omics list, an alias key's member genes) is
+ * fitted in three steps, each only when the one before it was not enough:
  *
- * Reset on every pass: autoUpdate re-runs this on resize, and a panel widened
- * for a short window must narrow again when the window grows.
+ * 1. widen it, up to the viewport's width;
+ * 2. if its rows are short and simply many, so nothing wraps wider, set them
+ *    side by side in columns;
+ * 3. scale the body down with `zoom` until it fits -- a phone, or a window
+ *    too small for the content at any width.
+ *
+ * `zoom` goes on the body, not the panel: on the positioned panel it would
+ * scale the `left`/`top` Floating UI writes as well. Every step is reset
+ * first, because a panel fitted to a small window must grow back in a larger
+ * one; the caller skips the whole pass while the viewport keeps its size.
  */
 function fitToViewport(pop: HTMLElement): void {
   pop.style.maxWidth = "";
   pop.style.width = "";
-  const body = pop.querySelector<HTMLElement>(".tooltip-pop-scroll");
+  const body = pop.querySelector<HTMLElement>(".tooltip-pop-body");
   if (!body) return;
   body.style.columnCount = "";
+  body.style.zoom = "";
   const root = pop.ownerDocument.documentElement;
   const maxHeight = root.clientHeight - 2 * VIEWPORT_PADDING_PX;
   const maxWidth = root.clientWidth - 2 * VIEWPORT_PADDING_PX;
-  // `scrollHeight`, not the box: the scrollport's CSS cap would hide the
-  // very overflow this measures. Text reflows non-linearly, so a few rounds.
+  const measure = () => pop.getBoundingClientRect();
+
+  // Text reflows non-linearly, so a few rounds.
   for (let round = 0; round < 4; round++) {
-    const height = body.scrollHeight;
-    const width = pop.getBoundingClientRect().width;
-    if (height <= maxHeight || width >= maxWidth) return;
+    const { width, height } = measure();
+    if (height <= maxHeight || width >= maxWidth) break;
     const wider = Math.ceil((width * height / maxHeight) * 1.1);
     pop.style.maxWidth = `${Math.min(maxWidth, Math.max(wider, width + 40))}px`;
-    if (pop.getBoundingClientRect().width > width + 1) continue;
-    // Nothing wrapped wider: the rows are short and simply many (an alias
-    // key's member genes), so stack them side by side instead.
-    // A multicol box's max-content width is one column's, not the sum, so
-    // the panel is sized to hold every column outright.
+    if (measure().width > width + 1) continue;
+    // Nothing wrapped wider. A multicol box's max-content width is one
+    // column's, not the sum, so the panel is sized to hold every column.
     const gap = parseFloat(getComputedStyle(body).columnGap) || 0;
-    const columns = Math.ceil((height * 1.15) / maxHeight);
-    const total = Math.ceil(columns * width + (columns - 1) * gap);
-    if (columns < 2 || total > maxWidth) return;
-    body.style.columnCount = String(columns);
-    pop.style.maxWidth = `${total}px`;
-    pop.style.width = `${total}px`;
-    return;
+    const columns = Math.min(
+      Math.ceil((height * 1.15) / maxHeight),
+      Math.floor((maxWidth + gap) / (width + gap)),
+    );
+    if (columns >= 2) {
+      const total = Math.ceil(columns * width + (columns - 1) * gap);
+      body.style.columnCount = String(columns);
+      pop.style.maxWidth = `${total}px`;
+      pop.style.width = `${total}px`;
+    }
+    break;
+  }
+
+  // Wrapped text's height falls roughly with the square of the scale (fewer
+  // lines, each shorter), hence the square root; the cap on each step keeps
+  // a rounding miss from stalling the loop just above the fit.
+  let scale = 1;
+  for (let round = 0; round < 12; round++) {
+    const { height } = measure();
+    if (height <= maxHeight) return;
+    scale *= Math.min(0.98, Math.sqrt(maxHeight / height));
+    body.style.zoom = String(scale);
   }
 }
 
@@ -226,8 +246,17 @@ export function Tooltip({ content, italic, label, children }: TooltipProps) {
     const tip = pointer.current;
     if (!open || !button || !pop || !tip) return;
     let active = true;
+    // autoUpdate calls this on every scroll frame and on every resize of the
+    // panel, including the ones fitting it causes; only a new viewport size
+    // can change the fit, so only that re-runs it.
+    let fitted = "";
     const position = async () => {
-      fitToViewport(pop);
+      const root = pop.ownerDocument.documentElement;
+      const viewport = `${root.clientWidth}x${root.clientHeight}`;
+      if (viewport !== fitted) {
+        fitted = viewport;
+        fitToViewport(pop);
+      }
       const { x, y, placement, middlewareData } = await computePosition(
         button,
         pop,
@@ -243,9 +272,9 @@ export function Tooltip({ content, italic, label, children }: TooltipProps) {
               padding: VIEWPORT_PADDING_PX,
             }),
             // `crossAxis` lets a panel that fits on no side slide over its
-            // own trigger rather than run off the viewport's edge, which is
-            // what used to force the scrollbar: the panel was capped to the
-            // space on one side of the trigger, not to the viewport.
+            // own trigger rather than run off the viewport's edge. The panel
+            // used to be capped to the space on one side of the trigger, not
+            // to the viewport, and scrolled to show the rest.
             shift({ padding: VIEWPORT_PADDING_PX, crossAxis: true }),
             arrow({ element: tip }),
           ],
@@ -326,7 +355,7 @@ export function Tooltip({ content, italic, label, children }: TooltipProps) {
  */
 export function TooltipDetails({ content }: { content: TooltipContent }) {
   return (
-    <span class="tooltip-pop-scroll">
+    <span class="tooltip-pop-body">
       {content.rows.map((row, index) => (
         <span key={index} class="tooltip-row">
           <strong>{row.label}</strong> {row.value}
