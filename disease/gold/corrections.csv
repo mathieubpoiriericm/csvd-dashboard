@@ -47,22 +47,23 @@ ST1,references,32,7237768c,"31430377,32358547,33293549,33773637,35328582,3435830
 ST1,references,56,aa155b92,"41266628; 10.1038/s41591-023-02268-w,37231261,38868715,35084939,35165441,38987604,35158371,37824663,29443965,30129931","41266628; 37069360,37231261,38868715,35084939,35165441,38987604,35158371,37824663,29443965,30129931","DOI of a published paper cited elsewhere by its PMID: 10.1038/s41591-023-02268-w is PMID 37069360 (Duperron 2023, Nat Med)"
 ST1,other_omics,3,3f837909,TWAS AIS: Cross-tissue sCCA3*;,TWAS AIS: cross-tissue sCCA3*,"Omics format (2026-11-08 review): one entry shape, lower-case tissues, dataset: tissue"
 ST1,ngs_rare_deleterious_or_protective_variant,3,3f837909,"stroke, WMH (burden of rare variants)",stroke & WMH: burden of rare variants,"Omics format (2026-11-08 review): one entry shape, lower-case tissues, dataset: tissue"
-ST1,proteogenomics_mr,3,3f837909,HV-PVS,HV-PVS[?],"HV-PVS is no known trait: kept as written, marked for clarification (2026-11-08 review)"
+ST1,proteogenomics_mr,3,3f837909,HV-PVS,HIP-PVS,HV-PVS is a typo for HIP-PVS: PMID 41266628 places HTRA1's genetically predicted plasma level at extensive HIP-PVSs (2026-11-09 follow-up review)
 ST1,other_omics,5,d2c7159a,"TWAS PSMD: Brain anterior cingulate cortex BA24*, brain cerebellar hemisphere, brain cortex*, brain frontal cortex BA9*, (Age>65): cells cultured fibroblasts*, brain hippocampus
 PWAS PSMD: dPFC*
-TWAS WMH: CMC brain dlPFC qTTL, brain hippocampus*, brain cerebellum*, brain cerebellar hemisphere*, artery tibial","TWAS PSMD: brain anterior cingulate cortex BA24*, brain cerebellar hemisphere, brain cortex*, brain frontal cortex BA9*, (Age>65)[?]: cells cultured fibroblasts*, brain hippocampus
+TWAS WMH: CMC brain dlPFC qTTL, brain hippocampus*, brain cerebellum*, brain cerebellar hemisphere*, artery tibial","TWAS PSMD: brain anterior cingulate cortex BA24*, brain cerebellar hemisphere, brain cortex*, brain frontal cortex BA9*
+TWAS PSMD (Age>65): cells cultured fibroblasts*, brain hippocampus
 PWAS PSMD: dPFC*
-TWAS WMH: CMC: brain dlPFC qTTL[?], brain hippocampus*, brain cerebellum*, brain cerebellar hemisphere*, artery tibial","Omics format (2026-11-08 review): one entry shape, lower-case tissues, dataset: tissue; (Age>65) placement and qTTL kept as written, marked for clarification"
+TWAS WMH: CMC: brain dlPFC sQTL, brain hippocampus*, brain cerebellum*, brain cerebellar hemisphere*, artery tibial","Omics format (2026-11-08 review): one entry shape, lower-case tissues, dataset: tissue. (Age>65) names an age-stratified PSMD analysis, written as its own entry as CARF's is; qTTL is CMC's dlPFC splicing QTLs, the WMH TWAS of PMID 33293549 (2026-11-09 follow-up review)"
 ST1,ngs_rare_deleterious_or_protective_variant,6,802a254b,extreme-cSVD gene-based tests,extreme-cSVD: gene-based tests,"Omics format (2026-11-08 review): one entry shape, lower-case tissues, dataset: tissue"
 ST1,other_incl_experimental,7,625d5d33,"CRISPR, experimental",CRISPR,Omics format (2026-11-08 review): 'experimental' repeated the type
 ST1,other_omics,15,402f23da,"TWAS AS: Cross-tissue sCCA3*
 Evidence for causal implication from ML-based functional prediction (MENTR); multiancestry fine-mapping","TWAS AS: cross-tissue sCCA3*
 Evidence for causal implication from ML-based functional prediction (MENTR)
 fine-mapping: multi-ancestry","Omics format (2026-11-08 review): one entry shape, lower-case tissues, dataset: tissue"
-ST1,other_omics,18,9463b1d4,"TWAS: Cells cultured fibroblasts, brain frontal cortex BA9*","TWAS [?]: cells cultured fibroblasts, brain frontal cortex BA9*","Omics format (2026-11-08 review): biomarker not stated in the source, marked for clarification"
+ST1,other_omics,18,9463b1d4,"TWAS: Cells cultured fibroblasts, brain frontal cortex BA9*","TWAS PSMD: cells cultured fibroblasts, brain frontal cortex BA9*","Omics format (2026-11-08 review); the biomarker is PSMD, the only phenotype of the diffusion-imaging preprint (doi 10.21203/rs.3.rs-5926137/v1) that is this gene's source (2026-11-09 follow-up review)"
 ST1,other_omics,19,e7dc3800,"TWAS WMH: nerve tibial, brain spinal cord cervical c1, brain hippocampus, brain caudate basal ganglia*, brain anterior cingulate cortex BA24*, heart left ventricle*, artery tibial, artery coronary*, artery aorta*, YFS blood*, CMC brain (RNA-Seq)","TWAS WMH: nerve tibial, brain spinal cord cervical C1, brain hippocampus, brain caudate basal ganglia*, brain anterior cingulate cortex BA24*, heart left ventricle*, artery tibial, artery coronary*, artery aorta*, YFS: blood*, CMC: brain (RNA-Seq)","Omics format (2026-11-08 review): one entry shape, lower-case tissues, dataset: tissue"
-ST1,other_omics,20,5daa7b88,TWAS:nerve tibial*,TWAS [?]: nerve tibial*,"Omics format (2026-11-08 review): biomarker not stated in the source, marked for clarification"
-ST1,other_omics,22,aa37f2a8,"TWAS: Brain cerebellum*, brain frontal cortex BA9*","TWAS [?]: brain cerebellum*, brain frontal cortex BA9*","Omics format (2026-11-08 review): biomarker not stated in the source, marked for clarification"
+ST1,other_omics,20,5daa7b88,TWAS:nerve tibial*,TWAS WM-PVS: nerve tibial*,Omics format (2026-11-08 review); the biomarker is WM-PVS: PMID 37069360 names LRRC25 among its WM-PVS TWAS genes (2026-11-09 follow-up review)
+ST1,other_omics,22,aa37f2a8,"TWAS: Brain cerebellum*, brain frontal cortex BA9*","TWAS PSMD: brain cerebellum*, brain frontal cortex BA9*","Omics format (2026-11-08 review); the biomarker is PSMD, the only phenotype of the diffusion-imaging preprint (doi 10.21203/rs.3.rs-5926137/v1) that is this gene's source (2026-11-09 follow-up review)"
 ST1,other_incl_experimental,23,0ce9eb37,"arterial specific endothelial growth factor, indispensable for arterial flow recovery under pathological challenge, by maintaining endothelial function","mouse model: arterial endothelial function, arterial flow recovery",Omics format (2026-11-08 review): the sentence summarised from PMID 33902304
 ST1,other_omics,24,7d5322fa,"TWAS WMH: Heart atrial appendage*, Artery Tibial*","TWAS WMH: heart atrial appendage*, artery tibial*","Omics format (2026-11-08 review): one entry shape, lower-case tissues, dataset: tissue"
 ST1,other_omics,25,00402723,"TWAS multi-trait WMH & lacunar stroke: Aortic artery*, tibial artery*;
@@ -119,8 +120,9 @@ TWAS AS: artery tibial*, brain frontal cortex BA9*, brain dlPFC (RNA-Seq)*, cros
 TWAS AIS: artery tibial*, brain frontal cortex BA9, brain dlPFC (RNA-Seq)*, cross-tissue sCCA1
 TWAS SVS: brain frontal cortex BA9*, brain dlPFC (RNA-Seq)*
 TWAS BG-PVS: nerve tibial, brain frontal cortex BA9*, brain dlPFC (RNA-Seq)*, artery tibial
-TWAS PSMD: cells cultured fibroblasts*, (Age>65)[?] brain cortex*
-PWAS AS, AIS, PSMD, SVS & non-lobar ICH: dPFC*","Omics format (2026-11-08 review): one entry shape, lower-case tissues, dataset: tissue; the MTAG named as the GWAS Trait column names it; (Age>65) placement kept as written, marked for clarification"
+TWAS PSMD: cells cultured fibroblasts*
+TWAS PSMD (Age>65): brain cortex*
+PWAS AS, AIS, PSMD, SVS & non-lobar ICH: dPFC*","Omics format (2026-11-08 review): one entry shape, lower-case tissues, dataset: tissue; the MTAG named as the GWAS Trait column names it. (Age>65) names an age-stratified PSMD analysis, written as its own entry as CARF's is (2026-11-09 follow-up review)"
 ST1,other_omics,33,84f87dde,"TWAS WMH: Heart atrial appendage*, artery tibial*, CMC brain (RNA-Seq)
 TWAS FA: Artery tibial, CMC brain (RNA-Seq)
 TWAS lacunar stroke: CMC brain*

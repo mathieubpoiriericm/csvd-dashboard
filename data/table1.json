@@ -33,7 +33,7 @@
     "evidenceFromOtherOmicsStudies": [
       "TWAS;AIS: cross-tissue sCCA3*",
       "WES/WGS;stroke & WMH: burden of rare variants",
-      "Proteogenomic MR;HV-PVS[?]"
+      "Proteogenomic MR;HIP-PVS"
     ],
     "linkToMonogenicDisease": ["600142", "616779"],
     "brainCellTypes": "Mouse: AC>OL>FB; Human: MG > RBC >> OPC > OL",
@@ -102,9 +102,10 @@
     "gwasTrait": ["WMH", "extreme-cSVD", "PSMD"],
     "mendelianRandomization": "No",
     "evidenceFromOtherOmicsStudies": [
-      "TWAS;PSMD: brain anterior cingulate cortex BA24*, brain cerebellar hemisphere, brain cortex*, brain frontal cortex BA9*, (Age>65)[?]: cells cultured fibroblasts*, brain hippocampus",
+      "TWAS;PSMD: brain anterior cingulate cortex BA24*, brain cerebellar hemisphere, brain cortex*, brain frontal cortex BA9*",
+      "TWAS;PSMD (Age>65): cells cultured fibroblasts*, brain hippocampus",
       "PWAS;PSMD: dPFC*",
-      "TWAS;WMH: CMC: brain dlPFC qTTL[?], brain hippocampus*, brain cerebellum*, brain cerebellar hemisphere*, artery tibial"
+      "TWAS;WMH: CMC: brain dlPFC sQTL, brain hippocampus*, brain cerebellum*, brain cerebellar hemisphere*, artery tibial"
     ],
     "linkToMonogenicDisease": ["(none found)"],
     "brainCellTypes": "Mouse: EC>MG>SMC; Human: Arterial, SMC > Arteriolar, SMC >> AC >> Capillary, EC",
@@ -456,7 +457,7 @@
     "gwasTrait": ["PSMD"],
     "mendelianRandomization": "No",
     "evidenceFromOtherOmicsStudies": [
-      "TWAS;[?]: cells cultured fibroblasts, brain frontal cortex BA9*"
+      "TWAS;PSMD: cells cultured fibroblasts, brain frontal cortex BA9*"
     ],
     "linkToMonogenicDisease": ["(none found)"],
     "brainCellTypes": "Mouse: FB>EC; Human: Inner Arachnoid, FB >> Parenchymal, pvFB > Arachnoid Barrier, FB > Pial, FB",
@@ -514,7 +515,7 @@
     "chromosomalLocation": "19p13.11",
     "gwasTrait": ["WM-PVS"],
     "mendelianRandomization": "No",
-    "evidenceFromOtherOmicsStudies": ["TWAS;[?]: nerve tibial*"],
+    "evidenceFromOtherOmicsStudies": ["TWAS;WM-PVS: nerve tibial*"],
     "linkToMonogenicDisease": ["(none found)"],
     "brainCellTypes": "Mouse: all < 40; Human: Neut > Mono >> RBC > PVM",
     "affectedPathway": "integral to membrane",
@@ -568,7 +569,7 @@
     "gwasTrait": ["PSMD"],
     "mendelianRandomization": "No",
     "evidenceFromOtherOmicsStudies": [
-      "TWAS;[?]: brain cerebellum*, brain frontal cortex BA9*"
+      "TWAS;PSMD: brain cerebellum*, brain frontal cortex BA9*"
     ],
     "linkToMonogenicDisease": ["618999"],
     "brainCellTypes": "Mouse: FB>PC>SMC; Human: Transport, PC > Matrix, PC > Inner Arachnoid, FB > Parenchymal, pvFB",
@@ -885,7 +886,8 @@
       "TWAS;AIS: artery tibial*, brain frontal cortex BA9, brain dlPFC (RNA-Seq)*, cross-tissue sCCA1",
       "TWAS;SVS: brain frontal cortex BA9*, brain dlPFC (RNA-Seq)*",
       "TWAS;BG-PVS: nerve tibial, brain frontal cortex BA9*, brain dlPFC (RNA-Seq)*, artery tibial",
-      "TWAS;PSMD: cells cultured fibroblasts*, (Age>65)[?] brain cortex*",
+      "TWAS;PSMD: cells cultured fibroblasts*",
+      "TWAS;PSMD (Age>65): brain cortex*",
       "PWAS;AS, AIS, PSMD, SVS & non-lobar ICH: dPFC*"
     ],
     "linkToMonogenicDisease": ["(none found)"],
