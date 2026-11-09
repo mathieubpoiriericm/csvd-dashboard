@@ -6372,3 +6372,175 @@ details.pipeline-apis:not([open]) > ul {
   background: var(--svd-color-accent-text);
   border-color: var(--svd-color-accent-text);
 }
+
+/* === TIMELINE PHONE ===
+   Below the width at which the radar can be read, the island swaps the figure
+   for a small nameless radar and the trials listed under their phase. The
+   mini plate paints its own white rect, so it is a light sheet in both themes
+   like the full plate; its data colours are SVG attributes. The rows are
+   chrome and read semantic tokens; only the population pill carries a data
+   colour, inline, from the sector's band. */
+.timeline-mini {
+  display: flex;
+  flex-direction: column;
+  gap: var(--svd-space-3);
+}
+
+.timeline-mini-figure {
+  --svd-focus-color: var(--svd-figure-ink);
+  display: block;
+  width: 100%;
+  height: auto;
+  font-family: var(--svd-font);
+}
+
+.timeline-mini-figure .label-ink {
+  fill: var(--svd-figure-ink);
+}
+
+/* The active trial lifts as a hovered marker does on the full radar: through
+   `r`, scaled by the island's marker growth. */
+.timeline-mini .marker,
+.timeline-mini .evidence,
+.timeline-mini .gap {
+  transition: r var(--svd-duration-base) var(--svd-ease-out);
+}
+
+.timeline-mini .marker.active {
+  r: calc(12px * var(--radar-k, 1));
+}
+
+.timeline-mini .evidence.active {
+  r: calc(16px * var(--radar-k, 1));
+}
+
+.timeline-mini .gap.active {
+  r: calc(4.8px * var(--radar-k, 1));
+}
+
+.timeline-mini-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--svd-space-1) var(--svd-space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--svd-text-sm);
+  color: var(--svd-text);
+}
+
+.timeline-mini-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--svd-space-2);
+}
+
+.timeline-mini-swatch {
+  flex: none;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: var(--svd-radius-full);
+  box-shadow: 0 0 0 1px var(--svd-line);
+}
+
+.timeline-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--svd-space-4);
+}
+
+.timeline-list-group h2 {
+  margin: 0 0 var(--svd-space-1);
+  font-family: var(--svd-font-heading);
+  font-size: var(--svd-text-sm);
+  font-weight: var(--svd-weight-semibold);
+  letter-spacing: var(--svd-tracking-caps);
+  text-transform: uppercase;
+  color: var(--svd-text-muted);
+}
+
+.timeline-list-group ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--svd-line);
+}
+
+.timeline-list-group li {
+  border-bottom: 1px solid var(--svd-line);
+}
+
+.timeline-row {
+  display: flex;
+  align-items: center;
+  gap: var(--svd-space-3);
+  width: 100%;
+  min-height: 44px;
+  padding: var(--svd-space-2) var(--svd-space-1);
+  border: 0;
+  background: transparent;
+  color: var(--svd-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--svd-transition);
+}
+
+.timeline-row:hover,
+.timeline-row:focus-visible,
+.timeline-row[aria-expanded="true"] {
+  background: var(--svd-bg-hover-accent);
+}
+
+.timeline-row:focus-visible {
+  outline: var(--svd-focus-width) solid var(--svd-focus-color);
+  outline-offset: calc(var(--svd-focus-width) * -1);
+}
+
+.timeline-row-dot {
+  flex: none;
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+.timeline-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.timeline-row-drug {
+  font-weight: var(--svd-weight-medium);
+  overflow-wrap: anywhere;
+}
+
+.timeline-row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--svd-space-1) var(--svd-space-2);
+  font-size: var(--svd-text-sm);
+  color: var(--svd-text-muted);
+}
+
+.timeline-row-pill {
+  padding: 1px var(--svd-space-2);
+  border-radius: var(--svd-radius-full);
+  font-family: var(--svd-font-heading);
+  font-size: var(--svd-text-2xs);
+  font-weight: var(--svd-weight-medium);
+  color: var(--svd-on-figure);
+}
+
+.timeline-row-chevron {
+  flex: none;
+  display: inline-flex;
+  color: var(--svd-text-muted);
+}
+
+.timeline-list-empty {
+  margin: 0;
+  color: var(--svd-text-muted);
+}

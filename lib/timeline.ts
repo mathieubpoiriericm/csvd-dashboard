@@ -125,6 +125,30 @@ export const CANVAS = { width: 1072, height: 940 } as const;
 export const CENTER = { x: 536, y: 484 } as const;
 export const OUTER_RADIUS = 416;
 export const MARKER_RADIUS = 9;
+
+/* Design sizes of the radar's text and marks, in user units at plate scale 1.
+   The island divides the text by the plate's scale; the phone view's small
+   radar draws the same marks. */
+export const DRUG_FONT_SIZE = 12;
+export const POPULATION_FONT_SIZE = 14;
+export const POPULATION_SUBLINE_SIZE = 12;
+export const PHASE_FONT_SIZE = 11;
+/** Drawn radius; `MARKER_RADIUS` is the layout's spacing. */
+export const MARKER_DRAW_RADIUS = 8;
+export const MARKER_RING_WIDTH = 2;
+/** The genetic-evidence ring drawn around a marker. */
+export const EVIDENCE_RING_RADIUS = 12;
+export const EVIDENCE_RING_WIDTH = 1.5;
+/** The plate is white; marker rings, band separators and halos are cut from it. */
+export const PLATE = "#ffffff";
+export const BAND_SEPARATOR_WIDTH = 1.5;
+/**
+ * Radius of the plate-coloured hole punched in a flagged marker. It sits
+ * inside the marker's own disc, so it joins no collision pass and costs the
+ * label layout nothing.
+ */
+export const MARKER_GAP_RADIUS = encoding.recordFlag.gapRadius *
+  MARKER_DRAW_RADIUS;
 /** Gap between a marker's edge and the start of its label. */
 export const LABEL_GAP = 10;
 /** Alternate marker radii by this fraction of the ring thickness. */

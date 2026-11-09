@@ -27,18 +27,29 @@ import { resolveTrialStatus } from "../lib/trials.ts";
 import {
   type Anchor,
   anchorOffsetX,
+  BAND_SEPARATOR_WIDTH,
   type Box,
   CANVAS,
   CENTER,
   computeTimelineLayout,
+  DRUG_FONT_SIZE,
   encoding,
+  EVIDENCE_RING_RADIUS,
+  EVIDENCE_RING_WIDTH,
   LABEL_GAP,
   type LabelShift,
   type Marker,
+  MARKER_DRAW_RADIUS,
+  MARKER_GAP_RADIUS,
   MARKER_RADIUS,
+  MARKER_RING_WIDTH,
   type MovableBox,
+  PHASE_FONT_SIZE,
   placePopulationLabel,
+  PLATE,
   type Point,
+  POPULATION_FONT_SIZE,
+  POPULATION_SUBLINE_SIZE,
   type PopulationLabel,
   type PopulationShift,
   sameBoxes,
@@ -66,21 +77,8 @@ const populationTitle = (layout: Layout, key: string) =>
   layout.sectors.find((s) => s.key === key)?.label.join(" ") ?? key;
 
 const DRAWER_ID = "timeline-drawer";
-const DRUG_FONT_SIZE = 12;
-const POPULATION_FONT_SIZE = 14;
-const POPULATION_SUBLINE_SIZE = 12;
-const PHASE_FONT_SIZE = 11;
 const LINE_HEIGHT_EM = 1.2;
-/** Drawn radius; `MARKER_RADIUS` in lib/timeline.ts is the layout's spacing. */
-const MARKER_DRAW_RADIUS = 8;
-const MARKER_RING_WIDTH = 2;
-/** The genetic-evidence ring drawn around a marker. */
-const EVIDENCE_RING_RADIUS = 12;
-const EVIDENCE_RING_WIDTH = 1.5;
-/** The plate is white; marker rings, band separators and halos are cut from it. */
-const PLATE = "#ffffff";
 const HALO_WIDTH = 3.5;
-const BAND_SEPARATOR_WIDTH = 1.5;
 /** Radial push when a fitted drug label still touches its marker. */
 const NUDGE = 10;
 const MAX_NUDGE_PASSES = 3;
@@ -95,13 +93,6 @@ const TOOLTIP_CLOSE_DELAY_MS = 180;
 
 const DRUG_PADDING = { x: 3, y: 1 };
 const LABEL_PADDING = { x: 4, y: 2 };
-
-/**
- * Radius of the plate-coloured hole punched in a flagged marker. It sits
- * inside the marker's own disc, so it joins no collision pass and costs the
- * label layout nothing.
- */
-const MARKER_GAP_RADIUS = encoding.recordFlag.gapRadius * MARKER_DRAW_RADIUS;
 
 /** How the drawer's Genetic Evidence row reads, per resolved state. */
 const EVIDENCE_FIELD = new Map(
