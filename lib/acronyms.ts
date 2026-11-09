@@ -38,23 +38,30 @@ export function glossaryGaps(
   glossary: ReadonlyMap<string, Acronym> = ACRONYMS,
 ): { curated: string[]; extracted: string[] } {
   const symbols = new Set(genes.map((gene) => gene.gene));
-  const gaps = { curated: [] as string[], extracted: [] as string[] };
-  for (const gene of genes) {
-    const missing = [
-      ...gene.gwasTrait,
-      // The stored value, not the printed one: the mark is what exempts the
-      // term before it, and printing turns it into a bare `?`.
-      ...gene.evidenceFromOtherOmicsStudies.map((v) => v.replaceAll("*", "")),
-    ]
-      .filter((value) => !isAbsent(value))
-      .flatMap((value) => uncoveredAcronyms(value, glossary))
-      .filter((token) => !symbols.has(token));
-    const side = isAbsent(gene.sourceQuote) ? gaps.curated : gaps.extracted;
-    side.push(
-      ...[...new Set(missing)].map((token) => `${gene.gene}: ${token}`),
-    );
-  }
-  return gaps;
+  const gapsOf = (gene: Gene) =>
+    [
+      ...new Set(
+        [
+          ...gene.gwasTrait,
+          // The stored value, not the printed one: the mark is what exempts
+          // the term before it, and printing turns it into a bare `?`.
+          ...gene.evidenceFromOtherOmicsStudies.map((v) =>
+            v.replaceAll("*", "")
+          ),
+        ]
+          .filter((value) => !isAbsent(value))
+          .flatMap((value) => uncoveredAcronyms(value, glossary))
+          .filter((token) => !symbols.has(token)),
+      ),
+    ].map((token) => `${gene.gene}: ${token}`);
+  // Array methods rather than a loop: V8 counts a loop body as a branch of
+  // its own, which a run over no rows (`deno task data:empty`) leaves untaken.
+  return {
+    curated: genes.filter((gene) => isAbsent(gene.sourceQuote)).flatMap(gapsOf),
+    extracted: genes.filter((gene) => !isAbsent(gene.sourceQuote)).flatMap(
+      gapsOf,
+    ),
+  };
 }
 
 /** The tooltip row label that says a tissue colocalized significantly. */

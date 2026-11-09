@@ -121,6 +121,12 @@ Deno.test("glossaryGaps holds curated rows to the glossary and only reports extr
   });
 });
 
+Deno.test("glossaryGaps reads the resolved glossary by default", () => {
+  // TWAS is generic, so this holds on any disease's manifest and on empty data.
+  const row = sampleGene({ evidenceFromOtherOmicsStudies: ["TWAS;QQ9: x"] });
+  assertEquals(glossaryGaps([row]), { curated: [], extracted: ["GENE1: QQ9"] });
+});
+
 Deno.test("the defaults read the resolved glossary, generic terms included", () => {
   assertEquals(splitAcronyms("TWAS")[0], { text: "TWAS", acronym: true });
   assertEquals(acronymTooltip("TWAS")?.rows[0].label, "TWAS");
