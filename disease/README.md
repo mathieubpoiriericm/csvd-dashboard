@@ -128,12 +128,12 @@ trait and confidence, and `test_the_prompt_names_part_of_its_own_answer_key`
 pins that count so a prompt edit naming another gold gene fails instead of
 quietly inflating the figure.
 
-These figures are from the 2026-09-11 re-record, against fixtures refetched
-through the current Europe PMC parser. The recording before it measured two
-points lower (81% clean, 87% pooled) and the one before that the same as now:
-one paper gains or loses two genes the prompt never names from one recording to
-the next, with the model, prompt version and effort unchanged -- the
-nondeterminism the suite is built around rather than a regression to chase.
+The 2026-09-11 re-record, against fixtures refetched through the current Europe
+PMC parser, measured the same as the one before it on Opus 5; the recording
+before that measured two points lower (81% clean, 87% pooled): one paper gains
+or loses two genes the prompt never names from one recording to the next, with
+the model, prompt version and effort unchanged -- the nondeterminism the suite
+is built around rather than a regression to chase.
 
 Raw set-F1 measures about 0.40, for reasons that are mostly not extraction: 23%
 of gold gene-paper pairs name a gene that is not in the retrieved text at all,

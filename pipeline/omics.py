@@ -33,7 +33,7 @@ MENTR_LABEL: Final[str] = "mutation effect prediction on ncRNA transcription"
 
 # Every study type the dashboard publishes and can filter on, in the order of
 # `OMICS_CHOICES` in lib/constants.ts (tests/pipeline/export/test_tables.py
-# reconciles the two). The extraction's enum is this tuple, so the model
+# reconciles them as sets). The extraction's enum is this tuple, so the model
 # cannot name a study the export would drop.
 OMICS_STUDY_TYPES: Final[tuple[str, ...]] = (
     "EWAS",

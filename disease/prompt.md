@@ -1,6 +1,6 @@
 # Disease sections of the extraction prompt
 
-Rendered into the v7 template in `pipeline/prompts.py`. Each `## id` is one
+Rendered into the v8 template in `pipeline/prompts.py`. Each `## id` is one
 slot; the body is the text between headings with surrounding blank lines
 stripped. `disease.name` and `disease.abbreviation` come from manifest.json.
 tests/pipeline/test_prompt_assembly.py pins the cSVD rendering to the v6 bytes.
