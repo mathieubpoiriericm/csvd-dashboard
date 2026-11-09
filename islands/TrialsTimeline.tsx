@@ -882,6 +882,8 @@ export default function TrialsTimeline(
   const rowRefs = useRef<Array<HTMLButtonElement | null>>([]);
   /** The drawer's width beside the plate, kept for while it is stacked. */
   const besideDrawer = useRef(0);
+  /** The trial whose marker or row has keyboard focus, if one does. */
+  const focusedTrigger = useRef<number | null>(null);
   const nudgePasses = useRef(0);
   const measureRef = useRef<() => void>(() => {});
   const solvedGeometry = useRef<
@@ -1241,7 +1243,51 @@ export default function TrialsTimeline(
     setNudges(new Map());
     setShifts(new Map());
     setPopShifts(new Map());
+    // The marker or row that had focus went with the old branch, and focus
+    // fell to the body: hand it to the same trial in the new one, so a
+    // keyboard user who zooms across the switch keeps their place.
+    const index = focusedTrigger.current;
+    const lost = document.activeElement === null ||
+      document.activeElement === document.body;
+    if (index !== null && lost) {
+      (radar.mode === "phone" ? rowRefs.current : markerRefs.current)[index]
+        ?.focus();
+    }
   }, [radar.mode]);
+
+  // Which trial's marker or row has focus, kept through the moment a mode
+  // switch removes it. A blur from a node that is still in the page clears
+  // it; one from a node the switch removed does not, so the effect above
+  // can still read it. Checked a microtask later because a removal blurs
+  // the node before it leaves the page.
+  useEffect(() => {
+    const scroller = scrollRef.current;
+    if (!scroller) return;
+    const indexOf = (target: EventTarget | null) => {
+      const marker = markerRefs.current.findIndex((el) => el === target);
+      return marker >= 0
+        ? marker
+        : rowRefs.current.findIndex((el) => el === target);
+    };
+    const onFocusIn = (event: FocusEvent) => {
+      const index = indexOf(event.target);
+      focusedTrigger.current = index >= 0 ? index : null;
+    };
+    const onFocusOut = (event: FocusEvent) => {
+      const target = event.target as Node;
+      queueMicrotask(() => {
+        if (target.isConnected && document.activeElement !== target) {
+          focusedTrigger.current = null;
+        }
+      });
+    };
+    scroller.addEventListener("focusin", onFocusIn);
+    scroller.addEventListener("focusout", onFocusOut);
+    return () => {
+      scroller.removeEventListener("focusin", onFocusIn);
+      scroller.removeEventListener("focusout", onFocusOut);
+    };
+  }, []);
 
   // Read the plate's rendered scale as it mounts, and again once a resize
   // has settled: the observer ticks every frame of a window drag, and each

@@ -150,6 +150,33 @@ test("an open record survives a live resize to the list and back", async ({ page
 });
 
 /**
+ * With no record open, focus sits on the marker or row itself, which the
+ * switch removes. It must land on the same trial in the other layout, not
+ * fall to the body: a keyboard user who zooms across the switch keeps their
+ * place.
+ */
+test("a focused trial keeps focus across a live resize to the list and back", async ({ page }) => {
+  test.skip(T.markers === 0, NO_MARKER);
+  expect(await load(page, 1440, 900)).toBe("radar");
+  const first = page.locator("svg.timeline-figure g.drug").first();
+  const drug = (await first.getAttribute("data-drug"))!;
+  await first.focus();
+  await expect(first).toBeFocused();
+
+  await page.setViewportSize({ width: 393, height: 852 });
+  expect(await settleRadar(page)).toBe("phone");
+  const row = page.locator(`${LIST_ROWS}:focus`);
+  await expect(row).toHaveCount(1);
+  await expect(row).toContainText(drug);
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  expect(await settleRadar(page)).toBe("radar");
+  const marker = page.locator("svg.timeline-figure g.drug:focus");
+  await expect(marker).toHaveCount(1);
+  await expect(marker).toHaveAttribute("data-drug", drug);
+});
+
+/**
  * A status selection redraws both phone views from the same rows. Unticking
  * every status falls back to Show All (`components/CheckboxFilter.tsx`), so
  * the empty case ticks a status that draws nothing, when the data has one,
