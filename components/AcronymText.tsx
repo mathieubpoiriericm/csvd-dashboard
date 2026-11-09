@@ -10,47 +10,22 @@ import {
 } from "../lib/acronyms.ts";
 import { Tooltip } from "./Tooltip.tsx";
 
-/** Punctuation that belongs to the word before it, never to a new line. */
-const TRAILING = /^[,;:.)]+/;
+/** What belongs to the chip before it: closing punctuation, or `-based`. */
+const TRAILING = /^(?:[,;:.)]+|-[A-Za-z]+[,;:.)]*)/;
+/** What belongs to the chip after it. */
+const OPENING = "(";
 
-/**
- * One run of text between clarification marks: each acronym boxed, and the
- * punctuation straight after it kept on its line (`.acronym-glue`), so a list
- * of acronyms never wraps a comma onto a line of its own.
- */
-function Segments(
-  { segments, colocalizedIn }: {
-    segments: Segment[];
-    colocalizedIn?: string;
-  },
-) {
-  const out: ComponentChildren[] = [];
-  for (let index = 0; index < segments.length; index++) {
-    const segment = segments[index];
-    if (!segment.acronym) {
-      out.push(<Fragment key={index}>{segment.text}</Fragment>);
-      continue;
-    }
-    const chip = (
-      <Tooltip content={acronymTooltip(segment.text, colocalizedIn)}>
-        {segment.text}
-      </Tooltip>
-    );
-    const next = segments[index + 1];
-    const glued = next && !next.acronym ? TRAILING.exec(next.text)?.[0] : null;
-    if (!glued) {
-      out.push(<Fragment key={index}>{chip}</Fragment>);
-      continue;
-    }
-    out.push(
-      <span key={index} class="acronym-glue">{chip}{glued}</span>,
-    );
-    segments[index + 1] = {
-      text: next.text.slice(glued.length),
-      acronym: false,
-    };
-  }
-  return <>{out}</>;
+/** A segment, or the `?` that stands for a clarification mark. */
+interface Piece extends Segment {
+  mark?: true;
+}
+
+/** `text` cut into acronyms, `?` marks and the plain text between them. */
+function piecesOf(text: string): Piece[] {
+  return text.split(CLARIFICATION_MARK).flatMap((part, p): Piece[] => [
+    ...(p > 0 ? [{ text: "?", acronym: true, mark: true } as const] : []),
+    ...splitAcronyms(part),
+  ]);
 }
 
 /**
@@ -60,6 +35,12 @@ function Segments(
  * A `[?]` prints as a boxed `?` that says the term before it awaits
  * clarification.
  *
+ * The punctuation around a chip stays on its line (`.acronym-glue`) -- an
+ * opening parenthesis before it, a comma, colon, closing parenthesis or
+ * `-word` after it -- so a wrapped cell never starts a line with "," or ends
+ * one with "(". Callers put a list's separators inside the text for the same
+ * reason (`"WMH,"`, then a space).
+ *
  * Each plain segment is a keyed Fragment, not a bare string: under
  * `jsx: "precompile"` a string in a mixed array is escaped as it is built and
  * again by the renderer, so `a & b` reached the server-rendered page as
@@ -68,24 +49,49 @@ function Segments(
 export function AcronymText(
   { text, colocalizedIn }: { text: string; colocalizedIn?: string },
 ) {
-  return (
-    <span class="acronym-text">
-      {text.split(CLARIFICATION_MARK).map((part, p) => (
-        <span key={p}>
-          {p > 0 && (
-            <Tooltip
-              content={clarificationTooltip()}
-              label="Needs clarification"
-            >
-              ?
-            </Tooltip>
-          )}
-          <Segments
-            segments={splitAcronyms(part)}
-            colocalizedIn={colocalizedIn}
-          />
-        </span>
-      ))}
-    </span>
-  );
+  const pieces = piecesOf(text);
+  const out: ComponentChildren[] = [];
+  let taken = 0; // characters of this plain piece the chip before it took
+  let opening = ""; // the "(" the chip after this plain piece will take
+  pieces.forEach((piece, index) => {
+    const next = pieces[index + 1];
+    if (!piece.acronym) {
+      let plain = piece.text.slice(taken);
+      taken = 0;
+      if (next && plain.endsWith(OPENING)) {
+        opening = OPENING;
+        plain = plain.slice(0, -OPENING.length);
+      }
+      if (plain) out.push(<Fragment key={index}>{plain}</Fragment>);
+      return;
+    }
+    const trailing = next && !next.acronym
+      ? TRAILING.exec(next.text)?.[0] ?? ""
+      : "";
+    taken = trailing.length;
+    const chip = piece.mark
+      ? (
+        <Tooltip content={clarificationTooltip()} label="Needs clarification">
+          ?
+        </Tooltip>
+      )
+      : (
+        <Tooltip content={acronymTooltip(piece.text, colocalizedIn)}>
+          {piece.text}
+        </Tooltip>
+      );
+    out.push(
+      opening || trailing
+        ? (
+          <span key={index} class="acronym-glue">
+            {opening}
+            {chip}
+            {trailing}
+          </span>
+        )
+        : <Fragment key={index}>{chip}</Fragment>,
+    );
+    opening = "";
+  });
+  return <span class="acronym-text">{out}</span>;
 }

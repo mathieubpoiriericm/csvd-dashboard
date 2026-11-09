@@ -81,6 +81,67 @@ Deno.test("an acronym keeps the punctuation right after it on its line", () => {
   assertEquals(html.includes('class="acronym-text"'), true);
 });
 
+Deno.test("an opening parenthesis and a trailing hyphenated word stay with their acronym", () => {
+  const html = renderToString(<AcronymText text="x (TWAS-based y" />);
+  assertEquals(text(html), "x (TWAS-based y");
+  assertEquals(
+    /class="acronym-glue"[^>]*>\(<button[^>]*>TWAS<\/button>.*?-based<\/span>/
+      .test(html),
+    true,
+  );
+});
+
+Deno.test("the separator after a whole value stays with the acronym it follows", () => {
+  const entries = renderToString(
+    <>
+      <OmicsEntryView value="Qomics;Q: TWAS" suffix="," />{" "}
+      <OmicsEntryView value="TWAS" />
+    </>,
+  );
+  assertEquals(text(entries), "Qomics (Q: TWAS), TWAS");
+  assertEquals(
+    /class="acronym-glue"[^>]*><button[^>]*>TWAS<\/button>.*?\),<\/span>/
+      .test(entries),
+    true,
+  );
+  const typeOnly = renderToString(<OmicsEntryView value="TWAS" suffix="," />);
+  assertEquals(
+    /class="acronym-glue"[^>]*><button[^>]*>TWAS<\/button>.*?,<\/span>/
+      .test(typeOnly),
+    true,
+  );
+});
+
+Deno.test("an item list and the biomarker colon stay with their acronyms", () => {
+  const html = renderToString(
+    <OmicsEntryView value="Qomics;TWAS: TWAS, TWAS" />,
+  );
+  assertEquals(text(html), "Qomics (TWAS: TWAS, TWAS)");
+  // "(TWAS:", "TWAS," and "TWAS)" -- every chip holds its punctuation.
+  assertEquals(
+    [...html.matchAll(/class="acronym-glue"/g)].length,
+    3,
+  );
+});
+
+Deno.test("the ? mark holds its punctuation like an acronym does", () => {
+  const html = renderToString(<OmicsEntryView value="Qomics;[?]: a" />);
+  assertEquals(text(html), "Qomics (?: a)");
+  assertEquals(
+    /class="acronym-glue"[^>]*>\(<button[^>]*>\?<\/button>.*?:<\/span>/
+      .test(html),
+    true,
+  );
+});
+
+Deno.test("a study type the glossary names is padded like any other chip", () => {
+  const html = renderToString(<OmicsEntryView value="TWAS;Q: a" />);
+  assertEquals(
+    /^<span class="acronym-text"><button[^>]*>TWAS<\/button>/.test(html),
+    true,
+  );
+});
+
 Deno.test("AcronymText boxes each acronym and leaves the words around it", () => {
   const html = renderToString(<AcronymText text="multi-trait TWAS and more" />);
   assertEquals(triggers(html), ["TWAS"]);
