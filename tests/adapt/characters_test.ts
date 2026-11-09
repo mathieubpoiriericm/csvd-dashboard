@@ -136,7 +136,7 @@ const CASES: Case[] = [
     set: (a, t) => a.monogenic.genes[0].symbol = t,
   },
   {
-    rule: "number",
+    rule: "mim",
     path: "omimRows[0].omimNum",
     set: (a, t) => a.monogenic.omimRows[0].omimNum = t,
   },
@@ -241,6 +241,10 @@ const SAMPLES = [
   ",",
   "Alzheimer’s",
   "PMID: 12345678",
+  "OMIM: 600001",
+  "61716",
+  "6171680",
+  "617168",
   "#600001",
   "0123",
   "1e-1",
@@ -491,6 +495,13 @@ Deno.test("lists, numbers and confidences offer the value they meant", () => {
   assertEquals(diagnose("number", "0123").message, "It can't start with 0.");
   assertEquals(diagnose("number", "0123").fix, "123");
   assertEquals(diagnose("number", "1-2").fix, null);
+  assertEquals(diagnose("mim", "617168").ok, true);
+  assertEquals(diagnose("mim", "61716").note, "An OMIM number is six digits.");
+  assertEquals(diagnose("mim", "61716").offences, []);
+  assertEquals(diagnose("mim", "6171680").ok, false);
+  assertEquals(diagnose("mim", "#600001").fix, "600001");
+  // A fix the field would still refuse is not offered.
+  assertEquals(diagnose("mim", "PMID: 12345678").fix, null);
   assertEquals(diagnose("confidence", "0,75").fix, "0.75");
   assertEquals(
     diagnose("confidence", "1.5").note,
@@ -596,6 +607,7 @@ Deno.test("blank text is clean for every rule that trims first", () => {
     "conditions",
     "symbol",
     "number",
+    "mim",
     "confidence",
     "section",
     "steps",
@@ -621,6 +633,8 @@ Deno.test("ruleFor maps each field path to its rule", () => {
   assertEquals(ruleFor("site.pages.genes"), "plain");
   assertEquals(ruleFor("families[0].label"), "plain");
   assertEquals(ruleFor("omimRows[0].inheritance"), "ascii");
+  assertEquals(ruleFor("omimRows[0].omimNum"), "mim");
+  assertEquals(ruleFor("rows[0].pmid"), "number");
   assertEquals(ruleFor("citationStandard.doi"), "doi");
   assertEquals(ruleFor("traits[0].family"), null);
 });

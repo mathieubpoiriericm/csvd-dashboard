@@ -258,7 +258,10 @@ export function Tooltip({ content, italic, label, children }: TooltipProps) {
         class={`tooltip-box${italic ? " tooltip-box-italic" : ""}`}
         popovertarget={popoverId}
         popovertargetaction="show"
-        aria-expanded={open}
+        // A string, not `open`: the server drops a boolean-false aria-*
+        // value and hydration never adds it, so a server-rendered trigger
+        // carried no collapsed state until its first open.
+        aria-expanded={open ? "true" : "false"}
         aria-controls={popoverId}
         aria-label={label}
       >

@@ -569,6 +569,25 @@ Deno.test("a PMID is compared trimmed and refused with a leading zero", () => {
   );
 });
 
+Deno.test("an OMIM number is six digits, as the export publishes it", () => {
+  // pipeline/export/omim.py keeps a row only when a monogenic link fully
+  // matches six digits: a dropped or doubled digit is never shown.
+  for (const num of ["10000", "1000010", "1"]) {
+    const issues = validate(
+      withChange((a) => a.monogenic.omimRows[0].omimNum = num),
+    ).filter((i) => i.field === "omimRows[0].omimNum");
+    assertEquals(
+      issues.map((i) => i.message),
+      ["An OMIM number is six digits."],
+      num,
+    );
+  }
+  lacks(
+    withChange((a) => a.monogenic.omimRows[0].omimNum = " 100002 "),
+    "monogenic:omimRows[0].omimNum",
+  );
+});
+
 Deno.test("gold rules", () => {
   has(withChange((a) => a.gold.rows.pop()), "gold:rows");
   has(
@@ -1250,6 +1269,15 @@ Deno.test("a gene symbol cannot reach any string the public files hold", () => {
       for (const m of a.trials.mechanisms) m.family = "GENEA_directed";
     }),
     "trials:mechanismFamilies[0]",
+  );
+  // The disease key is written into manifest.json as well; only a
+  // lower-case alias can ever equal it.
+  has(
+    withChange((a) => {
+      a.monogenic.aliases[0].alias = "genea1";
+      a.identity.disease.key = "genea1";
+    }),
+    "identity:disease.key",
   );
   has(
     withChange((a) => a.identity.institute.url = "https://example.org/GENEA"),

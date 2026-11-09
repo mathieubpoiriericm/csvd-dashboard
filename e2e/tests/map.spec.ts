@@ -341,12 +341,16 @@ test("the study-status group hides completed sites by default and shows them on 
 
   const count = page.locator(".map-controls-count");
   await expect(count).toContainText(
-    `Showing ${EXPECTED.map.sitesShown} of ${EXPECTED.map.sites} sites`,
+    `Showing ${EXPECTED.map.sitesShown} of ${EXPECTED.map.sites} ${
+      EXPECTED.map.sites === 1 ? "site" : "sites"
+    }`,
   );
   await page.getByRole("group", { name: /^Study status/ })
     .getByRole("checkbox", { name: /^Show All/ }).check();
   await expect(count).toContainText(
-    `Showing ${EXPECTED.map.sites} of ${EXPECTED.map.sites} sites`,
+    `Showing ${EXPECTED.map.sites} of ${EXPECTED.map.sites} ${
+      EXPECTED.map.sites === 1 ? "site" : "sites"
+    }`,
   );
   await expect(page.locator(".visually-hidden li")).toHaveCount(
     EXPECTED.map.sites,

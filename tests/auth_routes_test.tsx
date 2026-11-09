@@ -301,3 +301,27 @@ Deno.test("failed login keeps a safe destination and renders an error response",
     assertEquals(result.status, 401);
   });
 });
+
+Deno.test("login POST answers a body that is not a form with 400, not 500", async () => {
+  await withLoginEnv(CONFIGURED, async () => {
+    for (
+      const [contentType, body] of [
+        ["application/json", "{}"],
+        ["text/plain", "passphrase=x"],
+        ["multipart/form-data", "garbled"],
+      ]
+    ) {
+      const req = new Request("http://localhost/login", {
+        method: "POST",
+        headers: { "Content-Type": contentType },
+        body,
+      });
+      const response = await loginHandler.POST(
+        { req, url: new URL(req.url) } as never,
+      ) as Response;
+      assertEquals(response.status, 400, contentType);
+      assertNoStore(response);
+      await response.body?.cancel();
+    }
+  });
+});

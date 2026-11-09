@@ -10,7 +10,8 @@ import type { State } from "./utils.ts";
 
 export const app = new App<State>();
 
-// The outer policy reaches static files, route responses, and early denials. The
+// The outer policy reaches static files, route responses, and early denials,
+// thrown ones included (server/frame_protection.ts answers those itself). The
 // protected-data matcher must run before staticFiles(), which otherwise serves
 // immutable assets immediately; every other asset stays public for /login.
 // Outermost, so it also covers the protected-data chunks that the next

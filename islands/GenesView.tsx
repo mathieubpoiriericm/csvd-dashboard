@@ -463,7 +463,9 @@ const COLUMNS = column.columns([
       // Search the displayed precision, but sort by the full numeric score.
       sortFn: (a, b) =>
         (a.original.confidence ?? 0) - (b.original.confidence ?? 0),
-      cell: ({ row }) => formatConfidence(row.original.confidence),
+      // The accessor keys a missing score as undefined, so this is the shared
+      // absent dash with its "not recorded" text, like every other cell.
+      cell: plainCell,
     },
   ),
 ]);

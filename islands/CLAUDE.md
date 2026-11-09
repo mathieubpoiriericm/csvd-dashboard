@@ -97,12 +97,12 @@ The pipeline half is in `.claude/rules/pipeline/run-reporting.md`. On this side:
   Every island here reads its own data; this one reads `pipelineRun`. The `run`
   prop exists only for `tests/pipeline_widget_test.tsx`, which is why the
   widget's contents are tested there rather than through the route.
-- **`aria-expanded` is passed as a string.** Preact 10.29.8 renders an `aria-*`
-  attribute whose value is boolean `false` (`props.js`'s guard admits it via
-  `name[4] == '-'`), so `aria-expanded={expanded}` would work here too. The
-  string form is house style, not a workaround: it keeps every `aria-expanded`
-  in the codebase spelled the same way rather than mixing boolean and string
-  forms case by case.
+- **`aria-expanded` is passed as a string, and must be.** Preact 10.29.8's
+  client renderer keeps an `aria-*` attribute whose value is boolean `false`
+  (`props.js`'s guard admits it via `name[4] == '-'`), but
+  `preact-render-to-string` drops it, and hydration does not add it back — so
+  `aria-expanded={expanded}` leaves a server-rendered trigger with no collapsed
+  state until its first toggle. Write `aria-expanded={x ? "true" : "false"}`.
 - Status is never colour alone: every badge pairs its tint with a glyph _and_ a
   word, and every drawer field is named in words beside its value. The four
   status tints resolve through semantic tokens the dark blocks already override,

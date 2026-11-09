@@ -442,6 +442,7 @@ export default function AdaptWizard() {
     setStatuses((lines) => ({ ...lines, [id]: text }));
   const stepProps = (id: StepId) => ({
     answers,
+    latest: () => latest.current,
     update,
     issues: issuesFor(issues, id),
     fetch,

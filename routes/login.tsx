@@ -36,7 +36,21 @@ export const handler = define.handlers({
   async POST(ctx) {
     const config = loginConfig();
     if (config === null) return notConfiguredResponse();
-    const form = await ctx.req.formData();
+    // A body that is not a form (JSON, text, a multipart with no boundary)
+    // makes formData() throw; that is the client's mistake, so answer 400
+    // rather than letting it surface as a logged 500.
+    let form: FormData;
+    try {
+      form = await ctx.req.formData();
+    } catch {
+      return new Response("Bad Request", {
+        status: 400,
+        headers: {
+          "Content-Type": "text/plain; charset=utf-8",
+          "Cache-Control": "no-store",
+        },
+      });
+    }
     form.set("next", safeLoginNext(form.get("next")?.toString()));
     const response = await loginResponse(config, form, ctx.url.hostname);
     if (response !== null) return response;

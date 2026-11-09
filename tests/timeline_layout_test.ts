@@ -115,10 +115,11 @@ Deno.test("sector spans are proportional to unique drugs and sum to a full turn"
   assertAlmostEquals(constructed.sectors.at(-1)!.endDeg, 360, 1e-9);
 });
 
-Deno.test("one cell per population and ring; an empty one keeps its population's colour at the empty-cell opacity", () => {
+Deno.test("one cell per populated population and ring; an empty one keeps its population's colour at the empty-cell opacity", () => {
   assertEquals(
     layout.cells.length,
-    encoding.populations.length * encoding.rings.length,
+    layout.sectors.filter((s) => s.drugCount > 0).length *
+      encoding.rings.length,
   );
   for (const cell of layout.cells) {
     const population = encoding.populations.find((p) =>
@@ -466,7 +467,7 @@ Deno.test("record-flag rules fire on the exact values and nothing near them", ()
   );
 });
 
-Deno.test("a population with no trials still gets its sector and grey cells", () => {
+Deno.test("a population with no trials keeps its zero-span sector but draws no cells", () => {
   const partial = computeTimelineLayout([placed()]);
   assertEquals(partial.sectors.length, encoding.populations.length);
   assertEquals(
@@ -475,6 +476,13 @@ Deno.test("a population with no trials still gets its sector and grey cells", ()
   );
   assertEquals(partial.cells.filter((c) => c.filled).length, 1);
   assertEquals(partial.markers.length, 1);
+  // A zero-span sector's arcs vanish, so its cell would be a bare radial
+  // line -- a stroked, hoverable seam across the seamless disc below.
+  assertEquals(
+    [...new Set(partial.cells.map((c) => c.population))],
+    [POPULATION],
+  );
+  assertEquals(partial.cells.length, encoding.rings.length);
 
   // That sole population spans the whole 360°, and a sector that closes on
   // itself has to be drawn as two arcs: SVG omits an elliptical arc whose
@@ -528,6 +536,7 @@ Deno.test("an empty trial set produces zero-width sectors without dividing by ze
   assertEquals(empty.sectors.map((sector) => sector.drugCount), zeros);
   assertEquals(empty.sectors.map((sector) => sector.endDeg), zeros);
   assertEquals(empty.markers, []);
+  assertEquals(empty.cells, []);
   assertEquals(empty.rimBands, []);
   assertEquals(empty.populationLabels, []);
 });
