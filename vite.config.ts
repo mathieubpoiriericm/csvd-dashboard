@@ -9,12 +9,14 @@ import {
   protectedDataInlineLimit,
 } from "./server/protected_data_build.ts";
 import { protectedDataDevGuard } from "./server/protected_data_dev.ts";
+import { leafletLegacyCss } from "./server/legacy_css.ts";
 
 const REPOSITORY_ROOT = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   plugins: [
     protectedDataDevGuard(REPOSITORY_ROOT),
+    leafletLegacyCss(),
     fresh(),
     protectedDataBuildGuard(REPOSITORY_ROOT),
   ],
