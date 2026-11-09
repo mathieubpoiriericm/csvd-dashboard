@@ -13,6 +13,9 @@ import {
 } from "../../lib/timeline.ts";
 import { markerGrowth, markerGrowthCap } from "../../lib/timeline_scale.ts";
 
+/** "1 trial", "3 trials". */
+const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? "" : "s"}`;
+
 interface MiniRadarProps {
   layout: TimelineLayout;
   activeIndex: number | null;
@@ -41,7 +44,9 @@ export function MiniRadar({ layout, activeIndex, scale }: MiniRadarProps) {
         viewBox={`0 0 ${CANVAS.width} ${CANVAS.height}`}
         style={{ "--radar-k": String(k) }}
         role="img"
-        aria-label={`${n} trials across ${populations} populations; the list below names each one`}
+        aria-label={`${count(n, "trial")} across ${
+          count(populations, "population")
+        }; the list below names each one`}
       >
         <rect
           class="plate"

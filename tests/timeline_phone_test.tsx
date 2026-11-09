@@ -85,7 +85,23 @@ Deno.test("the small radar is a picture: no focus stops, no drug labels", () => 
   assertStringIncludes(html, 'role="img"');
   assertStringIncludes(
     html,
-    "3 trials across 1 populations; the list below names each one",
+    "3 trials across 1 population; the list below names each one",
+  );
+});
+
+Deno.test("the small radar's summary counts in the singular and the plural", () => {
+  const one = computeTimelineLayout([trial("Alpha", P_OUTER)]);
+  assertStringIncludes(
+    mini(null, one),
+    'aria-label="1 trial across 1 population;',
+  );
+  const two = computeTimelineLayout([
+    trial("A", P_OUTER),
+    trial("B", P_OUTER, POP_B),
+  ]);
+  assertStringIncludes(
+    mini(null, two),
+    'aria-label="2 trials across 2 populations;',
   );
 });
 

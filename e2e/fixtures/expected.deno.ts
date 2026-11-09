@@ -53,6 +53,7 @@ import {
   computeTimelineLayout,
   encoding as timeline,
 } from "../../lib/timeline.ts";
+import { HYSTERESIS } from "../../lib/timeline_scale.ts";
 import type { Gene, Trial } from "../../lib/types.ts";
 
 // ---------------------------------------------------------------------------
@@ -213,6 +214,13 @@ const nctKey = (value: string) => value.trim().toUpperCase();
 
 const radar = computeTimelineLayout(shownTrials);
 const radarAll = computeTimelineLayout(trials);
+/** A status whose trials put no marker on the radar: the empty phone list. */
+const emptyRadarStatus = STATUS_CHOICES.find((c) =>
+  c.value !== SHOW_ALL &&
+  computeTimelineLayout(
+      filterTrials(trials, { ...DEFAULT_TRIAL_FILTERS, statuses: [c.value] }),
+    ).markers.length === 0
+)?.label ?? null;
 const karyogram = computePhenogramLayout(genes);
 
 const firstGene = (rows: readonly Gene[]) => rows[0]?.gene ?? null;
@@ -307,6 +315,9 @@ const expected = {
   timeline: {
     markers: radar.markers.length,
     allMarkers: radarAll.markers.length,
+    /** How much wider the room must get before the phone list gives way. */
+    hysteresis: HYSTERESIS,
+    emptyStatus: emptyRadarStatus,
     cells: radar.cells.length,
     rimBands: radar.rimBands.length,
     populationLabels: radar.populationLabels.length,

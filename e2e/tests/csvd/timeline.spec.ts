@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { EXPECTED } from "../../fixtures/expected-data.ts";
+import { settleRadar } from "../helpers/timeline.ts";
 
 /**
  * The radar over the committed cSVD trials, by drug, registry id and
@@ -14,7 +15,8 @@ const FIGURE = "svg.timeline-figure";
 async function figureSettled(page: Page) {
   await page.goto("/timeline");
   await expect(page.locator(FIGURE)).toBeVisible();
-  await page.evaluate(() => document.fonts.ready);
+  // Past the fonts, and past the solves that learn the plate's floor.
+  await settleRadar(page);
 }
 
 test("labels are boxless halos and the evidence ring lifts with its marker", async ({ page }) => {
@@ -115,6 +117,11 @@ test("trial details are keyboard accessible", async ({ page }) => {
 });
 
 test("hovering a trial shows its tooltip, and its children keep it open", async ({ page }) => {
+  // A window the whole plate fits. At the project's 1280x720 the readable
+  // floor holds the plate taller than the window, so reaching the label
+  // scrolls the page, and a scroll that carries the hovered trial away from
+  // the pointer dismisses its tooltip by design.
+  await page.setViewportSize({ width: 1440, height: 900 });
   await figureSettled(page);
   const trial = page.locator(
     'g.drug[data-drug="Cerebrolysin"][data-pop="SVD"][data-phase="II"]',
@@ -178,9 +185,25 @@ test("activating a hovered trial replaces its tooltip with the details drawer", 
   await expect(page.locator("#timeline-drawer")).toBeVisible();
 });
 
+/**
+ * The narrowest window that still shows the radar, which is where its
+ * tooltip has least room. Below the readable floor the island shows the
+ * phone list, whose rows have no tooltip, so the width is found by stepping
+ * down until the radar gives way rather than pinned.
+ */
 test("the timeline tooltip stays inside a narrow viewport", async ({ page }) => {
-  await page.setViewportSize({ width: 320, height: 640 });
-  await figureSettled(page);
+  const height = 640;
+  await page.setViewportSize({ width: 1100, height });
+  await page.goto("/timeline");
+  let width = 1100;
+  for (let next = width - 40; next >= 320; next -= 40) {
+    await page.setViewportSize({ width: next, height });
+    if (await settleRadar(page) === "phone") break;
+    width = next;
+  }
+  await page.setViewportSize({ width, height });
+  await page.goto("/timeline");
+  expect(await settleRadar(page), `${width}px`).toBe("radar");
   await page.locator(
     'g.drug[data-drug="Cerebrolysin"][data-pop="SVD"][data-phase="II"] circle.marker',
   ).hover();
@@ -190,7 +213,7 @@ test("the timeline tooltip stays inside a narrow viewport", async ({ page }) => 
   const box = await panel.boundingBox();
   expect(box).not.toBeNull();
   expect(box!.x).toBeGreaterThanOrEqual(9);
-  expect(box!.x + box!.width).toBeLessThanOrEqual(311);
+  expect(box!.x + box!.width).toBeLessThanOrEqual(width - 9);
 });
 
 test("entering a wedge names its population and phase", async ({ page }) => {

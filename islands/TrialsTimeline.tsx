@@ -10,6 +10,8 @@ import {
 } from "preact/hooks";
 
 import { CheckboxFilter } from "../components/CheckboxFilter.tsx";
+import { MiniRadar } from "../components/timeline/MiniRadar.tsx";
+import { PhaseList } from "../components/timeline/PhaseList.tsx";
 import { Icon, type IconName } from "../components/Icon.tsx";
 import {
   measureSvgTextBoxes,
@@ -56,9 +58,16 @@ import {
   separateLabels,
 } from "../lib/timeline.ts";
 import {
+  countFaults,
+  initialRadarState,
+  isClean,
   markerGrowth,
   markerGrowthCap,
+  nextRadarState,
   plateScale,
+  RADAR_MIN_ROOM,
+  type RadarObservation,
+  type RadarState,
 } from "../lib/timeline_scale.ts";
 import type { Trial } from "../lib/types.ts";
 
@@ -90,6 +99,14 @@ const PLACEHOLDER_EM = 0.55;
 const TOOLTIP_MARGIN = 10;
 const TOOLTIP_CURSOR_GAP = 12;
 const TOOLTIP_CLOSE_DELAY_MS = 180;
+
+/**
+ * The viewport width at and below which assets/app.css stacks the drawer
+ * above the plate whatever the island decides.
+ */
+const STACK_BREAKPOINT = 1100;
+/** How far a measured plate may sit from the scale it was solved at. */
+const SCALE_TOLERANCE = 0.001;
 
 const DRUG_PADDING = { x: 3, y: 1 };
 const LABEL_PADDING = { x: 4, y: 2 };
@@ -821,6 +838,17 @@ export default function TrialsTimeline(
    * picture shrinks.
    */
   const [scale, setScale] = useState<number>(1);
+  /** The same ratio for the phone layout's small radar. */
+  const [miniScale, setMiniScale] = useState<number>(1);
+  /**
+   * Radar or phone layout, the plate's readable-width floor, and whether the
+   * drawer stacks above the plate (lib/timeline_scale.ts decides all three).
+   * The server renders the radar; the first layout effect corrects it from
+   * the room the row actually has, before the first paint.
+   */
+  const [radar, setRadar] = useState<RadarState>(() =>
+    initialRadarState(RADAR_MIN_ROOM)
+  );
   // Markers grow to keep their size on screen too, but stop short of the
   // closest pair touching.
   const growthCap = useMemo(
@@ -848,7 +876,12 @@ export default function TrialsTimeline(
   const tooltipCloseTimer = useRef<ReturnType<typeof setTimeout>>();
   const tooltipOpenTimer = useRef<ReturnType<typeof setTimeout>>();
   const hydratedRef = useHydratedRef<HTMLDivElement>();
+  const mainRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const markerRefs = useRef<Array<SVGGElement | null>>([]);
+  const rowRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  /** The drawer's width beside the plate, kept for while it is stacked. */
+  const besideDrawer = useRef(0);
   const nudgePasses = useRef(0);
   const measureRef = useRef<() => void>(() => {});
   const solvedGeometry = useRef<
@@ -883,6 +916,86 @@ export default function TrialsTimeline(
     { active: null, tooltip: null },
   );
 
+  /**
+   * What the row offers the plate right now, for `nextRadarState`. Null
+   * before the row has mounted.
+   */
+  const observe = (): Omit<RadarObservation, "clean"> | null => {
+    const main = mainRef.current;
+    const scroller = scrollRef.current;
+    const drawer = main?.querySelector<HTMLElement>(`#${DRAWER_ID}`);
+    const frame = scroller?.parentElement;
+    if (!main || !scroller || !drawer || !frame) return null;
+    const scrollStyle = getComputedStyle(scroller);
+    const padding = parseFloat(scrollStyle.paddingLeft) +
+      parseFloat(scrollStyle.paddingRight);
+    // The frame's border (and a scrollbar, if one ever shows) between the
+    // frame's edge and the scroller's content.
+    const chrome = frame.offsetWidth - scroller.clientWidth;
+    const room = main.clientWidth - chrome - padding;
+    const available = scroller.clientWidth - padding;
+    const svg = svgRef.current;
+    const plateWidth = svg?.getBoundingClientRect().width ?? 0;
+    // Beside the plate the drawer is its own `flex-basis`; stacked, it is
+    // full width and says nothing about the room it would take beside, so
+    // the last beside width stands in.
+    const basis = parseFloat(getComputedStyle(drawer).flexBasis);
+    if (Number.isFinite(basis)) besideDrawer.current = basis;
+    return {
+      room,
+      plateWidth,
+      // Against the width the plate actually has, not `room`: with the
+      // drawer beside, the plate is narrower than `room` because of the
+      // drawer, and that is not the window's height limiting it.
+      heightLimited: svg !== null && plateWidth < available - 1 &&
+        plateWidth < CANVAS.width - 1,
+      drawerBeside: active !== null && !radar.stacked &&
+        globalThis.innerWidth > STACK_BREAKPOINT,
+      drawerSpace: besideDrawer.current +
+        (parseFloat(getComputedStyle(main).columnGap) || 0),
+    };
+  };
+
+  /** One step of the mode decision, from the row as it is now. */
+  const observeRadar = (clean: boolean | null) => {
+    const observation = observe();
+    if (!observation) return;
+    setRadar((state) => {
+      const next = nextRadarState(state, { ...observation, clean });
+      return next.mode === state.mode && next.floor === state.floor &&
+          next.stacked === state.stacked
+        ? state
+        : next;
+    });
+  };
+  const observeRadarRef = useRef(observeRadar);
+  observeRadarRef.current = observeRadar;
+
+  /**
+   * A solve has settled: no pass is pending, and `measured` is the layout on
+   * screen. Count what it still gets wrong and let the reducer decide. A
+   * solve for a scale the plate has since left, or in fallback type before
+   * the web font has loaded, says nothing about this size and is dropped;
+   * the resize or the font re-solves and reports again.
+   */
+  const reportSettled = (measured: ReadonlyMap<string, Box>) => {
+    const svg = svgRef.current;
+    if (!svg || document.fonts?.status === "loading") return;
+    const actual = plateScale(svg.getBoundingClientRect().width);
+    if (Math.abs(actual - scale) > SCALE_TOLERANCE) return;
+    const labels: Box[] = [];
+    for (const [id, box] of measured) {
+      if (id.startsWith("drug-")) labels.push(padded(box, DRUG_PADDING));
+      else if (id.startsWith("pop-")) labels.push(padded(box, LABEL_PADDING));
+    }
+    const faults = countFaults({
+      labels,
+      markers: layout.markers.map((marker) => markerBox(marker, k)),
+      plate: { x: 0, y: 0, ...CANVAS },
+    });
+    observeRadar(isClean(faults));
+  };
+
   const measure = () => {
     const svg = svgRef.current;
     if (!svg) return;
@@ -897,7 +1010,10 @@ export default function TrialsTimeline(
     // but `setBoxes` on a fresh Map would still reconcile the whole figure.
     // Mount measures twice and `document.fonts.ready` measures again; on a
     // warm font cache those later passes measure exactly this.
-    if (sameBoxes(next, boxes)) return;
+    if (sameBoxes(next, boxes)) {
+      reportSettled(next);
+      return;
+    }
     setBoxes(next);
 
     // A population label sits at a fixed radius from CENTER, at whatever
@@ -959,6 +1075,10 @@ export default function TrialsTimeline(
           Math.abs(applied.dy - shift.dy) <= 0.01;
       });
     if (!popUnchanged) setPopShifts(nextPopShifts);
+    // Whether this pass moved a label, so that another pass will follow. A
+    // pass that moved none is the settled layout, and is what the floor test
+    // reads.
+    let moved = !popUnchanged;
 
     // Push any label that still touches its marker one more step outward.
     //
@@ -1038,7 +1158,10 @@ export default function TrialsTimeline(
       previous && sameGeometry(movable, previous.movable) &&
       sameGeometry(fixed, previous.fixed) &&
       movableIndex.every((index, i) => index === previous.indices[i])
-    ) return;
+    ) {
+      if (!moved) reportSettled(next);
+      return;
+    }
     solvedGeometry.current = { movable, fixed, indices: movableIndex };
     const separated = new Map<number, LabelShift>();
     separateLabels(movable, fixed).forEach((shift, k) => {
@@ -1053,7 +1176,11 @@ export default function TrialsTimeline(
           Math.abs(applied.dx - shift.dx) <= 0.01 &&
           Math.abs(applied.dy - shift.dy) <= 0.01;
       });
-    if (!unchanged) setShifts(separated);
+    if (!unchanged) {
+      setShifts(separated);
+      moved = true;
+    }
+    if (!moved) reportSettled(next);
   };
   measureRef.current = measure;
 
@@ -1079,6 +1206,9 @@ export default function TrialsTimeline(
     setNudges(new Map());
     setShifts(new Map());
     setPopShifts(new Map());
+    // The floor was learnt from the old selection's labels.
+    const observation = observe();
+    if (observation) setRadar(initialRadarState(observation.room));
   }, [baseLayout]);
 
   // A new scale is the same figure in new type: the markers and the drawer
@@ -1097,14 +1227,41 @@ export default function TrialsTimeline(
     setPopShifts(new Map());
   }, [scale]);
 
-  // Read the plate's rendered scale once a resize has settled: the observer
-  // ticks every frame of a window drag, and each settled scale costs a full
-  // label solve. A tick arms one animation frame; a frame that finds another
-  // tick has landed since re-arms instead, so the scale is read only after a
-  // whole frame with no resize.
-  useEffect(() => {
-    const svg = svgRef.current;
-    if (!svg) return;
+  // A new layout mode mounts a new plate or takes the old one away. The
+  // drawer and its marker survive, but nothing measured belongs to the new
+  // plate: clear the solve, as a new scale does.
+  const shownMode = useRef(radar.mode);
+  useLayoutEffect(() => {
+    if (shownMode.current === radar.mode) return;
+    shownMode.current = radar.mode;
+    hide();
+    nudgePasses.current = 0;
+    solvedGeometry.current = undefined;
+    setBoxes(new Map());
+    setNudges(new Map());
+    setShifts(new Map());
+    setPopShifts(new Map());
+  }, [radar.mode]);
+
+  // Read the plate's rendered scale as it mounts, and again once a resize
+  // has settled: the observer ticks every frame of a window drag, and each
+  // settled scale costs a full label solve. A tick arms one animation frame;
+  // a frame that finds another tick has landed since re-arms instead, so the
+  // scale is read only after a whole frame with no resize. The phone
+  // layout's small radar is read the same way, into its own scale.
+  useLayoutEffect(() => {
+    const phone = radar.mode === "phone";
+    const plate = phone
+      ? scrollRef.current?.querySelector<SVGSVGElement>(".timeline-mini-figure")
+      : svgRef.current;
+    if (!plate) return;
+    const apply = phone ? setMiniScale : setScale;
+    const read = () =>
+      apply(
+        Math.round(plateScale(plate.getBoundingClientRect().width) * 1000) /
+          1000,
+      );
+    read();
     let frame: number | null = null;
     let ticked = false;
     const settle = () => {
@@ -1114,18 +1271,30 @@ export default function TrialsTimeline(
         return;
       }
       frame = null;
-      const width = svg.getBoundingClientRect().width;
-      setScale(Math.round(plateScale(width) * 1000) / 1000);
+      read();
     };
     const observer = new ResizeObserver(() => {
       ticked = true;
       frame ??= globalThis.requestAnimationFrame(settle);
     });
-    observer.observe(svg);
+    observer.observe(plate);
     return () => {
       observer.disconnect();
       if (frame !== null) globalThis.cancelAnimationFrame(frame);
     };
+  }, [radar.mode]);
+
+  // Every change in the row's size is a step of the mode decision with no
+  // verdict on the labels yet; a solve that settles gives that. This is what
+  // returns a phone layout to the radar once the room is back, and what puts
+  // a phone in its layout before the first paint.
+  useLayoutEffect(() => {
+    const main = mainRef.current;
+    if (!main) return;
+    observeRadarRef.current(null);
+    const observer = new ResizeObserver(() => observeRadarRef.current(null));
+    observer.observe(main);
+    return () => observer.disconnect();
   }, []);
 
   // The web font arrives after first paint; fit again when it does.
@@ -1151,8 +1320,11 @@ export default function TrialsTimeline(
     restoreFocusTo.current = null;
     if (restore !== null) {
       // The plate rescales as the drawer closes, which can leave the marker
-      // below the fold; let focus bring it back into view.
-      markerRefs.current[restore]?.focus();
+      // below the fold; let focus bring it back into view. Resolved now, not
+      // when the drawer opened: a resize may have swapped the radar for the
+      // list (or back) in between, and `active` indexes both.
+      (radar.mode === "phone" ? rowRefs.current : markerRefs.current)[restore]
+        ?.focus();
     }
   }, [active]);
 
@@ -1341,7 +1513,15 @@ export default function TrialsTimeline(
   };
 
   return (
-    <div ref={hydratedRef} class="timeline-layout">
+    <div
+      ref={hydratedRef}
+      class="timeline-layout"
+      data-mode={radar.mode}
+      data-floor={String(Math.round(radar.floor))}
+      style={radar.floor > 0
+        ? { "--timeline-floor": `${radar.floor}px` }
+        : undefined}
+    >
       {
         /* Outside .timeline-main rather than immediately before its
           .blueprint-frame: that div is a flex ROW at >=1100px (drawer, then
@@ -1365,7 +1545,11 @@ export default function TrialsTimeline(
 
       <TimelineLegend layout={layout} />
 
-      <div class="timeline-main">
+      <div
+        ref={mainRef}
+        class="timeline-main"
+        data-stack={radar.stacked ? "true" : undefined}
+      >
         <TrialDrawer
           layout={layout}
           marker={activeMarker}
@@ -1379,245 +1563,268 @@ export default function TrialsTimeline(
             wrapper rather than the scroller itself. */
         }
         <div class="blueprint-frame">
-          <div class="timeline-scroll">
-            <svg
-              ref={svgRef}
-              class="timeline-figure"
-              viewBox={`0 0 ${CANVAS.width} ${CANVAS.height}`}
-              style={{
-                "--radar-k": String(k),
-                "--radar-text": String(1 / scale),
-              }}
-              aria-labelledby="timeline-title timeline-desc"
-            >
-              <title id="timeline-title">
-                {RADAR_TITLE}
-              </title>
-              <desc id="timeline-desc">
-                Rings are trial phases, Phase {encoding.rings[0].phase}{" "}
-                innermost; sectors are target populations; each marker is one
-                trial, coloured by mechanism of action. Activate a marker for
-                the trial's details.
-              </desc>
+          <div ref={scrollRef} class="timeline-scroll">
+            {radar.mode === "phone"
+              ? (
+                <>
+                  <MiniRadar
+                    layout={layout}
+                    activeIndex={active}
+                    scale={miniScale}
+                  />
+                  <PhaseList
+                    layout={layout}
+                    activeIndex={active}
+                    onActivate={activate}
+                    rowRef={(index, element) => {
+                      rowRefs.current[index] = element;
+                    }}
+                  />
+                </>
+              )
+              : (
+                <svg
+                  ref={svgRef}
+                  class="timeline-figure"
+                  viewBox={`0 0 ${CANVAS.width} ${CANVAS.height}`}
+                  style={{ "--radar-k": String(k) }}
+                  aria-labelledby="timeline-title timeline-desc"
+                >
+                  <title id="timeline-title">
+                    {RADAR_TITLE}
+                  </title>
+                  <desc id="timeline-desc">
+                    Rings are trial phases, Phase {encoding.rings[0].phase}{" "}
+                    innermost; sectors are target populations; each marker is
+                    one trial, coloured by mechanism of action. Activate a
+                    marker for the trial's details.
+                  </desc>
 
-              {
-                /* A white sheet in both themes: the halos, the marker rings and
+                  {
+                    /* A white sheet in both themes: the halos, the marker rings and
                   the band separators are all cut from it. rx is the
                   phenogram's 8px plate corner on screen at every scale, so
                   the two plates' corners read as the same radius. */
-              }
-              <rect
-                class="plate"
-                x={0}
-                y={0}
-                width={CANVAS.width}
-                height={CANVAS.height}
-                rx={8 / scale}
-                fill={PLATE}
-              />
-
-              {layout.cells.map((cell) => (
-                <path
-                  key={`${cell.population}/${cell.phase}`}
-                  class="wedge"
-                  data-pop={cell.population}
-                  data-phase={cell.phase}
-                  d={cell.path}
-                  fill={cell.color}
-                  fill-opacity={cell.opacity}
-                  stroke={encoding.boundary.color}
-                  stroke-opacity={encoding.boundary.opacity}
-                  stroke-width={encoding.boundary.width}
-                  stroke-linejoin="round"
-                  onPointerEnter={(event) =>
-                    showTooltip({
-                      title: populationTitle(layout, cell.population),
-                      rows: [{ label: "Phase", value: cell.phase }],
-                      x: event.clientX,
-                      y: event.clientY,
-                    })}
-                  onPointerMove={follow}
-                  onPointerLeave={hideSoon}
-                />
-              ))}
-
-              {layout.rimBands.map((band) => (
-                <path
-                  key={band.population}
-                  class="rim-band"
-                  data-pop={band.population}
-                  d={band.path}
-                  fill={band.color}
-                  stroke={PLATE}
-                  stroke-width={BAND_SEPARATOR_WIDTH}
-                  stroke-linejoin="round"
-                  onPointerEnter={(event) =>
-                    showTooltip({
-                      title: populationTitle(layout, band.population),
-                      // Drugs, not trials: the band's angular width is
-                      // `uniqueDrugCount`, so a trial count here reads as the
-                      // arc's scale and contradicts it — Cognitive Impairment
-                      // carries 2 trials across 1 drug on a 30° arc, Stroke 8
-                      // across 5 on 150°.
-                      rows: [{
-                        label: "Drugs",
-                        value: String(
-                          layout.sectors.find((s) => s.key === band.population)
-                            ?.drugCount ?? 0,
-                        ),
-                      }],
-                      x: event.clientX,
-                      y: event.clientY,
-                    })}
-                  onPointerMove={follow}
-                  onPointerLeave={hideSoon}
-                />
-              ))}
-
-              {layout.phaseLabels.map((label) => (
-                <g
-                  key={label.phase}
-                  class="phase-label"
-                  data-phase={label.phase}
-                >
-                  <LabelBox
-                    id={`phase-${label.phase}`}
-                    lines={[`PHASE ${label.phase}`]}
-                    point={label.point}
-                    anchor="middle"
-                    fontSize={PHASE_FONT_SIZE / scale}
-                    haloWidth={haloWidth}
-                    style={PHASE_STYLE}
-                    padding={LABEL_PADDING}
-                    measured={boxes.get(`phase-${label.phase}`)}
+                  }
+                  <rect
+                    class="plate"
+                    x={0}
+                    y={0}
+                    width={CANVAS.width}
+                    height={CANVAS.height}
+                    rx={8 / scale}
+                    fill={PLATE}
                   />
-                </g>
-              ))}
 
-              {layout.populationLabels.map((label) => {
-                const placement = popLabelPlacement(label);
-                return (
-                  <g key={label.key} class="pop-label" data-pop={label.key}>
-                    <LabelBox
-                      id={`pop-${label.key}`}
-                      lines={label.lines}
-                      point={placement.point}
-                      anchor={placement.anchor}
-                      fontSize={POPULATION_FONT_SIZE / scale}
-                      haloWidth={haloWidth}
-                      style={POPULATION_STYLE}
-                      subline={{
-                        size: POPULATION_SUBLINE_SIZE / scale,
-                        style: POPULATION_SUBLINE,
-                      }}
-                      padding={LABEL_PADDING}
-                      measured={boxes.get(`pop-${label.key}`)}
+                  {layout.cells.map((cell) => (
+                    <path
+                      key={`${cell.population}/${cell.phase}`}
+                      class="wedge"
+                      data-pop={cell.population}
+                      data-phase={cell.phase}
+                      d={cell.path}
+                      fill={cell.color}
+                      fill-opacity={cell.opacity}
+                      stroke={encoding.boundary.color}
+                      stroke-opacity={encoding.boundary.opacity}
+                      stroke-width={encoding.boundary.width}
+                      stroke-linejoin="round"
+                      onPointerEnter={(event) =>
+                        showTooltip({
+                          title: populationTitle(layout, cell.population),
+                          rows: [{ label: "Phase", value: cell.phase }],
+                          x: event.clientX,
+                          y: event.clientY,
+                        })}
+                      onPointerMove={follow}
+                      onPointerLeave={hideSoon}
                     />
-                  </g>
-                );
-              })}
+                  ))}
 
-              <g class="leaders">
-                {layout.markers.filter(needsLeader).map((marker) => {
-                  const anchor = labelPoint(marker);
-                  return (
-                    <line
-                      key={marker.index}
-                      class="leader"
-                      data-drug={marker.trial.drug}
-                      x1={marker.point.x}
-                      y1={marker.point.y}
-                      x2={anchor.x}
-                      y2={anchor.y}
-                    />
-                  );
-                })}
-              </g>
-
-              {layout.markers.map((marker) => {
-                const anchor = labelPoint(marker);
-                return (
-                  <g
-                    key={marker.index}
-                    ref={(element) => {
-                      markerRefs.current[marker.index] = element;
-                    }}
-                    class="drug"
-                    data-drug={marker.trial.drug}
-                    data-pop={marker.population}
-                    data-phase={marker.phase}
-                    tabindex={0}
-                    role="button"
-                    aria-controls={DRAWER_ID}
-                    aria-expanded={active === marker.index ? "true" : "false"}
-                    aria-label={`${marker.trial.drug}, Phase ${marker.trial.clinicalTrialPhase}, ${marker.populationLabel}${
-                      marker.flagReasons.length > 0
-                        ? `, ${encoding.recordFlag.label}`
-                        : ""
-                    }`}
-                    onClick={() => activate(marker.index)}
-                    onKeyDown={(event) => {
-                      if (event.key !== "Enter" && event.key !== " ") return;
-                      event.preventDefault();
-                      activate(marker.index);
-                    }}
-                    onPointerEnter={(event) =>
-                      showTooltip(
-                        drugTooltip(
-                          layout,
-                          marker,
-                          event.clientX,
-                          event.clientY,
-                        ),
-                      )}
-                    onPointerMove={follow}
-                    onPointerLeave={hideSoon}
-                  >
-                    <circle
-                      class="marker"
-                      cx={marker.point.x}
-                      cy={marker.point.y}
-                      r={MARKER_DRAW_RADIUS * k}
-                      fill={marker.color}
+                  {layout.rimBands.map((band) => (
+                    <path
+                      key={band.population}
+                      class="rim-band"
+                      data-pop={band.population}
+                      d={band.path}
+                      fill={band.color}
                       stroke={PLATE}
-                      stroke-width={MARKER_RING_WIDTH * k}
+                      stroke-width={BAND_SEPARATOR_WIDTH}
+                      stroke-linejoin="round"
+                      onPointerEnter={(event) =>
+                        showTooltip({
+                          title: populationTitle(layout, band.population),
+                          // Drugs, not trials: the band's angular width is
+                          // `uniqueDrugCount`, so a trial count here reads as the
+                          // arc's scale and contradicts it — Cognitive Impairment
+                          // carries 2 trials across 1 drug on a 30° arc, Stroke 8
+                          // across 5 on 150°.
+                          rows: [{
+                            label: "Drugs",
+                            value: String(
+                              layout.sectors.find((s) =>
+                                s.key === band.population
+                              )
+                                ?.drugCount ?? 0,
+                            ),
+                          }],
+                          x: event.clientX,
+                          y: event.clientY,
+                        })}
+                      onPointerMove={follow}
+                      onPointerLeave={hideSoon}
                     />
-                    {marker.flagReasons.length > 0 && (
-                      <circle
-                        class="gap"
-                        cx={marker.point.x}
-                        cy={marker.point.y}
-                        r={MARKER_GAP_RADIUS * k}
-                        fill={PLATE}
+                  ))}
+
+                  {layout.phaseLabels.map((label) => (
+                    <g
+                      key={label.phase}
+                      class="phase-label"
+                      data-phase={label.phase}
+                    >
+                      <LabelBox
+                        id={`phase-${label.phase}`}
+                        lines={[`PHASE ${label.phase}`]}
+                        point={label.point}
+                        anchor="middle"
+                        fontSize={PHASE_FONT_SIZE / scale}
+                        haloWidth={haloWidth}
+                        style={PHASE_STYLE}
+                        padding={LABEL_PADDING}
+                        measured={boxes.get(`phase-${label.phase}`)}
                       />
-                    )}
-                    {marker.evidenceRing && (
-                      <circle
-                        class="evidence"
-                        cx={marker.point.x}
-                        cy={marker.point.y}
-                        r={EVIDENCE_RING_RADIUS * k}
-                        fill="none"
-                        stroke={marker.evidenceRing}
-                        stroke-width={EVIDENCE_RING_WIDTH * k}
-                        stroke-dasharray={marker.evidenceDash ?? undefined}
-                      />
-                    )}
-                    <LabelBox
-                      id={`drug-${marker.index}`}
-                      lines={[marker.trial.drug]}
-                      point={anchor}
-                      anchor={marker.anchor}
-                      fontSize={drugFontSize}
-                      haloWidth={haloWidth}
-                      style={DRUG_STYLE}
-                      padding={DRUG_PADDING}
-                      measured={boxes.get(`drug-${marker.index}`)}
-                    />
+                    </g>
+                  ))}
+
+                  {layout.populationLabels.map((label) => {
+                    const placement = popLabelPlacement(label);
+                    return (
+                      <g key={label.key} class="pop-label" data-pop={label.key}>
+                        <LabelBox
+                          id={`pop-${label.key}`}
+                          lines={label.lines}
+                          point={placement.point}
+                          anchor={placement.anchor}
+                          fontSize={POPULATION_FONT_SIZE / scale}
+                          haloWidth={haloWidth}
+                          style={POPULATION_STYLE}
+                          subline={{
+                            size: POPULATION_SUBLINE_SIZE / scale,
+                            style: POPULATION_SUBLINE,
+                          }}
+                          padding={LABEL_PADDING}
+                          measured={boxes.get(`pop-${label.key}`)}
+                        />
+                      </g>
+                    );
+                  })}
+
+                  <g class="leaders">
+                    {layout.markers.filter(needsLeader).map((marker) => {
+                      const anchor = labelPoint(marker);
+                      return (
+                        <line
+                          key={marker.index}
+                          class="leader"
+                          data-drug={marker.trial.drug}
+                          x1={marker.point.x}
+                          y1={marker.point.y}
+                          x2={anchor.x}
+                          y2={anchor.y}
+                        />
+                      );
+                    })}
                   </g>
-                );
-              })}
-            </svg>
+
+                  {layout.markers.map((marker) => {
+                    const anchor = labelPoint(marker);
+                    return (
+                      <g
+                        key={marker.index}
+                        ref={(element) => {
+                          markerRefs.current[marker.index] = element;
+                        }}
+                        class="drug"
+                        data-drug={marker.trial.drug}
+                        data-pop={marker.population}
+                        data-phase={marker.phase}
+                        tabindex={0}
+                        role="button"
+                        aria-controls={DRAWER_ID}
+                        aria-expanded={active === marker.index
+                          ? "true"
+                          : "false"}
+                        aria-label={`${marker.trial.drug}, Phase ${marker.trial.clinicalTrialPhase}, ${marker.populationLabel}${
+                          marker.flagReasons.length > 0
+                            ? `, ${encoding.recordFlag.label}`
+                            : ""
+                        }`}
+                        onClick={() => activate(marker.index)}
+                        onKeyDown={(event) => {
+                          if (event.key !== "Enter" && event.key !== " ") {
+                            return;
+                          }
+                          event.preventDefault();
+                          activate(marker.index);
+                        }}
+                        onPointerEnter={(event) =>
+                          showTooltip(
+                            drugTooltip(
+                              layout,
+                              marker,
+                              event.clientX,
+                              event.clientY,
+                            ),
+                          )}
+                        onPointerMove={follow}
+                        onPointerLeave={hideSoon}
+                      >
+                        <circle
+                          class="marker"
+                          cx={marker.point.x}
+                          cy={marker.point.y}
+                          r={MARKER_DRAW_RADIUS * k}
+                          fill={marker.color}
+                          stroke={PLATE}
+                          stroke-width={MARKER_RING_WIDTH * k}
+                        />
+                        {marker.flagReasons.length > 0 && (
+                          <circle
+                            class="gap"
+                            cx={marker.point.x}
+                            cy={marker.point.y}
+                            r={MARKER_GAP_RADIUS * k}
+                            fill={PLATE}
+                          />
+                        )}
+                        {marker.evidenceRing && (
+                          <circle
+                            class="evidence"
+                            cx={marker.point.x}
+                            cy={marker.point.y}
+                            r={EVIDENCE_RING_RADIUS * k}
+                            fill="none"
+                            stroke={marker.evidenceRing}
+                            stroke-width={EVIDENCE_RING_WIDTH * k}
+                            stroke-dasharray={marker.evidenceDash ?? undefined}
+                          />
+                        )}
+                        <LabelBox
+                          id={`drug-${marker.index}`}
+                          lines={[marker.trial.drug]}
+                          point={anchor}
+                          anchor={marker.anchor}
+                          fontSize={drugFontSize}
+                          haloWidth={haloWidth}
+                          style={DRUG_STYLE}
+                          padding={DRUG_PADDING}
+                          measured={boxes.get(`drug-${marker.index}`)}
+                        />
+                      </g>
+                    );
+                  })}
+                </svg>
+              )}
           </div>
         </div>
       </div>

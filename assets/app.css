@@ -4304,12 +4304,21 @@ button.adapt-card-head:focus-visible {
    only stacking point either figure has left: neither key is a right-hand
    rail any more, so neither layout has a rail to fall out of, and this query
    is about the record beside the radar rather than the key. Below 1100px a
-   20rem drawer beside the plate would leave the plate too little room. */
+   20rem drawer beside the plate would leave the plate too little room.
+   Above it, `data-stack` is the island's verdict that an open record beside
+   the plate would take the plate below its readable floor, and stacks the
+   pair the same way (the drawer's half is under the 1100px query further
+   down). */
 @media (max-width: 1100px) {
   .timeline-main {
     flex-direction: column;
     align-items: stretch;
   }
+}
+
+.timeline-main[data-stack="true"] {
+  flex-direction: column;
+  align-items: stretch;
 }
 
 /* === TRIALS TIMELINE === */
@@ -4352,17 +4361,27 @@ button.adapt-card-head:focus-visible {
    scale 1), and the width at which its 1072 x 940 height fits the room under
    the sticky navbar. The island reads the rendered width back and sets its
    text and halos in user units at 1 / scale, so the labels keep their design
-   size on screen while the picture shrinks. `--timeline-floor` is the width
-   below which the label layout no longer solves cleanly; unset, nothing
-   floors the plate. */
+   size on screen while the picture shrinks.
+
+   `--timeline-floor` is the narrowest plate whose labels the island found
+   to solve cleanly. It floors only the height fit: on a short window the
+   plate stops there and the page scrolls down (readability over seeing the
+   whole radar), but a container narrower than the floor still gets a plate
+   its own width -- whose labels then fault, and the island swaps in the
+   phone layout -- never a plate wider than the row to scroll sideways.
+   `svh`, not `dvh`: the small viewport does not change as a phone's toolbar
+   shows and hides, so scrolling never resizes the plate or re-solves its
+   labels. */
 .timeline-figure {
   display: block;
   width: min(
     100%,
     1072px,
-    calc((100dvh - var(--svd-navbar-h) - var(--svd-space-6)) * 1072 / 940)
+    max(
+      var(--timeline-floor, 0px),
+      calc((100svh - var(--svd-navbar-h) - var(--svd-space-6)) * 1072 / 940)
+    )
   );
-  min-width: var(--timeline-floor, 0px);
   margin-inline: auto;
   height: auto;
   font-family: var(--svd-font);
@@ -4882,6 +4901,16 @@ button.adapt-card-head:focus-visible {
        slot at 1000px, overlapping the plate by the same amount. */
     top: auto;
   }
+}
+
+/* The same stacked drawer above 1100px, where the island has stacked the
+   row (`data-stack`, beside `.timeline-main`'s own rule). */
+.timeline-main[data-stack="true"] > .timeline-drawer {
+  flex-basis: auto;
+  width: 100%;
+  position: relative;
+  max-height: none;
+  top: auto;
 }
 
 /* === PHENOGRAM === */

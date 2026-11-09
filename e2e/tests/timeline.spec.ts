@@ -1,6 +1,12 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import { EXPECTED } from "../fixtures/expected-data.ts";
 import { resolveCssColor, switchToDarkTheme, toggleTheme } from "../helpers.ts";
+import {
+  radarMode,
+  recordTriggers,
+  settleRadar,
+  sweepLabelFit,
+} from "./helpers/timeline.ts";
 
 /**
  * Every count below is derived from the committed data through the app's
@@ -45,150 +51,18 @@ const contrastRatio = (x: RGBA, y: RGBA) => {
 
 const FIGURE = "svg.timeline-figure";
 
+/**
+ * Loads the page and waits for the island to settle on a layout: the radar,
+ * or below its readable floor the phone views, which have no FIGURE.
+ */
 async function figureSettled(page: Page) {
   await page.goto("/timeline");
-  await expect(page.locator(FIGURE)).toBeVisible();
-  await page.evaluate(() => document.fonts.ready);
+  await settleRadar(page);
 }
 
 /** The key is a closed `<details>` above the plate; open it before reading it. */
 async function openKey(page: Page) {
   await page.locator("#timeline-key summary").click();
-}
-
-/**
- * misfit/clipped/touching/onBand/boxes over whatever the plate currently
- * shows. Shared between the default (67-of-102) figure and the full one
- * reached by ticking Show All in the status group, so the population-label
- * plate correction (islands/TrialsTimeline.tsx) is checked against both the
- * layout it was built for and the committed layout it must stay inert on -- the latter is
- * also what `scripts/timeline_figure.py` draws, so this is the guard that
- * keeps the two renderers' claims about the full dataset in step.
- */
-function sweepLabelFit(page: Page) {
-  return page.evaluate(() => {
-    const misfit: string[] = [];
-    const clipped: string[] = [];
-    const touching: string[] = [];
-    let boxes = 0;
-
-    // The plate's own bounds, read off the element rather than retyped, so
-    // this cannot drift from lib/timeline.ts's CANVAS. (The first test in
-    // this file is what pins the viewBox itself.)
-    const figure = document.querySelector<SVGSVGElement>(
-      "svg.timeline-figure",
-    )!;
-    const [minX, minY, vbWidth, vbHeight] = figure
-      .getAttribute("viewBox")!
-      .split(/\s+/)
-      .map(Number);
-
-    for (const group of document.querySelectorAll("svg.timeline-figure g")) {
-      const text = group.querySelector<SVGTextElement>("text[data-label]");
-      const rect = group.querySelector<SVGRectElement>("rect.label-bg");
-      if (!text || !rect) continue;
-      const id = text.dataset.label ?? "?";
-      const drug = group.getAttribute("data-drug");
-      const who = drug ? `${id} "${drug}"` : id;
-      const t = text.getBBox();
-      const r = rect.getBBox();
-      const fits = r.x <= t.x && r.y <= t.y &&
-        r.x + r.width >= t.x + t.width && r.y + r.height >= t.y + t.height;
-      if (!fits) misfit.push(who);
-
-      // The outermost <svg> clips to its viewBox, and the plate rect pins
-      // every getBBox() to exactly the canvas, so a label pushed past an
-      // edge is silently cut in half and no other check here can see it.
-      const past: string[] = [
-        ["left", minX - r.x],
-        ["top", minY - r.y],
-        ["right", r.x + r.width - (minX + vbWidth)],
-        ["bottom", r.y + r.height - (minY + vbHeight)],
-      ]
-        .filter(([, by]) => (by as number) > 0.01)
-        .map(([edge, by]) => `${edge} by ${(by as number).toFixed(1)}`);
-      if (past.length) clipped.push(`${who} past the ${past.join(" and ")}`);
-      boxes++;
-    }
-
-    // Every label -- a drug's or a population's -- against every marker, not
-    // just its own: `separateLabels` treats every marker as an obstacle for a
-    // drug label, and the population-label plate clamp only pulls a label
-    // clear of the canvas edge, not clear of a marker it might land on
-    // instead. drugs[j] names the marker in a touching pair.
-    const drugs = [
-      ...document.querySelectorAll("svg.timeline-figure g.drug"),
-    ];
-    const markers = drugs.map((drug) =>
-      drug.querySelector("circle.marker")!.getBoundingClientRect()
-    );
-    const drugLabels = drugs.map((drug) => ({
-      name: drug.getAttribute("data-drug") ?? "?",
-      rect: drug.querySelector("rect.label-bg")!.getBoundingClientRect(),
-    }));
-    const popLabels = [
-      ...document.querySelectorAll("svg.timeline-figure g.pop-label"),
-    ].map((pop) => ({
-      name: `pop-${pop.getAttribute("data-pop")}`,
-      rect: pop.querySelector("rect.label-bg")!.getBoundingClientRect(),
-    }));
-    for (const label of [...drugLabels, ...popLabels]) {
-      for (let j = 0; j < markers.length; j++) {
-        const marker = markers[j];
-        const apart = marker.right < label.rect.left ||
-          marker.left > label.rect.right ||
-          marker.bottom < label.rect.top || marker.top > label.rect.bottom;
-        if (apart) continue;
-        touching.push(
-          `${label.name} on ${drugs[j].getAttribute("data-drug")}`,
-        );
-      }
-    }
-
-    // A population label may lie on no rim band -- least of all its own,
-    // which sits POPULATION_LABEL_OFFSET units inside it and is the element
-    // the name is *about*. Pulling a label that fell off the plate straight
-    // back on used to drag it across exactly that band, on three of the four
-    // names under the default selection; `placeOnPlate` slides it round its
-    // sector instead, and this is what says so.
-    //
-    // A band is an annular arc, so its bounding box covers most of the
-    // quadrant it spans and a box test would report every label near one.
-    // The label box is sampled on a 2-unit grid and each band asked about
-    // its own geometry with isPointInFill instead.
-    const onBand: string[] = [];
-    const bands = [
-      ...document.querySelectorAll<SVGPathElement>(
-        "svg.timeline-figure path.rim-band",
-      ),
-    ];
-    for (
-      const pop of document.querySelectorAll("svg.timeline-figure g.pop-label")
-    ) {
-      const box = pop.querySelector<SVGRectElement>("rect.label-bg")!.getBBox();
-      const columns = Math.max(1, Math.ceil(box.width / 2));
-      const rows = Math.max(1, Math.ceil(box.height / 2));
-      const samples: { x: number; y: number }[] = [];
-      for (let i = 0; i <= columns; i++) {
-        for (let j = 0; j <= rows; j++) {
-          samples.push({
-            x: box.x + (box.width * i) / columns,
-            y: box.y + (box.height * j) / rows,
-          });
-        }
-      }
-      for (const band of bands) {
-        if (!samples.some((point) => band.isPointInFill(point))) continue;
-        onBand.push(
-          `pop-${pop.getAttribute("data-pop")} on ${
-            band.getAttribute("data-pop") ?? "?"
-          }`,
-        );
-      }
-    }
-
-    return { misfit, clipped, touching, onBand, boxes };
-  });
 }
 
 test("draws one group per visible trial, twenty-eight cells, and both legends", async ({ page }) => {
@@ -262,13 +136,11 @@ test("draws one group per visible trial, twenty-eight cells, and both legends", 
  * which cell failed.
  */
 test("label boxes fit their text, stay on the plate, and touch no marker or band", async ({ page }) => {
-  // A full-height desktop window rather than the project's 1280x720: the
-  // plate now fits the window, and at 720px tall it shrinks past the scale
-  // at which the labels still clear the plate edge. This ran on a fixed
-  // 1072px plate before; the runtime floor is what will hold the plate
-  // above that scale on a short window.
-  await page.setViewportSize({ width: 1440, height: 900 });
   await figureSettled(page);
+  // At the project's 1280x720 the height fit alone would shrink the plate
+  // past the scale at which the labels clear its edge; the island's
+  // readable floor holds it above that (figureSettled waits it out).
+  expect(await radarMode(page)).toBe("radar");
   // One box per drug label, population label and phase label.
   await expect.poll(() => sweepLabelFit(page)).toEqual({
     misfit: [],
@@ -386,7 +258,8 @@ test("at a stacked width an opened record is scrolled into view", async ({ page 
   test.skip(T.markers === 0, NO_MARKER);
   await page.setViewportSize({ width: 900, height: 800 });
   await figureSettled(page);
-  const marker = page.locator("g.drug").first().locator("circle.marker");
+  // A marker on the radar, or a row once the radar has given way to the list.
+  const marker = recordTriggers(page).first();
   await marker.scrollIntoViewIfNeeded();
   await marker.click();
   const close = page.getByRole("button", { name: "Close trial details" });
@@ -507,7 +380,8 @@ test("the sticky trial drawer clears the navbar and shows the whole record", asy
  * -- whether the whole record is on screen and at what zoom.
  */
 async function everyRecord(page: Page) {
-  const markers = page.locator("g.drug circle.marker");
+  // The radar's markers, or the list's rows below the radar's floor.
+  const markers = recordTriggers(page);
   const drawer = page.locator("#timeline-drawer");
   const close = page.getByRole("button", { name: "Close trial details" });
   const records = [];
@@ -614,7 +488,7 @@ test("opening a trial record does not widen the document, stacked or railed", as
   for (const width of [390, 900, 1200, 1440, 1512]) {
     await page.setViewportSize({ width, height: 900 });
     await figureSettled(page);
-    await page.locator("g.drug").first().locator("circle.marker").click();
+    await recordTriggers(page).first().click();
     await expect(page.locator("#timeline-drawer")).toBeVisible();
     if (width <= 1100) {
       // Un-stuck, not un-positioned: below 1100px the drawer drops from
@@ -830,20 +704,18 @@ test("the key sits above the plate and opens on demand", async ({ page }) => {
  * before the radar carried a status filter at all.
  */
 test("ticking Show All in the study-status group draws every trial", async ({ page }) => {
-  // A full-height desktop window rather than the project's 1280x720: the
-  // plate now fits the window, and at 720px tall it shrinks past the scale
-  // at which the labels still clear the plate edge. This ran on a fixed
-  // 1072px plate before; the runtime floor is what will hold the plate
-  // above that scale on a short window.
-  await page.setViewportSize({ width: 1440, height: 900 });
   await figureSettled(page);
   const group = page.getByRole("group", { name: /^Study status/ });
   await group.getByRole("checkbox", { name: /^Show All/ }).check();
-  await expect(page.locator(FIGURE).locator("g.drug")).toHaveCount(
-    T.allMarkers,
-  );
   await expect(page.locator(".timeline-controls-count")).toContainText(
     `Showing ${EXPECTED.trialRows} of ${EXPECTED.trialRows} trials`,
+  );
+  // A new selection learns its own floor. At the project's 1280x720 the
+  // height fit alone would shrink the plate past the scale at which the
+  // labels clear its edge; the floor holds it above that, over a few solves.
+  expect(await settleRadar(page)).toBe("radar");
+  await expect(page.locator(FIGURE).locator("g.drug")).toHaveCount(
+    T.allMarkers,
   );
   // One box per drug label, population label and phase label.
   await expect.poll(() => sweepLabelFit(page)).toEqual({
