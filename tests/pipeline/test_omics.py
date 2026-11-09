@@ -1,5 +1,7 @@
 """The structured omics evidence the extraction returns, and its wire form."""
 
+import logging
+
 import pytest
 from pydantic import ValidationError
 
@@ -57,6 +59,63 @@ def test_a_gene_entry_carries_structured_omics_evidence() -> None:
         omics_evidence=[{"study_type": "TWAS", "biomarker": "Q", "items": []}],
     )
     assert entry.omics_evidence == [OmicsEvidence(study_type="TWAS", biomarker="Q")]
+
+
+def _entry(omics: object) -> GeneEntry:
+    """A gene entry built from what the model returned, as the tool path does."""
+    return GeneEntry.model_validate(
+        {
+            "gene_symbol": "GENE1",
+            "confidence": 0.5,
+            "source_quote": "A sentence.",
+            "omics_evidence": omics,
+        }
+    )
+
+
+def test_a_study_type_in_another_case_or_the_prompts_spelling_is_kept() -> None:
+    """The tool is not strict, so its enum only advises; the system prompt
+    still says "fine-mapping" and "pQTL-MR". A spelling slip must not fail
+    the paper, which costs two paid calls and a retry on every later run."""
+    entry = _entry(
+        [
+            {"study_type": "fine-mapping"},
+            {"study_type": "proteomics", "biomarker": "Q"},
+            {"study_type": "pQTL-MR", "biomarker": "Q"},
+        ]
+    )
+    assert [e.study_type for e in entry.omics_evidence] == [
+        "Fine-mapping",
+        "Proteomics",
+        "Proteogenomic MR",
+    ]
+
+
+def test_a_study_of_an_unknown_type_is_dropped_and_logged(caplog) -> None:
+    with caplog.at_level(logging.INFO, logger="pipeline.omics"):
+        entry = _entry([{"study_type": "MAGMA"}, {"study_type": "TWAS"}])
+    assert entry.omics_evidence == [OmicsEvidence(study_type="TWAS")]
+    assert "MAGMA" in caplog.text
+
+
+def test_bare_strings_are_read_as_a_type_and_as_an_item() -> None:
+    entry = _entry(
+        [
+            "TWAS",
+            {
+                "study_type": "PWAS",
+                "items": ["brain", {"text": "a", "colocalized": True}],
+            },
+            7,
+        ]
+    )
+    assert entry.omics_evidence == [
+        OmicsEvidence(study_type="TWAS"),
+        OmicsEvidence(
+            study_type="PWAS",
+            items=[OmicsItem(text="brain"), OmicsItem(text="a", colocalized=True)],
+        ),
+    ]
 
 
 def test_omics_array_escapes_semicolons() -> None:

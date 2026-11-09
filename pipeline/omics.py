@@ -16,10 +16,13 @@ import it.
 """
 
 import json
+import logging
 from collections.abc import Iterable, Sequence
 from typing import Annotated, Final
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, WithJsonSchema
+
+logger = logging.getLogger(__name__)
 
 # The sentence the curated table uses for one study, and the type it stands
 # for -- a filter choice of its own.
@@ -43,6 +46,52 @@ OMICS_STUDY_TYPES: Final[tuple[str, ...]] = (
     "Experimental",
     MENTR_LABEL,
 )
+
+
+# Spellings the prompt itself uses for a study type, or that the model wrote
+# under v7: the system prompt still says "fine-mapping" and "pQTL-MR".
+_TYPE_SPELLINGS: Final[dict[str, str]] = {
+    **{study_type.lower(): study_type for study_type in OMICS_STUDY_TYPES},
+    "pqtl-mr": "Proteogenomic MR",
+    "mentr": MENTR_LABEL,
+}
+
+
+def coerce_omics_list(value: object) -> object:
+    """What the model returned for `omics_evidence`, made valid study by study.
+
+    The extraction tool is not strict, so its enum only advises, and one
+    study the schema refuses used to fail the whole paper: two paid calls,
+    then a retry on every later run. A type in another case or in the
+    prompt's own spelling is canonicalised; a study of any other type is
+    dropped and logged -- the disposition the export gives an unfilterable
+    entry and the merge an untracked trait. A bare string is read as a type
+    (v7's shape), and a bare-string item as that item's text.
+    """
+    if not isinstance(value, list):
+        return value
+    studies: list[object] = []
+    for study in value:
+        if isinstance(study, str):
+            study = {"study_type": study}
+        if not isinstance(study, dict):
+            logger.info(f"dropped omics evidence that is not a study: {study!r}")
+            continue
+        named = str(study.get("study_type", "")).strip().lower()
+        spelling = _TYPE_SPELLINGS.get(named)
+        if spelling is None:
+            logger.info(
+                f"dropped omics evidence with no published study type: {study!r}"
+            )
+            continue
+        items = study.get("items")
+        if isinstance(items, list):
+            items = [
+                {"text": item} if isinstance(item, str) else item for item in items
+            ]
+            study = {**study, "items": items}
+        studies.append({**study, "study_type": spelling})
+    return studies
 
 
 def _validate_study_type(value: str) -> str:
