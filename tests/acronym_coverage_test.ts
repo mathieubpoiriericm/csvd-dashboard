@@ -2,7 +2,7 @@ import { assertEquals } from "@std/assert";
 
 import { uncoveredAcronyms } from "../lib/acronyms.ts";
 import { genes } from "../lib/data/genes.ts";
-import { formatOmicsValue } from "../lib/filters.ts";
+
 import { isAbsent } from "../lib/sentinels.ts";
 
 // Derived from whatever rows are committed, so it holds for any disease and
@@ -14,7 +14,9 @@ Deno.test("every acronym in the trait and omics columns has a glossary entry", (
   const missing = genes.flatMap((gene) =>
     [
       ...gene.gwasTrait,
-      ...gene.evidenceFromOtherOmicsStudies.map(formatOmicsValue),
+      // The stored value, not the printed one: a `[?]` is what exempts the
+      // term before it, and printing turns it into a bare `?`.
+      ...gene.evidenceFromOtherOmicsStudies.map((v) => v.replaceAll("*", "")),
     ]
       .filter((value) => !isAbsent(value))
       .flatMap((value) => uncoveredAcronyms(value))

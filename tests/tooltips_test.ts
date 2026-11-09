@@ -654,6 +654,16 @@ Deno.test("phenogramTooltip states significant colocalization in words, without 
   });
 });
 
+Deno.test("phenogramTooltip prints a clarification mark in the colocalization row as ?", () => {
+  const gene = sampleGene({
+    evidenceFromOtherOmicsStudies: ["TWAS;[?]: a*"],
+  });
+  const row = phenogramTooltip(gene).rows.find((r) =>
+    r.label === "Significant colocalization"
+  );
+  assertEquals(row?.value, "TWAS (?): a");
+});
+
 Deno.test("phenogramTooltip adds no colocalization row when nothing colocalized", () => {
   const gene = sampleGene({ evidenceFromOtherOmicsStudies: ["TWAS;Q: a, b"] });
   assertEquals(

@@ -7,7 +7,7 @@ import vocabulary from "../disease/vocabulary.json" with { type: "json" };
 import { citationLink, definitionLabel } from "./disease/citation.ts";
 import { COLOCALIZATION_LABEL } from "./acronyms.ts";
 import { formatOmicsValue } from "./filters.ts";
-import { colocalizedItems, parseOmicsEntry } from "./omics.ts";
+import { colocalizedItems, parseOmicsEntry, printed } from "./omics.ts";
 import type { TraitEncoding } from "./phenogram.ts";
 import {
   ncbiGeneLink,
@@ -44,7 +44,7 @@ function colocalizationRows(values: readonly string[]): TooltipRow[] {
     const items = colocalizedItems(entry);
     if (items.length === 0) return [];
     const study = entry.biomarker
-      ? `${entry.type} (${entry.biomarker})`
+      ? `${entry.type} (${printed(entry.biomarker)})`
       : entry.type;
     return [`${study}: ${items.join(", ")}`];
   });

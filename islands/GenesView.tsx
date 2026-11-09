@@ -107,14 +107,10 @@ function asText(
 interface TooltippedValuesProps {
   values: readonly string[];
   tooltipFor?: (value: string) => TooltipContent | null;
-  /** How each value renders as the trigger text; the raw value by default. */
-  format?: (value: string) => string;
 }
 
 /** Comma-separated values that each carry their own optional tooltip. */
-function TooltippedValues(
-  { values, tooltipFor, format }: TooltippedValuesProps,
-) {
+function TooltippedValues({ values, tooltipFor }: TooltippedValuesProps) {
   return (
     <>
       {values.map((value, index) => (
@@ -124,7 +120,7 @@ function TooltippedValues(
             ? <Absent />
             : (
               <Tooltip content={tooltipFor?.(value) ?? null}>
-                {format ? format(value) : value}
+                {value}
               </Tooltip>
             )}
         </span>

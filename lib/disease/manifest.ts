@@ -52,6 +52,11 @@ function acronymMap(value: unknown): DiseaseManifest["acronyms"] {
   const out: DiseaseManifest["acronyms"] = {};
   for (const [rawKey, entry] of Object.entries(record(value))) {
     const key = rawKey.trim();
+    // A blank key would match the empty string between every two
+    // characters of a cell, and box nothing over and over.
+    if (key === "") {
+      throw new Error("disease/manifest.json: blank acronym key in acronyms");
+    }
     const source = record(entry);
     out[key] = {
       name: optional(source, "name"),
