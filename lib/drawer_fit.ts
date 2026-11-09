@@ -7,6 +7,9 @@
  * under the navbar is zoomed down instead, as far as `DRAWER_FIT_FLOOR`;
  * past that the drawer grows and the page scrolls. The island measures; this
  * module only decides.
+ *
+ * The map's facility popups are fitted into the map the same way
+ * (`fitPopup` in `islands/TrialsMap.tsx`), floor included.
  */
 
 /** The smallest zoom a record is drawn at: a 13px value stays about 11px. */

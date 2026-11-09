@@ -16,7 +16,7 @@ in alpha since May 2025, and `leaflet.markercluster` (last released
 October 2021) reads that global as its module body evaluates. The 2.0 blocker is
 the plugin, not this code.
 
-Seven things are load-bearing:
+Nine things are load-bearing:
 
 - **Import order is not optional.** Leaflet touches `window` at import time, so
   it is `await import()`ed _inside_ the effect; hoisting it to module scope
@@ -58,6 +58,23 @@ Seven things are load-bearing:
   the per-add accessibility decoration and the popup host lifecycle run again
   for each, which is why they live inside the loop and not in a one-time setup.
   `fitBounds` runs once, on the first population.
+- **`removeOutsideVisibleBounds` is off, because pruning closes popups.** On
+  mobile, markercluster prunes markers at the bare visible bounds (desktop pads
+  them by a screen in every direction). A phone's map is about as tall as a
+  popup, so opening one autopans its own marker off the map; the `moveend` prune
+  then removes that marker, and Leaflet closes a bound popup when its layer is
+  removed. A tapped popup flashed open and vanished. The touch-screen test in
+  `e2e/tests/map.spec.ts` pins it.
+- **A popup is fitted to the map, never scrolled.** The phone map is 380px and
+  the committed popups run to 463px at 320px wide, so the head or the registry
+  link was cut off by the map's edge. `fitPopup` zooms the popup body as the
+  timeline drawer does (`fitZoom` in `lib/drawer_fit.ts`, floor 0.85) into the
+  map's height less the popup chrome, the marker's reach and the autopan
+  padding; past the floor the map grows while the popup is open and
+  `releaseMapHeight` gives the height back on close. It then calls
+  `popup.update()`, because Leaflet laid the popup out and began its autopan
+  before `popupopen`. Measured over all 70 committed sites: at 393x852 69 are
+  zoomed and one grows the map; at 320x568 66 grow it.
 
 Do not add `as any` back to the `markerClusterGroup` call, for the same reason
 the `useTable` call carries that rule: `@types/leaflet.markercluster` augments

@@ -261,7 +261,10 @@ test("the hidden list adds no invisible tab stops", async ({ page }) => {
  * marker, fall back to the zoom control. Retried rather than timed, because
  * Leaflet's zoom is animated and the number of steps depends on the data.
  */
-async function openAnyMarker(page: import("@playwright/test").Page) {
+async function openAnyMarker(
+  page: import("@playwright/test").Page,
+  { tap = false } = {},
+) {
   await expect(page.locator(".trials-map.leaflet-container")).toBeVisible();
   // Leaflet keeps a path in the overlay pane for markers it has not laid out
   // yet, drawn as `d="M0 0"`. With many facility sites visible one of those is
@@ -307,7 +310,8 @@ async function openAnyMarker(page: import("@playwright/test").Page) {
     expect(await markerInView()).toBeGreaterThanOrEqual(0);
   }).toPass({ timeout: 30_000 });
 
-  await marker.nth(await markerInView()).click();
+  const site = marker.nth(await markerInView());
+  await (tap ? site.tap() : site.click());
 }
 
 test("facility popups fit a narrow phone screen", async ({ page }) => {
@@ -319,6 +323,65 @@ test("facility popups fit a narrow phone screen", async ({ page }) => {
   const popup = await page.locator(".leaflet-popup-content-wrapper")
     .boundingBox();
   expect(popup!.width).toBeLessThanOrEqual(map!.width);
+});
+
+test.describe("on a touch screen", () => {
+  test.use({
+    hasTouch: true,
+    isMobile: true,
+    viewport: { width: 393, height: 852 },
+  });
+
+  // A phone's map is about as tall as a popup, so opening one pans the map
+  // until its own marker is off the map. Markercluster prunes off-screen
+  // markers at the bare visible bounds on mobile, and Leaflet closes a bound
+  // popup when its layer is removed: the popup flashed open and vanished.
+  test("a tapped site's popup stays open once the map has panned to it", async ({ page }) => {
+    test.skip(NO_SITES, NO_MARKER);
+    await openAnyMarker(page, { tap: true });
+    const popup = page.locator(".leaflet-popup-content .map-popup");
+    await expect(popup).toBeVisible();
+    await expect(page.locator(".leaflet-pan-anim")).toHaveCount(0);
+    // Past the pan's 0.25 s and the popup's fade-out, so a close has landed.
+    await page.waitForTimeout(600);
+    await expect(popup).toBeVisible();
+  });
+
+  // The map is 380px tall on a phone and a long trial's popup ran to 463px at
+  // 320px wide, so the top or the registry link at its foot was cut off by
+  // the map's edge.
+  test("a popup fits wholly inside the map beside its marker", async ({ page }) => {
+    test.skip(NO_SITES, NO_MARKER);
+    await page.setViewportSize({ width: 320, height: 568 });
+    await page.goto("/map");
+    await expect(page.locator(".trials-map.leaflet-container")).toBeVisible();
+    const restingHeight = (await page.locator(".trials-map").boundingBox())!
+      .height;
+    await openAnyMarker(page, { tap: true });
+    await expect(page.locator(".leaflet-popup-content .map-popup"))
+      .toBeVisible();
+    await expect(page.locator(".leaflet-pan-anim")).toHaveCount(0);
+    await page.waitForTimeout(400);
+    const [map, popup, link] = await Promise.all([
+      page.locator(".trials-map").boundingBox(),
+      page.locator(".leaflet-popup").boundingBox(),
+      page.locator(".leaflet-popup .popup-link").boundingBox(),
+    ]);
+    expect(popup!.y).toBeGreaterThanOrEqual(map!.y);
+    expect(popup!.y + popup!.height).toBeLessThanOrEqual(map!.y + map!.height);
+    expect(link!.y + link!.height).toBeLessThanOrEqual(map!.y + map!.height);
+    // The marker it points at is still on the map.
+    await expect(page.locator(".leaflet-popup")).toBeInViewport();
+    const tip = await page.locator(".leaflet-popup-tip").boundingBox();
+    expect(tip!.y + tip!.height).toBeLessThan(map!.y + map!.height);
+
+    // A popup too tall even at the zoom floor grows the map while it is
+    // open, and closing it gives the height back.
+    await page.locator("a.leaflet-popup-close-button").tap();
+    await expect(page.locator(".leaflet-popup")).toHaveCount(0);
+    expect((await page.locator(".trials-map").boundingBox())!.height)
+      .toBe(restingHeight);
+  });
 });
 
 test("Space activates a map cluster and keeps keyboard focus on the map", async ({ page }) => {
