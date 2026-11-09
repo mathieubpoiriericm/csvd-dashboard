@@ -15,57 +15,72 @@ import { FAMILY_PALETTE } from "../../../lib/adapt/palette.ts";
 import { familyOptions } from "./helpers.ts";
 import type { StepProps } from "./types.ts";
 
-export function VocabularyStep(
-  { answers, update, fetch, setStatus, busy, lookup }: StepProps,
+// The answer is weighed against the trait as it stands when it lands: the
+// trait can be removed, its long name edited, or a term or a note typed
+// while the search is out. A changed long name means the answer belongs
+// to a question nobody asked; a term or a note the researcher chose is
+// replaced only on a yes. The write-back re-checks all three, in case
+// anything moved after that. The finally leaves a failure on the status
+// line, or else what was found.
+export async function lookupXref(
+  { answers, latest, update, fetch, setStatus }: Pick<
+    StepProps,
+    "answers" | "latest" | "update" | "fetch" | "setStatus"
+  >,
+  i: number,
 ) {
-  const { traits, families, citationStandard } = answers.vocabulary;
-  const options = familyOptions(families);
-
-  // The write-back re-checks the row: the trait can be removed, or its long
-  // name edited, while the search is out, and the answer would then belong
-  // to a question nobody asked. A term or a note the researcher chose is
-  // replaced only on a yes. The finally leaves a failure on the status line,
-  // or else what was found.
-  async function lookupXref(i: number) {
-    let outcome = "";
-    const asked = traits[i];
-    const name = asked.name;
-    if (name.trim() === "") {
-      setStatus(
-        "Give the trait its long name first; that is what is searched.",
-      );
+  let outcome = "";
+  const name = answers.vocabulary.traits[i].name;
+  if (name.trim() === "") {
+    setStatus(
+      "Give the trait its long name first; that is what is searched.",
+    );
+    return;
+  }
+  setStatus(`Searching ontologies for "${name}"…`);
+  try {
+    const hits = await olsSearch(fetch, name);
+    if (!hits.ok) {
+      outcome = `Ontology search failed: ${hits.error}`;
       return;
     }
-    setStatus(`Searching ontologies for "${name}"…`);
-    try {
-      const hits = await olsSearch(fetch, name);
-      if (!hits.ok) {
-        outcome = `Ontology search failed: ${hits.error}`;
-        return;
-      }
-      const answer = xrefAnswer(name, hits.value);
-      if (
-        replacesChoice(asked, answer) &&
-        !globalThis.confirm(
-          "Replace the term and note you chose with the search's top hit?",
-        )
-      ) {
-        outcome = "Kept the term and note you chose.";
-        return;
-      }
-      update((d) => {
-        const trait = d.vocabulary.traits[i];
-        if (trait === undefined || trait.name !== name) return;
-        trait.xref = answer.xref;
-        trait.xrefNote = answer.xrefNote;
-      });
-      outcome = answer.xref === null
-        ? `No term in EFO, HP or MONDO for "${name}".`
-        : `Found ${answer.xref} for "${name}".`;
-    } finally {
-      setStatus(outcome);
+    const now = latest().vocabulary.traits[i];
+    if (now === undefined || now.name !== name) {
+      outcome = `The trait changed while "${name}" was searched; search again.`;
+      return;
     }
+    const answer = xrefAnswer(name, hits.value);
+    if (
+      replacesChoice(now, answer) &&
+      !globalThis.confirm(
+        "Replace the term and note you chose with the search's top hit?",
+      )
+    ) {
+      outcome = "Kept the term and note you chose.";
+      return;
+    }
+    const { xref, xrefNote } = now;
+    update((d) => {
+      const trait = d.vocabulary.traits[i];
+      if (
+        trait === undefined || trait.name !== name ||
+        trait.xref !== xref || trait.xrefNote !== xrefNote
+      ) return;
+      trait.xref = answer.xref;
+      trait.xrefNote = answer.xrefNote;
+    });
+    outcome = answer.xref === null
+      ? `No term in EFO, HP or MONDO for "${name}".`
+      : `Found ${answer.xref} for "${name}".`;
+  } finally {
+    setStatus(outcome);
   }
+}
+
+export function VocabularyStep(props: StepProps) {
+  const { answers, update, busy, lookup } = props;
+  const { traits, families, citationStandard } = answers.vocabulary;
+  const options = familyOptions(families);
 
   return (
     <section class="adapt-step">
@@ -202,7 +217,7 @@ export function VocabularyStep(
                   type="button"
                   class="adapt-button"
                   aria-disabled={busy ? "true" : undefined}
-                  onClick={() => lookup(() => lookupXref(i))}
+                  onClick={() => lookup(() => lookupXref(props, i))}
                 >
                   Find ontology term
                 </button>

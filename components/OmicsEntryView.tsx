@@ -1,4 +1,8 @@
-import { acronymTooltip, splitAcronyms } from "../lib/acronyms.ts";
+import {
+  acronymTooltip,
+  CLARIFICATION_MARK,
+  splitAcronyms,
+} from "../lib/acronyms.ts";
 import {
   colocalizedItems,
   colocalizedText,
@@ -20,14 +24,20 @@ import { Tooltip } from "./Tooltip.tsx";
  * contains acronyms (`Proteogenomic MR`) keeps each of them boxed, and each
  * also lists the colocalized items, so `MR` never loses its own expansion. A
  * type with neither is boxed whole when there is a list to show, plain
- * otherwise.
+ * otherwise. A `CLARIFICATION_MARK` in a boxed type stays out of its chip --
+ * a chip holds plain text, and the mark is a chip of its own, `?`, as
+ * everywhere else -- so the type is boxed up to the mark and the rest goes
+ * through `AcronymText`; a type that is nothing but the mark has no words to
+ * box, and goes through `AcronymText` whole.
  */
 function StudyType({ entry, suffix }: { entry: OmicsEntry; suffix: string }) {
   const tip = acronymTooltip(entry.type) === null &&
       splitAcronyms(entry.type).some((segment) => segment.acronym)
     ? null
     : studyTypeTooltip(entry);
-  if (!tip) {
+  const mark = entry.type.indexOf(CLARIFICATION_MARK);
+  const head = mark < 0 ? entry.type : entry.type.slice(0, mark);
+  if (!tip || !head) {
     const colocalized = colocalizedItems(entry).join(", ");
     return (
       <AcronymText
@@ -36,14 +46,17 @@ function StudyType({ entry, suffix }: { entry: OmicsEntry; suffix: string }) {
       />
     );
   }
-  const chip = <Tooltip content={tip}>{entry.type}</Tooltip>;
+  const chip = <Tooltip content={tip}>{head}</Tooltip>;
+  const tail = mark < 0
+    ? suffix
+    : <AcronymText text={entry.type.slice(mark) + suffix} />;
   return (
     <span class="acronym-text">
-      {suffix
+      {tail
         ? (
           <span class="acronym-glue">
             {chip}
-            {suffix}
+            {tail}
           </span>
         )
         : chip}

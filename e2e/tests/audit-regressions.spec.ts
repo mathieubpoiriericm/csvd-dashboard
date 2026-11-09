@@ -26,7 +26,10 @@ test("confidence sorts numerically with missing scores last in both directions",
   for (let i = 0; i < 2; i++) {
     await header.getByRole("button").click();
     const direction = await header.getAttribute("aria-sort");
-    const values = await page.locator("tbody .col-confidence").allInnerTexts();
+    // A missing score is the shared absent cell: its dash plus the visually
+    // hidden "not recorded", which innerText may or may not include.
+    const values = (await page.locator("tbody .col-confidence").allInnerTexts())
+      .map((value) => value.replace("not recorded", "").trim());
     const scores = values.filter((value) => value !== "—").map(Number);
     expect(values.slice(scores.length).every((value) => value === "—")).toBe(
       true,

@@ -91,6 +91,27 @@ Deno.test("a term awaiting clarification prints as written, followed by a ? mark
   assertEquals(text(html), "Qomics (?: a, QQ-RR? b)");
 });
 
+Deno.test("a boxed study type keeps its ? mark out of its chip", () => {
+  // The colocalized item boxes a type the glossary lacks; the mark is a chip
+  // of its own, never the storage form `[?]` inside the type's chip.
+  const marked = renderToString(<OmicsEntryView value="Qomics[?];Q: a*" />);
+  assertEquals(triggers(marked), ["Qomics", "?"]);
+  assertEquals(text(marked), "Qomics? (Q: a)");
+  const bare = renderToString(<OmicsEntryView value="[?];a*" suffix="," />);
+  assertEquals(triggers(bare), ["?"]);
+  assertEquals(text(bare), "? (a),");
+  const typeOnly = renderToString(
+    <OmicsEntryView value="Qomics[?] x;Q: a*" />,
+  );
+  assertEquals(triggers(typeOnly), ["Qomics", "?"]);
+  assertEquals(text(typeOnly), "Qomics? x (Q: a)");
+});
+
+Deno.test("a server-rendered tooltip trigger says it is collapsed", () => {
+  const html = renderToString(<OmicsEntryView value="TWAS;Q: a" />);
+  assertEquals(html.includes('aria-expanded="false"'), true);
+});
+
 Deno.test("plain text beside an acronym is escaped once, not twice", () => {
   const html = renderToString(<AcronymText text="a & TWAS > b" />);
   const text = html.replace(/<[^>]+>/g, "");

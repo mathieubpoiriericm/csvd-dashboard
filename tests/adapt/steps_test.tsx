@@ -49,6 +49,7 @@ import { wizardFor } from "./wizard_fixture.ts";
 const noop = () => {};
 const props = (answers = EXAMPLEITIS) => ({
   answers,
+  latest: () => answers,
   update: noop,
   issues: validate(answers),
   fetch: globalThis.fetch,
@@ -466,6 +467,7 @@ Deno.test("every control a step renders writes back into its own answer", () => 
       };
       const rendered = Step({
         answers,
+        latest: () => answers,
         update,
         issues: validate(answers),
         fetch: globalThis.fetch,
@@ -530,6 +532,7 @@ Deno.test("renaming a population redrafts only a radar label still on the draft"
   let draft: Answers | null = null;
   const step = TrialsStep({
     answers: EXAMPLEITIS,
+    latest: () => EXAMPLEITIS,
     update: (change) => {
       const next = structuredClone(EXAMPLEITIS);
       change(next);
@@ -569,6 +572,7 @@ Deno.test("renaming a population redrafts only a radar label still on the draft"
   cleared.trials.populations[1].lines = [""];
   const again = TrialsStep({
     answers: cleared,
+    latest: () => cleared,
     update: (change) => {
       const next = structuredClone(cleared);
       change(next);
@@ -671,6 +675,7 @@ Deno.test("a second phrase whose lookup fails leaves a draft that still loads", 
     <WizardContext.Provider value={wizardFor(reloaded, "search")}>
       <SearchStep
         answers={reloaded}
+        latest={() => reloaded}
         update={noop}
         issues={issues}
         fetch={fetchStub}

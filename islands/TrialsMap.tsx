@@ -485,7 +485,8 @@ export default function TrialsMap() {
           />
         ))}
         <p class="map-controls-count" role="status">
-          Showing {visibleLocations.length} of {LOCATIONS.length} sites
+          Showing {visibleLocations.length} of {LOCATIONS.length}{" "}
+          {LOCATIONS.length === 1 ? "site" : "sites"}
           {summary.length > 0 ? ` · ${summary.join("; ")}` : ""}
         </p>
       </div>

@@ -117,6 +117,22 @@ Deno.test("the full Genes table keeps the provenance columns", () => {
   assertStringIncludes(html, "col-confidence");
 });
 
+Deno.test("a missing confidence score renders the shared absent cell", () => {
+  const html = renderToString(
+    <GenesView
+      goldOnly={false}
+      rows={[sampleGene({ confidence: null }), sampleGene({ confidence: 0.9 })]}
+    />,
+  );
+  const cells = [...html.matchAll(/<td[^>]*col-confidence[^>]*>(.*?)<\/td>/g)]
+    .map((match) => match[1]);
+  assertEquals(cells.length, 2);
+  assert(cells.some((cell) => cell.includes("0.90")), cells.join(" | "));
+  const absent = cells.find((cell) => !cell.includes("0.90")) ?? "";
+  assertStringIncludes(absent, 'class="cell-absent"');
+  assertStringIncludes(absent, "not recorded");
+});
+
 Deno.test("a DOI reference with no citation links to the resolver, showing the DOI", () => {
   // No refs.json row: a cited preprint renders as a citation instead.
   const doi = "10.1000/uncited.1";

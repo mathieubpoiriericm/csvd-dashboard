@@ -4,6 +4,12 @@ import type { Fetch } from "../../../lib/adapt/lookups.ts";
 
 export interface StepProps {
   answers: Answers;
+  /**
+   * The answers as last rendered. A lookup weighs its result against these
+   * when it lands, since the fields stay editable while it is out and
+   * `answers` is the render its button was pressed on.
+   */
+  latest: () => Answers;
   /** Replace one step's slice; the island re-validates and re-saves. */
   update: (change: (draft: Answers) => void) => void;
   issues: Issue[];

@@ -440,19 +440,24 @@ export function computeTimelineLayout(
         parentPhase(row.clinicalTrialPhase) === ring.phase
       );
       const filled = inCell.length > 0;
-      cells.push({
-        population: sector.key,
-        phase: ring.phase,
-        path: annularSectorPath(
-          ring.innerRadius * OUTER_RADIUS,
-          ring.outerRadius * OUTER_RADIUS,
-          sector.startDeg,
-          sector.endDeg,
-        ),
-        color: sector.color,
-        opacity: filled ? ring.opacity : enc.emptyCell.opacity,
-        filled,
-      });
+      // An empty population spans zero degrees, and a zero-span sector's arcs
+      // vanish (their endpoints coincide), leaving a stroked, hoverable radial
+      // line where a plate with one population should have no seam at all.
+      if (sector.drugCount > 0) {
+        cells.push({
+          population: sector.key,
+          phase: ring.phase,
+          path: annularSectorPath(
+            ring.innerRadius * OUTER_RADIUS,
+            ring.outerRadius * OUTER_RADIUS,
+            sector.startDeg,
+            sector.endDeg,
+          ),
+          color: sector.color,
+          opacity: filled ? ring.opacity : enc.emptyCell.opacity,
+          filled,
+        });
+      }
 
       const thickness = (ring.outerRadius - ring.innerRadius) * OUTER_RADIUS;
       const midRadius = ((ring.innerRadius + ring.outerRadius) / 2) *

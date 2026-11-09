@@ -76,6 +76,12 @@ export const KEY = /^[a-z][a-z0-9_]*$/;
  */
 export const PMID = /^[1-9][0-9]*$/;
 /**
+ * An OMIM number as the export publishes it: pipeline/export/omim.py keeps
+ * a row only when a gene's monogenic link fully matches six digits, so a
+ * number of any other length is written to omim_info.csv and never shown.
+ */
+export const MIM = /^[1-9][0-9]{5}$/;
+/**
  * What clinical_trials_fetch.py leaves of a stated condition before it
  * looks for a substring: lower case, and every run of anything but a
  * letter, a digit or a space turned into a space. A substring outside
@@ -467,6 +473,9 @@ function identityIssues(a: Answers): Issue[] {
       "wrong",
     );
   }
+  // The key is written into manifest.json too, which the fork's leak test
+  // walks like every other string there.
+  publicText(c, finder, "disease.key", disease.key);
   const named = [
     ["name", "The disease name"],
     ["short", "The short form"],
@@ -1124,6 +1133,8 @@ function monogenicIssues(a: Answers): Issue[] {
         "The OMIM number must be digits, with no leading zero.",
         "wrong",
       );
+    } else if (!MIM.test(clean(r.omimNum))) {
+      c.add(num, "An OMIM number is six digits.", "wrong");
     } else if (dupOmim.has(i)) {
       c.add(num, `OMIM ${clean(r.omimNum)} is listed twice.`, "wrong");
     }

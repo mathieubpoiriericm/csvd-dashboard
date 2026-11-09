@@ -24,6 +24,7 @@ import {
   EXAMPLE_TYPE,
   hiddenChar,
   KEY,
+  MIM,
   objectKey,
   OPERATOR,
   PMID,
@@ -48,6 +49,7 @@ export type Rule =
   | "conditions"
   | "symbol"
   | "number"
+  | "mim"
   | "ascii"
   | "confidence"
   | "doi"
@@ -103,9 +105,10 @@ const RULES: ReadonlyArray<readonly [RegExp, Rule]> = [
   [/^conditionPairs\[\d+\](?:\.1)?$/, "condition"],
   [/^genes\[\d+\]$/, "symbol"],
   [
-    /^(?:omimRows\[\d+\]\.omimNum|examples\[\d+\]\.pmid|rows\[\d+\]\.pmid)$/,
+    /^(?:examples\[\d+\]\.pmid|rows\[\d+\]\.pmid)$/,
     "number",
   ],
+  [/^omimRows\[\d+\]\.omimNum$/, "mim"],
   [
     /^omimRows\[\d+\]\.(?:location|phenotype|phenotypeMimNumber|inheritance|phenotypeMappingKey|geneOrLocusMimNumber)$/,
     "ascii",
@@ -735,6 +738,17 @@ function number(text: string): Diagnosis {
   };
 }
 
+/** A number with no leading zero, and six digits long, as the export publishes it. */
+function mim(text: string): Diagnosis {
+  const d = number(text);
+  if (!d.ok) {
+    return { ...d, fix: d.fix !== null && MIM.test(d.fix) ? d.fix : null };
+  }
+  return trim(text) === "" || MIM.test(trim(text))
+    ? CLEAN
+    : { ...FAILS, note: "An OMIM number is six digits." };
+}
+
 /** tests/pipeline/export/test_omim.py holds the committed OMIM table to ASCII. */
 function ascii(text: string): Diagnosis {
   const t = trim(text);
@@ -957,6 +971,8 @@ export function diagnose(rule: Rule, text: string): Diagnosis {
       return symbol(text);
     case "number":
       return number(text);
+    case "mim":
+      return mim(text);
     case "ascii":
       return ascii(text);
     case "confidence":
