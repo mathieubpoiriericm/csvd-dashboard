@@ -1,4 +1,5 @@
 import { assertEquals } from "@std/assert";
+import type { VNode } from "preact";
 import { renderToString } from "preact-render-to-string";
 
 import { AcronymText } from "../components/AcronymText.tsx";
@@ -43,6 +44,37 @@ Deno.test("a starred type the glossary lacks keeps its own acronym boxed", () =>
   );
   assertEquals(triggers(html), ["MR"]);
   assertEquals(text(html), "Proteogenomic MR (Q: plasma)");
+});
+
+/**
+ * The first element of component `name` under `node`, unrendered. Under
+ * `jsx: "precompile"` a template keeps its components in `props.exprs`.
+ */
+function findComponent(node: unknown, name: string): VNode | undefined {
+  if (Array.isArray(node)) {
+    return node.map((child) => findComponent(child, name)).find(Boolean);
+  }
+  if (!node || typeof node !== "object") return undefined;
+  const vnode = node as VNode<{ children?: unknown; exprs?: unknown }>;
+  if (typeof vnode.type === "function" && vnode.type.name === name) {
+    return vnode;
+  }
+  return findComponent([vnode.props.children, vnode.props.exprs], name);
+}
+
+Deno.test("each acronym in such a type lists the colocalized tissues", () => {
+  // Server rendering leaves a closed panel empty, so this reads the props
+  // the type hands its acronyms rather than the HTML.
+  const type = findComponent(
+    OmicsEntryView({ value: "Proteogenomic MR;Q: plasma*, liver, brain*" }),
+    "StudyType",
+  )!;
+  const rendered = (type.type as (props: unknown) => VNode)(type.props);
+  assertEquals(rendered.type, AcronymText as unknown);
+  assertEquals(
+    (rendered.props as { colocalizedIn?: string }).colocalizedIn,
+    "plasma, brain",
+  );
 });
 
 Deno.test("an acronym inside an item is boxed", () => {

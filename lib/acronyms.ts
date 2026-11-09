@@ -15,7 +15,7 @@
  */
 
 import { ACRONYMS } from "./disease/acronyms.ts";
-import { CLARIFICATION_MARK } from "./omics.ts";
+import { CLARIFICATION_MARK, parseOmicsEntry } from "./omics.ts";
 import { isAbsent } from "./sentinels.ts";
 import type { TooltipContent, TooltipRow } from "./tooltip_content.ts";
 import type { Acronym, Gene } from "./types.ts";
@@ -24,43 +24,62 @@ export { CLARIFICATION_MARK };
 
 /**
  * The acronyms in the trait and omics columns no glossary entry covers, as
- * `GENE: TOKEN`, split by who wrote the row.
+ * `GENE: TOKEN`, split by whether a pipeline run can coin them.
  *
- * `curated` rows -- no extraction quote -- are the dataset as reviewed, and
- * `tests/acronym_coverage_test.ts` holds them to an empty list. `extracted`
- * rows are what a pipeline run wrote in the model's own words; their gaps
- * are reported for the glossary to catch up with, and never block a deploy.
- * A gene symbol written in prose is no acronym, and a term marked
+ * `enforced` holds what no run can: every row's traits and study types,
+ * which come from closed vocabularies, and a curated row's -- no extraction
+ * quote -- biomarker and items, which were reviewed. A gap there is a
+ * manifest bug, and `tests/acronym_coverage_test.ts` holds it to an empty
+ * list. `reported` holds the biomarker and items of a row a run wrote, in
+ * the model's own words; those gaps are for the glossary to catch up with,
+ * and never block a deploy. A gene symbol in any case, alone or leading a
+ * hyphenated word (`Abc1-deficient`), is no acronym, and a term marked
  * `CLARIFICATION_MARK` awaits the curators, so neither counts.
  */
 export function glossaryGaps(
   genes: readonly Gene[],
   glossary: ReadonlyMap<string, Acronym> = ACRONYMS,
-): { curated: string[]; extracted: string[] } {
-  const symbols = new Set(genes.map((gene) => gene.gene));
-  const gapsOf = (gene: Gene) =>
+): { enforced: string[]; reported: string[] } {
+  const symbols = genes.map((gene) => gene.gene.toLowerCase());
+  const isSymbol = (token: string) => {
+    const lower = token.toLowerCase();
+    return symbols.some((symbol) =>
+      lower === symbol || lower.startsWith(`${symbol}-`)
+    );
+  };
+  const gapsIn = (gene: Gene, texts: readonly string[]) =>
     [
       ...new Set(
-        [
-          ...gene.gwasTrait,
-          // The stored value, not the printed one: the mark is what exempts
-          // the term before it, and printing turns it into a bare `?`.
-          ...gene.evidenceFromOtherOmicsStudies.map((v) =>
-            v.replaceAll("*", "")
-          ),
-        ]
-          .filter((value) => !isAbsent(value))
-          .flatMap((value) => uncoveredAcronyms(value, glossary))
-          .filter((token) => !symbols.has(token)),
+        texts
+          .flatMap((text) => uncoveredAcronyms(text, glossary))
+          .filter((token) => !isSymbol(token)),
       ),
     ].map((token) => `${gene.gene}: ${token}`);
   // Array methods rather than a loop: V8 counts a loop body as a branch of
   // its own, which a run over no rows (`deno task data:empty`) leaves untaken.
+  const split = genes.map((gene) => {
+    // The stored value, not the printed one: the mark is what exempts the
+    // term before it, and printing turns it into a bare `?`.
+    const entries = gene.evidenceFromOtherOmicsStudies
+      .filter((value) => !isAbsent(value))
+      .map(parseOmicsEntry);
+    const vocabulary = [
+      ...gene.gwasTrait.filter((value) => !isAbsent(value)),
+      ...entries.map((entry) => entry.type),
+    ];
+    const words = entries.flatMap((entry) => [
+      entry.biomarker ?? "",
+      ...entry.items.map((item) => item.text),
+    ]);
+    const curated = isAbsent(gene.sourceQuote);
+    return {
+      enforced: gapsIn(gene, curated ? [...vocabulary, ...words] : vocabulary),
+      reported: curated ? [] : gapsIn(gene, words),
+    };
+  });
   return {
-    curated: genes.filter((gene) => isAbsent(gene.sourceQuote)).flatMap(gapsOf),
-    extracted: genes.filter((gene) => !isAbsent(gene.sourceQuote)).flatMap(
-      gapsOf,
-    ),
+    enforced: split.flatMap((gaps) => gaps.enforced),
+    reported: split.flatMap((gaps) => gaps.reported),
   };
 }
 
@@ -69,6 +88,9 @@ export const COLOCALIZATION_LABEL = "Significant colocalization";
 
 /** A term and the mark straight after it. */
 const MARKED_TERM = /[A-Za-z0-9-]*\[\?\]/g;
+
+/** A protein variant in one-letter codes: `R187W`, `Q12X` (a stop). */
+const VARIANT = /^[ACDEFGHIKLMNPQRSTVWY]\d+[ACDEFGHIKLMNPQRSTVWYX]$/;
 
 export function clarificationTooltip(): TooltipContent {
   return {
@@ -142,7 +164,8 @@ export function acronymTooltip(
 /**
  * The acronym-like tokens in `text` that no glossary entry covers: at least
  * one capital and at least two capitals or digits, so `BA24`, `ZZ9` and
- * `AB-based` count and `Brain`, `c1` and `(age > 65)` do not.
+ * `AB-based` count and `Brain`, `c1` and `(age > 65)` do not. A protein
+ * variant (`R187W`) is a position, not an acronym.
  */
 export function uncoveredAcronyms(
   text: string,
@@ -153,7 +176,8 @@ export function uncoveredAcronyms(
   const rest = pattern ? unmarked.replace(pattern, " ") : unmarked;
   const tokens = rest.split(/[^A-Za-z0-9-]+/).filter((token) =>
     // The first test guarantees the match below finds at least one.
-    /[A-Z]/.test(token) && token.match(/[A-Z0-9]/g)!.length >= 2
+    /[A-Z]/.test(token) && token.match(/[A-Z0-9]/g)!.length >= 2 &&
+    !VARIANT.test(token)
   );
   return [...new Set(tokens)];
 }
