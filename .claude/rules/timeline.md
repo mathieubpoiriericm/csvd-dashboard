@@ -261,20 +261,37 @@ their reasons:
   A hard-coded width is wrong after a data regeneration, in a fork and under
   `empty-data`, because where labels stop colliding depends on the drug-name
   lengths and how crowded each sector is. `nextRadarState()` is one pure
-  reducer (state `{mode, floor, stacked}`, observation `{room, plateWidth,
-  heightLimited, drawerBeside, drawerSpace, clean}`) and its first matching
-  rule wins: a room under `RADAR_MIN_ROOM` (480) is phone; in phone mode the
-  radar returns only at `floor + HYSTERESIS` (32); no settled solve (`clean:
-  null`) changes nothing; a clean solve may unstack the drawer once it fits
-  beside the plate with the same margin; a fault while height-limited raises the
-  floor to the plate's width plus `FLOOR_STEP` (48) -- the floor never drops
-  while the selection stands; a fault that is not height-limited raises it to
-  `plateWidth + 1` and stacks the drawer if it was beside, else switches to the
-  phone views. A solve is clean when `countFaults()` finds no label pair, no
-  label clipped by the plate, no label touching a marker and no two markers
-  overlapping. `reportSettled` feeds it at every exit of `measure()` where no
-  further pass is scheduled, and drops a report that is stale (the svg's scale
-  is not the state's) or made while `document.fonts` is loading. A status
+  reducer (state `{mode, floor, stacked, raise}`, observation `{room,
+  plateWidth, available, heightLimited, drawerBeside, drawerSpace, clean}`)
+  and its first matching rule wins: a room under `RADAR_MIN_ROOM` (480) is
+  phone; in phone mode the radar returns only at `floor + HYSTERESIS` (32); no
+  settled solve (`clean: null`) changes nothing; a clean solve may unstack the
+  drawer once it fits beside the plate with the same margin; a fault while
+  height-limited raises the floor past the plate's width by `raise`, which is
+  `FLOOR_STEP` (48) and doubles at each raise in an unbroken run of them,
+  capped at `available` (the width the row offers the plate) and always at
+  least `plateWidth + 1`; a fault that is not height-limited raises it to at
+  least `plateWidth + 1` and stacks the drawer if it was beside, else switches
+  to the phone views. A clean solve or another fault resets `raise` to 0. No
+  rule lowers the floor while the selection stands. The doubling is for a
+  short window: a landscape phone at 844x390 took about eight fixed steps and
+  now takes four (338, 434, 626, then 770 at the row), while a near miss on a
+  desktop costs a small overshoot -- halving the distance to `available`
+  instead was tried and raised 1280x720's floor straight from 620 to 914. A
+  solve is clean when `countFaults()` finds no label pair, no label clipped by
+  the plate, no label touching a marker and no two markers overlapping; its
+  labels are the drug, population _and_ phase labels, the same set
+  `sweepLabelFit` in `e2e/tests/helpers/timeline.ts` checks pairwise
+  (`colliding`, pinned at zero beside a control pair that must overlap) at
+  every size and selection the radar specs read. `reportSettled` feeds it at
+  every exit of `measure()` where no further pass is scheduled, and drops a
+  report that is stale (the svg's scale is not the state's) or made while
+  `document.fonts` is loading -- and a drop for the fonts re-arms a fit on
+  `document.fonts.ready`, cancelled on unmount, since the mount's own font fit
+  runs once and a later font load would otherwise leave nothing to re-solve.
+  A change of floor or stacking re-measures and reports too: the plate may
+  widen by a pixel, which the scale's 3 dp can round away, and with no new
+  scale nothing would re-solve and a faulty layout would stand. A status
   selection resets the state to `initialRadarState(room)`, so the floor is
   learnt per selection. Every `setRadar` bails out when nothing changed, so a
   `ResizeObserver` tick costs no render.
@@ -297,10 +314,11 @@ their reasons:
   rendered _instead of_ the radar, never both, so the phone branch mounts no
   marker buttons: a small radar with no drug or population names (the same
   `computeTimelineLayout`, markers with their rings and holes, a population
-  legend under it, `role="img"` with a pluralised summary label) and a list of
-  the same status-filtered trials grouped by `parentPhase()` in ring order,
-  most advanced first, rows alphabetical, a sub-phase printed beside the name,
-  a trial with no ring left out as it is off the radar. Rows are buttons with
+  legend under it, `role="img"` with a pluralised summary label, never wider
+  than 28rem however wide the phone views run) and a list of the same
+  status-filtered trials grouped by `parentPhase()` in ring order, most
+  advanced first, rows alphabetical, a sub-phase printed beside the name, a
+  trial with no ring left out as it is off the radar. Rows are buttons with
   `aria-expanded`/`aria-controls`, at least 44px, and open the same drawer
   element, which survives the switch. `data-mode`, `data-floor` and
   `data-stack` are on the layout and are what the generic e2e reads
@@ -314,8 +332,9 @@ their reasons:
   "Hover over..." wrong: a narrow desktop window still hovers.
 - **Observed floor for the committed data, Chromium on Linux, 2026-11-09**
   (`data-floor` after `settleRadar`): 0 at 1440x900, where the plate is 880px
-  and clean at the height fit; 716 at 1280x720, where the height fit alone
-  faulted and the floor was learnt at 716px, so the page scrolls vertically.
+  and clean at the height fit; 764 at 1280x720, where the height fit alone
+  faulted and the floor was learnt in two raises (668, then 764), so the page
+  scrolls vertically.
   These are observations of this dataset, not constants; the specs derive
   their widths from `data-floor` and pin neither.
 

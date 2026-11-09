@@ -886,6 +886,10 @@ export default function TrialsTimeline(
   const focusedTrigger = useRef<number | null>(null);
   const nudgePasses = useRef(0);
   const measureRef = useRef<() => void>(() => {});
+  /** A fresh fit after a font load: nudges re-run against the new metrics. */
+  const refitRef = useRef<() => void>(() => {});
+  /** Cancels the fit `reportSettled` re-armed for a font load, if one is. */
+  const fontRefit = useRef<(() => void) | null>(null);
   const solvedGeometry = useRef<
     { movable: MovableBox[]; fixed: Box[]; indices: number[] }
   >();
@@ -946,6 +950,7 @@ export default function TrialsTimeline(
     return {
       room,
       plateWidth,
+      available,
       // Against the width the plate actually has, not `room`: with the
       // drawer beside, the plate is narrower than `room` because of the
       // drawer, and that is not the window's height limiting it.
@@ -965,7 +970,7 @@ export default function TrialsTimeline(
     setRadar((state) => {
       const next = nextRadarState(state, { ...observation, clean });
       return next.mode === state.mode && next.floor === state.floor &&
-          next.stacked === state.stacked
+          next.stacked === state.stacked && next.raise === state.raise
         ? state
         : next;
     });
@@ -978,17 +983,31 @@ export default function TrialsTimeline(
    * screen. Count what it still gets wrong and let the reducer decide. A
    * solve for a scale the plate has since left, or in fallback type before
    * the web font has loaded, says nothing about this size and is dropped;
-   * the resize or the font re-solves and reports again.
+   * the resize or the font re-solves and reports again. The mount's font
+   * pass runs once; a font load a later render starts (a record's drawer
+   * can be the first text in a face) would otherwise drop the report with
+   * nothing left to re-solve, so a drop for that reason re-arms a pass of
+   * its own for when the fonts are ready.
    */
   const reportSettled = (measured: ReadonlyMap<string, Box>) => {
     const svg = svgRef.current;
-    if (!svg || document.fonts?.status === "loading") return;
+    if (!svg) return;
+    if (document.fonts?.status === "loading") {
+      fontRefit.current ??= whenFontsReady(() => {
+        fontRefit.current = null;
+        refitRef.current();
+      });
+      return;
+    }
     const actual = plateScale(svg.getBoundingClientRect().width);
     if (Math.abs(actual - scale) > SCALE_TOLERANCE) return;
     const labels: Box[] = [];
     for (const [id, box] of measured) {
-      if (id.startsWith("drug-")) labels.push(padded(box, DRUG_PADDING));
-      else if (id.startsWith("pop-")) labels.push(padded(box, LABEL_PADDING));
+      // Drug, population and phase labels alike: the phase labels are
+      // obstacles to the drug labels, and the e2e sweeps all three.
+      labels.push(
+        padded(box, id.startsWith("drug-") ? DRUG_PADDING : LABEL_PADDING),
+      );
     }
     const faults = countFaults({
       labels,
@@ -1343,12 +1362,34 @@ export default function TrialsTimeline(
     return () => observer.disconnect();
   }, []);
 
-  // The web font arrives after first paint; fit again when it does.
-  useEffect(() =>
-    whenFontsReady(() => {
-      nudgePasses.current = 0;
-      measureRef.current();
-    }), []);
+  // The web font arrives after first paint; fit again when it does. A
+  // pass `reportSettled` re-armed for a later font load is cancelled with
+  // the island.
+  refitRef.current = () => {
+    nudgePasses.current = 0;
+    measureRef.current();
+  };
+  useEffect(() => {
+    const cancel = whenFontsReady(() => refitRef.current());
+    return () => {
+      cancel();
+      fontRefit.current?.();
+    };
+  }, []);
+
+  // A new floor or stacking resizes the plate, but by as little as a pixel,
+  // which can leave the scale -- rounded to 3 dp -- where it was, so nothing
+  // re-solves and nothing reports: a faulty layout would stand. Measure
+  // again, so the solve on screen is reported for the new size (a scale
+  // that did change is re-solved by its own effect, and this report is
+  // dropped as stale).
+  const decided = useRef({ floor: radar.floor, stacked: radar.stacked });
+  useLayoutEffect(() => {
+    const last = decided.current;
+    if (last.floor === radar.floor && last.stacked === radar.stacked) return;
+    decided.current = { floor: radar.floor, stacked: radar.stacked };
+    measureRef.current();
+  }, [radar.floor, radar.stacked]);
 
   // Runs after the DOM has committed, so the close button exists before focus
   // enters it and the declaratively hidden drawer is committed before focus

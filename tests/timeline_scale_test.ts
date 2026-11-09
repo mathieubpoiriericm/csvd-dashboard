@@ -123,6 +123,7 @@ Deno.test("isClean is true only for all zeros", () => {
 const obs = (o: Partial<RadarObservation> = {}): RadarObservation => ({
   room: 900,
   plateWidth: 800,
+  available: 900,
   heightLimited: false,
   drawerBeside: false,
   drawerSpace: 340,
@@ -133,22 +134,19 @@ const radar = (s: Partial<RadarState> = {}): RadarState => ({
   mode: "radar",
   floor: 0,
   stacked: false,
+  raise: 0,
   ...s,
 });
 
 Deno.test("initialRadarState starts in phone mode below the minimum room", () => {
-  assertEquals(initialRadarState(RADAR_MIN_ROOM - 1), {
-    mode: "phone",
-    floor: 0,
-    stacked: false,
-  });
+  assertEquals(initialRadarState(RADAR_MIN_ROOM - 1), radar({ mode: "phone" }));
   assertEquals(initialRadarState(RADAR_MIN_ROOM), radar());
 });
 
 Deno.test("rule 1: a room below the minimum is phone mode, floor kept", () => {
   assertEquals(
     nextRadarState(radar({ floor: 600, stacked: true }), obs({ room: 479 })),
-    { mode: "phone", floor: 600, stacked: true },
+    radar({ mode: "phone", floor: 600, stacked: true }),
   );
 });
 
@@ -182,14 +180,98 @@ Deno.test("rule 4: a clean radar stays, and unstacks only with room to spare", (
   );
 });
 
-Deno.test("rule 5: a height-limited fault raises the floor and stays radar", () => {
+Deno.test("rule 5: a height-limited fault raises the floor by a step that doubles", () => {
+  const fault = (plateWidth: number) =>
+    obs({ clean: false, heightLimited: true, plateWidth, available: 2000 });
+  const first = nextRadarState(radar({ floor: 100 }), fault(800));
+  assertEquals(first, radar({ floor: 800 + FLOOR_STEP, raise: FLOOR_STEP }));
+  const second = nextRadarState(first, fault(first.floor));
+  assertEquals(
+    second,
+    radar({ floor: first.floor + 2 * FLOOR_STEP, raise: 2 * FLOOR_STEP }),
+  );
+  // The drawer beside changes nothing while the plate is height-limited.
+  assertEquals(
+    nextRadarState(radar(), {
+      ...fault(800),
+      drawerBeside: true,
+    }),
+    first,
+  );
+});
+
+Deno.test("rule 5: the step stops at the row, and always passes the plate", () => {
   assertEquals(
     nextRadarState(
-      radar({ floor: 100 }),
-      obs({ clean: false, heightLimited: true, drawerBeside: true }),
+      radar({ raise: 400 }),
+      obs({ clean: false, heightLimited: true, available: 850 }),
     ),
-    radar({ floor: 800 + FLOOR_STEP }),
+    radar({ floor: 850, raise: 800 }),
   );
+  assertEquals(
+    nextRadarState(
+      radar(),
+      obs({ clean: false, heightLimited: true, available: 800 }),
+    ),
+    radar({ floor: 801, raise: FLOOR_STEP }),
+  );
+});
+
+Deno.test("rule 5: the floor never drops", () => {
+  assertEquals(
+    nextRadarState(
+      radar({ floor: 880 }),
+      obs({ clean: false, heightLimited: true }),
+    ),
+    radar({ floor: 880, raise: FLOOR_STEP }),
+  );
+});
+
+Deno.test("a clean solve or any other fault ends a run of raises", () => {
+  const raising = radar({ floor: 848, raise: 96 });
+  assertEquals(nextRadarState(raising, obs()), radar({ floor: 848 }));
+  assertEquals(
+    nextRadarState(raising, obs({ clean: false })),
+    radar({ mode: "phone", floor: 848 }),
+  );
+  assertEquals(
+    nextRadarState(raising, obs({ clean: false, drawerBeside: true })),
+    radar({ floor: 848, stacked: true }),
+  );
+  // An unsettled solve is not an end.
+  assertEquals(nextRadarState(raising, obs({ clean: null })), raising);
+});
+
+/**
+ * Each round the plate takes the floor (it is height-limited, so the floor
+ * is what sizes it) until the labels read cleanly. Returns the rounds taken
+ * and the floor it stopped at.
+ */
+function climb(start: number, clearsAt: number, available: number) {
+  let s = radar();
+  let plate = start;
+  let rounds = 0;
+  while (plate < clearsAt) {
+    s = nextRadarState(
+      s,
+      obs({ clean: false, heightLimited: true, plateWidth: plate, available }),
+    );
+    plate = Math.min(s.floor, available);
+    rounds++;
+  }
+  return { rounds, floor: s.floor };
+}
+
+Deno.test("rule 5: a short window converges in a few rounds, not one step at a time", () => {
+  // A landscape phone: a 300px plate at the height fit in an 800px row,
+  // reading cleanly from 700px. A fixed 48px step took nine rounds.
+  const phone = climb(300, 700, 800);
+  assertEquals(phone.rounds <= 4, true, `${phone.rounds} rounds`);
+  assertEquals(phone.floor <= 800, true);
+  // A desktop just short of its height: a near miss costs at most a small
+  // overshoot, not half the row.
+  const desktop = climb(627, 700, 1200);
+  assertEquals(desktop, { rounds: 2, floor: 627 + 3 * FLOOR_STEP });
 });
 
 Deno.test("rule 6: a faulty radar with the drawer beside stacks it", () => {
@@ -207,11 +289,11 @@ Deno.test("rule 6: a faulty radar with the drawer beside stacks it", () => {
 Deno.test("rule 7: any other fault is phone mode, floor at least the plate", () => {
   assertEquals(
     nextRadarState(radar({ floor: 100 }), obs({ clean: false })),
-    { mode: "phone", floor: 801, stacked: false },
+    radar({ mode: "phone", floor: 801 }),
   );
   assertEquals(
     nextRadarState(radar({ floor: 900 }), obs({ clean: false })),
-    { mode: "phone", floor: 900, stacked: false },
+    radar({ mode: "phone", floor: 900 }),
   );
 });
 
@@ -230,8 +312,11 @@ Deno.test("short window: height-limited fault, raised floor, then clean", () => 
     radar(),
     obs({ clean: false, heightLimited: true, plateWidth: 700 }),
   );
-  assertEquals(raised, radar({ floor: 700 + FLOOR_STEP }));
-  assertEquals(nextRadarState(raised, obs({ plateWidth: 748 })), raised);
+  assertEquals(raised, radar({ floor: 700 + FLOOR_STEP, raise: FLOOR_STEP }));
+  assertEquals(
+    nextRadarState(raised, obs({ plateWidth: 748 })),
+    radar({ floor: 748 }),
+  );
 });
 
 Deno.test("drawer beside: a fault stacks it and never reaches phone mode", () => {
