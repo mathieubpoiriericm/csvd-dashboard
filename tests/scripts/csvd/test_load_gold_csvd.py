@@ -83,7 +83,7 @@ def test_colocalization_stars_and_details_survive_the_export() -> None:
     assert export_gene(_gene("HTRA1"))["evidenceFromOtherOmicsStudies"] == [
         "TWAS;AIS: cross-tissue sCCA3*",
         "WES/WGS;stroke & WMH: burden of rare variants",
-        "Proteogenomic MR;HV-PVS[?]",
+        "Proteogenomic MR;HIP-PVS",
     ]
 
 
@@ -91,10 +91,10 @@ def test_a_multiline_cell_keeps_every_study() -> None:
     published = export_gene(_gene("TRIM47"))["evidenceFromOtherOmicsStudies"]
     assert published == [
         "TWAS;PSMD: brain anterior cingulate cortex BA24*, brain cerebellar "
-        "hemisphere, brain cortex*, brain frontal cortex BA9*, (Age>65)[?]: "
-        "cells cultured fibroblasts*, brain hippocampus",
+        "hemisphere, brain cortex*, brain frontal cortex BA9*",
+        "TWAS;PSMD (Age>65): cells cultured fibroblasts*, brain hippocampus",
         "PWAS;PSMD: dPFC*",
-        "TWAS;WMH: CMC: brain dlPFC qTTL[?], brain hippocampus*, brain "
+        "TWAS;WMH: CMC: brain dlPFC sQTL, brain hippocampus*, brain "
         "cerebellum*, brain cerebellar hemisphere*, artery tibial",
     ]
 
@@ -122,7 +122,8 @@ def _omics(symbol: str) -> list[str]:
 def test_omics_entries_follow_the_reviewed_format() -> None:
     """The 2026-11-08 review's rewrites, through corrections.csv. NMT1's is
     the curator's own worked example; a `[?]` marks what the curator left
-    verbatim for clarification."""
+    verbatim for clarification, and the 2026-11-09 follow-up review settled
+    all but one of them from the cited papers."""
     assert _omics("NMT1")[0] == (
         "TWAS;WMH: nerve tibial, brain spinal cord cervical C1, brain"
         " hippocampus, brain caudate basal ganglia*, brain anterior cingulate"
@@ -130,9 +131,13 @@ def test_omics_entries_follow_the_reviewed_format() -> None:
         " artery aorta*, YFS: blood*, CMC: brain (RNA-Seq)"
     )
     assert _omics("SMG6") == [
-        "TWAS;[?]: cells cultured fibroblasts, brain frontal cortex BA9*"
+        "TWAS;PSMD: cells cultured fibroblasts, brain frontal cortex BA9*"
     ]
-    assert _omics("HTRA1")[2] == "Proteogenomic MR;HV-PVS[?]"
+    assert _omics("HTRA1")[2] == "Proteogenomic MR;HIP-PVS"
+    assert _omics("LRRC25") == ["TWAS;WM-PVS: nerve tibial*"]
+    assert "TWAS;PSMD (Age>65): brain cortex*" in _omics("ICA1L")
+    # The one term the papers could not settle stays marked.
+    assert any("cross-tissue sCCA2[?]" in v for v in _omics("NBEAL1"))
     assert _omics("PMF1")[0] == (
         "WES/WGS;non-lobar ICH: 1q22 locus resequencing, multivariable MR"
         " (PMF1 overexpression)"

@@ -148,6 +148,17 @@ Deno.test("glossaryGaps reads the resolved glossary by default", () => {
   assertEquals(glossaryGaps([row]), { enforced: [], reported: ["GENE1: QQ9"] });
 });
 
+Deno.test("the generic glossary knows the methods and datasets a run names", () => {
+  // From the 2026-11-09 follow-up review: what the v8 prompt's extractions
+  // write. None names a disease, so this holds on any manifest.
+  assertEquals(
+    uncoveredAcronyms(
+      "SMR, HEIDI, GTEx, UKB, LoF, eQTL, pQTL, siRNA knockdown in HBMEC",
+    ),
+    [],
+  );
+});
+
 Deno.test("the defaults read the resolved glossary, generic terms included", () => {
   assertEquals(splitAcronyms("TWAS")[0], { text: "TWAS", acronym: true });
   assertEquals(acronymTooltip("TWAS")?.rows[0].label, "TWAS");

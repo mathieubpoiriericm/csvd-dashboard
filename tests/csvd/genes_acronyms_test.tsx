@@ -64,7 +64,24 @@ Deno.test("the MTAG trait is seven tooltips", () => {
   assertEquals(triggers(html), ["MTAG", "ICH", "SVS", "WMH", "FA", "MD", "AD"]);
 });
 
-Deno.test("SMG6's missing biomarker prints as a ? awaiting clarification", () => {
+Deno.test("SMG6's biomarker, settled by the 2026-11-09 review, is boxed", () => {
   const html = renderToString(<OmicsEntryView value={omics("SMG6")[0]} />);
-  assertEquals(triggers(html), ["TWAS", "?", "BA9"]);
+  assertEquals(triggers(html), ["TWAS", "PSMD", "BA9"]);
+});
+
+Deno.test("NBEAL1's unsettled sCCA2 colocalization still prints a ? after it", () => {
+  const entry = omics("NBEAL1").find((value) => value.includes("sCCA2"))!;
+  const html = renderToString(<OmicsEntryView value={entry} />);
+  assertEquals(triggers(html).slice(-3), ["sCCA2", "?", "sCCA3"]);
+});
+
+Deno.test("the vocabulary's two WMH locations are in the glossary", () => {
+  assertEquals(
+    acronymTooltip("PVWMH")?.rows[0].value,
+    "Periventricular white matter hyperintensities · cSVD MRI biomarker",
+  );
+  assertEquals(
+    acronymTooltip("DWMH")?.rows[0].value,
+    "Deep white matter hyperintensities · cSVD MRI biomarker",
+  );
 });
