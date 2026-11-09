@@ -557,7 +557,14 @@ Deno.test("floating panels retain their cap without exceeding the viewport", () 
   );
   assertMatch(
     css,
-    /\.tooltip-pop-scroll\s*\{[^}]*max-height: calc\(100vh - 16px\);[^}]*overflow-y: auto;[^}]*overflow-wrap: anywhere;/s,
+    /\.tooltip-pop-scroll\s*\{[^}]*max-height: calc\(100dvh - 16px\);[^}]*overflow-y: auto;[^}]*overflow-wrap: anywhere;/s,
+  );
+  // A tooltip never draws a scrollbar: Tooltip.tsx widens and slides a tall
+  // panel until it fits, and where it cannot, the body scrolls without a bar.
+  assertMatch(css, /\.tooltip-pop-scroll\s*\{[^}]*scrollbar-width: none;/s);
+  assertMatch(
+    css,
+    /\.tooltip-pop-scroll::-webkit-scrollbar\s*\{\s*display: none;/s,
   );
   assertMatch(css, /\.tooltip-pop\s*\{[^}]*overflow: visible;/s);
 });
