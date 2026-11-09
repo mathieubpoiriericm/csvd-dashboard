@@ -126,8 +126,24 @@ class OmicsEvidence(BaseModel):
     items: list[OmicsItem] = Field(default_factory=list)
 
 
+def _balanced(text: str) -> bool:
+    depth = 0
+    for char in text:
+        depth += {"(": 1, ")": -1}.get(char, 0)
+        if depth < 0:
+            return False
+    return depth == 0
+
+
 def _clean(text: str) -> str:
-    return text.replace("*", "").replace(";", ",").strip()
+    """Model text made safe for the wire form: no `*` (only the flag writes
+    one), no `;` (it separates the type from its detail), and no unmatched
+    parenthesis, which would make the display fold the items after it into
+    one and spread a later item's colocalization over all of them."""
+    text = text.replace("*", "").replace(";", ",")
+    if not _balanced(text):
+        text = text.replace("(", "").replace(")", "")
+    return " ".join(text.split())
 
 
 def to_wire(evidence: OmicsEvidence) -> str:

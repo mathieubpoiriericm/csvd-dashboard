@@ -42,6 +42,24 @@ def test_a_star_the_model_writes_into_text_is_no_claim() -> None:
     assert to_wire(evidence) == "TWAS;Q: tissue"
 
 
+def test_an_unbalanced_parenthesis_cannot_spread_a_colocalization() -> None:
+    """The display splits items on commas outside parentheses, so an
+    unmatched "(" from the model would fold every later item into one -- and
+    the last item's star would then claim colocalization for all of them."""
+    evidence = OmicsEvidence(
+        study_type="TWAS",
+        biomarker="Q",
+        items=[
+            OmicsItem(text="brain (cortex"),
+            OmicsItem(text="whole blood"),
+            OmicsItem(text="artery aorta)", colocalized=True),
+        ],
+    )
+    assert to_wire(evidence) == "TWAS;Q: brain cortex, whole blood, artery aorta*"
+    balanced = OmicsEvidence(study_type="TWAS", items=[OmicsItem(text="a (b, c)")])
+    assert to_wire(balanced) == "TWAS;a (b, c)"
+
+
 def test_the_study_type_is_the_published_vocabulary() -> None:
     schema = ExtractionResult.model_json_schema()
     study_type = schema["$defs"]["OmicsEvidence"]["properties"]["study_type"]
