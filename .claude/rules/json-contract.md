@@ -30,10 +30,11 @@ Two invariants the TypeScript side depends on:
    parentheses, because the extraction writes free-text elements such as
    `Proteomics (plasma, CSF)` and a split inside one left an entry no filter
    could reach. **That column is the one place the export enforces a vocabulary
-   of its own**: nothing upstream constrains `omics_evidence` (the prompt only
-   _suggests_ labels, so `colocalization` or `MAGMA` can arrive as free text),
-   so `_OMICS_TYPES` — mirrored from `OMICS_CHOICES` in `lib/constants.ts` and
-   reconciled against it by a test — is what keeps every published element
+   of its own**: since prompt v8 the extraction's `study_type` enum is the same
+   list (`OMICS_STUDY_TYPES` in `pipeline/omics.py`), but curated prose and rows
+   stored before v8 are constrained by nothing upstream, so `_OMICS_TYPES` —
+   built from that list, and reconciled against `OMICS_CHOICES` in
+   `lib/constants.ts` by a test — is what keeps every published element
    selectable. An element carrying its detail in parentheses is rewritten to the
    wire form `Proteomics;plasma, CSF`, which keeps the detail and makes the type
    reachable; one whose leading type is outside the vocabulary is dropped and

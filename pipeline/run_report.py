@@ -19,6 +19,7 @@ from pydantic import Field
 from pipeline.api_telemetry import ApiServiceRecord
 from pipeline.citations import ProvenanceTally
 from pipeline.data_merger import canonical_gene_symbol
+from pipeline.omics import wire_strings
 from pipeline.steps import StepRecord
 from pipeline.wire_model import WireModel
 
@@ -302,7 +303,7 @@ def _gene_records(
             gwas_traits=list(gene.get("gwas_trait") or []),
             protein_name=gene.get("protein_name"),
             mendelian_randomization=gene.get("mendelian_randomization"),
-            omics_evidence=list(gene.get("omics_evidence") or []),
+            omics_evidence=wire_strings(gene.get("omics_evidence") or []),
             causal_evidence_summary=gene.get("causal_evidence_summary"),
             source_quote=gene.get("source_quote"),
         )

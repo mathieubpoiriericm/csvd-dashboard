@@ -213,7 +213,7 @@ class TestPipelineConfigDefaults:
     def test_default_prompt_version(self, monkeypatch):
         monkeypatch.delenv("PIPELINE_PROMPT_VERSION", raising=False)
         cfg = PipelineConfig()
-        assert cfg.prompt_version == "v7"
+        assert cfg.prompt_version == "v8"
 
     def test_construction_does_not_require_api_key(self, monkeypatch):
         """Non-LLM pipeline modes can still build config without Anthropic creds."""
@@ -355,8 +355,8 @@ def test_the_refused_set_is_exactly_the_versions_without_the_block() -> None:
 
 
 def test_the_production_default_is_accepted() -> None:
-    assert PipelineConfig().prompt_version == "v7"
-    assert PipelineConfig(prompt_version="v7").prompt_version == "v7"
+    assert PipelineConfig().prompt_version == "v8"
+    assert PipelineConfig(prompt_version="v8").prompt_version == "v8"
 
 
 def test_an_unrecognised_version_is_refused_before_the_run() -> None:
@@ -378,7 +378,7 @@ def test_an_unrecognised_version_is_refused_before_the_run() -> None:
 def test_the_refusal_names_the_versions_that_do_exist() -> None:
     """The operator's next move is in the message, not in the source.
 
-    Derived from the registry rather than spelled "v7", so adding v8 needs
+    Derived from the registry rather than spelled "v8", so adding v9 needs
     no edit here -- the same reason the refused set is derived above.
     """
     with pytest.raises(ValueError) as raised:

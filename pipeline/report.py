@@ -20,6 +20,7 @@ from typing_extensions import TypedDict
 from pipeline.anthropic_client import AnthropicClient
 from pipeline.config import PipelineConfig
 from pipeline.data_merger import MergeResult
+from pipeline.omics import wire_strings
 from pipeline.quality_metrics import PipelineMetrics, TokenUsage
 
 logger = logging.getLogger(__name__)
@@ -471,7 +472,7 @@ def _print_genes_table(console: Console, papers_detail: list[PaperSummary]) -> N
             Text("✓", style="green")
             if gene.get("mendelian_randomization")
             else Text("✗", style="red"),
-            ", ".join(gene.get("omics_evidence", [])),
+            ", ".join(wire_strings(gene.get("omics_evidence") or [])),
         )
     console.print(table)
 

@@ -1,6 +1,6 @@
 # Disease sections of the extraction prompt
 
-Rendered into the v7 template in `pipeline/prompts.py`. Each `## id` is one
+Rendered into the v8 template in `pipeline/prompts.py`. Each `## id` is one
 slot; the body is the text between headings with surrounding blank lines
 stripped. `disease.name` and `disease.abbreviation` come from manifest.json.
 tests/pipeline/test_prompt_assembly.py pins the cSVD rendering to the v6 bytes.
@@ -103,7 +103,7 @@ general stroke GWAS gene without cSVD-specific evidence
 
 <example type="include_validated">
 Paper states: "GWAS identified TRIM47 at 17q25 as significantly associated with WMH volume. SMR/HEIDI colocalization confirmed TRIM47 as the causal gene. siRNA knockdown in brain endothelial cells increased permeability. Trim47-deficient mice show BBB dysfunction and cognitive impairment via the KEAP1-NRF2 pathway, rescued by the NRF2 activator tBHQ."
-Result: gene_symbol="TRIM47", gwas_trait=["WMH"], omics_evidence=["TWAS", "colocalization"], confidence=1.0
+Result: gene_symbol="TRIM47", gwas_trait=["WMH"], omics_evidence=[{"study_type": "TWAS", "biomarker": "WMH"}, {"study_type": "Experimental", "items": [{"text": "siRNA knockdown in brain endothelial cells"}, {"text": "Trim47-deficient mice"}]}], confidence=1.0
 Reasoning: Full GWAS → eQTL → functional → animal model → therapeutic target chain = validated causal.
 </example>
 
@@ -122,7 +122,7 @@ NOTE: FOXF2 scores 0.9 here because THIS paper presents new functional data (ani
 
 <example type="include_gwas_with_twas">
 Paper states: "At the 2q33 locus, rs12476527 reached genome-wide significance for WMH (p = 3.2e-11). TWAS identified NBEAL1 as the most likely causal gene at this locus (TWAS p = 1.4e-6). MAGMA gene-based analysis also implicated NBEAL1 (p = 8.7e-5)."
-Result: gene_symbol="NBEAL1", gwas_trait=["WMH"], omics_evidence=["TWAS", "MAGMA"], confidence=0.75
+Result: gene_symbol="NBEAL1", gwas_trait=["WMH"], omics_evidence=[{"study_type": "TWAS", "biomarker": "WMH"}], confidence=0.75
 Reasoning: GWAS genome-wide significance + TWAS + MAGMA = multiple supporting lines. Score in the 0.7-0.8 tier.
 </example>
 
@@ -140,13 +140,13 @@ Reasoning: Cross-phenotype convergence across 2 independent phenotypes is gene-l
 
 <example type="include_mtag_locus">
 Paper states: "Six loci showed greater significance in MTAG than with PVS alone: at VWA2 (WM-PVS), SLC13A3 (WM-PVS), GFAP (WM-PVS)..."
-Result: gene_symbol="VWA2", gwas_trait=["WM-PVS"], omics_evidence=["MTAG"], confidence=0.60
+Result: gene_symbol="VWA2", gwas_trait=["WM-PVS"], confidence=0.60
 Reasoning: Named as an MTAG locus reaching genome-wide significance. MTAG significance IS gene-level evidence. Score at bottom of the 0.6-0.7 tier.
 </example>
 
 <example type="include_twas_causal_gene">
-Paper states: "At the WM-PVS locus 6p25.2, the lead SNP is near LINC01600. TWAS analysis identified C6orf195 as transcriptome-wide significant (p = 2.8e-6) with colocalization PP4 > 0.75."
-Result: gene_symbol="C6orf195", gwas_trait=["WM-PVS"], omics_evidence=["TWAS", "colocalization"], confidence=0.75
+Paper states: "At the WM-PVS locus 6p25.2, the lead SNP is near LINC01600. TWAS analysis identified C6orf195 as transcriptome-wide significant in brain cortex (p = 2.8e-6) with colocalization PP4 > 0.75."
+Result: gene_symbol="C6orf195", gwas_trait=["WM-PVS"], omics_evidence=[{"study_type": "TWAS", "biomarker": "WM-PVS", "items": [{"text": "brain cortex", "colocalized": true}]}], confidence=0.75
 Do NOT extract LINC01600 — it is the positional locus label, not the causal gene identified by TWAS/colocalization.
 </example>
 
@@ -162,7 +162,7 @@ Do NOT extract FOXF2, SLC20A2, or WNT7A: These are citations of prior literature
 
 <example type="include_orf_gene">
 Paper states: "TWAS analysis identified C6orf195 as significantly associated with BG-PVS volume in brain cortex (p = 2.8e-6). C6orf195 encodes a protein of unknown function expressed in brain pericytes."
-Result: gene_symbol="C6orf195", gwas_trait=["BG-PVS"], omics_evidence=["TWAS"], confidence=0.70
+Result: gene_symbol="C6orf195", gwas_trait=["BG-PVS"], omics_evidence=[{"study_type": "TWAS", "biomarker": "BG-PVS", "items": [{"text": "brain cortex"}]}], confidence=0.70
 Reasoning: Significant TWAS result provides gene-level evidence. ORF-style gene names (C6orf195, LINC genes, LOC genes) are valid HGNC symbols — do not skip them because the name looks unusual.
 </example>
 
@@ -178,7 +178,7 @@ Do NOT extract FBN1, LAMA2, COL6A3: These genes are mentioned only as members of
 
 <example type="include_low_confidence_pqtl_mr">
 Paper states: "pQTL-MR analysis using cis instruments identified TFPI as a causal protein for WMH volume (p = 2.3e-6). No direct GWAS association was found at the TFPI locus."
-Result: gene_symbol="TFPI", gwas_trait=["WMH"], mendelian_randomization=true, omics_evidence=["pQTL-MR"], confidence=0.5
+Result: gene_symbol="TFPI", gwas_trait=["WMH"], mendelian_randomization=true, omics_evidence=[{"study_type": "Proteogenomic MR", "biomarker": "WMH"}], confidence=0.5
 Reasoning: pQTL-MR with cis instruments provides gene-level evidence, but no direct GWAS association. Flag as MR-exposure/drug target in summary.
 </example>
 

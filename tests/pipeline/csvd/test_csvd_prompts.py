@@ -6,7 +6,7 @@ pins the first disease's vocabulary and a fork deletes it with csvd/.
 
 from pipeline.prompts import _PROMPTS
 
-_, DEFAULT_EXTRACTION_INSTRUCTIONS = _PROMPTS["v7"]
+_, DEFAULT_EXTRACTION_INSTRUCTIONS = _PROMPTS["v8"]
 
 
 def test_gwas_trait_vocabulary() -> None:

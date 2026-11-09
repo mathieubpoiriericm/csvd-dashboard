@@ -7,9 +7,17 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Annotated, Final
 
-from pydantic import AfterValidator, BaseModel, ConfigDict, Field, WithJsonSchema
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    BeforeValidator,
+    ConfigDict,
+    Field,
+    WithJsonSchema,
+)
 
 from pipeline.disease import VOCABULARY_PATH
+from pipeline.omics import OmicsEvidence, coerce_omics_list
 from pipeline.quality_metrics import TokenUsage
 
 # ---------------------------------------------------------------------------
@@ -118,7 +126,12 @@ class GeneEntry(BaseModel):
     protein_name: str | None = None
     gwas_trait: list[CanonicalTrait] = Field(default_factory=list)
     mendelian_randomization: bool = False
-    omics_evidence: list[str] = Field(default_factory=list)
+    # Since prompt v8 each study is structured -- type, biomarker, items with
+    # a colocalization flag -- so it can be stored in the curated wire form
+    # (pipeline/omics.py) rather than as a bare label.
+    omics_evidence: Annotated[
+        list[OmicsEvidence], BeforeValidator(coerce_omics_list)
+    ] = Field(default_factory=list)
     confidence: float = Field(ge=0.0, le=1.0)
     causal_evidence_summary: str | None = None
     pmid: str = ""

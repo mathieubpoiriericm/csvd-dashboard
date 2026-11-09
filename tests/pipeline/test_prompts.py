@@ -2,7 +2,9 @@
 
 import pytest
 
+from pipeline.config import PipelineConfig
 from pipeline.disease import load_disease
+from pipeline.omics import OMICS_STUDY_TYPES
 from pipeline.prompts import (
     _PROMPTS,
     PROMPT_VERSIONS,
@@ -10,7 +12,7 @@ from pipeline.prompts import (
     paper_text_truncated,
 )
 
-DEFAULT_SYSTEM_PROMPT, DEFAULT_EXTRACTION_INSTRUCTIONS = _PROMPTS["v7"]
+DEFAULT_SYSTEM_PROMPT, DEFAULT_EXTRACTION_INSTRUCTIONS = _PROMPTS["v8"]
 
 
 def test_prompt_versions_is_derived_from_the_registry() -> None:
@@ -20,7 +22,7 @@ def test_prompt_versions_is_derived_from_the_registry() -> None:
     assert frozenset(_PROMPTS) == PROMPT_VERSIONS
 
 
-def test_only_v7_remains() -> None:
+def test_only_v8_remains() -> None:
     """One prompt, and v4 is gone because it was measured, not assumed.
 
     v4 held two exclusion guards v5 relaxed (MTAG locus labels,
@@ -28,10 +30,32 @@ def test_only_v7_remains() -> None:
     could say whether they recovered precision. Recording both arms over
     the same ten fixtures gave identical pooled recall (42/46) while the
     stricter arm returned *more* genes, 144 against 138. The guards are
-    ruled out rather than assumed. v7 is v6 split into template and
-    disease file; the bytes are pinned in test_prompt_assembly.py.
+    ruled out rather than assumed. v7 was v6 split into template and
+    disease file; v8 is v7 asking for structured omics evidence, and v7
+    left the table the way v6 did. The cSVD bytes are pinned in
+    csvd/test_csvd_prompt_assembly.py.
     """
-    assert set(_PROMPTS) == {"v7"}
+    assert set(_PROMPTS) == {"v8"}
+
+
+def test_v7_is_refused_by_name() -> None:
+    """v7 asked for bare omics labels the v8 schema no longer accepts, so a
+    run cannot be started on it; the refusal is the one every unknown name
+    meets."""
+    with pytest.raises(ValueError, match="v7"):
+        PipelineConfig(prompt_version="v7")
+
+
+class TestStructuredOmicsEvidence:
+    def test_the_instructions_offer_exactly_the_published_study_types(self):
+        for study_type in OMICS_STUDY_TYPES:
+            assert f'"{study_type}"' in DEFAULT_EXTRACTION_INSTRUCTIONS
+        assert "colocalized" in DEFAULT_EXTRACTION_INSTRUCTIONS
+
+    def test_no_example_still_lists_bare_omics_labels(self):
+        """A `Result:` line written for v7 -- `omics_evidence=["TWAS"]` --
+        would teach the model a shape the schema refuses."""
+        assert 'omics_evidence=["' not in DEFAULT_EXTRACTION_INSTRUCTIONS
 
 
 class TestSystemPrompt:
@@ -105,10 +129,10 @@ class TestBuildExtractionPrompt:
         assert isinstance(prompt.task_instruction, str)
 
     def test_parts_match_canonical_constants(self):
-        """Pins the v7 dispatch specifically — independent of whichever
+        """Pins the v8 dispatch specifically — independent of whichever
         version the function currently defaults to."""
         prompt = build_extraction_prompt(
-            paper_text="Test", pmid="111", max_chars=50000, prompt_version="v7"
+            paper_text="Test", pmid="111", max_chars=50000, prompt_version="v8"
         )
         assert prompt.system_prompt == DEFAULT_SYSTEM_PROMPT
         assert prompt.extraction_instructions == DEFAULT_EXTRACTION_INSTRUCTIONS
@@ -181,7 +205,7 @@ class TestBuildExtractionPrompt:
             paper_text="ICA1L is significant.",
             pmid="12345678",
             max_chars=1000,
-            prompt_version="v7",
+            prompt_version="v8",
         )
         assert prompt.document_text == "ICA1L is significant."
         assert "<document" not in prompt.document_text
@@ -192,14 +216,14 @@ class TestBuildExtractionPrompt:
             paper_text="x" * 500,
             pmid="12345678",
             max_chars=100,
-            prompt_version="v7",
+            prompt_version="v8",
         )
         assert len(prompt.document_text) == 100
 
-    def test_v7_dispatch_adds_provenance_instruction(self):
-        """v7 prompt should demand a verbatim source_quote and forbid paraphrase."""
+    def test_v8_dispatch_adds_provenance_instruction(self):
+        """v8 prompt should demand a verbatim source_quote and forbid paraphrase."""
         prompt = build_extraction_prompt(
-            paper_text="Test", pmid="111", max_chars=50000, prompt_version="v7"
+            paper_text="Test", pmid="111", max_chars=50000, prompt_version="v8"
         )
         instructions = prompt.extraction_instructions
         assert "## Provenance" in instructions
@@ -208,18 +232,18 @@ class TestBuildExtractionPrompt:
         assert "not paraphrase" in instructions.lower()
         assert "stitch two sentences" in instructions
 
-    def test_default_version_is_v7(self):
+    def test_default_version_is_v8(self):
         """The parameter default must track production (config.py defaults
-        PIPELINE_PROMPT_VERSION to v7). A pre-provenance prompt carries no
+        PIPELINE_PROMPT_VERSION to v8). A pre-provenance prompt carries no
         verbatim-quote instruction, so a stale default would silently let
         paraphrased quotes pass GeneEntry.source_quote validation
         undetected."""
         prompt = build_extraction_prompt(paper_text="Test", pmid="111", max_chars=50000)
-        v7_prompt = build_extraction_prompt(
-            paper_text="Test", pmid="111", max_chars=50000, prompt_version="v7"
+        v8_prompt = build_extraction_prompt(
+            paper_text="Test", pmid="111", max_chars=50000, prompt_version="v8"
         )
-        assert prompt.extraction_instructions == v7_prompt.extraction_instructions
-        assert prompt.system_prompt == v7_prompt.system_prompt
+        assert prompt.extraction_instructions == v8_prompt.extraction_instructions
+        assert prompt.system_prompt == v8_prompt.system_prompt
 
     def test_an_unknown_version_raises_rather_than_falling_back(self):
         """The fallback built the right prompt under the wrong name.

@@ -17,6 +17,7 @@ from pipeline.database import (
 )
 from pipeline.disease import load_disease
 from pipeline.extraction_models import TRACKED_TRAITS, TRAIT_SYNONYMS, GeneEntry
+from pipeline.omics import OmicsEvidence, omics_array, to_wire
 
 logger = logging.getLogger(__name__)
 
@@ -106,20 +107,24 @@ def dedupe_list[T](items: Iterable[T]) -> list[T]:
     return list(dict.fromkeys(items))
 
 
-def format_omics(evidence: Sequence[str]) -> str:
+def format_omics(evidence: Sequence[OmicsEvidence]) -> str:
     """Format omics evidence for database storage.
 
-    Raw format uses '*' suffix and ';' separators.
-    R/clean_table1.R strips the '*' and converts ';' to ', '.
-    Supported omics types: TWAS, PWAS, EWAS
+    Each study goes in the curated table's wire form (`pipeline/omics.py`),
+    stored as the JSON array `clean_omics_value` publishes verbatim: the
+    prose chain would strip the `*` and rewrite the `:` the form depends on.
+    A `*` marks only an item the paper reported as colocalized. Every label
+    used to be starred, which under the column's footnote claimed a
+    significant colocalization the extraction never checked.
 
     Args:
-        evidence: List of omics evidence strings.
+        evidence: The structured studies, duplicates included.
 
     Returns:
-        Formatted string for database storage.
+        The stored value, or "" when there is no study.
     """
-    return ";".join(f"{e}*" for e in evidence)
+    entries = dedupe_list(to_wire(study) for study in evidence)
+    return omics_array(entries) if entries else ""
 
 
 def deciding_entry(entries: Sequence[GeneEntry]) -> GeneEntry:
@@ -176,9 +181,9 @@ def _build_combined_gene_data(entries: Sequence[GeneEntry]) -> dict[str, Any]:
             f"{', '.join(untracked)}"
         )
     tracked_traits = [trait for trait in gwas_traits if trait in TRACKED_TRAITS]
-    omics = dedupe_list(
-        evidence for entry in entries for evidence in entry.omics_evidence
-    )
+    # format_omics de-duplicates by wire form: the models are not hashable,
+    # and two papers writing one study alike should store it once.
+    omics = [evidence for entry in entries for evidence in entry.omics_evidence]
     pmids = dedupe_list(entry.pmid for entry in entries if entry.pmid)
     protein_name = next(
         (entry.protein_name for entry in entries if entry.protein_name),
