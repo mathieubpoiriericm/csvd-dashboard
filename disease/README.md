@@ -114,7 +114,8 @@ _retrieved text actually names_:
 | genes the prompt never says | 21/26 = **81%** |
 | pooled                      | 40/46 = **87%** |
 
-Measured on Claude Opus 5.5 with prompt v8 (re-recorded 2026-11-08); prompt v7
+Measured on Claude Opus 5.5 with prompt v8 (re-recorded 2026-11-08 and, after
+its omics guidance was tightened, 2026-11-09, with the same figures); prompt v7
 measured 18/20, 21/26 and 39/46 on the 2026-11-02 recording. Opus 5 scored 88%
 clean and 93% pooled on the same text, but the genes it found and Opus 5.5 did
 not were ones it reported below the confidence floor a run applies; after that

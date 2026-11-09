@@ -10,7 +10,12 @@ v8 is v7 asking for structured omics evidence: each study's type (the
 published vocabulary, `OMICS_STUDY_TYPES`), the biomarker it tested and the
 items the gene was significant in, each flagged when the paper reports
 significant colocalization there -- so a gene the pipeline adds arrives in
-the curated table's format. v7 asked for bare labels ("TWAS",
+the curated table's format. Its omics guidance was tightened on 2026-11-09,
+before any run had used it (gold-only mode refused --pubmed): tissues named
+specifically or not at all, colocalization only on a named tissue, items that
+are names rather than sentences, and SMR placed under TWAS or Proteogenomic
+MR -- the first recording had written "multiple tissues*" and reference-panel
+lists as colocalized items. v7 asked for bare labels ("TWAS",
 "colocalization", "MAGMA") that the export then dropped or starred, and its
 `omics_evidence=[...]` examples would teach a shape the v8 schema refuses, so
 v7 left the table the way v6 did and a run naming it is refused. Its rendered
@@ -246,7 +251,7 @@ For each gene, record the following:
 - gene_symbol: Official HGNC gene symbol (human). Convert animal model nomenclature to human orthologs.
 - gwas_trait: Use ONLY these canonical abbreviations: {{ traits.canonical }}. Do not use full phenotype names.
 - mendelian_randomization: Set to true only if the paper presents MR evidence for this gene. In causal_evidence_summary, distinguish whether the gene is an MR exposure (drug target) vs. a direct {{ disease.abbreviation }}-associated gene.
-- omics_evidence: One entry per omics or analytical study the paper reports for this gene, other than the GWAS itself. For each: study_type, one of {{ omics.study_types }} ("Experimental" for functional or animal-model work); biomarker, the phenotype the study tested, using the canonical trait abbreviations above where one applies; items, each tissue, cell type or reference dataset the gene was significant in, written as the paper names it (a reference dataset as "<dataset>: <tissue>", e.g. "YFS: blood"), with colocalized set to true only when the paper reports significant colocalization for that tissue, and as a last item any other evidence the study adds (e.g. "RNA-Seq"). Colocalization, MAGMA, MTAG and PRS are not study types: colocalization is the per-item flag, and the others belong to the GWAS evidence.
+- omics_evidence: One entry per omics or analytical study the paper reports for this gene, other than the GWAS itself. For each: study_type, one of {{ omics.study_types }} ("Experimental" for functional or animal-model work); biomarker, the phenotype the study tested, using the canonical trait abbreviations above where one applies; items, each tissue, cell type or reference dataset the gene was significant in, named as specifically as the paper names it (a reference dataset as "<dataset>: <tissue>", e.g. "YFS: blood"), with colocalized set to true only when the paper reports significant colocalization for that named tissue, and as a last item any other evidence the study adds, in a few words (e.g. "RNA-Seq"). Each item is a name, never a sentence: methods and effect sizes belong in causal_evidence_summary. When the paper names no specific tissue -- only "multiple tissues", or the reference panels it used -- give no items rather than a summary. SMR on expression QTLs is a TWAS and on protein QTLs a Proteogenomic MR; list a tissue for it only where the result was significant and passed the HEIDI test. Colocalization, MAGMA, MTAG and PRS are not study types: colocalization is the per-item flag, and the others belong to the GWAS evidence.
 - confidence: A score from 0.0 to 1.0 (see scoring rubric below).
 - causal_evidence_summary: 1-3 sentences explaining WHY the paper considers this gene causally linked. {{ guidance.specificity_note }} For MR evidence, clarify whether the gene is a direct association or an exposure/drug target.
 </field_guidance>

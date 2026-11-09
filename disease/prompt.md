@@ -115,7 +115,7 @@ Reasoning: Monogenic + common-variant GWAS for multiple cSVD traits. Both genes 
 
 <example type="include_strong_functional">
 Paper states: "Endothelial-specific Foxf2 deletion in mice causes BBB leakage and impaired functional hyperemia. Multi-omic analysis identified FOXF2 as a transcriptional activator of Tie2/TEK signaling. A Tie2 agonist rescued all phenotypes. FOXF2 was previously identified in GWAS for SVS and WMH."
-Result: gene_symbol="FOXF2", gwas_trait=["SVS", "WMH"], confidence=0.9
+Result: gene_symbol="FOXF2", gwas_trait=["SVS", "WMH"], omics_evidence=[{"study_type": "Experimental", "items": [{"text": "endothelial Foxf2 deletion in mice"}, {"text": "Tie2 agonist rescue"}]}], confidence=0.9
 Reasoning: GWAS + comprehensive functional validation with therapeutic rescue in cSVD-relevant cell type.
 NOTE: FOXF2 scores 0.9 here because THIS paper presents new functional data (animal model, multi-omic analysis, therapeutic rescue). A different paper that merely cites FOXF2 as a prior GWAS finding without presenting new data should NOT extract FOXF2 — that would be a background citation (confidence 0.0).
 </example>
