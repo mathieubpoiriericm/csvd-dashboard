@@ -465,12 +465,18 @@ async def write_gold_plan(plan: GoldPlan) -> dict[str, int]:
     carry none, and a refresh (`update_trial_statuses`) fills it afterwards --
     so it is carried across the replacement by registry id. Reloading used to
     wipe it, and every curated NCT trial published as "(unknown)" until the
-    next refresh.
+    next refresh. Where a registry's rows disagree, the status written last
+    is carried, to every row of it. A gold trial the registry marks
+    TERMINATED or WITHDRAWN keeps that status too, so the export withholds
+    it exactly as it would after the next refresh; the tests that every gold
+    trial is published check the plan, not the export.
     """
     async with Database.connection() as conn, conn.transaction():
         statuses = await conn.fetch(
-            "SELECT DISTINCT registry_id, overall_status FROM clinical_trials "
-            "WHERE registry_id IS NOT NULL AND overall_status IS NOT NULL"
+            "SELECT DISTINCT ON (registry_id) registry_id, overall_status "
+            "FROM clinical_trials "
+            "WHERE registry_id IS NOT NULL AND overall_status IS NOT NULL "
+            "ORDER BY registry_id, updated_at DESC, id DESC"
         )
         for table in _REPLACED_TABLES:
             # Interpolating is safe: every name is a module constant.

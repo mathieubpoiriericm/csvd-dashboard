@@ -139,6 +139,41 @@ async def test_a_reload_keeps_the_registry_status_a_refresh_filled_in() -> None:
     assert status == "RECRUITING"
 
 
+def _two_drug_plan() -> GoldPlan:
+    plan = _plan()
+    return GoldPlan(
+        genes=plan.genes,
+        trials=[*plan.trials, {**plan.trials[0], "drug": "Drug B"}],
+    )
+
+
+async def test_the_newest_status_of_a_registry_reaches_every_row_of_it() -> None:
+    """Rows of one registry that disagree -- a refresh interrupted between
+    them -- must not leave the reload to pick whichever the database reads
+    first: the status written last is the registry's current one."""
+    async with Database.connection() as conn:
+        await conn.execute(
+            "INSERT INTO clinical_trials "
+            "(drug, registry_id, overall_status, updated_at) VALUES "
+            "('Old A', 'REG-0001', 'COMPLETED', '2026-01-01'), "
+            "('Old B', 'REG-0001', 'RECRUITING', '2026-02-01'), "
+            "('Gone', 'REG-9999', 'RECRUITING', '2026-02-01')"
+        )
+
+    await write_gold_plan(_two_drug_plan())
+
+    async with Database.connection() as conn:
+        rows = await conn.fetch(
+            "SELECT registry_id, overall_status FROM clinical_trials ORDER BY id"
+        )
+    # Both drug rows of the registry take its newest status, and a registry
+    # the gold tables no longer list is not brought back.
+    assert [tuple(row) for row in rows] == [
+        ("REG-0001", "RECRUITING"),
+        ("REG-0001", "RECRUITING"),
+    ]
+
+
 async def test_the_export_publishes_the_curated_omics_wording() -> None:
     await write_gold_plan(_plan())
 
