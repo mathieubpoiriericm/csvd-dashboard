@@ -1,6 +1,13 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import { EXPECTED } from "../fixtures/expected-data.ts";
 import { resolveCssColor, switchToDarkTheme, toggleTheme } from "../helpers.ts";
+import {
+  cleanSweep,
+  radarMode,
+  recordTriggers,
+  settleRadar,
+  sweepLabelFit,
+} from "./helpers/timeline.ts";
 
 /**
  * Every count below is derived from the committed data through the app's
@@ -45,10 +52,22 @@ const contrastRatio = (x: RGBA, y: RGBA) => {
 
 const FIGURE = "svg.timeline-figure";
 
+/**
+ * Why a test that reads the full radar skips: a fork's longer names may put
+ * a window the cSVD data reads cleanly at into the phone views, which have
+ * no FIGURE to read. Asserting radar there would fail on a null element
+ * rather than on anything wrong.
+ */
+const PHONE_MODE =
+  'the island chose the phone views (data-mode="phone") at this size';
+
+/**
+ * Loads the page and waits for the island to settle on a layout: the radar,
+ * or below its readable floor the phone views, which have no FIGURE.
+ */
 async function figureSettled(page: Page) {
   await page.goto("/timeline");
-  await expect(page.locator(FIGURE)).toBeVisible();
-  await page.evaluate(() => document.fonts.ready);
+  await settleRadar(page);
 }
 
 /** The key is a closed `<details>` above the plate; open it before reading it. */
@@ -56,146 +75,11 @@ async function openKey(page: Page) {
   await page.locator("#timeline-key summary").click();
 }
 
-/**
- * misfit/clipped/touching/onBand/boxes over whatever the plate currently
- * shows. Shared between the default (67-of-102) figure and the full one
- * reached by ticking Show All in the status group, so the population-label
- * plate correction (islands/TrialsTimeline.tsx) is checked against both the
- * layout it was built for and the committed layout it must stay inert on -- the latter is
- * also what `scripts/timeline_figure.py` draws, so this is the guard that
- * keeps the two renderers' claims about the full dataset in step.
- */
-function sweepLabelFit(page: Page) {
-  return page.evaluate(() => {
-    const misfit: string[] = [];
-    const clipped: string[] = [];
-    const touching: string[] = [];
-    let boxes = 0;
-
-    // The plate's own bounds, read off the element rather than retyped, so
-    // this cannot drift from lib/timeline.ts's CANVAS. (The first test in
-    // this file is what pins the viewBox itself.)
-    const figure = document.querySelector<SVGSVGElement>(
-      "svg.timeline-figure",
-    )!;
-    const [minX, minY, vbWidth, vbHeight] = figure
-      .getAttribute("viewBox")!
-      .split(/\s+/)
-      .map(Number);
-
-    for (const group of document.querySelectorAll("svg.timeline-figure g")) {
-      const text = group.querySelector<SVGTextElement>("text[data-label]");
-      const rect = group.querySelector<SVGRectElement>("rect.label-bg");
-      if (!text || !rect) continue;
-      const id = text.dataset.label ?? "?";
-      const drug = group.getAttribute("data-drug");
-      const who = drug ? `${id} "${drug}"` : id;
-      const t = text.getBBox();
-      const r = rect.getBBox();
-      const fits = r.x <= t.x && r.y <= t.y &&
-        r.x + r.width >= t.x + t.width && r.y + r.height >= t.y + t.height;
-      if (!fits) misfit.push(who);
-
-      // The outermost <svg> clips to its viewBox, and the plate rect pins
-      // every getBBox() to exactly the canvas, so a label pushed past an
-      // edge is silently cut in half and no other check here can see it.
-      const past: string[] = [
-        ["left", minX - r.x],
-        ["top", minY - r.y],
-        ["right", r.x + r.width - (minX + vbWidth)],
-        ["bottom", r.y + r.height - (minY + vbHeight)],
-      ]
-        .filter(([, by]) => (by as number) > 0.01)
-        .map(([edge, by]) => `${edge} by ${(by as number).toFixed(1)}`);
-      if (past.length) clipped.push(`${who} past the ${past.join(" and ")}`);
-      boxes++;
-    }
-
-    // Every label -- a drug's or a population's -- against every marker, not
-    // just its own: `separateLabels` treats every marker as an obstacle for a
-    // drug label, and the population-label plate clamp only pulls a label
-    // clear of the canvas edge, not clear of a marker it might land on
-    // instead. drugs[j] names the marker in a touching pair.
-    const drugs = [
-      ...document.querySelectorAll("svg.timeline-figure g.drug"),
-    ];
-    const markers = drugs.map((drug) =>
-      drug.querySelector("circle.marker")!.getBoundingClientRect()
-    );
-    const drugLabels = drugs.map((drug) => ({
-      name: drug.getAttribute("data-drug") ?? "?",
-      rect: drug.querySelector("rect.label-bg")!.getBoundingClientRect(),
-    }));
-    const popLabels = [
-      ...document.querySelectorAll("svg.timeline-figure g.pop-label"),
-    ].map((pop) => ({
-      name: `pop-${pop.getAttribute("data-pop")}`,
-      rect: pop.querySelector("rect.label-bg")!.getBoundingClientRect(),
-    }));
-    for (const label of [...drugLabels, ...popLabels]) {
-      for (let j = 0; j < markers.length; j++) {
-        const marker = markers[j];
-        const apart = marker.right < label.rect.left ||
-          marker.left > label.rect.right ||
-          marker.bottom < label.rect.top || marker.top > label.rect.bottom;
-        if (apart) continue;
-        touching.push(
-          `${label.name} on ${drugs[j].getAttribute("data-drug")}`,
-        );
-      }
-    }
-
-    // A population label may lie on no rim band -- least of all its own,
-    // which sits POPULATION_LABEL_OFFSET units inside it and is the element
-    // the name is *about*. Pulling a label that fell off the plate straight
-    // back on used to drag it across exactly that band, on three of the four
-    // names under the default selection; `placeOnPlate` slides it round its
-    // sector instead, and this is what says so.
-    //
-    // A band is an annular arc, so its bounding box covers most of the
-    // quadrant it spans and a box test would report every label near one.
-    // The label box is sampled on a 2-unit grid and each band asked about
-    // its own geometry with isPointInFill instead.
-    const onBand: string[] = [];
-    const bands = [
-      ...document.querySelectorAll<SVGPathElement>(
-        "svg.timeline-figure path.rim-band",
-      ),
-    ];
-    for (
-      const pop of document.querySelectorAll("svg.timeline-figure g.pop-label")
-    ) {
-      const box = pop.querySelector<SVGRectElement>("rect.label-bg")!.getBBox();
-      const columns = Math.max(1, Math.ceil(box.width / 2));
-      const rows = Math.max(1, Math.ceil(box.height / 2));
-      const samples: { x: number; y: number }[] = [];
-      for (let i = 0; i <= columns; i++) {
-        for (let j = 0; j <= rows; j++) {
-          samples.push({
-            x: box.x + (box.width * i) / columns,
-            y: box.y + (box.height * j) / rows,
-          });
-        }
-      }
-      for (const band of bands) {
-        if (!samples.some((point) => band.isPointInFill(point))) continue;
-        onBand.push(
-          `pop-${pop.getAttribute("data-pop")} on ${
-            band.getAttribute("data-pop") ?? "?"
-          }`,
-        );
-      }
-    }
-
-    return { misfit, clipped, touching, onBand, boxes };
-  });
-}
-
 test("draws one group per visible trial, twenty-eight cells, and both legends", async ({ page }) => {
   await figureSettled(page);
   await openKey(page);
   const figure = page.locator(FIGURE);
-  // lib/timeline.ts's CANVAS, and .timeline-figure's min-width in
+  // lib/timeline.ts's CANVAS, and .timeline-figure's width cap in
   // assets/app.css, which is the same number.
   await expect(figure).toHaveAttribute("viewBox", "0 0 1072 940");
   // Completed trials are hidden by default.
@@ -253,59 +137,75 @@ test("draws one group per visible trial, twenty-eight cells, and both legends", 
  * keeps its relaxed position, so a non-zero here is the placement pass
  * failing on that machine's metrics, which is worth failing over.
  *
- * Pinning zero costs the canary the old lower bound carried, so the two
- * assertions beside it replace it: `boxes` proves the sweep ran over all 78
- * label boxes rather than an empty list, and `control` runs the same overlap
- * test over a pair that is built to overlap and must report it. The pairs
- * themselves are collected by name, not counted, because the fix for a
- * non-zero is a wider search in `lib/timeline.ts` and that needs to know
- * which cell failed.
+ * `sweepLabelFit` checks every pair -- drug, population and phase labels
+ * alike, as the island's own `countFaults` does -- at every size and
+ * selection the radar specs read. Pinning zero costs the canary the old
+ * lower bound carried, so two assertions in the sweep replace it: `boxes`
+ * proves it ran over every label box rather than an empty list, and
+ * `control` runs the same overlap test over a pair that is built to overlap
+ * and must report it.
  */
 test("label boxes fit their text, stay on the plate, and touch no marker or band", async ({ page }) => {
   await figureSettled(page);
+  // At the project's 1280x720 the height fit alone would shrink the plate
+  // past the scale at which the labels clear its edge; the island's
+  // readable floor holds it above that (figureSettled waits it out).
+  test.skip(await radarMode(page) === "phone", PHONE_MODE);
   // One box per drug label, population label and phase label.
-  await expect.poll(() => sweepLabelFit(page)).toEqual({
-    misfit: [],
-    clipped: [],
-    touching: [],
-    onBand: [],
-    boxes: T.labels,
-  });
+  await expect.poll(() => sweepLabelFit(page)).toEqual(cleanSweep(T.labels));
+});
 
-  const measured = await page.evaluate(() => {
-    type Rect = { left: number; right: number; top: number; bottom: number };
-    const meet = (a: Rect, b: Rect) =>
-      !(a.right < b.left || a.left > b.right ||
-        a.bottom < b.top || a.top > b.bottom);
-
-    const drugs = [
-      ...document.querySelectorAll("svg.timeline-figure g.drug"),
-    ];
-    const boxes = drugs.map((drug) =>
-      drug.querySelector("rect.label-bg")!.getBoundingClientRect()
+/**
+ * The plate fits the window -- never wider than its 1072-unit design size,
+ * never taller than the room under the navbar -- while every drug label keeps
+ * its 12px on screen: the island sets the label's font size in user units to
+ * 12 over the plate's rendered scale, and re-solves the label layout at each
+ * size, so the whole sweep stays clean as the plate shrinks.
+ */
+test("the plate fits the window and its text keeps its size", async ({ page }) => {
+  for (
+    const [width, height] of [
+      [1920, 1080],
+      [1440, 900],
+      [1280, 800],
+      [1100, 900],
+    ] as const
+  ) {
+    await page.setViewportSize({ width, height });
+    await figureSettled(page);
+    const at = `${width}x${height}`;
+    test.skip(await radarMode(page) === "phone", `${PHONE_MODE}: ${at}`);
+    await expect.poll(() =>
+      page.evaluate(() => {
+        const svg = document.querySelector<SVGSVGElement>(
+          "svg.timeline-figure",
+        )!;
+        const rect = svg.getBoundingClientRect();
+        const navbar = document.querySelector(".navbar")!
+          .getBoundingClientRect().height;
+        const scale = svg.getScreenCTM()!.a;
+        const offSize = [
+          ...svg.querySelectorAll<SVGTextElement>('text[data-label^="drug-"]'),
+        ]
+          .map((text) => Number(text.getAttribute("font-size")) * scale)
+          .filter((size) => Math.abs(size - 12) > 0.5)
+          .map((size) => size.toFixed(2));
+        return {
+          scrolls: document.documentElement.scrollWidth > innerWidth,
+          tooTall: rect.height > innerHeight - navbar + 1,
+          tooWide: rect.width > 1072,
+          offSize,
+        };
+      }), { message: at }).toEqual({
+        scrolls: false,
+        tooTall: false,
+        tooWide: false,
+        offSize: [],
+      });
+    await expect.poll(() => sweepLabelFit(page), { message: at }).toEqual(
+      cleanSweep(T.labels),
     );
-    const name = (i: number) =>
-      `${drugs[i].getAttribute("data-drug")} [${
-        drugs[i].getAttribute("data-pop")
-      }/${drugs[i].getAttribute("data-phase")}]`;
-    // Named, not counted: if another machine's metrics leave a pair touching,
-    // the fix is a wider search in lib/timeline.ts, and that needs to know
-    // which cell failed rather than only how many did.
-    const colliding: string[] = [];
-    for (let i = 0; i < boxes.length; i++) {
-      for (let j = i + 1; j < boxes.length; j++) {
-        if (!meet(boxes[i], boxes[j])) continue;
-        colliding.push(`${name(i)} on ${name(j)}`);
-      }
-    }
-    // Two boxes built to overlap, run through the same test.
-    const control = meet(
-      { left: 0, right: 10, top: 0, bottom: 10 },
-      { left: 5, right: 15, top: 5, bottom: 15 },
-    );
-    return { colliding, boxes: boxes.length, control };
-  });
-  expect(measured).toEqual({ colliding: [], boxes: T.markers, control: true });
+  }
 });
 
 test("an unassessed drug draws no ring and an assessed negative draws a dashed one", async ({ page }) => {
@@ -324,7 +224,8 @@ test("at a stacked width an opened record is scrolled into view", async ({ page 
   test.skip(T.markers === 0, NO_MARKER);
   await page.setViewportSize({ width: 900, height: 800 });
   await figureSettled(page);
-  const marker = page.locator("g.drug").first().locator("circle.marker");
+  // A marker on the radar, or a row once the radar has given way to the list.
+  const marker = recordTriggers(page).first();
   await marker.scrollIntoViewIfNeeded();
   await marker.click();
   const close = page.getByRole("button", { name: "Close trial details" });
@@ -403,23 +304,35 @@ test("the sticky trial drawer clears the navbar and shows the whole record", asy
 
   const drawer = page.locator("#timeline-drawer");
   await expect(drawer).toBeVisible();
-  const documentTop = await drawer.evaluate((element) =>
-    element.getBoundingClientRect().top + globalThis.scrollY
+  // Scrolled just far enough to stick the drawer. The plate fits the window
+  // now, so the row is barely taller than the drawer, and the drawer stays
+  // stuck for only a few dozen pixels before the row's end carries it up
+  // under the navbar with the plate -- which is sticky positioning, not a
+  // fault. Scrolling to the drawer's own top assumed the old 1072px plate,
+  // whose tall row held the drawer stuck for hundreds of pixels. Measured
+  // from the row, the drawer's unstuck slot: the click may already have
+  // scrolled the drawer itself into its sticky position.
+  const stuckAt = await drawer.evaluate((element) =>
+    element.parentElement!.getBoundingClientRect().top + globalThis.scrollY -
+    parseFloat(getComputedStyle(element).top) + 4
   );
-  await page.evaluate((top) => globalThis.scrollTo(0, top), documentTop);
+  await page.evaluate((top) => globalThis.scrollTo(0, top), stuckAt);
 
   await expect.poll(async () =>
     page.evaluate(() => {
       const navbar = document.querySelector(".navbar")!.getBoundingClientRect();
       const drawer = document.querySelector<HTMLElement>("#timeline-drawer")!;
       const rect = drawer.getBoundingClientRect();
+      const style = getComputedStyle(drawer);
       return {
+        stuck: Math.abs(rect.top - parseFloat(style.top)) <= 1,
         clearsNavbar: rect.top >= navbar.bottom,
         fitsViewport: rect.bottom <= globalThis.innerHeight,
-        overflow: getComputedStyle(drawer).overflow,
+        overflow: style.overflow,
       };
     })
   ).toEqual({
+    stuck: true,
     clearsNavbar: true,
     fitsViewport: true,
     overflow: "visible",
@@ -433,7 +346,8 @@ test("the sticky trial drawer clears the navbar and shows the whole record", asy
  * -- whether the whole record is on screen and at what zoom.
  */
 async function everyRecord(page: Page) {
-  const markers = page.locator("g.drug circle.marker");
+  // The radar's markers, or the list's rows below the radar's floor.
+  const markers = recordTriggers(page);
   const drawer = page.locator("#timeline-drawer");
   const close = page.getByRole("button", { name: "Close trial details" });
   const records = [];
@@ -540,7 +454,7 @@ test("opening a trial record does not widen the document, stacked or railed", as
   for (const width of [390, 900, 1200, 1440, 1512]) {
     await page.setViewportSize({ width, height: 900 });
     await figureSettled(page);
-    await page.locator("g.drug").first().locator("circle.marker").click();
+    await recordTriggers(page).first().click();
     await expect(page.locator("#timeline-drawer")).toBeVisible();
     if (width <= 1100) {
       // Un-stuck, not un-positioned: below 1100px the drawer drops from
@@ -698,7 +612,17 @@ test("the timeline names its affordances and credits its source", async ({ page 
   await page.goto("/timeline");
   const tips = page.locator(".tip-row .tip-box");
   await expect(tips).toHaveCount(2);
-  await expect(tips.first()).toContainText("trial details panel");
+  // `useInnerText`: the hover and touch wordings are both in the DOM and the
+  // one that does not apply is `display: none`, so `textContent` reads both.
+  await expect(tips.first()).toContainText("Hover over plot elements", {
+    useInnerText: true,
+  });
+  await expect(tips.first()).not.toContainText("Tap a trial", {
+    useInnerText: true,
+  });
+  await expect(tips.first()).toContainText("trial details panel", {
+    useInnerText: true,
+  });
 
   const citation = tips.nth(1);
   await expect(citation.locator("strong")).toHaveText("Visually-inspired by:");
@@ -706,6 +630,23 @@ test("the timeline names its affordances and credits its source", async ({ page 
     "href",
     "https://pubmed.ncbi.nlm.nih.gov/37251912/",
   );
+});
+
+test.describe("on a touch screen", () => {
+  test.use({
+    hasTouch: true,
+    isMobile: true,
+    viewport: { width: 393, height: 852 },
+  });
+
+  test("the tip says tap, not hover", async ({ page }) => {
+    await page.goto("/timeline");
+    const tip = page.locator(".tip-row .tip-box").first();
+    await expect(tip).toContainText("Tap a trial to open its details panel.", {
+      useInnerText: true,
+    });
+    await expect(tip).not.toContainText("Hover", { useInnerText: true });
+  });
 });
 
 test("activating the same open trial returns focus to its details", async ({ page }) => {
@@ -751,7 +692,7 @@ test("the key sits above the plate and opens on demand", async ({ page }) => {
  * committed, unfiltered rows and carries no twin of that clamp -- so this is
  * the test that has to prove the clamp is inert on that one layout, not an
  * assumption left unchecked. It reruns `sweepLabelFit` (misfit/clipped/
- * touching/onBand/boxes) over the full figure once Show All is ticked, the
+ * touching/colliding/onBand/boxes) over the full figure once Show All is ticked, the
  * same sweep and the same numbers `label boxes fit their text...` pinned
  * before the radar carried a status filter at all.
  */
@@ -759,18 +700,18 @@ test("ticking Show All in the study-status group draws every trial", async ({ pa
   await figureSettled(page);
   const group = page.getByRole("group", { name: /^Study status/ });
   await group.getByRole("checkbox", { name: /^Show All/ }).check();
-  await expect(page.locator(FIGURE).locator("g.drug")).toHaveCount(
-    T.allMarkers,
-  );
   await expect(page.locator(".timeline-controls-count")).toContainText(
     `Showing ${EXPECTED.trialRows} of ${EXPECTED.trialRows} trials`,
   );
+  // A new selection learns its own floor. At the project's 1280x720 the
+  // height fit alone would shrink the plate past the scale at which the
+  // labels clear its edge; the floor holds it above that, over a few solves.
+  test.skip(await settleRadar(page) === "phone", PHONE_MODE);
+  await expect(page.locator(FIGURE).locator("g.drug")).toHaveCount(
+    T.allMarkers,
+  );
   // One box per drug label, population label and phase label.
-  await expect.poll(() => sweepLabelFit(page)).toEqual({
-    misfit: [],
-    clipped: [],
-    touching: [],
-    onBand: [],
-    boxes: T.labelsAll,
-  });
+  await expect.poll(() => sweepLabelFit(page)).toEqual(
+    cleanSweep(T.labelsAll),
+  );
 });

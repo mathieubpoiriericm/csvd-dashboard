@@ -18,8 +18,13 @@ export default define.page(function Timeline() {
     >
       <div class="tip-row">
         <TipBox>
-          Hover over plot elements to display tooltips, or select a drug name or
-          marker to open the trial details panel.
+          <span class="tip-hover">
+            Hover over plot elements to display tooltips, or select a drug name
+            or marker to open the trial details panel.
+          </span>
+          <span class="tip-touch">
+            Tap a trial to open its details panel.
+          </span>
         </TipBox>
         <TipBox label="Visually-inspired by:">
           Fig. 1 in Cummings, J.{" "}
