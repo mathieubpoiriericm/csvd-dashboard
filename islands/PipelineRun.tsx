@@ -23,6 +23,7 @@ import { ApiList } from "../components/ApiList.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { useEscapeKey } from "../components/useEscapeKey.ts";
 import { pipelineRun } from "../lib/data/pipeline_run.ts";
+import { formatOmicsEntry, parseOmicsEntry } from "../lib/omics.ts";
 import {
   describeError,
   describePaper,
@@ -298,7 +299,9 @@ function GeneCard({ gene }: { gene: RunGene }) {
         {gene.omicsEvidence.length > 0 && (
           <Field name="omicsEvidence" pills>
             {gene.omicsEvidence.map((method, index) => (
-              <ValuePill key={index}>{method}</ValuePill>
+              <ValuePill key={index}>
+                {formatOmicsEntry(parseOmicsEntry(method))}
+              </ValuePill>
             ))}
           </Field>
         )}

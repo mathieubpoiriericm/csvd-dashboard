@@ -773,3 +773,22 @@ Deno.test("the header names the fallback model when the run requested one", () =
   assertStringIncludes(markup, "claude-opus-4-8");
   assert(!html().includes("Fallback"));
 });
+
+Deno.test("a gene's omics evidence reads as the table prints it, without the wire form", () => {
+  const [gene] = RUN.acceptedGenes.items;
+  const markup = renderToString(
+    <PipelineRunDetails
+      run={{
+        ...RUN,
+        acceptedGenes: {
+          ...RUN.acceptedGenes,
+          items: [{ ...gene, omicsEvidence: ["TWAS;Q: a*, b", "MAGMA"] }],
+        },
+      }}
+    />,
+  );
+  assertStringIncludes(markup, "TWAS (Q: a, b)");
+  assertStringIncludes(markup, "MAGMA");
+  assert(!markup.includes("TWAS;Q"));
+  assert(!markup.includes("a*"));
+});
