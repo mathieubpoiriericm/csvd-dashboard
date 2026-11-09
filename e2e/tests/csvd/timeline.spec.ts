@@ -33,11 +33,20 @@ test("labels are boxless halos and the evidence ring lifts with its marker", asy
   ).first();
   const ring = trial.locator("circle.evidence");
   await expect(ring).toHaveCount(1);
+  // The lifted radii are 12 and 16 units at full size, times the marker
+  // growth the island sets as --radar-k on a shrunken plate. They pinned
+  // "12px" and "16px" while the plate was a fixed 1072px and nothing grew.
   const radius = (locator: typeof ring) =>
-    locator.evaluate((node) => getComputedStyle(node).r);
+    locator.evaluate((node) => {
+      const k = Number(
+        getComputedStyle(node.closest("svg")!).getPropertyValue("--radar-k"),
+      );
+      return Math.round((parseFloat(getComputedStyle(node).r) / k) * 100) /
+        100;
+    });
   await trial.locator("circle.marker").hover();
-  await expect.poll(() => radius(trial.locator("circle.marker"))).toBe("12px");
-  await expect.poll(() => radius(ring)).toBe("16px");
+  await expect.poll(() => radius(trial.locator("circle.marker"))).toBe(12);
+  await expect.poll(() => radius(ring)).toBe(16);
 });
 test("a flagged marker is hollow, and says so in its tooltip and name", async ({ page }) => {
   test.skip(

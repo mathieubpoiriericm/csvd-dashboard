@@ -4278,7 +4278,8 @@ button.adapt-card-head:focus-visible {
    and the min-width floor belong here. `min-width: 0` is what lets the plate
    scroll sideways inside the frame instead of pushing the row wider than its
    container -- a flex item's automatic minimum is its content, and the
-   content here is a 1072px plate. */
+   content here is a plate: the phenogram's fixed 1100px, or the radar's at
+   whatever width its label floor (`--timeline-floor`) holds it to. */
 .timeline-main > .blueprint-frame,
 .phenogram-layout > .blueprint-frame {
   flex: 1 1 auto;
@@ -4290,8 +4291,8 @@ button.adapt-card-head:focus-visible {
    drawer keeps its own height and can stick; the ≤1100px query below is
    what stacks the pair. The scroller's `flex: 1 1 auto; min-width: 0` comes
    from the shared `> .blueprint-frame` rule above; without `min-width: 0`
-   its 1072px plate sets the row's minimum and the drawer is pushed off the
-   right edge. */
+   its plate sets the row's minimum and the drawer is pushed off the right
+   edge. */
 .timeline-main {
   display: flex;
   flex-direction: row;
@@ -4302,8 +4303,8 @@ button.adapt-card-head:focus-visible {
 /* .timeline-main's own column switch -- the drawer-and-plate row. It is the
    only stacking point either figure has left: neither key is a right-hand
    rail any more, so neither layout has a rail to fall out of, and this query
-   is about the record beside the radar rather than the key. The 1100px floor
-   is the canvas's own. */
+   is about the record beside the radar rather than the key. Below 1100px a
+   20rem drawer beside the plate would leave the plate too little room. */
 @media (max-width: 1100px) {
   .timeline-main {
     flex-direction: column;
@@ -4323,8 +4324,8 @@ button.adapt-card-head:focus-visible {
    load so the radar stays above the fold (open, its mechanism families ran
    the page long). `.timeline-layout` is still a plain column; `align-items:
    stretch` (the default) is load-bearing -- at flex-start the column sizes
-   itself to the 1072px plate and the document overflows instead of the
-   scroll container scrolling. */
+   itself to its content, whose `width: min(100%, ...)` plate then has no
+   definite width to shrink against. */
 .timeline-layout {
   display: flex;
   flex-direction: column;
@@ -4335,8 +4336,8 @@ button.adapt-card-head:focus-visible {
    this column, not the column's only child, so it carries the same growth
    and min-width floor every framed flex child on this page needs: `flex: 1 1
    auto` lets it fill the column beside the key, and `min-width: 0` keeps its
-   own content (the 1072px plate) from setting the column's minimum width and
-   overflowing the document. */
+   own content (the plate, at its floor) from setting the column's minimum
+   width and overflowing the document. */
 .timeline-main {
   flex: 1 1 auto;
   min-width: 0;
@@ -4346,14 +4347,23 @@ button.adapt-card-head:focus-visible {
    `=== CLINICAL TRIALS MAP ===` above: the two strips are the same control
    row, and were the same rules written twice. */
 
-/* Native scale is the floor: below 1072px the plate scrolls sideways inside
-   its own container, as the retired iframe did. The floor is the SVG's own
-   viewBox width (lib/timeline.ts's CANVAS), which grew with the plate radius
-   so the drug labels have the arc length to clear each other. */
+/* The plate fits the window: the smallest of its container's width, its
+   1072-unit design size (lib/timeline.ts's CANVAS, so it never draws past
+   scale 1), and the width at which its 1072 x 940 height fits the room under
+   the sticky navbar. The island reads the rendered width back and sets its
+   text and halos in user units at 1 / scale, so the labels keep their design
+   size on screen while the picture shrinks. `--timeline-floor` is the width
+   below which the label layout no longer solves cleanly; unset, nothing
+   floors the plate. */
 .timeline-figure {
   display: block;
-  width: 100%;
-  min-width: 1072px;
+  width: min(
+    100%,
+    1072px,
+    calc((100dvh - var(--svd-navbar-h) - var(--svd-space-6)) * 1072 / 940)
+  );
+  min-width: var(--timeline-floor, 0px);
+  margin-inline: auto;
   height: auto;
   font-family: var(--svd-font);
 }
@@ -4381,7 +4391,9 @@ button.adapt-card-head:focus-visible {
 }
 
 /* Hover and focus lift the marker and its evidence ring together. `r` is a
-   geometry property, so the theme rules still touch no data colour. */
+   geometry property, so the theme rules still touch no data colour.
+   `--radar-k` is the island's marker growth on a shrunken plate (1 at full
+   size), so the lifted radii grow in step with the resting ones. */
 .timeline-figure .drug circle.marker,
 .timeline-figure .drug circle.evidence,
 .timeline-figure .drug circle.gap {
@@ -4390,12 +4402,12 @@ button.adapt-card-head:focus-visible {
 
 .timeline-figure .drug:hover circle.marker,
 .timeline-figure .drug:focus-visible circle.marker {
-  r: 12px;
+  r: calc(12px * var(--radar-k, 1));
 }
 
 .timeline-figure .drug:hover circle.evidence,
 .timeline-figure .drug:focus-visible circle.evidence {
-  r: 16px;
+  r: calc(16px * var(--radar-k, 1));
 }
 
 /* The hollow centre of a flagged marker, at the same fraction of the lifted
@@ -4405,7 +4417,7 @@ button.adapt-card-head:focus-visible {
    places or the hole jumps as the marker grows. */
 .timeline-figure .drug:hover circle.gap,
 .timeline-figure .drug:focus-visible circle.gap {
-  r: 4.8px;
+  r: calc(4.8px * var(--radar-k, 1));
 }
 
 /* Both keys sit above their plate, closed on load, so the figure stays near
@@ -4413,7 +4425,7 @@ button.adapt-card-head:focus-visible {
    the radar below the fold, which is why the key used to sit below.
 
    Closed, the summary is the one thing a first-time reader has to find
-   before either plate means anything, and as a hairline box beside a 1072px
+   before either plate means anything, and as a hairline box beside a page-wide
    figure it read as chrome. So it is filled: the second deliberate
    exception to "buttons are line drawings", on `.login-submit`'s fill and
    ink (measured there at 9.08:1) and its hover step. It stays square. */
@@ -4854,8 +4866,8 @@ button.adapt-card-head:focus-visible {
 }
 
 @media (max-width: 1100px) {
-  /* Stretch, or the scroll container sizes itself to the 1072px plate and the
-     document overflows instead of the container scrolling. */
+  /* Stretch, or the scroll container sizes itself to its plate rather than
+     to the column, and the plate has no width to shrink against. */
   /* `relative`, not `static` -- see `.sidebar-section` under the 900px query
      for why. This one is what found the rule: at 390px with a record open,
      the drawer's detached marks measured 402px against a 390px viewport and

@@ -262,6 +262,12 @@ test("draws one group per visible trial, twenty-eight cells, and both legends", 
  * which cell failed.
  */
 test("label boxes fit their text, stay on the plate, and touch no marker or band", async ({ page }) => {
+  // A full-height desktop window rather than the project's 1280x720: the
+  // plate now fits the window, and at 720px tall it shrinks past the scale
+  // at which the labels still clear the plate edge. This ran on a fixed
+  // 1072px plate before; the runtime floor is what will hold the plate
+  // above that scale on a short window.
+  await page.setViewportSize({ width: 1440, height: 900 });
   await figureSettled(page);
   // One box per drug label, population label and phase label.
   await expect.poll(() => sweepLabelFit(page)).toEqual({
@@ -306,6 +312,62 @@ test("label boxes fit their text, stay on the plate, and touch no marker or band
     return { colliding, boxes: boxes.length, control };
   });
   expect(measured).toEqual({ colliding: [], boxes: T.markers, control: true });
+});
+
+/**
+ * The plate fits the window -- never wider than its 1072-unit design size,
+ * never taller than the room under the navbar -- while every drug label keeps
+ * its 12px on screen: the island sets the label's font size in user units to
+ * 12 over the plate's rendered scale, and re-solves the label layout at each
+ * size, so the whole sweep stays clean as the plate shrinks.
+ */
+test("the plate fits the window and its text keeps its size", async ({ page }) => {
+  for (
+    const [width, height] of [
+      [1920, 1080],
+      [1440, 900],
+      [1280, 800],
+      [1100, 900],
+    ] as const
+  ) {
+    await page.setViewportSize({ width, height });
+    await figureSettled(page);
+    const at = `${width}x${height}`;
+    await expect.poll(() =>
+      page.evaluate(() => {
+        const svg = document.querySelector<SVGSVGElement>(
+          "svg.timeline-figure",
+        )!;
+        const rect = svg.getBoundingClientRect();
+        const navbar = document.querySelector(".navbar")!
+          .getBoundingClientRect().height;
+        const scale = svg.getScreenCTM()!.a;
+        const offSize = [
+          ...svg.querySelectorAll<SVGTextElement>('text[data-label^="drug-"]'),
+        ]
+          .map((text) => Number(text.getAttribute("font-size")) * scale)
+          .filter((size) => Math.abs(size - 12) > 0.5)
+          .map((size) => size.toFixed(2));
+        return {
+          scrolls: document.documentElement.scrollWidth > innerWidth,
+          tooTall: rect.height > innerHeight - navbar + 1,
+          tooWide: rect.width > 1072,
+          offSize,
+        };
+      }), { message: at }).toEqual({
+        scrolls: false,
+        tooTall: false,
+        tooWide: false,
+        offSize: [],
+      });
+    await expect.poll(() => sweepLabelFit(page), { message: at }).toEqual({
+      misfit: [],
+      clipped: [],
+      touching: [],
+      onBand: [],
+      boxes: T.labels,
+    });
+  }
 });
 
 test("an unassessed drug draws no ring and an assessed negative draws a dashed one", async ({ page }) => {
@@ -403,23 +465,35 @@ test("the sticky trial drawer clears the navbar and shows the whole record", asy
 
   const drawer = page.locator("#timeline-drawer");
   await expect(drawer).toBeVisible();
-  const documentTop = await drawer.evaluate((element) =>
-    element.getBoundingClientRect().top + globalThis.scrollY
+  // Scrolled just far enough to stick the drawer. The plate fits the window
+  // now, so the row is barely taller than the drawer, and the drawer stays
+  // stuck for only a few dozen pixels before the row's end carries it up
+  // under the navbar with the plate -- which is sticky positioning, not a
+  // fault. Scrolling to the drawer's own top assumed the old 1072px plate,
+  // whose tall row held the drawer stuck for hundreds of pixels. Measured
+  // from the row, the drawer's unstuck slot: the click may already have
+  // scrolled the drawer itself into its sticky position.
+  const stuckAt = await drawer.evaluate((element) =>
+    element.parentElement!.getBoundingClientRect().top + globalThis.scrollY -
+    parseFloat(getComputedStyle(element).top) + 4
   );
-  await page.evaluate((top) => globalThis.scrollTo(0, top), documentTop);
+  await page.evaluate((top) => globalThis.scrollTo(0, top), stuckAt);
 
   await expect.poll(async () =>
     page.evaluate(() => {
       const navbar = document.querySelector(".navbar")!.getBoundingClientRect();
       const drawer = document.querySelector<HTMLElement>("#timeline-drawer")!;
       const rect = drawer.getBoundingClientRect();
+      const style = getComputedStyle(drawer);
       return {
+        stuck: Math.abs(rect.top - parseFloat(style.top)) <= 1,
         clearsNavbar: rect.top >= navbar.bottom,
         fitsViewport: rect.bottom <= globalThis.innerHeight,
-        overflow: getComputedStyle(drawer).overflow,
+        overflow: style.overflow,
       };
     })
   ).toEqual({
+    stuck: true,
     clearsNavbar: true,
     fitsViewport: true,
     overflow: "visible",
@@ -756,6 +830,12 @@ test("the key sits above the plate and opens on demand", async ({ page }) => {
  * before the radar carried a status filter at all.
  */
 test("ticking Show All in the study-status group draws every trial", async ({ page }) => {
+  // A full-height desktop window rather than the project's 1280x720: the
+  // plate now fits the window, and at 720px tall it shrinks past the scale
+  // at which the labels still clear the plate edge. This ran on a fixed
+  // 1072px plate before; the runtime floor is what will hold the plate
+  // above that scale on a short window.
+  await page.setViewportSize({ width: 1440, height: 900 });
   await figureSettled(page);
   const group = page.getByRole("group", { name: /^Study status/ });
   await group.getByRole("checkbox", { name: /^Show All/ }).check();

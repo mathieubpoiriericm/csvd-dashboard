@@ -401,9 +401,19 @@ export function resolveRecordFlag(
 const uniqueDrugCount = (rows: readonly Trial[]) =>
   uniqueCount(rows.map((row) => row.drug));
 
+export interface TimelineLayoutOptions {
+  /**
+   * How far a drug label's anchor sits from its marker's centre. The island
+   * widens it as its markers grow on a shrunken plate; the default is the
+   * spacing both renderers share.
+   */
+  labelOffset?: number;
+}
+
 export function computeTimelineLayout(
   rows: readonly Trial[],
   enc: TimelineEncoding = encoding,
+  { labelOffset = MARKER_RADIUS + LABEL_GAP }: TimelineLayoutOptions = {},
 ): TimelineLayout {
   const rowsByPopulation = groupBy(rows, (row) => row.targetPopulation);
 
@@ -471,7 +481,7 @@ export function computeTimelineLayout(
         const r = midRadius + stagger(j, inCell.length, thickness);
         const point = polarToPoint(thetaDeg, r);
         const anchor = point.x >= CENTER.x ? "start" : "end";
-        const dx = (MARKER_RADIUS + LABEL_GAP) * (anchor === "start" ? 1 : -1);
+        const dx = labelOffset * (anchor === "start" ? 1 : -1);
         markers.push({
           index: markers.length,
           trial,

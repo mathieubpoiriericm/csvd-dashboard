@@ -1,6 +1,14 @@
 import { assertEquals } from "@std/assert";
 
-import type { Box, Marker } from "../lib/timeline.ts";
+import {
+  type Box,
+  computeTimelineLayout,
+  encoding,
+  LABEL_GAP,
+  type Marker,
+  MARKER_RADIUS,
+} from "../lib/timeline.ts";
+import { sampleTrial } from "./fixtures/rows.ts";
 import {
   countFaults,
   FLOOR_STEP,
@@ -233,4 +241,29 @@ Deno.test("drawer beside: a fault stacks it and never reaches phone mode", () =>
   );
   assertEquals(s, radar({ floor: 561, stacked: true }));
   assertEquals(nextRadarState(s, obs({ plateWidth: 700 })), s);
+});
+
+Deno.test("computeTimelineLayout's labelOffset moves only the label anchors", () => {
+  const rows = [
+    sampleTrial({
+      targetPopulation: encoding.populations[0].key,
+      clinicalTrialPhase: encoding.rings[0].phase,
+      mechanismOfAction: Object.keys(encoding.mechanisms)[0],
+    }),
+  ];
+  const [rest] = computeTimelineLayout(rows).markers;
+  const [grown] = computeTimelineLayout(rows, encoding, {
+    labelOffset: (MARKER_RADIUS + LABEL_GAP) * 2,
+  }).markers;
+  assertEquals(grown.point, rest.point);
+  const side = rest.anchor === "start" ? 1 : -1;
+  assertEquals(
+    rest.labelPoint.x - rest.point.x,
+    side * (MARKER_RADIUS + LABEL_GAP),
+  );
+  assertEquals(
+    grown.labelPoint.x - grown.point.x,
+    side * (MARKER_RADIUS + LABEL_GAP) * 2,
+  );
+  assertEquals(grown.labelPoint.y, rest.labelPoint.y);
 });

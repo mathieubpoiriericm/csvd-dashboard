@@ -32,8 +32,10 @@ import {
   CENTER,
   computeTimelineLayout,
   encoding,
+  LABEL_GAP,
   type LabelShift,
   type Marker,
+  MARKER_RADIUS,
   type MovableBox,
   placePopulationLabel,
   type Point,
@@ -42,6 +44,11 @@ import {
   sameBoxes,
   separateLabels,
 } from "../lib/timeline.ts";
+import {
+  markerGrowth,
+  markerGrowthCap,
+  plateScale,
+} from "../lib/timeline_scale.ts";
 import type { Trial } from "../lib/types.ts";
 
 const RADAR_FILTERS = {
@@ -243,11 +250,15 @@ function padded(box: Box, pad: Padding): Box {
   };
 }
 
-/** How far a marker reaches: its evidence ring when it has one. */
-function hitRadius(marker: Marker): number {
-  return marker.evidenceRing
-    ? EVIDENCE_RING_RADIUS + EVIDENCE_RING_WIDTH / 2
-    : MARKER_DRAW_RADIUS + MARKER_RING_WIDTH / 2;
+/**
+ * How far a marker reaches: its evidence ring when it has one. `k` is the
+ * marker growth on a shrunken plate, which every marker dimension takes.
+ */
+function hitRadius(marker: Marker, k: number): number {
+  return k *
+    (marker.evidenceRing
+      ? EVIDENCE_RING_RADIUS + EVIDENCE_RING_WIDTH / 2
+      : MARKER_DRAW_RADIUS + MARKER_RING_WIDTH / 2);
 }
 
 /** Same test the retired timeline.js used: the marker's bounding square. */
@@ -259,8 +270,8 @@ function touchesMarker(box: Box, marker: Point, radius: number): boolean {
 }
 
 /** The square a marker occupies, as an obstacle for the separation pass. */
-function markerBox(marker: Marker): Box {
-  const r = hitRadius(marker) + 1;
+function markerBox(marker: Marker, k: number): Box {
+  const r = hitRadius(marker, k) + 1;
   return {
     x: marker.point.x - r,
     y: marker.point.y - r,
@@ -342,6 +353,8 @@ interface LabelBoxProps {
   point: Point;
   anchor: Anchor;
   fontSize: number;
+  /** The halo's stroke, in user units; unused when the style has no halo. */
+  haloWidth: number;
   style: TextStyle;
   /** Every line after the first, when it is set smaller (population names). */
   subline?: { size: number; style: TextStyle };
@@ -357,8 +370,18 @@ interface LabelBoxProps {
  * has to read over a wedge.
  */
 function LabelBox(
-  { id, lines, point, anchor, fontSize, style, subline, padding, measured }:
-    LabelBoxProps,
+  {
+    id,
+    lines,
+    point,
+    anchor,
+    fontSize,
+    haloWidth,
+    style,
+    subline,
+    padding,
+    measured,
+  }: LabelBoxProps,
 ) {
   const box = padded(
     measured ?? placeholderBox(lines, fontSize, point, anchor),
@@ -369,7 +392,7 @@ function LabelBox(
     ? {
       "paint-order": "stroke",
       stroke: PLATE,
-      "stroke-width": HALO_WIDTH,
+      "stroke-width": haloWidth,
       "stroke-linejoin": "round",
     } as const
     : {};
@@ -793,7 +816,36 @@ export default function TrialsTimeline(
       }),
     [rows, values],
   );
-  const layout = useMemo(() => computeTimelineLayout(filtered), [filtered]);
+  // The selection's own figure, at rest. Its identity is what says the
+  // selection changed; `layout` below is the same figure with its labels
+  // set out from markers grown for the current scale.
+  const baseLayout = useMemo(() => computeTimelineLayout(filtered), [
+    filtered,
+  ]);
+
+  /**
+   * The plate's rendered width over its drawn width, in (0, 1], to 3 dp. The
+   * plate's CSS fits it to the window; every font size and halo below is
+   * divided by this, so the text keeps its design size on screen while the
+   * picture shrinks.
+   */
+  const [scale, setScale] = useState<number>(1);
+  // Markers grow to keep their size on screen too, but stop short of the
+  // closest pair touching.
+  const growthCap = useMemo(
+    () => markerGrowthCap(baseLayout.markers, EVIDENCE_RING_RADIUS),
+    [baseLayout],
+  );
+  const k = markerGrowth(scale, growthCap);
+  const layout = useMemo(
+    () =>
+      k === 1 ? baseLayout : computeTimelineLayout(filtered, encoding, {
+        labelOffset: (MARKER_RADIUS + LABEL_GAP) * k,
+      }),
+    [baseLayout, filtered, k],
+  );
+  const drugFontSize = DRUG_FONT_SIZE / scale;
+  const haloWidth = HALO_WIDTH / scale;
 
   const svgRef = useRef<SVGSVGElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -943,7 +995,7 @@ export default function TrialsTimeline(
           touchesMarker(
             padded(box, DRUG_PADDING),
             marker.point,
-            hitRadius(marker),
+            hitRadius(marker, k),
           )
         ) {
           pushed.set(marker.index, (pushed.get(marker.index) ?? 0) + NUDGE);
@@ -977,7 +1029,7 @@ export default function TrialsTimeline(
     }
     // Population and phase labels stay put, and so does every marker: a
     // label may not settle across a neighbouring marker's ring.
-    const fixed: Box[] = layout.markers.map(markerBox);
+    const fixed: Box[] = layout.markers.map((marker) => markerBox(marker, k));
     for (const [id, box] of next) {
       if (!id.startsWith("drug-")) fixed.push(padded(box, LABEL_PADDING));
     }
@@ -1021,10 +1073,10 @@ export default function TrialsTimeline(
   // A new selection is a new figure: the drawer's index and every measured
   // box, nudge and shift belong to the old marker set. Reset them all and
   // let the mount pass run again over the new labels.
-  const mountedLayout = useRef(layout);
+  const mountedLayout = useRef(baseLayout);
   useLayoutEffect(() => {
-    if (mountedLayout.current === layout) return;
-    mountedLayout.current = layout;
+    if (mountedLayout.current === baseLayout) return;
+    mountedLayout.current = baseLayout;
     restoreFocusTo.current = null;
     nudgePasses.current = 0;
     solvedGeometry.current = undefined;
@@ -1036,7 +1088,54 @@ export default function TrialsTimeline(
     setNudges(new Map());
     setShifts(new Map());
     setPopShifts(new Map());
-  }, [layout]);
+  }, [baseLayout]);
+
+  // A new scale is the same figure in new type: the markers and the drawer
+  // stay, but every box was measured at the old font size and every nudge
+  // and shift solved against it. Clear the solve and let the measure pass
+  // run again after this render, as a new selection does.
+  const solvedScale = useRef(scale);
+  useLayoutEffect(() => {
+    if (solvedScale.current === scale) return;
+    solvedScale.current = scale;
+    nudgePasses.current = 0;
+    solvedGeometry.current = undefined;
+    setBoxes(new Map());
+    setNudges(new Map());
+    setShifts(new Map());
+    setPopShifts(new Map());
+  }, [scale]);
+
+  // Read the plate's rendered scale once a resize has settled: the observer
+  // ticks every frame of a window drag, and each settled scale costs a full
+  // label solve. A tick arms one animation frame; a frame that finds another
+  // tick has landed since re-arms instead, so the scale is read only after a
+  // whole frame with no resize.
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    let frame: number | null = null;
+    let ticked = false;
+    const settle = () => {
+      if (ticked) {
+        ticked = false;
+        frame = globalThis.requestAnimationFrame(settle);
+        return;
+      }
+      frame = null;
+      const width = svg.getBoundingClientRect().width;
+      setScale(Math.round(plateScale(width) * 1000) / 1000);
+    };
+    const observer = new ResizeObserver(() => {
+      ticked = true;
+      frame ??= globalThis.requestAnimationFrame(settle);
+    });
+    observer.observe(svg);
+    return () => {
+      observer.disconnect();
+      if (frame !== null) globalThis.cancelAnimationFrame(frame);
+    };
+  }, []);
 
   // The web font arrives after first paint; fit again when it does.
   useEffect(() =>
@@ -1226,7 +1325,7 @@ export default function TrialsTimeline(
     const shift = shifts.get(marker.index);
     if (!shift) return false;
     const measured = boxes.get(`drug-${marker.index}`);
-    const height = (measured?.height ?? DRUG_FONT_SIZE * LINE_HEIGHT_EM) +
+    const height = (measured?.height ?? drugFontSize * LINE_HEIGHT_EM) +
       DRUG_PADDING.y * 2;
     return Math.hypot(shift.dx, shift.dy) > height;
   };
@@ -1294,6 +1393,10 @@ export default function TrialsTimeline(
               ref={svgRef}
               class="timeline-figure"
               viewBox={`0 0 ${CANVAS.width} ${CANVAS.height}`}
+              style={{
+                "--radar-k": String(k),
+                "--radar-text": String(1 / scale),
+              }}
               aria-labelledby="timeline-title timeline-desc"
             >
               <title id="timeline-title">
@@ -1308,10 +1411,9 @@ export default function TrialsTimeline(
 
               {
                 /* A white sheet in both themes: the halos, the marker rings and
-                  the band separators are all cut from it. rx matches the
-                  phenogram's plate inside the identical card -- 9 SVG user
-                  units at this canvas's ~1.11x scale at 1440 is the phenogram's
-                  8px, so the corners read as the same radius. */
+                  the band separators are all cut from it. rx is the
+                  phenogram's 8px plate corner on screen at every scale, so
+                  the two plates' corners read as the same radius. */
               }
               <rect
                 class="plate"
@@ -1319,7 +1421,7 @@ export default function TrialsTimeline(
                 y={0}
                 width={CANVAS.width}
                 height={CANVAS.height}
-                rx={9}
+                rx={8 / scale}
                 fill={PLATE}
               />
 
@@ -1392,7 +1494,8 @@ export default function TrialsTimeline(
                     lines={[`PHASE ${label.phase}`]}
                     point={label.point}
                     anchor="middle"
-                    fontSize={PHASE_FONT_SIZE}
+                    fontSize={PHASE_FONT_SIZE / scale}
+                    haloWidth={haloWidth}
                     style={PHASE_STYLE}
                     padding={LABEL_PADDING}
                     measured={boxes.get(`phase-${label.phase}`)}
@@ -1409,10 +1512,11 @@ export default function TrialsTimeline(
                       lines={label.lines}
                       point={placement.point}
                       anchor={placement.anchor}
-                      fontSize={POPULATION_FONT_SIZE}
+                      fontSize={POPULATION_FONT_SIZE / scale}
+                      haloWidth={haloWidth}
                       style={POPULATION_STYLE}
                       subline={{
-                        size: POPULATION_SUBLINE_SIZE,
+                        size: POPULATION_SUBLINE_SIZE / scale,
                         style: POPULATION_SUBLINE,
                       }}
                       padding={LABEL_PADDING}
@@ -1482,17 +1586,17 @@ export default function TrialsTimeline(
                       class="marker"
                       cx={marker.point.x}
                       cy={marker.point.y}
-                      r={MARKER_DRAW_RADIUS}
+                      r={MARKER_DRAW_RADIUS * k}
                       fill={marker.color}
                       stroke={PLATE}
-                      stroke-width={MARKER_RING_WIDTH}
+                      stroke-width={MARKER_RING_WIDTH * k}
                     />
                     {marker.flagReasons.length > 0 && (
                       <circle
                         class="gap"
                         cx={marker.point.x}
                         cy={marker.point.y}
-                        r={MARKER_GAP_RADIUS}
+                        r={MARKER_GAP_RADIUS * k}
                         fill={PLATE}
                       />
                     )}
@@ -1501,10 +1605,10 @@ export default function TrialsTimeline(
                         class="evidence"
                         cx={marker.point.x}
                         cy={marker.point.y}
-                        r={EVIDENCE_RING_RADIUS}
+                        r={EVIDENCE_RING_RADIUS * k}
                         fill="none"
                         stroke={marker.evidenceRing}
-                        stroke-width={EVIDENCE_RING_WIDTH}
+                        stroke-width={EVIDENCE_RING_WIDTH * k}
                         stroke-dasharray={marker.evidenceDash ?? undefined}
                       />
                     )}
@@ -1513,7 +1617,8 @@ export default function TrialsTimeline(
                       lines={[marker.trial.drug]}
                       point={anchor}
                       anchor={marker.anchor}
-                      fontSize={DRUG_FONT_SIZE}
+                      fontSize={drugFontSize}
+                      haloWidth={haloWidth}
                       style={DRUG_STYLE}
                       padding={DRUG_PADDING}
                       measured={boxes.get(`drug-${marker.index}`)}
