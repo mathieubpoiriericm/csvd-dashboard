@@ -75,11 +75,15 @@ valid HTML meaning "span to the end of the row group", so rendering one merges
 the cell down the whole `tbody`.
 
 **A page of many new rows is drawn in two frames.** `TableShell` draws the
-rows already on screen plus the first 25 new ones (`FIRST_BATCH`) in the frame
+rows already on screen plus the first 20 new ones (`FIRST_BATCH`) in the frame
 that answers the interaction, and the rest from a passive effect, which Preact
 runs once that frame has painted; `lib/row_batches.ts` decides where the first
 frame stops. Drawing all 87 /genes rows at once measured a 184 ms event at 4x
-CPU throttling, on the edge of a good INP; two frames measured 64 ms. Rows
+CPU throttling, on the edge of a good INP; two frames measured 64 ms. With 115
+rows the page-size change measured 120 ms, then 144 ms once every trait and
+omics acronym became its own tooltip (about 490 triggers), so the first batch
+came down from 25 to 20, which measures 120 ms again (2026-11-09,
+`node e2e/perf/run.mjs --no-trace --only genes/page-size-100`). Rows
 already drawn are never held back, so a sort or a narrowing search still
 renders whole rather than tearing rows down to rebuild them, and a batch never
 ends inside a merged trials block. A page is whole on first render, so SSR and
