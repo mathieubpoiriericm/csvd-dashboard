@@ -6,24 +6,23 @@
  * where no letter, digit or hyphen precedes it and no letter or digit follows
  * it, so `AB` is not found inside `ABC` or `xAB`. A hyphen may follow when a
  * lower-case word comes after it (`ML-based`), not another code (`AB-X9`),
- * and the longest key wins where two overlap (`WM-PVS` over `PVS`). A slash,
+ * and the longest key wins where two overlap (`AB-CD` over `CD`). A slash,
  * a space or punctuation separates.
+ *
+ * A term followed by `CLARIFICATION_MARK` (`lib/omics.ts`) awaits the
+ * curators: it stays as the source wrote it, the cell prints a `?` after it,
+ * and the glossary is not expected to know it.
  */
 
 import { ACRONYMS } from "./disease/acronyms.ts";
+import { CLARIFICATION_MARK } from "./omics.ts";
 import type { TooltipContent, TooltipRow } from "./tooltip_content.ts";
 import type { Acronym } from "./types.ts";
 
+export { CLARIFICATION_MARK };
+
 /** The tooltip row label that says a tissue colocalized significantly. */
 export const COLOCALIZATION_LABEL = "Significant colocalization";
-
-/**
- * Written straight after a term the curators have yet to confirm (`HV-PVS[?]`),
- * or alone where a part is missing (`TWAS;[?]: tissue`). The term stays as
- * the source wrote it; the cell prints a `?` that says so, and the glossary
- * is not expected to know it.
- */
-export const CLARIFICATION_MARK = "[?]";
 
 /** A term and the mark straight after it. */
 const MARKED_TERM = /[A-Za-z0-9-]*\[\?\]/g;

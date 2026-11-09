@@ -3,6 +3,7 @@ import { assertEquals } from "@std/assert";
 import { formatOmicsValue } from "../lib/filters.ts";
 import {
   colocalizedItems,
+  colocalizedText,
   formatOmicsEntry,
   parseOmicsEntry,
 } from "../lib/omics.ts";
@@ -60,4 +61,26 @@ Deno.test("formatOmicsEntry prints the format with no asterisk", () => {
     colocalizedItems(parseOmicsEntry("TWAS;Q: a*, b, c*")),
     ["a", "c"],
   );
+});
+
+Deno.test("a star in the type or the biomarker is no text either", () => {
+  assertEquals(parseOmicsEntry("TWAS*;Q*: a").type, "TWAS");
+  assertEquals(parseOmicsEntry("TWAS*;Q*: a").biomarker, "Q");
+  assertEquals(formatOmicsValue("TWAS;Q*"), "TWAS (Q)");
+});
+
+Deno.test("colocalizedText names a colocalized item as printed, and nothing else", () => {
+  const [plain, marked] = parseOmicsEntry("TWAS;Q: a, BB[?] c*").items;
+  assertEquals(colocalizedText(plain), undefined);
+  assertEquals(colocalizedText(marked), "BB? c");
+});
+
+Deno.test("text-only surfaces print the clarification mark as the cell does", () => {
+  assertEquals(
+    formatOmicsValue("TWAS;[?]: a, BB[?] c*"),
+    "TWAS (?: a, BB? c)",
+  );
+  assertEquals(colocalizedItems(parseOmicsEntry("TWAS;Q: BB[?] c*")), [
+    "BB? c",
+  ]);
 });

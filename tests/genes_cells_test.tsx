@@ -36,6 +36,15 @@ Deno.test("a starred entry whose type the glossary lacks still boxes the type", 
   assertEquals(triggers(html), ["Qomics"]);
 });
 
+Deno.test("a starred type the glossary lacks keeps its own acronym boxed", () => {
+  // MR is a generic glossary term; "Proteogenomic MR" as a whole is not.
+  const html = renderToString(
+    <OmicsEntryView value="Proteogenomic MR;Q: plasma*" />,
+  );
+  assertEquals(triggers(html), ["MR"]);
+  assertEquals(text(html), "Proteogenomic MR (Q: plasma)");
+});
+
 Deno.test("an acronym inside an item is boxed", () => {
   const html = renderToString(<OmicsEntryView value="Qomics;TWAS: a, TWAS*" />);
   assertEquals(triggers(html), ["Qomics", "TWAS", "TWAS"]);
