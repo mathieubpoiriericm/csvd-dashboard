@@ -57,6 +57,13 @@ function acronymMap(value: unknown): DiseaseManifest["acronyms"] {
     if (key === "") {
       throw new Error("disease/manifest.json: blank acronym key in acronyms");
     }
+    // `AB` and `AB ` are two JSON keys and one acronym: the later entry
+    // would silently replace the earlier.
+    if (Object.hasOwn(out, key)) {
+      throw new Error(
+        `disease/manifest.json: duplicate acronym key '${key}' in acronyms`,
+      );
+    }
     const source = record(entry);
     out[key] = {
       name: optional(source, "name"),
