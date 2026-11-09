@@ -203,3 +203,30 @@ async def test_a_later_runs_array_publishes_after_the_curated_one(
         "PWAS;TRAIT-B: brain*",
         "TWAS;tissue",
     ]
+
+
+@pytest.mark.parametrize("path", ["update", "insert-on-conflict"])
+async def test_a_later_runs_array_publishes_after_curated_prose(path: str) -> None:
+    """Most curated rows are stored as prose -- `stored_omics` writes prose
+    whenever prose exports back to the same entries -- so a run's array
+    usually lands after prose, not after an array."""
+    await write_gold_plan(_plan())
+    async with Database.connection() as conn:
+        await conn.execute(
+            "UPDATE genes SET evidence_from_other_omics_studies = $1",
+            "Experimental:CRISPR",
+        )
+    row = _merged_row(
+        format_omics([OmicsEvidence(study_type="PWAS", biomarker="TRAIT-B")])
+    )
+    if path == "update":
+        await merge_genes_transactional([], [row])
+    else:
+        await merge_genes_transactional([row], [])
+
+    (gene,) = await read_published_genes()
+
+    assert gene["evidenceFromOtherOmicsStudies"] == [
+        "Experimental;CRISPR",
+        "PWAS;TRAIT-B",
+    ]

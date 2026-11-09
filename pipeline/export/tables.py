@@ -257,55 +257,88 @@ _UNKNOWN_COLUMNS: Final[tuple[str, ...]] = (
 _JSON_DECODER: Final = json.JSONDecoder()
 
 
-def _stored_entries(value: str) -> tuple[list[str], str] | None:
-    """A value stored already split: a JSON array of wire-form entries, and
-    whatever prose follows it.
+def _stored_array(piece: str) -> list[str] | None:
+    """One `;`-separated piece read as a JSON array of wire-form entries, or
+    None when it is prose."""
+    piece = piece.strip()
+    if not piece.startswith("["):
+        return None
+    try:
+        array, end = _JSON_DECODER.raw_decode(piece)
+    except json.JSONDecodeError:
+        return None
+    if end != len(piece) or not isinstance(array, list):
+        return None
+    if not all(isinstance(entry, str) and entry.strip() for entry in array):
+        return None
+    return array
+
+
+def _stored_pieces(value: str) -> list[list[str] | str] | None:
+    """A stored value cut into its arrays and the runs of prose between them,
+    in order; None when it holds no array, which is plain prose.
 
     Curated wording the chain below would rewrite -- the "*" colocalization
     markers, a second ":", a comma outside parentheses inside one study -- is
-    stored this way (`stored_omics` in scripts/restore_from_json.py), its ";"
-    escaped as \\u003b so the gene merge's ";" split sees one element. The
-    merge appends what a later run extracted after it, joined on ";" -- since
-    prompt v8 another such array (`format_omics`), before it prose -- so every
-    leading array is read, a study two of them share is kept once, and what
-    follows the last is returned for the chain. None for anything else, which
-    is prose.
+    stored as a JSON array (`stored_omics` in scripts/restore_from_json.py),
+    and since prompt v8 so is everything a run extracts (`format_omics`). Each
+    array's own ";" is escaped as \\u003b, so splitting on ";" -- the split
+    the gene merge itself does -- never cuts one; the merge appends a run's
+    value after whatever was stored, so an array can follow prose as well as
+    precede it. Consecutive prose pieces are re-joined, so the chain sees them
+    exactly as it would have.
     """
-    if not value.startswith("["):
-        return None
-    entries: list[str] = []
-    rest = value
-    while rest.startswith("["):
-        try:
-            array, end = _JSON_DECODER.raw_decode(rest)
-        except json.JSONDecodeError:
-            break
-        if not isinstance(array, list) or not all(
-            isinstance(entry, str) and entry.strip() for entry in array
-        ):
-            break
-        entries.extend(array)
-        rest = rest[end:].lstrip(" ;")
-    if rest is value:
-        return None
-    return list(dict.fromkeys(entries)), rest
+    pieces: list[list[str] | str] = []
+    prose: list[str] = []
+    parts = value.split(";")
+    i = 0
+    while i < len(parts):
+        # An array written without escaping its ";" (by hand, or by a writer
+        # older than the escape) spans several parts: widen until it decodes.
+        array, width = None, 1
+        if parts[i].strip().startswith("["):
+            for j in range(i, len(parts)):
+                array = _stored_array(";".join(parts[i : j + 1]))
+                if array is not None:
+                    width = j - i + 1
+                    break
+        if array is None:
+            prose.append(parts[i])
+            i += 1
+            continue
+        if prose:
+            pieces.append(";".join(prose))
+            prose = []
+        pieces.append(array)
+        i += width
+    if prose:
+        pieces.append(";".join(prose))
+    return pieces if any(isinstance(piece, list) for piece in pieces) else None
 
 
 def clean_omics_value(value: str | None, gene: str | None = None) -> list[str]:
     """Apply the omics-evidence transformation chain, split, then gate.
 
-    A value stored already split skips the chain: its entries are gated as
-    they are, and only prose a merge appended after them goes through it.
-    `gene` only names the row in the log line an unfilterable element writes.
+    A stored array skips the chain: its entries are gated as they are, and
+    only the prose stored around it goes through the chain, in place. A study
+    stored twice -- by two runs, or once as curated prose and once by a run --
+    is published once. `gene` only names the row in the log line an
+    unfilterable element writes.
     """
-    if value and (stored := _stored_entries(value)) is not None:
-        entries, tail = stored
-        appended = [
-            entry
-            for entry in clean_omics_value(tail.strip(" ;") or None, gene)
-            if entry != "(none found)"
+    if value and (pieces := _stored_pieces(value)) is not None:
+        entries: list[str] = []
+        for piece in pieces:
+            if isinstance(piece, list):
+                entries.extend(piece)
+            else:
+                entries.extend(
+                    entry
+                    for entry in clean_omics_value(piece.strip(" ;") or None, gene)
+                    if entry != "(none found)"
+                )
+        return _publishable_omics(list(dict.fromkeys(entries)), gene) or [
+            "(none found)"
         ]
-        return _publishable_omics([*entries, *appended], gene) or ["(none found)"]
     text = value or ""
     text = text.replace("*", "")
     # Remove only genuinely empty separators; deleting one merely because

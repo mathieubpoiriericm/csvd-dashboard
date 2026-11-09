@@ -739,5 +739,29 @@ def test_omics_stored_as_several_arrays_publishes_every_entry_once() -> None:
     ]
 
 
+def _array(entries: list[str]) -> str:
+    return json.dumps(entries).replace(";", "\\u003b")
+
+
+def test_a_runs_array_merged_after_stored_prose_still_publishes() -> None:
+    """Most curated rows are stored as prose (`stored_omics` writes prose
+    whenever prose round-trips), and the merge appends a v8 run's array
+    after it, joined on ";"."""
+    stored = "Experimental:CRISPR;" + _array(["PWAS;WMH: brain*"])
+    assert clean_omics_value(stored) == ["Experimental;CRISPR", "PWAS;WMH: brain*"]
+
+
+def test_arrays_and_prose_interleaved_publish_in_order() -> None:
+    stored = ";".join(
+        [_array(["TWAS;Q: a*"]), "Proteomics", _array(["PWAS;Q"]), "EWAS"]
+    )
+    assert clean_omics_value(stored) == ["TWAS;Q: a*", "Proteomics", "PWAS;Q", "EWAS"]
+
+
+def test_a_study_stored_as_both_array_and_prose_publishes_once() -> None:
+    stored = _array(["PWAS;brain"]) + ";PWAS:brain*"
+    assert clean_omics_value(stored) == ["PWAS;brain"]
+
+
 def test_omics_prose_that_merely_starts_with_a_bracket_is_prose() -> None:
     assert clean_omics_value("[TWAS]") == ["(none found)"]
