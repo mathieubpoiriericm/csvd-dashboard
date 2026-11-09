@@ -1,4 +1,4 @@
-import { assert, assertEquals, assertMatch } from "@std/assert";
+import { assert, assertEquals, assertMatch, assertNotMatch } from "@std/assert";
 
 import { contrast } from "./helpers/colour.ts";
 
@@ -555,17 +555,14 @@ Deno.test("floating panels retain their cap without exceeding the viewport", () 
     css,
     /\.phenogram-canvas \.tooltip-pop \{[^}]*max-width: min\(360px, calc\(100vw - 20px\)\);/s,
   );
-  assertMatch(
-    css,
-    /\.tooltip-pop-scroll\s*\{[^}]*max-height: calc\(100dvh - 16px\);[^}]*overflow-y: auto;[^}]*overflow-wrap: anywhere;/s,
-  );
-  // A tooltip never draws a scrollbar: Tooltip.tsx widens and slides a tall
-  // panel until it fits, and where it cannot, the body scrolls without a bar.
-  assertMatch(css, /\.tooltip-pop-scroll\s*\{[^}]*scrollbar-width: none;/s);
-  assertMatch(
-    css,
-    /\.tooltip-pop-scroll::-webkit-scrollbar\s*\{\s*display: none;/s,
-  );
+  // A tooltip never scrolls: Tooltip.tsx fits the whole panel into the
+  // viewport instead, so nothing may cap the body's height or hide what
+  // overflows it.
+  const body = css.match(/\.tooltip-pop-body\s*\{([^}]*)\}/)?.[1];
+  assert(body, ".tooltip-pop-body rule not found");
+  assertMatch(body, /overflow-wrap: anywhere;/);
+  assertNotMatch(body, /max-height|overflow(-[xy])?:|scrollbar/);
+  assertNotMatch(css, /tooltip-pop-(body|scroll)::-webkit-scrollbar/);
   assertMatch(css, /\.tooltip-pop\s*\{[^}]*overflow: visible;/s);
 });
 

@@ -109,7 +109,8 @@ test.describe("gene tooltips", () => {
 
   test("a popover taller than the space beside its trigger fits without scrolling", async ({ page }) => {
     // COL4A1/2's panel lists two member genes: taller than a 600px window
-    // allows above or below the row, so it used to scroll there.
+    // allows above or below the row, so it used to scroll there. Columns
+    // fit it at full size.
     await page.setViewportSize({ width: 1024, height: 600 });
     await page.reload();
     await page.getByRole("searchbox", { name: "Search genes" }).fill("COL4A1");
@@ -124,16 +125,18 @@ test.describe("gene tooltips", () => {
     expect(box).not.toBeNull();
     expect(box!.y).toBeGreaterThanOrEqual(7);
     expect(box!.y + box!.height).toBeLessThanOrEqual(593);
-    const body = await panel.locator(".tooltip-pop-scroll").evaluate((
+    const body = await panel.locator(".tooltip-pop-body").evaluate((
       element,
     ) => ({
       clientHeight: element.clientHeight,
       scrollHeight: element.scrollHeight,
+      zoom: Number(getComputedStyle(element).zoom),
     }));
     expect(body.scrollHeight).toBeLessThanOrEqual(body.clientHeight);
+    expect(body.zoom).toBe(1);
   });
 
-  test("a long popover fits and scrolls without a scrollbar inside a 320px viewport", async ({ page }) => {
+  test("a long popover fits whole inside a 320px viewport, scaled rather than cut off", async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 320 });
     await page.reload();
     await page.getByRole("searchbox", { name: "Search genes" }).fill("LAMB1");
@@ -153,31 +156,33 @@ test.describe("gene tooltips", () => {
     expect(box!.y).toBeGreaterThanOrEqual(7);
     expect(box!.y + box!.height).toBeLessThanOrEqual(313);
 
-    const scrollport = panel.locator(".tooltip-pop-scroll");
-    const dimensions = await scrollport.evaluate((element) => ({
+    // Too tall for 320px at any width, so the body is scaled down; every
+    // line of it is inside the panel and nothing scrolls.
+    const body = panel.locator(".tooltip-pop-body");
+    const dimensions = await body.evaluate((element) => ({
       clientHeight: element.clientHeight,
       scrollHeight: element.scrollHeight,
       overflowY: getComputedStyle(element).overflowY,
       overflowWrap: getComputedStyle(element).overflowWrap,
-      scrollbarWidth: getComputedStyle(element).scrollbarWidth,
-      gutter: element.offsetWidth - element.clientWidth,
+      zoom: Number(getComputedStyle(element).zoom),
     }));
-    // Nothing wider to grow into: the last resort scrolls, with no bar.
-    expect(dimensions.scrollHeight).toBeGreaterThan(dimensions.clientHeight);
-    expect(dimensions.overflowY).toBe("auto");
-    expect(dimensions.scrollbarWidth).toBe("none");
-    expect(dimensions.gutter).toBe(0);
+    expect(dimensions.scrollHeight).toBeLessThanOrEqual(dimensions.clientHeight);
+    expect(dimensions.overflowY).toBe("visible");
     expect(dimensions.overflowWrap).toBe("anywhere");
+    expect(dimensions.zoom).toBeLessThan(1);
+
+    const link = panel.getByRole("link", { name: "View on PubMed" });
+    const linkBox = await link.boundingBox();
+    expect(linkBox).not.toBeNull();
+    expect(linkBox!.y + linkBox!.height).toBeLessThanOrEqual(
+      box!.y + box!.height,
+    );
 
     await page.keyboard.press("Escape");
     await trigger.focus();
     await page.keyboard.press("Enter");
     await page.keyboard.press("Tab");
-    await expect(
-      panel.getByRole("link", { name: "View on PubMed" }),
-    ).toBeFocused();
-    expect(await scrollport.evaluate((element) => element.scrollTop))
-      .toBeGreaterThan(0);
+    await expect(link).toBeFocused();
   });
 
   test("a rapid close cannot be undone by stale positioning", async ({ page }) => {

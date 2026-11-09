@@ -3653,8 +3653,7 @@ button.adapt-card-head:focus-visible {
  * Everything here past the colours is undoing the UA `[popover]` stylesheet:
  * it centres the panel with `inset: 0; margin: auto`, draws a border, and sets
  * `overflow: auto`, which would clip the arrow. Floating UI writes `left`/`top`.
- * The inner wrapper owns overflow instead, leaving the arrow outside its
- * scrollport.
+ * The arrow sits outside the inner body.
  *
  * `display` must only be set in the `:popover-open` state. Setting it on
  * `.tooltip-pop` outright would beat the UA's `[popover]:not(:popover-open)`
@@ -3689,27 +3688,17 @@ button.adapt-card-head:focus-visible {
 }
 
 /*
- * A tooltip never shows a scrollbar. Tooltip.tsx widens a tall panel and lets
- * it slide anywhere in the viewport until it fits, so this cap is only reached
- * where the viewport is too narrow to widen into (a phone, a 320px window).
- * There the body still scrolls -- by wheel, touch, or Tab to the link -- but
- * draws no bar. `dvh`, not `vh`: on mobile `vh` is the largest viewport, taller
- * than what is visible while the browser's toolbar shows.
+ * The body never scrolls: Tooltip.tsx fits the whole panel into the viewport
+ * -- wider, in columns, or scaled down -- before placing it, so nothing is
+ * ever cut off. That is also why the scale is a `zoom` on this element and
+ * not the panel: the panel carries the coordinates Floating UI writes.
  */
-.tooltip-pop-scroll {
+.tooltip-pop-body {
   display: block;
-  max-height: calc(100dvh - 16px);
-  overflow-x: hidden;
-  overflow-y: auto;
   overflow-wrap: anywhere;
-  scrollbar-width: none;
   column-gap: var(--svd-space-6);
   padding: var(--svd-space-3) var(--svd-space-4);
   border-radius: inherit;
-}
-
-.tooltip-pop-scroll::-webkit-scrollbar {
-  display: none;
 }
 
 .tooltip-pop:popover-open {

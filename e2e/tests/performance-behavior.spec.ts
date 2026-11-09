@@ -11,14 +11,14 @@ test("closed tooltip bodies are deferred and an open row can be filtered away", 
   await page.goto("/genes");
   await page.waitForSelector('.table-controls[data-hydrated="true"]');
   await expect(page.locator(".tooltip-pop").first()).toBeAttached();
-  await expect(page.locator(".tooltip-pop-scroll")).toHaveCount(0);
+  await expect(page.locator(".tooltip-pop-body")).toHaveCount(0);
   await page.locator("tbody .tooltip-box").first().press("Enter");
   await expect(tooltip(page)).toBeVisible();
   await expect(tooltip(page).locator(".tooltip-row").first()).toBeVisible();
   await page.getByPlaceholder("Search genes").fill("no-such-gene-xyz");
   await expect(page.locator(".empty-state")).toBeVisible();
   await expect(tooltip(page)).toHaveCount(0);
-  await expect(page.locator(".tooltip-pop-scroll")).toHaveCount(0);
+  await expect(page.locator(".tooltip-pop-body")).toHaveCount(0);
   await page.getByPlaceholder("Search genes").fill(EXPECTED.firstGeneAsc!);
   await expect(rows(page).first().locator("td").first()).toHaveText(
     EXPECTED.firstGeneAsc!,

@@ -34,3 +34,11 @@ frozen. Three things about the arrangement are load-bearing:
 
 Positioning is the only part left to JavaScript; CSS anchor positioning would do
 it declaratively but sits at ~84% support.
+
+**A panel never scrolls and never cuts content off.** `fitToViewport()` in
+`components/Tooltip.tsx` widens a panel too tall for the viewport, sets short
+rows in columns, and as a last resort scales the body down with `zoom`, before
+Floating UI places it anywhere in the viewport (`flip` to four sides, `shift`
+with `crossAxis`). Hiding a scrollbar is not a fix: content behind it is still
+cut off. `zoom` sits on `.tooltip-pop-body`, never on the panel, which carries
+the `left`/`top` Floating UI writes.
