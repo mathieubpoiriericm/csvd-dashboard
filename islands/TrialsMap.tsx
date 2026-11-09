@@ -17,6 +17,7 @@ import {
 } from "../lib/data/locations.ts";
 import { trials } from "../lib/data/trials.ts";
 import type { TrialLocation } from "../lib/types.ts";
+import { fitZoom } from "../lib/drawer_fit.ts";
 import { formatCount } from "../lib/format.ts";
 import { filterLocationsByStatus } from "../lib/filters.ts";
 import {
@@ -261,11 +262,19 @@ export default function TrialsMap() {
 
         L.control.scale({ imperial: false }).addTo(map);
 
-        // maxClusterRadius is the only real override here (the default is 80);
-        // spiderfyOnMaxZoom and removeOutsideVisibleBounds already default to
-        // true, so restating them only made them look like tuning decisions.
+        // maxClusterRadius is a tuning choice (the default is 80);
+        // spiderfyOnMaxZoom already defaults to true.
+        //
+        // removeOutsideVisibleBounds is off because pruning closes popups.
+        // On mobile markercluster prunes at the bare visible bounds (a
+        // desktop gets a screen's padding), and a phone's map is about as
+        // tall as a popup, so opening one autopans its own marker off the
+        // map; the moveend prune removes that marker, and Leaflet closes a
+        // bound popup when its layer is removed. A few hundred sites cost
+        // nothing to keep drawn.
         const cluster = L.markerClusterGroup({
           maxClusterRadius: MAP_CLUSTER_RADIUS_PX,
+          removeOutsideVisibleBounds: false,
         });
 
         // circleMarker options are plain JS, so they cannot read a CSS
@@ -280,6 +289,52 @@ export default function TrialsMap() {
         };
 
         const markers: L.CircleMarker[] = [];
+
+        /**
+         * Fits an open popup, and the marker it points at, inside the map.
+         *
+         * A phone's map is 380px tall and a long trial's popup ran to 463px,
+         * so its head or the registry link at its foot was cut off by the
+         * map's edge. As the timeline drawer does (`lib/drawer_fit.ts`), the
+         * body is zoomed down as far as the floor, and past that the map
+         * grows while the popup is open; it never scrolls. Leaflet laid the
+         * popup out and started its autopan before `popupopen`, so `update()`
+         * lays it out again and re-pans from the fitted size.
+         */
+        const fitPopup = (marker: L.CircleMarker, host: HTMLElement) => {
+          const popup = marker.getPopup();
+          const element = popup?.getElement();
+          if (!popup || !element || !map) return;
+          host.style.zoom = "";
+          const padding = L.point(popup.options.autoPanPadding ?? [5, 5]);
+          const { radius = 0, weight = 0 } = marker.options;
+          const hostHeight = () => host.getBoundingClientRect().height;
+          // Everything the popup stacks above and below its body -- the
+          // wrapper's padding, the tip, the margin to the anchor -- plus
+          // the marker's own reach below its centre and the pan padding.
+          const chrome = element.offsetHeight +
+            (parseFloat(getComputedStyle(element).marginBottom) || 0) -
+            hostHeight() + radius + weight + padding.y * 2;
+          const room = container.clientHeight - chrome;
+          const { zoom, fits } = fitZoom((candidate) => {
+            host.style.zoom = String(candidate);
+            return hostHeight();
+          }, room);
+          host.style.zoom = zoom === 1 ? "" : String(zoom);
+          if (!fits) {
+            container.style.minHeight = `${
+              Math.ceil(container.clientHeight + hostHeight() - room)
+            }px`;
+            map.invalidateSize({ pan: false });
+          }
+          popup.update();
+        };
+        /** Gives back the height a popup that did not fit made the map take. */
+        const releaseMapHeight = () => {
+          if (!container.style.minHeight) return;
+          container.style.minHeight = "";
+          map?.invalidateSize({ pan: false });
+        };
 
         /**
          * Rebuilds the cluster layer for one location set. Called once on
@@ -371,6 +426,7 @@ export default function TrialsMap() {
               disposePopupEvents?.();
               const popup = marker.getPopup()?.getElement();
               if (!popup) return;
+              fitPopup(marker, host);
               popup.setAttribute("role", "region");
               popup.setAttribute(
                 "aria-label",
@@ -409,6 +465,7 @@ export default function TrialsMap() {
               disposePopupEvents?.();
               disposePopupEvents = undefined;
               accessibility?.setExpanded(false);
+              releaseMapHeight();
               if (!popupMounted) return;
               render(null, host);
               popupMounted = false;
