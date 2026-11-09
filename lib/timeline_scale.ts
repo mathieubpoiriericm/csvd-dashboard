@@ -83,3 +83,61 @@ export function isClean(f: LayoutFaults): boolean {
   return f.labelPairs === 0 && f.clipped === 0 && f.touching === 0 &&
     f.markerPairs === 0;
 }
+
+/** Below this width the radar is never attempted. */
+export const RADAR_MIN_ROOM = 480;
+/** How much wider a room must get before a mode change is reversed. */
+export const HYSTERESIS = 32;
+/** How much the plate's floor is raised past a height-limited fault. */
+export const FLOOR_STEP = 48;
+
+export type RadarMode = "radar" | "phone";
+
+export interface RadarState {
+  mode: RadarMode;
+  /** A plate width in CSS px; 0 when unknown. */
+  floor: number;
+  /** The drawer sits above the plate instead of beside it. */
+  stacked: boolean;
+}
+
+export interface RadarObservation {
+  /** The width the plate could take with the drawer stacked. */
+  room: number;
+  plateWidth: number;
+  heightLimited: boolean;
+  drawerBeside: boolean;
+  /** The drawer's width plus the row gap. */
+  drawerSpace: number;
+  /** Null until a solve has settled at this size. */
+  clean: boolean | null;
+}
+
+export function initialRadarState(room: number): RadarState {
+  return {
+    mode: room < RADAR_MIN_ROOM ? "phone" : "radar",
+    floor: 0,
+    stacked: false,
+  };
+}
+
+/** One step of the mode decision; the first matching rule wins. */
+export function nextRadarState(
+  s: RadarState,
+  o: RadarObservation,
+): RadarState {
+  if (o.room < RADAR_MIN_ROOM) return { ...s, mode: "phone" };
+  if (s.mode === "phone") {
+    return o.room >= s.floor + HYSTERESIS ? { ...s, mode: "radar" } : s;
+  }
+  if (o.clean === null) return s;
+  if (o.clean) {
+    const fitsBeside = !o.drawerBeside &&
+      o.room - o.drawerSpace >= s.floor + HYSTERESIS;
+    return s.stacked && fitsBeside ? { ...s, stacked: false } : s;
+  }
+  if (o.heightLimited) return { ...s, floor: o.plateWidth + FLOOR_STEP };
+  const floor = Math.max(s.floor, o.plateWidth + 1);
+  if (o.drawerBeside) return { ...s, stacked: true, floor };
+  return { ...s, mode: "phone", floor };
+}

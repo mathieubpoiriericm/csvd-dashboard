@@ -3,10 +3,17 @@ import { assertEquals } from "@std/assert";
 import type { Box, Marker } from "../lib/timeline.ts";
 import {
   countFaults,
+  FLOOR_STEP,
+  HYSTERESIS,
+  initialRadarState,
   isClean,
   markerGrowth,
   markerGrowthCap,
+  nextRadarState,
   plateScale,
+  RADAR_MIN_ROOM,
+  type RadarObservation,
+  type RadarState,
 } from "../lib/timeline_scale.ts";
 
 const at = (x: number, y: number) => ({ point: { x, y } }) as Marker;
@@ -103,4 +110,127 @@ Deno.test("isClean is true only for all zeros", () => {
   for (const k of Object.keys(zero) as (keyof typeof zero)[]) {
     assertEquals(isClean({ ...zero, [k]: 1 }), false);
   }
+});
+
+const obs = (o: Partial<RadarObservation> = {}): RadarObservation => ({
+  room: 900,
+  plateWidth: 800,
+  heightLimited: false,
+  drawerBeside: false,
+  drawerSpace: 340,
+  clean: true,
+  ...o,
+});
+const radar = (s: Partial<RadarState> = {}): RadarState => ({
+  mode: "radar",
+  floor: 0,
+  stacked: false,
+  ...s,
+});
+
+Deno.test("initialRadarState starts in phone mode below the minimum room", () => {
+  assertEquals(initialRadarState(RADAR_MIN_ROOM - 1), {
+    mode: "phone",
+    floor: 0,
+    stacked: false,
+  });
+  assertEquals(initialRadarState(RADAR_MIN_ROOM), radar());
+});
+
+Deno.test("rule 1: a room below the minimum is phone mode, floor kept", () => {
+  assertEquals(
+    nextRadarState(radar({ floor: 600, stacked: true }), obs({ room: 479 })),
+    { mode: "phone", floor: 600, stacked: true },
+  );
+});
+
+Deno.test("rule 2: phone mode returns to radar once the room clears the floor", () => {
+  const phone = radar({ mode: "phone", floor: 600 });
+  assertEquals(
+    nextRadarState(phone, obs({ room: 600 + HYSTERESIS })),
+    radar({ floor: 600 }),
+  );
+  assertEquals(
+    nextRadarState(phone, obs({ room: 600 + HYSTERESIS - 1 })),
+    phone,
+  );
+});
+
+Deno.test("rule 3: an unsettled solve changes nothing", () => {
+  const s = radar({ floor: 100, stacked: true });
+  assertEquals(nextRadarState(s, obs({ clean: null })), s);
+});
+
+Deno.test("rule 4: a clean radar stays, and unstacks only with room to spare", () => {
+  const s = radar({ floor: 500, stacked: true });
+  assertEquals(nextRadarState(radar(), obs()), radar());
+  const roomy = obs({ room: 500 + HYSTERESIS + 340 });
+  assertEquals(nextRadarState(s, roomy), radar({ floor: 500 }));
+  assertEquals(nextRadarState(s, obs({ room: 500 + HYSTERESIS + 339 })), s);
+  assertEquals(nextRadarState(s, { ...roomy, drawerBeside: true }), s);
+  assertEquals(
+    nextRadarState(radar({ floor: 500 }), roomy),
+    radar({ floor: 500 }),
+  );
+});
+
+Deno.test("rule 5: a height-limited fault raises the floor and stays radar", () => {
+  assertEquals(
+    nextRadarState(
+      radar({ floor: 100 }),
+      obs({ clean: false, heightLimited: true, drawerBeside: true }),
+    ),
+    radar({ floor: 800 + FLOOR_STEP }),
+  );
+});
+
+Deno.test("rule 6: a faulty radar with the drawer beside stacks it", () => {
+  const faulty = obs({ clean: false, drawerBeside: true });
+  assertEquals(
+    nextRadarState(radar({ floor: 100 }), faulty),
+    radar({ floor: 801, stacked: true }),
+  );
+  assertEquals(
+    nextRadarState(radar({ floor: 900 }), faulty),
+    radar({ floor: 900, stacked: true }),
+  );
+});
+
+Deno.test("rule 7: any other fault is phone mode, floor at least the plate", () => {
+  assertEquals(
+    nextRadarState(radar({ floor: 100 }), obs({ clean: false })),
+    { mode: "phone", floor: 801, stacked: false },
+  );
+  assertEquals(
+    nextRadarState(radar({ floor: 900 }), obs({ clean: false })),
+    { mode: "phone", floor: 900, stacked: false },
+  );
+});
+
+Deno.test("fonts arriving late: fault, phone, then the room widens", () => {
+  const phone = nextRadarState(
+    radar(),
+    obs({ clean: false, plateWidth: 600, room: 640 }),
+  );
+  assertEquals(phone.mode, "phone");
+  const back = nextRadarState(phone, obs({ room: phone.floor + HYSTERESIS }));
+  assertEquals(back.mode, "radar");
+});
+
+Deno.test("short window: height-limited fault, raised floor, then clean", () => {
+  const raised = nextRadarState(
+    radar(),
+    obs({ clean: false, heightLimited: true, plateWidth: 700 }),
+  );
+  assertEquals(raised, radar({ floor: 700 + FLOOR_STEP }));
+  assertEquals(nextRadarState(raised, obs({ plateWidth: 748 })), raised);
+});
+
+Deno.test("drawer beside: a fault stacks it and never reaches phone mode", () => {
+  const s = nextRadarState(
+    radar(),
+    obs({ clean: false, drawerBeside: true, plateWidth: 560 }),
+  );
+  assertEquals(s, radar({ floor: 561, stacked: true }));
+  assertEquals(nextRadarState(s, obs({ plateWidth: 700 })), s);
 });
