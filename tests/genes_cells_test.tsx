@@ -71,6 +71,16 @@ Deno.test("the ? mark is a button named for what it means", () => {
   assertEquals(html.includes('aria-label="Needs clarification"'), true);
 });
 
+Deno.test("an acronym keeps the punctuation right after it on its line", () => {
+  const html = renderToString(<AcronymText text="(all TWAS, and more)" />);
+  assertEquals(
+    /<span[^>]*class="acronym-glue"[^>]*><button[^>]*>TWAS<\/button>.*?,<\/span>/
+      .test(html),
+    true,
+  );
+  assertEquals(html.includes('class="acronym-text"'), true);
+});
+
 Deno.test("AcronymText boxes each acronym and leaves the words around it", () => {
   const html = renderToString(<AcronymText text="multi-trait TWAS and more" />);
   assertEquals(triggers(html), ["TWAS"]);
