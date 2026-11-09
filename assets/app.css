@@ -1126,7 +1126,9 @@ svg {
   text-transform: uppercase;
   color: color-mix(in oklab, var(--svd-nav-ink) 86%, transparent);
   text-align: center;
-  text-wrap: pretty;
+  /* balance, not pretty: a short centred title is what balance is for, and
+     Firefox drops pretty as an invalid value (logging it on every load). */
+  text-wrap: balance;
 }
 
 .navbar-nav {
