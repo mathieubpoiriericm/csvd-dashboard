@@ -20,9 +20,9 @@ of that shortfall is extraction. Two things dominate it:
               "precision" here is mostly the curators' inclusion criteria,
               which the extraction prompt was never given.
 
-Filter those out and the picture inverts: 85% recall pooled (39/46), and
-four of the seven scorable papers recover every reachable gene. A number that
-says 0.40 when the truth is 0.85 is worse than no number, so this suite
+Filter those out and the picture inverts: 87% recall pooled (40/46), and
+five of the seven scorable papers recover every reachable gene. A number that
+says 0.40 when the truth is 0.87 is worse than no number, so this suite
 asserts the one that means something and reports the other alongside it.
 
 The fixtures under tests/pipeline/fixtures/papers/ are the retrieved text of
@@ -413,6 +413,16 @@ _RECALL_BASELINE: Final[dict[str, float]] = {
 # them at 0.2. 33293549 measured 10/10 and keeps its 0.80 floor for the
 # reason above. This suite still scores raw extraction, before the floor
 # (see .claude/rules/pipeline/not-proven.md), so these are the floors.
+#
+# The 2026-11-08 re-record is prompt v8 (structured omics evidence), same
+# model and effort. The bar, written down before recording: no paper below
+# its floor, pooled at least v7's 39/46. Measured: pooled 40/46, clean 21/26,
+# prompt-named 19/20; 37069360 recovered FOXF2 (16/16) and 33293549 10/10.
+# The floors stay where they are: v8 did not widen what the prompt admits as
+# a gene, and a floor below the best observed value is what absorbs the
+# nondeterminism above. One fixture moved: Europe PMC's text for 35943854,
+# a paper with no reachable gold gene, so no figure here depends on it; the
+# manifest was re-stamped.
 
 
 def test_every_selected_paper_has_a_recall_baseline() -> None:
@@ -575,6 +585,13 @@ def test_the_cassettes_were_recorded_with_the_request_the_code_sends(
 
     recorded = _recorded_request(pmid)
     current = _current_request(pmid)
+    # `fallbacks` rides on the streaming call, not in the shared params the
+    # Batches API also uses (it rejects the field; see `_stream_and_parse` in
+    # pipeline/anthropic_client.py), so it is checked against the configured
+    # fallback model rather than against `_build_message_params`.
+    assert recorded.pop("fallbacks", None) == [
+        {"model": PipelineConfig().fallback_model}
+    ], f"PMID {pmid}: the cassette was recorded with a different fallback model"
     # Named rather than compared whole: `system` and `messages` carry the
     # prompt and the paper, so an equality assertion on the two dicts would
     # print two 60 kB blobs and say nothing about which part moved.

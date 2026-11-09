@@ -22,7 +22,8 @@ MeSH-branch figures are pinned so widening a term list in the belief that it
 helps recall fails loudly). `tests/pipeline/csvd/test_extraction_golden.py`
 replays ten cassettes and asserts recall over the gold genes a paper's retrieved
 text actually names, reported apart for the 13 gold genes the prompt itself
-names -- **quote the clean 81%, not the pooled 85%**. Its `_RECALL_BASELINE` is
+names -- **quote the clean 81%, not the pooled 87%** (prompt v8, re-recorded
+2026-11-08; v7 measured the same 81% and a pooled 85%). Its `_RECALL_BASELINE` is
 raised when the prompt is widened, never to turn a red run green; three floors
 came down with the move to Opus 5.5, to what that re-record measured, and the
 module records the genes they lost. Every one of those was a gene Opus 5
