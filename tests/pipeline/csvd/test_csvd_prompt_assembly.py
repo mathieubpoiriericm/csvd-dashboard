@@ -46,7 +46,9 @@ _V8_OMICS_GUIDANCE = (
     "significant colocalization for that named tissue, and as a last item any "
     'other evidence the study adds, in a few words (e.g. "RNA-Seq"). Each item '
     "is a name, never a sentence: methods and effect sizes belong in "
-    "causal_evidence_summary. When the paper names no specific tissue -- only "
+    "causal_evidence_summary. For Experimental, the items are instead each "
+    'model or intervention, in a few words (e.g. "Trim47-deficient mice"). '
+    "When the paper names no specific tissue -- only "
     '"multiple tissues", or the reference panels it used -- give no items '
     "rather than a summary. SMR on expression QTLs is a TWAS and on protein "
     "QTLs a Proteogenomic MR; list a tissue for it only where the result was "

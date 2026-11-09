@@ -432,6 +432,14 @@ _RECALL_BASELINE: Final[dict[str, float]] = {
 # from 29 of 78 to 8 of 53 -- the 8 are tissue classes such as "arterial
 # tissues", which is how 37069360 itself reports its TWAS-COLOC signals --
 # and items longer than 60 characters from 14 to 1.
+#
+# Re-recorded again the same day once the guidance said what an Experimental
+# item is (each model or intervention, in a few words), which its two
+# examples had taught and the field text had contradicted. Pooled 39/46,
+# clean 21/26, every paper at or above its floor: 37069360 lost FOXF2 again
+# (15/16, its floor), the run-to-run swing recorded above. Items: 59, none
+# longer than 60 characters; the Experimental ones are model names such as
+# "Col4a1+/SVC (G1064D) mice" where the last recording had a sentence.
 
 
 def test_every_selected_paper_has_a_recall_baseline() -> None:
