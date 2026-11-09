@@ -11,7 +11,14 @@ import { PhaseList } from "../components/timeline/PhaseList.tsx";
 import { computeTimelineLayout, encoding } from "../lib/timeline.ts";
 import { sampleTrial } from "./fixtures/rows.ts";
 
-const [POP_A, POP_B] = encoding.populations.map((p) => p.key);
+const POP_A = encoding.populations[0].key;
+// Two populations of the test's own, because a disease may declare only one.
+const SECOND = { ...encoding.populations[0], key: `${POP_A}-b` };
+const POP_B = SECOND.key;
+const TWO_POPULATIONS = {
+  ...encoding,
+  populations: [encoding.populations[0], SECOND],
+};
 const MECHANISM = Object.keys(encoding.mechanisms)[0];
 const [P_OUTER, P_NEXT] = encoding.rings.map((r) => r.phase);
 
@@ -98,7 +105,7 @@ Deno.test("the small radar's summary counts in the singular and the plural", () 
   const two = computeTimelineLayout([
     trial("A", P_OUTER),
     trial("B", P_OUTER, POP_B),
-  ]);
+  ], TWO_POPULATIONS);
   assertStringIncludes(
     mini(null, two),
     'aria-label="2 trials across 2 populations;',
@@ -118,6 +125,6 @@ Deno.test("the small radar's legend omits empty sectors", () => {
   const two = computeTimelineLayout([
     trial("A", P_OUTER),
     trial("B", P_OUTER, POP_B),
-  ]);
+  ], TWO_POPULATIONS);
   assertEquals(mini(null, two).match(/<li[ >]/g)?.length, 2);
 });
