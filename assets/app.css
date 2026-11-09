@@ -3600,6 +3600,34 @@ button.adapt-card-head:focus-visible {
   color: var(--svd-color-accent-text);
 }
 
+/* A tip that names a gesture is worded for the pointer in hand: both wordings
+   are in the markup and the capability, not the width, picks one -- a narrow
+   desktop window still hovers, and a tablet in landscape still does not.
+   `display: none` takes the other out of the accessibility tree too. */
+.tip-touch {
+  display: none;
+}
+
+@media (hover: none) {
+  .tip-hover {
+    display: none;
+  }
+
+  .tip-touch {
+    display: inline;
+  }
+}
+
+@media (hover: hover) {
+  .tip-hover {
+    display: inline;
+  }
+
+  .tip-touch {
+    display: none;
+  }
+}
+
 /* === TOOLTIP TRIGGERS === */
 
 /* No underline: the tinted wash is the whole affordance, and a dotted accent
@@ -4275,11 +4303,13 @@ button.adapt-card-head:focus-visible {
 }
 
 /* The frame is the flex child now, not the scroller inside it, so the growth
-   and the min-width floor belong here. `min-width: 0` is what lets the plate
-   scroll sideways inside the frame instead of pushing the row wider than its
-   container -- a flex item's automatic minimum is its content, and the
-   content here is a plate: the phenogram's fixed 1100px, or the radar's at
-   whatever width its label floor (`--timeline-floor`) holds it to. */
+   and the min-width floor belong here. `min-width: 0` is what lets a plate
+   that is wider than its container scroll sideways inside the frame instead
+   of pushing the row wider -- a flex item's automatic minimum is its content.
+   Only the phenogram's fixed 1100px plate does that now: the radar plate is
+   never wider than its container (`min(100%, ...)` in `.timeline-figure`),
+   and below its label floor the island swaps it for the phone views rather
+   than scrolling it. */
 .timeline-main > .blueprint-frame,
 .phenogram-layout > .blueprint-frame {
   flex: 1 1 auto;

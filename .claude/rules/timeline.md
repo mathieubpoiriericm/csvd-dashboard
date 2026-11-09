@@ -207,9 +207,117 @@ the prop name verbatim, and a `tabIndex` attribute makes nothing focusable);
 scroller), not a member of the phenogram's column rule -- folding it in there
 put the record above the plate. And below 1100px `.timeline-main` — the
 drawer-and-plate row — must `align-items: stretch`, or the scroll container
-sizes itself to the 1072px plate and the document overflows instead of the
-container scrolling. `.timeline-layout` needs the same, which it gets from being
-a column at every width.
+sizes itself to its content (the plate, before it had a width of its own) and
+the document overflows instead of the container scrolling.
+`.timeline-layout` needs the same, which it gets from being a column at every
+width.
+
+## The radar resizes with the window
+
+The plate used to be `width: 100%; min-width: 1072px`: 1.11x at 1440px, taller
+than a 900px window, and a sideways scroller below 1072px. Neither the 1072px
+`min-width` nor any other `min-width` is on it now, and the plate never scrolls
+sideways -- only the phenogram's fixed 1100px plate does. The decisions, with
+their reasons:
+
+- **The width is `min(100%, 1072px, max(var(--timeline-floor, 0px), (100svh -
+  navbar - space-6) * 1072/940))`** (`.timeline-figure`): the container, the
+  design size, and the width at which the plate's height fits under the sticky
+  navbar. `svh`, not `dvh`: `dvh` moves with a phone's collapsing address bar
+  and would re-solve the labels on every scroll. `--timeline-floor` is set on
+  `.timeline-layout` by the island and holds the plate up against the _height
+  fit only_. It is `max()` inside the width and not a `min-width` on purpose: a
+  `min-width` keeps the plate at its floor in a row narrower than the floor,
+  the scroller scrolls sideways, the plate never faults, and the phone views
+  would be reached only below `RADAR_MIN_ROOM`. Readability outranks fitting
+  the window (the user's ranking), so on a wide, short window the plate stops
+  at its floor and the page scrolls down; a short window alone never causes the
+  phone views.
+- **Text keeps its on-screen size; the picture does not.** `scale =
+  renderedWidth / CANVAS.width`, read by a `ResizeObserver` and
+  `plateScale()` (`lib/timeline_scale.ts`), and every drug (12px), population
+  (14px) and phase (11px) font size and the halo width is divided by it, so
+  labels read the same at every plate width. The observer is debounced to one
+  whole frame with no tick, not one rAF per tick: rAF callbacks run before
+  ResizeObserver delivery within a frame, so re-arming a rAF per tick still
+  committed a scale on every frame of a drag. A 21-step sweep re-solved once.
+  A scale change clears `boxes`, `nudges`, `shifts`, `popShifts`,
+  `nudgePasses` and `solvedGeometry` and the usual measure → nudge →
+  `separateLabels()` pass runs again; a new selection or a scale change never
+  closes the drawer (the reset effect keys on `baseLayout`, the rest layout of
+  the selection).
+- **Markers grow to keep their size, up to a cap.** `markerGrowth(scale, cap)`
+  is `max(1, min(1/scale, cap))`, `cap = markerGrowthCap()` is half the
+  closest pair's centre distance over the evidence ring's radius, so two
+  markers never touch however far the plate shrinks. The factor `k` multiplies
+  marker, ring and gap radii and is published as `--radar-k` on the svg; the
+  hover lift is `calc(12px * var(--radar-k, 1))`, so a test reads the lifted
+  radius divided by `--radar-k`. The drug-label offset grows with it
+  (`computeTimelineLayout`'s `labelOffset` option), which changes no shared
+  number at its default, so the print figure and both layout tests stand. For
+  the committed data the cap is a little over 2, not the ~15 units apart the
+  spec guessed; `k` was about 1.73 at 0.63 scale.
+- **Where the radar gives way is decided at runtime, from the data on screen.**
+  A hard-coded width is wrong after a data regeneration, in a fork and under
+  `empty-data`, because where labels stop colliding depends on the drug-name
+  lengths and how crowded each sector is. `nextRadarState()` is one pure
+  reducer (state `{mode, floor, stacked}`, observation `{room, plateWidth,
+  heightLimited, drawerBeside, drawerSpace, clean}`) and its first matching
+  rule wins: a room under `RADAR_MIN_ROOM` (480) is phone; in phone mode the
+  radar returns only at `floor + HYSTERESIS` (32); no settled solve (`clean:
+  null`) changes nothing; a clean solve may unstack the drawer once it fits
+  beside the plate with the same margin; a fault while height-limited raises the
+  floor to the plate's width plus `FLOOR_STEP` (48) -- the floor never drops
+  while the selection stands; a fault that is not height-limited raises it to
+  `plateWidth + 1` and stacks the drawer if it was beside, else switches to the
+  phone views. A solve is clean when `countFaults()` finds no label pair, no
+  label clipped by the plate, no label touching a marker and no two markers
+  overlapping. `reportSettled` feeds it at every exit of `measure()` where no
+  further pass is scheduled, and drops a report that is stale (the svg's scale
+  is not the state's) or made while `document.fonts` is loading. A status
+  selection resets the state to `initialRadarState(room)`, so the floor is
+  learnt per selection. Every `setRadar` bails out when nothing changed, so a
+  `ResizeObserver` tick costs no render.
+- **Observations are measured, not assumed.** `room` is the `.timeline-main`
+  width less the frame's chrome and the scroller's padding. `heightLimited`
+  compares the plate with the scroller's _actual_ content width, not with
+  `room`: beside the drawer the plate is narrower than `room`, and comparing
+  with `room` would call every drawer-beside plate height-limited and raise the
+  floor where the drawer should stack. `drawerSpace` is the drawer's computed
+  `flex-basis` (320px) plus the column gap, not its `offsetWidth`: a closed
+  drawer is `hidden` (0), a stacked one is full width, and neither says what it
+  takes beside the plate -- a 0 would unstack on every close and re-stack on
+  every open.
+- **Opening a record never swaps the radar for the list.** Above 1100px the
+  drawer sits beside the plate; if that leaves the plate below its floor the
+  drawer stacks instead (`data-stack="true"` on `.timeline-main`, which carries
+  the same declarations as the 1100px query -- a selector list cannot span an
+  `@media` boundary, so they are written twice, each pointing at its twin).
+- **The phone views** (`components/timeline/MiniRadar.tsx`, `PhaseList.tsx`),
+  rendered _instead of_ the radar, never both, so the phone branch mounts no
+  marker buttons: a small radar with no drug or population names (the same
+  `computeTimelineLayout`, markers with their rings and holes, a population
+  legend under it, `role="img"` with a pluralised summary label) and a list of
+  the same status-filtered trials grouped by `parentPhase()` in ring order,
+  most advanced first, rows alphabetical, a sub-phase printed beside the name,
+  a trial with no ring left out as it is off the radar. Rows are buttons with
+  `aria-expanded`/`aria-controls`, at least 44px, and open the same drawer
+  element, which survives the switch. `data-mode`, `data-floor` and
+  `data-stack` are on the layout and are what the generic e2e reads
+  (`e2e/tests/helpers/timeline.ts`: `settleRadar` waits for two equal reads
+  250ms apart). Focus restore on close resolves `(mode === "phone" ? rowRefs :
+  markerRefs)[restore]` at the moment of restore, so a trial opened in one mode
+  and closed in the other returns focus to its counterpart.
+- **The tip says tap on a touch screen.** Both wordings are in the first
+  `TipBox`; `@media (hover: none)` / `(hover: hover)` shows one and
+  `display: none` hides the other. Hover capability, not width, is what makes
+  "Hover over..." wrong: a narrow desktop window still hovers.
+- **Observed floor for the committed data, Chromium on Linux, 2026-11-09**
+  (`data-floor` after `settleRadar`): 0 at 1440x900, where the plate is 880px
+  and clean at the height fit; 716 at 1280x720, where the height fit alone
+  faulted and the floor was learnt at 716px, so the page scrolls vertically.
+  These are observations of this dataset, not constants; the specs derive
+  their widths from `data-floor` and pin neither.
 
 **The key sits above the plate, collapsed** -- a `<details class="figure-key">`
 closed on load, the phenogram's arrangement too; open, six families of long mechanism names pushed the radar below the fold. The skip link

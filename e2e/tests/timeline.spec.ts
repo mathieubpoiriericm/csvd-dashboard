@@ -69,7 +69,7 @@ test("draws one group per visible trial, twenty-eight cells, and both legends", 
   await figureSettled(page);
   await openKey(page);
   const figure = page.locator(FIGURE);
-  // lib/timeline.ts's CANVAS, and .timeline-figure's min-width in
+  // lib/timeline.ts's CANVAS, and .timeline-figure's width cap in
   // assets/app.css, which is the same number.
   await expect(figure).toHaveAttribute("viewBox", "0 0 1072 940");
   // Completed trials are hidden by default.
@@ -646,7 +646,17 @@ test("the timeline names its affordances and credits its source", async ({ page 
   await page.goto("/timeline");
   const tips = page.locator(".tip-row .tip-box");
   await expect(tips).toHaveCount(2);
-  await expect(tips.first()).toContainText("trial details panel");
+  // `useInnerText`: the hover and touch wordings are both in the DOM and the
+  // one that does not apply is `display: none`, so `textContent` reads both.
+  await expect(tips.first()).toContainText("Hover over plot elements", {
+    useInnerText: true,
+  });
+  await expect(tips.first()).not.toContainText("Tap a trial", {
+    useInnerText: true,
+  });
+  await expect(tips.first()).toContainText("trial details panel", {
+    useInnerText: true,
+  });
 
   const citation = tips.nth(1);
   await expect(citation.locator("strong")).toHaveText("Visually-inspired by:");
@@ -654,6 +664,23 @@ test("the timeline names its affordances and credits its source", async ({ page 
     "href",
     "https://pubmed.ncbi.nlm.nih.gov/37251912/",
   );
+});
+
+test.describe("on a touch screen", () => {
+  test.use({
+    hasTouch: true,
+    isMobile: true,
+    viewport: { width: 393, height: 852 },
+  });
+
+  test("the tip says tap, not hover", async ({ page }) => {
+    await page.goto("/timeline");
+    const tip = page.locator(".tip-row .tip-box").first();
+    await expect(tip).toContainText("Tap a trial to open its details panel.", {
+      useInnerText: true,
+    });
+    await expect(tip).not.toContainText("Hover", { useInnerText: true });
+  });
 });
 
 test("activating the same open trial returns focus to its details", async ({ page }) => {
