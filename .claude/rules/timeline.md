@@ -272,7 +272,8 @@ their reasons:
   capped at `available` (the width the row offers the plate) and always at
   least `plateWidth + 1`; a fault that is not height-limited raises it to at
   least `plateWidth + 1` and stacks the drawer if it was beside, else switches
-  to the phone views. A clean solve or another fault resets `raise` to 0. No
+  to the phone views. A clean solve, another fault or a room under the
+  minimum resets `raise` to 0. No
   rule lowers the floor while the selection stands. The doubling is for a
   short window: a landscape phone at 844x390 took about eight fixed steps and
   now takes four (338, 434, 626, then 770 at the row), while a near miss on a
@@ -293,7 +294,10 @@ their reasons:
   widen by a pixel, which the scale's 3 dp can round away, and with no new
   scale nothing would re-solve and a faulty layout would stand. A status
   selection resets the state to `initialRadarState(room)`, so the floor is
-  learnt per selection. Every `setRadar` bails out when nothing changed, so a
+  learnt per selection -- and that reset is not a change of floor for this
+  purpose: the new selection's own pass reports, and a second measure in the
+  same commit reported its labels before they were separated, a fault that
+  swapped a clean 1280x1200 radar for the list. Every `setRadar` bails out when nothing changed, so a
   `ResizeObserver` tick costs no render.
 - **Observations are measured, not assumed.** `room` is the `.timeline-main`
   width less the frame's chrome and the scroller's padding. `heightLimited`

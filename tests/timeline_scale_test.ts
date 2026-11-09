@@ -150,6 +150,13 @@ Deno.test("rule 1: a room below the minimum is phone mode, floor kept", () => {
   );
 });
 
+Deno.test("rule 1 ends a run of raises", () => {
+  assertEquals(
+    nextRadarState(radar({ floor: 848, raise: 96 }), obs({ room: 479 })),
+    radar({ mode: "phone", floor: 848 }),
+  );
+});
+
 Deno.test("rule 2: phone mode returns to radar once the room clears the floor", () => {
   const phone = radar({ mode: "phone", floor: 600 });
   assertEquals(

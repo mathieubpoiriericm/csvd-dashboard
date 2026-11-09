@@ -221,6 +221,26 @@ const emptyRadarStatus = STATUS_CHOICES.find((c) =>
       filterTrials(trials, { ...DEFAULT_TRIAL_FILTERS, statuses: [c.value] }),
     ).markers.length === 0
 )?.label ?? null;
+/**
+ * The status that alone puts the most markers on the radar, with the labels
+ * its plate draws, for a status change that leaves a crowded plate; null
+ * when no status puts a marker there.
+ */
+const busiestRadarStatus = STATUS_CHOICES
+  .filter((c) => c.value !== SHOW_ALL)
+  .map((c) => {
+    const layout = computeTimelineLayout(
+      filterTrials(trials, { ...DEFAULT_TRIAL_FILTERS, statuses: [c.value] }),
+    );
+    return {
+      label: c.label,
+      markers: layout.markers.length,
+      labels: layout.markers.length + layout.populationLabels.length +
+        layout.phaseLabels.length,
+    };
+  })
+  .filter((c) => c.markers > 0)
+  .sort((a, b) => b.markers - a.markers)[0] ?? null;
 const karyogram = computePhenogramLayout(genes);
 
 const firstGene = (rows: readonly Gene[]) => rows[0]?.gene ?? null;
@@ -318,6 +338,7 @@ const expected = {
     /** How much wider the room must get before the phone list gives way. */
     hysteresis: HYSTERESIS,
     emptyStatus: emptyRadarStatus,
+    busiestStatus: busiestRadarStatus,
     cells: radar.cells.length,
     rimBands: radar.rimBands.length,
     populationLabels: radar.populationLabels.length,

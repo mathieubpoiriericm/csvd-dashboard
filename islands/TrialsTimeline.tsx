@@ -1213,6 +1213,8 @@ export default function TrialsTimeline(
   // box, nudge and shift belong to the old marker set. Reset them all and
   // let the mount pass run again over the new labels.
   const mountedLayout = useRef(baseLayout);
+  /** The floor and stacking last measured for; see the effect that reads it. */
+  const decided = useRef({ floor: radar.floor, stacked: radar.stacked });
   useLayoutEffect(() => {
     if (mountedLayout.current === baseLayout) return;
     mountedLayout.current = baseLayout;
@@ -1229,7 +1231,14 @@ export default function TrialsTimeline(
     setPopShifts(new Map());
     // The floor was learnt from the old selection's labels.
     const observation = observe();
-    if (observation) setRadar(initialRadarState(observation.room));
+    if (!observation) return;
+    const initial = initialRadarState(observation.room);
+    setRadar(initial);
+    // The mount pass this reset starts measures the new labels and reports
+    // once they are separated. Left out of step, the floor-and-stacking
+    // effect below would measure again in the same commit, before that
+    // pass's shifts apply, and report the unseparated labels as a fault.
+    decided.current = { floor: initial.floor, stacked: initial.stacked };
   }, [baseLayout]);
 
   // A new scale is the same figure in new type: the markers and the drawer
@@ -1382,8 +1391,8 @@ export default function TrialsTimeline(
   // re-solves and nothing reports: a faulty layout would stand. Measure
   // again, so the solve on screen is reported for the new size (a scale
   // that did change is re-solved by its own effect, and this report is
-  // dropped as stale).
-  const decided = useRef({ floor: radar.floor, stacked: radar.stacked });
+  // dropped as stale). A new selection's reset brings the ref into step
+  // itself: its own pass measures and reports.
   useLayoutEffect(() => {
     const last = decided.current;
     if (last.floor === radar.floor && last.stacked === radar.stacked) return;

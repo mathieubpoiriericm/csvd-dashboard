@@ -104,7 +104,8 @@ export interface RadarState {
   stacked: boolean;
   /**
    * The last height-limited raise of the floor, in CSS px, which the next
-   * one doubles; 0 once a solve is clean or faults for another reason.
+   * one doubles; 0 once a solve is clean, faults for another reason or the
+   * room drops below the minimum.
    */
   raise: number;
 }
@@ -140,7 +141,7 @@ export function nextRadarState(
   s: RadarState,
   o: RadarObservation,
 ): RadarState {
-  if (o.room < RADAR_MIN_ROOM) return { ...s, mode: "phone" };
+  if (o.room < RADAR_MIN_ROOM) return { ...s, mode: "phone", raise: 0 };
   if (s.mode === "phone") {
     return o.room >= s.floor + HYSTERESIS ? { ...s, mode: "radar" } : s;
   }

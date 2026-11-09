@@ -231,3 +231,49 @@ test("opening a record beside the plate never swaps the radar for the list", asy
     expect(drawer!.y).toBeLessThan(plate!.y);
   }
 });
+
+/**
+ * A status selection resets the floor and the stacking it learnt. Where the
+ * plate's scale is the same either side of that reset -- a floor learnt in a
+ * short window that a taller one has since outgrown -- the reset must not
+ * report the new selection's labels before they have been separated: that
+ * report is a fault, and it raised the floor and swapped the radar for the
+ * list at a width where the radar reads cleanly. The same two selections
+ * made in a fresh tab at the tall size are what the page must end at.
+ */
+test("a status change after a learnt floor decides as a fresh selection does", async ({ page }) => {
+  const busiest = T.busiestStatus;
+  test.skip(busiest === null, NO_MARKER);
+  const [width, short, tall] = [1280, 720, 1200];
+  const pick = (on: Page, label: string) =>
+    choice(on, "Study status", label).check();
+  const decision = async (on: Page) => ({
+    mode: await settleRadar(on),
+    floor: await radarFloor(on),
+  });
+
+  const fresh = await page.context().newPage();
+  await load(fresh, width, tall);
+  await pick(fresh, busiest!.label);
+  await settleRadar(fresh);
+  await pick(fresh, "Show All");
+  const expected = await decision(fresh);
+  await fresh.close();
+
+  await load(page, width, short);
+  await pick(page, busiest!.label);
+  await settleRadar(page);
+  test.skip(
+    await radarFloor(page) === 0,
+    "the radar reads cleanly at the height fit: no floor to outgrow",
+  );
+  await page.setViewportSize({ width, height: tall });
+  await settleRadar(page);
+  await pick(page, "Show All");
+  expect(await decision(page)).toEqual(expected);
+  if (expected.mode === "radar") {
+    await expect.poll(() => sweepLabelFit(page)).toEqual(
+      cleanSweep(T.labelsAll),
+    );
+  }
+});
