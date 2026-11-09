@@ -35,6 +35,17 @@ def test_to_wire_writes_the_format_and_stars_only_colocalized_items() -> None:
     )
 
 
+def test_an_item_with_a_colon_is_never_read_as_the_biomarker() -> None:
+    """The display takes the detail's first colon outside parentheses for
+    the end of the biomarker, so with none an empty slot keeps it there."""
+    evidence = OmicsEvidence(
+        study_type="TWAS", items=[OmicsItem(text="YFS: blood", colocalized=True)]
+    )
+    assert to_wire(evidence) == "TWAS;: YFS: blood*"
+    nested = OmicsEvidence(study_type="TWAS", items=[OmicsItem(text="a (b: c)")])
+    assert to_wire(nested) == "TWAS;a (b: c)"
+
+
 def test_a_star_the_model_writes_into_text_is_no_claim() -> None:
     evidence = OmicsEvidence(
         study_type="TWAS", biomarker="Q*", items=[OmicsItem(text="tissue*")]

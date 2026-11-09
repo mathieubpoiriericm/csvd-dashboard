@@ -146,9 +146,9 @@ def _clean(text: str) -> str:
     return " ".join(text.split())
 
 
-def _top_level_parts(text: str) -> list[str]:
-    """`text` cut at every comma outside parentheses -- where the display
-    (`lib/omics.ts`) will cut it -- so each part can carry the item's flag."""
+def _split_top_level(text: str, separator: str) -> list[str]:
+    """`text` cut at every `separator` outside parentheses, as the display
+    (`lib/omics.ts`'s `splitTopLevel`) cuts it."""
     parts: list[str] = []
     depth = start = 0
     for index, char in enumerate(text):
@@ -156,11 +156,17 @@ def _top_level_parts(text: str) -> list[str]:
             depth += 1
         elif char == ")":
             depth = max(0, depth - 1)
-        elif char == "," and depth == 0:
+        elif char == separator and depth == 0:
             parts.append(text[start:index])
             start = index + 1
     parts.append(text[start:])
-    return [part.strip() for part in parts if part.strip()]
+    return parts
+
+
+def _top_level_parts(text: str) -> list[str]:
+    """`text` cut at every comma outside parentheses -- where the display
+    will cut it -- so each part can carry the item's flag."""
+    return [part.strip() for part in _split_top_level(text, ",") if part.strip()]
 
 
 def to_wire(evidence: OmicsEvidence) -> str:
@@ -168,7 +174,10 @@ def to_wire(evidence: OmicsEvidence) -> str:
 
     An item naming several tissues ("brain, heart") is written as that many
     items, each with the item's flag, since the display reads every comma
-    outside parentheses as a new item.
+    outside parentheses as a new item. The display also reads the detail's
+    first colon outside parentheses as the end of the biomarker, so items
+    holding one with no biomarker before them follow an empty slot
+    (`Type;: YFS: blood`).
     """
     items = ", ".join(
         part + ("*" if item.colocalized else "")
@@ -176,6 +185,8 @@ def to_wire(evidence: OmicsEvidence) -> str:
         for part in _top_level_parts(_clean(item.text))
     )
     biomarker = _clean(evidence.biomarker or "")
+    if not biomarker and len(_split_top_level(items, ":")) > 1:
+        return f"{evidence.study_type};: {items}"
     detail = f"{biomarker}: {items}" if biomarker and items else biomarker or items
     return f"{evidence.study_type};{detail}" if detail else evidence.study_type
 

@@ -43,6 +43,13 @@ Deno.test("parseOmicsEntry: no colon means no biomarker; commas in parentheses s
   assertEquals(parseOmicsEntry("TWAS;Q (x>1): a").biomarker, "Q (x>1)");
   assertEquals(parseOmicsEntry("  TWAS ; ").type, "TWAS");
   assertEquals(parseOmicsEntry("TWAS;Q:").items, []);
+  // An empty biomarker slot: what pipeline/omics.py's to_wire writes when an
+  // item carries a colon of its own.
+  assertEquals(parseOmicsEntry("TWAS;: YFS: blood*"), {
+    type: "TWAS",
+    biomarker: null,
+    items: [{ text: "YFS: blood", colocalized: true }],
+  });
   assertEquals(parseOmicsEntry("TWAS;: a").biomarker, null);
 });
 
