@@ -272,6 +272,14 @@ export const GENERIC_ACRONYMS: Readonly<Record<string, Acronym>> = {
     kind: "omics methodology",
   },
   MR: { name: "Mendelian randomization", kind: "statistical method" },
+  SMR: {
+    name: "Summary-data-based Mendelian randomization",
+    kind: "statistical method",
+  },
+  HEIDI: {
+    name: "Heterogeneity in dependent instruments (test)",
+    kind: "statistical method",
+  },
   MTAG: { name: "Multi-Trait Analysis of GWAS", kind: "statistical method" },
   MENTR: {
     name: "Mutation Effect prediction on ncRNA TRanscription",
@@ -281,7 +289,18 @@ export const GENERIC_ACRONYMS: Readonly<Record<string, Acronym>> = {
   ncRNA: { name: "Non-coding RNA", kind: "molecule" },
   "RNA-Seq": { name: "RNA sequencing", kind: "lab method" },
   CRISPR: { name: "CRISPR-Cas genome editing", kind: "lab method" },
+  siRNA: { name: "Small interfering RNA", kind: "lab method" },
+  HBMEC: {
+    name: "Human brain microvascular endothelial cells",
+    kind: "cell model",
+  },
+  LoF: { name: "Loss of function", kind: "variant class" },
   sQTL: { name: "Splicing quantitative trait locus", kind: "molecular trait" },
+  eQTL: {
+    name: "Expression quantitative trait locus",
+    kind: "molecular trait",
+  },
+  pQTL: { name: "Protein quantitative trait locus", kind: "molecular trait" },
   sCCA1: {
     name:
       "Cross-tissue expression feature 1, from sparse canonical correlation analysis of GTEx tissues",
@@ -298,6 +317,11 @@ export const GENERIC_ACRONYMS: Readonly<Record<string, Acronym>> = {
     kind: "expression model",
   },
   YFS: { name: "Young Finns Study", kind: "reference dataset (whole blood)" },
+  GTEx: {
+    name: "Genotype-Tissue Expression project",
+    kind: "reference dataset (multiple tissues)",
+  },
+  UKB: { name: "UK Biobank", kind: "cohort" },
   CMC: {
     name: "CommonMind Consortium",
     kind: "reference dataset (dorsolateral prefrontal cortex)",

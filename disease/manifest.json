@@ -90,6 +90,8 @@
   },
   "acronyms": {
     "WMH": { "kind": "cSVD MRI biomarker" },
+    "PVWMH": { "kind": "cSVD MRI biomarker" },
+    "DWMH": { "kind": "cSVD MRI biomarker" },
     "PVS": { "name": "Perivascular spaces", "kind": "cSVD MRI biomarker" },
     "WM-PVS": { "kind": "cSVD MRI biomarker" },
     "BG-PVS": { "kind": "cSVD MRI biomarker" },
