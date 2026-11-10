@@ -128,6 +128,34 @@ Deno.test("the NCBI credentials never reach the disk", async () => {
   });
 });
 
+Deno.test("parsed answers are stored as their text would be, NCBI pair blanked", async () => {
+  const answers = named("First condition");
+  const withCredentials: Answers = {
+    ...answers,
+    search: {
+      ...answers.search,
+      ncbi: { email: "someone@example.org", apiKey: "secret" },
+    },
+  };
+  let fromText = "";
+  await withStore(async (store, dir) => {
+    created(await store.create(JSON.stringify(withCredentials)));
+    fromText = await Deno.readTextFile(await onlyFile(dir));
+  });
+  await withStore(async (store, dir) => {
+    created(await store.create(withCredentials));
+    const written = await Deno.readTextFile(await onlyFile(dir));
+    assert(!written.includes("secret"));
+    assert(!written.includes("someone@example.org"));
+    // Byte for byte what the text gives, so the byte budget counts the same.
+    assertEquals(written, fromText);
+    assertEquals(
+      JSON.parse(written).answers,
+      JSON.parse(exportText(withCredentials)),
+    );
+  });
+});
+
 Deno.test("create refuses a text that is not an export", async () => {
   await withStore(async (store, dir) => {
     assertEquals(await store.create("{}"), { error: "failed" });

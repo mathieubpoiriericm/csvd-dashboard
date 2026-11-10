@@ -5,9 +5,10 @@
  * The resume code is never stored. A session's file is named by the SHA-256
  * of its normalised code, so the directory alone cannot be turned back into
  * codes, and nothing here logs one. What is stored is what "Export answers"
- * downloads: every text goes through parseExport() and back out through
- * exportText(), which blanks the NCBI email and API key whatever a client
- * sent.
+ * downloads: answers handed over as text go through parseExport() first, and
+ * every write goes through exportableAnswers(), the step of exportText() that
+ * blanks the NCBI email and API key whatever a client sent. The blanking
+ * stays here rather than with the caller, so that no caller can bypass it.
  *
  * One machine holds the sessions -- the only one today (fly.toml), or the one
  * ADAPT_SESSIONS_MACHINE names (server/adapt_session_holder.ts) -- so
@@ -16,7 +17,13 @@
  * a rename.
  */
 
-import { exportText, parseExport } from "../lib/adapt/bundle.ts";
+import type { Answers } from "../lib/adapt/answers.ts";
+import {
+  exportableAnswers,
+  exportText,
+  type Imported,
+  parseExport,
+} from "../lib/adapt/bundle.ts";
 import { sessionHolder } from "./adapt_session_holder.ts";
 import {
   generateCode,
@@ -70,12 +77,17 @@ export interface SaveBase {
   revision: number;
   savedAt?: number;
 }
+/**
+ * What a create or a save stores: the answers as the API already parsed
+ * them, or an export's text, which the store parses itself.
+ */
+export type SessionAnswers = Answers | string;
 export interface SessionStore {
-  create(exportText: string): Promise<CreateResult>;
+  create(answers: SessionAnswers): Promise<CreateResult>;
   save(
     code: string,
     base: SaveBase,
-    exportText: string,
+    answers: SessionAnswers,
     force: boolean,
   ): Promise<SaveResult>;
   load(code: string): Promise<LoadResult>;
@@ -85,6 +97,8 @@ export interface SessionStore {
 
 interface StoreOptions {
   now?: () => number;
+  /** Reads an export's text; a test passes one that counts its calls. */
+  parse?: (text: string) => Imported;
   cap?: number;
   budget?: number;
 }
@@ -140,12 +154,6 @@ function logFailure(operation: string, name: string, error: unknown): void {
   );
 }
 
-/** The export a text holds, with the NCBI pair blanked, or null if it is not one. */
-function sanitised(text: string): unknown {
-  const parsed = parseExport(text);
-  return "error" in parsed ? null : JSON.parse(exportText(parsed.answers));
-}
-
 /**
  * Whether a sweep at `now` removes the file `name`, last modified at
  * `modifiedAt`. A session's mtime is set to its savedAt on every write, so
@@ -161,6 +169,7 @@ class FileSessionStore implements SessionStore {
   readonly #now: () => number;
   readonly #cap: number;
   readonly #budget: number;
+  readonly #parse: (text: string) => Imported;
   readonly #chains = new Map<string, Promise<void>>();
   #lastSweep: number;
 
@@ -169,13 +178,14 @@ class FileSessionStore implements SessionStore {
     this.#now = options.now ?? Date.now;
     this.#cap = options.cap ?? SESSION_CAP;
     this.#budget = options.budget ?? SESSION_BYTES_BUDGET;
+    this.#parse = options.parse ?? parseExport;
     this.#lastSweep = this.#now();
     this.#sweepSync(this.#lastSweep);
   }
 
-  async create(text: string): Promise<CreateResult> {
+  async create(input: SessionAnswers): Promise<CreateResult> {
     await this.#sweepIfDue();
-    const answers = sanitised(text);
+    const answers = this.#sanitised(input);
     if (answers === null) return { error: "failed" };
     // 100 bits make a collision all but impossible; a retry costs nothing.
     for (let attempt = 0; attempt < 3; attempt++) {
@@ -203,12 +213,12 @@ class FileSessionStore implements SessionStore {
   async save(
     code: string,
     base: SaveBase,
-    text: string,
+    input: SessionAnswers,
     force: boolean,
   ): Promise<SaveResult> {
     await this.#sweepIfDue();
     const normalised = normaliseCode(code);
-    const answers = sanitised(text);
+    const answers = this.#sanitised(input);
     if (normalised === null || answers === null) return { error: "failed" };
     const name = await fileName(normalised);
     return await this.#serial(name, async (): Promise<SaveResult> => {
@@ -344,6 +354,18 @@ class FileSessionStore implements SessionStore {
       }
       return false;
     }
+  }
+
+  /**
+   * The answers as written, with the NCBI pair blanked, or null for a text
+   * that is not an export. A text is parsed here, once; answers the API has
+   * parsed are not parsed again. The object is what JSON.parse(exportText())
+   * would give, without serialising the whole export and reading it back.
+   */
+  #sanitised(input: SessionAnswers): Answers | null {
+    if (typeof input !== "string") return exportableAnswers(input);
+    const parsed = this.#parse(input);
+    return "error" in parsed ? null : exportableAnswers(parsed.answers);
   }
 
   #expired(stored: { savedAt: number }, now: number): boolean {

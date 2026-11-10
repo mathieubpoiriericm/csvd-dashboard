@@ -11,7 +11,8 @@
  * handed over before its body is read (server/adapt_session_holder.ts).
  */
 
-import { parseExport } from "../lib/adapt/bundle.ts";
+import type { Answers } from "../lib/adapt/answers.ts";
+import { type Imported, parseExport } from "../lib/adapt/bundle.ts";
 import { normaliseCode } from "../lib/adapt/session_code.ts";
 import { type Holder, replayToHolder } from "./adapt_session_holder.ts";
 import type { SessionStore } from "./adapt_sessions.ts";
@@ -107,15 +108,19 @@ async function readJson(req: Request): Promise<Body | Response> {
 }
 
 /**
- * The body's answers, checked as Import checks a file, or the refusal. Their
+ * The body's answers, parsed as Import parses a file, or the refusal. Their
  * size needs no check of its own: the body around them is already within
- * SESSION_BODY_LIMIT.
+ * SESSION_BODY_LIMIT. The parsed answers go to the store as they are, so the
+ * export is parsed once; the store still blanks the NCBI pair itself.
  */
-function readAnswers(body: Body): string | Response {
+function readAnswers(
+  body: Body,
+  parse: (text: string) => Imported,
+): Answers | Response {
   const { answers } = body;
   if (typeof answers !== "string") return invalid();
-  const parsed = parseExport(answers);
-  return "error" in parsed ? invalid(parsed.error) : answers;
+  const parsed = parse(answers);
+  return "error" in parsed ? invalid(parsed.error) : parsed.answers;
 }
 
 function readCode(body: Body): string | null {
@@ -126,16 +131,23 @@ const unavailable = (error: "full" | "failed") => reply(503, { error });
 
 const HERE: Holder = { kind: "here" };
 
+/** What a route passes beyond the request, the store and the holder. */
+export interface SessionRequestOptions {
+  /** Reads an export's text; a test passes one that counts its calls. */
+  parse?: (text: string) => Imported;
+}
+
 export async function handleCreate(
   req: Request,
   store: SessionStore | null,
   holder: Holder = HERE,
+  options: SessionRequestOptions = {},
 ): Promise<Response> {
   if (holder.kind === "elsewhere") return replayToHolder(holder.machine);
   if (store === null) return off();
   const body = await readJson(req);
   if (body instanceof Response) return body;
-  const answers = readAnswers(body);
+  const answers = readAnswers(body, options.parse ?? parseExport);
   if (answers instanceof Response) return answers;
   const result = await store.create(answers);
   if ("error" in result) return unavailable(result.error);
@@ -146,6 +158,7 @@ export async function handleSave(
   req: Request,
   store: SessionStore | null,
   holder: Holder = HERE,
+  options: SessionRequestOptions = {},
 ): Promise<Response> {
   if (holder.kind === "elsewhere") return replayToHolder(holder.machine);
   if (store === null) return off();
@@ -162,7 +175,7 @@ export async function handleSave(
   ) {
     return invalid();
   }
-  const answers = readAnswers(body);
+  const answers = readAnswers(body, options.parse ?? parseExport);
   if (answers instanceof Response) return answers;
   const result = await store.save(
     code,

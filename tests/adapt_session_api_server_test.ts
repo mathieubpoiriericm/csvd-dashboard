@@ -1,7 +1,7 @@
 import { assert, assertEquals, assertMatch } from "@std/assert";
 
 import { EMPTY_ANSWERS } from "../lib/adapt/answers.ts";
-import { exportText } from "../lib/adapt/bundle.ts";
+import { exportText, parseExport } from "../lib/adapt/bundle.ts";
 import { formatCode, SESSION_TTL_MS } from "../lib/adapt/session_code.ts";
 import {
   CREATED_HEADER,
@@ -130,6 +130,44 @@ Deno.test("create refuses answers that are not an export", async () => {
     });
     assertEquals(await files(dir), []);
   });
+});
+
+Deno.test("a create or a save parses its export exactly once", async () => {
+  const dir = await Deno.makeTempDir({ prefix: "adapt-session-api-" });
+  let calls = 0;
+  const parse = (text: string) => {
+    calls++;
+    return parseExport(text);
+  };
+  try {
+    // The same counting parser in the handler and the store: one call
+    // between them, so the store took the parsed answers as they were.
+    const store = openSessionStore(dir, { now: () => T0, parse });
+    assert(store !== null);
+    const response = await handleCreate(
+      request("create", JSON.stringify({ answers: VALID })),
+      store,
+      undefined,
+      { parse },
+    );
+    assertEquals(response.status, 201);
+    assertEquals(calls, 1);
+    const { code } = await json(response);
+    const saved = await handleSave(
+      request(
+        "save",
+        JSON.stringify({ code, revision: 1, savedAt: T0, answers: VALID }),
+      ),
+      store,
+      undefined,
+      { parse },
+    );
+    assertEquals(saved.status, 200);
+    await saved.body?.cancel();
+    assertEquals(calls, 2);
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
 });
 
 Deno.test("create refuses a body that is not JSON or carries no answers", async () => {
