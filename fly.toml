@@ -39,6 +39,17 @@ primary_region = "cdg"
     path = "/login"
     timeout = "5s"
 
+# The machine's one volume, 1 GB, created by hand before the machine
+# (`fly volumes create persistent_session_storage --region cdg --size 1`).
+# A volume attaches to a single machine and is not shared, so a second machine
+# would need a volume of its own and would not see what this one holds.
+# Nothing in the app writes to it yet. The image runs as the `deno` user and a
+# fresh volume's root belongs to root, so whatever writes here first has to
+# own the directory.
+[mounts]
+  source = "persistent_session_storage"
+  destination = "/session_storage"
+
 [[vm]]
   size = "shared-cpu-1x"
   memory = "512mb"

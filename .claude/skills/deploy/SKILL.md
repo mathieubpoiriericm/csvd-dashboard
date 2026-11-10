@@ -31,7 +31,14 @@ Six things are non-obvious enough to state here:
   stopped one forgets it. `fly.toml` turns auto-stop off and keeps one running;
   CI deploys with `--ha=false`, because a first `fly deploy` otherwise creates
   two machines. `fly status` should list one. If it lists two,
-  `fly scale count 1`.
+  `fly scale count 1`. The app ran eight machines for part of 10 November 2026
+  and was scaled back the same day.
+- **One volume, on that machine.** `fly.toml`'s `[mounts]` puts the 1 GB
+  `persistent_session_storage` volume at `/session_storage`. A volume attaches
+  to one machine and is not shared, so a second machine needs a volume of that
+  name in its region first and would not see this one's files. Nothing writes
+  there yet, and the volume's root belongs to root while the image runs as
+  `deno`.
 - **`LOGIN_CLIENT_IP_HEADER = "Fly-Client-IP"` in `fly.toml` is load-bearing.**
   Every request reaches the machine from Fly's proxy, so without it the limiter
   keys every visitor on the proxy's address, and five wrong guesses from anyone
