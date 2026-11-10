@@ -25,7 +25,11 @@ RUN deno task build
 # volume (fly.toml's [mounts]) with its root owned by root, so the entrypoint
 # creates ADAPT_SESSIONS_DIR there and gives it to `deno`, and only then
 # drops to `deno` with setpriv (util-linux, in the base image) to run the CMD.
-# Nothing but tini runs as root after that exec.
+# Nothing but tini runs as root after that exec. It does so only when the
+# directory would sit on another device than `/`: with nothing mounted there
+# it leaves the directory uncreated and logs one line, so the server, unable
+# to create it as `deno`, serves without sessions rather than keeping them on
+# the container's own filesystem, where every restart would lose them.
 #
 # The base image's entrypoint was `/tini -- docker-entrypoint.sh`, whose
 # script only prefixed `deno` to a bare subcommand; this CMD names `deno`

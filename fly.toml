@@ -54,7 +54,10 @@ primary_region = "cdg"
 # after its last save. A fresh volume's root belongs to root and the server
 # runs as `deno`, so the image starts as root and its entrypoint
 # (scripts/docker-entrypoint.sh) creates that directory, hands it to `deno`,
-# and only then drops to `deno` to serve. Before adding a machine, set
+# and only then drops to `deno` to serve. Without this section the entrypoint
+# leaves the directory uncreated and the guide serves without sessions, rather
+# than keeping them on the machine's own filesystem, which a deploy or restart
+# wipes. Before adding a machine, set
 # ADAPT_SESSIONS_MACHINE to the id of the one that holds these files
 # (server/adapt_session_holder.ts): no other machine can see them.
 [mounts]

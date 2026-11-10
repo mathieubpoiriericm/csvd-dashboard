@@ -48,14 +48,23 @@ Nine things are non-obvious enough to state here:
   installed root-owned at `/usr/local/bin/docker-entrypoint.sh`, creates
   `ADAPT_SESSIONS_DIR`, gives that directory alone to `deno`, sets `HOME` to
   `deno`'s, and execs `/tini -- setpriv --reuid=deno --regid=deno
-  --init-groups` with the `CMD`. If the directory cannot be made it prints one
-  line to stderr and serves anyway. Tini stays the first process, as it was
+  --init-groups` with the `CMD`. It prepares the directory only when its
+  nearest existing ancestor sits on another device than `/` (`stat -c %d`):
+  with the variable set and no volume mounted, root would otherwise create it
+  on the machine's own filesystem, where sessions would report as on and vanish
+  at every deploy or restart. Instead it prints
+  `docker-entrypoint: nothing is mounted at …`, leaves the directory uncreated,
+  and the server, unable to create it as `deno` under root-owned `/`, serves
+  with sessions off. If the directory cannot be made on the volume it prints
+  one line to stderr and serves anyway. Tini stays the first process, as it was
   under the base image's own entrypoint, and is then the only thing running as
   root. The script lives outside `/app` because `deno` owns `/app` and could
   otherwise rewrite what root runs at the next start, and the `deno`-owned copy
   `COPY . .` brings into `/app/scripts` is deleted. CI's `container` job checks
   that the first process is tini, that every `deno` process has a non-zero uid,
-  and that the entrypoint is `root 755`.
+  and that the entrypoint is `root 755`; and, on a third container given the
+  variable but no volume, that the directory does not exist, that the
+  entrypoint said so, and that a signed-in `/adapt` reports sessions off.
 - **The deploy's smoke test saves and resumes a real session, when it can sign
   in.** `scripts/smoke_deploy.sh` with `SMOKE_EXPECT_SESSIONS=1` opens `/adapt`
   and wants `data-sessions="on"`, then creates a session from
@@ -231,7 +240,7 @@ process ("Exactly one machine" above), which a second machine changes as well.
 | `deploy` fails with the image not found                          | this commit's image is not in the registry: the token was added after the run's `container` job had skipped the push and only `deploy` was re-run, or an old run's `deploy` was re-run after the image left Fly's registry. Re-run the whole workflow                                                    |
 | the CI `container` job fails at `deno task build`                | a file the build imports is missing from `.dockerignore`'s allowlist                                                                                                                                                                                                                                     |
 | the machine starts and exits at once (`fly logs`)                | `--cached-only` met a module the build did not cache; reproduce with `container build` and `container run` (README, "Deployment")                                                                                                                                                                        |
-| Save session is missing on the live site                         | sessions are off: `fly logs` shows `Adapt sessions are off:` with the reason, and `docker-entrypoint: cannot create` if the entrypoint could not make the directory. Either `ADAPT_SESSIONS_DIR` is unset in `fly.toml`'s `[env]`, or the directory it names cannot be written, which the log line names |
+| Save session is missing on the live site                         | sessions are off: `fly logs` shows `Adapt sessions are off:` with the reason, and `docker-entrypoint: cannot create` if the entrypoint could not make the directory. Either `ADAPT_SESSIONS_DIR` is unset in `fly.toml`'s `[env]`, or the variable is set but no volume is mounted (`docker-entrypoint: nothing is mounted at`; check `[mounts]` and `fly volumes list`), or the directory it names cannot be written, which the log line names |
 | every save answers "The server cannot take another session right now" | the volume's sessions reached a bound: 500 files or 750,000,000 bytes (503 `full`). Count and size them (the `ls` and `du` lines above); the sweep frees nothing younger than 14 days, so delete by hand the largest or oldest files you can spare, or every one (it cannot be undone). `fly logs` lines `Adapt session write failed` instead mean the disk itself refused (full or read-only) |
 | a resume says no session answers to that code right after a save | more than one machine and no `ADAPT_SESSIONS_MACHINE`: the save and the resume reached different volumes. `fly status`; scale to one, or set the variable ("More than one machine")                                                                                                                      |
 
