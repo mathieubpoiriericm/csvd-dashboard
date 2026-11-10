@@ -1178,13 +1178,13 @@ svg {
 /*
  * The adapt guide's link. It is not a tab -- it leads out of the dashboard's
  * own pages -- so it is outlined at rest, where a tab is bare until hovered,
- * and stands a full step further from About than the tabs stand from each
- * other. Declared before the current-page rule on purpose: on /adapt it takes
- * the same fill a tab does.
+ * and stands well clear of About, seven times the gap between two tabs.
+ * Declared before the current-page rule on purpose: on /adapt it takes the
+ * same fill a tab does.
  */
 .nav-adapt {
   position: relative;
-  margin-right: var(--svd-space-3);
+  margin-right: var(--svd-space-6);
 }
 
 .nav-link.nav-link-adapt,
@@ -1203,6 +1203,7 @@ svg {
 
 /* "Recently updated". The tooltip's first sentence says so in words. */
 .nav-adapt-dot {
+  position: relative;
   flex: none;
   width: var(--svd-space-2);
   height: var(--svd-space-2);
@@ -1210,6 +1211,32 @@ svg {
   background: var(--svd-nav-flag);
   box-shadow: 0 0 0 3px color-mix(in oklab, var(--svd-nav-flag) 25%,
     transparent);
+}
+
+/* The pulse is a copy of the dot that grows and fades, so it animates
+   transform and opacity alone and never repaints the bar. Under
+   prefers-reduced-motion the global rule ends it at once and the static ring
+   above is what remains. */
+.nav-adapt-dot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--svd-nav-flag);
+  opacity: 0;
+  animation: nav-adapt-pulse 1.8s ease-out infinite;
+}
+
+@keyframes nav-adapt-pulse {
+  from {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+
+  to {
+    transform: scale(3.2);
+    opacity: 0;
+  }
 }
 
 /*
