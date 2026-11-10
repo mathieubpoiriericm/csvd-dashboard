@@ -2847,7 +2847,7 @@ svg {
   gap: var(--svd-space-4);
 }
 
-@media (max-width: 700px) {
+@media (max-width: 600px) {
   .adapt-welcome-panels {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -2867,6 +2867,12 @@ svg {
 
 .adapt-welcome-left {
   border-top-color: var(--svd-color-danger);
+}
+
+/* Nothing left is no alarm: the panel keeps its heading word and takes the
+   cards' own edge. */
+.adapt-welcome-left.is-empty {
+  border-top-color: var(--svd-border);
 }
 
 .adapt-welcome-head {

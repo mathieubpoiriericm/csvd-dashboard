@@ -257,7 +257,9 @@ export function WelcomeBack(
           </ul>
         </section>
         <section
-          class="adapt-welcome-panel adapt-welcome-left"
+          class={`adapt-welcome-panel adapt-welcome-left${
+            remaining.length === 0 ? " is-empty" : ""
+          }`}
           aria-labelledby={leftId}
         >
           <header class="adapt-welcome-head">

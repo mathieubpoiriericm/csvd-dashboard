@@ -654,7 +654,7 @@ const welcome = (o: ReturnType<typeof overview>) =>
   );
 
 const panel = (html: string, cls: string) => {
-  const start = html.indexOf(`class="adapt-welcome-panel ${cls}"`);
+  const start = html.indexOf(`class="adapt-welcome-panel ${cls}`);
   assert(start >= 0, html);
   const end = html.indexOf("</section>", start);
   return html.slice(start, end);
@@ -677,6 +677,9 @@ Deno.test("the welcome-back screen lists the finished steps and what the last on
   assertEquals(count(done, "<li"), 6);
   assert(!done.includes("Review"), done);
   const left = panel(html, "adapt-welcome-left");
+  assert(
+    !left.startsWith('class="adapt-welcome-panel adapt-welcome-left is-empty'),
+  );
   assertStringIncludes(left, "Remaining");
   assertStringIncludes(left, `${STEP_ORDER.indexOf("gold") + 1}. `);
   assertStringIncludes(left, STEP_LABELS.gold);
@@ -697,9 +700,9 @@ Deno.test("the welcome-back screen calls an untouched step Not started", () => {
 
 Deno.test("the welcome-back screen of finished answers has nothing left and continues at the review", () => {
   const html = welcome(overview(EXAMPLEITIS));
-  assertStringIncludes(
-    panel(html, "adapt-welcome-left"),
-    "Nothing left",
-  );
+  const left = panel(html, "adapt-welcome-left");
+  assertStringIncludes(left, "Nothing left");
+  assertStringIncludes(left, "Remaining");
+  assertStringIncludes(left, "adapt-welcome-left is-empty");
   assertStringIncludes(html, ">Continue at Review and download</button>");
 });
