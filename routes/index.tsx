@@ -395,7 +395,7 @@ export function AboutContent(
 
       <div class="card">
         <div class="card-body">
-          <h2 class="card-title">
+          <h2 class="card-title about-adapt-title">
             <Icon name="arrowsRightLeft" />
             Reuse this dashboard for another disease
           </h2>

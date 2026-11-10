@@ -2441,6 +2441,14 @@ svg {
   font-size: var(--svd-text-md);
 }
 
+/* The adaptation card sits outside the grid but leads with a glyph too, so
+   it takes the same gap; its heading keeps the full card-title size. */
+.about-adapt-title {
+  display: flex;
+  align-items: center;
+  gap: var(--svd-space-2);
+}
+
 .about-row {
   display: grid;
   grid-template-columns: 1.5rem minmax(0, 1fr);
@@ -2695,8 +2703,23 @@ svg {
 }
 
 .adapt-bar-kept {
+  display: inline-block;
+}
+
+/* How long a saved session is kept, as a red pill wherever its code is
+   shown: the date is the one thing about the code a visitor must not miss.
+   The words carry it too, so it never rests on colour alone. */
+.adapt-bar-kept,
+.adapt-dialog-kept {
+  --svd-tint: var(--svd-color-danger);
+  padding: 2px var(--svd-space-3);
+  border: 1px solid color-mix(in oklab, var(--svd-tint) 28%, transparent);
+  border-radius: var(--svd-radius-full);
+  background: color-mix(in oklab, var(--svd-tint) 14%, transparent);
+  color: var(--svd-danger-text);
   font-size: var(--svd-text-sm);
-  color: var(--svd-text-muted);
+  font-weight: var(--svd-weight-semibold);
+  white-space: nowrap;
 }
 
 /* The session's details: the code with its copy and expiry, and the way into
@@ -2849,8 +2872,7 @@ svg {
 }
 
 .adapt-dialog-kept {
-  font-size: var(--svd-text-sm);
-  color: var(--svd-text-muted);
+  width: fit-content;
 }
 
 .adapt-dialog-input {
