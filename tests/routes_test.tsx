@@ -440,5 +440,27 @@ Deno.test("application shell titles the adapt page without a tab", () => {
     html,
     `<title>Adapt | ${escapeHtml(SITE_TITLE)}</title>`,
   );
-  assertEquals((html.match(/<a [^>]*aria-current="page"/g) ?? []).length, 0);
+  // The adapt link is in the bar without being a tab, and is the one link
+  // marked current here.
+  const current = html.match(/<a [^>]*aria-current="page"[^>]*>/g) ?? [];
+  assertEquals(current.length, 1);
+  assertStringIncludes(current[0] ?? "", 'href="/adapt"');
+});
+
+Deno.test("application shell puts the described adapt link before the tabs", () => {
+  const html = renderToString(
+    <Shell Component={() => <p>x</p>} url={new URL("http://localhost/")} />,
+  );
+  const link = html.match(/<a [^>]*href="\/adapt"[^>]*>/)?.[0] ?? "";
+  assertStringIncludes(link, 'aria-describedby="nav-adapt-tip"');
+  assert(!link.includes("aria-current"), link);
+  assertMatch(
+    html,
+    /<span[^>]*id="nav-adapt-tip"[^>]*>Recently updated\. A step-by-step guide/,
+  );
+  // First in the row, so it sits to the left of About.
+  const hrefs = [...html.matchAll(/<a [^>]*class="nav-link[^>]*>/g)].map((m) =>
+    m[0].match(/href="([^"]*)"/)?.[1]
+  );
+  assertEquals(hrefs.slice(0, 2), ["/adapt", "/"]);
 });

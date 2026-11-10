@@ -133,6 +133,10 @@
   --svd-surface-translucent: color-mix(in oklab, var(--svd-surface) 84%, transparent);
   --svd-nav: var(--svd-steel-900);
   --svd-nav-ink: var(--svd-slate-100);
+  /* The adapt link's outline and its "recently updated" dot. The bar is dark
+     in both themes, so neither has a dark override. */
+  --svd-nav-accent: var(--svd-steel-300);
+  --svd-nav-flag: var(--svd-amber-300);
 
   --svd-ink: var(--svd-slate-950);
   --svd-ink-muted: var(--svd-slate-700);
@@ -1169,6 +1173,79 @@ svg {
 
 .nav-link:visited {
   color: color-mix(in oklab, var(--svd-nav-ink) 74%, transparent);
+}
+
+/*
+ * The adapt guide's link. It is not a tab -- it leads out of the dashboard's
+ * own pages -- so it is outlined at rest, where a tab is bare until hovered,
+ * and stands a full step further from About than the tabs stand from each
+ * other. Declared before the current-page rule on purpose: on /adapt it takes
+ * the same fill a tab does.
+ */
+.nav-adapt {
+  position: relative;
+  margin-right: var(--svd-space-3);
+}
+
+.nav-link.nav-link-adapt,
+.nav-link.nav-link-adapt:visited {
+  border-color: var(--svd-nav-accent);
+  background: color-mix(in oklab, var(--svd-nav-accent) 10%, transparent);
+  color: var(--svd-nav-accent);
+}
+
+.nav-link.nav-link-adapt:not([aria-current]):hover,
+.nav-link.nav-link-adapt:not([aria-current]):focus-visible {
+  border-color: var(--svd-nav-accent);
+  background: color-mix(in oklab, var(--svd-nav-accent) 22%, transparent);
+  color: var(--svd-nav-ink);
+}
+
+/* "Recently updated". The tooltip's first sentence says so in words. */
+.nav-adapt-dot {
+  flex: none;
+  width: var(--svd-space-2);
+  height: var(--svd-space-2);
+  border-radius: var(--svd-radius-round);
+  background: var(--svd-nav-flag);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--svd-nav-flag) 25%,
+    transparent);
+}
+
+/*
+ * The link's description, drawn like the tooltip panels. CSS alone: the bar
+ * is server-rendered on every page and the text is fixed, so there is nothing
+ * for an island to do. It takes no pointer events, so it cannot hold itself
+ * open or cover a tab.
+ */
+.nav-adapt-tip {
+  position: absolute;
+  top: calc(100% + var(--svd-space-2));
+  left: 0;
+  z-index: 1;
+  width: max-content;
+  max-width: min(360px, calc(100vw - 16px));
+  padding: var(--svd-space-3) var(--svd-space-4);
+  background: var(--svd-tooltip-bg);
+  color: var(--svd-tooltip-ink);
+  outline: 1px solid var(--svd-border);
+  box-shadow: var(--svd-shadow-lg);
+  font-family: var(--svd-font);
+  font-size: var(--svd-text-base);
+  font-weight: var(--svd-weight-regular);
+  line-height: var(--svd-leading-normal);
+  white-space: normal;
+  text-align: left;
+  pointer-events: none;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity var(--svd-transition), visibility var(--svd-transition);
+}
+
+.nav-adapt:hover > .nav-adapt-tip,
+.nav-link-adapt:focus-visible + .nav-adapt-tip {
+  visibility: visible;
+  opacity: 1;
 }
 
 .nav-link[aria-current='page'],
@@ -3878,6 +3955,12 @@ button.adapt-card-head:focus-visible {
   .navbar-nav > li {
     flex: 0 0 auto;
     scroll-snap-align: start;
+  }
+
+  /* The tab row is a scroll container here and would clip the panel. The
+     element stays in the tree, so the link keeps its description. */
+  .nav-adapt-tip {
+    display: none;
   }
 }
 

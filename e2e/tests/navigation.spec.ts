@@ -22,6 +22,9 @@ const ROUTES = [
   { href: "/map", label: "Trials Map", heading: "Trials Map" },
 ] as const;
 
+/** The adapt guide's link: in the bar, left of the tabs, and not one of them. */
+const ADAPT_LABEL = "Build Your Own";
+
 for (const route of ROUTES) {
   test(`${route.href} renders its heading and marks its nav link active`, async ({ page }) => {
     const response = await page.goto(route.href);
@@ -40,12 +43,44 @@ for (const route of ROUTES) {
   });
 }
 
-test("the nav lists all six tabs in TABS order", async ({ page }) => {
+test("the nav lists the adapt link, then all six tabs in TABS order", async ({ page }) => {
   await page.goto("/");
   const links = page.getByRole("navigation", { name: "Main" }).getByRole(
     "link",
   );
-  await expect(links).toHaveText(ROUTES.map((r) => r.label));
+  await expect(links).toHaveText([ADAPT_LABEL, ...ROUTES.map((r) => r.label)]);
+});
+
+test("the adapt link describes the guide on hover and opens it", async ({ page }) => {
+  await page.goto("/");
+  const link = page.getByRole("navigation", { name: "Main" }).getByRole(
+    "link",
+    { name: ADAPT_LABEL, exact: true },
+  );
+  const tip = page.locator("#nav-adapt-tip");
+  await expect(link).toHaveAccessibleDescription(/^Recently updated\./);
+  await expect(tip).toBeHidden();
+
+  await link.hover();
+  await expect(tip).toBeVisible();
+  await expect(tip).toBeInViewport({ ratio: 1 });
+
+  // Further from About than the tabs are from each other.
+  const gap = (a: { x: number; width: number }, b: { x: number }) =>
+    b.x - (a.x + a.width);
+  const boxes = await Promise.all(
+    [link, ...["About", "Genes"].map((name) =>
+      page.getByRole("navigation", { name: "Main" }).getByRole("link", {
+        name,
+        exact: true,
+      })
+    )].map(async (l) => (await l.boundingBox())!),
+  );
+  expect(gap(boxes[0], boxes[1])).toBeGreaterThan(gap(boxes[1], boxes[2]));
+
+  await link.click();
+  await expect(page).toHaveURL(/\/adapt$/);
+  await expect(link).toHaveAttribute("aria-current", "page");
 });
 
 test("every tab is reachable by clicking through the nav", async ({ page }) => {
