@@ -3845,18 +3845,23 @@ button.adapt-card-head:focus-visible {
 
 /* islands/TrialsMap.tsx's fitBounds() runs after init with a fixed maxZoom
    and overwrites any initial zoom this stylesheet could set, and at a narrow
-   box the chosen zoom is bound by *width*, not height -- so the rendered
-   tile band holds a fixed pixel height regardless of what min-height above
-   says. Shrinking the floor here is the only lever left that cuts the
-   absolute grey space below the tiles; it cannot close the gap outright.
-   380px keeps the map comfortably above a ~360px usability floor for
-   panning and cluster-tapping while measuring ~49% empty at 390x844 (down
-   from ~66% at the 700px/75vh floor above). */
+   box the chosen zoom is bound by *width*, not height -- so in the opening
+   world view the tile band holds a fixed pixel height and any extra height
+   is grey below it. That grey is the cost of a taller phone map; it is paid
+   only in the opening view, since a popup opens only once the map is zoomed
+   in, where the tiles fill any height.
+   A phone popup is as tall as a 380px map, so at 380px nearly every popup
+   was zoomed down to fit (69 of 70 at 393x852). 65svh, capped at 480px,
+   holds most at full size on a modern phone; the 380px floor keeps a short
+   phone's map from taking the whole screen, where a one-finger drag pans
+   the map and the page cannot be scrolled past it. `fitPopup` in the island
+   handles what still does not fit. svh, not dvh: dvh moves with the
+   collapsing address bar. */
 @media (max-width: 600px) {
   .map-container,
   .trials-map,
   .map-error {
-    min-height: 380px;
+    min-height: clamp(380px, 65svh, 480px);
   }
 }
 
