@@ -299,17 +299,17 @@ Eleven things are load-bearing:
   `More` are the row, and the details head the `More` panel. The code was meant
   to stay on the row, but with a session attached the full row measured 1,431px
   and the bar never gets more than 1,152px (the page is contained), so it
-  wrapped to three rows, 118px pinned under the navbar, at every width. Without
-  the details the wide row is 897px, one row from a 937px viewport, so it waits
-  for 1100px, the next breakpoint of the closed set
-  `tests/styles_contract_test.ts` holds; that set was not widened for the bar,
-  nor for the welcome-back panels, which stack at 600px. Both panels are native
-  `[popover]`s placed under their button by Floating UI (`usePlacedPopover`),
-  with `flip` to open above it when there is more room there and `size` to cap
-  the height to the room left, so the panel's own scroll reaches its last button
-  on a short screen; a fixed panel past the viewport's edge could never be
-  scrolled to. `SessionDetails` renders in both and holds no id, and the
-  stylesheet shows one of the two.
+  wrapped to three rows, 118px pinned under the navbar, at every viewport
+  measured from 900 to 1920px. Without the details the wide row is 897px, one
+  row from a 937px viewport, so it waits for 1100px, the next breakpoint of the
+  closed set `tests/styles_contract_test.ts` holds; that set was not widened for
+  the bar, nor for the welcome-back panels, which stack at 600px. Both panels
+  are native `[popover]`s placed under their button by Floating UI
+  (`usePlacedPopover`), with `flip` to open above it when there is more room
+  there and `size` to cap the height to the room left, so the panel's own scroll
+  reaches its last button on a short screen; a fixed panel past the viewport's
+  edge could never be scrolled to. `SessionDetails` renders in both and holds no
+  id, and the stylesheet shows one of the two.
 - **A saved session's every decision is `sessionReducer`'s.** The island's
   handlers are closures a test cannot reach (below), so they only call the
   client, `confirm()` and storage, and dispatch what happened to

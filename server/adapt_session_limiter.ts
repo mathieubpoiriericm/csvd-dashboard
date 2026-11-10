@@ -1,7 +1,7 @@
 /**
  * The per-client limit on the adaptation guide's session routes: wrong
  * resume codes and new session files, counted the way the login limiter
- * counts wrong passphrases, on the same ledger.
+ * counts wrong passphrases, on a ledger of its own.
  */
 
 import type { Middleware } from "fresh";

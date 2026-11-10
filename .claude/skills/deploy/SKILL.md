@@ -169,9 +169,22 @@ fly ssh console -C "sh -c 'rm /session_storage/adapt-sessions/*.json'"
 
 Clearing removes every session at once and cannot be undone; a researcher whose
 session is gone resumes from their own Export answers. One session is removed by
-its file name, which only its code gives (`printf %s <CODE> | sha256sum` on the
-normalised code): there is no index from a person or a date to a file beyond the
-mtime.
+its file name, which only its code gives: there is no index from a person or a
+date to a file beyond the mtime. The code opens the session, so it goes in on a
+silent prompt, never on a command line, where it would reach the shell's history
+and the process list. On your own machine:
+
+```sh
+read -rs code   # paste the code, then Enter; nothing is echoed
+printf %s "$code" | tr -d '[:space:]-' | tr a-z A-Z | tr OIL 011 | sha256sum
+unset code
+```
+
+The pipeline is `normaliseCode()` (`lib/adapt/session_code.ts`) in `tr`: it
+drops whitespace and hyphens, upper-cases, and reads O as 0 and I or L as 1, so
+it gives the hash the server names the file by for any spelling the guide
+accepts. Then
+`fly ssh console -C "rm /session_storage/adapt-sessions/<hash>.json"`.
 
 ## More than one machine
 
