@@ -17,6 +17,12 @@ import {
 } from "../../components/adapt/FieldNote.tsx";
 import { SelectField, TextField } from "../../components/adapt/Field.tsx";
 import { ListEditor } from "../../components/adapt/ListEditor.tsx";
+import {
+  CodeDialog,
+  GreetingDialog,
+  ResumeDialog,
+  WelcomeBack,
+} from "../../components/adapt/SessionDialogs.tsx";
 import { Stepper } from "../../components/adapt/Stepper.tsx";
 import { StepSummary } from "../../components/adapt/StepSummary.tsx";
 import { familyOptions } from "../../components/adapt/steps/helpers.ts";
@@ -25,6 +31,9 @@ import {
   WizardContext,
 } from "../../components/adapt/wizard_context.ts";
 import { EMPTY_ANSWERS } from "../../lib/adapt/answers.ts";
+import { overview, SESSION_COPY } from "../../lib/adapt/session.ts";
+import { formatCode } from "../../lib/adapt/session_code.ts";
+import { STEP_LABELS, STEP_ORDER } from "../../lib/adapt/validate.ts";
 import { EXAMPLEITIS } from "./fixtures/exampleitis.ts";
 import { wizardFor } from "./wizard_fixture.ts";
 
@@ -569,4 +578,128 @@ Deno.test("the action bar's secondary group is a popover a More button opens", (
       "Download disease-adaptation.zip",
     ]
   ) assertStringIncludes(group[2], label);
+});
+
+const dialogHeading = (html: string) => {
+  const id = html.match(/<dialog[^>]*aria-labelledby="([^"]+)"/)?.[1];
+  assert(id !== undefined, html);
+  const heading = html.match(
+    new RegExp(`<h2[^>]*id="${id}"[^>]*>([^<]*)</h2>`),
+  )?.[1];
+  assert(heading !== undefined, html);
+  return heading;
+};
+
+Deno.test("the greeting dialog names itself and offers the two ways in", () => {
+  const html = renderToString(
+    <GreetingDialog open={false} onNew={() => {}} onResume={() => {}} />,
+  );
+  assertEquals(dialogHeading(html), SESSION_COPY.greetingTitle);
+  assertStringIncludes(html, SESSION_COPY.greetingBody);
+  assertStringIncludes(html, `>${SESSION_COPY.greetingNew}</button>`);
+  assertStringIncludes(html, `>${SESSION_COPY.greetingResume}</button>`);
+});
+
+Deno.test("the code dialog shows the formatted code, a Copy button and Done", () => {
+  const html = renderToString(
+    <CodeDialog
+      open={false}
+      code="ABCDEFGHJKMNPQRSTVWX"
+      keptUntil="kept until 24 Nov 2026"
+      onDone={() => {}}
+    />,
+  );
+  assertEquals(dialogHeading(html), SESSION_COPY.codeTitle);
+  assertStringIncludes(html, SESSION_COPY.codeBody);
+  assertStringIncludes(html, formatCode("ABCDEFGHJKMNPQRSTVWX"));
+  assertStringIncludes(html, "kept until 24 Nov 2026");
+  assertStringIncludes(html, ">Copy code</button>");
+  assertStringIncludes(html, ">Done</button>");
+});
+
+Deno.test("the resume dialog has one labelled code input, an alert only on error, and waits while busy", () => {
+  const props = { open: false, onResume: () => {}, onCancel: () => {} };
+  const html = renderToString(
+    <ResumeDialog {...props} busy={false} error="" />,
+  );
+  assertEquals(dialogHeading(html), SESSION_COPY.resumeTitle);
+  assertEquals(count(html, "<input"), 1);
+  assertEquals(count(html, "<label"), 1);
+  assertStringIncludes(html, 'autocomplete="off"');
+  assertStringIncludes(html, 'spellcheck="false"');
+  assertStringIncludes(html, 'autocapitalize="characters"');
+  assert(!html.includes('role="alert"'), html);
+  const resume = (h: string) =>
+    h.match(/<button[^>]*>Resume<\/button>/)?.[0] ?? "";
+  assert(!resume(html).includes("disabled"), resume(html));
+  const failed = renderToString(
+    <ResumeDialog {...props} busy error="No session answers to that code." />,
+  );
+  assertMatch(
+    failed,
+    /<[a-z]+[^>]*role="alert"[^>]*>No session answers to that code\.</,
+  );
+  assertStringIncludes(resume(failed), "disabled");
+});
+
+const welcome = (o: ReturnType<typeof overview>) =>
+  renderToString(
+    <WelcomeBack
+      overview={o}
+      lastSaved="24 Nov 2026 at 16:42"
+      keptUntil="kept until 8 Dec 2026"
+      onContinue={() => {}}
+      onReview={() => {}}
+    />,
+  );
+
+const panel = (html: string, cls: string) => {
+  const start = html.indexOf(`class="adapt-welcome-panel ${cls}"`);
+  assert(start >= 0, html);
+  const end = html.indexOf("</section>", start);
+  return html.slice(start, end);
+};
+
+Deno.test("the welcome-back screen lists the finished steps and what the last one lacks", () => {
+  const answers = structuredClone(EXAMPLEITIS);
+  answers.gold.rows[0].pmid = "";
+  const o = overview(answers);
+  const html = welcome(o);
+  assertStringIncludes(html, "last saved 24 Nov 2026 at 16:42");
+  assertStringIncludes(html, "kept until 8 Dec 2026");
+  const done = panel(html, "adapt-welcome-done");
+  assertStringIncludes(done, "Completed");
+  assertStringIncludes(done, `6 of ${STEP_ORDER.length} steps`);
+  for (const c of o.completed) {
+    const n = STEP_ORDER.indexOf(c.step) + 1;
+    assertStringIncludes(done, `${n}. ${c.label}`);
+  }
+  assertEquals(count(done, "<li"), 6);
+  assert(!done.includes("Review"), done);
+  const left = panel(html, "adapt-welcome-left");
+  assertStringIncludes(left, "Remaining");
+  assertStringIncludes(left, `${STEP_ORDER.indexOf("gold") + 1}. `);
+  assertStringIncludes(left, STEP_LABELS.gold);
+  assertStringIncludes(left, "1 to answer or fix");
+  assertStringIncludes(left, o.remaining[0].items[0].message);
+  assert(!left.includes("Not started"), left);
+  assert(!left.includes("Review"), left);
+  assertStringIncludes(html, ">Review all steps</button>");
+  assertStringIncludes(html, `>Continue at ${STEP_LABELS.gold}</button>`);
+});
+
+Deno.test("the welcome-back screen calls an untouched step Not started", () => {
+  const o = overview(EMPTY_ANSWERS);
+  const left = panel(welcome(o), "adapt-welcome-left");
+  assertEquals(count(left, "Not started"), o.remaining.length);
+  assertStringIncludes(left, `${o.remaining.length} steps`);
+});
+
+Deno.test("the welcome-back screen of finished answers has nothing left and continues at the review", () => {
+  const html = welcome(overview(EXAMPLEITIS));
+  assertStringIncludes(
+    panel(html, "adapt-welcome-left"),
+    "Nothing left",
+  );
+  assertStringIncludes(html, ">Continue at Review and download</button>");
 });

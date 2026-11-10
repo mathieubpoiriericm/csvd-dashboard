@@ -122,7 +122,13 @@ export function ActionBar(
             <button
               type="button"
               class="adapt-button"
-              onClick={() => navigator.clipboard?.writeText(session.code ?? "")}
+              onClick={() => {
+                // A refused clipboard must not surface as an unhandled
+                // rejection; the code is on screen to select.
+                navigator.clipboard?.writeText(session.code ?? "")?.catch(
+                  () => {},
+                );
+              }}
             >
               Copy code
             </button>

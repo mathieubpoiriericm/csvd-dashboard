@@ -2759,6 +2759,192 @@ svg {
   }
 }
 
+/* The session windows. Native modal dialogs: the browser supplies the top
+   layer, the focus trap and Escape, so this is only the box. */
+.adapt-dialog {
+  width: min(32rem, calc(100vw - 2 * var(--svd-space-4)));
+  padding: var(--svd-space-5);
+  border: 1px solid var(--svd-border);
+  border-radius: var(--svd-radius-sm);
+  background: var(--svd-bg-card);
+  color: var(--svd-text);
+  box-shadow: var(--svd-shadow-md);
+}
+
+.adapt-dialog::backdrop {
+  background: color-mix(in oklab, var(--svd-ink) 45%, transparent);
+}
+
+.adapt-dialog-title {
+  margin: 0 0 var(--svd-space-3);
+  font-size: var(--svd-text-xl);
+}
+
+.adapt-dialog p {
+  margin: 0 0 var(--svd-space-3);
+}
+
+.adapt-dialog-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--svd-space-2);
+}
+
+/* The whole code selects on one click, for the browser that refuses the
+   clipboard. */
+.adapt-dialog-code code {
+  display: block;
+  padding: var(--svd-space-3);
+  border: 1px solid var(--svd-border);
+  border-radius: var(--svd-radius-sm);
+  font-family: var(--svd-font-mono);
+  font-size: var(--svd-text-xl);
+  text-align: center;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+.adapt-dialog-kept {
+  font-size: var(--svd-text-sm);
+  color: var(--svd-text-muted);
+}
+
+.adapt-dialog-input {
+  font-family: var(--svd-font-mono);
+}
+
+.adapt-dialog-error {
+  margin: 0;
+  font-size: var(--svd-text-sm);
+  color: var(--svd-danger-text);
+}
+
+.adapt-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--svd-space-2);
+}
+
+/* The welcome-back screen: what is finished beside what is left. Each panel
+   has an accent on its top edge, and also a heading word and a glyph per
+   row, so the state is never carried by the colour alone. */
+.adapt-welcome {
+  display: flex;
+  flex-direction: column;
+  gap: var(--svd-space-4);
+}
+
+.adapt-welcome-saved {
+  margin: 0;
+  font-size: var(--svd-text-sm);
+  color: var(--svd-text-muted);
+}
+
+.adapt-welcome-panels {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--svd-space-4);
+}
+
+@media (max-width: 700px) {
+  .adapt-welcome-panels {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.adapt-welcome-panel {
+  padding: var(--svd-space-4);
+  border: 1px solid var(--svd-border);
+  border-top-width: 3px;
+  border-radius: var(--svd-radius-sm);
+  background: var(--svd-bg-card);
+}
+
+.adapt-welcome-done {
+  border-top-color: var(--svd-color-ok);
+}
+
+.adapt-welcome-left {
+  border-top-color: var(--svd-color-danger);
+}
+
+.adapt-welcome-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--svd-space-2);
+  margin-bottom: var(--svd-space-3);
+  font-size: var(--svd-text-sm);
+  color: var(--svd-text-muted);
+}
+
+.adapt-welcome-head h2 {
+  margin: 0;
+  font-size: var(--svd-text-base);
+  color: var(--svd-text);
+}
+
+.adapt-welcome-list,
+.adapt-welcome-items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.adapt-welcome-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--svd-space-3);
+}
+
+.adapt-welcome-row {
+  display: flex;
+  gap: var(--svd-space-2);
+}
+
+.adapt-welcome-glyph {
+  flex: none;
+  width: 1.25em;
+  text-align: center;
+}
+
+.adapt-welcome-done .adapt-welcome-glyph {
+  color: var(--svd-color-ok-ink);
+}
+
+.adapt-welcome-left .adapt-welcome-glyph {
+  color: var(--svd-danger-text);
+}
+
+.adapt-welcome-what {
+  flex: 1;
+  min-width: 0;
+}
+
+.adapt-welcome-step {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--svd-space-2);
+  margin: 0;
+}
+
+.adapt-welcome-count,
+.adapt-welcome-items {
+  font-size: var(--svd-text-sm);
+  color: var(--svd-text-muted);
+}
+
+.adapt-welcome-items {
+  margin-top: var(--svd-space-1);
+}
+
+.adapt-welcome-nothing {
+  margin: 0;
+}
+
 .adapt-messages {
   display: flex;
   flex-direction: column;

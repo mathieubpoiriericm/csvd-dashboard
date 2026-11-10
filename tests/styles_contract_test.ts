@@ -1392,11 +1392,14 @@ Deno.test("every border-radius is on the radius scale", () => {
  * 1300px was 41px below its own derived value and produced a band where the
  * radar shrank and gained a scrollbar it did not have at 1300.
  *
+ * 700 is where the welcome-back screen's two panels stack: each holds a
+ * step label and its count side by side, which two columns no longer fit.
+ *
  * 1453 and 1482 are gone. Both were the width at which a 1072px or 1100px
  * plate stopped fitting beside an 18rem key, and both figures put their key
  * below the plate at every width now, so neither has a rail to fall out of.
  */
-const BREAKPOINTS = new Set([480, 600, 900, 1100, 1410]);
+const BREAKPOINTS = new Set([480, 600, 700, 900, 1100, 1410]);
 
 Deno.test("every breakpoint is on the documented set", () => {
   const used = [...css.matchAll(/\((?:max|min)-width:\s*(\d+)px\)/g)]
