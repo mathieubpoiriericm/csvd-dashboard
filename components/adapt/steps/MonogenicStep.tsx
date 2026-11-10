@@ -4,11 +4,16 @@ import { StepSummary } from "../StepSummary.tsx";
 import { ListEditor } from "../ListEditor.tsx";
 import {
   applyGeneCheck,
+  genesToCheck,
   hasOmimRow,
   lookupSummary,
-  lookupValues,
 } from "../../../lib/adapt/edits.ts";
-import { clinvarTraits, officialSymbol } from "../../../lib/adapt/lookups.ts";
+import {
+  type ClinvarTraits,
+  clinvarTraits,
+  officialSymbol,
+  sampleNote,
+} from "../../../lib/adapt/lookups.ts";
 import { joinList, splitList } from "./helpers.ts";
 import type { StepProps } from "./types.ts";
 
@@ -36,15 +41,15 @@ export function MonogenicStep(
   // symbol typed in the wrong case is stored as HGNC writes it. A ClinVar
   // failure is reported rather than swallowed, and the symbol is still
   // recorded as verified: NCBI Gene answered, and that answer is worth
-  // keeping. The finally leaves a failure on the status line, or else what
-  // was checked. Only unchecked symbols are asked about, and a blank row is
-  // skipped: "[sym] AND human[orgn]" finds every human gene.
+  // keeping. Its diseases are written as not read (null) rather than as
+  // none, so the row says so and the next press asks about it again. The
+  // finally leaves a failure on the status line, or else what was checked.
+  // Only unchecked symbols are asked about (genesToCheck), and a blank row
+  // is skipped: "[sym] AND human[orgn]" finds every human gene.
   async function checkGenes() {
     let outcome = "";
     setStatus("Checking symbols against NCBI Gene and ClinVar…");
-    const symbols = lookupValues(
-      genes.filter((g) => g.verified === null).map((g) => g.symbol),
-    );
+    const symbols = genesToCheck(genes);
     let refused = 0;
     let missed = 0;
     try {
@@ -56,8 +61,8 @@ export function MonogenicStep(
         }
         const symbol = official.value;
         if (symbol === null) refused += 1;
-        const traits = symbol === null
-          ? { ok: true as const, value: [] }
+        const traits: ClinvarTraits = symbol === null
+          ? { ok: true, value: [] }
           : await clinvarTraits(fetch, symbol, auth);
         let found = false;
         update((d) =>
@@ -65,7 +70,10 @@ export function MonogenicStep(
             d,
             typed,
             symbol,
-            traits.ok ? traits.value : [],
+            traits.ok ? traits.value : null,
+            // A gene with more pathogenic records than ClinVar is read for
+            // is listed from a sample; the row keeps that, and says so.
+            traits.sample ?? null,
           )
         );
         if (!found) missed += 1;
@@ -120,6 +128,7 @@ export function MonogenicStep(
                 symbol: "",
                 verified: null,
                 clinvarTraits: [],
+                clinvarSample: null,
               })
             )}
           remove={(i) => update((d) => d.monogenic.genes.splice(i, 1))}
@@ -136,11 +145,27 @@ export function MonogenicStep(
                     d.monogenic.genes[i].symbol = v;
                     d.monogenic.genes[i].verified = null;
                     d.monogenic.genes[i].clinvarTraits = [];
+                    d.monogenic.genes[i].clinvarSample = null;
                   })}
                 field={`genes[${i}]`}
               />
+              {
+                /* Not read is not none: an empty list would say ClinVar
+                   attests nothing for the gene. */
+              }
+              {gene.verified && gene.clinvarTraits === null && (
+                <div class="adapt-lookup-result">
+                  ClinVar did not answer for this gene, so its diseases are not
+                  listed; press Check symbols to ask again.
+                </div>
+              )}
+              {gene.verified && gene.clinvarSample !== null && (
+                <div class="adapt-lookup-result">
+                  {sampleNote(gene.symbol, gene.clinvarSample)}
+                </div>
+              )}
               {gene.verified &&
-                gene.clinvarTraits.map((trait) => {
+                gene.clinvarTraits?.map((trait) => {
                   const added = hasOmimRow(answers, gene.symbol, trait);
                   return (
                     <div class="adapt-lookup-result" key={trait.name}>

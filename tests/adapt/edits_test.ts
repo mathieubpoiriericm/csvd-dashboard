@@ -1,12 +1,15 @@
 import { assert, assertEquals } from "@std/assert";
 
+import { parseDraft, serialiseDraft } from "../../lib/adapt/answers.ts";
 import {
   addDiseaseTerm,
   addExamplePapers,
   applyTitles,
+  checkedMeshRow,
   dropMeshHeading,
   parseConfidence,
   phrasesToCheck,
+  pmidsToCheck,
   removeDiseaseTerm,
   removeFamily,
   renameFamily,
@@ -19,6 +22,7 @@ import {
   applyGeneCheck,
   applyMarkerCount,
   applyTrialCount,
+  genesToCheck,
   hasOmimRow,
   lookupSummary,
   markerCountQuery,
@@ -30,6 +34,7 @@ import {
 } from "../../lib/adapt/edits.ts";
 import { forgetRemoved } from "../../lib/adapt/feedback.ts";
 import type { Fetch } from "../../lib/adapt/lookups.ts";
+import { symbolFinder, validate } from "../../lib/adapt/validate.ts";
 import { EXAMPLEITIS } from "./fixtures/exampleitis.ts";
 
 Deno.test("retyping or removing any phrase clears the marker counts it anchored", () => {
@@ -166,6 +171,28 @@ Deno.test("removing a family releases the members parked on it, and no other row
   assertEquals(members.map((m) => m.family), ["fam-a", "", ""]);
 });
 
+Deno.test("a removed family's members are released, however the next key is entered", () => {
+  // Left naming the removed key, they were taken up by any family whose
+  // key passed through it a keystroke at a time, and by none pasted whole.
+  const start = () => ({
+    families: [{ key: "mri" }, { key: "clin" }],
+    members: [{ family: "mri" }, { family: " mri " }, { family: "clin" }],
+  });
+  const typed = start();
+  removeFamily(typed.families, typed.members, 0);
+  assertEquals(typed.members.map((m) => m.family), ["", "", "clin"]);
+  typed.families.push({ key: "" });
+  for (const key of ["m", "mr", "mri", "mri_", "mri_free"]) {
+    renameFamily(typed.families, typed.members, 1, key);
+  }
+  const pasted = start();
+  removeFamily(pasted.families, pasted.members, 0);
+  pasted.families.push({ key: "" });
+  renameFamily(pasted.families, pasted.members, 1, "mri_free");
+  assertEquals(typed, pasted);
+  assertEquals(typed.members.map((m) => m.family), ["", "", "clin"]);
+});
+
 Deno.test("a park follows its row when a family above it is removed", () => {
   const families = [{ key: "a" }, { key: "b" }, { key: "c" }];
   const members = [{ family: "a" }, { family: "b" }, { family: "c" }];
@@ -177,11 +204,15 @@ Deno.test("a park follows its row when a family above it is removed", () => {
   renameFamily(families, members, 0, "b2");
   assertEquals(members.map((m) => m.family), ["", "b2", "c"]);
   assertEquals(families.map((f) => f.key), ["b2", "c"]);
-  // A member naming a key is never touched by a removal, even the removed
-  // family's; one parked on a row the list does not have stays parked.
+  // The removed family's member is released with it and another family's
+  // is not touched; one parked on a row the list does not have stays parked.
   members.push({ family: "\u00009" });
   removeFamily(families, members, 0);
-  assertEquals(members.map((m) => m.family), ["", "b2", "c", "\u00008"]);
+  assertEquals(members.map((m) => m.family), ["", "", "c", "\u00008"]);
+  // A row the list does not have removes nothing.
+  removeFamily(families, members, 9);
+  assertEquals(members.map((m) => m.family), ["", "", "c", "\u00008"]);
+  assertEquals(families.map((f) => f.key), ["c"]);
 });
 
 Deno.test("dropping a MeSH heading keeps its phrase checked", () => {
@@ -220,6 +251,26 @@ Deno.test("a check looks up only the phrases no row answers, each once", () => {
   // heading, which is an answer; "four"'s count never came back, so it is
   // asked again for it.
   assertEquals(phrasesToCheck(draft.search), ["two", "one", "four"]);
+});
+
+Deno.test("a row answers the phrase beside it while it names it as the files write it", () => {
+  // The lookup stores the spelling it asked about, composed and with no
+  // separator at an end; the field keeps what was pasted.
+  const draft = structuredClone(EXAMPLEITIS);
+  draft.search.diseaseTerms = ["oné", "two\u0085", "three", " ", "five"];
+  draft.search.meshTerms = [
+    meshAnswer("oné"),
+    meshAnswer("two"),
+    meshAnswer("since retyped"),
+    { phrase: "", heading: null, scopeNote: null, count: null },
+  ];
+  assertEquals(
+    draft.search.diseaseTerms.map((_, i) =>
+      checkedMeshRow(draft.search, i)?.phrase
+    ),
+    ["oné", "two", undefined, undefined, undefined],
+  );
+  assertEquals(phrasesToCheck(draft.search), ["three", "five"]);
 });
 
 Deno.test("a MeSH answer lands on the phrase that asked, found by its words", () => {
@@ -340,6 +391,35 @@ Deno.test("looked-up titles land on the rows they answer, by trimmed PMID", () =
   ]);
 });
 
+Deno.test("a PMID lookup asks about every PMID validate() takes for one, once", () => {
+  // Read as the files write them, like the write-backs and validate(): a
+  // PMID with a separator at its end is one to validate(), which waits on
+  // its check, so a lookup that trimmed it any other way could never run.
+  const values = [" 10000001 ", "10000002\u0085", "\u001f10000001", "", "0123"];
+  assertEquals(pmidsToCheck(values), ["10000001", "10000002"]);
+  const draft = structuredClone(EXAMPLEITIS);
+  draft.gold.rows = values.map((pmid) => ({
+    pmid,
+    note: "n",
+    title: null,
+    exists: null,
+  }));
+  draft.prompt.examples[0].pmid = "10000002\u0085";
+  draft.prompt.examples[0].abstract = null;
+  const pending = validate(draft).filter((i) => i.kind === "pending");
+  assertEquals(pending.map((i) => `${i.step}:${i.field}`), [
+    "prompt:examples[0].pmid",
+    "gold:rows[0].pmid",
+    "gold:rows[1].pmid",
+  ]);
+  // Each answer lands on the rows that asked, and nothing is left waiting.
+  const [example] = pmidsToCheck([draft.prompt.examples[0].pmid]);
+  assert(applyAbstract(draft, example, "Text."));
+  const asked = pmidsToCheck(draft.gold.rows.map((row) => row.pmid));
+  applyTitles(draft, Object.fromEntries(asked.map((pmid) => [pmid, "T"])));
+  assertEquals(validate(draft).filter((i) => i.kind === "pending"), []);
+});
+
 Deno.test("an empty confidence is no answer, and any other text is its number", () => {
   assert(Number.isNaN(parseConfidence("")));
   assert(Number.isNaN(parseConfidence("  ")));
@@ -431,8 +511,8 @@ Deno.test("a study count lands on the rows holding its term, and a retyped term 
 Deno.test("a gene check lands on the unchecked row that asked, and its new spelling travels", () => {
   const draft = structuredClone(EXAMPLEITIS);
   draft.monogenic.genes = [
-    { symbol: "genea", verified: null, clinvarTraits: [] },
-    { symbol: "genea", verified: null, clinvarTraits: [] },
+    { symbol: "genea", verified: null, clinvarTraits: [], clinvarSample: null },
+    { symbol: "genea", verified: null, clinvarTraits: [], clinvarSample: null },
   ];
   draft.monogenic.omimRows[0].geneOrLocus = "genea ";
   draft.monogenic.aliases = [{ alias: "GENEA/B", symbols: ["genea", "GENEB"] }];
@@ -442,6 +522,7 @@ Deno.test("a gene check lands on the unchecked row that asked, and its new spell
     symbol: "GENEA",
     verified: true,
     clinvarTraits: traits,
+    clinvarSample: null,
   });
   // The second, still unchecked, is the next to take an answer.
   assertEquals(draft.monogenic.genes[1].verified, null);
@@ -455,6 +536,78 @@ Deno.test("a gene check lands on the unchecked row that asked, and its new spell
   renameGene(draft, "GENEA", "GENEA ");
   renameGene(draft, " ", "X");
   assertEquals(draft.monogenic.omimRows[0].geneOrLocus, "GENEA");
+});
+
+Deno.test("a gene listed from a sample keeps that with its row", () => {
+  const draft = structuredClone(EXAMPLEITIS);
+  draft.monogenic.genes = [
+    { symbol: "genea", verified: null, clinvarTraits: [], clinvarSample: null },
+  ];
+  const traits = [{ name: "Syndrome one", omim: "100001" }];
+  const sample = { total: 612, read: 500 };
+  // Said only on the status line, the next press or a reload left a
+  // truncated list looking complete.
+  assert(applyGeneCheck(draft, "genea", "GENEA", traits, sample));
+  assertEquals(draft.monogenic.genes[0].clinvarSample, sample);
+  assertEquals(
+    parseDraft(serialiseDraft(draft))!.monogenic.genes[0].clinvarSample,
+    sample,
+  );
+  // A lookup that did not answer read nothing, so it sampled nothing; and
+  // a whole list clears what an earlier one left.
+  draft.monogenic.genes[0].clinvarTraits = null;
+  assert(applyGeneCheck(draft, "GENEA", "GENEA", null, sample));
+  assertEquals(draft.monogenic.genes[0].clinvarSample, null);
+  draft.monogenic.genes[0].clinvarSample = sample;
+  assert(applyGeneCheck(draft, "GENEA", "GENEA", traits));
+  assertEquals(draft.monogenic.genes[0].clinvarSample, null);
+});
+
+Deno.test("a gene whose ClinVar lookup failed keeps NCBI Gene's answer and is asked again", () => {
+  const draft = structuredClone(EXAMPLEITIS);
+  draft.monogenic.genes = [
+    { symbol: "genea", verified: null, clinvarTraits: [], clinvarSample: null },
+    { symbol: "GENEB", verified: true, clinvarTraits: [], clinvarSample: null },
+    {
+      symbol: "GENEC",
+      verified: false,
+      clinvarTraits: [],
+      clinvarSample: null,
+    },
+    { symbol: " ", verified: null, clinvarTraits: [], clinvarSample: null },
+    {
+      symbol: " genea",
+      verified: null,
+      clinvarTraits: [],
+      clinvarSample: null,
+    },
+  ];
+  // The unchecked rows alone, each symbol once: a gene ClinVar attests
+  // nothing for is answered, and so is one NCBI Gene refused.
+  assertEquals(genesToCheck(draft.monogenic.genes), ["genea"]);
+  // ClinVar failed. The verdict and the official spelling stay, so the
+  // outage does not hold the step open, and the diseases are recorded as
+  // not read rather than as none.
+  assert(applyGeneCheck(draft, "genea", "GENEA", null));
+  assertEquals(draft.monogenic.genes[0], {
+    symbol: "GENEA",
+    verified: true,
+    clinvarTraits: null,
+    clinvarSample: null,
+  });
+  assertEquals(draft.monogenic.omimRows[0].geneOrLocus, "GENEA");
+  assert(!validate(draft).some((i) => i.field === "genes[0]"));
+  // So the next press asks about it again, and the answer lands on it
+  // rather than on the unchecked row below that types the same gene.
+  assertEquals(genesToCheck(draft.monogenic.genes), ["GENEA", "genea"]);
+  const traits = [{ name: "Syndrome one", omim: "100001" }];
+  assert(applyGeneCheck(draft, "GENEA", "GENEA", traits));
+  assertEquals(draft.monogenic.genes[0].clinvarTraits, traits);
+  assertEquals(draft.monogenic.genes[4].verified, null);
+  assertEquals(genesToCheck(draft.monogenic.genes), ["genea"]);
+  // An answered row takes no second answer.
+  assert(!applyGeneCheck(draft, "GENEB", "GENEB", traits));
+  assertEquals(draft.monogenic.genes[1].clinvarTraits, []);
 });
 
 Deno.test("an OMIM row suggested by ClinVar is recognised once added", () => {
@@ -490,6 +643,29 @@ Deno.test("a term search replaces a chosen term or a note of one's own only on a
     xrefAnswer("x", [{ id: "HP:1", label: "One" }]).xrefNote,
     "OLS4 top hit: One; alternatives: none",
   );
+  // A hit named after a listed gene is given by its id: the note is public,
+  // and with the label in it validate() refused what the search had written.
+  const genes = symbolFinder(EXAMPLEITIS)!;
+  const [gene] = EXAMPLEITIS.monogenic.genes;
+  const named = xrefAnswer("Trait one", [
+    { id: "MONDO:1", label: `${gene.symbol}-related exampleitis` },
+    { id: "HP:2", label: "Two" },
+    { id: "MONDO:3", label: `Exampleitis, ${gene.symbol} type` },
+  ], genes);
+  assertEquals(named, {
+    xref: "MONDO:1",
+    xrefNote: "OLS4 top hit: MONDO:1; alternatives: HP:2 Two; MONDO:3",
+  });
+  const draft = structuredClone(EXAMPLEITIS);
+  Object.assign(draft.vocabulary.traits[0], named);
+  assertEquals(
+    validate(draft).filter((issue) => issue.field.startsWith("traits[0]")),
+    [],
+  );
+  assertEquals(xrefAnswer("x", [{ id: "HP:1", label: "One" }], genes), {
+    xref: "HP:1",
+    xrefNote: "OLS4 top hit: One; alternatives: none",
+  });
   // No term yet, and the fixture's note is its own words.
   assert(replacesChoice(trait, top));
   trait.xrefNote = "";

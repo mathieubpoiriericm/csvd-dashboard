@@ -39,9 +39,15 @@ import {
   setDiseaseTerm,
   writeMeshRow,
 } from "../../lib/adapt/edits.ts";
-import { covers, reveal, valueAt } from "../../lib/adapt/feedback.ts";
+import {
+  covers,
+  reveal,
+  stepRequired,
+  valueAt,
+} from "../../lib/adapt/feedback.ts";
 import { meshHeadings } from "../../lib/adapt/generate/pipeline.ts";
 import { type Fetch, meshRow } from "../../lib/adapt/lookups.ts";
+import { TYPED_SECTION_IDS } from "../../lib/adapt/prompt_sections.ts";
 import { issuesFor, STEP_ORDER, validate } from "../../lib/adapt/validate.ts";
 import { EXAMPLEITIS } from "./fixtures/exampleitis.ts";
 import { wizardFor } from "./wizard_fixture.ts";
@@ -714,4 +720,88 @@ Deno.test("a dropped heading survives the next check, which asks only about new 
   );
   // The heading reaching pipeline.json is the new phrase's alone.
   assertEquals(meshHeadings(answers).map((m) => m.heading), ["One"]);
+});
+
+Deno.test("a heading found for a phrase pasted decomposed, or ending in a separator, is drawn", async () => {
+  // The lookup asks about a phrase as the files write it, so the row it
+  // stores names the composed spelling while the field keeps what was
+  // pasted. That row is the phrase's answer to validate() and to
+  // pipeline.json, so the step draws it too, with the button that drops it.
+  const answers = structuredClone(EXAMPLEITIS);
+  answers.search.diseaseTerms = ["twó", "one\u0085"];
+  answers.search.meshTerms = [];
+  const { fetch: fetchStub } = meshStub();
+  assertEquals(await checkHeadings(answers, fetchStub), "");
+  assertEquals(phrasesToCheck(answers.search), []);
+  assertEquals(issuesFor(validate(answers), "search"), []);
+  const html = renderToString(
+    <WizardContext.Provider value={wizardFor(answers, "search")}>
+      <SearchStep {...props(answers)} />
+    </WizardContext.Provider>,
+  );
+  assertStringIncludes(html, "&quot;twó&quot; → <strong>One</strong>");
+  assertStringIncludes(html, "&quot;one&quot; → <strong>One</strong>");
+  assertEquals(html.split('aria-label="Drop heading for ').length - 1, 2);
+  // What the page shows is what pipeline.json will hold.
+  assertEquals(meshHeadings(answers).map((m) => m.heading), ["One"]);
+});
+
+Deno.test("a gene whose ClinVar lookup failed says so, rather than listing no diseases", () => {
+  const monogenic = (answers: Answers) =>
+    renderToString(
+      <WizardContext.Provider value={wizardFor(answers, "monogenic")}>
+        <MonogenicStep {...props(answers)} />
+      </WizardContext.Provider>,
+    );
+  const results = (html: string) =>
+    html.split('class="adapt-lookup-result"').length - 1;
+  const answers = structuredClone(EXAMPLEITIS);
+  assertEquals(results(monogenic(answers)), 1);
+  answers.monogenic.genes[0].clinvarTraits = null;
+  const unread = monogenic(answers);
+  assertStringIncludes(unread, "ClinVar did not answer for this gene");
+  assertEquals(results(unread), 1);
+  // The step is no less complete for it: the diseases only pre-fill rows.
+  assertEquals(issuesFor(validate(answers), "monogenic"), []);
+  // A gene ClinVar attests nothing for is answered, and says nothing.
+  answers.monogenic.genes[0].clinvarTraits = [];
+  const none = monogenic(answers);
+  assert(!none.includes("ClinVar did not answer"));
+  assertEquals(results(none), 0);
+  // A list read from a sample says so on the row, for as long as it stands.
+  assert(!none.includes("a disease may be missing"));
+  answers.monogenic.genes[0].clinvarSample = { total: 612, read: 500 };
+  const sampled = monogenic(answers);
+  assertStringIncludes(
+    sampled,
+    "ClinVar holds 612 pathogenic records for GENEA and 500 were read",
+  );
+  assertEquals(results(sampled), 1);
+});
+
+Deno.test("a prompt section is marked required exactly when validate() asks for it", () => {
+  // With no monogenic gene the two sections naming one may stay empty, as
+  // their hints say; marked required they turned red once left, on a step
+  // validate() called complete.
+  const geneless = structuredClone(EXAMPLEITIS);
+  geneless.monogenic = { genes: [], aliases: [], omimRows: [] };
+  for (const answers of [EXAMPLEITIS, geneless]) {
+    const html = renderToString(
+      <WizardContext.Provider value={wizardFor(answers, "prompt")}>
+        <PromptStep {...props(answers)} />
+      </WizardContext.Provider>,
+    );
+    const asked = stepRequired(answers, "prompt");
+    const controls = [
+      ...html.matchAll(/<textarea[^>]*data-field="(sections\.[^"]+)"[^>]*>/g),
+    ];
+    assertEquals(controls.length, TYPED_SECTION_IDS.length);
+    for (const [tag, field] of controls) {
+      assertEquals(
+        tag.includes('aria-required="true"'),
+        asked.includes(field),
+        `${field} with ${answers.monogenic.genes.length} genes`,
+      );
+    }
+  }
 });

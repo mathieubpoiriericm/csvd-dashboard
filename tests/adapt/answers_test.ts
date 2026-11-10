@@ -41,6 +41,26 @@ Deno.test("every answer survives an export and its import, credentials included"
   assertEquals(importedAnswers(parseDraft(exported)!, MAXIMAL), MAXIMAL);
 });
 
+Deno.test("ClinVar diseases not read survive a round trip apart from none", () => {
+  // A failed ClinVar lookup leaves null, which the next check asks about
+  // again; read back as an empty list it would be an answer.
+  const draft = structuredClone(MAXIMAL);
+  draft.monogenic.genes = [
+    {
+      symbol: "GENEA",
+      verified: true,
+      clinvarTraits: null,
+      clinvarSample: null,
+    },
+    { symbol: "GENEB", verified: true, clinvarTraits: [], clinvarSample: null },
+  ];
+  assertEquals(parseDraft(serialiseDraft(draft)), draft);
+  assertEquals(
+    blankStep(draft, "monogenic").monogenic.genes.map((g) => g.clinvarTraits),
+    [null, []],
+  );
+});
+
 Deno.test("an unset confidence is written as null and read back as NaN", () => {
   const unset = structuredClone(MAXIMAL);
   unset.prompt.examples[0].confidence = NaN;
@@ -238,8 +258,14 @@ Deno.test("a draft is rebuilt field by field against the answers' shape", () => 
   assertEquals(parsed.vocabulary.traits[0].key, "T1");
   assertEquals(parsed.trials.conditionPairs, [["a", ""], ["c", "d"]]);
   assertEquals(parsed.trials.populationField, { label: "", detailsLabel: "" });
+  // No list of ClinVar diseases is one not read, not an empty one.
   assertEquals(parsed.monogenic.genes, [
-    { symbol: "GENEA", verified: null, clinvarTraits: [] },
+    {
+      symbol: "GENEA",
+      verified: null,
+      clinvarTraits: null,
+      clinvarSample: null,
+    },
   ]);
   assertEquals(parsed.prompt.sections, { "persona.specificity": "text" });
   const [example] = parsed.prompt.examples;
@@ -262,6 +288,22 @@ Deno.test("blankStep empties one step and keeps its lists' lengths", () => {
   assertEquals(vocabulary.vocabulary.traits[0].standard, false);
 });
 
+Deno.test("blankStep takes a logo for one by its place, not by its fields", () => {
+  // The sections keep any id a draft holds, so one named like a logo's
+  // field is a section still: read as a logo, the whole record went null
+  // and validate() threw reading a section off it.
+  const draft = structuredClone(EXAMPLEITIS);
+  draft.prompt.sections.base64 = "x";
+  draft.identity.logoDark = { name: "logo-dark.svg", base64: "PHN2Zy8+" };
+  const reloaded = parseDraft(serialiseDraft(draft))!;
+  assertEquals(reloaded.prompt.sections.base64, "x");
+  const sections = blankStep(reloaded, "prompt").prompt.sections;
+  assertEquals(sections.base64, "");
+  assertEquals(sections["persona.specificity"], "");
+  const identity = blankStep(reloaded, "identity").identity;
+  assertEquals([identity.logoLight, identity.logoDark], [null, null]);
+});
+
 // Every path NULLED names, by the full step-relative path a bare leaf key
 // cannot tell apart from an ordinary text field (identity.site.title and
 // .heading share their key with gold's rows.title and search's
@@ -276,7 +318,8 @@ Deno.test("blankStep nulls every lookup result, by its full path", () => {
   assertEquals(trials.trials.searchTerms[0].count, null);
   const monogenic = blankStep(EXAMPLEITIS, "monogenic");
   assertEquals(monogenic.monogenic.genes[0].verified, null);
-  assertEquals(monogenic.monogenic.genes[0].clinvarTraits[0].omim, null);
+  assertEquals(monogenic.monogenic.genes[0].clinvarTraits?.[0].omim, null);
+  assertEquals(monogenic.monogenic.genes[0].clinvarTraits?.length, 1);
   const gold = blankStep(EXAMPLEITIS, "gold");
   assertEquals(gold.gold.rows[0].title, null);
   assertEquals(gold.gold.rows[0].exists, null);

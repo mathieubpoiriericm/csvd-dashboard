@@ -12,6 +12,7 @@ import {
 } from "../../../lib/adapt/edits.ts";
 import { olsSearch } from "../../../lib/adapt/lookups.ts";
 import { FAMILY_PALETTE } from "../../../lib/adapt/palette.ts";
+import { symbolFinder } from "../../../lib/adapt/validate.ts";
 import { familyOptions } from "./helpers.ts";
 import type { StepProps } from "./types.ts";
 
@@ -49,7 +50,7 @@ export async function lookupXref(
       outcome = `The trait changed while "${name}" was searched; search again.`;
       return;
     }
-    const answer = xrefAnswer(name, hits.value);
+    const answer = xrefAnswer(name, hits.value, symbolFinder(latest()));
     if (
       replacesChoice(now, answer) &&
       !globalThis.confirm(

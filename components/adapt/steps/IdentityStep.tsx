@@ -26,7 +26,7 @@ const DISEASE_FIELDS = [
   [
     "key",
     "Key",
-    "One lower-case word; names the database and the deploy project, e.g. examplosis.",
+    "One lower-case word; names the database and the Fly app, e.g. examplosis.",
   ],
 ] as const;
 

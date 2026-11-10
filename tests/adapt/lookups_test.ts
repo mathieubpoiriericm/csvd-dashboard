@@ -13,6 +13,7 @@ import {
   pubmedAbstract,
   pubmedCount,
   pubmedSummaries,
+  sampleNote,
   type Timing,
 } from "../../lib/adapt/lookups.ts";
 
@@ -371,6 +372,52 @@ Deno.test("meshLookup prefers an exact entry term, then the tightest containing 
   assertEquals(await heading(first, "example lesion"), null);
 });
 
+Deno.test("meshLookup takes a containing entry term only for whole words of a phrase of several", async () => {
+  // An abbreviation PubMed maps to nothing sits inside a compound's code
+  // and beside other words in unrelated headings, as the live hits for a
+  // two-letter one do: holding it is no sign that a heading names it, and
+  // the shortest such term once won.
+  const abbreviation = mesh([
+    { id: "1", type: "descriptor", terms: ["Examplamycin", "XQ54", "XQ 54"] },
+    { id: "2", type: "descriptor", terms: ["Example Spectrometry", "LC-XQ"] },
+    { id: "3", type: "descriptor", terms: ["Example Paraplegia", "XQ with Y"] },
+  ]);
+  assertEquals(await heading(abbreviation, "XQ"), null);
+  // One word is still answered by the heading that has it as an entry term.
+  const named = mesh([
+    { id: "1", type: "descriptor", terms: ["Examplamycin", "XQ54"] },
+    { id: "2", type: "descriptor", terms: ["Example Sclerosis", "XQ"] },
+  ]);
+  assertEquals(await heading(named, " xq "), "Example Sclerosis");
+  // Two words are enough to go on, however they are joined, but only as
+  // words of their own: not inside a longer one at either end.
+  const longer = [
+    { id: "1", type: "descriptor", terms: ["Other Compound", "XQ-545"] },
+    { id: "2", type: "descriptor", terms: ["Other Receptor", "AXQ-54"] },
+  ];
+  assertEquals(await heading(mesh(longer), "xq-54"), null);
+  const code = mesh([
+    ...longer,
+    {
+      id: "3",
+      type: "descriptor",
+      terms: ["Example Antibodies", "Anti-XQ-54"],
+    },
+    { id: "4", type: "descriptor", terms: ["Example Receptor", "XQ-54 (A)"] },
+  ]);
+  assertEquals(await heading(code, "XQ-54"), "Example Receptor");
+  // The phrase is matched as written, whatever characters it holds.
+  const written = mesh([
+    { id: "1", type: "descriptor", terms: ["First", "Example Lesion AAB"] },
+    {
+      id: "2",
+      type: "descriptor",
+      terms: ["Second", "Example Lesion (A+B), X"],
+    },
+  ]);
+  assertEquals(await heading(written, "example lesion (a+b)"), "Second");
+});
+
 Deno.test("meshLookup reads a supplementary concept as no heading", async () => {
   // A supplementary record is no heading "[MeSH Terms]" can search: a
   // query built on one retrieves nothing.
@@ -431,12 +478,48 @@ Deno.test("olsSearch lists obo ids and labels", async () => {
   });
   assertEquals(
     f.urls[0],
-    "https://www.ebi.ac.uk/ols4/api/search?q=trait&ontology=efo%2Chp%2Cmondo&rows=5",
+    "https://www.ebi.ac.uk/ols4/api/search?q=trait&ontology=efo%2Chp%2Cmondo&rows=15",
   );
   assertEquals(
     (await olsSearch(fake([["ols4", { response: {} }]]), "t")).ok,
     false,
   );
+});
+
+Deno.test("olsSearch lists a term once, however many ontologies hold it", async () => {
+  // OLS4 answers with one doc per ontology holding a term, and EFO and
+  // MONDO import HP's and each other's: the live top rows for a common
+  // trait are one id from hp, efo and mondo. Listed three times, the top
+  // hit was written into the note as two of its own alternatives.
+  const doc = (obo_id: string, ontology_name: string) => ({
+    obo_id,
+    label: `Term ${obo_id}`,
+    ontology_name,
+  });
+  const f = fake([["ols4/api/search", {
+    response: {
+      docs: [
+        doc("HP:1", "hp"),
+        doc("HP:1", "efo"),
+        doc("HP:1", "mondo"),
+        doc("HP:2", "hp"),
+        doc("MONDO:3", "mondo"),
+        doc("MONDO:3", "efo"),
+        doc("EFO:4", "efo"),
+        doc("HP:5", "hp"),
+        doc("HP:6", "hp"),
+        doc("HP:7", "hp"),
+      ],
+    },
+  }]]);
+  // Five distinct terms, in OLS4's order, with the top hit still first.
+  assertEquals(await olsSearch(f, "trait"), {
+    ok: true,
+    value: ["HP:1", "HP:2", "MONDO:3", "EFO:4", "HP:5"].map((id) => ({
+      id,
+      label: `Term ${id}`,
+    })),
+  });
 });
 
 Deno.test("ctgovCount and ctgovSample read the v2 shapes", async () => {
@@ -649,7 +732,7 @@ Deno.test("clinvarTraits collects distinct named traits with their OMIM ids", as
     f.urls[0],
     "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi" +
       "?db=clinvar&term=GENEA%5Bgene%5D+AND+%22clinsig+pathogenic%22" +
-      "%5BProperties%5D&retmode=json&retmax=200",
+      "%5BProperties%5D&retmode=json&retmax=500",
   );
   assertEquals(
     await clinvarTraits(
@@ -724,6 +807,147 @@ Deno.test("clinvarTraits takes an OMIM id only from an xref that carries one", a
       { name: "Syndrome two", omim: null },
       { name: "Syndrome three", omim: "100003" },
     ],
+  });
+});
+
+Deno.test("clinvarTraits reads an OMIM phenotypic series as no OMIM number", async () => {
+  // ClinVar files a phenotypic series under OMIM too, as "PS" and six
+  // digits: a group of entries, which the OMIM table cannot hold. Offered
+  // as the number, it was refused by validate() once the row was added.
+  const germline = (traitSet: unknown) => ({
+    genes: [{ symbol: "G" }],
+    germline_classification: { trait_set: traitSet },
+  });
+  const omim = (db_id: string) => ({ db_source: "OMIM", db_id });
+  const f = fake([
+    ["db=clinvar&term=", { esearchresult: { idlist: ["1", "2"] } }],
+    ["db=clinvar&id=", {
+      result: {
+        "1": germline([
+          // Only a series: still a disease, with no number of its own.
+          { trait_name: "Series only", trait_xrefs: [omim("PS100000")] },
+          // The entry is taken wherever it stands beside the series.
+          {
+            trait_name: "Series first",
+            trait_xrefs: [omim("PS100000"), omim("100004")],
+          },
+          { trait_name: "Series, then an entry", trait_xrefs: [omim("PS1")] },
+        ]),
+        "2": germline([{
+          trait_name: "Series, then an entry",
+          trait_xrefs: [omim("100005")],
+        }]),
+      },
+    }],
+  ]);
+  assertEquals(await clinvarTraits(f, "G", AUTH), {
+    ok: true,
+    value: [
+      { name: "Series only", omim: null },
+      { name: "Series first", omim: "100004" },
+      { name: "Series, then an entry", omim: "100005" },
+    ],
+  });
+});
+
+/**
+ * ClinVar holding `total` pathogenic records of GENEA and listing the
+ * first `listed`, each esummary answered for the ids it asked about with
+ * the trait `traitOf` gives a record, or not at all when `broken` says so.
+ */
+function clinvar(
+  total: number,
+  listed: number,
+  traitOf: (id: number) => string,
+  broken: (ids: string[]) => boolean = () => false,
+): Fetch & { urls: string[]; batches: string[][] } {
+  const urls: string[] = [];
+  const batches: string[][] = [];
+  const f = ((input: string | URL | Request) => {
+    urls.push(String(input));
+    const asked = new URL(String(input)).searchParams.get("id");
+    if (asked === null) {
+      return Promise.resolve(Response.json({
+        esearchresult: {
+          count: String(total),
+          idlist: Array.from({ length: listed }, (_, i) => String(i + 1)),
+        },
+      }));
+    }
+    const ids = asked.split(",");
+    batches.push(ids);
+    if (broken(ids)) return Promise.resolve(new Response("", { status: 500 }));
+    return Promise.resolve(Response.json({
+      result: Object.fromEntries(ids.map((id) => [id, {
+        genes: [{ symbol: "GENEA" }],
+        germline_classification: {
+          trait_set: [{
+            trait_name: traitOf(Number(id)),
+            trait_xrefs: [{ db_source: "MONDO", db_id: "MONDO:1" }],
+          }],
+        },
+      }])),
+    }));
+  }) as unknown as Fetch & { urls: string[]; batches: string[][] };
+  f.urls = urls;
+  f.batches = batches;
+  return f;
+}
+
+Deno.test("clinvarTraits reads every record up to the pipeline's 500, 200 to a request", async () => {
+  // The repository's own largest gene has 247 pathogenic records. Reading
+  // the first 200 alone dropped four of its ten diseases, with no sign of it.
+  const late = (id: number) => id > 200 ? "Late syndrome" : "Common syndrome";
+  const f = clinvar(247, 247, late);
+  assertEquals(await clinvarTraits(f, "GENEA", AUTH), {
+    ok: true,
+    value: [
+      { name: "Common syndrome", omim: null },
+      { name: "Late syndrome", omim: null },
+    ],
+  });
+  assertEquals(f.urls.length, 3);
+  assertEquals(f.urls[0].includes("&retmax=500"), true);
+  assertEquals(f.batches.map((ids) => [ids[0], ids.at(-1), ids.length]), [
+    ["1", "200", 200],
+    ["201", "247", 47],
+  ]);
+  // A batch that fails fails the gene, as the pipeline has it: the traits
+  // of the others are not a list to offer as the gene's.
+  const second = clinvar(247, 247, late, (ids) => ids[0] === "201");
+  assertEquals(await clinvarTraits(second, "GENEA", AUTH), {
+    ok: false,
+    error: "500 from eutils.ncbi.nlm.nih.gov",
+  });
+  const first = clinvar(247, 247, late, (ids) => ids[0] === "1");
+  assertEquals((await clinvarTraits(first, "GENEA", AUTH)).ok, false);
+  assertEquals(first.batches.length, 1);
+});
+
+Deno.test("clinvarTraits says when a gene has more records than were read", async () => {
+  const f = clinvar(612, 500, (id) => `Syndrome ${Math.ceil(id / 200)}`);
+  const found = await clinvarTraits(f, "GENEA", AUTH);
+  assertEquals(found, {
+    ok: true,
+    value: [1, 2, 3].map((n) => ({ name: `Syndrome ${n}`, omim: null })),
+    sample: { total: 612, read: 500 },
+  });
+  assertEquals(f.batches.map((ids) => ids.length), [200, 200, 100]);
+  assertEquals(
+    sampleNote("GENEA", { total: 612, read: 500 }),
+    "ClinVar holds 612 pathogenic records for GENEA and 500 were read, " +
+      "so a disease may be missing from its list.",
+  );
+  // A census is not a sample, and neither is a reply with no count to
+  // compare: every other answer in this file is one of those.
+  assertEquals(
+    "sample" in await clinvarTraits(clinvar(500, 500, String), "GENEA", AUTH),
+    false,
+  );
+  // A gene with no record to read is an empty list, whatever its count.
+  assertEquals(await clinvarTraits(clinvar(3, 0, String), "GENEA", AUTH), {
+    ok: true,
+    value: [],
   });
 });
 

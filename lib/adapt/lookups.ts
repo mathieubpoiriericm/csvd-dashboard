@@ -8,6 +8,7 @@
  */
 
 import type { MeshChoice } from "./answers.ts";
+import { MIM } from "./validate.ts";
 
 export type Fetch = typeof fetch;
 export type Result<T> = { ok: true; value: T } | { ok: false; error: string };
@@ -253,14 +254,18 @@ async function esearch(
     : fail("no idlist in the response");
 }
 
+/**
+ * A count as esearch writes one, or null. Number() reads "", " ", "0x10"
+ * and "1e3" as numbers too.
+ */
+const digits = (raw: unknown): number | null =>
+  typeof raw === "string" && /^\d+$/.test(raw) ? Number(raw) : null;
+
 function countOf(body: Record<string, unknown>): Result<number> {
   const found = searched(body);
   if (!found.ok) return found;
-  // Number() reads "", " ", "0x10" and "1e3" as numbers too.
-  const raw = found.value.count;
-  return typeof raw === "string" && /^\d+$/.test(raw)
-    ? ok(Number(raw))
-    : fail("no count in the response");
+  const count = digits(found.value.count);
+  return count === null ? fail("no count in the response") : ok(count);
 }
 
 const GREEK: Record<string, string> = {
@@ -358,6 +363,29 @@ async function descriptorsOf(
 }
 
 /**
+ * Whether an entry term holds `phrase`, folded as norm leaves it, as words
+ * of its own.
+ *
+ * Holding the phrase is the weakest sign that a heading names it, and for
+ * one word -- one run of letters and digits -- it is none: an abbreviation
+ * PubMed maps to nothing sits inside a compound's code and beside other
+ * words in headings that have nothing to do with it, and the shortest of
+ * those terms was the answer. So a phrase of one word is held by no term,
+ * and a longer one only where no letter or digit touches either end of it.
+ */
+function holder(phrase: string): (term: string) => boolean {
+  if (!/[\p{L}\p{N}][^\p{L}\p{N}]+[\p{L}\p{N}]/u.test(phrase)) {
+    return () => false;
+  }
+  const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const whole = new RegExp(
+    `(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`,
+    "u",
+  );
+  return (term) => whole.test(norm(term));
+}
+
+/**
  * The MeSH heading a phrase names, with its scope note, or null when MeSH
  * has none for it.
  *
@@ -368,7 +396,7 @@ async function descriptorsOf(
  * therefore looked up directly, one more search per mapped term. Without a
  * mapping, a page of 200 hits is summarised, and among its descriptors the
  * answer is the one with the phrase as an entry term, else the one whose
- * shortest entry term containing the phrase is shortest; with none of
+ * shortest entry term holding the phrase (holder) is shortest; with none of
  * those, MeSH has no heading for it. Only a descriptor can be the answer: a
  * supplementary concept is no heading `[MeSH Terms]` can search, and a
  * query built on one retrieves nothing.
@@ -420,10 +448,9 @@ export async function meshLookup(
   }
   const hits = await descriptorsOf(f, search.value.ids, auth, timing);
   if (!hits.ok) return hits;
+  const holds = holder(wanted);
   const containing = (terms: string[]) =>
-    Math.min(
-      ...terms.filter((t) => norm(t).includes(wanted)).map((t) => t.length),
-    );
+    Math.min(...terms.filter(holds).map((t) => t.length));
   return answer(
     hits.value.find((d) => d.terms.some((t) => norm(t) === wanted)) ??
       hits.value
@@ -484,6 +511,18 @@ export async function meshRow(
   });
 }
 
+const OLS_ONTOLOGIES = ["efo", "hp", "mondo"];
+const OLS_HITS = 5;
+
+/**
+ * The first five terms OLS4 finds for a name, best first.
+ *
+ * OLS4 answers with one doc per ontology that holds a term, and the three
+ * searched import each other's: a term can come back three times, so three
+ * rows are asked for per term kept and each id is listed once, where OLS4
+ * first ranks it. Listed as often as it came, the top hit was written into
+ * the trait's note as its own alternatives and crowded the others out.
+ */
 export async function olsSearch(
   f: Fetch,
   name: string,
@@ -491,19 +530,22 @@ export async function olsSearch(
 ): Promise<Result<Array<{ id: string; label: string }>>> {
   const query = new URLSearchParams({
     q: name.trim(),
-    ontology: "efo,hp,mondo",
-    rows: "5",
+    ontology: OLS_ONTOLOGIES.join(","),
+    rows: String(OLS_HITS * OLS_ONTOLOGIES.length),
   });
   const body = await getJson(f, `${OLS}?${query}`, timing);
   if (!body.ok) return body;
   const docs = rec(body.value.response).docs;
   if (!Array.isArray(docs)) return fail("no docs in the response");
-  return ok(docs.flatMap((doc) => {
+  const hits = new Map<string, string>();
+  for (const doc of docs) {
     const { obo_id, label } = rec(doc);
-    return typeof obo_id === "string" && typeof label === "string"
-      ? [{ id: obo_id, label }]
-      : [];
-  }));
+    if (typeof obo_id !== "string" || typeof label !== "string") continue;
+    if (!hits.has(obo_id)) hits.set(obo_id, label);
+  }
+  return ok(
+    [...hits].slice(0, OLS_HITS).map(([id, label]) => ({ id, label })),
+  );
 }
 
 export async function ctgovCount(
@@ -634,6 +676,26 @@ const CNV_VARIANT_TYPES = new Set(["copy number gain", "copy number loss"]);
 const MAX_RECORD_GENES = 5;
 const MAX_OVERLAP_SPAN = 1_000;
 const DISEASE_SOURCES = new Set(["omim", "mondo", "orphanet"]);
+// How many records are read, and how many a request summarises:
+// clinvar_max_records in pipeline/config.py -- twice the largest gene
+// measured there, so the list is normally a census -- and _ESUMMARY_BATCH.
+// Read 200 at most, a gene with 247 records lost four of its ten diseases.
+const CLINVAR_MAX_RECORDS = 500;
+const ESUMMARY_BATCH = 200;
+
+/** The records an answer was read from, of the total the gene has. */
+export interface ClinvarSample {
+  total: number;
+  read: number;
+}
+
+/**
+ * A gene's diseases. `sample` is there only when ClinVar holds more
+ * records than were read, so the list may be short of the gene's own.
+ */
+export type ClinvarTraits =
+  & Result<Array<{ name: string; omim: string | null }>>
+  & { sample?: ClinvarSample };
 
 /** The widest interval a record's variants cover, in bases; 0 unplaced. */
 function recordSpan(variations: Array<Record<string, unknown>>): number {
@@ -694,14 +756,18 @@ function xrefId(value: unknown): string | null {
  * trait counts only when it carries an OMIM, MONDO or Orphanet identifier,
  * which is what drops "not provided", "not specified" and "See cases" with
  * no list of placeholder names. The rules are the pipeline's, so the
- * wizard offers what --sync-annotations would publish.
+ * wizard offers what --sync-annotations would publish: as many records at
+ * most, summarised a batch at a time, and a batch that fails fails the
+ * gene rather than leaving the others' traits to pass for all of them. A
+ * gene with more records than that is answered with `sample`, which the
+ * step reports.
  */
 export async function clinvarTraits(
   f: Fetch,
   symbol: string,
   auth: NcbiAuth,
   timing: Timing = REAL,
-): Promise<Result<Array<{ name: string; omim: string | null }>>> {
+): Promise<ClinvarTraits> {
   const wanted = symbol.trim();
   const search = await esearch(
     f,
@@ -709,7 +775,7 @@ export async function clinvarTraits(
       db: "clinvar",
       term: `${wanted}[gene] AND "clinsig pathogenic"[Properties]`,
       retmode: "json",
-      retmax: "200",
+      retmax: String(CLINVAR_MAX_RECORDS),
     },
     auth,
     timing,
@@ -717,23 +783,27 @@ export async function clinvarTraits(
   if (!search.ok) return search;
   const { ids } = search.value;
   if (ids.length === 0) return ok([]);
-  const summary = await getJson(
-    f,
-    ncbiUrl("esummary.fcgi", {
-      db: "clinvar",
-      id: ids.join(","),
-      retmode: "json",
-    }, auth),
-    timing,
-  );
-  if (!summary.ok) return summary;
-  if (summary.value.result === undefined) {
-    return fail("no result in the response");
+  const records: Array<Record<string, unknown>> = [];
+  for (let start = 0; start < ids.length; start += ESUMMARY_BATCH) {
+    const batch = ids.slice(start, start + ESUMMARY_BATCH);
+    const summary = await getJson(
+      f,
+      ncbiUrl("esummary.fcgi", {
+        db: "clinvar",
+        id: batch.join(","),
+        retmode: "json",
+      }, auth),
+      timing,
+    );
+    if (!summary.ok) return summary;
+    if (summary.value.result === undefined) {
+      return fail("no result in the response");
+    }
+    const result = rec(summary.value.result);
+    records.push(...batch.map((id) => rec(result[id])));
   }
-  const result = rec(summary.value.result);
   const traits = new Map<string, string | null>();
-  for (const id of ids) {
-    const record = rec(result[id]);
+  for (const record of records) {
     if (!describesGene(record, wanted)) continue;
     // ClinVar files a record's traits under each of its classifications;
     // the germline one names the inherited conditions. A top-level
@@ -751,15 +821,33 @@ export async function clinvarTraits(
         return id === null ? [] : [{ source, id }];
       });
       if (!xrefs.some((xref) => DISEASE_SOURCES.has(xref.source))) continue;
-      const omim = xrefs.find((xref) => xref.source === "omim")?.id ?? null;
+      // ClinVar files a phenotypic series ("PS" and six digits) under OMIM
+      // beside the entries: a group of phenotypes, which the OMIM table
+      // refuses and pipeline/xrefs.py publishes as a broader concept. Only
+      // an entry is the trait's number, wherever it stands among them.
+      const omim = xrefs.find((xref) =>
+        xref.source === "omim" && MIM.test(xref.id)
+      )?.id ?? null;
       const existing = traits.get(trait_name);
       if (existing === undefined || existing === null) {
         traits.set(trait_name, omim);
       }
     }
   }
-  return ok([...traits].map(([name, omim]) => ({ name, omim })));
+  const value = [...traits].map(([name, omim]) => ({ name, omim }));
+  const total = digits(search.value.found.count);
+  return total !== null && total > ids.length
+    ? { ok: true, value, sample: { total, read: ids.length } }
+    : ok(value);
 }
+
+/** What the step says of a gene whose list was read from a sample. */
+export const sampleNote = (
+  symbol: string,
+  { total, read }: ClinvarSample,
+): string =>
+  `ClinVar holds ${total} pathogenic records for ${symbol} and ${read} were ` +
+  "read, so a disease may be missing from its list.";
 
 /**
  * efetch prints an abstract for an 80-column terminal: a line break inside
