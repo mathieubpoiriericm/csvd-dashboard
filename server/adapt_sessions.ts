@@ -63,7 +63,8 @@ export type LoadResult = (SessionMeta & { text: string }) | {
 };
 /**
  * The copy a save was made over, as the browser last saw it. `savedAt` is
- * absent from a page loaded before the browser sent it.
+ * optional only because a request may omit it; save() treats one that does
+ * as a conflict whenever a file exists.
  */
 export interface SaveBase {
   revision: number;
@@ -223,7 +224,11 @@ class FileSessionStore implements SessionStore {
       } else if (stored.kind === "valid" && !this.#expired(stored, savedAt)) {
         // Both must match. A revival restarts the revision at 1, so after
         // one a browser still holding the old copy's revision can meet the
-        // same number again; the time it was saved it cannot.
+        // same number again; the time it was saved it cannot. A save with no
+        // savedAt is therefore a conflict whenever a file exists. No deployed
+        // page predates savedAt (sessions first shipped with it), so that
+        // refuses only a hand-made request; falling back to the revision
+        // alone would reopen the overwrite this check exists to stop.
         if (
           !force &&
           (base.revision !== stored.revision ||
@@ -353,29 +358,36 @@ class FileSessionStore implements SessionStore {
    * session always passes. The sizes come from stat, so nothing is read.
    */
   async #full(name: string, body: string, adds: boolean): Promise<boolean> {
-    let count = 0;
-    let total = 0;
-    let own = 0;
+    const names: string[] = [];
     try {
       for await (const entry of Deno.readDir(this.#dir)) {
-        if (!entry.isFile || !SESSION_FILE.test(entry.name)) continue;
-        count++;
-        let size: number;
-        try {
-          size = (await Deno.stat(`${this.#dir}/${entry.name}`)).size;
-        } catch {
-          // Removed by a sweep since the listing: it holds nothing now.
-          continue;
+        if (entry.isFile && SESSION_FILE.test(entry.name)) {
+          names.push(entry.name);
         }
-        total += size;
-        if (entry.name === name) own = size;
       }
     } catch {
       // A directory that cannot be listed will not take the write either,
       // and the write reports that as "failed".
       return false;
     }
-    if (adds && count >= this.#cap) return true;
+    // Every save runs this, so the stats go out together rather than one
+    // after another. The directory stays the only source of the total: a
+    // running count kept in memory would drift from files removed by hand.
+    const sizes = await Promise.all(names.map(async (entry) => {
+      try {
+        return (await Deno.stat(`${this.#dir}/${entry}`)).size;
+      } catch {
+        // Removed by a sweep since the listing: it holds nothing now.
+        return 0;
+      }
+    }));
+    let total = 0;
+    let own = 0;
+    names.forEach((entry, i) => {
+      total += sizes[i];
+      if (entry === name) own = sizes[i];
+    });
+    if (adds && names.length >= this.#cap) return true;
     const after = total - own + new TextEncoder().encode(body).byteLength;
     return after > this.#budget && after > total;
   }

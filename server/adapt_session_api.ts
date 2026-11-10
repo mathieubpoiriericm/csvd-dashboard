@@ -27,6 +27,12 @@ export const CREATED_HEADER = "X-Adapt-Session";
  * the browser and so never reaches the server: each request here is held
  * several times over while it is parsed, on a machine that serves the whole
  * dashboard, and every byte of it may end up on the session volume.
+ *
+ * The gap between the two limits is deliberate, not an oversight: the volume
+ * is 1 GB shared by every session, so a draft imported at between 4 and
+ * 8 MB is not saved, and its holder is told it is "too large to save as a
+ * session" and to use Export answers (lib/adapt/session.ts) rather than the
+ * save failing silently.
  */
 export const SESSION_BODY_LIMIT = 4_000_000;
 const NOT_A_REQUEST = "That request is not one this page sends.";
