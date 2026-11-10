@@ -172,7 +172,11 @@ function draftOf(answers: Answers): Answers {
  * file: it is the one island with nothing of the dataset in it.
  */
 export default function AdaptWizard(
-  { sessions = false }: { sessions?: boolean },
+  { sessions = false, sessionsMachine = null }: {
+    sessions?: boolean;
+    /** The machine holding the sessions, when the server names one. */
+    sessionsMachine?: string | null;
+  },
 ) {
   const [answers, setAnswers] = useState<Answers>(EMPTY_ANSWERS);
   // The saved session: every decision is sessionReducer's, and this island
@@ -182,10 +186,15 @@ export default function AdaptWizard(
   const sessionRef = useRef(session);
   sessionRef.current = session;
   // The session routes are this server's, not NCBI's, so they take the
-  // plain fetch rather than the spaced one.
+  // plain fetch rather than the spaced one, and name the machine holding the
+  // sessions when the page says one does.
   const client = useMemo(
-    () => sessionClient((input, init) => globalThis.fetch(input, init)),
-    [],
+    () =>
+      sessionClient(
+        (input, init) => globalThis.fetch(input, init),
+        sessionsMachine,
+      ),
+    [sessionsMachine],
   );
   // The link in storage. Off, its key is never read or written. Reaching
   // `localStorage` at all can throw where storage is blocked, and the link
@@ -963,6 +972,8 @@ export default function AdaptWizard(
         ref={root}
         disabled={!ready}
         data-sessions={sessions ? "on" : "off"}
+        // Read by the deploy smoke test; absent while no machine is named.
+        data-sessions-machine={sessionsMachine ?? undefined}
         onInput={(e) => {
           const field = (e.target as HTMLElement).dataset?.field;
           if (field !== undefined && step !== null) {

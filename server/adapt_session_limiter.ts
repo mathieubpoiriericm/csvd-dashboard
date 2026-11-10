@@ -7,6 +7,7 @@
 import type { Middleware } from "fresh";
 
 import { CREATED_HEADER } from "./adapt_session_api.ts";
+import { REPLAY_HEADER } from "./adapt_session_holder.ts";
 import {
   AttemptLedger,
   type LoginPostLimiterOptions,
@@ -125,9 +126,15 @@ export function adaptSessionLimiter<State>(
       throw error;
     }
 
+    // A request handed over to the machine holding the sessions is counted
+    // there, when the proxy replays it; counting it here as well would spend
+    // the client's budget twice.
+    const handedOver = response.headers.has(REPLAY_HEADER);
     reservation.settle(
-      response.headers.get(CREATED_HEADER) === "created" ||
-        (operation === "resume" && response.status === 404)
+      !handedOver && (
+          response.headers.get(CREATED_HEADER) === "created" ||
+          (operation === "resume" && response.status === 404)
+        )
         ? "auth-failure"
         : "other",
     );

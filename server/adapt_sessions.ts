@@ -9,12 +9,15 @@
  * exportText(), which blanks the NCBI email and API key whatever a client
  * sent.
  *
- * One machine is the deployment rule (fly.toml), so read-check-write is
- * serialised per file by an in-process promise chain rather than a file
- * lock, and every write is atomic: a temporary file, then a rename.
+ * One machine holds the sessions -- the only one today (fly.toml), or the one
+ * ADAPT_SESSIONS_MACHINE names (server/adapt_session_holder.ts) -- so
+ * read-check-write is serialised per file by an in-process promise chain
+ * rather than a file lock, and every write is atomic: a temporary file, then
+ * a rename.
  */
 
 import { exportText, parseExport } from "../lib/adapt/bundle.ts";
+import { sessionHolder } from "./adapt_session_holder.ts";
 import {
   generateCode,
   normaliseCode,
@@ -400,8 +403,16 @@ export function openSessionStore(
 
 let processStore: { store: SessionStore | null } | undefined;
 
-/** The process's store, opened once from the environment. */
+/**
+ * The process's store, opened once from the environment, and only on the
+ * machine that holds the sessions: any other one leaves the directory
+ * untouched, since its volume is not where the sessions live.
+ */
 export function sessionStore(): SessionStore | null {
+  if (processStore === undefined && sessionHolder().kind === "elsewhere") {
+    console.info("Adapt sessions are held by another machine.");
+    processStore = { store: null };
+  }
   if (processStore === undefined) {
     const dir = Deno.env.get(SESSIONS_DIR_VAR);
     const opened = open(dir, {});

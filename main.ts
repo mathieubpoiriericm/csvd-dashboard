@@ -1,5 +1,6 @@
 import { App, staticFiles } from "fresh";
 
+import { sessionHolder } from "./server/adapt_session_holder.ts";
 import {
   adaptSessionLimiter,
   SESSION_LIMIT_VAR,
@@ -51,4 +52,7 @@ app.use(adaptSessionLimiter({
   // Unset everywhere but the e2e server, whose workers share one address.
   perClientLimit: sessionLimitFromEnv(Deno.env.get(SESSION_LIMIT_VAR)),
 }));
+// Read now, so a malformed ADAPT_SESSIONS_MACHINE stops the start instead of
+// failing the first visitor's request (server/adapt_session_holder.ts).
+sessionHolder();
 app.fsRoutes();

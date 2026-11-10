@@ -4,6 +4,7 @@ import { type Answers, EMPTY_ANSWERS } from "../../lib/adapt/answers.ts";
 import { exportText } from "../../lib/adapt/bundle.ts";
 import type { Store } from "../../lib/adapt/draft_storage.ts";
 import {
+  FORCE_INSTANCE_HEADER,
   formatClock,
   formatDay,
   keptUntil,
@@ -89,14 +90,23 @@ interface Call {
   init: RequestInit;
 }
 
-function stub(respond: () => Response | object | Error) {
+function stub(
+  respond: () => Response | object | Error,
+  machine?: string | null,
+) {
   const calls: Call[] = [];
   const fetch = ((url: string, init: RequestInit) => {
     calls.push({ url, init });
     const out = respond();
     return out instanceof Error ? Promise.reject(out) : Promise.resolve(out);
   }) as unknown as typeof globalThis.fetch;
-  return { calls, client: sessionClient(fetch) };
+  return {
+    calls,
+    // The one-argument call is the one every caller made before machines.
+    client: machine === undefined
+      ? sessionClient(fetch)
+      : sessionClient(fetch, machine),
+  };
 }
 
 const json = (status: number, body: unknown) =>
@@ -235,6 +245,17 @@ Deno.test("failures map to a reason and a message", async () => {
     [() => json(429, {}), "limited", SESSION_COPY.limited],
     [() => json(503, { error: "full" }), "full", SESSION_COPY.full],
     [() => json(503, { error: "failed" }), "failed", SESSION_COPY.failed],
+    // A hand-over to the holding machine that nothing consumed: off Fly's
+    // proxy, or a save above the 1 MB it replays.
+    [
+      () =>
+        new Response(JSON.stringify({ error: "failed" }), {
+          status: 503,
+          headers: { "fly-replay": "instance=abc123def" },
+        }),
+      "failed",
+      SESSION_COPY.failed,
+    ],
     [
       () => json(413, { error: "too-large" }),
       "too-large",
@@ -272,6 +293,41 @@ Deno.test("failures map to a reason and a message", async () => {
     const result = await client.save(link, EXAMPLEITIS, false);
     assert(!result.ok);
     assertEquals([result.reason, result.message], [reason, message]);
+  }
+});
+
+/** Every request a client makes: a create, a save and a resume. */
+async function everyRequest(machine?: string | null): Promise<Call[]> {
+  const { calls, client } = stub(() => json(500, {}), machine);
+  await client.create(EXAMPLEITIS);
+  await client.save(link, EXAMPLEITIS, false);
+  await client.resume(CODE, EMPTY_ANSWERS);
+  assertEquals(calls.length, 3);
+  return calls;
+}
+
+const headersOf = (call: Call) => call.init.headers as Record<string, string>;
+
+Deno.test("a named machine is forced on every request", async () => {
+  assertEquals(FORCE_INSTANCE_HEADER, "fly-force-instance-id");
+  for (const call of await everyRequest("abc123def")) {
+    assertEquals(headersOf(call), {
+      "Content-Type": "application/json",
+      [FORCE_INSTANCE_HEADER]: "abc123def",
+    }, call.url);
+    assertEquals(call.init.redirect, "manual");
+  }
+});
+
+Deno.test("without a machine no request forces one", async () => {
+  for (const machine of [undefined, null, ""]) {
+    for (const call of await everyRequest(machine)) {
+      assertEquals(
+        headersOf(call),
+        { "Content-Type": "application/json" },
+        `${machine} ${call.url}`,
+      );
+    }
   }
 });
 

@@ -25,6 +25,16 @@ import {
 export const SESSION_KEY = "svd-adapt-session";
 
 /**
+ * The request header that sends a session request to the one machine holding
+ * the sessions, when the page names one. Fly's documentation
+ * (https://docs.fly.io/networking/dynamic-request-routing, read 2026-11-10)
+ * says of it: "Forces routing to a specific Machine." and "No fallback if
+ * Machine is ultimately unavailable." It lives here, not in server/, because
+ * this module goes into a data-free island; the server imports it from here.
+ */
+export const FORCE_INSTANCE_HEADER = "fly-force-instance-id";
+
+/**
  * What this browser remembers of its session: the code (the only way back),
  * the revision it last saved or read, when that was, and whether the answers
  * have changed since.
@@ -195,7 +205,21 @@ function classify(
   return fail("failed", SESSION_COPY.failed);
 }
 
-export function sessionClient(fetch: typeof globalThis.fetch): SessionClient {
+/**
+ * The client for the three session routes. `machine` is the machine the page
+ * says holds the sessions; each request names it, so that a save too large
+ * for Fly to replay still reaches the volume it belongs on. Without one, no
+ * request names a machine and the proxy picks as it always has.
+ */
+export function sessionClient(
+  fetch: typeof globalThis.fetch,
+  machine?: string | null,
+): SessionClient {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (machine) headers[FORCE_INSTANCE_HEADER] = machine;
+
   /** The reply, or the failure that stands for not getting one. */
   async function post(
     path: string,
@@ -208,7 +232,7 @@ export function sessionClient(fetch: typeof globalThis.fetch): SessionClient {
         // A sign-in redirect would be followed into an HTML page; manual
         // turns it into an opaque response this can name.
         redirect: "manual",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(payload),
       });
     } catch {

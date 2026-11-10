@@ -217,6 +217,32 @@ test("the NCBI key stays behind", async ({ page, browser }) => {
   await other.context().close();
 });
 
+test("no machine is named when none is designated", async ({ page }) => {
+  // The e2e server sets no ADAPT_SESSIONS_MACHINE, as local development and
+  // a one-machine deployment set none: the page names no machine and the
+  // guide's requests force none.
+  await openAdapt(page);
+  await expect(page.locator("fieldset.adapt")).not.toHaveAttribute(
+    "data-sessions-machine",
+    /.*/,
+  );
+  await NAME(page).fill("exampleitis");
+  const request = page.waitForRequest("**/adapt/session/create");
+  await saveButton(page).click();
+  expect((await (await request).allHeaders())["fly-force-instance-id"])
+    .toBeUndefined();
+  const window = codeWindow(page);
+  await expect(window).toBeVisible();
+  await window.getByRole("button", { name: "Done" }).click();
+  await expect(window).toBeHidden();
+  // The next save goes to the save route, and names no machine either.
+  await NAME(page).fill("exampleitis two");
+  const save = page.waitForRequest("**/adapt/session/save");
+  await saveButton(page).click();
+  expect((await (await save).allHeaders())["fly-force-instance-id"])
+    .toBeUndefined();
+});
+
 test("an unknown code says so and stays on the window", async ({ browser }) => {
   const page = await freshPage(browser);
   await page.goto("/adapt");

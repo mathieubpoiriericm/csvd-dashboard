@@ -395,6 +395,9 @@ Deno.test("Adapt route renders with sessions off while ADAPT_SESSIONS_DIR is uns
   assertEquals(Deno.env.get("ADAPT_SESSIONS_DIR"), undefined);
   const html = render(AdaptPage);
   assertStringIncludes(html, 'data-sessions="off"');
+  // Nor does it designate a machine, so the page names none.
+  assertEquals(Deno.env.get("ADAPT_SESSIONS_MACHINE"), undefined);
+  assert(!html.includes("data-sessions-machine"), html);
   // The tip names the button; the bar does not hold it.
   assert(!/<button[^>]*>Save session/.test(html), html);
   assertStringIncludes(

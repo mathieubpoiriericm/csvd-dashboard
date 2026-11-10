@@ -6,11 +6,14 @@
  * login gate and csrf() like every other write (main.ts); the per-client
  * limit on wrong codes and new sessions is server/adapt_session_limiter.ts.
  * Each handler takes the store as an argument, so a test can give it one on
- * a temporary directory instead of the process's environment.
+ * a temporary directory instead of the process's environment, and the holder
+ * likewise: on a machine that does not hold the sessions, every request is
+ * handed over before its body is read (server/adapt_session_holder.ts).
  */
 
 import { IMPORT_BYTE_LIMIT, parseExport } from "../lib/adapt/bundle.ts";
 import { normaliseCode } from "../lib/adapt/session_code.ts";
+import { type Holder, replayToHolder } from "./adapt_session_holder.ts";
 import type { SessionStore } from "./adapt_sessions.ts";
 
 /** Set to "created" on a response that made a new session file. */
@@ -106,10 +109,14 @@ function readCode(body: Body): string | null {
 
 const unavailable = (error: "full" | "failed") => reply(503, { error });
 
+const HERE: Holder = { kind: "here" };
+
 export async function handleCreate(
   req: Request,
   store: SessionStore | null,
+  holder: Holder = HERE,
 ): Promise<Response> {
+  if (holder.kind === "elsewhere") return replayToHolder(holder.machine);
   if (store === null) return off();
   const body = await readJson(req);
   if (body instanceof Response) return body;
@@ -123,7 +130,9 @@ export async function handleCreate(
 export async function handleSave(
   req: Request,
   store: SessionStore | null,
+  holder: Holder = HERE,
 ): Promise<Response> {
+  if (holder.kind === "elsewhere") return replayToHolder(holder.machine);
   if (store === null) return off();
   const body = await readJson(req);
   if (body instanceof Response) return body;
@@ -146,7 +155,9 @@ export async function handleSave(
 export async function handleResume(
   req: Request,
   store: SessionStore | null,
+  holder: Holder = HERE,
 ): Promise<Response> {
+  if (holder.kind === "elsewhere") return replayToHolder(holder.machine);
   if (store === null) return off();
   const body = await readJson(req);
   if (body instanceof Response) return body;

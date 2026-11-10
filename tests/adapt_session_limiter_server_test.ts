@@ -1,6 +1,7 @@
 import { assertEquals, assertThrows } from "@std/assert";
 
 import { CREATED_HEADER } from "../server/adapt_session_api.ts";
+import { replayToHolder } from "../server/adapt_session_holder.ts";
 import {
   adaptSessionLimiter,
   isAdaptSessionPath,
@@ -151,6 +152,23 @@ Deno.test("plain saves release their reservation", async () => {
       200,
     );
   }
+});
+
+Deno.test("a request handed over to the holder is not counted here", async () => {
+  // The holder's own limiter counts the replayed request; counting it here
+  // too would spend the client's budget twice.
+  const limiter = adaptSessionLimiter();
+  for (const operation of ["create", "save", "resume"]) {
+    for (let i = 0; i < 2 * SESSION_PER_CLIENT_LIMIT; i++) {
+      const response = await invoke(limiter, {
+        pathname: `/adapt/session/${operation}`,
+        next: () => replayToHolder("abc123def"),
+      });
+      assertEquals(response.status, 503, operation);
+      await response.body?.cancel();
+    }
+  }
+  assertEquals((await invoke(limiter)).status, 404);
 });
 
 Deno.test("a resumed session forgives no wrong code or new session", async () => {

@@ -2,6 +2,11 @@ import { define } from "../utils.ts";
 import { Page } from "../components/Page.tsx";
 import { TipBox } from "../components/TipBox.tsx";
 import AdaptWizard from "../islands/AdaptWizard.tsx";
+import {
+  designatedMachine,
+  sessionHolder,
+  sessionsForPage,
+} from "../server/adapt_session_holder.ts";
 import { sessionStore } from "../server/adapt_sessions.ts";
 
 const NEEDS: ReadonlyArray<[string, string]> = [
@@ -33,6 +38,11 @@ const NEEDS: ReadonlyArray<[string, string]> = [
  * the checklist of what is left. It reads no data and embeds none.
  */
 export default define.page(function AdaptPage() {
+  const page = sessionsForPage(
+    sessionHolder(),
+    sessionStore(),
+    designatedMachine(),
+  );
   return (
     <Page
       contained
@@ -69,8 +79,8 @@ export default define.page(function AdaptPage() {
           interview by hand.
         </p>
       </noscript>
-      {/* Only whether the server keeps sessions crosses into the island. */}
-      <AdaptWizard sessions={sessionStore() !== null} />
+      {/* Whether sessions are on and which machine holds them: nothing else. */}
+      <AdaptWizard sessions={page.sessions} sessionsMachine={page.machine} />
     </Page>
   );
 });

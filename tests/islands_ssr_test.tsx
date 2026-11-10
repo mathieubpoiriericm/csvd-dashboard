@@ -281,6 +281,24 @@ Deno.test("the adapt wizard server-renders the stepper and the first step", () =
   );
 });
 
+Deno.test("the adapt wizard names the machine holding the sessions only when there is one", () => {
+  const named = renderToString(
+    <AdaptWizard sessions sessionsMachine="abc123def" />,
+  );
+  assertMatch(
+    named,
+    /<fieldset class="adapt"[^>]*data-sessions-machine="abc123def"/,
+  );
+  for (
+    const html of [
+      renderToString(<AdaptWizard sessions />),
+      renderToString(<AdaptWizard sessions sessionsMachine={null} />),
+    ]
+  ) {
+    assert(!html.includes("data-sessions-machine"), html);
+  }
+});
+
 Deno.test("the adapt wizard offers sessions only when the server keeps them", () => {
   for (
     const html of [
