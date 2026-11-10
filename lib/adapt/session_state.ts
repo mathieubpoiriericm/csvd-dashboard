@@ -2,13 +2,15 @@
  * Every decision the wizard makes about its saved session, as a reducer.
  * The island's handlers cannot be reached from a test (`jsx: "precompile"`
  * renders them as attributes), so they only call the client, `confirm()` and
- * storage, and dispatch what happened here. It is pure: a time zone it needs
- * comes in on the event.
+ * storage, and dispatch what happened here. The reducer is pure: a time zone
+ * it needs comes in on the event. indicator() reads the clock only when its
+ * caller passes no `now`.
  */
 
 import {
   formatClock,
   formatDay,
+  formatDayMonth,
   SESSION_COPY,
   type SessionLink,
 } from "./session.ts";
@@ -185,16 +187,26 @@ export function sessionReducer(
   }
 }
 
-/** What the bar says beside Save session; null with no session. */
+/**
+ * What the bar says beside Save session; null with no session. A save made
+ * on an earlier day than `now`, in the viewer's time zone, names its day, so
+ * a link saved three days ago does not read as saved today.
+ */
 export function indicator(
   state: SessionState,
+  now: number = Date.now(),
   timeZone?: string,
 ): { tone: "ok" | "danger"; text: string } | null {
   if (state.link === null) return null;
   if (state.link.dirty) return { tone: "danger", text: "Unsaved changes" };
+  const { savedAt } = state.link;
+  const clock = formatClock(savedAt, timeZone);
+  const today = formatDay(savedAt, timeZone) === formatDay(now, timeZone);
   return {
     tone: "ok",
-    text: `Saved ${formatClock(state.link.savedAt, timeZone)}`,
+    text: today
+      ? `Saved ${clock}`
+      : `Saved ${formatDayMonth(savedAt, timeZone)}, ${clock}`,
   };
 }
 

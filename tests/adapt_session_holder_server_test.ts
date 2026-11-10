@@ -48,6 +48,24 @@ Deno.test("the designated machine holds its own sessions", () => {
   assertEquals(designatedMachine(vars), HOLDER);
 });
 
+Deno.test("an id written in upper case is the same machine, and named in lower case", () => {
+  const upper = HOLDER.toUpperCase();
+  for (
+    const [designated, own] of [[upper, HOLDER], [HOLDER, upper], [
+      upper,
+      upper,
+    ]]
+  ) {
+    const vars = env({ [HOLDER_VAR]: designated, [MACHINE_VAR]: own });
+    assertEquals(sessionHolder(vars), { kind: "here" }, `${designated} ${own}`);
+    assertEquals(designatedMachine(vars), HOLDER);
+  }
+  assertEquals(
+    sessionHolder(env({ [HOLDER_VAR]: upper, [MACHINE_VAR]: OTHER })),
+    { kind: "elsewhere", machine: HOLDER },
+  );
+});
+
 Deno.test("any other machine, or one that does not know its id, hands over", () => {
   assertEquals(
     sessionHolder(env({ [HOLDER_VAR]: HOLDER, [MACHINE_VAR]: OTHER })),

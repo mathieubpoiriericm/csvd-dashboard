@@ -4,6 +4,9 @@ import { type Answers, EMPTY_ANSWERS } from "../../lib/adapt/answers.ts";
 import { exportText } from "../../lib/adapt/bundle.ts";
 import type { Store } from "../../lib/adapt/draft_storage.ts";
 import {
+  COPIED_FOR_MS,
+  copyCode,
+  copyLabel,
   FORCE_INSTANCE_HEADER,
   formatClock,
   formatDay,
@@ -56,13 +59,26 @@ Deno.test("readLink reads back what writeLink wrote and nothing else", () => {
       "null",
       JSON.stringify({ ...link, code: "short" }),
       JSON.stringify({ ...link, revision: "3" }),
+      // The server refuses any revision but a safe positive integer, so a
+      // link holding one would fail every save as "invalid".
+      JSON.stringify({ ...link, revision: 0 }),
+      JSON.stringify({ ...link, revision: -1 }),
+      JSON.stringify({ ...link, revision: 1.5 }),
+      JSON.stringify({ ...link, revision: 2 ** 53 }),
       JSON.stringify({ ...link, savedAt: "x" }),
+      JSON.stringify({ ...link, savedAt: -1 }),
+      JSON.stringify({ ...link, savedAt: 0.5 }),
+      JSON.stringify({ ...link, savedAt: 2 ** 53 }),
       JSON.stringify({ ...link, dirty: "yes" }),
     ]
   ) {
     store.items.set(SESSION_KEY, bad);
     assertEquals(readLink(store), null, bad);
   }
+  // The edges that are links: the first revision, and a save at the epoch.
+  const edge = { ...link, revision: 1, savedAt: 0 };
+  writeLink(store, edge);
+  assertEquals(readLink(store), edge);
   writeLink(store, link);
   writeLink(store, null);
   assertEquals(store.items.has(SESSION_KEY), false);
@@ -405,4 +421,36 @@ Deno.test("every call hands a failure on, and a body that is no object is one", 
   const bare = stub(() => json(200, null));
   const saved = await bare.client.save(link, EXAMPLEITIS, false);
   assert(!saved.ok && saved.reason === "failed");
+});
+
+Deno.test("a copy reports whether the clipboard took the code", async () => {
+  const taken: string[] = [];
+  const clipboard = {
+    writeText: (text: string) => {
+      taken.push(text);
+      return Promise.resolve();
+    },
+  };
+  assertEquals(await copyCode(clipboard, "ABCDE-FGHJK"), "copied");
+  assertEquals(taken, ["ABCDE-FGHJK"]);
+  // Refused (no permission, an insecure page), absent, or throwing at once.
+  const refused = {
+    writeText: () => Promise.reject(new DOMException("no", "NotAllowedError")),
+  };
+  assertEquals(await copyCode(refused, "x"), "failed");
+  assertEquals(await copyCode(undefined, "x"), "failed");
+  const throwing = {
+    writeText: (): Promise<void> => {
+      throw new TypeError("no");
+    },
+  };
+  assertEquals(await copyCode(throwing, "x"), "failed");
+});
+
+Deno.test("the copy button says what the copy did", () => {
+  assertEquals(copyLabel("idle"), "Copy code");
+  assertEquals(copyLabel("copied"), "Copied");
+  // The code is selectable on screen, so the failure says what to do.
+  assertEquals(copyLabel("failed"), "Copy failed — select the code");
+  assertEquals(COPIED_FOR_MS, 2000);
 });

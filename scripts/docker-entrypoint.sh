@@ -21,7 +21,9 @@ set -eu
 
 dir="${ADAPT_SESSIONS_DIR:-}"
 if [ -n "$dir" ]; then
-  if ! { mkdir -p "$dir" && chown deno:deno "$dir"; } 2>/dev/null; then
+  # -h: a symlink planted at that path by `deno` (if a fork puts it under a
+  # directory deno owns) must not have root chown whatever it points to.
+  if ! { mkdir -p "$dir" && chown -h deno:deno "$dir"; } 2>/dev/null; then
     echo "docker-entrypoint: cannot create $dir or give it to deno; serving without sessions" >&2
   fi
 fi

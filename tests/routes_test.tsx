@@ -9,7 +9,7 @@ import { h } from "preact";
 import { renderToString } from "preact-render-to-string";
 
 import App from "../routes/_app.tsx";
-import AdaptPage from "../routes/adapt.tsx";
+import AdaptPage, { AdaptTip } from "../routes/adapt.tsx";
 import Genes from "../routes/genes.tsx";
 import About, { AboutContent } from "../routes/index.tsx";
 import MapPage from "../routes/map.tsx";
@@ -398,11 +398,28 @@ Deno.test("Adapt route renders with sessions off while ADAPT_SESSIONS_DIR is uns
   // Nor does it designate a machine, so the page names none.
   assertEquals(Deno.env.get("ADAPT_SESSIONS_MACHINE"), undefined);
   assert(!html.includes("data-sessions-machine"), html);
-  // The tip names the button; the bar does not hold it.
+  // Neither the bar nor the tip names a button the page does not show.
   assert(!/<button[^>]*>Save session/.test(html), html);
+  assert(!html.includes("Save session"), html);
   assertStringIncludes(
     html,
-    "if you press Save session, a copy of your answers kept on this server for 14 days.",
+    "Nothing is sent anywhere except the lookups to NCBI, the EBI Ontology Lookup Service and ClinicalTrials.gov.",
+  );
+});
+
+Deno.test("the adapt tip names Save session only when sessions are on", () => {
+  const off = renderToString(<AdaptTip sessions={false} />);
+  assertStringIncludes(
+    off,
+    "Your answers are saved in this browser as you go. Nothing is sent anywhere except the lookups to NCBI, the EBI Ontology Lookup Service and ClinicalTrials.gov.",
+  );
+  assert(!off.includes("Save session"), off);
+  assert(!off.includes("server"), off);
+
+  const on = renderToString(<AdaptTip sessions />);
+  assertStringIncludes(
+    on,
+    "Nothing leaves it except the lookups to NCBI, the EBI Ontology Lookup Service and ClinicalTrials.gov, and, if you press Save session, a copy of your answers kept on this server for 14 days.",
   );
 });
 

@@ -234,14 +234,46 @@ Deno.test("Start over detaches the session", () => {
 
 Deno.test("the indicator says whether the session holds the answers", () => {
   assertEquals(indicator(INITIAL_SESSION), null);
-  assertEquals(indicator(attached(DIRTY), "UTC"), {
+  assertEquals(indicator(attached(DIRTY), SAVED_AT, "UTC"), {
     tone: "danger",
     text: "Unsaved changes",
   });
-  assertEquals(indicator(attached(), "UTC"), {
+  assertEquals(indicator(attached(), SAVED_AT + 60_000, "UTC"), {
     tone: "ok",
     text: "Saved 16:42",
   });
+});
+
+Deno.test("the indicator names the day of a save made before today", () => {
+  // The same local day, from its first minute to its last.
+  const midnight = Date.UTC(2026, 10, 24);
+  assertEquals(
+    indicator(attached(), midnight + 24 * 3_600_000 - 1, "UTC")?.text,
+    "Saved 16:42",
+  );
+  // The next day, and three days on.
+  assertEquals(
+    indicator(attached(), midnight + 24 * 3_600_000, "UTC")?.text,
+    "Saved 24 Nov, 16:42",
+  );
+  assertEquals(
+    indicator(attached(), SAVED_AT + 3 * 24 * 3_600_000, "UTC")?.text,
+    "Saved 24 Nov, 16:42",
+  );
+  // "Today" is the viewer's: 16:42 UTC is already the 25th in Tokyo.
+  assertEquals(
+    indicator(attached(), Date.UTC(2026, 10, 25, 1), "Asia/Tokyo")?.text,
+    "Saved 01:42",
+  );
+  assertEquals(
+    indicator(attached(), Date.UTC(2026, 10, 25, 16), "Asia/Tokyo")?.text,
+    "Saved 25 Nov, 01:42",
+  );
+  // Unsaved changes say nothing of when.
+  assertEquals(
+    indicator(attached(DIRTY), SAVED_AT + 3 * 24 * 3_600_000, "UTC")?.text,
+    "Unsaved changes",
+  );
 });
 
 Deno.test("leaving warns only over unsaved session changes", () => {

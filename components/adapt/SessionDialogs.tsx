@@ -7,6 +7,10 @@ import {
 } from "preact/hooks";
 
 import {
+  COPIED_FOR_MS,
+  copyCode,
+  copyLabel,
+  type CopyState,
   type Overview,
   type Remaining,
   SESSION_COPY,
@@ -63,6 +67,51 @@ const onEscape = (leave: () => void) => (e: Event) => {
   leave();
 };
 
+/**
+ * Copies `code` and says how that went in its own words, which are also its
+ * accessible name: "Copied" for COPIED_FOR_MS, then "Copy code" again; on a
+ * refused clipboard, that the code is there to select, until the next try.
+ * The decisions are lib/adapt/session.ts's (copyCode, copyLabel); this holds
+ * only the state and the timer, which goes with the button.
+ */
+export function CopyCodeButton({ code }: { code: string }) {
+  const [state, setState] = useState<CopyState>("idle");
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mounted = useRef(true);
+  const stop = () => {
+    if (timer.current !== null) clearTimeout(timer.current);
+    timer.current = null;
+  };
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      stop();
+    };
+  }, []);
+  return (
+    <button
+      type="button"
+      class="adapt-button"
+      onClick={async () => {
+        const result = await copyCode(globalThis.navigator?.clipboard, code);
+        // Closed while the clipboard answered: no state, and no timer left.
+        if (!mounted.current) return;
+        stop();
+        setState(result);
+        if (result === "copied") {
+          timer.current = setTimeout(() => {
+            timer.current = null;
+            setState("idle");
+          }, COPIED_FOR_MS);
+        }
+      }}
+    >
+      {copyLabel(state)}
+    </button>
+  );
+}
+
 export function GreetingDialog(
   { open, onNew, onResume }: {
     open: boolean;
@@ -87,9 +136,14 @@ export function GreetingDialog(
         <button type="button" class="adapt-button" onClick={onResume}>
           {SESSION_COPY.greetingResume}
         </button>
+        {
+          /* showModal() focuses the autofocus element, so Enter starts; in
+            DOM order focus would land on the resume button. */
+        }
         <button
           type="button"
           class="adapt-button adapt-button-primary"
+          autofocus
           onClick={onNew}
         >
           {SESSION_COPY.greetingNew}
@@ -128,15 +182,7 @@ export function CodeDialog(
       </p>
       <p class="adapt-dialog-kept">{keptUntil}</p>
       <div class="adapt-dialog-actions">
-        <button
-          type="button"
-          class="adapt-button"
-          onClick={() => {
-            navigator.clipboard?.writeText(shown)?.catch(() => {});
-          }}
-        >
-          Copy code
-        </button>
+        <CopyCodeButton code={shown} />
         <button
           type="button"
           class="adapt-button adapt-button-primary"
@@ -167,6 +213,7 @@ export function ResumeDialog(
   const ref = useModal(open, cancel);
   const titleId = useId();
   const inputId = useId();
+  const errorId = useId();
   const [value, setValue] = useState("");
   // Each opening starts empty: a code typed for an earlier attempt, or a
   // wrong one, is not offered again.
@@ -203,9 +250,13 @@ export function ResumeDialog(
             ...{ spellcheck: false }
           }
           autocapitalize="characters"
+          aria-invalid={error !== "" ? "true" : undefined}
+          aria-describedby={error !== "" ? errorId : undefined}
           onInput={(e) => setValue((e.target as HTMLInputElement).value)}
         />
-        {error !== "" && <p class="adapt-dialog-error" role="alert">{error}</p>}
+        {error !== "" && (
+          <p class="adapt-dialog-error" id={errorId} role="alert">{error}</p>
+        )}
         <div class="adapt-dialog-actions">
           <button type="button" class="adapt-button" onClick={cancel}>
             Cancel
@@ -287,7 +338,7 @@ export function WelcomeBack(
     <section class="adapt-welcome">
       <header>
         <h2 class="adapt-welcome-title" ref={heading} tabIndex={-1}>
-          Welcome back
+          {SESSION_COPY.welcomeTitle}
         </h2>
         <p class="adapt-welcome-saved">
           last saved {lastSaved} · {keptUntil}
@@ -299,17 +350,23 @@ export function WelcomeBack(
           aria-labelledby={doneId}
         >
           <header class="adapt-welcome-head">
-            <h2 id={doneId}>Completed</h2>
+            <h3 id={doneId}>Completed</h3>
             <span>{completed.length} of {STEP_ORDER.length} steps</span>
           </header>
-          <ul class="adapt-welcome-list">
-            {completed.map((c) => (
-              <li class="adapt-welcome-row" key={c.step}>
-                <span class="adapt-welcome-glyph" aria-hidden="true">✓</span>
-                <span>{stepNumber(c.step)}. {c.label}</span>
-              </li>
-            ))}
-          </ul>
+          {completed.length === 0
+            ? <p class="adapt-welcome-nothing">None yet</p>
+            : (
+              <ul class="adapt-welcome-list">
+                {completed.map((c) => (
+                  <li class="adapt-welcome-row" key={c.step}>
+                    <span class="adapt-welcome-glyph" aria-hidden="true">
+                      ✓
+                    </span>
+                    <span>{stepNumber(c.step)}. {c.label}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
         </section>
         <section
           class={`adapt-welcome-panel adapt-welcome-left${
@@ -318,7 +375,7 @@ export function WelcomeBack(
           aria-labelledby={leftId}
         >
           <header class="adapt-welcome-head">
-            <h2 id={leftId}>Remaining</h2>
+            <h3 id={leftId}>Remaining</h3>
             {remaining.length > 0 && (
               <span>
                 {plural(remaining.length, "step")} · {plural(items, "item")}

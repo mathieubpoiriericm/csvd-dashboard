@@ -53,12 +53,16 @@ function readDesignated(env: Env): string | undefined {
       `${HOLDER_VAR} must be a Fly machine id (6 to 32 hexadecimal characters)`,
     );
   }
-  return value;
+  // Validated case-insensitively, so compared and printed in one case: an
+  // id pasted in upper case would otherwise match no machine, and every
+  // machine would hand over while none held.
+  return value.toLowerCase();
 }
 
 function readHolder(env: Env): Holder {
   const designated = readDesignated(env);
-  if (designated === undefined || designated === env(MACHINE_VAR)?.trim()) {
+  const own = env(MACHINE_VAR)?.trim().toLowerCase();
+  if (designated === undefined || designated === own) {
     return { kind: "here" };
   }
   // FLY_MACHINE_ID unset with a designation set is a machine that cannot

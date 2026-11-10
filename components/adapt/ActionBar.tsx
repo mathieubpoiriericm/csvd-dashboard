@@ -10,6 +10,7 @@ import {
 } from "@floating-ui/dom";
 
 import { BUNDLE_NAME } from "../../lib/adapt/bundle.ts";
+import { CopyCodeButton } from "./SessionDialogs.tsx";
 
 export interface ActionBarSession {
   onSave: () => void;
@@ -112,19 +113,7 @@ function SessionDetails({ session }: { session: ActionBarSession }) {
       {session.code !== null && (
         <div class="adapt-bar-code">
           <code>{session.code}</code>
-          <button
-            type="button"
-            class="adapt-button"
-            onClick={() => {
-              // A refused clipboard must not surface as an unhandled
-              // rejection; the code is on screen to select.
-              navigator.clipboard?.writeText(session.code ?? "")?.catch(
-                () => {},
-              );
-            }}
-          >
-            Copy code
-          </button>
+          <CopyCodeButton code={session.code} />
           {session.keptUntil !== null && (
             <span class="adapt-bar-kept">{session.keptUntil}</span>
           )}
@@ -183,11 +172,19 @@ export function ActionBar(
           >
             Save session
           </button>
-          {session.indicator !== null && (
-            <span class={`adapt-bar-indicator is-${session.indicator.tone}`}>
-              {session.indicator.text}
-            </span>
-          )}
+          {
+            /* A polite live region, always the same element: a save that
+              turns "Unsaved changes" into "Saved" is announced, which a
+              region inserted with its text already in it would not be. */
+          }
+          <span
+            class={session.indicator === null
+              ? "adapt-bar-indicator"
+              : `adapt-bar-indicator is-${session.indicator.tone}`}
+            role="status"
+          >
+            {session.indicator?.text ?? ""}
+          </span>
           <button
             type="button"
             class="adapt-button adapt-bar-session-toggle"

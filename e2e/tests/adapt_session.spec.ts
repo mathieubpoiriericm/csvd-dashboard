@@ -369,7 +369,7 @@ test("Start over forgets the code and the session still resumes", async ({ page 
   page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Start over" }).click();
   await expect(NAME(page)).toHaveValue("");
-  await expect(indicator(page)).toHaveCount(0);
+  await expect(indicator(page)).toHaveText("");
   expect(await page.evaluate(() => localStorage.getItem("svd-adapt-session")))
     .toBeNull();
   const details = await openDetails(page);
@@ -418,7 +418,7 @@ test("Escape on the greeting starts a new session", async ({ browser }) => {
   // Usable, and attached to nothing.
   await NAME(page).fill("exampleitis");
   await expect(NAME(page)).toHaveValue("exampleitis");
-  await expect(indicator(page)).toHaveCount(0);
+  await expect(indicator(page)).toHaveText("");
   await page.context().close();
 });
 
@@ -465,4 +465,63 @@ test("Escape twice on the resume window leaves it able to open again, empty", as
     await expect(window).toBeHidden();
   }
   await page.context().close();
+});
+
+test("the greeting focuses Start a new session, so Enter starts", async ({ browser }) => {
+  const page = await freshPage(browser);
+  await page.goto("/adapt");
+  await expect(greeting(page)).toBeVisible();
+  await expect(
+    greeting(page).getByRole("button", { name: "Start a new session" }),
+  ).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(greeting(page)).toBeHidden();
+  await expect(resumeWindow(page)).toBeHidden();
+  await page.context().close();
+});
+
+test("Copy code says Copied, and reads as before a moment later", async ({ browser }) => {
+  const context = await browser.newContext({
+    storageState: STORAGE_STATE,
+    permissions: ["clipboard-read", "clipboard-write"],
+  });
+  const page = await context.newPage();
+  await page.setViewportSize(DESKTOP);
+  await openAdapt(page);
+  const code = await saveFirst(page);
+  const details = await openDetails(page);
+  await details.getByRole("button", { name: "Copy code" }).click();
+  const copied = details.getByRole("button", { name: "Copied", exact: true });
+  await expect(copied).toBeVisible();
+  expect(await page.evaluate(() => navigator.clipboard.readText()))
+    .toBe(code);
+  // About two seconds (lib/adapt/session.ts's COPIED_FOR_MS), then back.
+  await expect(details.getByRole("button", { name: "Copy code" }))
+    .toBeVisible({ timeout: 5_000 });
+  await context.close();
+});
+
+test("a refused clipboard says to select the code", async ({ browser }) => {
+  const context = await browser.newContext({ storageState: STORAGE_STATE });
+  // Chromium grants clipboard-write to a focused page and Playwright cannot
+  // deny it, so the refusal a browser gives without permission is stood in
+  // for here: writeText rejects as Chrome's does.
+  await context.addInitScript(() => {
+    Object.defineProperty(navigator.clipboard, "writeText", {
+      value: () =>
+        Promise.reject(new DOMException("Write permission denied.", "NotAllowedError")),
+    });
+  });
+  const page = await context.newPage();
+  await page.setViewportSize(DESKTOP);
+  await openAdapt(page);
+  await saveFirst(page);
+  const details = await openDetails(page);
+  await details.getByRole("button", { name: "Copy code" }).click();
+  await expect(
+    details.getByRole("button", { name: "Copy failed — select the code" }),
+  ).toBeVisible();
+  // The code is there to select.
+  await expect(details.locator("code")).toHaveText(CODE);
+  await context.close();
 });

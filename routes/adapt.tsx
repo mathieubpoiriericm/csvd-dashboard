@@ -33,6 +33,36 @@ const NEEDS: ReadonlyArray<[string, string]> = [
 ];
 
 /**
+ * What leaves the browser. Save session is named only where the bar shows
+ * it: with sessions off (a fork without a volume, local development) the
+ * page must not promise a control it does not have.
+ */
+export function AdaptTip({ sessions }: { sessions: boolean }) {
+  return (
+    <div class="tip-row">
+      <TipBox>
+        {sessions
+          ? (
+            <>
+              Your answers are saved in this browser as you go. Nothing leaves
+              it except the lookups to NCBI, the EBI Ontology Lookup Service and
+              ClinicalTrials.gov, and, if you press Save session, a copy of your
+              answers kept on this server for 14 days.
+            </>
+          )
+          : (
+            <>
+              Your answers are saved in this browser as you go. Nothing is sent
+              anywhere except the lookups to NCBI, the EBI Ontology Lookup
+              Service and ClinicalTrials.gov.
+            </>
+          )}
+      </TipBox>
+    </div>
+  );
+}
+
+/**
  * The adaptation guide as a page: the interview from the new-disease skill,
  * with the same lookups, ending in a download of the disease/ folder and
  * the checklist of what is left. It reads no data and embeds none.
@@ -49,14 +79,7 @@ export default define.page(function AdaptPage() {
       title="Adapt this dashboard to another disease"
       description="Answer the interview below and download a ready disease/ folder for your fork. Every word that names the disease lives in that folder; the code, the pipeline and the tests hold for any disease of this class."
     >
-      <div class="tip-row">
-        <TipBox>
-          Your answers are saved in this browser as you go. Nothing leaves it
-          except the lookups to NCBI, the EBI Ontology Lookup Service and
-          ClinicalTrials.gov, and, if you press Save session, a copy of your
-          answers kept on this server for 14 days.
-        </TipBox>
-      </div>
+      <AdaptTip sessions={page.sessions} />
       <div class="card">
         <div class="card-body">
           <h2 class="card-title">Before you start</h2>

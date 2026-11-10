@@ -596,9 +596,10 @@ Deno.test("the action bar with a session holds Save session, its state and its c
   )?.[1] ?? "";
   assertMatch(primary, /<button[^>]*>Save session<\/button>/);
   assert(!primary.match(/<button[^>]*>Save session/)![0].includes("disabled"));
+  // A polite live region, so a save that turns it to "Saved" is announced.
   assertStringIncludes(
     primary,
-    '<span class="adapt-bar-indicator is-danger">Unsaved changes</span>',
+    '<span class="adapt-bar-indicator is-danger" role="status">Unsaved changes</span>',
   );
   // The code, its copy, its expiry and the resume entry are behind a
   // Session button on a wide screen and first in More on a narrow one;
@@ -633,7 +634,12 @@ Deno.test("the action bar with a session holds Save session, its state and its c
     />,
   );
   assertMatch(busy, /<button[^>]*disabled[^>]*>Save session<\/button>/);
-  assert(!busy.includes("adapt-bar-indicator"), busy);
+  // The live region stays, empty: one that appears with its text in it is
+  // not announced, and a region that stays is.
+  assertStringIncludes(
+    busy,
+    '<span class="adapt-bar-indicator" role="status"></span>',
+  );
   assert(!busy.includes("adapt-bar-code"), busy);
   const unattached = barPanels(busy);
   for (const panel of [unattached.session, unattached.more]) {
@@ -688,6 +694,13 @@ Deno.test("the greeting dialog names itself and offers the two ways in", () => {
   assertStringIncludes(html, SESSION_COPY.greetingBody);
   assertStringIncludes(html, `>${SESSION_COPY.greetingNew}</button>`);
   assertStringIncludes(html, `>${SESSION_COPY.greetingResume}</button>`);
+  // showModal() focuses the dialog's autofocus element, so Enter on a first
+  // visit starts, rather than opening the resume window first in order.
+  assertEquals(count(html, "autofocus"), 1);
+  assertMatch(
+    html,
+    new RegExp(`<button[^>]*\\sautofocus[^>]*>${SESSION_COPY.greetingNew}<`),
+  );
 });
 
 Deno.test("the code dialog shows the formatted code, a Copy button and Done", () => {
@@ -724,16 +737,24 @@ Deno.test("the resume dialog has one labelled code input, an alert only on error
   assertStringIncludes(html, 'spellcheck="false"');
   assertStringIncludes(html, 'autocapitalize="characters"');
   assert(!html.includes('role="alert"'), html);
+  assert(!html.includes("aria-invalid"), html);
+  assert(!html.includes("aria-describedby"), html);
   const resume = (h: string) =>
     h.match(/<button[^>]*>Resume<\/button>/)?.[0] ?? "";
   assert(!resume(html).includes("disabled"), resume(html));
   const failed = renderToString(
     <ResumeDialog {...props} busy error="No session answers to that code." />,
   );
-  assertMatch(
-    failed,
+  const alert = failed.match(
     /<[a-z]+[^>]*role="alert"[^>]*>No session answers to that code\.</,
-  );
+  )?.[0];
+  assert(alert !== undefined, failed);
+  // The input is marked invalid and described by the reason.
+  const input = failed.match(/<input[^>]*>/)?.[0] ?? "";
+  assertStringIncludes(input, 'aria-invalid="true"');
+  const described = input.match(/aria-describedby="([^"]+)"/)?.[1];
+  assert(described !== undefined, input);
+  assertStringIncludes(alert, `id="${described}"`);
   assertStringIncludes(resume(failed), "disabled");
 });
 
@@ -764,8 +785,16 @@ Deno.test("the welcome-back screen lists the finished steps and what the last on
   // Its heading is what takes focus as the screen appears.
   assertMatch(
     html,
-    /<h2 class="adapt-welcome-title"\s+tabindex="-1"\s*>Welcome back<\/h2>/i,
+    new RegExp(
+      `<h2 class="adapt-welcome-title"\\s+tabindex="-1"\\s*>${SESSION_COPY.welcomeTitle}</h2>`,
+      "i",
+    ),
   );
+  assertEquals(SESSION_COPY.welcomeTitle, "Welcome back");
+  // One h2, and the two panels' headings under it.
+  assertEquals(count(html, "<h2"), 1);
+  assertMatch(html, /<h3[^>]*>Completed<\/h3>/);
+  assertMatch(html, /<h3[^>]*>Remaining<\/h3>/);
   assertStringIncludes(html, "kept until 8 Dec 2026");
   const done = panel(html, "adapt-welcome-done");
   assertStringIncludes(done, "Completed");
@@ -793,9 +822,14 @@ Deno.test("the welcome-back screen lists the finished steps and what the last on
 
 Deno.test("the welcome-back screen calls an untouched step Not started", () => {
   const o = overview(EMPTY_ANSWERS);
-  const left = panel(welcome(o), "adapt-welcome-left");
+  const html = welcome(o);
+  const left = panel(html, "adapt-welcome-left");
   assertEquals(count(left, "Not started"), o.remaining.length);
   assertStringIncludes(left, `${o.remaining.length} steps`);
+  // Nothing finished: the panel says so rather than holding an empty list.
+  const done = panel(html, "adapt-welcome-done");
+  assertStringIncludes(done, "None yet");
+  assert(!done.includes("<ul"), done);
 });
 
 Deno.test("the welcome-back screen of finished answers has nothing left and continues at the review", () => {

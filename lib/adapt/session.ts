@@ -61,12 +61,19 @@ export function readLink(store: Store): SessionLink | null {
   const { code, revision, savedAt, dirty } = raw as Record<string, unknown>;
   if (
     typeof code !== "string" || normaliseCode(code) !== code ||
-    typeof revision !== "number" || typeof savedAt !== "number" ||
+    // As the server stores them: anything else would fail every save.
+    !Number.isSafeInteger(revision) || (revision as number) < 1 ||
+    !Number.isSafeInteger(savedAt) || (savedAt as number) < 0 ||
     typeof dirty !== "boolean"
   ) {
     return null;
   }
-  return { code, revision, savedAt, dirty };
+  return {
+    code,
+    revision: revision as number,
+    savedAt: savedAt as number,
+    dirty,
+  };
 }
 
 /**
@@ -125,6 +132,7 @@ export const SESSION_COPY = {
   codeBody:
     "Write this down or copy it. It is the only way back to this session, and it stays one click away in the bar above while you work. If you lose it, Export answers is your backup. A session is deleted 14 days after its last save.",
   resumeTitle: "Resume a session",
+  welcomeTitle: "Welcome back",
   resumeAction: "Resume",
   unknown:
     "No session answers to that code. A session is deleted 14 days after its last save; if you exported your answers, use Import answers.",
@@ -383,6 +391,48 @@ export function formatDay(ms: number, timeZone?: string): string {
     { day: "numeric", month: "short", year: "numeric" },
     timeZone,
   ).format(ms);
+}
+
+/** What a Copy code button last did, which its words say. */
+export type CopyState = "idle" | "copied" | "failed";
+
+/** How long a Copy code button says "Copied" before it reads as before. */
+export const COPIED_FOR_MS = 2000;
+
+/** The words, and so the accessible name, of a Copy code button. */
+export function copyLabel(state: CopyState): string {
+  switch (state) {
+    case "idle":
+      return "Copy code";
+    case "copied":
+      return "Copied";
+    case "failed":
+      // The code is on screen and selectable as a whole.
+      return "Copy failed — select the code";
+  }
+}
+
+/**
+ * Writes `text` to `clipboard`: "copied" once it took it, "failed" when the
+ * browser has none (an insecure page) or refused it. Nothing rejects, so a
+ * refusal never surfaces as an unhandled rejection.
+ */
+export async function copyCode(
+  clipboard: Pick<Clipboard, "writeText"> | undefined,
+  text: string,
+): Promise<"copied" | "failed"> {
+  if (clipboard === undefined) return "failed";
+  try {
+    await clipboard.writeText(text);
+    return "copied";
+  } catch {
+    return "failed";
+  }
+}
+
+/** "7 Nov", in the viewer's time zone unless one is given. */
+export function formatDayMonth(ms: number, timeZone?: string): string {
+  return formatter({ day: "numeric", month: "short" }, timeZone).format(ms);
 }
 
 /** "16:42", in the viewer's time zone unless one is given. */

@@ -2930,7 +2930,7 @@ svg {
   color: var(--svd-text-muted);
 }
 
-.adapt-welcome-head h2 {
+.adapt-welcome-head h3 {
   margin: 0;
   font-size: var(--svd-text-base);
   color: var(--svd-text);
