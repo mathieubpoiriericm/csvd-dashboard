@@ -1,6 +1,7 @@
 // deno-lint-ignore-file react-no-danger -- the no-flash theme script must be
 // inline to run before the first paint; see NO_FLASH below. It is built from a
 // module constant and never touches request data.
+import { asset } from "fresh/runtime";
 import { define } from "../utils.ts";
 import { Icon } from "../components/Icon.tsx";
 import { InstituteLogo } from "../components/InstituteLogo.tsx";
@@ -87,11 +88,20 @@ export default define.page(function App({ Component, url, state }) {
           `favicon.ico` is not redundant: browsers, feed readers and
           link-preview scrapers request that path directly, whatever is
           declared here.
+
+          Each goes through `asset()` for its build-id query: Fresh serves a
+          static file `no-store` without one, and Firefox will not keep a
+          `no-store` icon for a bookmark -- it showed on the tab and nowhere
+          else.
         */
         }
-        <link rel="icon" href="/favicon.ico" sizes="48x48" />
-        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="icon" href={asset("/favicon.ico")} sizes="48x48" />
+        <link
+          rel="icon"
+          type="image/svg+xml"
+          href={asset("/favicon.svg")}
+        />
+        <link rel="apple-touch-icon" href={asset("/apple-touch-icon.png")} />
         {/* The navbar is dark in both themes, so this matches it. */}
         <meta
           name="theme-color"
