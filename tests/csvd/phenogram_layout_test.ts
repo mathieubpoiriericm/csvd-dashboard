@@ -25,7 +25,7 @@ const chromosome = (name: string) =>
   layout.chromosomes.find((c) => c.name === name)!;
 
 /** Sum of x + y + width + height over every block; the Python suite pins the same. */
-const BLOCK_RECT_SUM = 163825.93730683517;
+const BLOCK_RECT_SUM = 164469.93730683517;
 
 /** Chromosomes carrying a gene in the committed table — the Python test pins the same list. */
 const DRAWN = [
@@ -78,7 +78,7 @@ Deno.test("114 genes are placed, MSMP unplaced, on 22 chromosomes including X", 
 // pinned identically in tests/scripts/csvd/test_csvd_phenogram_figure.py, so
 // the print twin cannot drift from this layout.
 Deno.test("the canvas, the row split and the wide columns are pinned", () => {
-  assertEquals(layout.canvas, { width: 1836, height: 1379 });
+  assertEquals(layout.canvas, { width: 1848, height: 1379 });
   assertEquals(layout.rows.map((row) => row.map((c) => c.name)), [
     DRAWN.slice(0, 11),
     DRAWN.slice(11),
@@ -89,7 +89,7 @@ Deno.test("the canvas, the row split and the wide columns are pinned", () => {
         .filter((c) => c.columnWidth !== L.labelColumn)
         .map((c) => [c.name, c.columnWidth]),
     ),
-    { "2": 168, "5": 152, "10": 168, "13": 168, "19": 168 },
+    { "2": 172, "5": 156, "10": 172, "13": 172, "19": 172 },
   );
   // Every block rect, summed: one number both suites agree on.
   assertAlmostEquals(

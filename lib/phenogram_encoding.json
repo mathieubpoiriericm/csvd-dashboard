@@ -47,7 +47,7 @@
     "chromosomeWidth": 14,
     "leaderGap": 10,
     "labelColumn": 128,
-    "labelSlack": 6,
+    "labelSlack": 10,
     "blockGap": 6,
     "symbolLine": 16,
     "pillLine": 14,

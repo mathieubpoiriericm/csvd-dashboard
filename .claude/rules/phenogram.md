@@ -89,7 +89,11 @@ Two renderers, one contract, as for the timeline:
     `lib/phenogram_font_metrics.json` -- the advance of every code point the
     shipped `Barlow-400/600-latin.woff2` map, read by `tests/helpers/woff2.ts`
     -- summed and scaled; kerning is ignored and `labelSlack` absorbs it, and
-    an unknown character takes the face's widest advance. **After changing
+    an unknown character takes the face's widest advance. `labelSlack` is 10,
+    not the 6 kerning alone needs: Chrome rounds glyph advances to device
+    pixels at some page scales, and at a 1600px viewport the 36-character
+    MTAG pill measured 7.07 units wider than the table, which a slack of 6
+    let run 0.82 units into the next chromosome. **After changing
     either font file, run `deno task phenogram:metrics`**;
     `tests/phenogram_font_metrics_test.ts` fails until the table matches.
     Python has no Brotli, so it only reads the JSON;
