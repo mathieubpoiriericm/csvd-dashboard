@@ -829,7 +829,7 @@ fly tokens create deploy
 Store the token as the repository secret `FLY_API_TOKEN` on GitHub; from then on
 every push to `main` that passes CI deploys, and is checked from outside by
 `scripts/smoke_deploy.sh`. Without the token, CI skips the deploy and says so.
-The setup, the machine count and the diagnosis for a site that answers 503 on
+The setup, the one-machine rule and the diagnosis for a site that answers 503 on
 every page are in `.claude/skills/deploy/SKILL.md` and in the README's
 "Deployment" section. Once the site answers, write its URL into `hosting.url` in
 `disease/manifest.json` and into `disease/README.md`, and commit.
