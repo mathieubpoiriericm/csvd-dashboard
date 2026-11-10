@@ -7,6 +7,7 @@ import {
   type KeyPill,
   type KeySwatch,
   type KeyText,
+  phenogramDocumentWidth,
   SVG_PALETTE,
 } from "../lib/phenogram_svg.ts";
 import { Block, Chromosome, glyphPath } from "./PhenogramShapes.tsx";
@@ -112,7 +113,8 @@ export function phenogramSvg(
   { karyogram, widths, key }: PhenogramSvgOptions,
 ): string {
   const margin = encoding.layout.margin;
-  const width = karyogram.canvas.width;
+  // The karyogram keeps its coordinates; a key wider than it widens the page.
+  const width = phenogramDocumentWidth(karyogram.canvas.width, margin, key);
   const offset = key ? key.height + KEY_GAP : 0;
   const height = karyogram.canvas.height + offset;
   const svg = (

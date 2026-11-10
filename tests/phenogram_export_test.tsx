@@ -7,7 +7,8 @@ import {
   encoding,
   phenogramLegend,
 } from "../lib/phenogram.ts";
-import { layoutPhenogramKey } from "../lib/phenogram_svg.ts";
+import { layoutPhenogramKey, phenogramKeyWidth } from "../lib/phenogram_svg.ts";
+import { cytobands } from "../lib/cytobands.ts";
 import { sampleGene } from "./fixtures/rows.ts";
 
 const measure = (text: string) => text.length * 6;
@@ -32,7 +33,11 @@ function build(symbol = "GENE1", withKey = true, label = "Vascular & co") {
       : entry
   );
   const key = withKey
-    ? layoutPhenogramKey(legend, karyogram.canvas.width - 2 * margin, measure)
+    ? layoutPhenogramKey(
+      legend,
+      phenogramKeyWidth(karyogram.canvas.width, margin, legend, measure),
+      measure,
+    )
     : null;
   const svg = phenogramSvg({ karyogram, widths: new Map(), key });
   return { karyogram, key, svg };
@@ -56,8 +61,35 @@ Deno.test("figure with key puts the key on top", () => {
   assert(svg.includes(`translate(${margin} ${margin})`));
   const height = karyogram.canvas.height + key!.height + 40;
   assert(svg.includes(`height="${height / 100}in"`));
-  assert(svg.includes(`viewBox="0 0 ${karyogram.canvas.width} ${height}"`));
-  assert(svg.includes(`width="${karyogram.canvas.width / 100}in"`));
+  // One chromosome is narrower than the key, so the key sets the page width
+  // and the karyogram keeps its own coordinates on it.
+  const width = key!.width + 2 * margin;
+  assert(width > karyogram.canvas.width);
+  assert(svg.includes(`viewBox="0 0 ${width} ${height}"`));
+  assert(svg.includes(`width="${width / 100}in"`));
+});
+
+Deno.test("a karyogram wider than its key keeps its own width", () => {
+  // A gene on every chromosome: two rows of twelve columns.
+  const karyogram = computePhenogramLayout(
+    cytobands.chromosomes.map((c, i) =>
+      sampleGene({
+        gene: `GENE${i}`,
+        chromosomalLocation: `${c.name}${c.bands[0].name}`,
+      })
+    ),
+  );
+  const legend = phenogramLegend([], encoding, false);
+  const width = phenogramKeyWidth(
+    karyogram.canvas.width,
+    margin,
+    legend,
+    measure,
+  );
+  assertEquals(width, karyogram.canvas.width - 2 * margin);
+  const key = layoutPhenogramKey(legend, width, measure);
+  const svg = phenogramSvg({ karyogram, widths: new Map(), key });
+  assert(svg.includes(`viewBox="0 0 ${karyogram.canvas.width} `));
 });
 
 Deno.test("is self-contained for Inkscape", () => {
