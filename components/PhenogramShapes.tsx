@@ -159,10 +159,15 @@ export function Chromosome({ shape }: { shape: ChromosomeShape }) {
 export interface BlockProps {
   block: GeneBlock;
   widths: ReadonlyMap<string, number>;
+  /** Extra attributes for the label group, such as the export's id and Inkscape label. */
+  labelAttrs?: Record<string, string>;
 }
 
-/** Marker tick, leader, the symbol followed by its glyphs, one pill per line. */
-export function Block({ block, widths }: BlockProps) {
+/**
+ * Marker tick and leader, then the label group: the symbol followed by its
+ * glyphs, one pill per line.
+ */
+export function Block({ block, widths, labelAttrs }: BlockProps) {
   const symbolBaseline = block.y + L.blockPadding + L.symbolLine * 0.78;
   const glyphY = block.y + L.blockPadding + (L.symbolLine - GLYPH_SIZE) / 2;
   const chromosomeLeft = block.x - L.leaderGap - L.chromosomeWidth;
@@ -190,70 +195,72 @@ export function Block({ block, widths }: BlockProps) {
         stroke={SVG_PALETTE.ink}
         stroke-width={1}
       />
-      <text
-        class="label-ink phenogram-symbol"
-        fill={SVG_PALETTE.ink}
-        font-family={FONT_FAMILY}
-        data-symbol={`symbol-${block.index}`}
-        x={block.x}
-        y={symbolBaseline}
-        font-size={SYMBOL_FONT_SIZE}
-        font-weight={600}
-      >
-        {block.symbol}
-      </text>
-      {block.glyphs.map((glyph, i) => {
-        const x = block.x + symbolWidth + 2 * GLYPH_GAP +
-          i * (GLYPH_SIZE + GLYPH_GAP);
-        return (
-          <path
-            key={glyph.key}
-            class="phenogram-glyph"
-            fill={SVG_PALETTE.ink}
-            d={glyphPath(
-              glyph.shape,
-              x,
-              glyphY - glyphLift(glyph.shape),
-              GLYPH_SIZE,
-            )}
-          />
-        );
-      })}
-      {block.pills.map((pill, i) => {
-        const id = `pill-${block.index}-${i}`;
-        const top = block.y + L.blockPadding + L.symbolLine + i * L.pillLine;
-        const textWidth = widths.get(id) ??
-          pill.label.length * PILL_FONT_SIZE * PLACEHOLDER_EM;
-        const height = L.pillLine - PILL_INSET;
-        return (
-          <g key={id} class="phenogram-pill-mark">
-            <rect
-              class="pill-bg"
-              x={block.x}
-              y={top + PILL_INSET / 2}
-              width={textWidth + 2 * PILL_PADDING_X}
-              height={height}
-              rx={height / 2}
-              fill={pill.fill}
-              stroke={pill.stroke}
-              stroke-width={1}
-            />
-            <text
-              class="label-ink"
+      <g class="phenogram-label" {...labelAttrs}>
+        <text
+          class="label-ink phenogram-symbol"
+          fill={SVG_PALETTE.ink}
+          font-family={FONT_FAMILY}
+          data-symbol={`symbol-${block.index}`}
+          x={block.x}
+          y={symbolBaseline}
+          font-size={SYMBOL_FONT_SIZE}
+          font-weight={600}
+        >
+          {block.symbol}
+        </text>
+        {block.glyphs.map((glyph, i) => {
+          const x = block.x + symbolWidth + 2 * GLYPH_GAP +
+            i * (GLYPH_SIZE + GLYPH_GAP);
+          return (
+            <path
+              key={glyph.key}
+              class="phenogram-glyph"
               fill={SVG_PALETTE.ink}
-              font-family={FONT_FAMILY}
-              data-pill={id}
-              x={block.x + PILL_PADDING_X}
-              y={top + L.pillLine / 2}
-              dy="0.35em"
-              font-size={PILL_FONT_SIZE}
-              font-weight={400}
-            >
-              {pill.label}
-            </text>
-          </g>
-        );
-      })}
+              d={glyphPath(
+                glyph.shape,
+                x,
+                glyphY - glyphLift(glyph.shape),
+                GLYPH_SIZE,
+              )}
+            />
+          );
+        })}
+        {block.pills.map((pill, i) => {
+          const id = `pill-${block.index}-${i}`;
+          const top = block.y + L.blockPadding + L.symbolLine + i * L.pillLine;
+          const textWidth = widths.get(id) ??
+            pill.label.length * PILL_FONT_SIZE * PLACEHOLDER_EM;
+          const height = L.pillLine - PILL_INSET;
+          return (
+            <g key={id} class="phenogram-pill-mark">
+              <rect
+                class="pill-bg"
+                x={block.x}
+                y={top + PILL_INSET / 2}
+                width={textWidth + 2 * PILL_PADDING_X}
+                height={height}
+                rx={height / 2}
+                fill={pill.fill}
+                stroke={pill.stroke}
+                stroke-width={1}
+              />
+              <text
+                class="label-ink"
+                fill={SVG_PALETTE.ink}
+                font-family={FONT_FAMILY}
+                data-pill={id}
+                x={block.x + PILL_PADDING_X}
+                y={top + L.pillLine / 2}
+                dy={PILL_FONT_SIZE * 0.35}
+                font-size={PILL_FONT_SIZE}
+                font-weight={400}
+              >
+                {pill.label}
+              </text>
+            </g>
+          );
+        })}
+      </g>
     </g>
   );
 }

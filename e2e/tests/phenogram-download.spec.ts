@@ -40,7 +40,7 @@ test("figure only: one group per chromosome and gene, no key", async ({ page }) 
     new RegExp(`^${KEY}-dashboard-phenogram_\\d{2}-\\d{2}-\\d{4}\\.svg$`),
   );
   expect(count(svg, /id="chr-/g)).toBe(P.chromosomes);
-  expect(count(svg, /id="gene-/g)).toBe(P.blocks);
+  expect(count(svg, /id="gene-\d+"/g)).toBe(P.blocks);
   expect(svg).not.toContain('id="key"');
 });
 

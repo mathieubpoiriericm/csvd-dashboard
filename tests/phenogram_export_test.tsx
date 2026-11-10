@@ -89,7 +89,7 @@ Deno.test("one group per chromosome and per gene", () => {
     svg.match(/id="chr-/g)?.length,
     karyogram.chromosomes.length,
   );
-  assertEquals(svg.match(/id="gene-/g)?.length, karyogram.blocks.length);
+  assertEquals(svg.match(/id="gene-\d+"/g)?.length, karyogram.blocks.length);
   assert(svg.includes('inkscape:label="Chromosome 1"'));
   assert(svg.includes('inkscape:label="GENE1"'));
 });
@@ -103,6 +103,7 @@ Deno.test("escapes labels and keeps ids valid", () => {
   assert(ids.length > 0);
   for (const id of ids) assert(/^[A-Za-z][\w.-]*$/.test(id), id);
   assert(ids.includes("key-family-0"));
+  assertEquals(new Set(ids).size, ids.length, "ids are unique");
 });
 
 Deno.test("renders with no genes", () => {
@@ -111,4 +112,40 @@ Deno.test("renders with no genes", () => {
   assert(svg.startsWith('<?xml version="1.0" encoding="UTF-8"?>\n'));
   assert(svg.endsWith("</svg>"));
   assert(svg.includes('id="karyogram"'));
+});
+
+Deno.test("each gene has a label group apart from its marker and leader", () => {
+  const { svg } = build();
+  const open = svg.indexOf('id="gene-0-label"');
+  assert(open > 0, "label group id");
+  const start = svg.lastIndexOf("<g", open);
+  assert(
+    svg.slice(start, svg.indexOf(">", open)).includes(
+      'inkscape:label="GENE1 label"',
+    ),
+  );
+  // The label group holds no nested group closing before the pills end, so cut
+  // at the gene group's end and take what follows the label's opening tag.
+  const geneEnd = svg.indexOf("</g></g>", open);
+  const label = svg.slice(open, svg.indexOf("</g>", geneEnd - 1));
+  assert(label.includes(">GENE1</text>"));
+  assert(!label.includes("<line"));
+  assert(!label.includes("phenogram-leader"));
+  const gene = svg.slice(svg.lastIndexOf('id="gene-0"'), geneEnd);
+  assert(gene.includes("<line") && gene.includes("phenogram-leader"));
+});
+
+Deno.test("key and karyogram are Inkscape layers", () => {
+  const { svg } = build();
+  for (const id of ["key", "karyogram"]) {
+    assert(
+      new RegExp(`<g[^>]*id="${id}"[^>]*inkscape:groupmode="layer"`).test(
+        svg,
+      ) ||
+        new RegExp(`<g[^>]*inkscape:groupmode="layer"[^>]*id="${id}"`).test(
+          svg,
+        ),
+      id,
+    );
+  }
 });

@@ -23,6 +23,9 @@ const XMLNS_INKSCAPE = "http://www.inkscape.org/namespaces/inkscape";
 /** JSX cannot name a namespaced attribute, so it goes in through a spread. */
 const label = (text: string) => ({ "inkscape:label": text });
 
+/** Inkscape lists a group marked as a layer in its Layers panel. */
+const layer = { "inkscape:groupmode": "layer" };
+
 function KeyLabel({ text }: { text: KeyText }) {
   return (
     <text
@@ -131,6 +134,7 @@ export function phenogramSvg(
       {key && (
         <g
           id="key"
+          {...layer}
           transform={`translate(${margin} ${margin})`}
           {...label("Key")}
         >
@@ -141,6 +145,7 @@ export function phenogramSvg(
       )}
       <g
         id="karyogram"
+        {...layer}
         transform={key ? `translate(0 ${offset})` : undefined}
         {...label("Karyogram")}
       >
@@ -159,7 +164,14 @@ export function phenogramSvg(
             id={`gene-${block.index}`}
             {...label(block.symbol)}
           >
-            <Block block={block} widths={widths} />
+            <Block
+              block={block}
+              widths={widths}
+              labelAttrs={{
+                id: `gene-${block.index}-label`,
+                ...label(`${block.symbol} label`),
+              }}
+            />
           </g>
         ))}
       </g>
