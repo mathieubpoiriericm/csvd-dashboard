@@ -21,6 +21,14 @@ const UNITS_PER_INCH = 100;
 const XMLNS = "http://www.w3.org/2000/svg";
 const XMLNS_INKSCAPE = "http://www.inkscape.org/namespaces/inkscape";
 
+/**
+ * What XML 1.0 forbids even as a character reference: the C0 controls but tab,
+ * newline and carriage return, and the two noncharacters. One of them in a
+ * gene symbol or a label made a file no editor or browser would open.
+ */
+// deno-lint-ignore no-control-regex
+const XML_ILLEGAL = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\ufffe\uffff]/g;
+
 /** JSX cannot name a namespaced attribute, so it goes in through a spread. */
 const label = (text: string) => ({ "inkscape:label": text });
 
@@ -179,5 +187,7 @@ export function phenogramSvg(
       </g>
     </svg>
   );
-  return `<?xml version="1.0" encoding="UTF-8"?>\n${renderToString(svg)}`;
+  return `<?xml version="1.0" encoding="UTF-8"?>\n${
+    renderToString(svg).replace(XML_ILLEGAL, "")
+  }`;
 }

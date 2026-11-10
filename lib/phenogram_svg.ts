@@ -419,3 +419,53 @@ export function figureTextWidths(
   }
   return widths;
 }
+
+/** A face as `FontFaceSet.load()` takes it, and the characters set in it. */
+export interface FontText {
+  font: string;
+  text: string;
+}
+
+/**
+ * Every face the export sets text in, with the characters it sets in it.
+ *
+ * `document.fonts.load(font)` alone loads only the file whose `unicode-range`
+ * holds a space, which is the latin one: a label with a latin-ext letter was
+ * then measured in the fallback face on the first download, about a tenth too
+ * wide, and in Barlow on the second. The key's strings are read off a layout
+ * rather than restated, so a string added there cannot be missed here.
+ */
+export function exportFontTexts(
+  karyogram: Pick<PhenogramLayout, "blocks" | "chromosomes" | "legend">,
+  withKey: boolean,
+): FontText[] {
+  const chars = new Map<string, Set<string>>();
+  const add = (font: KeyFont, text: string) => {
+    const css = `${font.weight} ${font.size}px "${font.family}"`;
+    const set = chars.get(css) ?? new Set<string>();
+    for (const ch of text) set.add(ch);
+    chars.set(css, set);
+  };
+  // The figure's bold text, the symbols and the chromosome names, is one face.
+  for (const shape of karyogram.chromosomes) add(KEY_FONTS.family, shape.name);
+  for (const block of karyogram.blocks) {
+    add(KEY_FONTS.family, block.symbol);
+    for (const pill of block.pills) add(KEY_FONTS.pill, pill.label);
+  }
+  if (withKey) {
+    const key = layoutPhenogramKey(karyogram.legend, 0, () => 0);
+    for (const panel of key.panels) {
+      const texts = [
+        panel.title,
+        ...panel.texts,
+        ...panel.pills.map((p) => p.label),
+        ...panel.groups.flatMap((g) => [
+          ...g.texts,
+          ...g.pills.map((p) => p.label),
+        ]),
+      ];
+      for (const text of texts) add(text.font, text.text);
+    }
+  }
+  return [...chars].map(([font, set]) => ({ font, text: [...set].join("") }));
+}

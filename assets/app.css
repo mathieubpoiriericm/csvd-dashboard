@@ -4620,6 +4620,12 @@ button.adapt-card-head:focus-visible {
   font-size: var(--svd-text-sm);
 }
 
+.phenogram-download-error {
+  margin: var(--svd-space-2) 0 0;
+  color: var(--svd-danger-text);
+  font-size: var(--svd-text-sm);
+}
+
 /* A closed `<details>` keeps its body out of layout, but its children still
    report a non-zero `getBoundingClientRect()` -- the same size-containment
    gap F24 documents for `.pipeline-apis`. This is that fix for both figure

@@ -177,3 +177,26 @@ test("keyboard: Enter opens the menu, Escape closes it and returns focus", async
   await expect(button).toBeFocused();
   await expect(button).toHaveAttribute("aria-expanded", "false");
 });
+
+test("a failed download says so, and the next attempt clears it", async ({ page }) => {
+  await open(page);
+  await page.evaluate(() => {
+    const fonts = document.fonts as FontFaceSet & { real?: FontFaceSet["load"] };
+    fonts.real = fonts.load;
+    fonts.load = () => Promise.reject(new Error("offline"));
+  });
+  await page.getByRole("button", { name: /Download SVG/ }).click();
+  // With the key: its titles need a face on any data, where a figure with no
+  // gene sets no text and so loads no font to fail on.
+  await page.getByRole("button", { name: "Figure with key" }).click();
+  const alert = page.locator(".phenogram-download").getByRole("alert");
+  await expect(alert).toContainText("could not be saved");
+
+  await page.evaluate(() => {
+    const fonts = document.fonts as FontFaceSet & { real?: FontFaceSet["load"] };
+    fonts.load = fonts.real!;
+  });
+  const { svg } = await download(page, "Figure only");
+  expect(svg).toContain('id="karyogram"');
+  await expect(alert).toHaveCount(0);
+});
