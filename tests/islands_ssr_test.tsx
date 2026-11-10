@@ -194,6 +194,15 @@ Deno.test("Phenogram draws a block per placeable gene and reports the rest", () 
   assertStringIncludes(html, TRAIT.label);
 });
 
+Deno.test("phenogram renders the download control", () => {
+  const html = renderToString(<Phenogram rows={GENES} />);
+  assertMatch(html, /<button[^>]*popovertarget="[^"]+"[^>]*>\s*Download SVG/);
+  assertMatch(html, /<div\s+popover[^>]*id="[^"]+"/);
+  assertStringIncludes(html, ">Figure only</button>");
+  assertStringIncludes(html, ">Figure with key</button>");
+  assertStringIncludes(html, "Install them before editing in Inkscape.");
+});
+
 Deno.test("Phenogram over no genes draws no chromosome and no unplaced note", () => {
   const html = renderToString(<Phenogram rows={[]} />);
   assertEquals(count(html, 'class="phenogram-block"'), 0);
