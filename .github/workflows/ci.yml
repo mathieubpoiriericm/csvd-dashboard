@@ -348,6 +348,10 @@ jobs:
     # pinned in a generic test, a two-letter abbreviation in the literal
     # scans, one trial population -- cannot surface there. This unpacks two
     # wizard bundles over copies of the tree and runs every check on each.
+    # It runs in the fork itself too, whose checkout already followed the
+    # checklist: the script's steps hold on a tree that carries them, as
+    # `--ignore-unmatch` does for the job above, and its gates run with
+    # GOLD_ONLY off, which is how a fork runs.
     #
     # One job per fork and gate family, side by side: run one after the other
     # they made this the slowest job in the workflow by minutes. The script
