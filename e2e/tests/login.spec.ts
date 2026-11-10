@@ -119,6 +119,26 @@ test("the host the start task prints can hold the session cookie", async ({ page
   expect(session?.secure).toBe(false);
 });
 
+// Firefox keeps an icon for a bookmark only if it may store it, and it will not
+// store a `no-store` one unless its path is exactly /favicon.ico -- which it
+// never requests once the page offers an SVG. Fresh serves a static file
+// `no-store` unless its URL carries the build id, so an unversioned icon shows
+// on the tab and is missing from every bookmark.
+test("the icons are versioned, so a browser may keep them for a bookmark", async ({ page, request }) => {
+  await page.goto("/login");
+  const icons = await page.locator('link[rel="icon"], link[rel="apple-touch-icon"]')
+    .evaluateAll(
+      (links) => links.map((link) => (link as HTMLLinkElement).href),
+    );
+  expect(icons).toHaveLength(3);
+  for (const icon of icons) {
+    const response = await request.get(icon);
+    expect(response.status(), icon).toBe(200);
+    expect(response.headers()["cache-control"], icon).not.toContain("no-store");
+    expect(response.headers()["cache-control"], icon).toContain("immutable");
+  }
+});
+
 test("the login fonts are public, versioned and immutable", async ({ page, request }) => {
   await page.goto("/login");
   const fonts = await page.locator('link[rel="preload"][as="font"]')
