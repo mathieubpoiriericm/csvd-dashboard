@@ -73,7 +73,9 @@ function trustedHeaderName(name: string | undefined): string | undefined {
   return trimmed;
 }
 
-function resolveOptions(options: LoginPostLimiterOptions): ResolvedOptions {
+export function resolveOptions(
+  options: LoginPostLimiterOptions,
+): ResolvedOptions {
   return {
     perClientLimit: positiveInteger(
       options.perClientLimit ?? LOGIN_PER_CLIENT_LIMIT,
@@ -136,7 +138,7 @@ export function isLoginPostPath(pathname: string, basePath = ""): boolean {
  * cannot all observe the same remaining slot. Expired entries are pruned on the
  * next request; globalLimit bounds tokens and maxTrackedClients bounds map keys.
  */
-class AttemptLedger {
+export class AttemptLedger {
   readonly #options: ResolvedOptions;
   #attempts: Attempt[] = [];
   #byClient = new Map<string, Attempt[]>();

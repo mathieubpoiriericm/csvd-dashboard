@@ -1,5 +1,6 @@
 import { App, staticFiles } from "fresh";
 
+import { adaptSessionLimiter } from "./server/adapt_session_limiter.ts";
 import { compression } from "./server/compression.ts";
 import { frameProtection } from "./server/frame_protection.ts";
 import { loginPostLimiter } from "./server/login_post_limiter.ts";
@@ -32,10 +33,14 @@ app.use(staticFiles());
 // socket peer is the client, as it is locally and in e2e. The origin check
 // accepts this host over HTTPS, which is what a browser behind Fly's TLS
 // sends (server/same_site_origin.ts).
+//
+// The adapt guide's session routes (/adapt/session/{create,save,resume}) are
+// the other writes: the same origin check covers them, and a limiter of their
+// own, keyed on the same client header, counts wrong resume codes and new
+// session files per client (server/adapt_session_limiter.ts). Both limiters
+// run before file routing, so before the login gate as well.
+const trustedClientIpHeader = Deno.env.get("LOGIN_CLIENT_IP_HEADER");
 app.use(sameSiteCsrf());
-app.use(
-  loginPostLimiter({
-    trustedClientIpHeader: Deno.env.get("LOGIN_CLIENT_IP_HEADER"),
-  }),
-);
+app.use(loginPostLimiter({ trustedClientIpHeader }));
+app.use(adaptSessionLimiter({ trustedClientIpHeader }));
 app.fsRoutes();
