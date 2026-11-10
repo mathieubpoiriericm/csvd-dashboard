@@ -1,12 +1,12 @@
 ---
 name: deploy
-description: Use when deploying the dashboard to Fly.io, setting up a fork's Fly app, or diagnosing a broken deploy - the one-machine rule the login limiter depends on, the Fly-Client-IP header, the allowlist .dockerignore, the CI deploy job and its FLY_API_TOKEN, why Fly's health check cannot see a missing login secret, the Fly-Client-IP spoof probe and its result, and retiring the old Deno Deploy project.
+description: Use when deploying the dashboard to Fly.io, setting up a fork's Fly app, or diagnosing a broken deploy - the machine count, the per-machine volumes and what both mean for the login limiter, the Fly-Client-IP header, the allowlist .dockerignore, the CI deploy job and its FLY_API_TOKEN, why Fly's health check cannot see a missing login secret, the Fly-Client-IP spoof probe and its result, and retiring the old Deno Deploy project.
 ---
 
 # Hosting on Fly.io
 
-The app runs at `https://csvd-dashboard.fly.dev`, on Fly.io, as one always-on
-machine built from the root `Dockerfile` and configured by `fly.toml`. On a push
+The app runs at `https://csvd-dashboard.fly.dev`, on Fly.io, as always-on
+machines built from the root `Dockerfile` and configured by `fly.toml`. On a push
 to `main`, CI's `container` job builds that image, smoke-tests it and pushes it
 to `registry.fly.io/<app>:<commit>`; the `deploy` job in
 `.github/workflows/ci.yml` releases exactly that image
@@ -26,12 +26,22 @@ Deno Deploy" below has what is left.
 
 Six things are non-obvious enough to state here:
 
-- **Exactly one machine.** `server/login_post_limiter.ts` counts failed sign-ins
-  in the server process: a second machine doubles the guess budget, and a
-  stopped one forgets it. `fly.toml` turns auto-stop off and keeps one running;
-  CI deploys with `--ha=false`, because a first `fly deploy` otherwise creates
-  two machines. `fly status` should list one. If it lists two,
-  `fly scale count 1`.
+- **Eight machines since 10 November 2026, and the limiter counts on each.**
+  The researcher scaled the app to four machines in `cdg` and four in `yyz`
+  (1 GB `shared-cpu-2x`), so do not `fly scale count 1` on finding more than
+  one. `server/login_post_limiter.ts` counts failed sign-ins in the server
+  process: every machine counts separately, so a visitor can spend up to eight
+  times the per-client budget and the global limit is eight times 64 a minute,
+  and a stopped machine forgets its count. That is unsolved; `fly.toml` turns
+  auto-stop off, and CI's `--ha=false` only keeps a first `fly deploy` from
+  creating two machines.
+- **One volume per machine.** `fly.toml`'s `[mounts]` puts a
+  `persistent_session_storage` volume at `/session_storage`. A volume attaches
+  to one machine and is not shared, so it cannot hold state every machine must
+  see. A new machine needs a volume of that name in its region first
+  (`fly volumes create persistent_session_storage --region <region>`). Nothing
+  writes there yet, and the volume's root belongs to root while the image runs
+  as `deno`.
 - **`LOGIN_CLIENT_IP_HEADER = "Fly-Client-IP"` in `fly.toml` is load-bearing.**
   Every request reaches the machine from Fly's proxy, so without it the limiter
   keys every visitor on the proxy's address, and five wrong guesses from anyone
@@ -104,7 +114,7 @@ These touch an account and its secrets, so the researcher runs them:
 | Symptom                                                   | Cause and fix                                                                                                                                                                                                                                         |
 | --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | every gated page answers 503, `/login` renders            | a login secret is unset: `fly secrets list`, then `fly secrets set` the missing one (this restarts the machine)                                                                                                                                       |
-| everyone gets "Too many sign-in attempts" at once         | `LOGIN_CLIENT_IP_HEADER` is missing from `fly.toml`'s `[env]`, or `fly status` lists more than one machine                                                                                                                                            |
+| everyone gets "Too many sign-in attempts" at once         | `LOGIN_CLIENT_IP_HEADER` is missing from `fly.toml`'s `[env]`                                                                                                                                            |
 | the CI `deploy` job printed "FLY_API_TOKEN is not set"    | this repository holds no token, which is expected on the second remote and on a fork that hosts elsewhere                                                                                                                                             |
 | the `container` job's push step fails, so nothing deploys | `flyctl auth docker` or `docker push` to `registry.fly.io` was refused: check the token (`fly tokens create deploy`) and the app name in `fly.toml`; the live site keeps the previous release                                                         |
 | `deploy` fails with the image not found                   | this commit's image is not in the registry: the token was added after the run's `container` job had skipped the push and only `deploy` was re-run, or an old run's `deploy` was re-run after the image left Fly's registry. Re-run the whole workflow |

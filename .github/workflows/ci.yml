@@ -510,7 +510,8 @@ jobs:
   # deploy`); a repository without it -- a fork that hosts elsewhere, or the
   # second of this project's two remotes -- skips the deploy instead of
   # failing. --ha=false keeps a first deploy from creating Fly's default two
-  # machines: the login limiter counts in the process, so there must be one.
+  # machines; the machine count is set on Fly (fly.toml says what it costs
+  # the login limiter).
   # It releases the image container pushed for this commit, so what goes live
   # is byte for byte the image the smoke test passed.
   deploy:
