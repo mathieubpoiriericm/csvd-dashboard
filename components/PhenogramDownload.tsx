@@ -60,7 +60,6 @@ export function PhenogramDownload({ build }: PhenogramDownloadProps) {
         type="button"
         class="phenogram-download-toggle"
         popovertarget={id}
-        aria-haspopup="true"
         // A string, not a boolean: the server drops a boolean-false aria-*.
         aria-expanded={open ? "true" : "false"}
       >

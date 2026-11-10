@@ -4603,7 +4603,7 @@ button.adapt-card-head:focus-visible {
 
 .phenogram-download-item:hover,
 .phenogram-download-item:focus-visible {
-  background: var(--svd-ground);
+  background: var(--svd-bg-tooltip-hover);
   color: var(--svd-color-accent-text);
 }
 
