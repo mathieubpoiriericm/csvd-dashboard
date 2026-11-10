@@ -3,10 +3,12 @@ import { Card } from "../Card.tsx";
 import { StepSummary } from "../StepSummary.tsx";
 import { ListEditor } from "../ListEditor.tsx";
 import {
+  addGene,
   applyGeneCheck,
   genesToCheck,
   hasOmimRow,
   lookupSummary,
+  removeGene,
 } from "../../../lib/adapt/edits.ts";
 import {
   type ClinvarTraits,
@@ -31,7 +33,7 @@ const OMIM_FIELDS = [
 export function MonogenicStep(
   { answers, update, fetch, setStatus, busy, lookup }: StepProps,
 ) {
-  const { genes, aliases, omimRows } = answers.monogenic;
+  const { none, genes, aliases, omimRows } = answers.monogenic;
   const auth = answers.search.ncbi;
 
   // The write-back (applyGeneCheck) finds the row by the symbol asked
@@ -113,6 +115,26 @@ export function MonogenicStep(
           the diseases ClinVar attests for this gene's own pathogenic variants,
           each with its OMIM number when ClinVar reports one.
         </p>
+        {
+          /* None is a valid answer, and it is given here: an empty list
+             alone is also a step nobody has opened. Offered only while the
+             list is empty, since a gene listed is the answer. */
+        }
+        {genes.length === 0 && (
+          <label class="adapt-field">
+            <span class="adapt-field-label">
+              <input
+                type="checkbox"
+                checked={none}
+                onChange={(e) => {
+                  const { checked } = e.currentTarget;
+                  update((d) => d.monogenic.none = checked);
+                }}
+              />{" "}
+              This disease has no monogenic gene
+            </span>
+          </label>
+        )}
         <ListEditor
           items={genes}
           addLabel="Add gene"
@@ -121,17 +143,8 @@ export function MonogenicStep(
             `Gene ${i + 1}${
               gene.symbol.trim() === "" ? "" : `: ${gene.symbol}`
             }`}
-          empty="No monogenic genes. That is a valid answer."
-          add={() =>
-            update((d) =>
-              d.monogenic.genes.push({
-                symbol: "",
-                verified: null,
-                clinvarTraits: [],
-                clinvarSample: null,
-              })
-            )}
-          remove={(i) => update((d) => d.monogenic.genes.splice(i, 1))}
+          add={() => update(addGene)}
+          remove={(i) => update((d) => removeGene(d, i))}
           render={(gene, i) => (
             <div class="adapt-lookup">
               <TextField

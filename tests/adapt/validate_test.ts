@@ -401,13 +401,21 @@ Deno.test("monogenic rules", () => {
     withChange((a) => a.monogenic.omimRows[0].geneOrLocus = "OTHER"),
     "monogenic:omimRows[0].geneOrLocus",
   );
-  // No genes at all is valid, and then no OMIM row may name one.
+  // No genes at all is valid once it is said, and then no OMIM row may
+  // name one. An empty list alone is a question nobody has answered: the
+  // step read as done on a draft that had never been opened.
+  const geneless = (none: boolean) =>
+    withChange((a) => {
+      a.monogenic = { none, genes: [], aliases: [], omimRows: [] };
+    });
+  assertEquals(validate(geneless(true)), []);
   assertEquals(
-    validate(withChange((a) => {
-      a.monogenic = { genes: [], aliases: [], omimRows: [] };
-    })),
-    [],
+    validate(geneless(false)).map((i) => [i.step, i.field, i.kind]),
+    [["monogenic", "genes", "missing"]],
   );
+  // The answer is read only while the list is empty: a gene listed beside
+  // it (two tabs merged) is the answer.
+  assertEquals(validate(withChange((a) => a.monogenic.none = true)), []);
 });
 
 Deno.test("prompt rules", () => {
@@ -1641,7 +1649,7 @@ Deno.test("a section spliced into one line holds no line break", () => {
 
 Deno.test("with no monogenic gene the monogenic sections may be blank", () => {
   const none = withChange((a) => {
-    a.monogenic = { genes: [], aliases: [], omimRows: [] };
+    a.monogenic = { none: true, genes: [], aliases: [], omimRows: [] };
     a.prompt.sections["rubric.monogenic_examples"] = "";
     a.prompt.sections["strategy.background_example"] = "";
   });

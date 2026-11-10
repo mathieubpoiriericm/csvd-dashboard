@@ -1135,6 +1135,47 @@ test("a Start over in another tab takes back what this one had revealed", async 
   await other.close();
 });
 
+test("no step of a fresh draft is done, and no monogenic gene is an answer to give", async ({ page }) => {
+  // An empty gene list asked nothing, so step 5 and its three cards read as
+  // complete on a page nobody had typed into.
+  await waitForHydration(page);
+  await expect(page.locator(".adapt-stepper-item")).toHaveCount(8);
+  await expect(page.locator(".adapt-stepper-item.is-done")).toHaveCount(0);
+  const segment = page.getByRole("button", {
+    name: "Monogenic genes",
+    exact: true,
+  });
+  await segment.click();
+  await expect(segment).toHaveAccessibleDescription("Not started");
+  const head = (id: string) =>
+    page.locator(`[data-card="${id}"] .adapt-card-head`);
+  await expect(head("genes")).toContainText("1 to go");
+  for (const id of ["aliases", "omim"]) {
+    await expect(head(id)).toContainText("Nothing required");
+    await expect(head(id)).not.toContainText("Complete");
+  }
+  const none = page.getByLabel("This disease has no monogenic gene");
+  await none.check();
+  await expect(segment).toHaveAccessibleDescription("Done");
+  await expect(head("genes")).toContainText("Complete");
+  // The answer is saved with the draft.
+  await page.reload();
+  await waitForHydration(page);
+  await expect(segment).toHaveAccessibleDescription("Done");
+  await segment.click();
+  await head("genes").click();
+  await expect(none).toBeChecked();
+  // A gene listed is the answer, and taking it away asks again.
+  await press(page, "Add gene");
+  await expect(none).toHaveCount(0);
+  await page.locator('[data-card="genes"]').getByRole("button", {
+    name: "Remove",
+    exact: true,
+  }).click();
+  await expect(none).not.toBeChecked();
+  await expect(segment).toHaveAccessibleDescription("Not started");
+});
+
 test("pressing the current step's own segment moves nothing", async ({ page }) => {
   await waitForHydration(page);
   const institute = page.locator('[data-card="institute"]');

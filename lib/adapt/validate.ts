@@ -1145,7 +1145,16 @@ function trialsIssues(a: Answers): Issue[] {
 
 function monogenicIssues(a: Answers): Issue[] {
   const c = new Collector("monogenic");
-  const { genes, aliases, omimRows } = a.monogenic;
+  const { none, genes, aliases, omimRows } = a.monogenic;
+  // No gene is a legal answer, and it has to be given: an empty list is
+  // also what a draft nobody has opened holds.
+  if (genes.length === 0 && !none) {
+    c.add(
+      "genes",
+      'Add a gene, or tick "This disease has no monogenic gene".',
+      "missing",
+    );
+  }
   if (genes.length > 10) {
     c.add("genes", "List at most ten monogenic genes.", "wrong");
   }

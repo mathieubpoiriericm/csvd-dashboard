@@ -147,6 +147,12 @@ export interface OmimRow {
 }
 
 export interface Monogenic {
+  /**
+   * The answer that the disease has no monogenic gene, read only while
+   * `genes` is empty. An empty list alone is not that answer: it is also
+   * what a draft nobody has opened holds, and the step read as done there.
+   */
+  none: boolean;
   genes: Array<{
     symbol: string;
     /** null until checked, then whether NCBI Gene knows the symbol. */
@@ -255,7 +261,7 @@ export const EMPTY_ANSWERS: Answers = deepFreeze({
     mechanismFamilies: [],
     mechanisms: [],
   },
-  monogenic: { genes: [], aliases: [], omimRows: [] },
+  monogenic: { none: false, genes: [], aliases: [], omimRows: [] },
   prompt: { sections: {}, examples: [] },
   gold: { rows: [] },
 });
@@ -371,6 +377,7 @@ const STEPS_SHAPE = obj({
     mechanisms: list(obj({ name: str, family: str })),
   }),
   monogenic: obj({
+    none: bool,
     genes: list(obj({
       symbol: str,
       verified: nullable(bool),

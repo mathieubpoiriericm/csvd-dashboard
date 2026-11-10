@@ -1,9 +1,14 @@
 import { assert, assertEquals } from "@std/assert";
 
-import { parseDraft, serialiseDraft } from "../../lib/adapt/answers.ts";
+import {
+  EMPTY_ANSWERS,
+  parseDraft,
+  serialiseDraft,
+} from "../../lib/adapt/answers.ts";
 import {
   addDiseaseTerm,
   addExamplePapers,
+  addGene,
   applyTitles,
   checkedMeshRow,
   dropMeshHeading,
@@ -12,6 +17,7 @@ import {
   pmidsToCheck,
   removeDiseaseTerm,
   removeFamily,
+  removeGene,
   renameFamily,
   setDiseaseTerm,
   spaced,
@@ -731,4 +737,29 @@ Deno.test("retyping a family's key as itself parks nobody", () => {
     draft.vocabulary.traits.map((t) => t.family),
     ["fam-a ", "fam-a ", "fam-b", "fam-b"],
   );
+});
+
+Deno.test("listing a gene, or removing one, withdraws the answer that there is none", () => {
+  const draft = structuredClone(EMPTY_ANSWERS);
+  draft.monogenic.none = true;
+  addGene(draft);
+  assertEquals(draft.monogenic, {
+    none: false,
+    genes: [{
+      symbol: "",
+      verified: null,
+      clinvarTraits: [],
+      clinvarSample: null,
+    }],
+    aliases: [],
+    omimRows: [],
+  });
+  // Two tabs merged can hold both; emptying the list then asks again
+  // rather than finding an answer given before the genes were.
+  draft.monogenic.none = true;
+  addGene(draft);
+  draft.monogenic.none = true;
+  removeGene(draft, 0);
+  assertEquals(draft.monogenic.genes.length, 1);
+  assertEquals(draft.monogenic.none, false);
 });

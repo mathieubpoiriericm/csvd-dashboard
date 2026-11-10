@@ -27,7 +27,10 @@ export function Card({ step, id, children }: CardProps) {
   const state = wizard?.step === step ? wizard.cards[id] : undefined;
   const fixed = def.fixed === true;
   const open = fixed || wizard === null || wizard.openCard === id;
-  const done = state !== undefined && state.progress.open.length === 0;
+  const settled = state !== undefined && state.progress.open.length === 0;
+  // A card that asks nothing has nothing to complete: ticked, it read as
+  // work done on a draft nobody had typed into.
+  const done = settled && state.progress.asked > 0;
   const body = `adapt-card-${step}-${id}`;
   let pill = null;
   if (state !== undefined) {
@@ -38,6 +41,8 @@ export function Card({ step, id, children }: CardProps) {
           <Icon name="checkCircle" />Complete
         </span>
       )
+      : settled
+      ? <span class="adapt-pill">Nothing required</span>
       : state.progress.toFix > 0
       ? (
         <span class="adapt-pill is-fix">
@@ -55,7 +60,7 @@ export function Card({ step, id, children }: CardProps) {
       <span class="adapt-card-text">
         <span class="adapt-card-title">{def.title}</span>
         <span class="adapt-card-summary">
-          {done ? state!.summary : def.purpose}
+          {settled ? state!.summary : def.purpose}
         </span>
       </span>
       {pill}

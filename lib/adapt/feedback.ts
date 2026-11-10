@@ -292,7 +292,9 @@ const UNPICKED = "\0";
  * whose keys are another step's and are not blanked with this one: a trait
  * row added and not yet keyed is a blank key all the same, and a blanked
  * trait matched it. A phrase blanked asks nothing of MeSH, so each phrase
- * typed asks it here.
+ * typed asks it here. Blanking leaves a flag as it stands, and "no
+ * monogenic gene" is an answer: left ticked, the step would ask nothing
+ * and count nothing answered.
  */
 export function stepRequired(answers: Answers, step: StepId): string[] {
   const blanked = blankStep(answers, step);
@@ -305,6 +307,7 @@ export function stepRequired(answers: Answers, step: StepId): string[] {
   for (const row of blanked.monogenic.omimRows) {
     if (step === "monogenic") row.geneOrLocus = UNPICKED;
   }
+  if (step === "monogenic") blanked.monogenic.none = false;
   for (const example of blanked.prompt.examples) {
     if (step === "prompt") example.traits = [UNPICKED];
   }
