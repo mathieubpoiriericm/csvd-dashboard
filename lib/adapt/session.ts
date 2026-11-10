@@ -93,6 +93,7 @@ export type SessionFailure =
   | "off"
   | "signed-out"
   | "limited"
+  | "quota"
   | "full"
   | "too-large"
   | "invalid"
@@ -145,6 +146,8 @@ export const SESSION_COPY = {
   signedOut:
     "You are signed out of the dashboard. Sign in again in another tab, then save. Your answers are still in this browser.",
   limited: "Too many attempts. Wait a minute and try again.",
+  quota:
+    "This connection already holds as many saved sessions as the server keeps for one connection. Resume one of them, or use Export answers.",
   full:
     "The server cannot take another session right now. Use Export answers instead.",
   failed:
@@ -205,6 +208,9 @@ function classify(
     case 422:
       return fail("unreadable", message ?? SESSION_COPY.unreadable);
     case 429:
+      // The connection holds as many sessions as one may; waiting does not
+      // help, unlike the limiter's 429.
+      if (body.error === "quota") return fail("quota", SESSION_COPY.quota);
       return fail("limited", SESSION_COPY.limited);
     case 503:
       if (body.error === "full") return fail("full", SESSION_COPY.full);

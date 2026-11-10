@@ -118,7 +118,10 @@ export function adaptSessionLimiter<State>(
     (response, operation) => {
       // A request handed over to the machine holding the sessions is counted
       // there, when the proxy replays it; counting it here as well would
-      // spend the client's budget twice.
+      // spend the client's budget twice. A 429 `quota` refusal from the
+      // store (the connection holds SESSION_PER_CLIENT_CAP sessions) made no
+      // file and carries no CREATED_HEADER, so it settles as "other": a
+      // refused create does not also spend the client's rate budget.
       const handedOver = response.headers.has(REPLAY_HEADER);
       return !handedOver && (
           response.headers.get(CREATED_HEADER) === "created" ||

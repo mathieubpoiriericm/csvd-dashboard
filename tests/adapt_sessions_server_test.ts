@@ -13,6 +13,7 @@ import {
   openSessionStore,
   SESSION_BYTES_BUDGET,
   SESSION_CAP,
+  SESSION_PER_CLIENT_CAP,
   type SessionStore,
   SWEEP_INTERVAL_MS,
 } from "../server/adapt_sessions.ts";
@@ -768,4 +769,170 @@ Deno.test("a sweep at open removes expired sessions and stale temporary files", 
   } finally {
     await Deno.remove(dir, { recursive: true });
   }
+});
+
+const OWNER = "0123456789abcdef";
+const OTHER = "fedcba9876543210";
+const UNUSED = "ABCDEFGHJKMNPQRSTVWX";
+
+/** The markers in `dir`, each as its session's hash and its owner tag. */
+async function markers(dir: string): Promise<[string, string][]> {
+  return (await files(dir))
+    .filter((name) => name.endsWith(".own"))
+    .map((name) => {
+      const [hash, tag] = name.split(".");
+      return [hash, tag];
+    });
+}
+
+/** `count` sessions created by `owner`, their codes in order. */
+async function createMany(
+  store: SessionStore,
+  owner: string,
+  count: number,
+): Promise<string[]> {
+  const codes: string[] = [];
+  for (let i = 0; i < count; i++) {
+    codes.push(created(await store.create(VALID, owner)));
+  }
+  return codes;
+}
+
+Deno.test("one connection holds at most fifty sessions", () => {
+  assertEquals(SESSION_PER_CLIENT_CAP, 50);
+});
+
+Deno.test("a create writes an empty marker named by the session and its owner", async () => {
+  await withStore(async (store, dir) => {
+    created(await store.create(VALID, OWNER));
+    const names = await files(dir);
+    assertEquals(names.length, 2, names.join(", "));
+    const session = names.find((name) => name.endsWith(".json"))!;
+    const marker = names.find((name) => name.endsWith(".own"))!;
+    assertEquals(marker, `${session.slice(0, 64)}.${OWNER}.own`);
+    assertEquals(await Deno.readTextFile(join(dir, marker)), "");
+    // With no owner there is nothing to mark.
+    created(await store.create(VALID));
+    assertEquals((await markers(dir)).length, 1);
+  });
+});
+
+Deno.test("the 51st create from one connection is refused, another's passes", async () => {
+  await withStore(async (store, dir) => {
+    await createMany(store, OWNER, SESSION_PER_CLIENT_CAP);
+    assertEquals(await store.create(VALID, OWNER), { error: "quota" });
+    assertEquals(
+      (await files(dir)).filter((name) => name.endsWith(".json")).length,
+      SESSION_PER_CLIENT_CAP,
+    );
+    created(await store.create(VALID, OTHER));
+    // A caller with no connection is not held to the rule.
+    created(await store.create(VALID));
+  });
+});
+
+Deno.test("at its cap a connection still saves an existing session, and is refused a revival", async () => {
+  await withStore(async (store, dir) => {
+    const [first] = await createMany(store, OWNER, SESSION_PER_CLIENT_CAP);
+    const saved = await store.save(
+      first,
+      { revision: 1, savedAt: T0 },
+      VALID2,
+      false,
+      OWNER,
+    );
+    assert("revision" in saved && !saved.revived, JSON.stringify(saved));
+    const before = await files(dir);
+    assertEquals(
+      await store.save(
+        UNUSED,
+        { revision: 1, savedAt: T0 },
+        VALID,
+        false,
+        OWNER,
+      ),
+      { error: "quota" },
+    );
+    assertEquals(await files(dir), before);
+  });
+});
+
+Deno.test("a revival replaces the session's marker with the reviver's", async () => {
+  await withStore(async (store, dir, clock) => {
+    const code = created(await store.create(VALID, OWNER));
+    // Expired, unswept: the save after the load finds the file still there.
+    clock.now = T0 + SESSION_TTL_MS - 1;
+    assert("text" in await store.load(code));
+    clock.now = T0 + SESSION_TTL_MS;
+    const revived = await store.save(
+      code,
+      { revision: 1, savedAt: T0 },
+      VALID2,
+      false,
+      OTHER,
+    );
+    assert("revived" in revived && revived.revived);
+    assertEquals((await markers(dir)).map(([, tag]) => tag), [OTHER]);
+    // A revival with no owner leaves the session marked for nobody.
+    const absent = await store.save(
+      UNUSED,
+      { revision: 1, savedAt: T0 },
+      VALID,
+      false,
+    );
+    assert("revived" in absent && absent.revived);
+    assertEquals((await markers(dir)).length, 1);
+  });
+});
+
+Deno.test("an expired session's marker goes with it, and frees the slot", async () => {
+  await withStore(async (store, dir, clock) => {
+    await createMany(store, OWNER, SESSION_PER_CLIENT_CAP);
+    clock.now = T0 + SESSION_TTL_MS;
+    // The create runs the overdue sweep first, which removes all fifty.
+    created(await store.create(VALID, OWNER));
+    assertEquals((await files(dir)).length, 2);
+    assertEquals((await markers(dir)).length, 1);
+  });
+});
+
+Deno.test("a marker whose session is gone is swept, at open and on the hour", async () => {
+  await withStore(async (store, dir) => {
+    const orphan = `${"c".repeat(64)}.${OWNER}.own`;
+    await Deno.writeTextFile(join(dir, orphan), "");
+    created(await store.create(VALID, OWNER));
+    assertEquals((await markers(dir)).length, 2);
+    await store.sweep();
+    assertEquals((await markers(dir)).length, 1);
+    assert(!(await files(dir)).includes(orphan));
+
+    await Deno.writeTextFile(join(dir, orphan), "");
+    openSessionStore(dir, { now: () => T0 });
+    assertEquals((await markers(dir)).length, 1);
+    assert(!(await files(dir)).includes(orphan));
+  });
+});
+
+Deno.test("a session with no marker counts toward nobody's cap", async () => {
+  await withStore(async (store, dir) => {
+    await createMany(store, OWNER, SESSION_PER_CLIENT_CAP);
+    const [hash] = (await markers(dir))[0];
+    await Deno.remove(join(dir, `${hash}.${OWNER}.own`));
+    created(await store.create(VALID, OWNER));
+    assertEquals(await store.create(VALID, OWNER), { error: "quota" });
+    // The session the marker left is kept, and a sweep leaves it alone.
+    assert((await files(dir)).includes(`${hash}.json`));
+    await store.sweep();
+    assert((await files(dir)).includes(`${hash}.json`));
+  });
+});
+
+Deno.test("markers do not count toward the file cap", async () => {
+  await withStore(async (store, dir) => {
+    // With its marker counted, the second create would already be refused.
+    created(await store.create(VALID, OWNER));
+    created(await store.create(VALID, OWNER));
+    assertEquals(await store.create(VALID, OWNER), { error: "full" });
+    assertEquals((await files(dir)).length, 4);
+  }, { cap: 2 });
 });

@@ -4,8 +4,10 @@
  * The resume code travels in the JSON body only, never in a URL, so it
  * reaches no access log, history entry or Referer. The routes sit behind the
  * login gate and csrf() like every other write (main.ts); the per-client
- * limit on wrong codes and new sessions is server/adapt_session_limiter.ts.
- * Each handler takes the store as an argument, so a test can give it one on
+ * limit on wrong codes and new sessions is server/adapt_session_limiter.ts,
+ * and the cap on how many sessions one connection holds is the store's
+ * (SESSION_PER_CLIENT_CAP), given the owner tag these handlers derive from
+ * the route's client key. Each handler takes the store as an argument, so a test can give it one on
  * a temporary directory instead of the process's environment, and the holder
  * likewise: on a machine that does not hold the sessions, every request is
  * handed over before its body is read (server/adapt_session_holder.ts).
@@ -14,6 +16,7 @@
 import type { Answers } from "../lib/adapt/answers.ts";
 import { type Imported, parseExport } from "../lib/adapt/bundle.ts";
 import { normaliseCode } from "../lib/adapt/session_code.ts";
+import { loginConfig } from "../lib/auth.ts";
 import { type Holder, replayToHolder } from "./adapt_session_holder.ts";
 import type { SessionStore } from "./adapt_sessions.ts";
 
@@ -127,15 +130,66 @@ function readCode(body: Body): string | null {
   return typeof body.code === "string" ? normaliseCode(body.code) : null;
 }
 
-const unavailable = (error: "full" | "failed") => reply(503, { error });
-
 const HERE: Holder = { kind: "here" };
 
 /** What a route passes beyond the request, the store and the holder. */
 export interface SessionRequestOptions {
+  /**
+   * The client's key, as clientKeyOf() (server/login_post_limiter.ts) derives
+   * it for the limiters. Without one the store applies no per-connection cap.
+   */
+  clientKey?: string;
+  /** The key for the owner tag; loginConfig()'s session secret by default. */
+  secret?: string;
   /** Reads an export's text; a test passes one that counts its calls. */
   parse?: (text: string) => Imported;
 }
+
+const encoder = new TextEncoder();
+
+/**
+ * The owner tag the store marks a connection's sessions with: the first 16
+ * hex characters of HMAC-SHA256 over the client key, keyed with the session
+ * secret. Without the server's secret it cannot be turned back into an
+ * address, and nothing writes or logs the key itself. Rotating
+ * DASHBOARD_SESSION_SECRET orphans every tag: the sessions already marked then
+ * count toward nobody, which errs toward the people saving, and the markers
+ * go with their sessions as usual.
+ */
+export async function ownerTag(
+  clientKey: string,
+  secret: string,
+): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const mac = await crypto.subtle.sign("HMAC", key, encoder.encode(clientKey));
+  return Array.from(
+    new Uint8Array(mac).subarray(0, 8),
+    (b) => b.toString(16).padStart(2, "0"),
+  ).join("");
+}
+
+/** The owner tag for this request's client, or undefined when there is none. */
+async function ownerOf(
+  options: SessionRequestOptions,
+): Promise<string | undefined> {
+  if (options.clientKey === undefined) return undefined;
+  const secret = options.secret ?? loginConfig()?.sessionSecret;
+  return secret ? await ownerTag(options.clientKey, secret) : undefined;
+}
+
+/**
+ * The answer to a store that cannot take the write: 429 for a connection at
+ * its session quota (not the server failing, and no Retry-After, since
+ * waiting does not free a session), 503 otherwise.
+ */
+const unavailable = (error: "full" | "quota" | "failed") =>
+  reply(error === "quota" ? 429 : 503, { error });
 
 export async function handleCreate(
   req: Request,
@@ -149,7 +203,7 @@ export async function handleCreate(
   if (body instanceof Response) return body;
   const answers = readAnswers(body, options.parse ?? parseExport);
   if (answers instanceof Response) return answers;
-  const result = await store.create(answers);
+  const result = await store.create(answers, await ownerOf(options));
   if ("error" in result) return unavailable(result.error);
   return reply(201, result, true);
 }
@@ -182,6 +236,7 @@ export async function handleSave(
     { revision: revision as number, savedAt: savedAt as number | undefined },
     answers,
     force,
+    await ownerOf(options),
   );
   if (!("error" in result)) return reply(200, result, result.revived);
   if (result.error === "conflict") return reply(409, result);

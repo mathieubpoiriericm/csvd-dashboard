@@ -143,6 +143,37 @@ Deno.test("a revival on save stays counted", async () => {
   );
 });
 
+Deno.test("a refusal for the connection's session quota is not counted", async () => {
+  // The store refused the create, so it spent nothing; counting it too would
+  // also burn the client's rate budget.
+  const quota = () =>
+    Response.json({ error: "quota" }, {
+      status: 429,
+      headers: { "Cache-Control": "no-store" },
+    });
+  const limiter = adaptSessionLimiter({ perClientLimit: 1 });
+  for (const operation of ["create", "save", "create", "save"]) {
+    const response = await invoke(limiter, {
+      pathname: `/adapt/session/${operation}`,
+      next: quota,
+    });
+    assertEquals(response.status, 429);
+    assertEquals(await response.json(), { error: "quota" });
+    assertEquals(response.headers.get("retry-after"), null);
+  }
+  assertEquals(
+    (await invoke(limiter, {
+      pathname: "/adapt/session/create",
+      next: created,
+    }))
+      .status,
+    201,
+  );
+  assertLimited(
+    await invoke(limiter, { pathname: "/adapt/session/create", next: created }),
+  );
+});
+
 Deno.test("plain saves release their reservation", async () => {
   const limiter = adaptSessionLimiter();
   for (let i = 0; i < 30; i++) {

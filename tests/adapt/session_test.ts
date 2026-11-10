@@ -262,6 +262,12 @@ Deno.test("failures map to a reason and a message", async () => {
       SESSION_COPY.signedOut,
     ],
     [() => json(429, {}), "limited", SESSION_COPY.limited],
+    [
+      () => json(429, { error: "limited" }),
+      "limited",
+      SESSION_COPY.limited,
+    ],
+    [() => json(429, { error: "quota" }), "quota", SESSION_COPY.quota],
     [() => json(503, { error: "full" }), "full", SESSION_COPY.full],
     [() => json(503, { error: "failed" }), "failed", SESSION_COPY.failed],
     // A hand-over to the holding machine that nothing consumed: off Fly's
@@ -399,6 +405,13 @@ Deno.test("dates read in the given time zone", () => {
   // Without a zone the viewer's own is used.
   assert(formatDay(Date.UTC(2026, 10, 24, 12)).length > 0);
   assert(/^\d\d:\d\d$/.test(formatClock(Date.UTC(2026, 10, 24, 12))));
+});
+
+Deno.test("the quota refusal says what to do instead", () => {
+  assertEquals(
+    SESSION_COPY.quota,
+    "This connection already holds as many saved sessions as the server keeps for one connection. Resume one of them, or use Export answers.",
+  );
 });
 
 Deno.test("the copy functions fill their dates in", () => {

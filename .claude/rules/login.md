@@ -61,7 +61,29 @@ forgives nothing: anyone can create a session and so hold a valid code, and
 forgiving would let a client alternate guesses with a resume of its own code
 and never be limited. The per-client limit is 10 a minute;
 `ADAPT_SESSION_PER_CLIENT_LIMIT` raises it for the e2e server alone, and a
-malformed value stops the start.
+malformed value stops the start. A refusal for the session quota below settles
+as uncounted, so a refused create does not spend the rate budget as well.
+
+The limiter bounds only the rate, so the store also bounds how many sessions
+one connection holds: 50 live ones (`SESSION_PER_CLIENT_CAP` in
+`server/adapt_sessions.ts`). A create or a revival past it answers 429
+`{"error":"quota"}` without `Retry-After`, which the guide words as "This
+connection already holds as many saved sessions as the server keeps for one
+connection"; a save to an existing session is never refused by it. The
+connection is keyed by `clientKeyOf()` in `server/login_post_limiter.ts`, the
+same function both limiters use, and is never stored as is: each session has an
+empty marker beside it, `<session hash>.<owner tag>.own`, whose tag is the first
+16 hex characters of an HMAC-SHA256 of the client key under
+`DASHBOARD_SESSION_SECRET`. The tag is a keyed hash, not an address; it cannot
+be turned back into one without the secret, and rotating the secret orphans
+every tag, so those sessions count toward nobody. The marker is written with
+the session and goes with it; the sweep also removes a marker whose session is
+gone, and a session without one counts toward nobody's cap.
+
+`server/login_post_limiter.ts` owns the middleware both limiters run
+(`postLimiter()`), the ledger and `clientKeyOf()`;
+`server/adapt_session_limiter.ts` is only the session routes' configuration of
+it.
 
 `_app.tsx` renders `/login` as a bare sheet (no navbar) and, for a verified
 session, a "Sign out" form beside the theme toggle; the flag it reads is

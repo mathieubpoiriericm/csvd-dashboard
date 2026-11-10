@@ -51,6 +51,24 @@ export const SESSION_CAP = 500;
  * and then every save by anyone would fail.
  */
 export const SESSION_BYTES_BUDGET = 750_000_000;
+/**
+ * How many live sessions one connection may hold at once. SESSION_CAP is one
+ * count for everyone and the session limiter bounds only the rate, so without
+ * this one client with the passphrase could fill the directory within the
+ * hour and leave everyone "full" for 14 days. A create or a revival by a
+ * connection at its cap is refused; a save to an existing session never is,
+ * whoever makes it.
+ *
+ * The count reads no session file. Beside each session sits an empty marker,
+ * `<session hash>.<owner tag>.own`, written after the session on a create or
+ * a revival and removed with it. The owner tag is a keyed hash of the
+ * client's key (server/adapt_session_api.ts), never the address itself. A
+ * session without a marker (saved before markers existed, or its marker
+ * removed by hand) counts toward nobody. Markers count toward neither
+ * SESSION_CAP nor the byte budget. Like those, the count comes from a listing,
+ * so creates in flight at once can overshoot it by the number in flight.
+ */
+export const SESSION_PER_CLIENT_CAP = 50;
 export const SWEEP_INTERVAL_MS = 60 * 60 * 1000;
 
 export interface SessionMeta {
@@ -58,12 +76,12 @@ export interface SessionMeta {
   savedAt: number;
 }
 export type CreateResult = ({ code: string } & SessionMeta) | {
-  error: "full" | "failed";
+  error: "full" | "quota" | "failed";
 };
 export type SaveResult =
   | (SessionMeta & { revived: boolean })
   | { error: "conflict"; savedAt: number }
-  | { error: "full" | "failed" };
+  | { error: "full" | "quota" | "failed" };
 export type LoadResult = (SessionMeta & { text: string }) | {
   error: "unknown" | "unreadable";
   message?: string;
@@ -82,16 +100,25 @@ export interface SaveBase {
  * them, or an export's text, which the store parses itself.
  */
 export type SessionAnswers = Answers | string;
+/**
+ * `owner`, on a create or a save, is the connection's owner tag: 16 lower-case
+ * hex characters. Without one, SESSION_PER_CLIENT_CAP is not applied and the
+ * session is marked for nobody.
+ */
 export interface SessionStore {
-  create(answers: SessionAnswers): Promise<CreateResult>;
+  create(answers: SessionAnswers, owner?: string): Promise<CreateResult>;
   save(
     code: string,
     base: SaveBase,
     answers: SessionAnswers,
     force: boolean,
+    owner?: string,
   ): Promise<SaveResult>;
   load(code: string): Promise<LoadResult>;
-  /** Removes expired sessions and abandoned temporary files; the count removed. */
+  /**
+   * Removes expired sessions and abandoned temporary files, and the markers
+   * of sessions that are gone; the count removed, markers not included.
+   */
   sweep(): Promise<number>;
 }
 
@@ -105,7 +132,24 @@ interface StoreOptions {
 
 const FILE_VERSION = 1;
 const SESSION_FILE = /^[0-9a-f]{64}\.json$/;
+/** A session's owner marker: its hash, then the owner tag. */
+const MARKER_FILE = /^([0-9a-f]{64})\.([0-9a-f]{16})\.own$/;
+const OWNER_TAG = /^[0-9a-f]{16}$/;
 const TEMP_MARK = ".tmp-";
+
+/** The session file a marker belongs to, or null for any other name. */
+function markedSession(name: string): string | null {
+  const match = MARKER_FILE.exec(name);
+  return match === null ? null : `${match[1]}.json`;
+}
+
+/** Refuses a tag that is not one, which would also be no safe file name. */
+function checkedOwner(owner: string | undefined): string | undefined {
+  if (owner !== undefined && !OWNER_TAG.test(owner)) {
+    throw new TypeError("an owner tag is 16 lower-case hex characters");
+  }
+  return owner;
+}
 /** A temporary file this old belongs to a write that died, not one in flight. */
 const STALE_TEMP_MS = 60 * 60 * 1000;
 
@@ -198,7 +242,11 @@ class FileSessionStore implements SessionStore {
     this.#sweepSync(this.#lastSweep);
   }
 
-  async create(input: SessionAnswers): Promise<CreateResult> {
+  async create(
+    input: SessionAnswers,
+    owner?: string,
+  ): Promise<CreateResult> {
+    checkedOwner(owner);
     await this.#sweepIfDue();
     const answers = this.#sanitised(input);
     if (answers === null) return { error: "failed" };
@@ -214,10 +262,13 @@ class FileSessionStore implements SessionStore {
           if (stored.kind !== "absent") return null;
           const savedAt = this.#now();
           const body = fileBody(1, savedAt, answers);
-          if (await this.#full(name, body, true)) return { error: "full" };
-          return await this.#write(name, savedAt, body)
-            ? { code, revision: 1, savedAt }
-            : { error: "failed" };
+          const refused = await this.#refusal(name, body, true, owner);
+          if (refused !== null) return { error: refused };
+          if (!(await this.#write(name, savedAt, body))) {
+            return { error: "failed" };
+          }
+          await this.#mark(name, owner);
+          return { code, revision: 1, savedAt };
         },
       );
       if (result !== null) return result;
@@ -230,7 +281,9 @@ class FileSessionStore implements SessionStore {
     base: SaveBase,
     input: SessionAnswers,
     force: boolean,
+    owner?: string,
   ): Promise<SaveResult> {
+    checkedOwner(owner);
     await this.#sweepIfDue();
     const normalised = normaliseCode(code);
     const answers = this.#sanitised(input);
@@ -278,12 +331,18 @@ class FileSessionStore implements SessionStore {
         );
       }
       const body = fileBody(revision, savedAt, answers);
-      if (await this.#full(name, body, stored.kind === "absent")) {
-        return { error: "full" };
-      }
-      return await this.#write(name, savedAt, body)
-        ? { revision, savedAt, revived }
-        : { error: "failed" };
+      // Only a revival is held to the connection's cap: a save to a live
+      // session, or over a damaged one, makes nothing new.
+      const refused = await this.#refusal(
+        name,
+        body,
+        stored.kind === "absent",
+        revived ? owner : undefined,
+      );
+      if (refused !== null) return { error: refused };
+      if (!(await this.#write(name, savedAt, body))) return { error: "failed" };
+      if (revived) await this.#mark(name, owner);
+      return { revision, savedAt, revived };
     });
   }
 
@@ -331,6 +390,7 @@ class FileSessionStore implements SessionStore {
           );
         if (gone) removed++;
       }
+      await this.#sweepMarkers();
     } catch {
       // A directory that cannot be listed loses nothing by waiting for the
       // next sweep; the writes report their own failures.
@@ -338,8 +398,33 @@ class FileSessionStore implements SessionStore {
     return removed;
   }
 
+  /**
+   * Removes every marker whose session is gone: swept just now, removed by
+   * hand, or never written. Taken from a second listing, after the sessions
+   * the sweep removed, and checked again under the session's own chain, so a
+   * create that writes its session and then its marker is never caught
+   * between the two.
+   */
+  async #sweepMarkers(): Promise<void> {
+    const sessions = new Set<string>();
+    const markers: [string, string][] = [];
+    for await (const { isFile, name } of Deno.readDir(this.#dir)) {
+      if (!isFile) continue;
+      if (SESSION_FILE.test(name)) sessions.add(name);
+      const session = markedSession(name);
+      if (session !== null) markers.push([name, session]);
+    }
+    for (const [marker, session] of markers) {
+      if (sessions.has(session)) continue;
+      await this.#serial(session, async () => {
+        if (!(await this.#exists(session))) await this.#remove(marker);
+      });
+    }
+  }
+
   #sweepSync(now: number): void {
     try {
+      const names: string[] = [];
       for (const entry of Deno.readDirSync(this.#dir)) {
         if (!entry.isFile) continue;
         const path = `${this.#dir}/${entry.name}`;
@@ -348,10 +433,54 @@ class FileSessionStore implements SessionStore {
           modifiedAt !== undefined && sweepable(entry.name, modifiedAt, now)
         ) {
           Deno.removeSync(path);
+        } else {
+          names.push(entry.name);
+        }
+      }
+      // Nothing else runs yet, so the listing above is the directory.
+      const sessions = new Set(names.filter((name) => SESSION_FILE.test(name)));
+      for (const name of names) {
+        const session = markedSession(name);
+        if (session !== null && !sessions.has(session)) {
+          Deno.removeSync(`${this.#dir}/${name}`);
         }
       }
     } catch {
       // As in sweep(): the next one tries again.
+    }
+  }
+
+  /** Whether `name` exists; true when that cannot be told, so nothing is lost. */
+  async #exists(name: string): Promise<boolean> {
+    try {
+      await Deno.stat(`${this.#dir}/${name}`);
+      return true;
+    } catch (error) {
+      return !(error instanceof Deno.errors.NotFound);
+    }
+  }
+
+  /**
+   * Marks the session `name` as `owner`'s, in place of any marker it had:
+   * after a revival it is the reviver's, and with no owner nobody's. Called
+   * once the session file is safely in place, under its chain. A marker that
+   * cannot be written is logged and the save still stands: the session then
+   * counts toward nobody's cap, which errs toward the person saving.
+   */
+  async #mark(name: string, owner: string | undefined): Promise<void> {
+    const hash = name.slice(0, 64);
+    const own = owner === undefined ? null : `${hash}.${owner}.own`;
+    try {
+      for await (const { isFile, name: entry } of Deno.readDir(this.#dir)) {
+        if (isFile && entry !== own && markedSession(entry) === name) {
+          await this.#remove(entry);
+        }
+      }
+      if (own !== null) {
+        await Deno.writeFile(`${this.#dir}/${own}`, new Uint8Array());
+      }
+    } catch (error) {
+      logFailure("mark", name, error);
     }
   }
 
@@ -398,25 +527,46 @@ class FileSessionStore implements SessionStore {
   }
 
   /**
-   * Whether writing `body` as the file `name` would take the directory past
-   * the file cap or the byte budget. `adds` says the write makes a new file,
-   * which the cap counts. A write over an existing file is refused only when
-   * it grows the total past the budget, so a save that keeps or shrinks a
-   * session always passes. The sizes come from stat, so nothing is read.
+   * Why writing `body` as the file `name` is refused, or null when it is not:
+   * "quota" when `owner` already holds SESSION_PER_CLIENT_CAP live sessions
+   * other than this one, "full" when it would take the directory past the
+   * file cap or the byte budget. `owner` is given only for a write that makes
+   * the session the owner's (a create or a revival). `adds` says the write
+   * makes a new file, which the cap counts. A write over an existing file is
+   * refused only when it grows the total past the budget, so a save that
+   * keeps or shrinks a session always passes. The sizes come from stat and
+   * the owners from the markers' names, so nothing is read.
    */
-  async #full(name: string, body: string, adds: boolean): Promise<boolean> {
+  async #refusal(
+    name: string,
+    body: string,
+    adds: boolean,
+    owner: string | undefined,
+  ): Promise<"quota" | "full" | null> {
     const names: string[] = [];
+    const owned: string[] = [];
     try {
       for await (const entry of Deno.readDir(this.#dir)) {
-        if (entry.isFile && SESSION_FILE.test(entry.name)) {
-          names.push(entry.name);
+        if (!entry.isFile) continue;
+        if (SESSION_FILE.test(entry.name)) names.push(entry.name);
+        const session = markedSession(entry.name);
+        if (
+          owner !== undefined && session !== null && session !== name &&
+          entry.name.endsWith(`.${owner}.own`)
+        ) {
+          owned.push(session);
         }
       }
     } catch {
       // A directory that cannot be listed will not take the write either,
       // and the write reports that as "failed".
-      return false;
+      return null;
     }
+    // A marker counts only beside its session: one left by a session removed
+    // by hand holds nothing until the sweep takes it.
+    const present = new Set(names);
+    const held = owned.filter((session) => present.has(session)).length;
+    if (held >= SESSION_PER_CLIENT_CAP) return "quota";
     // Every save runs this, so the stats go out together rather than one
     // after another. The directory stays the only source of the total: a
     // running count kept in memory would drift from files removed by hand.
@@ -434,9 +584,9 @@ class FileSessionStore implements SessionStore {
       total += sizes[i];
       if (entry === name) own = sizes[i];
     });
-    if (adds && names.length >= this.#cap) return true;
+    if (adds && names.length >= this.#cap) return "full";
     const after = total - own + new TextEncoder().encode(body).byteLength;
-    return after > this.#budget && after > total;
+    return after > this.#budget && after > total ? "full" : null;
   }
 
   /** The file read back, or null when it exists but cannot be read at all. */

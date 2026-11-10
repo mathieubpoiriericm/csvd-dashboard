@@ -8,10 +8,12 @@ import {
   handleCreate,
   handleResume,
   handleSave,
+  ownerTag,
   SESSION_BODY_LIMIT,
 } from "../server/adapt_session_api.ts";
 import {
   openSessionStore,
+  SESSION_PER_CLIENT_CAP,
   type SessionStore,
 } from "../server/adapt_sessions.ts";
 
@@ -448,4 +450,100 @@ Deno.test("a full store answers 503 full", async () => {
   } finally {
     await Deno.remove(dir, { recursive: true });
   }
+});
+
+const SECRET = "a-session-secret-for-tests";
+const CLIENT = "header:198.51.100.7";
+
+Deno.test("an owner tag is 16 hex characters, stable, and keyed by the secret", async () => {
+  const tag = await ownerTag(CLIENT, SECRET);
+  assertMatch(tag, /^[0-9a-f]{16}$/);
+  assertEquals(await ownerTag(CLIENT, SECRET), tag);
+  assert((await ownerTag("header:203.0.113.8", SECRET)) !== tag);
+  assert((await ownerTag(CLIENT, "another-secret")) !== tag);
+});
+
+Deno.test("a connection at its cap is answered 429 quota, and never named by address", async () => {
+  await withStore(async (store, dir) => {
+    const lines: string[] = [];
+    const originals = {
+      error: console.error,
+      info: console.info,
+      log: console.log,
+      warn: console.warn,
+    };
+    for (const level of ["error", "info", "log", "warn"] as const) {
+      console[level] = (...args: unknown[]) => void lines.push(args.join(" "));
+    }
+    const options = { clientKey: CLIENT, secret: SECRET };
+    const create = (opts: typeof options) =>
+      handleCreate(
+        request("create", JSON.stringify({ answers: VALID })),
+        store,
+        undefined,
+        opts,
+      );
+    try {
+      for (let i = 0; i < SESSION_PER_CLIENT_CAP; i++) {
+        const response = await create(options);
+        assertEquals(response.status, 201);
+        await response.body?.cancel();
+      }
+      const refused = await create(options);
+      assertEquals(refused.status, 429);
+      assertEquals(refused.headers.get(CREATED_HEADER), null);
+      assertEquals(refused.headers.get("retry-after"), null);
+      assertEquals(await json(refused), { error: "quota" });
+
+      // A revival is refused the same way.
+      const revival = await handleSave(
+        request(
+          "save",
+          JSON.stringify({
+            code: "ABCDEFGHJKMNPQRSTVWX",
+            revision: 1,
+            answers: VALID,
+          }),
+        ),
+        store,
+        undefined,
+        options,
+      );
+      assertEquals(revival.status, 429);
+      assertEquals(await json(revival), { error: "quota" });
+
+      // Another connection still creates.
+      const other = await create({
+        clientKey: "header:203.0.113.8",
+        secret: SECRET,
+      });
+      assertEquals(other.status, 201);
+      await other.body?.cancel();
+    } finally {
+      Object.assign(console, originals);
+    }
+    const tag = await ownerTag(CLIENT, SECRET);
+    const names = await files(dir);
+    assertEquals(
+      names.filter((name) => name.endsWith(`.${tag}.own`)).length,
+      SESSION_PER_CLIENT_CAP,
+    );
+    for (const text of [...names, ...lines]) {
+      assert(!text.includes("198.51.100.7"), text);
+    }
+  });
+});
+
+Deno.test("without a session secret no owner is applied", async () => {
+  await withStore(async (store, dir) => {
+    const response = await handleCreate(
+      request("create", JSON.stringify({ answers: VALID })),
+      store,
+      undefined,
+      { clientKey: CLIENT, secret: "" },
+    );
+    assertEquals(response.status, 201);
+    await response.body?.cancel();
+    assertEquals((await files(dir)).filter((n) => n.endsWith(".own")), []);
+  });
 });

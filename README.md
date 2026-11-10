@@ -264,9 +264,10 @@ disease.
   kept in the browser between visits
 - Save session keeps the answers on the server, in files on the Fly machine's
   volume, behind a resume code that opens them in any browser for 14 days after
-  the last save; at most 500 sessions and 750,000,000 bytes on the volume, and
-  4,000,000 bytes a save; off where `ADAPT_SESSIONS_DIR` is unset or unwritable,
-  which leaves Export and Import answers
+  the last save; at most 500 sessions and 750,000,000 bytes on the volume, 50
+  sessions held by one connection, and 4,000,000 bytes a save; off where
+  `ADAPT_SESSIONS_DIR` is unset or unwritable, which leaves Export and Import
+  answers
 - Downloads `disease-adaptation.zip`: the nine files of `disease/`, the logos, a
   checklist of the steps that follow and the answers themselves;
   `scripts/adapt_fork_check.ts` runs every gate on a fork built from one
