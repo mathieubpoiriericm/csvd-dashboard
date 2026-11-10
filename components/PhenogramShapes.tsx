@@ -10,12 +10,14 @@ const L = encoding.layout;
 /** The face the figure is set in; an exported file carries it as an attribute, having no stylesheet. */
 const FONT_FAMILY = "Barlow, sans-serif";
 
-export const SYMBOL_FONT_SIZE = 12;
-export const PILL_FONT_SIZE = 9.5;
+// The text geometry the layout sizes each label column from, so the column
+// and the drawing cannot disagree.
+export const SYMBOL_FONT_SIZE = L.symbolFont;
+export const PILL_FONT_SIZE = L.pillFont;
 export const CHROMOSOME_FONT_SIZE = 13;
-export const GLYPH_SIZE = 9;
-export const GLYPH_GAP = 4;
-export const PILL_PADDING_X = 5;
+export const GLYPH_SIZE = L.glyphSize;
+export const GLYPH_GAP = L.glyphGap;
+export const PILL_PADDING_X = L.pillPaddingX;
 export const PILL_INSET = 2;
 /**
  * Pre-hydration estimate of a text width, in em per character. Every pill

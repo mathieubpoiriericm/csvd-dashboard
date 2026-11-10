@@ -12,18 +12,109 @@ import { genes } from "../lib/data.ts";
 import { sampleGene } from "./fixtures/rows.ts";
 import {
   blockHeight,
+  canvasFor,
+  CHROMOSOME_LABEL_DESCENT,
+  type ChromosomeShape,
   chromosomeShapes,
+  columnWidth,
   computePhenogramLayout,
   encoding,
+  fontMetrics,
+  glyphsFor,
+  labelWidth,
+  type PhenogramLayout,
   phenogramLegend,
   pillsFor,
   resolveCollisions,
+  splitRows,
+  textWidth,
 } from "../lib/phenogram.ts";
 
 const layout = computePhenogramLayout(genes);
 const L = encoding.layout;
 const chromosome = (name: string) =>
   layout.chromosomes.find((c) => c.name === name)!;
+const pitchOf = (c: ChromosomeShape) =>
+  L.chromosomeWidth + L.leaderGap + c.columnWidth;
+const rowWidth = (row: readonly ChromosomeShape[]) =>
+  row.reduce((sum, c) => sum + pitchOf(c), 0);
+
+/** A gene on every chromosome, at both ends: the whole karyotype. */
+const everywhere = cytobands.chromosomes.flatMap((c, i) => [
+  sampleGene({
+    gene: `A${i}`,
+    chromosomalLocation: `${c.name}${c.bands[0].name}`,
+  }),
+  sampleGene({
+    gene: `Z${i}`,
+    chromosomalLocation: `${c.name}${c.bands.at(-1)!.name}`,
+  }),
+]);
+
+/**
+ * What every layout owes its canvas, whatever the data: each chromosome sits
+ * after the previous one's label column, each block inside its own column and
+ * on the canvas, the rows split as evenly as the order allows, and the canvas
+ * no larger than the drawing plus its margin.
+ */
+function assertFits(placed: PhenogramLayout, label: string) {
+  const { width, height } = placed.canvas;
+  for (const row of placed.rows) {
+    let right = L.margin;
+    for (const c of row) {
+      assert(
+        c.x >= right - 1e-6,
+        `${label}: chr${c.name} overlaps the column before it`,
+      );
+      assertEquals(c.x, right, `${label}: chr${c.name} x`);
+      right = c.x + pitchOf(c);
+      assert(
+        right <= width - L.margin + 1e-6,
+        `${label}: chr${c.name} off the right`,
+      );
+      assert(
+        c.labelPoint.y + CHROMOSOME_LABEL_DESCENT <= height - L.margin + 1e-6,
+      );
+    }
+  }
+  for (const block of placed.blocks) {
+    const c = placed.chromosomes.find((c) => c.name === block.chromosome)!;
+    assertEquals(block.width, c.columnWidth, `${label}: ${block.symbol}`);
+    const drawn = labelWidth(block.symbol, block.pills, block.glyphs.length);
+    assert(
+      block.x + drawn <= c.x + pitchOf(c) + 1e-6,
+      `${label}: ${block.symbol} leaves its column`,
+    );
+    assert(block.x >= 0 && block.y >= 0, `${label}: ${block.symbol}`);
+    assert(block.x + block.width <= width + 1e-6, `${label}: ${block.symbol}`);
+    assert(
+      block.y + block.height <= height + 1e-6,
+      `${label}: ${block.symbol}`,
+    );
+  }
+  // The split: no other cut of the same order makes the wider row narrower.
+  const pitches = placed.rows.flat().map(pitchOf);
+  const widest = Math.max(...placed.rows.map(rowWidth));
+  for (let k = 1; k < pitches.length; k++) {
+    const first = pitches.slice(0, k).reduce((a, b) => a + b, 0);
+    const rest = pitches.slice(k).reduce((a, b) => a + b, 0);
+    assert(widest <= Math.max(first, rest), `${label}: cut at ${k} is better`);
+  }
+  // The canvas is the drawing's extent, not a fixed plate.
+  if (placed.chromosomes.length > 0) {
+    assertEquals(
+      width,
+      Math.ceil(2 * L.margin + Math.max(...placed.rows.map(rowWidth))),
+    );
+    const bottom = Math.max(
+      ...placed.chromosomes.map((c) =>
+        c.labelPoint.y + CHROMOSOME_LABEL_DESCENT
+      ),
+      ...placed.blocks.map((b) => b.y + b.height),
+    );
+    assertEquals(height, Math.ceil(bottom + L.margin));
+  }
+}
 
 Deno.test("only chromosomes carrying a gene are drawn, in karyotype order across two rows", () => {
   const drawn = layout.chromosomes.map((c) => c.name);
@@ -33,7 +124,11 @@ Deno.test("only chromosomes carrying a gene are drawn, in karyotype order across
     ...Array(layout.blocks.length).keys(),
   ]);
   assertEquals(layout.blocks.length + layout.unplaced.length, genes.length);
-  assertEquals(layout.canvas, { width: L.viewBox[0], height: L.viewBox[1] });
+  assertEquals(layout.canvas, canvasFor(layout.rows, layout.blocks));
+});
+
+Deno.test("the committed layout fits its canvas", () => {
+  assertFits(layout, "committed");
 });
 
 Deno.test("a constructed table draws to scale, top-aligned in its row, one per column", () => {
@@ -54,10 +149,11 @@ Deno.test("a constructed table draws to scale, top-aligned in its row, one per c
     "GENE2",
     "GENE3",
   ]);
-  // The row break is after chromosome `rowSplitAfter`, not at a count.
+  // Three equal columns: either cut leaves a row of two, and a tie goes to
+  // the later cut.
   assertEquals(placed.rows.map((row) => row.map((c) => c.name)), [
-    ["1"],
-    ["13", "X"],
+    ["1", "13"],
+    ["X"],
   ]);
   const one = placed.chromosomes[0];
   assertAlmostEquals(one.height, L.rowHeight, 1e-6);
@@ -68,27 +164,23 @@ Deno.test("a constructed table draws to scale, top-aligned in its row, one per c
     114364328 / 248956422 * L.rowHeight,
     1e-6,
   );
-  assertEquals(thirteen.y, L.margin + L.rowHeight + L.rowGap);
-  assertEquals(thirteen.row, 1);
+  assertEquals(thirteen.y, L.margin);
+  const x = placed.chromosomes[2];
+  assertEquals(x.y, L.margin + L.rowHeight + L.rowGap);
+  assertEquals(x.row, 1);
+  // No label is wider than the minimum column, so every pitch is the minimum.
   const pitch = L.chromosomeWidth + L.leaderGap + L.labelColumn;
   for (const row of placed.rows) {
-    row.forEach((c, i) =>
-      assertEquals(c.x, L.margin + i * pitch, `chr${c.name} x`)
-    );
+    row.forEach((c, i) => {
+      assertEquals(c.columnWidth, L.labelColumn);
+      assertEquals(c.x, L.margin + i * pitch, `chr${c.name} x`);
+    });
   }
+  assertFits(placed, "constructed");
 });
 
-Deno.test("a gene on every chromosome draws the whole karyotype in two rows", () => {
-  const rows = cytobands.chromosomes.flatMap((c, i) => [
-    sampleGene({
-      gene: `A${i}`,
-      chromosomalLocation: `${c.name}${c.bands[0].name}`,
-    }),
-    sampleGene({
-      gene: `Z${i}`,
-      chromosomalLocation: `${c.name}${c.bands.at(-1)!.name}`,
-    }),
-  ]);
+Deno.test("a gene on every chromosome draws the whole karyotype in two even rows", () => {
+  const rows = everywhere;
   const placed = computePhenogramLayout(rows);
   assertEquals(placed.unplaced, []);
   assertEquals(
@@ -96,7 +188,9 @@ Deno.test("a gene on every chromosome draws the whole karyotype in two rows", ()
     cytobands.chromosomes.map((c) => c.name),
   );
   assertEquals(placed.blocks.length, rows.length);
-  assertEquals(placed.rows[0].at(-1)!.name, L.rowSplitAfter);
+  // Twenty-four equal columns split twelve and twelve.
+  assertEquals(placed.rows.map((row) => row.length), [12, 12]);
+  assertFits(placed, "karyotype");
   // Within a chromosome the first band's gene precedes the last band's.
   for (const c of placed.chromosomes) {
     const here = placed.blocks.filter((b) => b.chromosome === c.name);
@@ -105,11 +199,12 @@ Deno.test("a gene on every chromosome draws the whole karyotype in two rows", ()
 });
 
 Deno.test("chromosomes are drawn to scale, top-aligned in their row, one per column", () => {
-  const pitch = L.chromosomeWidth + L.leaderGap + L.labelColumn;
   for (const row of layout.rows) {
-    row.forEach((c, i) =>
-      assertEquals(c.x, L.margin + i * pitch, `chr${c.name} x`)
-    );
+    let x = L.margin;
+    for (const c of row) {
+      assertEquals(c.x, x, `chr${c.name} x`);
+      x += pitchOf(c);
+    }
   }
   for (const c of layout.chromosomes) {
     assertEquals(c.y, L.margin + c.row * (L.rowHeight + L.rowGap));
@@ -144,7 +239,7 @@ Deno.test("each marker sits at its band's midpoint inside its chromosome", () =>
     );
     assert(block.markerY >= c.y && block.markerY <= c.y + c.height);
     assertEquals(block.x, c.x + L.chromosomeWidth + L.leaderGap);
-    assertEquals(block.width, L.labelColumn);
+    assertEquals(block.width, c.columnWidth);
     assert(
       block.leader.startsWith(`M ${(c.x + L.chromosomeWidth).toFixed(2)} `),
     );
@@ -344,4 +439,121 @@ Deno.test("resolveCollisions clamps a lone block to the row", () => {
   assertEquals(resolveCollisions([-10], [20], 0, 400, 6), [0]);
   assertEquals(resolveCollisions([395], [20], 0, 400, 6), [380]);
   assertEquals(resolveCollisions([], [], 0, 400, 6), []);
+});
+
+Deno.test("textWidth sums the face's advances and charges an unknown character the widest", () => {
+  const advances = fontMetrics.advances;
+  const em = fontMetrics.unitsPerEm;
+  const a = advances["600"][String("A".codePointAt(0))];
+  assertAlmostEquals(textWidth("AA", 600, 12), 2 * a / em * 12, 1e-9);
+  assertEquals(textWidth("", 400, 9.5), 0);
+  const widest = Math.max(...Object.values(advances["400"]));
+  assertAlmostEquals(textWidth("\u{1F9EC}", 400, 10), widest / em * 10, 1e-9);
+  // Bold symbols measure wider than the same letters in a pill's regular.
+  assert(textWidth("abc", 600, 12) > textWidth("abc", 400, 12));
+});
+
+Deno.test("labelWidth is the wider of the first line, glyphs included, and each pill", () => {
+  const symbol = textWidth("GENE1", 600, L.symbolFont);
+  assertAlmostEquals(labelWidth("GENE1", [], 0), symbol, 1e-9);
+  // Glyphs start two gaps after the symbol and sit a gap apart, as Block draws them.
+  assertAlmostEquals(
+    labelWidth("GENE1", [], 3),
+    symbol + 2 * L.glyphGap + 3 * L.glyphSize + 2 * L.glyphGap,
+    1e-9,
+  );
+  const long = "A pill label far longer than any gene symbol";
+  assertAlmostEquals(
+    labelWidth("GENE1", [{ label: "WMH" }, { label: long }], 1),
+    textWidth(long, 400, L.pillFont) + 2 * L.pillPaddingX,
+    1e-9,
+  );
+  const rich = sampleGene({
+    evidenceFromOtherOmicsStudies: ["TWAS"],
+    mendelianRandomization: "Yes",
+  });
+  assertEquals(glyphsFor(rich).length, 2);
+});
+
+Deno.test("columnWidth never narrows below labelColumn and rounds the slack up", () => {
+  assertEquals(columnWidth([]), L.labelColumn);
+  assertEquals(columnWidth([10, 40]), L.labelColumn);
+  assertEquals(
+    columnWidth([L.labelColumn + 0.25]),
+    L.labelColumn + Math.ceil(0.25 + L.labelSlack),
+  );
+});
+
+Deno.test("splitRows makes the wider row narrowest, the later cut on a tie", () => {
+  assertEquals(splitRows([]), 0);
+  assertEquals(splitRows([152]), 1);
+  assertEquals(splitRows([1, 1]), 1);
+  assertEquals(splitRows([1, 1, 1]), 2);
+  assertEquals(splitRows([10, 1, 1, 1]), 1);
+  assertEquals(splitRows([1, 1, 1, 10]), 3);
+  // Against a brute force over small widths.
+  let seed = 7;
+  const next = () => (seed = (seed * 48271) % 2147483647) % 5 + 1;
+  for (let trial = 0; trial < 200; trial++) {
+    const pitches = Array.from({ length: 2 + trial % 7 }, next);
+    const cost = (k: number) =>
+      Math.max(
+        pitches.slice(0, k).reduce((a, b) => a + b, 0),
+        pitches.slice(k).reduce((a, b) => a + b, 0),
+      );
+    let best = 1;
+    for (let k = 1; k < pitches.length; k++) {
+      if (cost(k) <= cost(best)) best = k;
+    }
+    assertEquals(splitRows(pitches), best, pitches.join(","));
+  }
+});
+
+Deno.test("a pill wider than the minimum column widens only its own column", () => {
+  const long = "MTAG (every trait this gene was ever linked with, at once)";
+  const placed = computePhenogramLayout([
+    sampleGene({ gene: "GENE1", chromosomalLocation: "1p36.33" }),
+    sampleGene({
+      gene: "GENE2",
+      chromosomalLocation: "2p25.3",
+      gwasTrait: [long],
+    }),
+    sampleGene({ gene: "GENE3", chromosomalLocation: "3p26.3" }),
+  ]);
+  const widths = new Map(
+    placed.chromosomes.map((c) => [c.name, c.columnWidth]),
+  );
+  const pill = textWidth(long, 400, L.pillFont) + 2 * L.pillPaddingX;
+  assert(pill > L.labelColumn);
+  assertEquals(widths.get("2"), Math.ceil(pill + L.labelSlack));
+  assertEquals(widths.get("1"), L.labelColumn);
+  assertEquals(widths.get("3"), L.labelColumn);
+  assertFits(placed, "wide pill");
+});
+
+Deno.test("chromosomeShapes takes each column's width and splits on the pitches", () => {
+  const rows = chromosomeShapes(
+    new Set(["1", "2", "3"]),
+    cytobands,
+    encoding,
+    new Map([["1", 400]]),
+  );
+  // 1's pitch outweighs 2 and 3 together, so it stands alone.
+  assertEquals(rows.map((row) => row.map((c) => c.name)), [["1"], [
+    "2",
+    "3",
+  ]]);
+  assertEquals(rows[0][0].columnWidth, 400);
+  assertEquals(
+    rows[1][1].x,
+    L.margin + L.chromosomeWidth + L.leaderGap + L.labelColumn,
+  );
+  // A single chromosome keeps the two-row structure with an empty second row.
+  assertEquals(chromosomeShapes(new Set(["7"])).map((r) => r.length), [1, 0]);
+});
+
+Deno.test("an empty layout gets the one-column empty canvas", () => {
+  const empty = { width: 2 * L.margin + L.labelColumn, height: 2 * L.margin };
+  assertEquals(computePhenogramLayout([]).canvas, empty);
+  assertEquals(canvasFor([[], []], []), empty);
 });

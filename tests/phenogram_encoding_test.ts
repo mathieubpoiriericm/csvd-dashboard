@@ -187,23 +187,17 @@ Deno.test("evidence glyphs and the stains are complete", () => {
   }
 });
 
-Deno.test("the layout constants fit ten columns and two rows on the canvas", () => {
+Deno.test("the layout constants are positive numbers, and nothing fixes the canvas", () => {
   const L = appearance.layout;
-  const pitch = L.chromosomeWidth + L.leaderGap + L.labelColumn;
-  assert(
-    2 * L.margin + 10 * pitch <= L.viewBox[0],
-    "columns overflow the width",
-  );
-  assert(
-    2 * L.margin + 2 * L.rowHeight + L.rowGap <= L.viewBox[1],
-    "rows overflow the height",
-  );
-  for (
-    const [name, value] of Object.entries(L).filter(([k]) =>
-      k !== "viewBox" && k !== "rowSplitAfter"
-    )
-  ) {
+  // The canvas, the row split and the label columns are derived from the
+  // data (lib/phenogram.ts); a fixed plate is what overflowed twice.
+  for (const key of ["viewBox", "rowSplitAfter"]) {
+    assert(!(key in L), `${key} is derived, not configured`);
+  }
+  for (const [name, value] of Object.entries(L)) {
     assert(typeof value === "number" && value > 0, `${name} must be positive`);
   }
-  assertEquals(L.rowSplitAfter, "10");
+  // A glyph's advance box fits the symbol line it sits on.
+  assert(L.glyphSize <= L.symbolLine);
+  assert(L.pillFont < L.pillLine);
 });
