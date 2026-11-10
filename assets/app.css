@@ -2719,9 +2719,18 @@ svg {
   align-items: stretch;
   gap: var(--svd-space-2);
   position: fixed;
-  top: calc(var(--svd-navbar-h) + var(--svd-space-2) + 3.25rem);
-  right: var(--svd-space-3);
-  max-width: calc(100vw - 2 * var(--svd-space-3));
+  max-width: calc(100vw - 2 * var(--svd-space-2));
+  /* Never taller than the viewport, and scrolled only when its buttons
+     truly cannot fit, as on a landscape phone. */
+  max-height: calc(100dvh - 2 * var(--svd-space-2));
+  overflow-y: auto;
+  /* Placed by ActionBar.tsx under its More button; unseen until then, so
+     it does not paint once at the UA's position. */
+  visibility: hidden;
+}
+
+.adapt-bar-more.is-placed {
+  visibility: visible;
 }
 
 /* Wide, the group is laid out in the bar and More is not needed. `display`
@@ -2744,7 +2753,9 @@ svg {
     background: transparent;
     box-shadow: none;
     overflow: visible;
+    visibility: visible;
     max-width: none;
+    max-height: none;
   }
 }
 

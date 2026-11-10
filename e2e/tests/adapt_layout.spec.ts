@@ -399,3 +399,25 @@ test("on a phone the bar shows More and no row wraps", async ({ page }) => {
     ),
   ).toBe(true);
 });
+
+test("on a phone the opened More panel sits under its button at any bar height", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openWizard(page);
+  // A taller bar, as a wrapped indicator or a larger text size would make
+  // it: the panel has to follow the button, not a height the CSS assumed.
+  await page.addStyleTag({ content: ".adapt-bar { padding: 40px 0; }" });
+  const more = page.getByRole("button", { name: "More" });
+  await more.click();
+  const panel = page.locator(".adapt-bar-more");
+  await expect(panel).toBeVisible();
+  const [button, box] = await Promise.all([
+    more.boundingBox(),
+    panel.boundingBox(),
+  ]);
+  const bottom = button!.y + button!.height;
+  expect(box!.y).toBeGreaterThanOrEqual(bottom);
+  expect(box!.y - bottom).toBeLessThan(16);
+  expect(box!.x).toBeGreaterThanOrEqual(0);
+  expect(box!.x + box!.width).toBeLessThanOrEqual(390);
+  expect(box!.y + box!.height).toBeLessThanOrEqual(844);
+});

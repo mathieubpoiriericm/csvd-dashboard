@@ -1,4 +1,5 @@
-import { useId, useRef } from "preact/hooks";
+import { useEffect, useId, useRef } from "preact/hooks";
+import { autoUpdate, computePosition, offset, shift } from "@floating-ui/dom";
 
 import { BUNDLE_NAME } from "../../lib/adapt/bundle.ts";
 
@@ -52,6 +53,41 @@ export function ActionBar(
   // focus would otherwise land on a control nobody can see.
   const importInput = useRef<HTMLInputElement>(null);
   const moreId = useId();
+  const toggle = useRef<HTMLButtonElement>(null);
+  const more = useRef<HTMLDivElement>(null);
+  // Below 900px the panel is a popover in the top layer, placed under its
+  // More button by Floating UI as the tooltips are (see
+  // .claude/rules/tooltips.md), so it follows the button at any bar height
+  // rather than at a height the stylesheet guessed. Wide, the panel is
+  // static in the bar and never opens, so this never runs.
+  useEffect(() => {
+    const button = toggle.current;
+    const pop = more.current;
+    if (!button || !pop) return;
+    let stop: (() => void) | null = null;
+    const onToggle = (e: Event) => {
+      stop?.();
+      stop = null;
+      pop.classList.remove("is-placed");
+      if ((e as ToggleEvent).newState !== "open") return;
+      stop = autoUpdate(button, pop, async () => {
+        const { x, y } = await computePosition(button, pop, {
+          strategy: "fixed",
+          placement: "bottom-end",
+          middleware: [offset(8), shift({ padding: 8 })],
+        });
+        if (!pop.matches(":popover-open")) return;
+        pop.style.left = `${x}px`;
+        pop.style.top = `${y}px`;
+        pop.classList.add("is-placed");
+      });
+    };
+    pop.addEventListener("toggle", onToggle);
+    return () => {
+      pop.removeEventListener("toggle", onToggle);
+      stop?.();
+    };
+  }, []);
   return (
     <div class="adapt-bar">
       {session !== null && (
@@ -74,11 +110,12 @@ export function ActionBar(
       <button
         type="button"
         class="adapt-button adapt-bar-toggle"
+        ref={toggle}
         popovertarget={moreId}
       >
         More
       </button>
-      <div class="adapt-bar-more" popover id={moreId}>
+      <div class="adapt-bar-more" popover id={moreId} ref={more}>
         {session !== null && session.code !== null && (
           <div class="adapt-bar-code">
             <code>{session.code}</code>

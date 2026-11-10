@@ -557,7 +557,7 @@ Deno.test("the action bar's secondary group is a popover a More button opens", (
   assert(target !== undefined, html);
   assertEquals(count(html, "popovertarget="), 1);
   const group = html.match(
-    /<div class="adapt-bar-more" popover id="([^"]+)">([\s\S]*?)<\/div><\/div>$/,
+    /<div class="adapt-bar-more" popover id="([^"]+)"\s*>([\s\S]*?)<\/div><\/div>$/,
   );
   assert(group !== null, html);
   assertEquals(group[1], target);
