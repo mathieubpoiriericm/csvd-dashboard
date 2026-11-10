@@ -112,11 +112,26 @@ const STALE_TEMP_MS = 60 * 60 * 1000;
 /** What a session file holds, read without trusting it. */
 type Stored =
   | { kind: "absent" }
-  | { kind: "damaged"; modifiedAt: number }
+  /** `revision` when the envelope still names one, though the rest is not a session. */
+  | { kind: "damaged"; modifiedAt: number; revision?: number }
   | { kind: "valid"; revision: number; savedAt: number; answers: unknown };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** A revision as a file stores it: a safe integer above 0. */
+function isRevision(value: unknown): value is number {
+  return Number.isSafeInteger(value) && (value as number) > 0;
+}
+
+/**
+ * The revision after the highest of `known`, bounded so it stays a safe
+ * integer: at the limit it repeats, which savedAt still tells apart, rather
+ * than becoming a number the next read would refuse as damaged.
+ */
+function nextRevision(...known: number[]): number {
+  return Math.min(Math.max(0, ...known) + 1, Number.MAX_SAFE_INTEGER);
 }
 
 async function fileName(code: string): Promise<string> {
@@ -225,14 +240,18 @@ class FileSessionStore implements SessionStore {
       const stored = await this.#read(name);
       if (stored === null) return { error: "failed" };
       const savedAt = this.#now();
-      let revision = 1;
+      let revision: number;
       let revived = false;
       if (stored.kind === "damaged") {
         // Nothing to compare a revision with, and something a person may
-        // still want: overwrite only when asked to.
+        // still want: overwrite only when asked to. The new revision passes
+        // both the one the envelope still names and the browser's, so no
+        // copy another browser holds can match it.
         if (!force) return { error: "conflict", savedAt: stored.modifiedAt };
+        revision = nextRevision(stored.revision ?? 0, base.revision);
       } else if (stored.kind === "valid" && !this.#expired(stored, savedAt)) {
-        // Both must match. A revival restarts the revision at 1, so after
+        // Both must match. A revival continues past the highest revision it
+        // can know of, but a swept file takes its revision with it, so after
         // one a browser still holding the old copy's revision can meet the
         // same number again; the time it was saved it cannot. A save with no
         // savedAt is therefore a conflict whenever a file exists. No deployed
@@ -246,11 +265,17 @@ class FileSessionStore implements SessionStore {
         ) {
           return { error: "conflict", savedAt: stored.savedAt };
         }
-        revision = stored.revision + 1;
+        revision = nextRevision(stored.revision);
       } else {
         // Gone, or expired and not yet swept: the holder of the code has
-        // the whole draft, so it is saved again under the same code.
+        // the whole draft, so it is saved again under the same code. Never
+        // at a revision another browser may hold: past the expired copy's,
+        // when the file is still there to say it, and past the browser's.
         revived = true;
+        revision = nextRevision(
+          stored.kind === "valid" ? stored.revision : 0,
+          base.revision,
+        );
       }
       const body = fileBody(revision, savedAt, answers);
       if (await this.#full(name, body, stored.kind === "absent")) {
@@ -433,19 +458,26 @@ class FileSessionStore implements SessionStore {
     }
     if (
       isRecord(raw) && raw.version === FILE_VERSION &&
-      Number.isSafeInteger(raw.revision) && (raw.revision as number) > 0 &&
+      isRevision(raw.revision) &&
       Number.isSafeInteger(raw.savedAt) && isRecord(raw.answers)
     ) {
       return {
         kind: "valid",
-        revision: raw.revision as number,
+        revision: raw.revision,
         savedAt: raw.savedAt as number,
         answers: raw.answers,
       };
     }
+    const revision = isRecord(raw) && isRevision(raw.revision)
+      ? raw.revision
+      : undefined;
     try {
       const modifiedAt = (await Deno.stat(path)).mtime?.getTime();
-      return { kind: "damaged", modifiedAt: modifiedAt ?? this.#now() };
+      return {
+        kind: "damaged",
+        modifiedAt: modifiedAt ?? this.#now(),
+        revision,
+      };
     } catch (error) {
       logFailure("read", name, error);
       return null;

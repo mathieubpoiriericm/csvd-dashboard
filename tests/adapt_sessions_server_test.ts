@@ -244,7 +244,7 @@ Deno.test("a save on the right revision but another savedAt is a conflict", asyn
 
 Deno.test("after a revival, a browser holding the old copy's revision is asked", async () => {
   await withStore(async (store, _dir, clock) => {
-    // A and B both hold revision 3, saved at `third`.
+    // B resumed at revision 1; A saved on to revision 3, at `third`.
     const code = created(await store.create(VALID));
     clock.now = T0 + 1000;
     assert(
@@ -263,25 +263,26 @@ Deno.test("after a revival, a browser holding the old copy's revision is asked",
     );
     const third = T0 + 2000;
 
-    // The session expires; B saves three times and is back at revision 3.
+    // The session expires and is swept, so its revision is gone with it.
+    // B saves twice and reaches revision 3, the number A holds.
     clock.now = third + SESSION_TTL_MS;
-    let b = await store.save(
+    assertEquals(await store.sweep(), 1);
+    const revived = await store.save(
       code,
-      { revision: 3, savedAt: third },
+      { revision: 1, savedAt: T0 },
       VALID2,
       false,
     );
-    assert("revived" in b && b.revived && b.revision === 1);
-    for (const step of [1, 2]) {
-      clock.now = third + SESSION_TTL_MS + step;
-      b = await store.save(
-        code,
-        { revision: b.revision, savedAt: b.savedAt },
-        VALID2,
-        false,
-      );
-      assert("revision" in b);
-    }
+    assert("revived" in revived && revived.revived);
+    assertEquals(revived.revision, 2);
+    clock.now = third + SESSION_TTL_MS + 1;
+    const b = await store.save(
+      code,
+      { revision: revived.revision, savedAt: revived.savedAt },
+      VALID2,
+      false,
+    );
+    assert("revision" in b);
     assertEquals(b.revision, 3);
 
     // A saves on its own revision 3 and its old savedAt: asked, not let through.
@@ -295,6 +296,84 @@ Deno.test("after a revival, a browser holding the old copy's revision is asked",
     const parsed = parseExport(loaded.text);
     assert("answers" in parsed);
     assertEquals(parsed.answers.identity.disease.name, "Second condition");
+  });
+});
+
+Deno.test("a revival never reissues a revision another browser may hold", async () => {
+  await withStore(async (store, _dir, clock) => {
+    // The first browser creates; the second resumes at revision 1.
+    const code = created(await store.create(VALID));
+    const second = await store.load(code);
+    assert("text" in second);
+    assertEquals(second.revision, 1);
+
+    // The first saves on to revision 5.
+    let first = { revision: 1, savedAt: T0 };
+    for (let step = 1; step <= 4; step++) {
+      clock.now = T0 + step;
+      const saved = await store.save(code, first, VALID, false);
+      assert("revision" in saved);
+      first = { revision: saved.revision, savedAt: saved.savedAt };
+    }
+    assertEquals(first.revision, 5);
+
+    // The session expires, unswept; the first saves again.
+    clock.now = first.savedAt + SESSION_TTL_MS;
+    const revived = await store.save(code, first, VALID2, false);
+    assertEquals(revived, {
+      revision: 6,
+      savedAt: first.savedAt + SESSION_TTL_MS,
+      revived: true,
+    });
+
+    // The second's save on its revision 1 is asked, not let through.
+    assertEquals(
+      await store.save(
+        code,
+        { revision: second.revision, savedAt: second.savedAt },
+        VALID,
+        false,
+      ),
+      { error: "conflict", savedAt: first.savedAt + SESSION_TTL_MS },
+    );
+  });
+});
+
+Deno.test("a revision near the safe-integer limit stays a safe integer", async () => {
+  await withStore(async (store) => {
+    const code = "ABCDEFGHJKMNPQRSTVWX";
+    const max = Number.MAX_SAFE_INTEGER;
+    const revived = await store.save(
+      code,
+      { revision: max, savedAt: T0 },
+      VALID,
+      false,
+    );
+    assertEquals(revived, { revision: max, savedAt: T0, revived: true });
+    // The file still reads as a session, and a save on it stays at the limit.
+    const loaded = await store.load(code);
+    assert("text" in loaded);
+    assertEquals(loaded.revision, max);
+    assertEquals(
+      await store.save(code, { revision: max, savedAt: T0 }, VALID2, false),
+      { revision: max, savedAt: T0, revived: false },
+    );
+  });
+});
+
+Deno.test("a revival with no revision known on either side starts at 1", async () => {
+  await withStore(async (store) => {
+    for (
+      const [code, revision] of [["ABCDEFGHJKMNPQRSTVWX", 0], [
+        "ABCDEFGHJKMNPQRSTVW0",
+        -3,
+      ]] as const
+    ) {
+      assertEquals(
+        await store.save(code, { revision, savedAt: T0 }, VALID, false),
+        { revision: 1, savedAt: T0, revived: true },
+      );
+    }
   });
 });
 
@@ -326,13 +405,13 @@ Deno.test("a session expires 14 days after its last save", async () => {
   });
 });
 
-Deno.test("saving to a code with no file revives it at revision 1", async () => {
+Deno.test("saving to a code with no file revives it past the browser's revision", async () => {
   await withStore(async (store, dir) => {
     const code = "ABCDEFGHJKMNPQRSTVWX";
     assertEquals(
       await store.save(code, { revision: 4, savedAt: T0 }, VALID, false),
       {
-        revision: 1,
+        revision: 5,
         savedAt: T0,
         revived: true,
       },
@@ -354,7 +433,7 @@ Deno.test("saving to an expired file the sweep has not reached revives it", asyn
     assertEquals(
       await store.save(code, { revision: 1, savedAt: T0 }, VALID2, false),
       {
-        revision: 1,
+        revision: 2,
         savedAt: T0 + SESSION_TTL_MS,
         revived: true,
       },
@@ -446,15 +525,33 @@ Deno.test("a save over a damaged file asks before overwriting it", async () => {
     );
     assert("error" in refused);
     assertEquals(refused.error, "conflict");
+    // Nothing in "{" names a revision, so the browser's own is the floor.
     assertEquals(
       await store.save(code, { revision: 1, savedAt: T0 }, VALID2, true),
       {
-        revision: 1,
+        revision: 2,
         savedAt: T0,
         revived: false,
       },
     );
     assert("text" in await store.load(code));
+  });
+});
+
+Deno.test("a forced save over a damaged file passes the revision it still names", async () => {
+  await withStore(async (store, dir) => {
+    const code = created(await store.create(VALID));
+    const path = await onlyFile(dir);
+    const stored = JSON.parse(await Deno.readTextFile(path));
+    // The envelope is whole and names revision 7; the answers are not.
+    await Deno.writeTextFile(
+      path,
+      JSON.stringify({ ...stored, revision: 7, answers: "damaged" }),
+    );
+    assertEquals(
+      await store.save(code, { revision: 2, savedAt: T0 }, VALID2, true),
+      { revision: 8, savedAt: T0, revived: false },
+    );
   });
 });
 

@@ -319,8 +319,9 @@ Deno.test("save answers conflicts, forced overwrites and revivals", async () => 
     });
     assertEquals(revived.status, 200);
     assertEquals(revived.headers.get(CREATED_HEADER), "created");
+    // Past the browser's revision, so no copy it holds can match again.
     assertEquals(await json(revived), {
-      revision: 1,
+      revision: 8,
       savedAt: T0,
       revived: true,
     });
