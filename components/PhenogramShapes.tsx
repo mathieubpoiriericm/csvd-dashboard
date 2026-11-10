@@ -247,6 +247,7 @@ export function Block({ block, widths }: BlockProps) {
               y={top + L.pillLine / 2}
               dy="0.35em"
               font-size={PILL_FONT_SIZE}
+              font-weight={400}
             >
               {pill.label}
             </text>
