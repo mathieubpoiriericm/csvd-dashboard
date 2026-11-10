@@ -22,6 +22,7 @@ export function PhenogramDownload({ build }: PhenogramDownloadProps) {
   const panel = useRef<HTMLDivElement>(null);
   const toggle = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   // Under the button, kept there through scrolling and resizing.
   useLayoutEffect(() => {
@@ -41,6 +42,7 @@ export function PhenogramDownload({ build }: PhenogramDownloadProps) {
 
   const choose = async (withKey: boolean) => {
     panel.current?.hidePopover();
+    setFailed(false);
     try {
       const svg = await build(withKey);
       saveDownload(
@@ -49,7 +51,11 @@ export function PhenogramDownload({ build }: PhenogramDownloadProps) {
         "image/svg+xml",
       );
     } catch (error) {
+      // Said on the page too: a font or the lazily loaded renderer that will
+      // not load (a chunk a deploy has since replaced) otherwise looks like a
+      // menu entry that does nothing.
       console.error("The phenogram SVG could not be saved.", error);
+      setFailed(true);
     }
   };
 
@@ -91,6 +97,11 @@ export function PhenogramDownload({ build }: PhenogramDownloadProps) {
           Fonts. Install them before editing in Inkscape.
         </p>
       </div>
+      {failed && (
+        <p class="phenogram-download-error" role="alert">
+          The figure could not be saved. Reload the page and try again.
+        </p>
+      )}
     </div>
   );
 }

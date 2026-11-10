@@ -181,3 +181,13 @@ Deno.test("key and karyogram are Inkscape layers", () => {
     );
   }
 });
+
+Deno.test("drops the characters XML 1.0 cannot carry", () => {
+  const { svg } = build("GE\u0001NE\u000b1\uffff");
+  // deno-lint-ignore no-control-regex
+  assert(!/[\u0000-\u0008\u000b\u000c\u000e-\u001f\ufffe\uffff]/.test(svg));
+  assert(svg.includes(">GENE1</text>"));
+  assert(svg.includes('inkscape:label="GENE1"'));
+  // Tab and newline are legal, and the prolog's own newline stays.
+  assert(svg.startsWith('<?xml version="1.0" encoding="UTF-8"?>\n'));
+});
