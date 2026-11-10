@@ -131,11 +131,14 @@ const lower = (s: string) => clean(s).toLowerCase();
  * A character no field may hold: a control or format character (a
  * zero-width space, a soft hyphen, a bidirectional override) or a line or
  * paragraph separator. Each is invisible, and would travel into the files
- * unseen. A line break and a tab are a multi-line field's own.
+ * unseen. A line break and a tab are a multi-line field's own; a one-line
+ * answer is held to no line break apart (`hasBreak`).
  */
 export const hiddenChar = (c: string): boolean =>
   c !== "\n" && c !== "\t" && /^[\p{Cc}\p{Cf}\u2028\u2029]$/u.test(c);
 const hasHidden = (s: string) => [...trim(s)].some(hiddenChar);
+/** A line break inside the value: one at either end is trimmed off it. */
+const hasBreak = (s: string) => trim(s).includes("\n");
 
 /**
  * A gap in a trait key other than one ASCII space: a tab, a no-break space,
@@ -285,6 +288,7 @@ export const reserved = (value: string) => RESERVED.has(lower(value));
 
 const HIDDEN_MESSAGE =
   "It holds an invisible character, which would reach the files unseen; delete it.";
+const ONE_LINE_MESSAGE = "This answer is one line; remove the line break.";
 
 class Collector {
   issues: Issue[] = [];
@@ -292,14 +296,24 @@ class Collector {
   add(field: string, message: string, kind: IssueKind) {
     this.issues.push({ step: this.step, field, message, kind });
   }
-  /** A required value. */
-  text(field: string, value: string, what: string) {
+  /** A required value; `lines` as for hidden(). */
+  text(field: string, value: string, what: string, lines = false) {
     if (blank(value)) this.add(field, `${what} is required.`, "missing");
-    else this.hidden(field, value);
+    else this.hidden(field, value, lines);
   }
-  /** A value holding an invisible character, blank or not. */
-  hidden(field: string, value: string) {
+  /**
+   * A value holding an invisible character, blank or not, or a line break
+   * where the answer is one line: every field but the ones typed into a box
+   * of several lines, which pass `lines`. An <input> cannot hold a break,
+   * but an imported file can, and the README and the checklist write the
+   * answer into Markdown, where the next line could open a heading and a
+   * block of commands.
+   */
+  hidden(field: string, value: string, lines = false) {
     if (hasHidden(value)) this.add(field, HIDDEN_MESSAGE, "wrong");
+    else if (!lines && hasBreak(value)) {
+      this.add(field, ONE_LINE_MESSAGE, "wrong");
+    }
   }
 }
 
@@ -338,16 +352,87 @@ function decodeReferences(text: string): string {
 }
 
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
-const SVG_ROOT =
-  /^\s*(?:<\?xml[^>]*\?>\s*)?(?:<!--[\s\S]*?-->\s*|<!DOCTYPE[^>[]*>\s*)*<svg\b([^>]*)>/i;
+const SVG_TAG = /<svg\b([^>]*)>/iy;
 const SVG_NAMESPACE = /\sxmlns\s*=\s*["']http:\/\/www\.w3\.org\/2000\/svg["']/;
 // A namespace prefix (`<s:script>` with `xmlns:s` bound to SVG, or an XHTML
 // `<h:script>`) names the same element, so each pattern allows one.
 const SVG_ACTIVE = [
   /<\s*(?:[\w.-]+:)?(?:script|foreignObject|iframe|embed|object|handler|listener)\b/i,
   /\son[a-z]+\s*=/i,
-  /<\s*(?:[\w.-]+:)?(?:set|animate\w*)\b[^>]*attributeName\s*=\s*["']?\s*(?:on|href|xlink:href)/i,
 ];
+const SVG_ANIMATION = /<\s*(?:[\w.-]+:)?(?:set|animate\w*)\b/gi;
+const SVG_ANIMATED_HANDLER =
+  /attributeName\s*=\s*["']?\s*(?:on|href|xlink:href)/i;
+
+// The three readers below go through a logo once, by hand. A megabyte may be
+// uploaded, an imported logo is stored before it is judged, and validate()
+// runs on every render: as single patterns, a run of comments with no <svg
+// after it was split every possible way, and a file of unclosed tags was
+// read again from each of them, so a few hundred bytes froze the wizard on
+// every load of the page.
+
+/** Whether a DOCTYPE opens an internal subset: a "[" before its ">". */
+function declaresSubset(text: string): boolean {
+  // Where the next ">" and "[" lie, looked for again only once passed.
+  const next = (char: string) => {
+    let found = -1;
+    return (from: number): number => {
+      if (found < from) {
+        const at = text.indexOf(char, from);
+        found = at === -1 ? Infinity : at;
+      }
+      return found;
+    };
+  };
+  const close = next(">");
+  const open = next("[");
+  for (const doctype of text.matchAll(/<!DOCTYPE/gi)) {
+    if (open(doctype.index) < close(doctype.index)) return true;
+  }
+  return false;
+}
+
+/**
+ * The root <svg> tag's attributes, or null when the file does not open with
+ * one: after an XML declaration, comments and a DOCTYPE, each closed. A
+ * comment ends at its first "-->", as XML reads it.
+ */
+function svgRoot(text: string): string | null {
+  const opens = (word: string, at: number) =>
+    text.slice(at, at + word.length).toLowerCase() === word;
+  const pastSpace = (at: number) => {
+    while (at < text.length && /\s/.test(text[at])) at++;
+    return at;
+  };
+  let at = pastSpace(0);
+  if (opens("<?xml", at)) {
+    const end = text.indexOf(">", at);
+    if (end !== -1 && text[end - 1] === "?") at = pastSpace(end + 1);
+  }
+  for (;;) {
+    const comment = text.startsWith("<!--", at);
+    // A DOCTYPE with an internal subset was refused before this is read.
+    if (!comment && !opens("<!doctype", at)) break;
+    const end = comment ? text.indexOf("-->", at + 4) : text.indexOf(">", at);
+    if (end === -1) return null;
+    at = pastSpace(end + (comment ? 3 : 1));
+  }
+  SVG_TAG.lastIndex = at;
+  return SVG_TAG.exec(text)?.[1] ?? null;
+}
+
+/** Whether a <set> or an <animate…> tag writes an event handler or a link. */
+function animatesHandler(text: string): boolean {
+  let read = 0;
+  for (const tag of text.matchAll(SVG_ANIMATION)) {
+    // A tag opened inside one already read, before its ">", was read with it.
+    if (tag.index < read) continue;
+    const end = text.indexOf(">", tag.index);
+    read = end === -1 ? text.length : end;
+    if (SVG_ANIMATED_HANDLER.test(text.slice(tag.index, read))) return true;
+  }
+  return false;
+}
 
 function judgeLogo(logo: LogoFile): string | null {
   let bytes: Uint8Array;
@@ -372,16 +457,17 @@ function judgeLogo(logo: LogoFile): string | null {
   } catch {
     return "This file is not an SVG, whatever its name says; a PNG must be named .png.";
   }
-  if (/<!ENTITY|<!DOCTYPE[^>]*\[/i.test(text)) {
+  if (/<!ENTITY/i.test(text) || declaresSubset(text)) {
     return "This SVG declares entities, which can hide active content; export a plain SVG, or upload a PNG.";
   }
-  const root = SVG_ROOT.exec(text);
-  if (root === null || !SVG_NAMESPACE.test(root[1])) {
+  const root = svgRoot(text);
+  if (root === null || !SVG_NAMESPACE.test(root)) {
     return 'This SVG has no <svg xmlns="http://www.w3.org/2000/svg"> root, so a browser would not draw it as an image; export it again as a standalone SVG.';
   }
   const decoded = decodeReferences(text);
   if (
     SVG_ACTIVE.some((pattern) => pattern.test(decoded)) ||
+    animatesHandler(decoded) ||
     /javascript:|data:text\/html/i.test(decoded.replace(/\s+/g, ""))
   ) {
     return "This SVG carries a script or an event handler; export a plain SVG, or upload a PNG.";
@@ -412,7 +498,7 @@ export function logoProblem(logo: LogoFile): string | null {
  * the aliases that stand for them, or null when there are none. A symbol is
  * a word of its own: "XYZ1" is not found in "XYZ12" or "aXYZ1".
  */
-function symbolFinder(a: Answers): RegExp | null {
+export function symbolFinder(a: Answers): RegExp | null {
   const { genes, aliases } = a.monogenic;
   const symbols = [
     ...genes.map((g) => g.symbol),
@@ -430,9 +516,9 @@ function symbolFinder(a: Answers): RegExp | null {
 
 /**
  * Report a gene symbol in text that ships to every visitor before login:
- * the manifest, the radar's timeline and the karyogram's families. The
- * dataset is behind the login; its gene list must not be readable in front
- * of it.
+ * the manifest, the radar's timeline, the karyogram's families and the
+ * trait vocabulary. The dataset is behind the login; its gene list must not
+ * be readable in front of it.
  */
 function publicText(
   c: Collector,
@@ -469,7 +555,7 @@ function identityIssues(a: Answers): Issue[] {
   } else if (!KEY.test(clean(disease.key))) {
     c.add(
       "disease.key",
-      "The key must be lower-case letters, digits and underscores, starting with a letter; it names the database and the deploy project.",
+      "The key must be lower-case letters, digits and underscores, starting with a letter; it names the database and the Fly app.",
       "wrong",
     );
   }
@@ -498,11 +584,12 @@ function identityIssues(a: Answers): Issue[] {
     }
   }
   for (const [key, what] of SITE_TEXT) {
-    c.text(`site.${key}`, site[key], what);
+    // The title is typed on one line; the rest into boxes of several.
+    c.text(`site.${key}`, site[key], what, key !== "title");
     publicText(c, finder, `site.${key}`, site[key]);
   }
   for (const [key, what] of PAGE_TEXT) {
-    c.text(`site.pages.${key}`, site.pages[key], what);
+    c.text(`site.pages.${key}`, site.pages[key], what, true);
     publicText(c, finder, `site.pages.${key}`, site.pages[key]);
   }
   const instituteText = [
@@ -622,6 +709,8 @@ function searchPhrase(
     );
   } else if (hasHidden(value)) {
     c.add(field, HIDDEN_MESSAGE, "wrong");
+  } else if (hasBreak(value)) {
+    c.add(field, ONE_LINE_MESSAGE, "wrong");
   } else return true;
   return false;
 }
@@ -730,6 +819,9 @@ function vocabularyIssues(a: Answers): Issue[] {
     publicText(c, finder, `${row}.label`, f.label);
   });
   const dup = duplicates(traits.map((t) => t.key));
+  // The label is what the filter choice and the karyogram pill read: two
+  // traits sharing one are a single choice listed twice.
+  const dupLabels = duplicates(traits.map((t) => t.label));
   traits.forEach((t, i) => {
     const key = `traits[${i}].key`;
     if (blank(t.key)) c.add(key, "A trait needs a key.", "missing");
@@ -783,8 +875,22 @@ function vocabularyIssues(a: Answers): Issue[] {
         "wrong",
       );
     }
+    if (!blank(t.label) && dupLabels.has(i)) {
+      c.add(
+        `traits[${i}].label`,
+        `"${
+          clean(t.label)
+        }" is already another trait's label; the filter and the karyogram could not tell the two apart.`,
+        "wrong",
+      );
+    }
     c.text(`traits[${i}].name`, t.name, "The trait's long name");
-    c.text(`traits[${i}].definition`, t.definition, "The trait definition");
+    c.text(
+      `traits[${i}].definition`,
+      t.definition,
+      "The trait definition",
+      true,
+    );
     if (!familyKeys.has(clean(t.family))) {
       c.add(`traits[${i}].family`, "Pick a family for this trait.", "missing");
     }
@@ -795,6 +901,20 @@ function vocabularyIssues(a: Answers): Issue[] {
         "missing",
       );
     } else c.hidden(`traits[${i}].xrefNote`, t.xrefNote);
+    // Every string of vocabulary.json ships before login with the filter
+    // choices: the definition and the ontology note as much as the key.
+    for (
+      const field of [
+        "key",
+        "label",
+        "name",
+        "definition",
+        "xref",
+        "xrefNote",
+      ] as const
+    ) {
+      publicText(c, finder, `traits[${i}].${field}`, t[field] ?? "");
+    }
   });
   if (citationStandard !== null) {
     for (const [key, what] of STANDARD_TEXT) {
@@ -869,6 +989,8 @@ function trialsIssues(a: Answers): Issue[] {
       );
     } else if (hasHidden(p.key)) {
       c.add(key, HIDDEN_MESSAGE, "wrong");
+    } else if (hasBreak(p.key)) {
+      c.add(key, ONE_LINE_MESSAGE, "wrong");
     } else if (dupPop.has(i)) {
       c.add(key, `"${p.key}" is used twice.`, "wrong");
     }
@@ -892,7 +1014,7 @@ function trialsIssues(a: Answers): Issue[] {
           } is empty; delete it: every line is drawn on the radar.`,
           "wrong",
         );
-      } else c.hidden(lines, p.lines.join("\n"));
+      } else c.hidden(lines, p.lines.join("\n"), true);
     }
     for (const line of p.lines) publicText(c, finder, lines, line);
   });
@@ -1004,6 +1126,8 @@ function trialsIssues(a: Answers): Issue[] {
       );
     } else if (hasHidden(m.name)) {
       c.add(name, HIDDEN_MESSAGE, "wrong");
+    } else if (hasBreak(m.name)) {
+      c.add(name, ONE_LINE_MESSAGE, "wrong");
     } else if (dupMech.has(i)) {
       c.add(name, `"${m.name}" is listed twice.`, "wrong");
     }
@@ -1068,6 +1192,12 @@ function monogenicIssues(a: Answers): Issue[] {
   // renames that gene on every page that lists it.
   const monogenic = new Set(genes.map((g) => clean(g.symbol).toUpperCase()));
   const dupAliases = duplicates(aliases.map((al) => al.alias));
+  // The row of the first alias to list each member, compared as the pipeline
+  // compares a symbol: stripped and upper-cased. data_merger.py keeps one
+  // alias per member, the last listed, and annotations.py files a shared
+  // member's lookups under the first, so a symbol under two aliases has its
+  // papers under one name and its annotations under the other.
+  const filedUnder = new Map<string, number>();
   aliases.forEach((al, i) => {
     const row = `aliases[${i}]`;
     const members = al.symbols.map(clean).filter((s) => s !== "");
@@ -1085,6 +1215,8 @@ function monogenicIssues(a: Answers): Issue[] {
       );
     } else if (hasHidden(al.alias)) {
       c.add(row, HIDDEN_MESSAGE, "wrong");
+    } else if (hasBreak(al.alias)) {
+      c.add(row, ONE_LINE_MESSAGE, "wrong");
     } else if (
       members.length === 1 && monogenic.has(members[0].toUpperCase()) &&
       clean(al.alias).toUpperCase() !== members[0].toUpperCase()
@@ -1114,7 +1246,25 @@ function monogenicIssues(a: Answers): Issue[] {
         "An alias needs at least one HGNC symbol, with no empty item.",
         "missing",
       );
-    } else c.hidden(`${row}.symbols`, al.symbols.join(","));
+    } else {
+      // Each member as the file writes it, trimmed on its own.
+      c.hidden(`${row}.symbols`, al.symbols.map(trim).join(","));
+    }
+    for (const member of members) {
+      const first = filedUnder.get(member.toUpperCase());
+      if (first === undefined) filedUnder.set(member.toUpperCase(), i);
+      else if (first === i) {
+        c.add(`${row}.symbols`, `"${member}" is listed twice.`, "wrong");
+      } else {
+        c.add(
+          `${row}.symbols`,
+          `${member} is already filed under "${
+            clean(aliases[first].alias)
+          }"; a symbol has one alias.`,
+          "wrong",
+        );
+      }
+    }
   });
   const symbols = new Set(genes.map((g) => clean(g.symbol)));
   // tests/data_contract_test.ts keys data/omim_info.json on the number.
@@ -1219,7 +1369,7 @@ function promptIssues(a: Answers): Issue[] {
         "wrong",
       );
     }
-    c.hidden(field, body);
+    c.hidden(field, body, true);
   }
   // pipeline/prompts.py numbers each step and joins them one to a line, so
   // a line break inside a step would reach the model as an unnumbered line.
@@ -1239,7 +1389,9 @@ function promptIssues(a: Answers): Issue[] {
   }
   const traitKeys = new Set(a.vocabulary.traits.map((t) => clean(t.key)));
   // The example blocks are written into the prompt, so a "{{" in any of
-  // their typed text is reported on the field that holds it.
+  // their typed text is reported on the field that holds it. Only that:
+  // c.text() has already looked for an invisible character and a line
+  // break, and looking again here said each of them twice.
   const slotless = (field: string, value: string) => {
     if (value.includes(SLOT)) {
       c.add(
@@ -1247,7 +1399,7 @@ function promptIssues(a: Answers): Issue[] {
         'The text cannot contain "{{"; the prompt reads it as a slot.',
         "wrong",
       );
-    } else c.hidden(field, value);
+    }
   };
   examples.forEach((e, i) => {
     const pmid = `examples[${i}].pmid`;
@@ -1279,7 +1431,7 @@ function promptIssues(a: Answers): Issue[] {
       );
     }
     c.text(`examples[${i}].gene`, e.gene, "The gene symbol");
-    if (!blank(e.gene)) slotless(`examples[${i}].gene`, e.gene);
+    slotless(`examples[${i}].gene`, e.gene);
     const traits = `examples[${i}].traits`;
     if (e.traits.length === 0) {
       c.add(
@@ -1294,8 +1446,15 @@ function promptIssues(a: Answers): Issue[] {
         "wrong",
       );
     }
-    c.text(`examples[${i}].sentence`, e.sentence, "The paper's own sentence");
-    if (!blank(e.sentence)) slotless(`examples[${i}].sentence`, e.sentence);
+    // Copied from an abstract with its line breaks, which the example block
+    // writes as single spaces.
+    c.text(
+      `examples[${i}].sentence`,
+      e.sentence,
+      "The paper's own sentence",
+      true,
+    );
+    slotless(`examples[${i}].sentence`, e.sentence);
     // A field left empty is NaN, and JSON writes NaN as null, so the
     // reloaded draft has to fail here too -- null passes >= 0 and <= 1.
     if (!confidenceOk(e.confidence)) {
@@ -1308,7 +1467,7 @@ function promptIssues(a: Answers): Issue[] {
       );
     }
     c.text(`examples[${i}].reasoning`, e.reasoning, "The reasoning line");
-    if (!blank(e.reasoning)) slotless(`examples[${i}].reasoning`, e.reasoning);
+    slotless(`examples[${i}].reasoning`, e.reasoning);
   });
   return c.issues;
 }

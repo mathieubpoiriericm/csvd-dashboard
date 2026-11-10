@@ -150,9 +150,21 @@ export const MAXIMAL: Answers = {
           { name: "Syndrome one", omim: "100001" },
           { name: "Syndrome two", omim: null },
         ],
+        // More records than ClinVar is read for: the list is a sample.
+        clinvarSample: { total: 612, read: 500 },
       },
-      { symbol: "GENEB", verified: false, clinvarTraits: [] },
-      { symbol: "GENEC", verified: null, clinvarTraits: [] },
+      {
+        symbol: "GENEB",
+        verified: false,
+        clinvarTraits: [],
+        clinvarSample: null,
+      },
+      {
+        symbol: "GENEC",
+        verified: null,
+        clinvarTraits: [],
+        clinvarSample: null,
+      },
     ],
     aliases: [{ alias: "GENEA/B", symbols: ["GENEA", "GENEB"] }],
     omimRows: [{

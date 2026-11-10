@@ -166,6 +166,19 @@ def _parse_manifest(
         key: tuple(_terms({"v": members}, "v", _PIPELINE))
         for key, members in aliases_raw.items()
     }
+    # A member belongs to one alias, once, compared as the merge compares a
+    # symbol: `data_merger` keeps the last alias to list it and `annotations`
+    # files its lookups under the first, so a shared member's papers and
+    # annotations would be stored under different names.
+    filed: dict[str, str] = {}
+    for key, members in aliases.items():
+        for member in members:
+            if member.upper() in filed:
+                raise ValueError(
+                    f"{_PIPELINE}: geneAliases files {member} under "
+                    f"{filed[member.upper()]!r} and {key!r}"
+                )
+            filed[member.upper()] = key
     populations = _at(manifest_raw, "populations", _MANIFEST)
     if not isinstance(populations, list) or not populations:
         raise ValueError(f"{_MANIFEST}: populations must be a non-empty list")

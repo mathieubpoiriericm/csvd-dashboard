@@ -104,6 +104,7 @@ export const EXAMPLEITIS: Answers = {
       symbol: "GENEA",
       verified: true,
       clinvarTraits: [{ name: "Syndrome one", omim: "100001" }],
+      clinvarSample: null,
     }],
     aliases: [{ alias: "GENEA/B", symbols: ["GENEA", "GENEB"] }],
     omimRows: [{
