@@ -16,6 +16,27 @@ import {
 
 export const SESSION_PER_CLIENT_LIMIT = 10;
 
+/** Names the per-client limit for a host that must raise it; see below. */
+export const SESSION_LIMIT_VAR = "ADAPT_SESSION_PER_CLIENT_LIMIT";
+
+/**
+ * The per-client limit a host asks for, or undefined for the default. Only
+ * the e2e server sets it: every Playwright worker shares one client address
+ * and a run creates more sessions in a minute than one client may, which is
+ * the limiter doing its job against a suite, not a bug. Production sets
+ * nothing, so it keeps SESSION_PER_CLIENT_LIMIT. A set but malformed value
+ * throws at start-up rather than silently running with the default.
+ */
+export function sessionLimitFromEnv(
+  value: string | undefined,
+): number | undefined {
+  if (value === undefined || value.trim() === "") return undefined;
+  if (!/^[1-9][0-9]*$/.test(value.trim())) {
+    throw new TypeError(`${SESSION_LIMIT_VAR} must be a positive integer`);
+  }
+  return Number(value.trim());
+}
+
 const OPERATIONS = ["create", "save", "resume"] as const;
 type Operation = typeof OPERATIONS[number];
 

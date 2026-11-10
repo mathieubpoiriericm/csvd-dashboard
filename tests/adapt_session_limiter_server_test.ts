@@ -1,10 +1,12 @@
-import { assertEquals } from "@std/assert";
+import { assertEquals, assertThrows } from "@std/assert";
 
 import { CREATED_HEADER } from "../server/adapt_session_api.ts";
 import {
   adaptSessionLimiter,
   isAdaptSessionPath,
+  SESSION_LIMIT_VAR,
   SESSION_PER_CLIENT_LIMIT,
+  sessionLimitFromEnv,
 } from "../server/adapt_session_limiter.ts";
 
 type Limiter = ReturnType<typeof adaptSessionLimiter>;
@@ -242,4 +244,25 @@ Deno.test("a thrown handler releases its reservation", async () => {
   }
   assertEquals(threw, true);
   assertEquals((await invoke(limiter)).status, 404);
+});
+
+Deno.test("the per-client limit is the default unless a host names another", () => {
+  // Production sets nothing, so it keeps ten.
+  assertEquals(SESSION_PER_CLIENT_LIMIT, 10);
+  assertEquals(sessionLimitFromEnv(undefined), undefined);
+  assertEquals(sessionLimitFromEnv(""), undefined);
+  assertEquals(sessionLimitFromEnv(" "), undefined);
+  assertEquals(sessionLimitFromEnv("200"), 200);
+  for (const bad of ["0", "-3", "1.5", "ten", "1e3"]) {
+    assertThrows(() => sessionLimitFromEnv(bad), TypeError, SESSION_LIMIT_VAR);
+  }
+});
+
+Deno.test("a raised limit lets that many wrong codes pass and refuses the next", async () => {
+  const limit = sessionLimitFromEnv("12");
+  const limiter = adaptSessionLimiter({ perClientLimit: limit });
+  for (let i = 0; i < 12; i++) {
+    assertEquals((await invoke(limiter)).status, 404);
+  }
+  assertLimited(await invoke(limiter));
 });

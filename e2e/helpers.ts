@@ -217,3 +217,26 @@ export function resolveCssColor(
   if (a <= 0.001) return null;
   return { r: black[0] / a, g: black[1] / a, b: black[2] / a, a };
 }
+
+/**
+ * Presses "Start a new session" when the first-visit greeting is open, and
+ * does nothing when it is not. The e2e server runs with saved sessions on,
+ * so a browser holding no readable draft and no session link is greeted by
+ * a modal window that makes the page inert, after every load, a reload
+ * included. The greeting opens in the same commit that enables the
+ * fieldset, so this waits for that and then looks once.
+ */
+export async function dismissGreeting(page: Page): Promise<void> {
+  await expect(page.locator("fieldset.adapt:enabled")).toBeAttached();
+  const start = page.getByRole("button", { name: "Start a new session" });
+  if (await start.isVisible()) {
+    await start.click();
+    await expect(start).toBeHidden();
+  }
+}
+
+/** Opens the adaptation guide, live and past the greeting. */
+export async function openAdapt(page: Page): Promise<void> {
+  await page.goto("/adapt");
+  await dismissGreeting(page);
+}

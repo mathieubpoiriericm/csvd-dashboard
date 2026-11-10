@@ -1,3 +1,5 @@
+import os from "node:os";
+import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 import { PASSPHRASE, SESSION_SECRET, STORAGE_STATE } from "./fixtures/auth.ts";
 
@@ -76,6 +78,14 @@ export default defineConfig({
     env: {
       DASHBOARD_PASSPHRASE: PASSPHRASE,
       DASHBOARD_SESSION_SECRET: SESSION_SECRET,
+      // Saved sessions are on for the suite. Derived from the port, not made
+      // with mkdtemp: Playwright evaluates this config once per worker, and
+      // every runner already has its own E2E_PORT. The directory persists
+      // between local runs, so no spec may rely on it being empty.
+      ADAPT_SESSIONS_DIR: path.join(os.tmpdir(), `adapt-sessions-e2e-${PORT}`),
+      // Every worker shares one client address, and a run creates more
+      // sessions in a minute than the production limit of ten per client.
+      ADAPT_SESSION_PER_CLIENT_LIMIT: "1000",
     },
   },
 });

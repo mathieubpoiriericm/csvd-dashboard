@@ -1,5 +1,7 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
+import { openAdapt } from "../helpers.ts";
+
 /**
  * Where the wizard puts what the researcher has to see: the page itself at
  * a phone's width, the current step in the stepper, the heading or field
@@ -28,10 +30,13 @@ const DESKTOP = { width: 1280, height: 800 };
  * that reaches no state.
  */
 async function openWizard(page: Page) {
-  await page.goto("/adapt");
-  await page.evaluate(() => localStorage.removeItem("svd-adapt-draft"));
-  await page.reload();
-  await expect(page.locator("fieldset.adapt:enabled")).toBeAttached();
+  // Cleared once the island is live: hydrating, it writes what it holds.
+  await openAdapt(page);
+  await page.evaluate(() => {
+    localStorage.removeItem("svd-adapt-draft");
+    localStorage.removeItem("svd-adapt-session");
+  });
+  await openAdapt(page);
 }
 
 /** Open a card of the step on screen, when it is folded. */
@@ -475,4 +480,116 @@ test("on a phone the opened More panel sits under its button at any bar height",
   expect(box!.x).toBeGreaterThanOrEqual(0);
   expect(box!.x + box!.width).toBeLessThanOrEqual(390);
   expect(box!.y + box!.height).toBeLessThanOrEqual(844);
+});
+
+/**
+ * A session attached with unsaved changes, without asking the server for
+ * one: the bar's layout depends on the link in storage and nothing else, and
+ * every create counts against the session routes' per-client limit, which
+ * the whole suite shares. The code is a well-formed one that names nothing.
+ */
+async function openAttached(
+  page: Page,
+  viewport: { width: number; height: number },
+) {
+  await page.setViewportSize(viewport);
+  // Seeded once the island is live: hydrating, it writes the link it holds,
+  // none, over whatever was stored before.
+  await openAdapt(page);
+  await page.evaluate(() => {
+    localStorage.removeItem("svd-adapt-draft");
+    // lib/adapt/session.ts's SESSION_KEY and SessionLink.
+    localStorage.setItem(
+      "svd-adapt-session",
+      JSON.stringify({
+        code: "ABCDEFGHJKMNPQRSTVWX",
+        revision: 1,
+        savedAt: Date.now(),
+        dirty: true,
+      }),
+    );
+  });
+  await openAdapt(page);
+  await expect(page.locator(".adapt-bar-indicator")).toHaveText(
+    "Unsaved changes",
+  );
+}
+
+for (
+  const viewport of [
+    { width: 1100, height: 800 },
+    { width: 900, height: 800 },
+    { width: 390, height: 844 },
+  ]
+) {
+  test(`with a session attached the bar is one row at ${viewport.width}x${viewport.height}`, async ({ page }) => {
+    await openAttached(page, viewport);
+    const save = page.getByRole("button", { name: "Save session" });
+    await expect(save).toBeVisible();
+    const [bar, button] = await Promise.all([
+      page.locator(".adapt-bar").boundingBox(),
+      save.boundingBox(),
+    ]);
+    expect(bar!.height).toBeLessThanOrEqual(button!.height + 1);
+    expect(
+      await page.evaluate(() =>
+        document.documentElement.scrollWidth <= innerWidth
+      ),
+    ).toBe(true);
+  });
+}
+
+test("the open Session panel sits just under its button, inside the viewport", async ({ page }) => {
+  await openAttached(page, DESKTOP);
+  const toggle = page.getByRole("button", { name: "Session", exact: true });
+  await toggle.click();
+  const panel = page.locator(".adapt-bar-session");
+  await expect(panel).toHaveClass(/is-placed/);
+  await expect(panel.getByText("ABCDE-FGHJK-MNPQR-STVWX")).toBeVisible();
+  const [button, box] = await Promise.all([
+    toggle.boundingBox(),
+    panel.boundingBox(),
+  ]);
+  const bottom = button!.y + button!.height;
+  expect(box!.y).toBeGreaterThanOrEqual(bottom);
+  expect(box!.y - bottom).toBeLessThanOrEqual(16);
+  expect(box!.x).toBeGreaterThanOrEqual(0);
+  expect(box!.x + box!.width).toBeLessThanOrEqual(DESKTOP.width);
+  expect(box!.y + box!.height).toBeLessThanOrEqual(DESKTOP.height);
+});
+
+test("on a short phone the More panel, session details and all, scrolls inside the viewport", async ({ page }) => {
+  const viewport = { width: 390, height: 500 };
+  await openAttached(page, viewport);
+  // The Session button belongs to the wide layout only.
+  await expect(page.getByRole("button", { name: "Session", exact: true }))
+    .toBeHidden();
+  await page.getByRole("button", { name: "More" }).click();
+  const panel = page.locator(".adapt-bar-more");
+  await expect(panel).toHaveClass(/is-placed/);
+  await expect(panel.getByText("ABCDE-FGHJK-MNPQR-STVWX")).toBeVisible();
+  const box = (await panel.boundingBox())!;
+  expect(box.y).toBeGreaterThanOrEqual(0);
+  expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
+  expect(await panel.evaluate((el) => getComputedStyle(el).overflowY))
+    .toMatch(/auto|scroll/);
+  // Whatever does not fit is reached by scrolling the panel itself.
+  const last = panel.getByRole("button").last();
+  await last.scrollIntoViewIfNeeded();
+  await expect(last).toBeInViewport({ ratio: 1 });
+});
+
+test("at 1000px the four action buttons are behind More", async ({ page }) => {
+  await page.setViewportSize({ width: 1000, height: 800 });
+  await openWizard(page);
+  // They are inline only from 1100px.
+  const more = page.getByRole("button", { name: "More" });
+  await expect(more).toBeVisible();
+  for (const name of ["Export answers", "Import answers", "Start over"]) {
+    await expect(page.getByRole("button", { name })).toBeHidden();
+  }
+  await expect(page.getByRole("button", { name: /^Download/ })).toBeHidden();
+  await more.click();
+  await expect(page.getByRole("button", { name: "Export answers" }))
+    .toBeVisible();
 });

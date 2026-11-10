@@ -1,6 +1,10 @@
 import { App, staticFiles } from "fresh";
 
-import { adaptSessionLimiter } from "./server/adapt_session_limiter.ts";
+import {
+  adaptSessionLimiter,
+  SESSION_LIMIT_VAR,
+  sessionLimitFromEnv,
+} from "./server/adapt_session_limiter.ts";
 import { compression } from "./server/compression.ts";
 import { frameProtection } from "./server/frame_protection.ts";
 import { loginPostLimiter } from "./server/login_post_limiter.ts";
@@ -42,5 +46,9 @@ app.use(staticFiles());
 const trustedClientIpHeader = Deno.env.get("LOGIN_CLIENT_IP_HEADER");
 app.use(sameSiteCsrf());
 app.use(loginPostLimiter({ trustedClientIpHeader }));
-app.use(adaptSessionLimiter({ trustedClientIpHeader }));
+app.use(adaptSessionLimiter({
+  trustedClientIpHeader,
+  // Unset everywhere but the e2e server, whose workers share one address.
+  perClientLimit: sessionLimitFromEnv(Deno.env.get(SESSION_LIMIT_VAR)),
+}));
 app.fsRoutes();
