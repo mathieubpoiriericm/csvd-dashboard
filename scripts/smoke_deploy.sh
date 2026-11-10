@@ -6,7 +6,9 @@
 #
 # With SMOKE_PASSPHRASE set it also signs in and opens a gated page. Without
 # it, only what a logged-out visitor sees is checked, so it can run against
-# production without the secret. It stops at the first failure, non-zero.
+# production without the secret. With SMOKE_EXPECT_SESSIONS=1 as well, it
+# saves and resumes an adaptation-guide session, which needs the passphrase.
+# It stops at the first failure, non-zero.
 #
 # CI's container job runs it against the image with throwaway secrets, and its
 # deploy job runs it against the live site after every deploy.
@@ -75,6 +77,8 @@ ok "GET /login compressed ($encoding)"
 
 # 5. Signing in works end to end, when there is a passphrase to sign in with.
 if [ -z "${SMOKE_PASSPHRASE:-}" ]; then
+  [ "${SMOKE_EXPECT_SESSIONS:-}" != 1 ] ||
+    fail "SMOKE_EXPECT_SESSIONS=1 needs SMOKE_PASSPHRASE: the session routes sit behind the login"
   echo "skip sign-in: SMOKE_PASSPHRASE is unset"
   exit 0
 fi
@@ -139,3 +143,79 @@ for chunk in $chunks; do
     fail "a logged-out GET of $chunk answered $code, want 401"
 done
 ok "$(wc -w <<<"$chunks" | tr -d ' ') protected chunks /genes loads: 401 logged out, private and no-store signed in"
+
+# 7. The adaptation guide saves and resumes a session on the server, when the
+# host is meant to keep them (SMOKE_EXPECT_SESSIONS=1): ADAPT_SESSIONS_DIR is
+# set and the directory it names can be written, which the page reports.
+if [ "${SMOKE_EXPECT_SESSIONS:-}" != 1 ]; then
+  exit 0
+fi
+
+# The resume code a save returns opens that session for 14 days, so from here
+# on nothing is traced, even under `bash -x`: xtrace would print the code with
+# every assignment and printf that holds it. It stays in a variable, reaches
+# curl through a pipe or a file descriptor, never on a command line, and no
+# message below includes it or a response body that carries it.
+#
+# Each run leaves one empty session behind for its 14 days, and spends one of
+# the per-client requests server/adapt_session_limiter.ts counts.
+{ set +x; } 2>/dev/null
+
+page=$(printf 'Cookie: %s\n' "$cookie" | curl -sS -H @- "$base/adapt")
+if [[ "$page" != *'data-sessions="on"'* ]]; then
+  [[ "$page" != *'data-sessions="off"'* ]] ||
+    fail "GET /adapt says sessions are off: ADAPT_SESSIONS_DIR is unset or cannot be written (the server log says which)"
+  fail "GET /adapt carries no data-sessions attribute"
+fi
+# With more than one machine the page names the one that holds the sessions,
+# and the guide sends every session request there; so does this.
+machine=$(
+  printf '%s' "$page" |
+    grep -oE 'data-sessions-machine="[0-9A-Fa-f]+"' | head -n 1 |
+    cut -d '"' -f 2 || true
+)
+ok "GET /adapt has sessions on${machine:+ (held by machine $machine)}"
+
+# The headers every session request carries: the session cookie, and what
+# csrf() in main.ts accepts.
+session_headers() {
+  printf 'Cookie: %s\n' "$cookie"
+  printf 'Content-Type: application/json\n'
+  printf 'Sec-Fetch-Site: same-origin\n'
+  if [ -n "$machine" ]; then
+    printf 'fly-force-instance-id: %s\n' "$machine"
+  fi
+}
+
+# The request body is a fixed, public file, so it can be named on the command
+# line; tests/adapt/smoke_session_test.ts keeps it an export the server
+# accepts. The response holds the code and is never printed.
+body_file="$(dirname "$0")/smoke_session.json"
+response=$(
+  session_headers |
+    curl -sS -H @- --data-binary "@$body_file" -w '\n%{http_code}' \
+      "$base/adapt/session/create" || true
+)
+code=${response##*$'\n'}
+[ "$code" = 201 ] ||
+  fail "POST /adapt/session/create answered $code, want 201"
+resume_code=$(
+  printf '%s' "${response%$'\n'*}" |
+    sed -n 's/.*"code":"\([0-9A-Z]\{20\}\)".*/\1/p'
+)
+response=
+[ -n "$resume_code" ] ||
+  fail "POST /adapt/session/create answered 201 without a resume code"
+ok "a session saves"
+
+# The resume body holds the code, so it reaches curl on a file descriptor
+# rather than as an argument.
+code=$(
+  session_headers |
+    status_of -H @- --data-binary @/dev/fd/3 \
+      "$base/adapt/session/resume" 3< <(printf '{"code":"%s"}' "$resume_code")
+)
+resume_code=
+[ "$code" = 200 ] ||
+  fail "POST /adapt/session/resume answered $code, want 200"
+ok "the saved session resumes"

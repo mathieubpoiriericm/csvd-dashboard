@@ -447,9 +447,17 @@ jobs:
       - name: Build the image
         run: docker build --platform linux/amd64 -t dashboard .
 
+      # The configured container gets the session volume as Fly gives it: a
+      # fresh named volume mounts with its root owned by root, as Fly's does,
+      # so the smoke test's save and resume prove the entrypoint hands the
+      # directory to `deno`. The unconfigured one has no volume and no
+      # ADAPT_SESSIONS_DIR, and its expectation is unchanged.
       - name: Start it, configured and not
         run: |
+          docker volume create session-storage
           docker run -d --name configured -p 8000:8000 \
+            -v session-storage:/session_storage \
+            -e ADAPT_SESSIONS_DIR=/session_storage/adapt-sessions \
             -e DASHBOARD_PASSPHRASE="$SMOKE_PASSPHRASE" \
             -e DASHBOARD_SESSION_SECRET=ci-smoke-session-secret \
             -e LOGIN_CLIENT_IP_HEADER=Fly-Client-IP \
@@ -463,7 +471,21 @@ jobs:
           done
 
       - name: Smoke test the configured image
+        env:
+          SMOKE_EXPECT_SESSIONS: "1"
         run: scripts/smoke_deploy.sh http://localhost:8000
+
+      # The entrypoint starts as root to own the session directory and then
+      # execs the server as `deno`, so the container's first process is the
+      # server, and it must not be root.
+      - name: The server does not run as root
+        run: |
+          uid=$(docker exec configured sh -c 'grep "^Uid:" /proc/1/status' | awk '{ print $2 }')
+          echo "the server's uid: $uid"
+          if [ -z "$uid" ] || [ "$uid" = 0 ]; then
+            echo "::error::the server process runs as root (uid ${uid:-unknown})"
+            exit 1
+          fi
 
       - name: The smoke test fails an image missing its secrets
         run: |
@@ -543,12 +565,29 @@ jobs:
           app=$(sed -n 's/^app = "\(.*\)"$/\1/p' fly.toml)
           flyctl deploy --image "registry.fly.io/$app:$GITHUB_SHA" --ha=false
 
-      # Logged-out checks only: the passphrase stays a Fly secret. Fly's own
-      # health check is liveness on /login, which renders even with a login
-      # secret unset, so the smoke script's GET / is what turns such a deploy
-      # red here.
+      # Logged-out checks, unless the repository holds the live passphrase as
+      # the SMOKE_PASSPHRASE secret. Fly's own health check is liveness on
+      # /login, which renders even with a login secret unset, so the smoke
+      # script's GET / is what turns such a deploy red here.
+      #
+      # A fly.toml that mounts a volume and names ADAPT_SESSIONS_DIR means
+      # the adapt guide's sessions should be on, so the smoke test also saves
+      # and resumes one, and a volume that is missing or unwritable fails the
+      # deploy instead of quietly serving the guide without sessions. That
+      # check has to sign in, so without SMOKE_PASSPHRASE the deploy says it
+      # was skipped in a notice. A fork that removed either line keeps its
+      # smoke test as it was.
       - name: Smoke test the live site
         if: env.FLY_API_TOKEN != ''
+        env:
+          SMOKE_PASSPHRASE: ${{ secrets.SMOKE_PASSPHRASE }}
         run: |
           app=$(sed -n 's/^app = "\(.*\)"$/\1/p' fly.toml)
+          if grep -q '^\[mounts\]' fly.toml && grep -q '^ *ADAPT_SESSIONS_DIR *=' fly.toml; then
+            if [ -n "$SMOKE_PASSPHRASE" ]; then
+              export SMOKE_EXPECT_SESSIONS=1
+            else
+              echo "::notice::fly.toml keeps adapt sessions, but SMOKE_PASSPHRASE is not set in this repository, so the deploy's smoke test did not save one."
+            fi
+          fi
           scripts/smoke_deploy.sh "https://$app.fly.dev"

@@ -21,6 +21,18 @@ RUN deno install --frozen
 COPY --chown=deno:deno . .
 RUN deno task build
 
+# The image starts as root and serves as `deno`. Fly mounts the session
+# volume (fly.toml's [mounts]) with its root owned by root, so the entrypoint
+# creates ADAPT_SESSIONS_DIR there and gives it to `deno`, and only then
+# drops to `deno` with setpriv (util-linux, in the base image) to run the CMD.
+# Nothing runs as root after that exec. The script is copied again as root's,
+# over the copy above, so the user it drops to cannot edit it in place. It
+# replaces the base image's entrypoint, /tini running the base's own
+# docker-entrypoint.sh, so the server is the container's first process.
+USER root
+COPY --chmod=755 scripts/docker-entrypoint.sh scripts/docker-entrypoint.sh
+ENTRYPOINT ["/app/scripts/docker-entrypoint.sh"]
+
 EXPOSE 8000
 
 # The whole tree stays: the server bundle still imports `fresh` through the
