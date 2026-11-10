@@ -16,7 +16,7 @@ in alpha since May 2025, and `leaflet.markercluster` (last released
 October 2021) reads that global as its module body evaluates. The 2.0 blocker is
 the plugin, not this code.
 
-Nine things are load-bearing:
+Ten things are load-bearing:
 
 - **Import order is not optional.** Leaflet touches `window` at import time, so
   it is `await import()`ed _inside_ the effect; hoisting it to module scope
@@ -65,16 +65,23 @@ Nine things are load-bearing:
   then removes that marker, and Leaflet closes a bound popup when its layer is
   removed. A tapped popup flashed open and vanished. The touch-screen test in
   `e2e/tests/map.spec.ts` pins it.
-- **A popup is fitted to the map, never scrolled.** The phone map is 380px and
-  the committed popups run to 463px at 320px wide, so the head or the registry
-  link was cut off by the map's edge. `fitPopup` zooms the popup body as the
-  timeline drawer does (`fitZoom` in `lib/drawer_fit.ts`, floor 0.85) into the
-  map's height less the popup chrome, the marker's reach and the autopan
-  padding; past the floor the map grows while the popup is open and
+- **A popup is fitted to the map, never scrolled.** The committed popups run to
+  463px at 320px wide, taller than a short phone's map, so the head or the
+  registry link was cut off by the map's edge. `fitPopup` zooms the popup body
+  as the timeline drawer does (`fitZoom` in `lib/drawer_fit.ts`, floor 0.85)
+  into the map's height less the popup chrome, the marker's reach and the
+  autopan padding; past the floor the map grows while the popup is open and
   `releaseMapHeight` gives the height back on close. It then calls
   `popup.update()`, because Leaflet laid the popup out and began its autopan
-  before `popupopen`. Measured over all 70 committed sites: at 393x852 69 are
-  zoomed and one grows the map; at 320x568 66 grow it.
+  before `popupopen`.
+- **The phone map is `clamp(380px, 65svh, 480px)` so the fit is the exception.**
+  At a flat 380px 69 of the 70 committed popups were zoomed at 393x852. At 480px
+  none are at 393x852 or 430x932 and one is, to 0.98, at 360x740. A 320x568
+  phone keeps 380px and the fallback (66 of 70 grow the map), because a map
+  filling a touch screen pans under a one-finger drag and the page cannot be
+  scrolled past it. The cost is grey under the opening world view, 224 of 480px
+  rather than 124 of 380px; popups open only once the map is zoomed in, where
+  tiles fill any height.
 
 Do not add `as any` back to the `markerClusterGroup` call, for the same reason
 the `useTable` call carries that rule: `@types/leaflet.markercluster` augments
