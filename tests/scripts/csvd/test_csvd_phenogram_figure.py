@@ -87,11 +87,22 @@ class TestPlacement:
             f"{g['gene']} {g['chromosomalLocation']}" for g in layout.unplaced
         ] == ["MSMP 9q13.3"]
         assert [c.name for c in layout.chromosomes] == DRAWN
+
+    def test_the_canvas_row_split_and_wide_columns_are_pinned(self, layout) -> None:
+        """The numbers tests/csvd/phenogram_layout_test.ts pins for
+        lib/phenogram.ts, so the two renderers cannot drift apart. Before the
+        canvas was derived it was a fixed 1732x1640 split after 10."""
+        assert layout.canvas == (1848, 1379)
         assert [[c.name for c in row] for row in layout.rows] == [
-            DRAWN[:10],
-            DRAWN[10:],
+            DRAWN[:11],
+            DRAWN[11:],
         ]
-        assert layout.canvas == (1732, 1640)
+        assert {
+            c.name: c.column_width for c in layout.chromosomes if c.column_width != 128
+        } == {"2": 172, "5": 156, "10": 172, "13": 172, "19": 172}
+        assert sum(b.x + b.y + b.width + b.height for b in layout.blocks) == (
+            pytest.approx(164469.93730683517, abs=1e-6)
+        )
 
     def test_the_rasters_errors_are_gone(self, layout) -> None:
         assert by_gene(layout, "ABO").chromosome == "9"

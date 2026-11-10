@@ -25,6 +25,7 @@ import {
   figureTextWidths,
   type KeyFont,
   layoutPhenogramKey,
+  phenogramKeyWidth,
 } from "../lib/phenogram_svg.ts";
 import {
   Block,
@@ -130,7 +131,14 @@ export default function Phenogram({ rows = genes }: PhenogramProps = {}) {
     const key = withKey
       ? layoutPhenogramKey(
         karyogram.legend,
-        width - 2 * encoding.layout.margin,
+        // Never narrower than the key can be laid out without overlap: a
+        // karyogram of one or two chromosomes is narrower than that.
+        phenogramKeyWidth(
+          width,
+          encoding.layout.margin,
+          karyogram.legend,
+          measureWithCanvas,
+        ),
         measureWithCanvas,
       )
       : null;

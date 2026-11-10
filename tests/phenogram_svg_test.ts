@@ -20,7 +20,10 @@ import {
   type KeyText,
   layoutPhenogramKey,
   type MeasureText,
+  phenogramDocumentWidth,
   phenogramFileName,
+  phenogramKeyMinWidth,
+  phenogramKeyWidth,
   SVG_PALETTE,
 } from "../lib/phenogram_svg.ts";
 
@@ -327,4 +330,77 @@ Deno.test("figureTextWidths keys every symbol and pill as Block reads them", () 
   assertEquals(widths.size, 1 + block.pills.length);
   assertEquals(seen[0], ["GENE1", SYMBOL_FONT_SIZE]);
   assertEquals(seen[1][1], PILL_FONT_SIZE);
+});
+
+/** Every text's box, letter spacing included, and every pill's. */
+function keyBoxes(layout: KeyLayout) {
+  const texts = allTexts(layout).map((t) => ({
+    label: t.text,
+    x: t.x,
+    y: t.y - t.font.size,
+    w: measure(t.text, t.font) + (t.letterSpacing ?? 0) * t.text.length,
+    h: t.font.size,
+  }));
+  return texts;
+}
+
+function assertNoOverlap(layout: KeyLayout) {
+  const boxes = keyBoxes(layout);
+  for (let i = 0; i < boxes.length; i++) {
+    for (let j = i + 1; j < boxes.length; j++) {
+      const a = boxes[i], b = boxes[j];
+      const apart = a.x + a.w <= b.x || b.x + b.w <= a.x ||
+        a.y + a.h <= b.y || b.y + b.h <= a.y;
+      assert(apart, `${a.label} / ${b.label} overlap`);
+    }
+  }
+  for (const box of boxes) {
+    assert(box.x + box.w <= layout.width + 1e-9, `${box.label} leaves the key`);
+  }
+  for (const pill of allPills(layout)) {
+    assert(pill.x + pill.width <= layout.width + 1e-9, pill.label.text);
+  }
+}
+
+Deno.test("a narrow karyogram's key is laid out at its minimum width, without overlap", () => {
+  const margin = encoding.layout.margin;
+  // The empty-data canvas: one empty column.
+  const empty = computePhenogramLayout([]);
+  for (
+    const legend of [makeLegend(0, 0), makeLegend(1, 3), makeLegend(7, 12)]
+  ) {
+    const min = phenogramKeyMinWidth(legend, measure);
+    const width = phenogramKeyWidth(
+      empty.canvas.width,
+      margin,
+      legend,
+      measure,
+    );
+    assertEquals(width, min);
+    assert(width > empty.canvas.width - 2 * margin);
+    const layout = layoutPhenogramKey(legend, width, measure);
+    assertNoOverlap(layout);
+    // The page is wide enough for the key and its margins.
+    const page = phenogramDocumentWidth(empty.canvas.width, margin, layout);
+    assertEquals(page, layout.width + 2 * margin);
+    assert(page > empty.canvas.width);
+  }
+});
+
+Deno.test("the minimum key width covers the widest family name and pill", () => {
+  const legend = makeLegend(2, 2);
+  legend.families[1].family.label = "A family name far wider than a column";
+  legend.families[0].traits[1].label = "x".repeat(90);
+  const min = phenogramKeyMinWidth(legend, measure);
+  const layout = layoutPhenogramKey(legend, min, measure);
+  assertNoOverlap(layout);
+  assert(min >= PANEL_GAP + 1.5 * 220, "one column of at least COLUMN_MIN");
+});
+
+Deno.test("a key wider than its minimum is untouched, and so is a wide page", () => {
+  const legend = makeLegend(7, 12);
+  const margin = encoding.layout.margin;
+  assertEquals(phenogramKeyWidth(1732, margin, legend, measure), 1672);
+  assertEquals(phenogramDocumentWidth(1732, margin, { width: 1672 }), 1732);
+  assertEquals(phenogramDocumentWidth(188, margin, null), 188);
 });

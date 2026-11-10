@@ -24,6 +24,9 @@ const byGene = new Map(layout.blocks.map((b) => [b.symbol, b]));
 const chromosome = (name: string) =>
   layout.chromosomes.find((c) => c.name === name)!;
 
+/** Sum of x + y + width + height over every block; the Python suite pins the same. */
+const BLOCK_RECT_SUM = 164469.93730683517;
+
 /** Chromosomes carrying a gene in the committed table — the Python test pins the same list. */
 const DRAWN = [
   "1",
@@ -65,15 +68,38 @@ Deno.test("114 genes are placed, MSMP unplaced, on 22 chromosomes including X", 
     ["MSMP 9q13.3"],
   );
   assertEquals(layout.chromosomes.map((c) => c.name), DRAWN);
-  assertEquals(layout.rows.map((row) => row.map((c) => c.name)), [
-    DRAWN.slice(0, 10),
-    DRAWN.slice(10),
-  ]);
-  assertEquals(layout.canvas, { width: 1732, height: 1640 });
   assertEquals(layout.blocks.map((b) => b.index), [...Array(114).keys()]);
 });
 
-Deno.test("chromosome 1 heads the first row and 13 the second", () => {
+// Before the canvas was derived it was a fixed 1732x1640 split after 10, and
+// the second row needed 1884 units: X's CHRDL1 fell off the right edge, the
+// "MTAG (...)" pills crossed the next chromosome on 2, 10, 13 and 19, and
+// some 400 units under the second row stayed empty. The numbers below are
+// pinned identically in tests/scripts/csvd/test_csvd_phenogram_figure.py, so
+// the print twin cannot drift from this layout.
+Deno.test("the canvas, the row split and the wide columns are pinned", () => {
+  assertEquals(layout.canvas, { width: 1848, height: 1379 });
+  assertEquals(layout.rows.map((row) => row.map((c) => c.name)), [
+    DRAWN.slice(0, 11),
+    DRAWN.slice(11),
+  ]);
+  assertEquals(
+    Object.fromEntries(
+      layout.chromosomes
+        .filter((c) => c.columnWidth !== L.labelColumn)
+        .map((c) => [c.name, c.columnWidth]),
+    ),
+    { "2": 172, "5": 156, "10": 172, "13": 172, "19": 172 },
+  );
+  // Every block rect, summed: one number both suites agree on.
+  assertAlmostEquals(
+    layout.blocks.reduce((sum, b) => sum + b.x + b.y + b.width + b.height, 0),
+    BLOCK_RECT_SUM,
+    1e-6,
+  );
+});
+
+Deno.test("chromosome 1 heads the first row and 12 the second", () => {
   const one = chromosome("1");
   assertAlmostEquals(one.height, L.rowHeight, 1e-6);
   assertEquals(one.y, L.margin);
@@ -85,6 +111,8 @@ Deno.test("chromosome 1 heads the first row and 13 the second", () => {
   );
   assertEquals(thirteen.y, L.margin + L.rowHeight + L.rowGap);
   assertEquals(thirteen.row, 1);
+  assertEquals(layout.rows[1][0].name, "12");
+  assertEquals(chromosome("11").row, 0);
 });
 
 Deno.test("the raster's errors are gone: ABO on 9, C6orf195 on 6, COL4A1/2 on 13", () => {

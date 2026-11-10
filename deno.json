@@ -23,6 +23,7 @@
     "cytobands": "uv run scripts/fetch_cytobands.py && deno fmt data/cytobands_hg38.json",
     "fixtures": "uv run python -m scripts.fetch_paper_fixtures",
     "figure": "uv run --group figure scripts/timeline_figure.py && uv run --group figure scripts/phenogram_figure.py",
+    "phenogram:metrics": "deno run --allow-read --allow-write --allow-run scripts/phenogram_font_metrics.ts",
     "update": "deno run -A -r jsr:@fresh/update ."
   },
   "coverage": {

@@ -2,6 +2,7 @@ import {
   type ChromosomeShape,
   encoding,
   type GeneBlock,
+  textWidth,
 } from "../lib/phenogram.ts";
 import { SVG_PALETTE } from "../lib/phenogram_svg.ts";
 
@@ -10,20 +11,15 @@ const L = encoding.layout;
 /** The face the figure is set in; an exported file carries it as an attribute, having no stylesheet. */
 const FONT_FAMILY = "Barlow, sans-serif";
 
-export const SYMBOL_FONT_SIZE = 12;
-export const PILL_FONT_SIZE = 9.5;
+// The text geometry the layout sizes each label column from, so the column
+// and the drawing cannot disagree.
+export const SYMBOL_FONT_SIZE = L.symbolFont;
+export const PILL_FONT_SIZE = L.pillFont;
 export const CHROMOSOME_FONT_SIZE = 13;
-export const GLYPH_SIZE = 9;
-export const GLYPH_GAP = 4;
-export const PILL_PADDING_X = 5;
+export const GLYPH_SIZE = L.glyphSize;
+export const GLYPH_GAP = L.glyphGap;
+export const PILL_PADDING_X = L.pillPaddingX;
 export const PILL_INSET = 2;
-/**
- * Pre-hydration estimate of a text width, in em per character. Every pill
- * background and glyph position is refitted from `getBBox()` as soon as the
- * island mounts, and again once the web font has loaded — block positions
- * never depend on it.
- */
-export const PLACEHOLDER_EM = 0.6;
 
 /** Geometry for a shape the encoding does not know — unreachable on committed data (the encoding test). */
 const FALLBACK_GLYPH = { scale: 1, innerRatio: 0.5 };
@@ -167,12 +163,18 @@ export interface BlockProps {
  * Marker tick and leader, then the label group: the symbol followed by its
  * glyphs, one pill per line.
  */
+/**
+ * Text widths come from `widths` (the island's `getBBox()` measurements)
+ * where it has them, and otherwise from the metric table the layout sizes
+ * the columns with, so the server-rendered plate fits its columns before the
+ * island has measured anything.
+ */
 export function Block({ block, widths, labelAttrs }: BlockProps) {
   const symbolBaseline = block.y + L.blockPadding + L.symbolLine * 0.78;
   const glyphY = block.y + L.blockPadding + (L.symbolLine - GLYPH_SIZE) / 2;
   const chromosomeLeft = block.x - L.leaderGap - L.chromosomeWidth;
   const symbolWidth = widths.get(`symbol-${block.index}`) ??
-    block.symbol.length * SYMBOL_FONT_SIZE * PLACEHOLDER_EM;
+    textWidth(block.symbol, 600, SYMBOL_FONT_SIZE);
   return (
     <g
       class="phenogram-block"
@@ -228,8 +230,8 @@ export function Block({ block, widths, labelAttrs }: BlockProps) {
         {block.pills.map((pill, i) => {
           const id = `pill-${block.index}-${i}`;
           const top = block.y + L.blockPadding + L.symbolLine + i * L.pillLine;
-          const textWidth = widths.get(id) ??
-            pill.label.length * PILL_FONT_SIZE * PLACEHOLDER_EM;
+          const pillText = widths.get(id) ??
+            textWidth(pill.label, 400, PILL_FONT_SIZE);
           const height = L.pillLine - PILL_INSET;
           return (
             <g key={id} class="phenogram-pill-mark">
@@ -237,7 +239,7 @@ export function Block({ block, widths, labelAttrs }: BlockProps) {
                 class="pill-bg"
                 x={block.x}
                 y={top + PILL_INSET / 2}
-                width={textWidth + 2 * PILL_PADDING_X}
+                width={pillText + 2 * PILL_PADDING_X}
                 height={height}
                 rx={height / 2}
                 fill={pill.fill}

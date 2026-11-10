@@ -113,6 +113,7 @@ const PILL_GAP = 4;
 const PILL_PITCH = 16;
 /** Baseline of a 9.5-unit label centred in a 12-unit pill. */
 const PILL_BASELINE = 9;
+const PHENOTYPE_TITLE = "GWAS phenotypes";
 
 function pill(
   x: number,
@@ -197,6 +198,31 @@ function evidencePanel(
   };
 }
 
+/** Letter spacing of a family name, which is set in capitals. */
+const FAMILY_TRACKING = 0.04 * KEY_FONTS.family.size;
+
+/**
+ * The narrowest a family column may be: `COLUMN_MIN`, or wider for a family
+ * name or a single pill that would not fit it, so no column's content runs
+ * into the next column or off the key.
+ */
+function familyColumnMin(
+  families: PhenogramLayout["legend"]["families"],
+  measure: MeasureText,
+): number {
+  return Math.max(
+    COLUMN_MIN,
+    ...families.flatMap(({ family, traits }) => {
+      const name = family.label.toUpperCase();
+      return [
+        2 * SWATCH_R + SWATCH_TO_NAME + measure(name, KEY_FONTS.family) +
+        FAMILY_TRACKING * [...name].length,
+        ...traits.map((t) => measure(t.label, KEY_FONTS.pill) + 2 * PILL_PAD_X),
+      ];
+    }),
+  );
+}
+
 function phenotypePanel(
   families: PhenogramLayout["legend"]["families"],
   left: number,
@@ -205,7 +231,10 @@ function phenotypePanel(
 ): KeyPanel {
   const columns = Math.max(
     1,
-    Math.floor((width + COLUMN_GAP) / (COLUMN_MIN + COLUMN_GAP)),
+    Math.floor(
+      (width + COLUMN_GAP) /
+        (familyColumnMin(families, measure) + COLUMN_GAP),
+    ),
   );
   const columnWidth = (width - (columns - 1) * COLUMN_GAP) / columns;
   const groups: KeyPanel["groups"] = [];
@@ -248,7 +277,7 @@ function phenotypePanel(
         text: family.label.toUpperCase(),
         font: KEY_FONTS.family,
         fill: SVG_PALETTE.inkMuted,
-        letterSpacing: 0.04 * KEY_FONTS.family.size,
+        letterSpacing: FAMILY_TRACKING,
       }],
       pills,
       swatches: [{
@@ -261,7 +290,7 @@ function phenotypePanel(
   });
   return {
     id: "key-phenotypes",
-    title: title(left, "GWAS phenotypes"),
+    title: title(left, PHENOTYPE_TITLE),
     texts: [],
     pills: [],
     glyphs: [],
@@ -295,6 +324,60 @@ export function layoutPhenogramKey(
     height: Math.max(panelBottom(panels[0]), panelBottom(panels[1])),
     panels,
   };
+}
+
+/** Right edge of everything a panel draws, from its own left edge at 0. */
+function textRight(text: KeyText, measure: MeasureText): number {
+  return text.x + measure(text.text, text.font) +
+    (text.letterSpacing ?? 0) * [...text.text].length;
+}
+
+/**
+ * The narrowest key `layoutPhenogramKey` lays out without overlap: the
+ * evidence panel's widest line in its third, and in the other two thirds one
+ * family column (`familyColumnMin`) or the phenotype title, whichever is
+ * wider. A karyogram with few chromosomes is narrower than
+ * this, so the export widens its page to the key rather than the reverse.
+ */
+export function phenogramKeyMinWidth(
+  legend: PhenogramLayout["legend"],
+  measure: MeasureText,
+): number {
+  const evidence = evidencePanel(legend.evidence, measure);
+  const evidenceWidth = Math.max(
+    ...[evidence.title, ...evidence.texts].map((t) => textRight(t, measure)),
+    ...evidence.pills.map((p) => p.x + p.width),
+  );
+  const phenotypeWidth = Math.max(
+    familyColumnMin(legend.families, measure),
+    textRight(title(0, PHENOTYPE_TITLE), measure),
+  );
+  // The evidence panel gets (width - gap) / 3 and the phenotypes twice that.
+  return Math.ceil(
+    PANEL_GAP + 3 * Math.max(evidenceWidth, phenotypeWidth / 2),
+  );
+}
+
+/** The width the export lays its key out at: the karyogram's, or the key's minimum. */
+export function phenogramKeyWidth(
+  canvasWidth: number,
+  margin: number,
+  legend: PhenogramLayout["legend"],
+  measure: MeasureText,
+): number {
+  return Math.max(
+    canvasWidth - 2 * margin,
+    phenogramKeyMinWidth(legend, measure),
+  );
+}
+
+/** The exported document's width: the karyogram's canvas, widened to hold the key. */
+export function phenogramDocumentWidth(
+  canvasWidth: number,
+  margin: number,
+  key: Pick<KeyLayout, "width"> | null,
+): number {
+  return Math.max(canvasWidth, key ? key.width + 2 * margin : 0);
 }
 
 const pad2 = (n: number) => String(n).padStart(2, "0");

@@ -13,10 +13,20 @@
  * geometry constants live — keep the *rule* here in step with the Python
  * twin (same names, same order of operations).
  *
- * Coordinates are SVG user units in the encoding's `viewBox`; y grows down.
+ * Nothing about the canvas is fixed: each chromosome's label column is as wide
+ * as its widest label, measured from `lib/phenogram_font_metrics.json` (the
+ * shipped Barlow faces' advance widths, written by `deno task
+ * phenogram:metrics`); the two rows split where they come out most even; and
+ * the canvas is the drawing's own extent plus the margin.
+ *
+ * Coordinates are SVG user units, the figure's `viewBox` being `canvas`; y
+ * grows down.
  */
 
 import appearanceJson from "./phenogram_encoding.json" with { type: "json" };
+import fontMetricsJson from "./phenogram_font_metrics.json" with {
+  type: "json",
+};
 import familiesJson from "../disease/phenogram.json" with { type: "json" };
 import vocabulary from "../disease/vocabulary.json" with { type: "json" };
 import {
@@ -77,18 +87,33 @@ export interface GlyphGeometry {
 }
 
 export interface LayoutConstants {
-  viewBox: number[];
   margin: number;
-  rowSplitAfter: string;
   rowHeight: number;
   rowGap: number;
   chromosomeWidth: number;
   leaderGap: number;
+  /** The narrowest a label column gets; a wider label widens its own column. */
   labelColumn: number;
+  /** Added to the widest label before rounding up: absorbs the kerning the metric table ignores. */
+  labelSlack: number;
   blockGap: number;
   symbolLine: number;
   pillLine: number;
   blockPadding: number;
+  /** Gene symbol size, set at weight 600. */
+  symbolFont: number;
+  /** Pill label size, set at weight 400. */
+  pillFont: number;
+  glyphSize: number;
+  glyphGap: number;
+  pillPaddingX: number;
+}
+
+/** Advance widths of the two Barlow weights, as `deno task phenogram:metrics` writes them. */
+export interface FontMetrics {
+  unitsPerEm: number;
+  /** Weight to decimal code point to advance, in font units. */
+  advances: Record<string, Record<string, number>>;
 }
 
 export interface PhenogramEncoding {
@@ -109,6 +134,8 @@ export const encoding: PhenogramEncoding = {
   families: familiesJson.families,
   traits: vocabulary.traits,
 };
+
+export const fontMetrics: FontMetrics = fontMetricsJson;
 
 /** Baseline offset of a chromosome's name under its q-arm. */
 export const CHROMOSOME_LABEL_OFFSET = 18;
@@ -143,6 +170,8 @@ export interface ChromosomeShape {
   y: number;
   width: number;
   height: number;
+  /** Width of the label column right of the leader gap. */
+  columnWidth: number;
   bands: BandShape[];
   pArm: Span;
   centromere: Span;
@@ -279,29 +308,120 @@ export function resolveCollisions(
   return y;
 }
 
+/** Descent of a chromosome's name below its baseline, for the canvas's bottom edge. */
+export const CHROMOSOME_LABEL_DESCENT = 4;
+
+/**
+ * Width of `text` set in Barlow at `weight` and `size`: the sum of the
+ * advances, scaled from font units. Kerning is ignored (`labelSlack` absorbs
+ * it), and a character the face does not draw takes its widest advance, so an
+ * unforeseen symbol overestimates rather than overflows.
+ */
+export function textWidth(
+  text: string,
+  weight: 400 | 600,
+  size: number,
+  metrics: FontMetrics = fontMetrics,
+): number {
+  const advances = metrics.advances[String(weight)];
+  const widest = Math.max(...Object.values(advances));
+  let units = 0;
+  for (const ch of text) {
+    units += advances[String(ch.codePointAt(0))] ?? widest;
+  }
+  return units / metrics.unitsPerEm * size;
+}
+
+/**
+ * How wide a gene's label block draws: the larger of its first line -- the
+ * symbol, then each glyph's advance box after a double gap, where
+ * `components/PhenogramShapes.tsx`'s `Block` puts them -- and each pill.
+ */
+export function labelWidth(
+  symbol: string,
+  pills: readonly Pick<Pill, "label">[],
+  glyphCount: number,
+  layout: LayoutConstants = encoding.layout,
+  metrics: FontMetrics = fontMetrics,
+): number {
+  let first = textWidth(symbol, 600, layout.symbolFont, metrics);
+  if (glyphCount > 0) {
+    first += 2 * layout.glyphGap + glyphCount * layout.glyphSize +
+      (glyphCount - 1) * layout.glyphGap;
+  }
+  return Math.max(
+    first,
+    ...pills.map((pill) =>
+      textWidth(pill.label, 400, layout.pillFont, metrics) +
+      2 * layout.pillPaddingX
+    ),
+  );
+}
+
+/** A label column wide enough for `labelWidths`, never narrower than `labelColumn`. */
+export function columnWidth(
+  labelWidths: readonly number[],
+  layout: LayoutConstants = encoding.layout,
+): number {
+  return Math.max(
+    layout.labelColumn,
+    Math.ceil(Math.max(0, ...labelWidths) + layout.labelSlack),
+  );
+}
+
+/**
+ * How many of `pitches`, in order, go in the first row: the split that makes
+ * the wider row narrowest, the later split on a tie. Everything in the first
+ * row when there are fewer than two.
+ */
+export function splitRows(pitches: readonly number[]): number {
+  if (pitches.length <= 1) return pitches.length;
+  const total = pitches.reduce((sum, p) => sum + p, 0);
+  let best = Infinity;
+  let bestK = 1;
+  let first = 0;
+  for (let k = 1; k < pitches.length; k++) {
+    first += pitches[k - 1];
+    const widest = Math.max(first, total - first);
+    if (widest <= best) {
+      best = widest;
+      bestK = k;
+    }
+  }
+  return bestK;
+}
+
 /**
  * The chromosomes in `names`, in `CHROMOSOMES` order, scaled so the longest
- * chromosome in the table fills `rowHeight`, top-aligned in two rows split
- * after `rowSplitAfter`, one column each.
+ * chromosome in the table fills `rowHeight`, top-aligned in two rows split by
+ * `splitRows`. Each takes its chromosome, the leader gap and its label column
+ * from `columnWidths`, `labelColumn` where it has none.
  */
 export function chromosomeShapes(
   names: ReadonlySet<string>,
   table: CytobandTable = defaultCytobands,
   enc: PhenogramEncoding = encoding,
+  columnWidths: ReadonlyMap<string, number> = new Map(),
 ): ChromosomeShape[][] {
   const L = enc.layout;
   const longest = Math.max(...table.chromosomes.map((c) => c.length));
   const scale = L.rowHeight / longest;
-  const pitch = L.chromosomeWidth + L.leaderGap + L.labelColumn;
-  const splitIndex = CHROMOSOMES.indexOf(L.rowSplitAfter);
-  const rows: ChromosomeShape[][] = [[], []];
-
-  CHROMOSOMES.forEach((name, order) => {
-    if (!names.has(name)) return;
+  const present = CHROMOSOMES.flatMap((name) => {
+    if (!names.has(name)) return [];
     const chromosome = table.chromosomes.find((c) => c.name === name);
-    if (!chromosome) return;
-    const row = order <= splitIndex ? 0 : 1;
-    const x = L.margin + rows[row].length * pitch;
+    return chromosome ? [chromosome] : [];
+  });
+  const widths = present.map((c) => columnWidths.get(c.name) ?? L.labelColumn);
+  const pitches = widths.map((w) => L.chromosomeWidth + L.leaderGap + w);
+  const split = splitRows(pitches);
+  const rows: ChromosomeShape[][] = [[], []];
+  const cursor = [L.margin, L.margin];
+
+  present.forEach((chromosome, order) => {
+    const name = chromosome.name;
+    const row = order < split ? 0 : 1;
+    const x = cursor[row];
+    cursor[row] += pitches[order];
     const y = L.margin + row * (L.rowHeight + L.rowGap);
     const height = chromosome.length * scale;
     const toY = (bp: number) => y + bp * scale;
@@ -316,6 +436,7 @@ export function chromosomeShapes(
       y,
       width: L.chromosomeWidth,
       height,
+      columnWidth: widths[order],
       bands: chromosome.bands.map((band) => ({
         name: band.name,
         y: toY(band.start),
@@ -333,6 +454,39 @@ export function chromosomeShapes(
     });
   });
   return rows;
+}
+
+/**
+ * The drawing's extent plus the margin: as wide as the wider row, as tall as
+ * the lowest chromosome name or label block. With nothing drawn, one empty
+ * column.
+ */
+export function canvasFor(
+  rows: readonly (readonly ChromosomeShape[])[],
+  blocks: readonly Pick<GeneBlock, "y" | "height">[],
+  layout: LayoutConstants = encoding.layout,
+): PhenogramLayout["canvas"] {
+  const chromosomes = rows.flat();
+  if (chromosomes.length === 0) {
+    return {
+      width: 2 * layout.margin + layout.labelColumn,
+      height: 2 * layout.margin,
+    };
+  }
+  const rowWidth = (row: readonly ChromosomeShape[]) =>
+    row.reduce(
+      (sum, c) =>
+        sum + layout.chromosomeWidth + layout.leaderGap + c.columnWidth,
+      0,
+    );
+  const bottom = Math.max(
+    ...chromosomes.map((c) => c.labelPoint.y + CHROMOSOME_LABEL_DESCENT),
+    ...blocks.map((b) => b.y + b.height),
+  );
+  return {
+    width: Math.ceil(2 * layout.margin + Math.max(...rows.map(rowWidth))),
+    height: Math.ceil(bottom + layout.margin),
+  };
 }
 
 interface Placed {
@@ -354,15 +508,34 @@ export function computePhenogramLayout(
     if (hit) hits.push({ gene, hit });
     else unplaced.push(gene);
   }
+  const hitsByChromosome = groupBy(hits, ({ hit }) => hit.chromosome);
 
+  // The label columns come from the genes, so they are measured before any
+  // chromosome is placed.
+  const columnWidths = new Map(
+    [...hitsByChromosome].map(([name, here]) => [
+      name,
+      columnWidth(
+        here.map(({ gene }) =>
+          labelWidth(
+            gene.gene,
+            pillsFor(gene, enc),
+            glyphsFor(gene, enc).length,
+            L,
+          )
+        ),
+        L,
+      ),
+    ]),
+  );
   const chromosomeRows = chromosomeShapes(
-    new Set(hits.map((h) => h.hit.chromosome)),
+    new Set(hitsByChromosome.keys()),
     table,
     enc,
+    columnWidths,
   );
   const chromosomes = chromosomeRows.flat();
   const blocks: GeneBlock[] = [];
-  const hitsByChromosome = groupBy(hits, ({ hit }) => hit.chromosome);
 
   for (const chromosome of chromosomes) {
     // `chromosomes` is built from the same hit keys, so every shape has a group.
@@ -398,7 +571,7 @@ export function computePhenogramLayout(
         markerY: p.markerY,
         x,
         y,
-        width: L.labelColumn,
+        width: chromosome.columnWidth,
         height,
         pills: pills[i],
         glyphs: glyphsFor(p.gene, enc),
@@ -410,7 +583,7 @@ export function computePhenogramLayout(
   }
 
   return {
-    canvas: { width: L.viewBox[0], height: L.viewBox[1] },
+    canvas: canvasFor(chromosomeRows, blocks, L),
     rows: chromosomeRows,
     chromosomes,
     blocks,

@@ -4,12 +4,16 @@ The dashboard draws the same figure in the browser (islands/Phenogram.tsx from
 lib/phenogram.ts). Both renderers read lib/phenogram_encoding.json -- the one
 place colours, labels, definitions, band stains and the geometry constants
 live -- and data/cytobands_hg38.json, and both apply the same layout rule:
-chromosomes that carry a gene, to scale, in two rows split after chromosome
-10; one marker per gene at the midpoint of its band; a label block beside the
-chromosome (symbol and evidence glyphs, then one pill per GWAS phenotype),
-stacked without overlap by resolve_collisions. Coordinates are the SVG user
-units of the encoding's viewBox, y down; the matplotlib axes are inverted to
-match.
+chromosomes that carry a gene, to scale, in two rows split where they come out
+most even; one marker per gene at the midpoint of its band; a label block
+beside the chromosome (symbol and evidence glyphs, then one pill per GWAS
+phenotype), stacked without overlap by resolve_collisions, in a label column
+as wide as its widest label. Labels are measured from
+lib/phenogram_font_metrics.json, the shipped Barlow faces' advance widths
+(`deno task phenogram:metrics` writes it; this script only reads it), so the
+two renderers size every column identically. The canvas is the drawing's
+extent plus the margin. Coordinates are SVG user units, y down; the
+matplotlib axes are inverted to match.
 
 Usage:
     uv run --group figure scripts/phenogram_figure.py
@@ -19,6 +23,7 @@ Usage:
 
 import argparse
 import json
+import math
 import re
 import sys
 from collections.abc import Iterable, Sequence
@@ -30,6 +35,7 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_GENES = _PROJECT_ROOT / "data" / "table1.json"
 DEFAULT_CYTOBANDS = _PROJECT_ROOT / "data" / "cytobands_hg38.json"
 DEFAULT_ENCODING = _PROJECT_ROOT / "lib" / "phenogram_encoding.json"
+DEFAULT_FONT_METRICS = _PROJECT_ROOT / "lib" / "phenogram_font_metrics.json"
 DEFAULT_FAMILIES = _PROJECT_ROOT / "disease" / "phenogram.json"
 DEFAULT_VOCABULARY = _PROJECT_ROOT / "disease" / "vocabulary.json"
 DEFAULT_OUT = _PROJECT_ROOT / "figures"
@@ -39,6 +45,8 @@ FORMATS = ("svg", "pdf", "png")
 NONE_FOUND = "(none found)"
 CHROMOSOMES = [str(n) for n in range(1, 23)] + ["X", "Y"]
 CHROMOSOME_LABEL_OFFSET = 18.0
+# Descent of a chromosome's name below its baseline, for the canvas's bottom.
+CHROMOSOME_LABEL_DESCENT = 4.0
 FALLBACK_PILL = ("#ffffff", "#888888")
 FALLBACK_STAIN = "#cccccc"
 LOCATION = re.compile(r"^(\d{1,2}|X|Y)([pq]\d+(?:\.\d+)?)(?:-([pq]\d+(?:\.\d+)?))?$")
@@ -46,6 +54,9 @@ LOCATION = re.compile(r"^(\d{1,2}|X|Y)([pq]\d+(?:\.\d+)?)(?:-([pq]\d+(?:\.\d+)?)
 # One viewBox unit is 1/100 inch on the page: 12 units of text is 8.64 pt.
 UNITS_PER_INCH = 100.0
 PT_PER_UNIT = 72.0 / UNITS_PER_INCH
+# The drawing's own text geometry. The layout sizes each label column from the
+# encoding's copies of these (symbolFont, pillFont, glyphSize, glyphGap,
+# pillPaddingX), and a test fails if the two disagree.
 SYMBOL_FONT_UNITS = 12.0
 PILL_FONT_UNITS = 9.5
 CHROMOSOME_FONT_UNITS = 13.0
@@ -88,6 +99,7 @@ class ChromosomeShape:
     y: float
     width: float
     height: float
+    column_width: float
     bands: tuple[Band, ...]
     p_arm: tuple[float, float]
     centromere: tuple[float, float]
@@ -203,6 +215,12 @@ def load_encoding(
     with vocabulary.open(encoding="utf-8") as handle:
         encoding["traits"] = json.load(handle)["traits"]
     return encoding
+
+
+def load_font_metrics(path: Path = DEFAULT_FONT_METRICS) -> dict[str, Any]:
+    """The Barlow advance widths, as `deno task phenogram:metrics` writes them."""
+    with path.open(encoding="utf-8") as handle:
+        return json.load(handle)
 
 
 def glyph_marker(shape: str, glyphs: dict[str, Any]) -> Any:
@@ -332,24 +350,101 @@ def resolve_collisions(
     return y
 
 
+def text_width(text: str, weight: int, size: float, metrics: dict[str, Any]) -> float:
+    """Width of `text` in Barlow at `weight` and `size`; the twin of textWidth.
+
+    The sum of the advances, scaled from font units. Kerning is ignored
+    (`labelSlack` absorbs it), and a character the face does not draw takes
+    its widest advance.
+    """
+    advances = metrics["advances"][str(weight)]
+    widest = max(advances.values())
+    units = sum(advances.get(str(ord(ch)), widest) for ch in text)
+    return units / metrics["unitsPerEm"] * size
+
+
+def label_width(
+    symbol: str,
+    pills: Sequence[Pill],
+    glyph_count: int,
+    layout: dict[str, Any],
+    metrics: dict[str, Any],
+) -> float:
+    """The wider of the first line (symbol, then glyphs) and each pill."""
+    first = text_width(symbol, 600, layout["symbolFont"], metrics)
+    if glyph_count > 0:
+        first += (
+            2 * layout["glyphGap"]
+            + glyph_count * layout["glyphSize"]
+            + (glyph_count - 1) * layout["glyphGap"]
+        )
+    return max(
+        [first]
+        + [
+            text_width(pill.label, 400, layout["pillFont"], metrics)
+            + 2 * layout["pillPaddingX"]
+            for pill in pills
+        ]
+    )
+
+
+def column_width(label_widths: Sequence[float], layout: dict[str, Any]) -> float:
+    """A label column wide enough for `label_widths`, never below labelColumn."""
+    return max(
+        layout["labelColumn"],
+        math.ceil(max([0.0, *label_widths]) + layout["labelSlack"]),
+    )
+
+
+def split_rows(pitches: Sequence[float]) -> int:
+    """How many of `pitches` go in the first row; the twin of splitRows.
+
+    The cut that makes the wider row narrowest, the later cut on a tie;
+    everything in the first row when there are fewer than two.
+    """
+    if len(pitches) <= 1:
+        return len(pitches)
+    total = sum(pitches)
+    best = math.inf
+    best_k = 1
+    first = 0.0
+    for k in range(1, len(pitches)):
+        first += pitches[k - 1]
+        widest = max(first, total - first)
+        if widest <= best:
+            best = widest
+            best_k = k
+    return best_k
+
+
 def chromosome_shapes(
-    names: Iterable[str], table: dict[str, Any], encoding: dict[str, Any]
+    names: Iterable[str],
+    table: dict[str, Any],
+    encoding: dict[str, Any],
+    column_widths: dict[str, float] | None = None,
 ) -> list[list[ChromosomeShape]]:
-    """Chromosomes in CHROMOSOMES order, scaled to the longest, in two rows."""
+    """Chromosomes in CHROMOSOMES order, scaled to the longest, in two rows.
+
+    Each takes its label column from `column_widths`, labelColumn where it has
+    none, and the rows split by `split_rows` over the resulting pitches.
+    """
     wanted = set(names)
+    widths_by_name = column_widths or {}
     layout = encoding["layout"]
     longest = max(c["length"] for c in table["chromosomes"])
     scale = layout["rowHeight"] / longest
-    pitch = layout["chromosomeWidth"] + layout["leaderGap"] + layout["labelColumn"]
-    split_index = CHROMOSOMES.index(layout["rowSplitAfter"])
     by_name = {c["name"]: c for c in table["chromosomes"]}
+    present = [by_name[n] for n in CHROMOSOMES if n in wanted and n in by_name]
+    widths = [widths_by_name.get(c["name"], layout["labelColumn"]) for c in present]
+    pitches = [layout["chromosomeWidth"] + layout["leaderGap"] + w for w in widths]
+    split = split_rows(pitches)
     rows: list[list[ChromosomeShape]] = [[], []]
-    for order, name in enumerate(CHROMOSOMES):
-        if name not in wanted or name not in by_name:
-            continue
-        chromosome = by_name[name]
-        row = 0 if order <= split_index else 1
-        x = layout["margin"] + len(rows[row]) * pitch
+    cursor = [layout["margin"], layout["margin"]]
+    for order, chromosome in enumerate(present):
+        name = chromosome["name"]
+        row = 0 if order < split else 1
+        x = cursor[row]
+        cursor[row] += pitches[order]
         y = layout["margin"] + row * (layout["rowHeight"] + layout["rowGap"])
         height = chromosome["length"] * scale
         acen = [b for b in chromosome["bands"] if b["stain"] == "acen"]
@@ -372,6 +467,7 @@ def chromosome_shapes(
                 y=y,
                 width=layout["chromosomeWidth"],
                 height=height,
+                column_width=widths[order],
                 bands=bands,
                 p_arm=(y, cen_start * scale),
                 centromere=(y + cen_start * scale, (cen_end - cen_start) * scale),
@@ -385,10 +481,40 @@ def chromosome_shapes(
     return rows
 
 
+def canvas_for(
+    rows: Sequence[Sequence[ChromosomeShape]],
+    blocks: Sequence[GeneBlock],
+    layout: dict[str, Any],
+) -> tuple[float, float]:
+    """The drawing's extent plus the margin; the twin of canvasFor."""
+    chromosomes = [shape for row in rows for shape in row]
+    if not chromosomes:
+        return (2 * layout["margin"] + layout["labelColumn"], 2 * layout["margin"])
+
+    def row_width(row: Sequence[ChromosomeShape]) -> float:
+        return sum(
+            layout["chromosomeWidth"] + layout["leaderGap"] + c.column_width
+            for c in row
+        )
+
+    bottom = max(
+        [c.label_point[1] + CHROMOSOME_LABEL_DESCENT for c in chromosomes]
+        + [b.y + b.height for b in blocks]
+    )
+    return (
+        math.ceil(2 * layout["margin"] + max(row_width(row) for row in rows)),
+        math.ceil(bottom + layout["margin"]),
+    )
+
+
 def compute_layout(
-    genes: Sequence[dict[str, Any]], encoding: dict[str, Any], table: dict[str, Any]
+    genes: Sequence[dict[str, Any]],
+    encoding: dict[str, Any],
+    table: dict[str, Any],
+    metrics: dict[str, Any] | None = None,
 ) -> Layout:
     layout = encoding["layout"]
+    font_metrics = metrics if metrics is not None else load_font_metrics()
     hits: list[tuple[dict[str, Any], BandHit]] = []
     unplaced: list[dict[str, Any]] = []
     for gene in genes:
@@ -398,7 +524,23 @@ def compute_layout(
         else:
             hits.append((gene, hit))
 
-    rows = chromosome_shapes({hit.chromosome for _, hit in hits}, table, encoding)
+    # The label columns come from the genes, so they are measured before any
+    # chromosome is placed.
+    label_widths: dict[str, list[float]] = {}
+    for gene, hit in hits:
+        label_widths.setdefault(hit.chromosome, []).append(
+            label_width(
+                gene["gene"],
+                pills_for(gene, encoding),
+                len(glyphs_for(gene, encoding)),
+                layout,
+                font_metrics,
+            )
+        )
+    column_widths = {
+        name: column_width(widths, layout) for name, widths in label_widths.items()
+    }
+    rows = chromosome_shapes(column_widths.keys(), table, encoding, column_widths)
     chromosomes = [shape for row in rows for shape in row]
     blocks: list[GeneBlock] = []
     for shape in chromosomes:
@@ -436,7 +578,7 @@ def compute_layout(
                     marker_y=marker_y,
                     x=x,
                     y=top,
-                    width=layout["labelColumn"],
+                    width=shape.column_width,
                     height=height,
                     pills=pill_list,
                     glyphs=glyphs_for(gene, encoding),
@@ -444,7 +586,7 @@ def compute_layout(
             )
 
     return Layout(
-        canvas=(layout["viewBox"][0], layout["viewBox"][1]),
+        canvas=canvas_for(rows, blocks, layout),
         rows=tuple(tuple(row) for row in rows),
         chromosomes=tuple(chromosomes),
         blocks=tuple(blocks),

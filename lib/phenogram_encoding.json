@@ -41,20 +41,21 @@
     "stalk": "#e6e6e6"
   },
   "layout": {
-    "viewBox": [
-      1732,
-      1640
-    ],
     "margin": 30,
-    "rowSplitAfter": "10",
     "rowHeight": 760,
     "rowGap": 60,
     "chromosomeWidth": 14,
     "leaderGap": 10,
     "labelColumn": 128,
+    "labelSlack": 10,
     "blockGap": 6,
     "symbolLine": 16,
     "pillLine": 14,
-    "blockPadding": 3
+    "blockPadding": 3,
+    "symbolFont": 12,
+    "pillFont": 9.5,
+    "glyphSize": 9,
+    "glyphGap": 4,
+    "pillPaddingX": 5
   }
 }
