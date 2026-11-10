@@ -97,6 +97,21 @@ test("on a phone the stepper keeps the current step in view", async ({ page }) =
   }
 });
 
+test("on a phone a press on a segment off the row's middle opens its step", async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  await openWizard(page);
+  const row = page.locator(".adapt-stepper");
+  // A press focuses the segment before its release. Centred on that focus,
+  // the row slid the segment out from under the pointer, the release landed
+  // on its neighbour and the click reached neither: from Identity, "Traits"
+  // is wholly in view and well off the middle, and after it each press is
+  // on the current segment's neighbour, up the row and back down it.
+  for (const name of [...STEPS.slice(2), ...STEPS.slice(1, 7).reverse()]) {
+    await page.getByRole("button", { name, exact: true }).click();
+    await expect(row.locator('[aria-current="step"]'), name).toHaveText(name);
+  }
+});
+
 test("on a phone a focused segment's ring is drawn whole", async ({ page }) => {
   await page.setViewportSize(PHONE);
   await openWizard(page);

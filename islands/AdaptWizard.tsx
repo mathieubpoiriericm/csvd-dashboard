@@ -21,7 +21,6 @@ import {
   type Answers,
   DRAFT_STORAGE_KEY,
   EMPTY_ANSWERS,
-  parseDraft,
   serialiseDraft,
 } from "../lib/adapt/answers.ts";
 import {
@@ -36,15 +35,18 @@ import {
 } from "../lib/adapt/bundle.ts";
 import { cardStates, entryCard, firstOpenCard } from "../lib/adapt/cards.ts";
 import {
+  adoptDraft,
+  discardKept,
   keepUnreadable,
+  keptDrafts,
   LOGO_KEYS,
   type LogoSlot,
-  mergeDrafts,
   readLogo,
   readStoredDraft,
   REPLACED_KEY,
+  saveDraft,
+  unreadableDownload,
   withoutLogos,
-  writeDraft,
 } from "../lib/adapt/draft_storage.ts";
 import { spaced } from "../lib/adapt/edits.ts";
 import {
@@ -84,6 +86,36 @@ const UNREADABLE_UNKEPT =
   "The draft saved in this browser was written by another version of the wizard, or is damaged, so it could not be read, and the browser refused the room to keep a copy aside. Nothing is saved over it until you download it.";
 
 /**
+ * Once that download is taken: the saves it held back have resumed, over
+ * the stored draft, and the copy this tab holds is the last one here.
+ */
+const UNREADABLE_RELEASED =
+  "The draft saved in this browser was written by another version of the wizard, or is damaged, so it could not be read, and the browser refused the room to keep a copy aside. Now that you have taken its download, your answers are saved in its place; it can be downloaded again until this tab is closed.";
+
+/** A later visit: the draft key reads again, and the copy is still there. */
+const UNREADABLE_EARLIER =
+  "A draft saved in this browser earlier could not be read by this version of the wizard, and is still kept aside. Download it to keep a copy; it takes room in this browser until you discard it.";
+
+/**
+ * Said with each of the four: the file is the one a researcher sends on,
+ * so it leaves out what "Export answers" leaves out, and says so.
+ */
+const UNREADABLE_FILE = " The download leaves out the NCBI e-mail and API key.";
+
+/** The nth kept draft's download; the first keeps the name it always had. */
+const keptName = (n: number) =>
+  n === 1 ? "adapt-draft-unreadable.json" : `adapt-draft-unreadable-${n}.json`;
+
+/** A draft this build could not read, as a file for the researcher. */
+function downloadUnreadable(name: string, text: string) {
+  saveDownload(
+    name,
+    new TextEncoder().encode(unreadableDownload(text)),
+    "application/json",
+  );
+}
+
+/**
  * The answers to change, cloned but for the logos: a logo is replaced
  * whole, never written into, so the new answers share it rather than copy
  * a megabyte of base64 on every keystroke.
@@ -118,15 +150,22 @@ export default function AdaptWizard() {
   // listener, set up once, read it.
   const [unsaved, setUnsaved] = useState(false);
   const unsavedRef = useRef(false);
-  // The stored draft this build could not read, kept aside for download.
-  const [unreadable, setUnreadable] = useState<string | null>(null);
-  // True while that draft could not be copied aside, so the stored one is
-  // still the only copy: no save writes over it until it is downloaded. The
-  // ref is what `save`, called inside state updaters, reads.
-  const [unkept, setUnkept] = useState(false);
+  // The drafts this build could not read, kept aside in storage until the
+  // researcher discards them, and whether this load found one: read on
+  // every load, because the first save makes the draft key readable again
+  // and a copy offered only on the visit that kept it was stranded there.
+  const [kept, setKept] = useState<readonly string[]>([]);
+  const [found, setFound] = useState(false);
+  // The stored draft that could not be copied aside, offered for as long as
+  // the tab lives. While the ref is true it is still the only copy: no save
+  // writes over it until it is downloaded. The ref is what `save`, called
+  // inside state updaters, reads; `released` is the same fact as state, so
+  // the notice stops saying nothing is saved over it once something is.
+  const [unkept, setUnkept] = useState<string | null>(null);
   const unkeptRef = useRef(false);
+  const [released, setReleased] = useState(false);
   // Whether storage holds the logos these answers carry, under their keys.
-  // `writeDraft` skips a logo equal to the previous answers', which is only
+  // `saveDraft` skips a logo equal to the previous answers', which is only
   // safe while this holds: after a refused logo write, or for a draft that
   // still carries its logos inline, the next save must write them again,
   // or it succeeds without them and clears the alert over a logo lost on
@@ -185,21 +224,21 @@ export default function AdaptWizard() {
     try {
       const stored = readStoredDraft(localStorage);
       if (stored.unreadable) {
+        setFound(true);
         // Kept before anything is saved over it: a draft another version
         // wrote is not destroyed by the first keystroke of this one.
-        const text = localStorage.getItem(DRAFT_STORAGE_KEY);
         try {
-          setUnreadable(keepUnreadable(localStorage));
+          keepUnreadable(localStorage);
         } catch {
           // No room for the copy, so the stored draft is still the only
           // one: offer it for download, and save nothing over it until then.
           unkeptRef.current = true;
-          setUnkept(true);
-          setUnreadable(text);
+          setUnkept(localStorage.getItem(DRAFT_STORAGE_KEY));
         }
       } else {
         synced.current = localStorage.getItem(DRAFT_STORAGE_KEY);
       }
+      setKept(keptDrafts(localStorage));
       if (stored.answers !== null) {
         const draft = stored.answers;
         // A draft saved before the logos had keys of their own carries them
@@ -220,10 +259,10 @@ export default function AdaptWizard() {
   }, []);
 
   /**
-   * Write `next`, merging first when another tab has written since this
-   * one last synced: the other tab's edits survive, and where both changed
-   * one answer this tab's wins. Returns the answers written, which become
-   * this tab's. A refused write keeps `next` and raises the alert.
+   * Write `next` (`saveDraft()`, which merges another tab's write first)
+   * and return the answers that are now this tab's: the ones the draft key
+   * holds, or `next` when it took nothing. A refused write, of the draft
+   * or of a logo, raises the alert.
    */
   function save(next: Answers, previous: Answers | null): Answers {
     if (unkeptRef.current) {
@@ -231,36 +270,23 @@ export default function AdaptWizard() {
       setUnsaved(true);
       return next;
     }
+    let result = { answers: next, synced: synced.current, saved: false };
     try {
-      let written = next;
-      const stored = localStorage.getItem(DRAFT_STORAGE_KEY);
-      const theirs = stored === null || stored === synced.current
-        ? null
-        : parseDraft(stored);
-      if (theirs !== null) {
-        const base =
-          (synced.current === null ? null : parseDraft(synced.current)) ??
-            EMPTY_ANSWERS;
-        written = mergeDrafts(
-          withoutLogos(base),
-          withoutLogos(next),
-          withoutLogos(theirs),
-        ) as Answers;
-        written.identity.logoLight = next.identity.logoLight;
-        written.identity.logoDark = next.identity.logoDark;
-      }
-      writeDraft(localStorage, written, logosStored.current ? previous : null);
-      logosStored.current = true;
-      synced.current = serialiseDraft(withoutLogos(written));
-      unsavedRef.current = false;
-      setUnsaved(false);
-      return written;
+      result = saveDraft(
+        localStorage,
+        next,
+        previous,
+        synced.current,
+        logosStored.current,
+      );
     } catch {
-      logosStored.current = false;
-      unsavedRef.current = true;
-      setUnsaved(true);
-      return next;
+      // Storage that cannot be reached at all: nothing was written.
     }
+    synced.current = result.synced;
+    logosStored.current = result.saved;
+    unsavedRef.current = !result.saved;
+    setUnsaved(!result.saved);
+    return result.answers;
   }
 
   // Every edit saves at once, so a second tab on this page holds an older
@@ -291,21 +317,20 @@ export default function AdaptWizard() {
         return;
       }
       if (event.key !== DRAFT_STORAGE_KEY || event.newValue === null) return;
-      const theirs = parseDraft(event.newValue);
-      if (theirs === null) return;
       const incoming = event.newValue;
       setAnswers((previous) => {
-        const base =
-          (synced.current === null ? null : parseDraft(synced.current)) ??
-            EMPTY_ANSWERS;
-        const draft = mergeDrafts(
-          withoutLogos(base),
-          withoutLogos(previous),
-          withoutLogos(theirs),
-        ) as Answers;
-        draft.identity.logoLight = previous.identity.logoLight;
-        draft.identity.logoDark = previous.identity.logoDark;
-        synced.current = incoming;
+        // Null for an event storage has moved past: this tab's own save
+        // merged that write already, and adopting it now would take the
+        // edit that save carried back off the screen.
+        const adopted = adoptDraft(
+          localStorage,
+          incoming,
+          previous,
+          synced.current,
+        );
+        if (adopted === null) return previous;
+        const draft = adopted.answers;
+        synced.current = adopted.synced;
         // Showing exactly what is stored, this tab has nothing unsaved --
         // unless a logo it holds never reached storage.
         if (
@@ -561,7 +586,13 @@ export default function AdaptWizard() {
   // pointer is down, a field left is only noted, and revealed once the
   // press is over -- unless focus came back to that field (a click on its
   // own label), which is not leaving it. The rows the press removed are
-  // forgotten on the way, as any removal's are.
+  // forgotten on the way, as any removal's are. The press is the mouse's as
+  // well as the pointer's, because it is `mousedown` that moves focus: a
+  // touch tap sends `pointerup` first and its mouse events after, so with
+  // the pointer's events alone the wait was over before the field was left,
+  // the message showed between that `mousedown` and its `click`, and the
+  // tap on a button under the field was lost. `mouseup` and `click` come in
+  // one task, and the reveal waits a task past the release.
   const pressing = useRef(false);
   const queued = useRef<{ keys: Set<string>; answers: Answers } | null>(null);
   useEffect(() => {
@@ -600,13 +631,17 @@ export default function AdaptWizard() {
     };
     const element = root.current;
     element?.addEventListener("pointerdown", press, true);
+    element?.addEventListener("mousedown", press, true);
     globalThis.addEventListener("pointerup", flush);
+    globalThis.addEventListener("mouseup", flush);
     globalThis.addEventListener("pointercancel", flush);
     globalThis.addEventListener("blur", flush);
     return () => {
       clearTimeout(fallback);
       element?.removeEventListener("pointerdown", press, true);
+      element?.removeEventListener("mousedown", press, true);
       globalThis.removeEventListener("pointerup", flush);
+      globalThis.removeEventListener("mouseup", flush);
       globalThis.removeEventListener("pointercancel", flush);
       globalThis.removeEventListener("blur", flush);
     };
@@ -743,28 +778,85 @@ export default function AdaptWizard() {
           if (id !== current) show(id as ScreenId);
         }}
       />
-      {unreadable !== null && (
+      {(unkept !== null || kept.length > 0) && (
         <div class="notice notice-warning" role="alert">
-          <p>{unkept ? UNREADABLE_UNKEPT : UNREADABLE}</p>
-          <button
-            type="button"
-            class="adapt-button"
-            onClick={() => {
-              saveDownload(
-                "adapt-draft-unreadable.json",
-                new TextEncoder().encode(unreadable),
-                "application/json",
-              );
-              if (unkeptRef.current) {
-                // The researcher holds the copy now; save the answers.
-                unkeptRef.current = false;
-                setUnkept(false);
-                setAnswers((current) => save(current, null));
-              }
-            }}
-          >
-            Download the stored draft
-          </button>
+          <p>
+            {unkept !== null
+              ? released ? UNREADABLE_RELEASED : UNREADABLE_UNKEPT
+              : found
+              ? UNREADABLE
+              : UNREADABLE_EARLIER}
+            {UNREADABLE_FILE}
+          </p>
+          <div class="adapt-actions">
+            {unkept !== null && (
+              <button
+                type="button"
+                class="adapt-button"
+                onClick={() => {
+                  downloadUnreadable(keptName(kept.length + 1), unkept);
+                  if (unkeptRef.current) {
+                    // The researcher holds the copy now; save the answers.
+                    unkeptRef.current = false;
+                    setReleased(true);
+                    setAnswers((current) => save(current, null));
+                  }
+                }}
+              >
+                Download the stored draft
+              </button>
+            )}
+            {kept.map((text, i) => (
+              <button
+                type="button"
+                class="adapt-button"
+                onClick={() => downloadUnreadable(keptName(i + 1), text)}
+              >
+                {kept.length === 1
+                  ? "Download the kept draft"
+                  : `Download kept draft ${i + 1} of ${kept.length}`}
+              </button>
+            ))}
+            {kept.length > 0 && (
+              <button
+                type="button"
+                class="adapt-button"
+                onClick={() => {
+                  // The copy in storage is the only one this page can
+                  // vouch for: a download may have been cancelled.
+                  if (
+                    !globalThis.confirm(
+                      "Discard what is kept aside? It cannot be read by this version of the wizard, and the download is the only other copy.",
+                    )
+                  ) {
+                    return;
+                  }
+                  discardKept(localStorage);
+                  // The room it took may be what the stored draft's own
+                  // copy needed: kept now, it no longer holds the saves
+                  // back, and is offered with the kept ones.
+                  if (unkeptRef.current) {
+                    try {
+                      keepUnreadable(localStorage);
+                      unkeptRef.current = false;
+                      setUnkept(null);
+                    } catch {
+                      // Still no room: it stays the only copy.
+                    }
+                  }
+                  setKept(keptDrafts(localStorage));
+                  // Or what a refused save needed.
+                  if (unsavedRef.current) {
+                    setAnswers((current) => save(current, null));
+                  }
+                }}
+              >
+                {kept.length === 1
+                  ? "Discard the kept draft"
+                  : "Discard the kept drafts"}
+              </button>
+            )}
+          </div>
         </div>
       )}
       {
