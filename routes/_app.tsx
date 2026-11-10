@@ -53,8 +53,22 @@ function isActiveTab(pathname: string, href: string): boolean {
     : pathname === href || pathname.startsWith(`${href}/`);
 }
 
+const ADAPT_PATH = "/adapt";
+
 /** Pages that are not tabs but still deserve a title of their own. */
-const UNTABBED_TITLES: ReadonlyArray<[string, string]> = [["/adapt", "Adapt"]];
+const UNTABBED_TITLES: ReadonlyArray<[string, string]> = [[
+  ADAPT_PATH,
+  "Adapt",
+]];
+
+/*
+ * The adapt link's description: shown under it on hover and keyboard focus,
+ * and read out after its name through aria-describedby. The first sentence is
+ * what the amber dot means, so the dot is never the only thing saying it.
+ */
+const ADAPT_TIP_ID = "nav-adapt-tip";
+const ADAPT_TIP =
+  "Recently updated. A step-by-step guide to building this dashboard for your own disease: answer nine questions, have them checked against PubMed, the ontology services and ClinicalTrials.gov, and download the folder for a fork.";
 
 function pageTitle(pathname: string): string {
   if (pathname === LOGIN_PATH) return `Sign in | ${SITE_TITLE}`;
@@ -162,6 +176,34 @@ export default define.page(function App({ Component, url, state }) {
 
                 <nav aria-label="Main">
                   <ul class="navbar-nav">
+                    {
+                      /* Not a tab: it leads out of the dashboard's own pages,
+                      so it sits apart from them and is drawn as an outlined
+                      box rather than a tab at rest. The panel is a sibling of
+                      the link, not a child, so the link's name stays its
+                      label alone. */
+                    }
+                    <li class="nav-adapt">
+                      <a
+                        class="nav-link nav-link-adapt"
+                        href={ADAPT_PATH}
+                        aria-describedby={ADAPT_TIP_ID}
+                        aria-current={isActiveTab(url.pathname, ADAPT_PATH)
+                          ? "page"
+                          : undefined}
+                      >
+                        <span class="nav-adapt-dot" aria-hidden="true" />
+                        <Icon name="arrowsRightLeft" />
+                        Build Your Own
+                      </a>
+                      <span
+                        class="nav-adapt-tip"
+                        id={ADAPT_TIP_ID}
+                        role="tooltip"
+                      >
+                        {ADAPT_TIP}
+                      </span>
+                    </li>
                     {TABS.map((tab) => {
                       const active = isActiveTab(url.pathname, tab.href);
                       return (
