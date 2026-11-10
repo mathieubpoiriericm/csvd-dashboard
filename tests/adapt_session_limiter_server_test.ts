@@ -1,7 +1,7 @@
 import { assertEquals, assertThrows } from "@std/assert";
 
 import { CREATED_HEADER } from "../server/adapt_session_api.ts";
-import { replayToHolder } from "../server/adapt_session_holder.ts";
+import { REPLAY_HEADER } from "../server/adapt_session_holder.ts";
 import {
   adaptSessionLimiter,
   isAdaptSessionPath,
@@ -157,18 +157,37 @@ Deno.test("plain saves release their reservation", async () => {
 Deno.test("a request handed over to the holder is not counted here", async () => {
   // The holder's own limiter counts the replayed request; counting it here
   // too would spend the client's budget twice.
-  const limiter = adaptSessionLimiter();
-  for (const operation of ["create", "save", "resume"]) {
-    for (let i = 0; i < 2 * SESSION_PER_CLIENT_LIMIT; i++) {
+  // Each response is one the limiter counts -- a new file, or a resume that
+  // found nothing -- so only the fly-replay header can keep it uncounted.
+  const counted: [string, () => Response][] = [
+    ["create", created],
+    ["save", created],
+    ["resume", unknownCode],
+  ];
+  const handedOver = (respond: () => Response) => () => {
+    const response = respond();
+    response.headers.set(REPLAY_HEADER, "instance=abc123def");
+    return response;
+  };
+  for (const [operation, respond] of counted) {
+    const pathname = `/adapt/session/${operation}`;
+    const limiter = adaptSessionLimiter({ perClientLimit: 2 });
+    for (let i = 0; i < 10; i++) {
       const response = await invoke(limiter, {
-        pathname: `/adapt/session/${operation}`,
-        next: () => replayToHolder("abc123def"),
+        pathname,
+        next: handedOver(respond),
       });
-      assertEquals(response.status, 503, operation);
+      assertEquals(response.status, respond().status, `${operation} ${i}`);
       await response.body?.cancel();
     }
+    // The same response without the header is counted: the limit holds.
+    for (let i = 0; i < 2; i++) {
+      const response = await invoke(limiter, { pathname, next: respond });
+      assertEquals(response.status, respond().status, `${operation} control`);
+      await response.body?.cancel();
+    }
+    assertLimited(await invoke(limiter, { pathname, next: respond }));
   }
-  assertEquals((await invoke(limiter)).status, 404);
 });
 
 Deno.test("a resumed session forgives no wrong code or new session", async () => {
