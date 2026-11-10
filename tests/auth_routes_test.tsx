@@ -63,6 +63,7 @@ function gated() {
     )
     .get("/login", () => new Response("login form"))
     .post("/logout", () => new Response("logged out"))
+    .post("/adapt/session/resume", () => Response.json({ error: "unknown" }))
     .handler();
 }
 
@@ -164,6 +165,32 @@ Deno.test("the gate fails closed when a secret is missing", async () => {
     const res = await gated()(new Request("http://localhost/genes"));
     assertEquals(res.status, 503);
     assertNoStore(res);
+  });
+});
+
+Deno.test("the adapt session routes are gated like every other route", async () => {
+  const resume = () =>
+    gated()(
+      new Request("http://localhost/adapt/session/resume", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: "0".repeat(20) }),
+      }),
+    );
+  await withLoginEnv(CONFIGURED, async () => {
+    const res = await resume();
+    assertEquals(res.status, 303);
+    assertEquals(
+      res.headers.get("location"),
+      "/login?next=%2Fadapt%2Fsession%2Fresume",
+    );
+    assertNoStore(res);
+  });
+  await withLoginEnv(null, async () => {
+    const res = await resume();
+    assertEquals(res.status, 503);
+    assertNoStore(res);
+    await res.body?.cancel();
   });
 });
 

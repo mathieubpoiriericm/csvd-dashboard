@@ -1,8 +1,17 @@
 import { App, staticFiles } from "fresh";
 
+import { sessionHolder } from "./server/adapt_session_holder.ts";
+import {
+  adaptSessionLimiter,
+  SESSION_LIMIT_VAR,
+  sessionLimitFromEnv,
+} from "./server/adapt_session_limiter.ts";
 import { compression } from "./server/compression.ts";
 import { frameProtection } from "./server/frame_protection.ts";
-import { loginPostLimiter } from "./server/login_post_limiter.ts";
+import {
+  CLIENT_IP_HEADER_VAR,
+  loginPostLimiter,
+} from "./server/login_post_limiter.ts";
 import { protectDataAssets } from "./server/protected_data_assets.ts";
 import { sameSiteCsrf } from "./server/same_site_origin.ts";
 import { svgPolicy } from "./server/svg_policy.ts";
@@ -32,10 +41,21 @@ app.use(staticFiles());
 // socket peer is the client, as it is locally and in e2e. The origin check
 // accepts this host over HTTPS, which is what a browser behind Fly's TLS
 // sends (server/same_site_origin.ts).
+//
+// The adapt guide's session routes (/adapt/session/{create,save,resume}) are
+// the other writes: the same origin check covers them, and a limiter of their
+// own, keyed on the same client header, counts wrong resume codes and new
+// session files per client (server/adapt_session_limiter.ts). Both limiters
+// run before file routing, so before the login gate as well.
+const trustedClientIpHeader = Deno.env.get(CLIENT_IP_HEADER_VAR);
 app.use(sameSiteCsrf());
-app.use(
-  loginPostLimiter({
-    trustedClientIpHeader: Deno.env.get("LOGIN_CLIENT_IP_HEADER"),
-  }),
-);
+app.use(loginPostLimiter({ trustedClientIpHeader }));
+app.use(adaptSessionLimiter({
+  trustedClientIpHeader,
+  // Unset everywhere but the e2e server, whose workers share one address.
+  perClientLimit: sessionLimitFromEnv(Deno.env.get(SESSION_LIMIT_VAR)),
+}));
+// Read now, so a malformed ADAPT_SESSIONS_MACHINE stops the start instead of
+// failing the first visitor's request (server/adapt_session_holder.ts).
+sessionHolder();
 app.fsRoutes();

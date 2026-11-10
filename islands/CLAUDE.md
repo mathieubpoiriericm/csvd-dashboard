@@ -266,9 +266,11 @@ as islands. The island loads nothing of the dataset: `lib/adapt/validate.ts` and
 the manifest reach their shared helpers through public modules
 (`lib/normalize.ts`, `lib/sentinels.ts`, the `shared` chunk), and
 `server/protected_data_build.ts` fails the build if the island's chunk reaches
-any protected one, directly or through another chunk.
+any protected one, directly or through another chunk. A saved session is the one
+thing the island keeps on the server (the root `CLAUDE.md`); the browser holds
+only its link, under `svd-adapt-session`.
 
-Nine things are load-bearing:
+Eleven things are load-bearing:
 
 - **The island guards its own form.** It is a `<fieldset>` disabled until the
   stored draft has been read, because text typed into the server's HTML before
@@ -280,12 +282,60 @@ Nine things are load-bearing:
   the researcher is elsewhere, and the one live region shows the current step's.
   A refused save is its own `role="alert"` notice rather than a status line,
   which every lookup rewrites, and while it stands closing the tab asks first
-  (`beforeunload`). Both sit in `.adapt-messages`, pinned under the navbar while
-  the step scrolls, because the button that caused them is usually far down the
-  step. The new step's heading takes focus in a _layout_ effect: a passive one
-  ran a frame late and took focus from a field clicked in the meantime. Pressing
-  the current step's own segment does nothing: it would clear the step's line
-  and refold the open card.
+  (`beforeunload`). Both sit in `.adapt-messages`, under the action bar in
+  `.adapt-pinned`, pinned under the navbar while the step scrolls, because the
+  button that caused them is usually far down the step or in the bar itself. The
+  new step's heading takes focus in a _layout_ effect: a passive one ran a frame
+  late and took focus from a field clicked in the meantime. Pressing the current
+  step's own segment does nothing: it would clear the step's line and refold the
+  open card.
+- **The buttons are one bar, and the bar is one row at every width.**
+  `ActionBar` (`components/adapt/ActionBar.tsx`) heads `.adapt-pinned`, above
+  the stepper, so Save session, Export, Import, Start over and Download work
+  from every step, and the messages sit under it in the same pinned box. From
+  1100px the four action buttons are inline and a `Session` button opens the
+  session's details -- the resume code, Copy code, "kept until" and "I have a
+  resume code" -- in a popover; below 1100px Save session, its indicator and
+  `More` are the row, and the details head the `More` panel. The code was meant
+  to stay on the row, but with a session attached the full row measured 1,431px
+  and the bar never gets more than 1,152px (the page is contained), so it
+  wrapped to three rows, 118px pinned under the navbar, at every viewport
+  measured from 900 to 1920px. Without the details the wide row is 897px, one
+  row from a 937px viewport, so it waits for 1100px, the next breakpoint of the
+  closed set `tests/styles_contract_test.ts` holds; that set was not widened for
+  the bar, nor for the welcome-back panels, which stack at 600px. Both panels
+  are native `[popover]`s placed under their button by Floating UI
+  (`usePlacedPopover`), with `flip` to open above it when there is more room
+  there and `size` to cap the height to the room left, so the panel's own scroll
+  reaches its last button on a short screen; a fixed panel past the viewport's
+  edge could never be scrolled to. `SessionDetails` renders in both and holds no
+  id, and the stylesheet shows one of the two.
+- **A saved session's every decision is `sessionReducer`'s.** The island's
+  handlers are closures a test cannot reach (below), so they only call the
+  client, `confirm()` and storage, and dispatch what happened to
+  `lib/adapt/session_state.ts`. The link under `svd-adapt-session` holds the
+  code, the revision, when it was saved and `dirty`, which says the answers
+  changed since; it drives "Unsaved changes" and the leave warning, and survives
+  a reload. A Start over, or another tab's link replacing this one's, moves the
+  state to a new `epoch`, and a result from an earlier one is dropped: a save
+  that landed after Start over re-attached the browser to the session it had
+  left. The link is written before the draft, so another tab hears a detach or a
+  resume before the answers that follow it. The three windows are native
+  `<dialog>`s rendered outside the fieldset, which is disabled until the draft
+  is read and would disable them too. Escape is reported, not obeyed, so every
+  callback has to flip `open` itself, and `useModal` catches Chrome closing the
+  element on a second Escape without `cancel`. The API parses the answers once
+  with `parseExport()`, and the store writes them through `exportableAnswers()`,
+  so the NCBI email and key are blanked whatever the browser sent, and a resume
+  keeps this browser's own pair (`importText()`). A session is deleted 14 days
+  after its last save (`SESSION_TTL_MS`), and a save after that saves it again
+  under the same code. That revival, like a forced save over a damaged file,
+  continues past the highest revision it can know of (the old file's, while it
+  is still there, and the saving browser's), never restarting at 1. Once the
+  sweep has removed the file its revision is gone, so a save names the copy it
+  was made over by its revision and its `savedAt` both, and a mismatch in either
+  is a conflict: by revision alone, a browser that missed a revival could meet
+  its own number again and overwrite newer saves without being asked.
 - **The stored draft is never lost to another version or another tab.** A draft
   `parseDraft()` cannot read -- another `DRAFT_VERSION`, damaged JSON -- is
   copied to `svd-adapt-draft-unreadable` before the first save and offered for

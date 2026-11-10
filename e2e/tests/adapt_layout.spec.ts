@@ -1,5 +1,7 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
+import { openAdapt } from "../helpers.ts";
+
 /**
  * Where the wizard puts what the researcher has to see: the page itself at
  * a phone's width, the current step in the stepper, the heading or field
@@ -28,10 +30,13 @@ const DESKTOP = { width: 1280, height: 800 };
  * that reaches no state.
  */
 async function openWizard(page: Page) {
-  await page.goto("/adapt");
-  await page.evaluate(() => localStorage.removeItem("svd-adapt-draft"));
-  await page.reload();
-  await expect(page.locator("fieldset.adapt:enabled")).toBeAttached();
+  // Cleared once the island is live: hydrating, it writes what it holds.
+  await openAdapt(page);
+  await page.evaluate(() => {
+    localStorage.removeItem("svd-adapt-draft");
+    localStorage.removeItem("svd-adapt-session");
+  });
+  await openAdapt(page);
 }
 
 /** Open a card of the step on screen, when it is folded. */
@@ -167,7 +172,9 @@ for (const viewport of [PHONE, DESKTOP]) {
     }
     await page.getByRole("button", { name: "Review", exact: true }).click();
     page.once("dialog", (dialog) => dialog.accept());
-    await centre(page.getByRole("button", { name: "Start over" }));
+    // Below 1100px Start over sits in the bar's popover, behind More.
+    const more = page.getByRole("button", { name: "More" });
+    if (await more.isVisible()) await more.click();
     await page.getByRole("button", { name: "Start over" }).click();
     await expect(page.getByRole("heading", { name: "1. Identity" }))
       .toBeFocused();
@@ -355,4 +362,234 @@ test("on a narrow phone a folded card's summary keeps its width", async ({ page 
   // number's and the chevron's, and two lines.
   expect(await summary.evaluate((el) => el.clientWidth))
     .toBeGreaterThanOrEqual(180);
+});
+
+test("the action bar stays under the navbar while a long step scrolls", async ({ page }) => {
+  await page.setViewportSize(DESKTOP);
+  await openWizard(page);
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  const bar = page.locator(".adapt-bar");
+  await expect(bar).toBeInViewport();
+  const box = await bar.boundingBox();
+  // Pinned `--svd-space-2` below the navbar, so within a gap of its edge.
+  const gap = await page.locator(".adapt-pinned").evaluate((el) =>
+    parseFloat(getComputedStyle(el).top) -
+    document.querySelector("header.navbar")!.getBoundingClientRect().bottom
+  );
+  expect(Math.abs(box!.y - (await navbarBottom(page)) - gap)).toBeLessThan(2);
+  // At this width the four buttons are in the bar itself, no More.
+  await expect(page.getByRole("button", { name: "Export answers" }))
+    .toBeVisible();
+  await expect(page.getByRole("button", { name: "More" })).toBeHidden();
+});
+
+test("on a phone the bar shows More and no row wraps", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openWizard(page);
+  const more = page.getByRole("button", { name: "More" });
+  await expect(more).toBeVisible();
+  await expect(page.getByRole("button", { name: "Export answers" }))
+    .toBeHidden();
+  const [bar, button] = await Promise.all([
+    page.locator(".adapt-bar").boundingBox(),
+    more.boundingBox(),
+  ]);
+  expect(bar!.height).toBeLessThanOrEqual(button!.height + 1);
+  await more.click();
+  await expect(page.getByRole("button", { name: "Export answers" }))
+    .toBeVisible();
+  expect(
+    await page.evaluate(() =>
+      document.documentElement.scrollWidth <= innerWidth
+    ),
+  ).toBe(true);
+});
+
+test("on a short phone the opened More panel stays on screen and reaches its last button", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 500 });
+  await openWizard(page);
+  const more = page.getByRole("button", { name: "More" });
+  const panel = page.locator(".adapt-bar-more");
+  const bottomOf = (target: Locator) =>
+    target.evaluate((el) => el.getBoundingClientRect().bottom);
+  // Its natural height, opened where it has room.
+  await page.evaluate(() => scrollTo(0, document.body.scrollHeight));
+  await more.click();
+  await expect(panel).toBeVisible();
+  const natural = (await panel.boundingBox())!.height;
+  await page.keyboard.press("Escape");
+  for (
+    const [height, place] of [
+      // The bar low on the page, where the panel cannot fit under it.
+      [500, async () => {
+        await page.evaluate(() => scrollTo(0, 0));
+        await page.evaluate(
+          (by) => scrollBy(0, by),
+          (await bottomOf(more)) - (500 - natural / 2),
+        );
+      }],
+      // Too short for the panel on either side of the bar, pinned.
+      [
+        Math.round(natural * 1.2),
+        () => page.evaluate(() => scrollTo(0, document.body.scrollHeight)),
+      ],
+    ] as const
+  ) {
+    await page.setViewportSize({ width: 390, height });
+    await place();
+    expect(await bottomOf(more) + 8 + natural).toBeGreaterThan(height);
+    await more.click();
+    await expect(panel).toHaveClass(/is-placed/);
+    const box = (await panel.boundingBox())!;
+    expect(box.y, `top at ${height}px`).toBeGreaterThanOrEqual(0);
+    expect(box.y + box.height, `bottom at ${height}px`)
+      .toBeLessThanOrEqual(height);
+    // Download is the last button; disabled on an empty draft, it is
+    // brought into view, and Start over above it is pressed.
+    const last = panel.getByRole("button").last();
+    await last.scrollIntoViewIfNeeded();
+    await expect(last).toBeInViewport({ ratio: 1 });
+    let asked = false;
+    page.once("dialog", (dialog) => {
+      asked = true;
+      return dialog.dismiss();
+    });
+    await panel.getByRole("button", { name: "Start over" }).click();
+    expect(asked, `Start over pressed at ${height}px`).toBe(true);
+    if (await panel.isVisible()) await page.keyboard.press("Escape");
+  }
+});
+
+test("on a phone the opened More panel sits under its button at any bar height", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openWizard(page);
+  // A taller bar, as a wrapped indicator or a larger text size would make
+  // it: the panel has to follow the button, not a height the CSS assumed.
+  await page.addStyleTag({ content: ".adapt-bar { padding: 40px 0; }" });
+  const more = page.getByRole("button", { name: "More" });
+  await more.click();
+  const panel = page.locator(".adapt-bar-more");
+  await expect(panel).toBeVisible();
+  const [button, box] = await Promise.all([
+    more.boundingBox(),
+    panel.boundingBox(),
+  ]);
+  const bottom = button!.y + button!.height;
+  expect(box!.y).toBeGreaterThanOrEqual(bottom);
+  expect(box!.y - bottom).toBeLessThan(16);
+  expect(box!.x).toBeGreaterThanOrEqual(0);
+  expect(box!.x + box!.width).toBeLessThanOrEqual(390);
+  expect(box!.y + box!.height).toBeLessThanOrEqual(844);
+});
+
+/**
+ * A session attached with unsaved changes, without asking the server for
+ * one: the bar's layout depends on the link in storage and nothing else, and
+ * every create counts against the session routes' per-client limit, which
+ * the whole suite shares. The code is a well-formed one that names nothing.
+ */
+async function openAttached(
+  page: Page,
+  viewport: { width: number; height: number },
+) {
+  await page.setViewportSize(viewport);
+  // Seeded once the island is live: hydrating, it writes the link it holds,
+  // none, over whatever was stored before.
+  await openAdapt(page);
+  await page.evaluate(() => {
+    localStorage.removeItem("svd-adapt-draft");
+    // lib/adapt/session.ts's SESSION_KEY and SessionLink.
+    localStorage.setItem(
+      "svd-adapt-session",
+      JSON.stringify({
+        code: "ABCDEFGHJKMNPQRSTVWX",
+        revision: 1,
+        savedAt: Date.now(),
+        dirty: true,
+      }),
+    );
+  });
+  await openAdapt(page);
+  await expect(page.locator(".adapt-bar-indicator")).toHaveText(
+    "Unsaved changes",
+  );
+}
+
+for (
+  const viewport of [
+    { width: 1100, height: 800 },
+    { width: 900, height: 800 },
+    { width: 390, height: 844 },
+  ]
+) {
+  test(`with a session attached the bar is one row at ${viewport.width}x${viewport.height}`, async ({ page }) => {
+    await openAttached(page, viewport);
+    const save = page.getByRole("button", { name: "Save session" });
+    await expect(save).toBeVisible();
+    const [bar, button] = await Promise.all([
+      page.locator(".adapt-bar").boundingBox(),
+      save.boundingBox(),
+    ]);
+    expect(bar!.height).toBeLessThanOrEqual(button!.height + 1);
+    expect(
+      await page.evaluate(() =>
+        document.documentElement.scrollWidth <= innerWidth
+      ),
+    ).toBe(true);
+  });
+}
+
+test("the open Session panel sits just under its button, inside the viewport", async ({ page }) => {
+  await openAttached(page, DESKTOP);
+  const toggle = page.getByRole("button", { name: "Session", exact: true });
+  await toggle.click();
+  const panel = page.locator(".adapt-bar-session");
+  await expect(panel).toHaveClass(/is-placed/);
+  await expect(panel.getByText("ABCDE-FGHJK-MNPQR-STVWX")).toBeVisible();
+  const [button, box] = await Promise.all([
+    toggle.boundingBox(),
+    panel.boundingBox(),
+  ]);
+  const bottom = button!.y + button!.height;
+  expect(box!.y).toBeGreaterThanOrEqual(bottom);
+  expect(box!.y - bottom).toBeLessThanOrEqual(16);
+  expect(box!.x).toBeGreaterThanOrEqual(0);
+  expect(box!.x + box!.width).toBeLessThanOrEqual(DESKTOP.width);
+  expect(box!.y + box!.height).toBeLessThanOrEqual(DESKTOP.height);
+});
+
+test("on a short phone the More panel, session details and all, scrolls inside the viewport", async ({ page }) => {
+  const viewport = { width: 390, height: 500 };
+  await openAttached(page, viewport);
+  // The Session button belongs to the wide layout only.
+  await expect(page.getByRole("button", { name: "Session", exact: true }))
+    .toBeHidden();
+  await page.getByRole("button", { name: "More" }).click();
+  const panel = page.locator(".adapt-bar-more");
+  await expect(panel).toHaveClass(/is-placed/);
+  await expect(panel.getByText("ABCDE-FGHJK-MNPQR-STVWX")).toBeVisible();
+  const box = (await panel.boundingBox())!;
+  expect(box.y).toBeGreaterThanOrEqual(0);
+  expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
+  expect(await panel.evaluate((el) => getComputedStyle(el).overflowY))
+    .toMatch(/auto|scroll/);
+  // Whatever does not fit is reached by scrolling the panel itself.
+  const last = panel.getByRole("button").last();
+  await last.scrollIntoViewIfNeeded();
+  await expect(last).toBeInViewport({ ratio: 1 });
+});
+
+test("at 1000px the four action buttons are behind More", async ({ page }) => {
+  await page.setViewportSize({ width: 1000, height: 800 });
+  await openWizard(page);
+  // They are inline only from 1100px.
+  const more = page.getByRole("button", { name: "More" });
+  await expect(more).toBeVisible();
+  for (const name of ["Export answers", "Import answers", "Start over"]) {
+    await expect(page.getByRole("button", { name })).toBeHidden();
+  }
+  await expect(page.getByRole("button", { name: /^Download/ })).toBeHidden();
+  await more.click();
+  await expect(page.getByRole("button", { name: "Export answers" }))
+    .toBeVisible();
 });

@@ -21,6 +21,32 @@ RUN deno install --frozen
 COPY --chown=deno:deno . .
 RUN deno task build
 
+# The image starts as root and serves as `deno`. Fly mounts the session
+# volume (fly.toml's [mounts]) with its root owned by root, so the entrypoint
+# creates ADAPT_SESSIONS_DIR there and gives it to `deno`, and only then
+# drops to `deno` with setpriv (util-linux, in the base image) to run the CMD.
+# Nothing but tini runs as root after that exec. It does so only when the
+# directory would sit on another device than `/`: with nothing mounted there
+# it leaves the directory uncreated and logs one line, so the server, unable
+# to create it as `deno`, serves without sessions rather than keeping them on
+# the container's own filesystem, where every restart would lose them.
+#
+# The base image's entrypoint was `/tini -- docker-entrypoint.sh`, whose
+# script only prefixed `deno` to a bare subcommand; this CMD names `deno`
+# itself, so nothing relied on it. Ours takes its path and keeps tini: it
+# execs `/tini -- setpriv …`, so tini is still the first process, forwarding
+# signals to the server and reaping zombies.
+#
+# The script lives outside /app, owned by root and writable by root alone,
+# because `deno` owns /app and could otherwise replace what root runs at the
+# next start. The allowlist has to let it into the build context, so the
+# app copy above brought a deno-owned duplicate into /app/scripts; that is
+# removed here, leaving no second copy to mistake for the live one.
+USER root
+COPY --chown=root:root --chmod=0755 scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN rm -r /app/scripts
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+
 EXPOSE 8000
 
 # The whole tree stays: the server bundle still imports `fresh` through the

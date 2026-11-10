@@ -266,14 +266,19 @@ the two login values, `ANTHROPIC_API_KEY`, `ENTREZ_EMAIL` and
 
 Hand the researcher to the `deploy` skill, whose "Setting up an app" section
 they run themselves, because it touches their Fly.io account and secrets. Four
-values come with them:
+values and one choice come with them:
 
 - the Fly app name `<key>-dashboard`, with each `_` of the key written `-`,
   because the name becomes the host name `<key>-dashboard.fly.dev`, to go in
   `fly.toml`'s `app`;
 - a `primary_region` near their readers;
 - the two runtime secrets `DASHBOARD_PASSPHRASE`, in the same single quotes as
-  `.env`, and `DASHBOARD_SESSION_SECRET`, from their `.env`.
+  `.env`, and `DASHBOARD_SESSION_SECRET`, from their `.env`;
+- whether the adapt guide keeps saved sessions: if so, the volume
+  `fly.toml`'s `[mounts]` names is created before the first deploy
+  (`fly volumes create persistent_session_storage --region <region> --size 1`,
+  step 4 of "Setting up an app"); if not, the `[mounts]` section and the
+  `ADAPT_SESSIONS_DIR` line come out of `fly.toml` before it is committed.
 
 The `FLY_API_TOKEN` repository secret is what lets CI deploy. Once the site
 answers, write its URL into `hosting.url` in `disease/manifest.json` and

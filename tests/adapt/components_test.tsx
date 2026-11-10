@@ -7,6 +7,7 @@ import {
 import { renderToString } from "preact-render-to-string";
 import type * as preact from "preact";
 
+import { ActionBar } from "../../components/adapt/ActionBar.tsx";
 import { Card } from "../../components/adapt/Card.tsx";
 import { CodeBlock } from "../../components/adapt/CodeBlock.tsx";
 import {
@@ -16,6 +17,12 @@ import {
 } from "../../components/adapt/FieldNote.tsx";
 import { SelectField, TextField } from "../../components/adapt/Field.tsx";
 import { ListEditor } from "../../components/adapt/ListEditor.tsx";
+import {
+  CodeDialog,
+  GreetingDialog,
+  ResumeDialog,
+  WelcomeBack,
+} from "../../components/adapt/SessionDialogs.tsx";
 import { Stepper } from "../../components/adapt/Stepper.tsx";
 import { StepSummary } from "../../components/adapt/StepSummary.tsx";
 import { familyOptions } from "../../components/adapt/steps/helpers.ts";
@@ -24,6 +31,9 @@ import {
   WizardContext,
 } from "../../components/adapt/wizard_context.ts";
 import { EMPTY_ANSWERS } from "../../lib/adapt/answers.ts";
+import { overview, SESSION_COPY } from "../../lib/adapt/session.ts";
+import { formatCode } from "../../lib/adapt/session_code.ts";
+import { STEP_LABELS, STEP_ORDER } from "../../lib/adapt/validate.ts";
 import { EXAMPLEITIS } from "./fixtures/exampleitis.ts";
 import { wizardFor } from "./wizard_fixture.ts";
 
@@ -523,4 +533,310 @@ Deno.test("the echo draws an invisible offence, and keeps a far one in view", ()
   // The mark sits in a window of context, the rest elided on either side.
   assertMatch(echo, /^\u2026a a a .*<mark\s*>\{\{<\/mark>x b b .*\u2026$/);
   assert(echo.length < long.length);
+});
+
+const BAR = {
+  canDownload: true,
+  onDownload: () => {},
+  onExport: () => {},
+  onImport: () => {},
+  onReset: () => {},
+  resetConfirm: "Discard?",
+  session: null,
+};
+
+Deno.test("the action bar holds the four buttons and no session controls when sessions are off", () => {
+  const html = renderToString(<ActionBar {...BAR} />);
+  assertStringIncludes(html, "Export answers");
+  assertStringIncludes(html, "Import answers");
+  assertStringIncludes(html, "Start over");
+  assertStringIncludes(html, "Download disease-adaptation.zip");
+  assert(!html.includes("Save session"), html);
+  const download = (h: string) =>
+    h.match(/<button[^>]*>Download disease-adaptation\.zip<\/button>/)?.[0] ??
+      "";
+  assert(!download(html).includes("disabled"), download(html));
+  const blocked = renderToString(<ActionBar {...BAR} canDownload={false} />);
+  assertStringIncludes(download(blocked), "disabled");
+});
+
+/**
+ * The wide Session popover, opened by the Session button its
+ * `popovertarget` names, and the narrow More panel.
+ */
+function barPanels(html: string) {
+  const target = html.match(
+    /<button[^>]*popovertarget="([^"]+)"[^>]*>Session<\/button>/,
+  )?.[1];
+  assert(target !== undefined, html);
+  const start = html.indexOf(
+    `<div class="adapt-bar-session" popover id="${target}"`,
+  );
+  assert(start !== -1, html);
+  const toggle = html.indexOf('class="adapt-button adapt-bar-toggle"');
+  assert(toggle > start, html);
+  return {
+    session: html.slice(start, toggle),
+    more: html.slice(html.indexOf('class="adapt-bar-more"')),
+  };
+}
+
+Deno.test("the action bar with a session holds Save session, its state and its code", () => {
+  const session = {
+    onSave: () => {},
+    onResume: () => {},
+    saving: false,
+    indicator: { tone: "danger" as const, text: "Unsaved changes" },
+    code: "ABCDE-FGHJK-MNPQR-STVWX",
+    keptUntil: "kept until 8 Dec 2026",
+  };
+  const html = renderToString(<ActionBar {...BAR} session={session} />);
+  const primary = html.match(
+    /<div class="adapt-bar-primary">([\s\S]*?)<\/div>/,
+  )?.[1] ?? "";
+  assertMatch(primary, /<button[^>]*>Save session<\/button>/);
+  assert(!primary.match(/<button[^>]*>Save session/)![0].includes("disabled"));
+  // A polite live region, so a save that turns it to "Saved" is announced.
+  assertStringIncludes(
+    primary,
+    '<span class="adapt-bar-indicator is-danger" role="status">Unsaved changes</span>',
+  );
+  // The code, its copy, its expiry and the resume entry are behind a
+  // Session button on a wide screen and first in More on a narrow one;
+  // neither is on the bar's row.
+  const { session: wide, more } = barPanels(html);
+  for (const panel of [wide, more]) {
+    assertStringIncludes(panel, "<code>ABCDE-FGHJK-MNPQR-STVWX</code>");
+    assertEquals(count(panel, ">Copy code</button>"), 1);
+    assertStringIncludes(
+      panel,
+      '<span class="adapt-bar-kept">kept until 8 Dec 2026</span>',
+    );
+    assertEquals(count(panel, ">I have a resume code</button>"), 1);
+  }
+  assert(more.indexOf("adapt-bar-details") < more.indexOf("Export answers"));
+  assert(!primary.includes("<code>"), primary);
+  // The one block twice, and no id twice.
+  const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map((m) => m[1]);
+  assertEquals(new Set(ids).size, ids.length);
+  // While a save runs the button is disabled, and an unattached session
+  // shows no indicator and no code.
+  const busy = renderToString(
+    <ActionBar
+      {...BAR}
+      session={{
+        ...session,
+        saving: true,
+        indicator: null,
+        code: null,
+        keptUntil: null,
+      }}
+    />,
+  );
+  assertMatch(busy, /<button[^>]*disabled[^>]*>Save session<\/button>/);
+  // The live region stays, empty: one that appears with its text in it is
+  // not announced, and a region that stays is.
+  assertStringIncludes(
+    busy,
+    '<span class="adapt-bar-indicator" role="status"></span>',
+  );
+  assert(!busy.includes("adapt-bar-code"), busy);
+  const unattached = barPanels(busy);
+  for (const panel of [unattached.session, unattached.more]) {
+    assertEquals(count(panel, ">I have a resume code</button>"), 1);
+    assert(!panel.includes("Copy code"), panel);
+    assert(!panel.includes("adapt-bar-kept"), panel);
+  }
+});
+
+Deno.test("the action bar has no Session button when sessions are off", () => {
+  const html = renderToString(<ActionBar {...BAR} />);
+  assert(!html.includes("adapt-bar-session"), html);
+  assert(!html.includes(">Session</button>"), html);
+  assert(!html.includes("adapt-bar-details"), html);
+});
+
+Deno.test("the action bar's secondary group is a popover a More button opens", () => {
+  const html = renderToString(<ActionBar {...BAR} />);
+  const target = html.match(/<button[^>]*popovertarget="([^"]+)"/)?.[1];
+  assert(target !== undefined, html);
+  assertEquals(count(html, "popovertarget="), 1);
+  const group = html.match(
+    /<div class="adapt-bar-more" popover id="([^"]+)"\s*>([\s\S]*?)<\/div><\/div>$/,
+  );
+  assert(group !== null, html);
+  assertEquals(group[1], target);
+  for (
+    const label of [
+      "Export answers",
+      "Import answers",
+      "Start over",
+      "Download disease-adaptation.zip",
+    ]
+  ) assertStringIncludes(group[2], label);
+});
+
+const dialogHeading = (html: string) => {
+  const id = html.match(/<dialog[^>]*aria-labelledby="([^"]+)"/)?.[1];
+  assert(id !== undefined, html);
+  const heading = html.match(
+    new RegExp(`<h2[^>]*id="${id}"[^>]*>([^<]*)</h2>`),
+  )?.[1];
+  assert(heading !== undefined, html);
+  return heading;
+};
+
+Deno.test("the greeting dialog names itself and offers the two ways in", () => {
+  const html = renderToString(
+    <GreetingDialog open={false} onNew={() => {}} onResume={() => {}} />,
+  );
+  assertEquals(dialogHeading(html), SESSION_COPY.greetingTitle);
+  assertStringIncludes(html, SESSION_COPY.greetingBody);
+  assertStringIncludes(html, `>${SESSION_COPY.greetingNew}</button>`);
+  assertStringIncludes(html, `>${SESSION_COPY.greetingResume}</button>`);
+  // showModal() focuses the dialog's autofocus element, so Enter on a first
+  // visit starts, rather than opening the resume window first in order.
+  assertEquals(count(html, "autofocus"), 1);
+  assertMatch(
+    html,
+    new RegExp(`<button[^>]*\\sautofocus[^>]*>${SESSION_COPY.greetingNew}<`),
+  );
+});
+
+Deno.test("the code dialog shows the formatted code, a Copy button and Done", () => {
+  const html = renderToString(
+    <CodeDialog
+      open={false}
+      code="ABCDEFGHJKMNPQRSTVWX"
+      keptUntil="kept until 24 Nov 2026"
+      onDone={() => {}}
+    />,
+  );
+  assertEquals(dialogHeading(html), SESSION_COPY.codeTitle);
+  assertStringIncludes(html, SESSION_COPY.codeBody);
+  // The code is behind the bar's Session button, not on its row.
+  assertStringIncludes(
+    SESSION_COPY.codeBody,
+    "it stays one click away in the bar above while you work",
+  );
+  assertStringIncludes(html, formatCode("ABCDEFGHJKMNPQRSTVWX"));
+  assertStringIncludes(html, "kept until 24 Nov 2026");
+  assertStringIncludes(html, ">Copy code</button>");
+  assertStringIncludes(html, ">Done</button>");
+});
+
+Deno.test("the resume dialog has one labelled code input, an alert only on error, and waits while busy", () => {
+  const props = { open: false, onResume: () => {}, onCancel: () => {} };
+  const html = renderToString(
+    <ResumeDialog {...props} busy={false} error="" />,
+  );
+  assertEquals(dialogHeading(html), SESSION_COPY.resumeTitle);
+  assertEquals(count(html, "<input"), 1);
+  assertEquals(count(html, "<label"), 1);
+  assertStringIncludes(html, 'autocomplete="off"');
+  assertStringIncludes(html, 'spellcheck="false"');
+  assertStringIncludes(html, 'autocapitalize="characters"');
+  assert(!html.includes('role="alert"'), html);
+  assert(!html.includes("aria-invalid"), html);
+  assert(!html.includes("aria-describedby"), html);
+  const resume = (h: string) =>
+    h.match(/<button[^>]*>Resume<\/button>/)?.[0] ?? "";
+  assert(!resume(html).includes("disabled"), resume(html));
+  const failed = renderToString(
+    <ResumeDialog {...props} busy error="No session answers to that code." />,
+  );
+  const alert = failed.match(
+    /<[a-z]+[^>]*role="alert"[^>]*>No session answers to that code\.</,
+  )?.[0];
+  assert(alert !== undefined, failed);
+  // The input is marked invalid and described by the reason.
+  const input = failed.match(/<input[^>]*>/)?.[0] ?? "";
+  assertStringIncludes(input, 'aria-invalid="true"');
+  const described = input.match(/aria-describedby="([^"]+)"/)?.[1];
+  assert(described !== undefined, input);
+  assertStringIncludes(alert, `id="${described}"`);
+  assertStringIncludes(resume(failed), "disabled");
+});
+
+const welcome = (o: ReturnType<typeof overview>) =>
+  renderToString(
+    <WelcomeBack
+      overview={o}
+      lastSaved="24 Nov 2026 at 16:42"
+      keptUntil="kept until 8 Dec 2026"
+      onContinue={() => {}}
+      onReview={() => {}}
+    />,
+  );
+
+const panel = (html: string, cls: string) => {
+  const start = html.indexOf(`class="adapt-welcome-panel ${cls}`);
+  assert(start >= 0, html);
+  const end = html.indexOf("</section>", start);
+  return html.slice(start, end);
+};
+
+Deno.test("the welcome-back screen lists the finished steps and what the last one lacks", () => {
+  const answers = structuredClone(EXAMPLEITIS);
+  answers.gold.rows[0].pmid = "";
+  const o = overview(answers);
+  const html = welcome(o);
+  assertStringIncludes(html, "last saved 24 Nov 2026 at 16:42");
+  // Its heading is what takes focus as the screen appears.
+  assertMatch(
+    html,
+    new RegExp(
+      `<h2 class="adapt-welcome-title"\\s+tabindex="-1"\\s*>${SESSION_COPY.welcomeTitle}</h2>`,
+      "i",
+    ),
+  );
+  assertEquals(SESSION_COPY.welcomeTitle, "Welcome back");
+  // One h2, and the two panels' headings under it.
+  assertEquals(count(html, "<h2"), 1);
+  assertMatch(html, /<h3[^>]*>Completed<\/h3>/);
+  assertMatch(html, /<h3[^>]*>Remaining<\/h3>/);
+  assertStringIncludes(html, "kept until 8 Dec 2026");
+  const done = panel(html, "adapt-welcome-done");
+  assertStringIncludes(done, "Completed");
+  assertStringIncludes(done, `6 of ${STEP_ORDER.length} steps`);
+  for (const c of o.completed) {
+    const n = STEP_ORDER.indexOf(c.step) + 1;
+    assertStringIncludes(done, `${n}. ${c.label}`);
+  }
+  assertEquals(count(done, "<li"), 6);
+  assert(!done.includes("Review"), done);
+  const left = panel(html, "adapt-welcome-left");
+  assert(
+    !left.startsWith('class="adapt-welcome-panel adapt-welcome-left is-empty'),
+  );
+  assertStringIncludes(left, "Remaining");
+  assertStringIncludes(left, `${STEP_ORDER.indexOf("gold") + 1}. `);
+  assertStringIncludes(left, STEP_LABELS.gold);
+  assertStringIncludes(left, "1 to answer or fix");
+  assertStringIncludes(left, o.remaining[0].items[0].message);
+  assert(!left.includes("Not started"), left);
+  assert(!left.includes("Review"), left);
+  assertStringIncludes(html, ">Review all steps</button>");
+  assertStringIncludes(html, `>Continue at ${STEP_LABELS.gold}</button>`);
+});
+
+Deno.test("the welcome-back screen calls an untouched step Not started", () => {
+  const o = overview(EMPTY_ANSWERS);
+  const html = welcome(o);
+  const left = panel(html, "adapt-welcome-left");
+  assertEquals(count(left, "Not started"), o.remaining.length);
+  assertStringIncludes(left, `${o.remaining.length} steps`);
+  // Nothing finished: the panel says so rather than holding an empty list.
+  const done = panel(html, "adapt-welcome-done");
+  assertStringIncludes(done, "None yet");
+  assert(!done.includes("<ul"), done);
+});
+
+Deno.test("the welcome-back screen of finished answers has nothing left and continues at the review", () => {
+  const html = welcome(overview(EXAMPLEITIS));
+  const left = panel(html, "adapt-welcome-left");
+  assertStringIncludes(left, "Nothing left");
+  assertStringIncludes(left, "Remaining");
+  assertStringIncludes(left, "adapt-welcome-left is-empty");
+  assertStringIncludes(html, ">Continue at Review and download</button>");
 });

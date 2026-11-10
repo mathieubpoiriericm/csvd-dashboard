@@ -138,6 +138,10 @@ judgement the fork's owner makes once:
       the key written `-`) and `primary_region`; `fly secrets set` with
       `DASHBOARD_PASSPHRASE` (single-quoted) and `DASHBOARD_SESSION_SECRET`;
       `FLY_API_TOKEN` stored on GitHub.
+- [ ] Saved sessions: `fly volumes create persistent_session_storage
+      --region <region> --size 1` before the first deploy (the `deploy`
+      skill's step 4), or `[mounts]` and `ADAPT_SESSIONS_DIR` removed from
+      `fly.toml`.
 - [ ] `hosting.url` written into `manifest.json` and `disease/README.md`
       once the site answers; committed.
 - [ ] The hand-off message: files, gates, papers and cost, recall and the

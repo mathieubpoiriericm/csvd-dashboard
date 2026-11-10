@@ -2648,10 +2648,354 @@ svg {
    head they landed hundreds of pixels above the researcher. Empty, the box
    has no height, and the live region is still in the page for its first
    message. */
-.adapt-messages {
+.adapt-pinned {
   position: sticky;
   top: calc(var(--svd-navbar-h) + var(--svd-space-2));
   z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--svd-space-2);
+}
+
+/* The buttons, above the stepper and in the pinned box with the messages, so
+   they work from every step. The page background keeps the step from
+   showing through the gaps between them as it scrolls under. */
+.adapt-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--svd-space-2);
+  background: var(--svd-bg-page);
+}
+
+.adapt-bar-primary {
+  display: flex;
+  align-items: center;
+  gap: var(--svd-space-2);
+  min-width: 0;
+}
+
+.adapt-bar-indicator.is-ok {
+  color: var(--svd-color-primary);
+}
+
+.adapt-bar-indicator.is-danger {
+  color: var(--svd-danger-text);
+}
+
+.adapt-bar-indicator {
+  font-size: var(--svd-text-sm);
+}
+
+.adapt-bar-code {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--svd-space-2);
+}
+
+.adapt-bar-kept {
+  font-size: var(--svd-text-sm);
+  color: var(--svd-text-muted);
+}
+
+/* The session's details: the code with its copy and expiry, and the way into
+   another session. A column of their own, in whichever panel shows them. */
+.adapt-bar-details {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--svd-space-2);
+}
+
+/* First in More, ruled off from the four buttons below them. */
+.adapt-bar-more > .adapt-bar-details {
+  padding-bottom: var(--svd-space-3);
+  border-bottom: 1px solid var(--svd-border);
+}
+
+/* The Session button opens the details on a wide screen only; narrow, they
+   head More instead. */
+.adapt-bar-session-toggle {
+  display: none;
+}
+
+/* Below 1100px the group is the native popover its More button opens, in the
+   top layer under the navbar; the UA's panel box is undone so it is a plain
+   column of buttons on the card colour. The Session panel, at 1100px and up,
+   is the same box. */
+.adapt-bar-more,
+.adapt-bar-session {
+  inset: auto;
+  margin: 0;
+  padding: var(--svd-space-3);
+  border: 1px solid var(--svd-border);
+  border-radius: var(--svd-radius-sm);
+  background: var(--svd-bg-card);
+  color: var(--svd-text);
+  box-shadow: var(--svd-shadow-md);
+}
+
+.adapt-bar-more:popover-open,
+.adapt-bar-session:popover-open {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--svd-space-2);
+  position: fixed;
+  max-width: calc(100vw - 2 * var(--svd-space-2));
+  /* Only an outer bound: ActionBar.tsx caps the panel to the room on the
+     side of its button it opens to, and it scrolls only when its buttons
+     truly cannot fit there, as on a landscape phone. */
+  max-height: calc(100dvh - 2 * var(--svd-space-2));
+  overflow-y: auto;
+  /* Placed by ActionBar.tsx under its button; unseen until then, so it
+     does not paint once at the UA's position. */
+  visibility: hidden;
+}
+
+.adapt-bar-more.is-placed,
+.adapt-bar-session.is-placed {
+  visibility: visible;
+}
+
+/* Wide, the group is laid out in the bar and More is not needed. `display`
+   is set on the closed state here on purpose, to override the UA's
+   [popover]:not(:popover-open) hiding. The session's details stay off the
+   row, behind the Session button: on it they wrapped the bar to three rows
+   at every width, the contained page being 1152px at most and the full row
+   1431px. Without them the wide row, Session button and "Unsaved changes"
+   included, is 897px: one row only from a 937px viewport, so it waits for
+   1100px, and below that Save session, its indicator and More are the row. */
+@media (min-width: 1100px) {
+  .adapt-bar-toggle {
+    display: none;
+  }
+
+  .adapt-bar-session-toggle {
+    display: inline-block;
+  }
+
+  .adapt-bar-more > .adapt-bar-details {
+    display: none;
+  }
+
+  /* With the session's group on its left, the four buttons sit right. */
+  .adapt-bar-primary ~ .adapt-bar-more {
+    margin-inline-start: auto;
+  }
+
+  .adapt-bar-more,
+  .adapt-bar-more:popover-open {
+    position: static;
+    display: flex;
+    flex-flow: row wrap;
+    align-items: center;
+    gap: var(--svd-space-2);
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    overflow: visible;
+    visibility: visible;
+    max-width: none;
+    max-height: none;
+  }
+}
+
+/* The session windows. Native modal dialogs: the browser supplies the top
+   layer, the focus trap and Escape, so this is only the box. */
+.adapt-dialog {
+  width: min(32rem, calc(100vw - 2 * var(--svd-space-4)));
+  padding: var(--svd-space-5);
+  border: 1px solid var(--svd-border);
+  border-radius: var(--svd-radius-sm);
+  background: var(--svd-bg-card);
+  color: var(--svd-text);
+  box-shadow: var(--svd-shadow-md);
+}
+
+.adapt-dialog::backdrop {
+  background: color-mix(in oklab, var(--svd-ink) 45%, transparent);
+}
+
+.adapt-dialog-title {
+  margin: 0 0 var(--svd-space-3);
+  font-size: var(--svd-text-xl);
+}
+
+.adapt-dialog p {
+  margin: 0 0 var(--svd-space-3);
+}
+
+.adapt-dialog-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--svd-space-2);
+}
+
+/* The whole code selects on one click, for the browser that refuses the
+   clipboard. */
+.adapt-dialog-code code {
+  display: block;
+  padding: var(--svd-space-3);
+  border: 1px solid var(--svd-border);
+  border-radius: var(--svd-radius-sm);
+  font-family: var(--svd-font-mono);
+  font-size: var(--svd-text-xl);
+  text-align: center;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+.adapt-dialog-kept {
+  font-size: var(--svd-text-sm);
+  color: var(--svd-text-muted);
+}
+
+.adapt-dialog-input {
+  font-family: var(--svd-font-mono);
+}
+
+.adapt-dialog-error {
+  margin: 0;
+  font-size: var(--svd-text-sm);
+  color: var(--svd-danger-text);
+}
+
+.adapt-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--svd-space-2);
+}
+
+/* The welcome-back screen: what is finished beside what is left. Each panel
+   has an accent on its top edge, and also a heading word and a glyph per
+   row, so the state is never carried by the colour alone. */
+.adapt-welcome {
+  display: flex;
+  flex-direction: column;
+  gap: var(--svd-space-4);
+}
+
+.adapt-welcome-saved {
+  margin: 0;
+  font-size: var(--svd-text-sm);
+  color: var(--svd-text-muted);
+}
+
+.adapt-welcome-panels {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--svd-space-4);
+}
+
+@media (max-width: 600px) {
+  .adapt-welcome-panels {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.adapt-welcome-panel {
+  padding: var(--svd-space-4);
+  border: 1px solid var(--svd-border);
+  border-top-width: 3px;
+  border-radius: var(--svd-radius-sm);
+  background: var(--svd-bg-card);
+}
+
+.adapt-welcome-done {
+  border-top-color: var(--svd-color-ok);
+}
+
+.adapt-welcome-left {
+  border-top-color: var(--svd-color-danger);
+}
+
+/* Nothing left is no alarm: the panel keeps its heading word and takes the
+   cards' own edge. */
+.adapt-welcome-left.is-empty {
+  border-top-color: var(--svd-border);
+}
+
+.adapt-welcome-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--svd-space-2);
+  margin-bottom: var(--svd-space-3);
+  font-size: var(--svd-text-sm);
+  color: var(--svd-text-muted);
+}
+
+.adapt-welcome-head h3 {
+  margin: 0;
+  font-size: var(--svd-text-base);
+  color: var(--svd-text);
+}
+
+.adapt-welcome-list,
+.adapt-welcome-items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.adapt-welcome-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--svd-space-3);
+}
+
+.adapt-welcome-row {
+  display: flex;
+  gap: var(--svd-space-2);
+}
+
+.adapt-welcome-glyph {
+  flex: none;
+  width: 1.25em;
+  text-align: center;
+}
+
+.adapt-welcome-done .adapt-welcome-glyph {
+  color: var(--svd-color-ok-ink);
+}
+
+.adapt-welcome-left .adapt-welcome-glyph {
+  color: var(--svd-danger-text);
+}
+
+.adapt-welcome-what {
+  flex: 1;
+  min-width: 0;
+}
+
+.adapt-welcome-step {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--svd-space-2);
+  margin: 0;
+}
+
+.adapt-welcome-count,
+.adapt-welcome-items {
+  font-size: var(--svd-text-sm);
+  color: var(--svd-text-muted);
+}
+
+.adapt-welcome-items {
+  margin-top: var(--svd-space-1);
+}
+
+.adapt-welcome-nothing {
+  margin: 0;
+}
+
+.adapt-messages {
   display: flex;
   flex-direction: column;
   gap: var(--svd-space-2);
@@ -2767,7 +3111,8 @@ svg {
   gap: var(--svd-space-4);
 }
 
-.adapt-step-title {
+.adapt-step-title,
+.adapt-welcome-title {
   margin: 0;
   font-family: var(--svd-font-heading);
   font-size: var(--svd-text-2xl);

@@ -262,6 +262,12 @@ disease.
   ClinicalTrials.gov) so each answer is chosen over real counts
 - Every answer checked as it is typed (`lib/adapt/validate.ts`), and the draft
   kept in the browser between visits
+- Save session keeps the answers on the server, in files on the Fly machine's
+  volume, behind a resume code that opens them in any browser for 14 days after
+  the last save; at most 500 sessions and 750,000,000 bytes on the volume, 50
+  sessions held by one connection, and 4,000,000 bytes a save; off where
+  `ADAPT_SESSIONS_DIR` is unset or unwritable, which leaves Export and Import
+  answers
 - Downloads `disease-adaptation.zip`: the nine files of `disease/`, the logos, a
   checklist of the steps that follow and the answers themselves;
   `scripts/adapt_fork_check.ts` runs every gate on a fork built from one
@@ -673,12 +679,12 @@ deploy nothing, and there are no preview URLs. Because `data/*.json` is
 committed and bundled at build time, regenerating data and pushing it to `main`
 republishes the site.
 
-| Where           | What it holds                                                                                                                  |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `fly.toml`      | the app name (also the host name, `<app>.fly.dev`), region `cdg`, one 512 MB `shared-cpu-1x` machine, always on, a 1 GB volume |
-| `Dockerfile`    | `denoland/deno:2.9.8`; `deno install --frozen`, `deno task build`, then `deno serve --cached-only`                             |
-| `.dockerignore` | an allowlist of what the build reads                                                                                           |
-| `FLY_API_TOKEN` | a GitHub Actions secret (`fly tokens create deploy`); without it the `container` job pushes nothing and the deploy job skips   |
+| Where           | What it holds                                                                                                                                                                                  |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `fly.toml`      | the app name (also the host name, `<app>.fly.dev`), region `cdg`, one 512 MB `shared-cpu-1x` machine, always on, a 1 GB volume holding the adapt guide's saved sessions (`ADAPT_SESSIONS_DIR`) |
+| `Dockerfile`    | `denoland/deno:2.9.8`; `deno install --frozen`, `deno task build`, then `deno serve --cached-only`                                                                                             |
+| `.dockerignore` | an allowlist of what the build reads                                                                                                                                                           |
+| `FLY_API_TOKEN` | a GitHub Actions secret (`fly tokens create deploy`); without it the `container` job pushes nothing and the deploy job skips                                                                   |
 
 The machine costs about $3.69 a month at Fly's November 2026 prices.
 
@@ -746,29 +752,32 @@ there is; rotating the passphrase leaves existing 30-day sessions valid.
 Copy `.env.example` to `.env` and fill in real values; `.env` is never
 committed, and `deno task dev` and `deno task start` load it themselves. **The
 web app needs only the first two**, the only two set as Fly secrets (see
-[Deployment](#deployment)); `fly.toml` sets the third, and the rest are the
-pipeline's.
+[Deployment](#deployment)); `fly.toml` sets the next two, the two after those
+are the web app's too and unset in production, and the rest are the pipeline's.
 
-| Variable                                                               | Purpose                                                                 |
-| ---------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| `DASHBOARD_PASSPHRASE`                                                 | what collaborators type on `/login`                                     |
-| `DASHBOARD_SESSION_SECRET`                                             | signs the 30-day session cookie; rotate to log everyone out             |
-| `LOGIN_CLIENT_IP_HEADER`                                               | behind a proxy, the header naming the visitor; unset locally            |
-| `DB_HOST` … `DB_PASSWORD`                                              | PostgreSQL connection, for the pipeline and Alembic                     |
-| `ANTHROPIC_API_KEY`                                                    | LLM gene extraction                                                     |
-| `ANTHROPIC_WORKSPACE_ID`                                               | only for an identity-linked key                                         |
-| `ENTREZ_EMAIL`                                                         | NCBI E-utilities contact, required by NCBI policy                       |
-| `NCBI_API_KEY`                                                         | optional: ten NCBI requests a second rather than three                  |
-| `UNPAYWALL_EMAIL`                                                      | open-access PDF lookup                                                  |
-| `PIPELINE_LLM_EFFORT`                                                  | cost lever; defaults to `high`                                          |
-| `PIPELINE_CONFIDENCE_*`                                                | the two confidence floors (update / insert)                             |
-| `PIPELINE_REQUIRE_VERIFIED_QUOTES`                                     | reject a gene whose quote is not verbatim in the paper; off by default  |
-| `PIPELINE_MAX_PAPER_TEXT_CHARS`                                        | truncation cap on retrieved full text                                   |
-| `PIPELINE_PDF_*`                                                       | Docling OCR, device, threads, page and time caps, model-weights path    |
-| `PIPELINE_CLINVAR_*`, `PIPELINE_ORPHADATA_*`, `PIPELINE_OPENTARGETS_*` | annotation rate limits, caps, and the expected Open Targets release     |
-| `PIPELINE_NOTIFY_URLS`                                                 | [Apprise](https://github.com/caronc/apprise) URLs for run notifications |
-| `PIPELINE_LOG_DIR`                                                     | where run logs go; defaults to `<root>/logs`                            |
-| `SSL_CERT_FILE`                                                        | TLS certificate bundle; the pipeline falls back to certifi's            |
+| Variable                                                               | Purpose                                                                                           |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `DASHBOARD_PASSPHRASE`                                                 | what collaborators type on `/login`                                                               |
+| `DASHBOARD_SESSION_SECRET`                                             | signs the 30-day session cookie; rotate to log everyone out                                       |
+| `LOGIN_CLIENT_IP_HEADER`                                               | behind a proxy, the header naming the visitor; unset locally                                      |
+| `ADAPT_SESSIONS_DIR`                                                   | where the adapt guide keeps saved sessions; unset, it has no Save session                         |
+| `ADAPT_SESSIONS_MACHINE`                                               | the Fly machine id holding the saved sessions; set it before adding a second machine              |
+| `ADAPT_SESSION_PER_CLIENT_LIMIT`                                       | session requests one client may have counted a minute (default 10); only the e2e server raises it |
+| `DB_HOST` … `DB_PASSWORD`                                              | PostgreSQL connection, for the pipeline and Alembic                                               |
+| `ANTHROPIC_API_KEY`                                                    | LLM gene extraction                                                                               |
+| `ANTHROPIC_WORKSPACE_ID`                                               | only for an identity-linked key                                                                   |
+| `ENTREZ_EMAIL`                                                         | NCBI E-utilities contact, required by NCBI policy                                                 |
+| `NCBI_API_KEY`                                                         | optional: ten NCBI requests a second rather than three                                            |
+| `UNPAYWALL_EMAIL`                                                      | open-access PDF lookup                                                                            |
+| `PIPELINE_LLM_EFFORT`                                                  | cost lever; defaults to `high`                                                                    |
+| `PIPELINE_CONFIDENCE_*`                                                | the two confidence floors (update / insert)                                                       |
+| `PIPELINE_REQUIRE_VERIFIED_QUOTES`                                     | reject a gene whose quote is not verbatim in the paper; off by default                            |
+| `PIPELINE_MAX_PAPER_TEXT_CHARS`                                        | truncation cap on retrieved full text                                                             |
+| `PIPELINE_PDF_*`                                                       | Docling OCR, device, threads, page and time caps, model-weights path                              |
+| `PIPELINE_CLINVAR_*`, `PIPELINE_ORPHADATA_*`, `PIPELINE_OPENTARGETS_*` | annotation rate limits, caps, and the expected Open Targets release                               |
+| `PIPELINE_NOTIFY_URLS`                                                 | [Apprise](https://github.com/caronc/apprise) URLs for run notifications                           |
+| `PIPELINE_LOG_DIR`                                                     | where run logs go; defaults to `<root>/logs`                                                      |
+| `SSL_CERT_FILE`                                                        | TLS certificate bundle; the pipeline falls back to certifi's                                      |
 
 **The extraction model is not an environment variable.** It is pinned in
 `pipeline/config.py` as `EXTRACTION_MODEL`, because extraction output is

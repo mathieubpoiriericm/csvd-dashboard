@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import { unzipSync } from "fflate";
 
+import { dismissGreeting, openAdapt } from "../helpers.ts";
+
 /**
  * The wizard walked end to end with a fictitious disease. Every external
  * host is stubbed at the network layer, so the spec is deterministic and
@@ -230,7 +232,7 @@ test.beforeEach(async ({ page }) => {
   // Every test has a fresh context, and the signed-in state it starts from
   // holds no draft: the setup project never opens this page.
   await stubLookups(page);
-  await page.goto("/adapt");
+  await openAdapt(page);
 });
 
 test("the About page links here and the page carries its own title", async ({ page }) => {
@@ -466,6 +468,14 @@ test("a complete walk-through downloads a disease/ archive", async ({ page }) =>
 
 test("the download stays disabled while a step has issues", async ({ page }) => {
   await waitForHydration(page);
+  // The bar is on every step: all four buttons are reachable from step 1.
+  for (const name of ["Export answers", "Import answers", "Start over"]) {
+    await expect(page.getByRole("button", { name, exact: true }))
+      .toBeVisible();
+  }
+  await expect(
+    page.getByRole("button", { name: "Download disease-adaptation.zip" }),
+  ).toBeDisabled();
   await page.getByRole("button", { name: "Review" }).click();
   await expect(
     page.getByRole("button", { name: "Download disease-adaptation.zip" }),
@@ -514,7 +524,7 @@ test("a second tab takes the draft the first one saves", async ({ page, context 
   // otherwise save over this one's work with its next keystroke.
   await waitForHydration(page);
   const other = await context.newPage();
-  await other.goto("/adapt");
+  await openAdapt(other);
   await waitForHydration(other);
   await fill(page, "Disease name", "exampleitis");
   await expect(other.getByLabel("Disease name", { exact: true }))
@@ -558,9 +568,8 @@ test("a storage event the stored draft has moved past takes nothing back", async
   await expect(name).toHaveValue("exampleitis three");
 });
 
-/** Press Export answers on Review and read the file it downloads. */
+/** Press Export answers in the action bar and read the file it downloads. */
 async function exportAnswers(page: Page): Promise<string> {
-  await page.getByRole("button", { name: "Review", exact: true }).click();
   const [download] = await Promise.all([
     page.waitForEvent("download"),
     page.getByRole("button", { name: "Export answers" }).click(),
@@ -605,7 +614,6 @@ test("Export answers leaves the NCBI key behind, and an import keeps the one typ
     dialogs.push(dialog.message());
     dialog.dismiss();
   });
-  await page.getByRole("button", { name: "Review", exact: true }).click();
   await importFile(page, "adapt-answers.json", exported);
   await expect(statusLine(page)).toHaveText(
     "Imported the answers in adapt-answers.json.",
@@ -639,7 +647,6 @@ test("an import asks before it replaces answers, and refuses a file that is no e
   const older = await exportAnswers(page);
   await page.getByRole("button", { name: "Identity", exact: true }).click();
   await fill(page, "Disease name", "exampleosis");
-  await page.getByRole("button", { name: "Review", exact: true }).click();
 
   // Any JSON whose version is 1 once passed for an export, with every step
   // empty, and replaced the draft unasked.
@@ -716,6 +723,7 @@ test("a refused save raises the alert until a save succeeds", async ({ page }) =
     };
   }, DRAFT_KEY);
   await page.reload();
+  await dismissGreeting(page);
   await waitForHydration(page);
   const alert = page.getByRole("alert").filter({
     hasText: "refused to save the draft",
@@ -760,6 +768,7 @@ test("a comma list and a decimal can be typed one key at a time", async ({ page 
   await expect(confidence).toHaveValue("0.75");
 
   await page.reload();
+  await dismissGreeting(page);
   await waitForHydration(page);
   await page.getByRole("button", { name: "Trials", exact: true }).click();
   await openCardOf(conditions);
@@ -928,6 +937,7 @@ test("a reloaded draft shows an offending character at once", async ({ page }) =
   await waitForHydration(page);
   await fill(page, "Key", "Example-itis");
   await page.reload();
+  await dismissGreeting(page);
   await waitForHydration(page);
   await expect(page.getByLabel("Key", { exact: true }))
     .toHaveAttribute("aria-invalid", "true");
@@ -940,6 +950,7 @@ test("a draft this build cannot read is kept aside, offered, and never saved ove
     [DRAFT_KEY, foreign],
   );
   await page.reload();
+  await dismissGreeting(page);
   await waitForHydration(page);
   const notice = page.getByRole("alert").filter({
     hasText: "could not be read",
@@ -967,6 +978,7 @@ test("a draft this build cannot read is kept aside, offered, and never saved ove
   // offered on the next visit -- offered once, it stayed in storage with
   // nothing on the page to reach or free it -- until it is discarded.
   await page.reload();
+  await dismissGreeting(page);
   await waitForHydration(page);
   await expect(notice).toContainText("still kept aside");
   await expect(page.getByLabel("Disease name", { exact: true }))
@@ -977,6 +989,7 @@ test("a draft this build cannot read is kept aside, offered, and never saved ove
   await expect(notice).toHaveCount(0);
   expect(await kept()).toBeNull();
   await page.reload();
+  await dismissGreeting(page);
   await waitForHydration(page);
   await expect(notice).toHaveCount(0);
 });
@@ -988,6 +1001,7 @@ test("a kept draft discarded before anything is typed does not come back", async
     [DRAFT_KEY, foreign],
   );
   await page.reload();
+  await dismissGreeting(page);
   await waitForHydration(page);
   const notice = page.getByRole("alert").filter({
     hasText: "could not be read",
@@ -999,6 +1013,7 @@ test("a kept draft discarded before anything is typed does not come back", async
   await notice.getByRole("button", { name: "Discard the kept draft" }).click();
   await expect(notice).toHaveCount(0);
   await page.reload();
+  await dismissGreeting(page);
   await waitForHydration(page);
   await expect(notice).toHaveCount(0);
   expect(
@@ -1041,6 +1056,7 @@ test("a second unreadable draft is kept beside the first, and no download carrie
   });
   await store(first);
   await page.reload();
+  await dismissGreeting(page);
   await waitForHydration(page);
   await expect(notice).toContainText("leaves out the NCBI e-mail and API key");
   const file = await downloaded("Download the kept draft");
@@ -1059,6 +1075,7 @@ test("a second unreadable draft is kept beside the first, and no download carrie
   const second = '{"version": 98, "identity": {}}';
   await store(second);
   await page.reload();
+  await dismissGreeting(page);
   await waitForHydration(page);
   await expect(notice).toBeVisible();
   expect(await stored(`${DRAFT_KEY}-unreadable`)).toBe(first);
@@ -1084,7 +1101,7 @@ test("a second unreadable draft is kept beside the first, and no download carrie
 test("a tab whose saves are refused keeps its answers and takes the other tab's", async ({ page, context }) => {
   await waitForHydration(page);
   const other = await context.newPage();
-  await other.goto("/adapt");
+  await openAdapt(other);
   await waitForHydration(other);
   // This tab can no longer save: its answers exist nowhere else.
   await page.evaluate((key) => {
@@ -1126,9 +1143,8 @@ test("a Start over in another tab takes back what this one had revealed", async 
   await name.press("Tab");
   await expect(page.locator(".adapt-field.is-error")).not.toHaveCount(0);
   const other = await context.newPage();
-  await other.goto("/adapt");
+  await openAdapt(other);
   await waitForHydration(other);
-  await other.getByRole("button", { name: "Review", exact: true }).click();
   other.once("dialog", (dialog) => dialog.accept());
   await other.getByRole("button", { name: "Start over" }).click();
   await expect(page.locator(".adapt-field.is-error")).toHaveCount(0);
@@ -1160,6 +1176,7 @@ test("no step of a fresh draft is done, and no monogenic gene is an answer to gi
   await expect(head("genes")).toContainText("Complete");
   // The answer is saved with the draft.
   await page.reload();
+  await dismissGreeting(page);
   await waitForHydration(page);
   await expect(segment).toHaveAccessibleDescription("Done");
   await segment.click();
@@ -1280,6 +1297,7 @@ test("until the island runs, the page says so and the form stays shut", async ({
   await expect(page.locator(".adapt-stepper")).toHaveCSS("opacity", "0.6");
   await page.unroute("**/fresh-island__AdaptWizard*");
   await page.reload();
+  await dismissGreeting(page);
   await waitForHydration(page);
   await expect(page.getByText("Loading the wizard…")).toHaveCount(0);
 });
@@ -1302,10 +1320,10 @@ test("a logo outlives a reload under its own key, and Start over clears it", asy
   expect(await stored(`${DRAFT_KEY}-logo-light`)).toContain("logo-light.svg");
   expect(JSON.parse((await stored(DRAFT_KEY))!).identity.logoLight).toBeNull();
   await page.reload();
+  await dismissGreeting(page);
   await waitForHydration(page);
   await openCardOf(page.locator('input[data-field="logoLight"]'));
   await expect(page.getByText("Uploaded: logo-light.svg")).toBeVisible();
-  await page.getByRole("button", { name: "Review", exact: true }).click();
   page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Start over" }).click();
   await expect.poll(() => stored(`${DRAFT_KEY}-logo-light`)).toBeNull();
@@ -1329,6 +1347,7 @@ test("a refused logo write keeps the alert until the logo itself is stored", asy
     };
   }, `${DRAFT_KEY}-logo-light`);
   await page.reload();
+  await dismissGreeting(page);
   await waitForHydration(page);
   const alert = page.getByRole("alert").filter({
     hasText: "refused to save the draft",

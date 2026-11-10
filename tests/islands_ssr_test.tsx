@@ -268,6 +268,9 @@ Deno.test("TrialsView over no trials renders the empty state and its readout", (
 Deno.test("the adapt wizard server-renders the stepper and the first step", () => {
   const html = renderToString(<AdaptWizard />);
   assertStringIncludes(html, 'class="adapt-stepper"');
+  // The action bar is pinned above the stepper, on every step.
+  const bar = html.indexOf('class="adapt-bar"');
+  assert(bar !== -1 && bar < html.indexOf('class="adapt-stepper"'), html);
   assertStringIncludes(html, "Identity");
   assertStringIncludes(html, "Disease name");
   // Until the island has read the stored draft the form is disabled, and a
@@ -276,6 +279,44 @@ Deno.test("the adapt wizard server-renders the stepper and the first step", () =
     html,
     /<fieldset class="adapt"\s+disabled[^>]*><p class="adapt-status">Loading the wizard/,
   );
+});
+
+Deno.test("the adapt wizard names the machine holding the sessions only when there is one", () => {
+  const named = renderToString(
+    <AdaptWizard sessions sessionsMachine="abc123def" />,
+  );
+  assertMatch(
+    named,
+    /<fieldset class="adapt"[^>]*data-sessions-machine="abc123def"/,
+  );
+  for (
+    const html of [
+      renderToString(<AdaptWizard sessions />),
+      renderToString(<AdaptWizard sessions sessionsMachine={null} />),
+    ]
+  ) {
+    assert(!html.includes("data-sessions-machine"), html);
+  }
+});
+
+Deno.test("the adapt wizard offers sessions only when the server keeps them", () => {
+  for (
+    const html of [
+      renderToString(<AdaptWizard />),
+      renderToString(<AdaptWizard sessions={false} />),
+    ]
+  ) {
+    assert(!html.includes("Save session"), html);
+    assert(!html.includes("<dialog"), html);
+    assertStringIncludes(html, 'data-sessions="off"');
+  }
+  const on = renderToString(<AdaptWizard sessions />);
+  assertStringIncludes(on, "Save session");
+  assertMatch(on, /<fieldset class="adapt"[^>]*data-sessions="on"/);
+  // The windows sit outside the fieldset, which is disabled until the
+  // draft is read and would disable every control inside them.
+  const fieldsetEnd = on.lastIndexOf("</fieldset>");
+  assert(on.indexOf("<dialog") > fieldsetEnd, on);
 });
 
 Deno.test("the wizard saves a draft whenever a step edits the answers", () => {

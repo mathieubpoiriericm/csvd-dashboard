@@ -19,6 +19,7 @@
 !disease/
 !assets/
 !static/
+!scripts/docker-entrypoint.sh
 
 # Licensed inputs to the pipeline, gitignored, and never part of the site.
 data/test_data/
