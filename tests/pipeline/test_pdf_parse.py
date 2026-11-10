@@ -111,13 +111,13 @@ class TestConverterConfiguration:
         # test.
         pdf_parse._converter.cache_clear()
         try:
-            with (
-                patch(
-                    "docling.datamodel.pipeline_options.PdfPipelineOptions",
-                    autospec=True,
-                ),
-                patch("docling.document_converter.DocumentConverter") as converter,
-            ):
+            # Only the converter is patched. PdfPipelineOptions stays real: it
+            # is a pydantic model that loads nothing, and since Docling 2.149
+            # PdfFormatOption's validator runs isinstance() against it, which
+            # a mock in its place turns into a TypeError.
+            with patch(
+                "docling.document_converter.DocumentConverter"
+            ) as converter:
                 pdf_parse._converter(settings)
                 from docling.datamodel.base_models import InputFormat
 
@@ -174,9 +174,9 @@ class TestConverterConfiguration:
         )
         # An empty override means "use docling's own cache", so the option is
         # left untouched rather than set to Path(""), which would point the
-        # converter at the working directory. The autospec'd mock only grows
-        # an attribute when the code assigns one, so absence is observable.
-        assert not hasattr(self._build(_settings(artifacts_path="")), "artifacts_path")
+        # converter at the working directory. Left untouched, it keeps the
+        # model's default of None.
+        assert self._build(_settings(artifacts_path="")).artifacts_path is None
 
 
 def test_coreml_is_off_by_default_and_redirects_its_cache() -> None:

@@ -148,7 +148,7 @@ exclude = ["third_party"]
 
 [tool.ty.rules]
 # Third-party packages may not have type stubs available
-unresolved-import = "warn"
+import-not-found = "warn"
 
 [tool.pyrefly]
 project-includes = ["**/*.py"]

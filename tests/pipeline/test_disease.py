@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 # jsonschema ships no py.typed marker, so `ty` cannot resolve its types;
-# `unresolved-import` is a warning in pyproject.toml and this import is
+# `import-not-found` is a warning in pyproject.toml and this import is
 # test-only, which is why the dependency sits in the `dev` group.
 from jsonschema import Draft202012Validator
 
