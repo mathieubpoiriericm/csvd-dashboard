@@ -388,6 +388,8 @@ const expected = {
       0,
     ),
     firstGene: karyogram.blocks[0]?.symbol ?? null,
+    /** The figure's viewBox, derived from the genes' labels. */
+    canvas: karyogram.canvas,
   },
 
   hasPipelineStatus: pipelineStatus !== null,

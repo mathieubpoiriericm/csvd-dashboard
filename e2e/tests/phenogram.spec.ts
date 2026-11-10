@@ -29,7 +29,10 @@ async function openKey(page: Page) {
 test("draws every placeable gene on its chromosome, with both legends", async ({ page }) => {
   await figureSettled(page);
   const figure = page.locator(FIGURE);
-  await expect(figure).toHaveAttribute("viewBox", "0 0 1732 1640");
+  await expect(figure).toHaveAttribute(
+    "viewBox",
+    `0 0 ${P.canvas.width} ${P.canvas.height}`,
+  );
   await expect(figure.locator("g.phenogram-chromosome")).toHaveCount(
     P.chromosomes,
   );
@@ -89,6 +92,47 @@ test("pill backgrounds fit their text and no two label blocks overlap", async ({
       return { misfit, overlapping, blocks: blocks.length };
     })
   ).toEqual({ misfit: [], overlapping: [], blocks: P.blocks });
+});
+
+test("every label stays inside its own column and on the canvas", async ({ page }) => {
+  // The columns are sized from a font metric table, not from the browser;
+  // this is the browser's word that the table was right. Each block's `li`
+  // spans exactly its column (block.x to block.x + block.width), in percent
+  // of the viewBox.
+  await figureSettled(page);
+  await expect.poll(() =>
+    page.evaluate(() => {
+      const svg = document.querySelector<SVGSVGElement>(
+        "svg.phenogram-figure",
+      )!;
+      const width = svg.viewBox.baseVal.width;
+      const height = svg.viewBox.baseVal.height;
+      const items = [...document.querySelectorAll<HTMLElement>(
+        ".phenogram-genes > li",
+      )];
+      const groups = [
+        ...svg.querySelectorAll<SVGGElement>("g.phenogram-block"),
+      ];
+      const outside: string[] = [];
+      groups.forEach((g, i) => {
+        const box = g.querySelector<SVGGElement>("g.phenogram-label")!
+          .getBBox();
+        const right = (parseFloat(items[i].style.left) +
+          parseFloat(items[i].style.width)) / 100 * width;
+        if (
+          box.x + box.width > right + 0.5 || box.x < 0 ||
+          box.y + box.height > height
+        ) {
+          outside.push(
+            `${g.dataset.gene}: ${(box.x + box.width).toFixed(1)} > ${
+              right.toFixed(1)
+            }`,
+          );
+        }
+      });
+      return { outside, blocks: groups.length };
+    })
+  ).toEqual({ outside: [], blocks: P.blocks });
 });
 
 test("hovering a gene opens its tooltip and the keyboard reaches its panel", async ({ page }) => {

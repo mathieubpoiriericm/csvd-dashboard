@@ -8,30 +8,42 @@ over, and the constructed cases build their rows from the encoding. The
 cSVD karyogram's own numbers are pinned in tests/scripts/csvd/.
 """
 
+import itertools
 import json
+import math
 import re
 from pathlib import Path
 from typing import Any
 
 import pytest
+from scripts import phenogram_figure
 from scripts.phenogram_figure import (
+    CHROMOSOME_LABEL_DESCENT,
     DEFAULT_CYTOBANDS,
     DEFAULT_GENES,
+    Layout,
     block_height,
+    canvas_for,
+    chromosome_shapes,
+    column_width,
     compute_layout,
     draw,
     glyph_lift,
     glyph_marker,
     glyph_scale,
     glyphs_for,
+    label_width,
     load_cytobands,
     load_encoding,
+    load_font_metrics,
     load_genes,
     main,
     normalize_gene,
     pills_for,
     place_gene,
     resolve_collisions,
+    split_rows,
+    text_width,
 )
 
 
@@ -51,8 +63,56 @@ def encoding() -> dict:
 
 
 @pytest.fixture(scope="module")
+def metrics() -> dict:
+    return load_font_metrics()
+
+
+@pytest.fixture(scope="module")
 def layout(genes, encoding, cytobands):
     return compute_layout(genes, encoding, cytobands)
+
+
+def assert_fits(placed: Layout, encoding: dict, metrics: dict) -> None:
+    """What every layout owes its canvas; the twin of assertFits in
+    tests/phenogram_layout_test.ts."""
+    geometry = encoding["layout"]
+    width, height = placed.canvas
+
+    def pitch(shape) -> float:
+        return geometry["chromosomeWidth"] + geometry["leaderGap"] + shape.column_width
+
+    for row in placed.rows:
+        right = geometry["margin"]
+        for shape in row:
+            assert shape.x == pytest.approx(right), f"chr{shape.name} x"
+            right = shape.x + pitch(shape)
+            assert right <= width - geometry["margin"] + 1e-6
+            assert (
+                shape.label_point[1] + CHROMOSOME_LABEL_DESCENT
+                <= height - geometry["margin"] + 1e-6
+            )
+    by_name = {c.name: c for c in placed.chromosomes}
+    for block in placed.blocks:
+        shape = by_name[block.chromosome]
+        assert block.width == shape.column_width
+        drawn = label_width(
+            block.symbol, block.pills, len(block.glyphs), geometry, metrics
+        )
+        assert block.x + drawn <= shape.x + pitch(shape) + 1e-6, block.symbol
+        assert block.x >= 0 and block.y >= 0
+        assert block.x + block.width <= width + 1e-6
+        assert block.y + block.height <= height + 1e-6
+    pitches = [pitch(c) for c in placed.chromosomes]
+    widest = max(sum(pitch(c) for c in row) for row in placed.rows)
+    for k in range(1, len(pitches)):
+        assert widest <= max(sum(pitches[:k]), sum(pitches[k:])), f"cut at {k}"
+    if placed.chromosomes:
+        assert width == math.ceil(2 * geometry["margin"] + widest)
+        bottom = max(
+            [c.label_point[1] + CHROMOSOME_LABEL_DESCENT for c in placed.chromosomes]
+            + [b.y + b.height for b in placed.blocks]
+        )
+        assert height == math.ceil(bottom + geometry["margin"])
 
 
 def _gene(encoding: dict, **overrides: Any) -> dict[str, Any]:
@@ -73,6 +133,13 @@ def _gene(encoding: dict, **overrides: Any) -> dict[str, Any]:
     }
     row.update(overrides)
     return normalize_gene(row)
+
+
+def _bare(encoding: dict, symbol: str, location: str) -> dict[str, Any]:
+    """A gene with no pills or glyphs, so its column is the minimum."""
+    return _gene(
+        encoding, gene=symbol, chromosomalLocation=location, gwasTrait=["(none found)"]
+    )
 
 
 class TestPlacement:
@@ -134,7 +201,9 @@ class TestPlacement:
         assert [b.symbol for b in placed.blocks] == ["GENE1", "GENE2"]
         assert [c.name for c in placed.chromosomes] == ["7", "X"]
         assert [g["gene"] for g in placed.unplaced] == ["GENE3"]
-        assert placed.canvas == tuple(encoding["layout"]["viewBox"][:2])
+        assert placed.canvas == canvas_for(
+            placed.rows, placed.blocks, encoding["layout"]
+        )
 
     def test_an_empty_table_draws_no_chromosome(self, encoding, cytobands) -> None:
         empty = compute_layout([], encoding, cytobands)
@@ -192,11 +261,167 @@ class TestPlacement:
             assert (
                 block.x == shape.x + geometry["chromosomeWidth"] + geometry["leaderGap"]
             )
-            assert block.width == geometry["labelColumn"]
+            assert block.width == shape.column_width
             assert block.marker_y >= previous_marker_y.get(
                 block.chromosome, block.marker_y
             )
             previous_marker_y[block.chromosome] = block.marker_y
+
+
+class TestDerivedCanvas:
+    """The label columns, row split and canvas; the cases
+    tests/phenogram_layout_test.ts runs, with the same expectations."""
+
+    def test_the_drawing_constants_are_the_encodings(self, encoding) -> None:
+        geometry = encoding["layout"]
+        assert geometry["symbolFont"] == phenogram_figure.SYMBOL_FONT_UNITS
+        assert geometry["pillFont"] == phenogram_figure.PILL_FONT_UNITS
+        assert geometry["glyphSize"] == phenogram_figure.GLYPH_UNITS
+        assert geometry["glyphGap"] == phenogram_figure.GLYPH_GAP
+        assert geometry["pillPaddingX"] == phenogram_figure.PILL_PADDING_X
+        assert "viewBox" not in geometry
+        assert "rowSplitAfter" not in geometry
+
+    def test_the_committed_layout_fits_its_canvas(
+        self, layout, encoding, metrics
+    ) -> None:
+        assert_fits(layout, encoding, metrics)
+
+    def test_a_gene_on_every_chromosome_splits_twelve_and_twelve(
+        self, encoding, cytobands, metrics
+    ) -> None:
+        rows = [
+            _gene(
+                encoding,
+                gene=f"{end}{i}",
+                chromosomalLocation=f"{c['name']}{c['bands'][index]['name']}",
+            )
+            for i, c in enumerate(cytobands["chromosomes"])
+            for end, index in (("A", 0), ("Z", -1))
+        ]
+        placed = compute_layout(rows, encoding, cytobands)
+        assert placed.unplaced == ()
+        assert [len(row) for row in placed.rows] == [12, 12]
+        assert_fits(placed, encoding, metrics)
+
+    def test_three_equal_columns_split_two_and_one(
+        self, encoding, cytobands, metrics
+    ) -> None:
+        placed = compute_layout(
+            [
+                _bare(encoding, "GENE1", "1p36.33"),
+                _bare(encoding, "GENE2", "13q34"),
+                _bare(encoding, "GENE3", "Xq22.1"),
+            ],
+            encoding,
+            cytobands,
+        )
+        assert [[c.name for c in row] for row in placed.rows] == [["1", "13"], ["X"]]
+        assert placed.rows[1][0].y == (
+            encoding["layout"]["margin"]
+            + encoding["layout"]["rowHeight"]
+            + encoding["layout"]["rowGap"]
+        )
+        assert_fits(placed, encoding, metrics)
+
+    def test_text_width_sums_advances_and_charges_unknowns_the_widest(
+        self, metrics
+    ) -> None:
+        em = metrics["unitsPerEm"]
+        a = metrics["advances"]["600"][str(ord("A"))]
+        assert text_width("AA", 600, 12, metrics) == pytest.approx(2 * a / em * 12)
+        assert text_width("", 400, 9.5, metrics) == 0
+        widest = max(metrics["advances"]["400"].values())
+        assert text_width("\U0001f9ec", 400, 10, metrics) == pytest.approx(
+            widest / em * 10
+        )
+
+    def test_label_width_counts_glyphs_and_pills(self, encoding, metrics) -> None:
+        geometry = encoding["layout"]
+        symbol = text_width("GENE1", 600, geometry["symbolFont"], metrics)
+        assert label_width("GENE1", (), 0, geometry, metrics) == pytest.approx(symbol)
+        assert label_width("GENE1", (), 3, geometry, metrics) == pytest.approx(
+            symbol + 2 * geometry["glyphGap"] + 3 * geometry["glyphSize"]
+            + 2 * geometry["glyphGap"]
+        )
+
+    def test_column_width_never_narrows_below_label_column(self, encoding) -> None:
+        geometry = encoding["layout"]
+        assert column_width([], geometry) == geometry["labelColumn"]
+        assert column_width([10, 40], geometry) == geometry["labelColumn"]
+        assert column_width([geometry["labelColumn"] + 0.25], geometry) == (
+            geometry["labelColumn"] + math.ceil(0.25 + geometry["labelSlack"])
+        )
+
+    def test_split_rows_minimises_the_wider_row(self) -> None:
+        assert split_rows([]) == 0
+        assert split_rows([152]) == 1
+        assert split_rows([1, 1]) == 1
+        assert split_rows([1, 1, 1]) == 2
+        assert split_rows([10, 1, 1, 1]) == 1
+        assert split_rows([1, 1, 1, 10]) == 3
+        for length in range(2, 7):
+            for pitches in itertools.product((1, 2, 5), repeat=length):
+
+                def cost(k: int, p=pitches) -> int:
+                    return max(sum(p[:k]), sum(p[k:]))
+
+                lowest = min(cost(j) for j in range(1, length))
+                best = max(k for k in range(1, length) if cost(k) == lowest)
+                assert split_rows(pitches) == best, pitches
+
+    def test_a_wide_pill_widens_only_its_own_column(
+        self, encoding, cytobands, metrics
+    ) -> None:
+        geometry = encoding["layout"]
+        long = "MTAG (every trait this gene was ever linked with, at once)"
+        wide = _gene(
+            encoding, gene="GENE2", chromosomalLocation="2p25.3", gwasTrait=[long]
+        )
+        placed = compute_layout(
+            [
+                _bare(encoding, "GENE1", "1p36.33"),
+                wide,
+                _bare(encoding, "GENE3", "3p26.3"),
+            ],
+            encoding,
+            cytobands,
+        )
+        widths = {c.name: c.column_width for c in placed.chromosomes}
+        pill = text_width(long, 400, geometry["pillFont"], metrics) + 2 * geometry[
+            "pillPaddingX"
+        ]
+        assert pill > geometry["labelColumn"]
+        assert widths == {
+            "1": geometry["labelColumn"],
+            "2": math.ceil(pill + geometry["labelSlack"]),
+            "3": geometry["labelColumn"],
+        }
+        assert_fits(placed, encoding, metrics)
+
+    def test_chromosome_shapes_take_their_column_widths(
+        self, encoding, cytobands
+    ) -> None:
+        geometry = encoding["layout"]
+        rows = chromosome_shapes(["1", "2", "3"], cytobands, encoding, {"1": 400})
+        assert [[c.name for c in row] for row in rows] == [["1"], ["2", "3"]]
+        assert rows[0][0].column_width == 400
+        assert rows[1][1].x == (
+            geometry["margin"]
+            + geometry["chromosomeWidth"]
+            + geometry["leaderGap"]
+            + geometry["labelColumn"]
+        )
+        assert [len(r) for r in chromosome_shapes(["7"], cytobands, encoding)] == [1, 0]
+
+    def test_an_empty_layout_gets_the_one_column_canvas(
+        self, encoding, cytobands
+    ) -> None:
+        geometry = encoding["layout"]
+        margin = geometry["margin"]
+        expected = (2 * margin + geometry["labelColumn"], 2 * margin)
+        assert compute_layout([], encoding, cytobands).canvas == expected
+        assert canvas_for([[], []], [], geometry) == expected
 
 
 class TestEncoding:

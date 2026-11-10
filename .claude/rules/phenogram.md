@@ -3,6 +3,9 @@ paths:
   - "islands/Phenogram.tsx"
   - "lib/phenogram.ts"
   - "lib/phenogram_encoding.json"
+  - "lib/phenogram_font_metrics.json"
+  - "scripts/phenogram_font_metrics.ts"
+  - "tests/helpers/woff2.ts"
   - "disease/phenogram.json"
   - "lib/disease/citation.ts"
   - "lib/cytobands.ts"
@@ -73,31 +76,55 @@ Two renderers, one contract, as for the timeline:
   same identity, or when a family hue leaves the lightness band or sits within
   OKLab ΔE 15 of its legend neighbour. Add the entry; do not widen the test.
 
-  **The `viewBox` is not derived, and both dimensions have overflowed.** A
-  chromosome's label stack needs `blocks * (height + blockGap)` and a row needs
-  `margin * 2 + columns * (chromosomeWidth + leaderGap + labelColumn)`. The
-  365-day run broke the first (chromosome 17 reached ten genes, 498 units
-  against a 400 row) and then the second (X made row 2 eleven columns, 1,732
-  against 1,600). The 2026-11-03 re-extraction broke the first again:
-  chromosome 17 reached thirteen genes and 736 units, chromosome 2 666, against
-  a 520 row, because genes now carry more trait pills (2.2 a gene against 1.8).
-  `rowHeight` is 760 and the viewBox 1732x1640 (`2 * margin + 2 * rowHeight +
-  rowGap`). A band range such as `10q24.33-q25.1`, which NCBI writes for a gene
-  across a band edge, is placed at the middle of its span in both renderers,
+  **The canvas is derived, never configured.** Both dimensions of a fixed
+  `viewBox` overflowed as the data grew -- the last fixed plate was 1732x1640
+  split after chromosome 10, and on the gold table its second row needed
+  1,884 units, so X's CHRDL1 fell off the right edge while ~400 units under
+  that row stayed empty, and the "MTAG (…)" pills (~180 units) crossed the
+  next chromosome from a 128-unit column. Now, in both renderers:
+  - a gene's label width is the wider of its first line (the symbol at
+    `symbolFont`, weight 600, then `2*glyphGap + n*glyphSize + (n-1)*glyphGap`
+    for n glyphs, where `Block` draws them) and each pill (`pillFont`, weight
+    400, plus `2*pillPaddingX`). Text is measured from
+    `lib/phenogram_font_metrics.json` -- the advance of every code point the
+    shipped `Barlow-400/600-latin.woff2` map, read by `tests/helpers/woff2.ts`
+    -- summed and scaled; kerning is ignored and `labelSlack` absorbs it, and
+    an unknown character takes the face's widest advance. **After changing
+    either font file, run `deno task phenogram:metrics`**;
+    `tests/phenogram_font_metrics_test.ts` fails until the table matches.
+    Python has no Brotli, so it only reads the JSON;
+  - a chromosome's column is `max(labelColumn, ceil(widest label +
+    labelSlack))`, its pitch `chromosomeWidth + leaderGap + column`, and a
+    block is as wide as its column;
+  - the present chromosomes, in karyotype order, split into two rows at the
+    cut that makes the wider row narrowest (the later cut on a tie); row 1
+    stays at `margin + rowHeight + rowGap`, and may be empty;
+  - the canvas is `ceil(2*margin + widest row)` by `ceil(lowest chromosome
+    name or block + margin)`, or one empty column with no chromosome.
+  The drawing constants (`SYMBOL_FONT_SIZE` …, `SYMBOL_FONT_UNITS` …) equal
+  the encoding's; the island reads them from it and a Python test pins the
+  print twin's. `rowHeight` is still fixed at 760: chromosome 17's thirteen
+  genes need 736. The layout tests assert every block inside the canvas and
+  its own column, the split minimal, and the e2e suite measures every label's
+  `getBBox()` against its column in a real browser. The print figure is set
+  in matplotlib's default face unless `--font` is given, and DejaVu Sans is
+  wider than Barlow, so its widest pills can still cross a column there.
+
+  A band range such as `10q24.33-q25.1`, which NCBI writes for a gene across
+  a band edge, is placed at the middle of its span in both renderers,
   provided both ends are on one arm: a p-to-q range (`1p36.33-q44`) would put
   the gene at the centromere, so it is unplaced, as is any other inexact
-  band. The layout test
-  catches only the vertical case -- it asserts blocks stay inside their _row_ --
-  so the horizontal one was found by measuring every `li` in
-  `ul.phenogram-genes` against the list's own bounding box in a browser. A
-  figure can be internally consistent and still not fit its plate.
+  band.
 - `lib/phenogram.ts` (island) and `scripts/phenogram_figure.py` (print)
-  implement the same rule: chromosomes that carry a gene, to scale, in two rows
-  split after chromosome 10; a label block per gene — symbol and evidence glyphs
+  implement the same rule: chromosomes that carry a gene, to scale, in two
+  balanced rows, each in a column as wide as its widest label; a label block
+  per gene — symbol and evidence glyphs
   on the first line, then one pill per GWAS trait — stacked by
   `resolveCollisions` (sweep down to enforce the gap, sweep back up at the row's
   bottom). `tests/phenogram_layout_test.ts` and
-  `tests/scripts/test_phenogram_figure.py` pin the same numbers.
+  `tests/scripts/test_phenogram_figure.py` run the same cases, and the two
+  `csvd/` suites pin the same canvas, row split, column widths and summed
+  block rects on the committed data.
 
 Its key sits above the plate too, in the same collapsed `<details>` and for the
 same reasons — supporting evidence in one cell, the phenotype key spanning two,
@@ -116,6 +143,7 @@ absolutely positioned `<li>` per block, in percent of the viewBox, each wrapping
 `components/Tooltip.tsx` around a visually-hidden name — so hover, Enter,
 Tab-to-link and Escape are the tables' behaviour with no new tooltip code, and
 screen readers get every placed gene in chromosome order. Pill backgrounds and
-the glyph positions after each symbol are the only measured geometry
-(`getBBox()` on mount and on `document.fonts.ready`); block positions never
-depend on text metrics.
+the glyph positions after each symbol are the only geometry measured in the
+browser (`getBBox()` on mount and on `document.fonts.ready`); block positions
+and column widths depend only on the committed metric table, so the server,
+the island and the print figure agree on them before any font loads.
