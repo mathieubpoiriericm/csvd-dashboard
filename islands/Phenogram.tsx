@@ -45,6 +45,9 @@ function measureWithCanvas(text: string, font: KeyFont): number {
     | null;
   if (!ctx) throw new Error("No 2D canvas context to measure key text with.");
   ctx.font = `${font.weight} ${font.size}px "${font.family}"`;
+  // Canvas text at small sizes is hinted to whole-pixel advances by default,
+  // which sits narrower than the unhinted widths an editor lays the file out in.
+  ctx.textRendering = "geometricPrecision";
   return ctx.measureText(text).width;
 }
 
@@ -121,14 +124,23 @@ export default function Phenogram({ rows = genes }: PhenogramProps = {}) {
       document.fonts.load("600 12px Barlow"),
     ]);
     await document.fonts.ready;
-    const svg = svgRef.current;
-    const measured = svg
-      ? measureSvgTextWidths(
-        svg,
+    // Not the live boxes: those are hinted at the page's scale, a little
+    // narrower than the file's text in an editor.
+    const measured = new Map<string, number>();
+    for (
+      const text of svgRef.current?.querySelectorAll<SVGTextElement>(
         "text[data-pill], text[data-symbol]",
-        (text) => text.dataset.pill ?? text.dataset.symbol ?? "",
-      )
-      : new Map<string, number>();
+      ) ?? []
+    ) {
+      measured.set(
+        text.dataset.pill ?? text.dataset.symbol ?? "",
+        measureWithCanvas(text.textContent ?? "", {
+          family: "Barlow",
+          weight: text.getAttribute("font-weight") === "600" ? 600 : 400,
+          size: Number(text.getAttribute("font-size")),
+        }),
+      );
+    }
     const key = withKey
       ? layoutPhenogramKey(
         karyogram.legend,
