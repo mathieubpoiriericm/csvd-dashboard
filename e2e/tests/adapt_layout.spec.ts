@@ -167,7 +167,9 @@ for (const viewport of [PHONE, DESKTOP]) {
     }
     await page.getByRole("button", { name: "Review", exact: true }).click();
     page.once("dialog", (dialog) => dialog.accept());
-    await centre(page.getByRole("button", { name: "Start over" }));
+    // Below 900px Start over sits in the bar's popover, behind More.
+    const more = page.getByRole("button", { name: "More" });
+    if (await more.isVisible()) await more.click();
     await page.getByRole("button", { name: "Start over" }).click();
     await expect(page.getByRole("heading", { name: "1. Identity" }))
       .toBeFocused();
@@ -355,4 +357,45 @@ test("on a narrow phone a folded card's summary keeps its width", async ({ page 
   // number's and the chevron's, and two lines.
   expect(await summary.evaluate((el) => el.clientWidth))
     .toBeGreaterThanOrEqual(180);
+});
+
+test("the action bar stays under the navbar while a long step scrolls", async ({ page }) => {
+  await page.setViewportSize(DESKTOP);
+  await openWizard(page);
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  const bar = page.locator(".adapt-bar");
+  await expect(bar).toBeInViewport();
+  const box = await bar.boundingBox();
+  // Pinned `--svd-space-2` below the navbar, so within a gap of its edge.
+  const gap = await page.locator(".adapt-pinned").evaluate((el) =>
+    parseFloat(getComputedStyle(el).top) -
+    document.querySelector("header.navbar")!.getBoundingClientRect().bottom
+  );
+  expect(Math.abs(box!.y - (await navbarBottom(page)) - gap)).toBeLessThan(2);
+  // At this width the four buttons are in the bar itself, no More.
+  await expect(page.getByRole("button", { name: "Export answers" }))
+    .toBeVisible();
+  await expect(page.getByRole("button", { name: "More" })).toBeHidden();
+});
+
+test("on a phone the bar shows More and no row wraps", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openWizard(page);
+  const more = page.getByRole("button", { name: "More" });
+  await expect(more).toBeVisible();
+  await expect(page.getByRole("button", { name: "Export answers" }))
+    .toBeHidden();
+  const [bar, button] = await Promise.all([
+    page.locator(".adapt-bar").boundingBox(),
+    more.boundingBox(),
+  ]);
+  expect(bar!.height).toBeLessThanOrEqual(button!.height + 1);
+  await more.click();
+  await expect(page.getByRole("button", { name: "Export answers" }))
+    .toBeVisible();
+  expect(
+    await page.evaluate(() =>
+      document.documentElement.scrollWidth <= innerWidth
+    ),
+  ).toBe(true);
 });

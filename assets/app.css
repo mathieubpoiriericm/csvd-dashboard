@@ -2648,10 +2648,107 @@ svg {
    head they landed hundreds of pixels above the researcher. Empty, the box
    has no height, and the live region is still in the page for its first
    message. */
-.adapt-messages {
+.adapt-pinned {
   position: sticky;
   top: calc(var(--svd-navbar-h) + var(--svd-space-2));
   z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--svd-space-2);
+}
+
+/* The buttons, above the stepper and in the pinned box with the messages, so
+   they work from every step. The page background keeps the step from
+   showing through the gaps between them as it scrolls under. */
+.adapt-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--svd-space-2);
+  background: var(--svd-bg-page);
+}
+
+.adapt-bar-primary {
+  display: flex;
+  align-items: center;
+  gap: var(--svd-space-2);
+  min-width: 0;
+}
+
+.adapt-bar-indicator.is-ok {
+  color: var(--svd-color-primary);
+}
+
+.adapt-bar-indicator.is-danger {
+  color: var(--svd-danger-text);
+}
+
+.adapt-bar-indicator {
+  font-size: var(--svd-text-sm);
+}
+
+.adapt-bar-code {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--svd-space-2);
+}
+
+.adapt-bar-kept {
+  font-size: var(--svd-text-sm);
+  color: var(--svd-text-muted);
+}
+
+/* Below 900px the group is the native popover its More button opens, in the
+   top layer under the navbar; the UA's panel box is undone so it is a plain
+   column of buttons on the card colour. */
+.adapt-bar-more {
+  inset: auto;
+  margin: 0;
+  padding: var(--svd-space-3);
+  border: 1px solid var(--svd-border);
+  border-radius: var(--svd-radius-sm);
+  background: var(--svd-bg-card);
+  color: var(--svd-text);
+  box-shadow: var(--svd-shadow-md);
+}
+
+.adapt-bar-more:popover-open {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--svd-space-2);
+  position: fixed;
+  top: calc(var(--svd-navbar-h) + var(--svd-space-2) + 3.25rem);
+  right: var(--svd-space-3);
+  max-width: calc(100vw - 2 * var(--svd-space-3));
+}
+
+/* Wide, the group is laid out in the bar and More is not needed. `display`
+   is set on the closed state here on purpose, to override the UA's
+   [popover]:not(:popover-open) hiding. */
+@media (min-width: 900px) {
+  .adapt-bar-toggle {
+    display: none;
+  }
+
+  .adapt-bar-more,
+  .adapt-bar-more:popover-open {
+    position: static;
+    display: flex;
+    flex-flow: row wrap;
+    align-items: center;
+    gap: var(--svd-space-2);
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    overflow: visible;
+    max-width: none;
+  }
+}
+
+.adapt-messages {
   display: flex;
   flex-direction: column;
   gap: var(--svd-space-2);

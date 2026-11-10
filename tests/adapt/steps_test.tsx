@@ -245,37 +245,34 @@ Deno.test("every message validate() writes is on the page once its step is revea
   assert(checked > 100, `only ${checked} messages checked`);
 });
 
-Deno.test("the review step lists the files, the checklist and the download button when clean", () => {
+Deno.test("the review step lists the files and the checklist when clean", () => {
   const html = renderToString(
     <ReviewStep
       {...props()}
       allIssues={[]}
       onShow={noop}
-      onDownload={noop}
-      onExport={noop}
-      onImport={noop}
-      onReset={noop}
     />,
   );
   assertStringIncludes(html, "disease/manifest.json");
   assertStringIncludes(html, "deno fmt disease/");
-  assertStringIncludes(html, ">Download disease-adaptation.zip</button>");
-  // The import control is a button; the file input beside it is reachable
-  // and named but is not what anyone tabs to.
-  assertStringIncludes(html, ">Import answers</button>");
-  assertStringIncludes(html, 'aria-label="Import answers file"');
+  assertStringIncludes(html, "What comes next");
   const blocked = renderToString(
     <ReviewStep
       {...props(EMPTY_ANSWERS)}
       allIssues={validate(EMPTY_ANSWERS)}
       onShow={noop}
-      onDownload={noop}
-      onExport={noop}
-      onImport={noop}
-      onReset={noop}
     />,
   );
-  assertStringIncludes(blocked, "disabled");
+  assertStringIncludes(blocked, "to answer or fix");
+});
+
+Deno.test("the Review step no longer carries the action buttons", () => {
+  const html = renderToString(
+    <ReviewStep {...props()} allIssues={[]} onShow={noop} />,
+  );
+  assert(!html.includes("Export answers"), html);
+  assert(!html.includes("Start over"), html);
+  assertStringIncludes(html, "What comes next");
 });
 
 /**

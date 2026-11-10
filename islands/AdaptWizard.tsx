@@ -12,6 +12,7 @@ import { GoldStep } from "../components/adapt/steps/GoldStep.tsx";
 import { IdentityStep } from "../components/adapt/steps/IdentityStep.tsx";
 import { MonogenicStep } from "../components/adapt/steps/MonogenicStep.tsx";
 import { PromptStep } from "../components/adapt/steps/PromptStep.tsx";
+import { ActionBar } from "../components/adapt/ActionBar.tsx";
 import { ReviewStep } from "../components/adapt/steps/ReviewStep.tsx";
 import { SearchStep } from "../components/adapt/steps/SearchStep.tsx";
 import { TrialsStep } from "../components/adapt/steps/TrialsStep.tsx";
@@ -77,7 +78,7 @@ type ScreenId = StepId | "review";
  * nothing of it survives the tab.
  */
 const STORAGE_REFUSED =
-  "This browser refused to save the draft, so closing the tab will lose it. Export your answers from the Review step before you close it.";
+  "This browser refused to save the draft, so closing the tab will lose it. Export your answers from the bar above before you close it.";
 
 const UNREADABLE =
   "The draft saved in this browser was written by another version of the wizard, or is damaged, so it could not be read. It is kept aside rather than overwritten; download it to keep a copy.";
@@ -466,12 +467,11 @@ export default function AdaptWizard() {
   // weighs and keeps the NCBI credentials of is what is held by then.
   const latest = useRef(answers);
   latest.current = answers;
-  const reviewStatus = setStatusOf("review");
   const importAnswers = (file: File) => {
     // Two logos at their cap make an export of about 2.7 MB; a file far
     // larger is no export, and reading it whole would only stall the tab.
     if (file.size > IMPORT_BYTE_LIMIT) {
-      reviewStatus(
+      setStatusOf(screen.current)(
         `${file.name} is larger than any answers export, so it was not read.`,
       );
       return;
@@ -479,7 +479,7 @@ export default function AdaptWizard() {
     file.text().then((text) => {
       const imported = importText(text, latest.current);
       if ("error" in imported) {
-        reviewStatus(imported.error);
+        setStatusOf(screen.current)(imported.error);
         return;
       }
       // Every answer goes at once, as with Start over, and the export
@@ -491,18 +491,19 @@ export default function AdaptWizard() {
           `Replace every answer here with the answers in ${file.name}? Export them first to keep them.`,
         )
       ) {
-        reviewStatus(`Kept the answers here; ${file.name} was not imported.`);
+        setStatusOf(screen.current)(
+          `Kept the answers here; ${file.name} was not imported.`,
+        );
         return;
       }
       replace(imported.answers);
-      // Import sits on Review, which has no cards, and leaving Review
-      // decides the next step's card anew; this covers a screen that
-      // changed while the file was read.
+      // Leaving Review decides the next step's card anew; this covers a
+      // screen that changed while the file was read.
       const on = screen.current;
       setOpenCard(on === "review" ? null : entryCard(imported.answers, on));
       // Said, and so also clearing a failure left by an earlier attempt.
       const lost = imported.dropped.length;
-      reviewStatus(
+      setStatusOf(on)(
         lost === 0
           ? `Imported the answers in ${file.name}.`
           : `Imported the answers in ${file.name}; ${lost} ${
@@ -511,7 +512,9 @@ export default function AdaptWizard() {
             lost === 1 ? "was" : "were"
           } left empty.`,
       );
-    }).catch(() => reviewStatus(`${file.name} could not be read.`));
+    }).catch(() =>
+      setStatusOf(screen.current)(`${file.name} could not be read.`)
+    );
   };
 
   // Next sits below the step, so a new step would otherwise open with the
@@ -769,6 +772,43 @@ export default function AdaptWizard() {
           interview by hand.
         </p>
       )}
+      {
+        /* The buttons and the page's own messages, pinned together under
+          the navbar: the buttons work from every step, and what lands in
+          the messages answers a button pressed, or a key typed, far down
+          the step. */
+      }
+      <div class="adapt-pinned">
+        <ActionBar
+          canDownload={issues.length === 0}
+          onDownload={() =>
+            saveDownload(
+              BUNDLE_NAME,
+              zipBytes(bundle(answers)),
+              "application/zip",
+            )}
+          onExport={() =>
+            saveDownload(
+              ANSWERS_NAME,
+              new TextEncoder().encode(exportText(answers)),
+              "application/json",
+            )}
+          onImport={importAnswers}
+          onReset={() => {
+            replace(EMPTY_ANSWERS);
+            setStatuses({});
+            show("identity", "move", EMPTY_ANSWERS);
+          }}
+          resetConfirm="Discard every answer and the saved draft?"
+          session={null}
+        />
+        <div class="adapt-messages">
+          {unsaved && (
+            <p class="notice notice-warning" role="alert">{STORAGE_REFUSED}</p>
+          )}
+          <p class="adapt-status" role="status">{status}</p>
+        </div>
+      </div>
       <Stepper
         steps={steps}
         current={current}
@@ -859,16 +899,6 @@ export default function AdaptWizard() {
           </div>
         </div>
       )}
-      {
-        /* Pinned under the navbar while the step scrolls: what lands here
-          answers a button pressed, or a key typed, far down the step. */
-      }
-      <div class="adapt-messages">
-        {unsaved && (
-          <p class="notice notice-warning" role="alert">{STORAGE_REFUSED}</p>
-        )}
-        <p class="adapt-status" role="status">{status}</p>
-      </div>
       <WizardContext.Provider value={wizard}>
         {current === "identity" && <IdentityStep {...stepProps("identity")} />}
         {current === "search" && <SearchStep {...stepProps("search")} />}
@@ -885,27 +915,8 @@ export default function AdaptWizard() {
       {current === "review" && (
         <ReviewStep
           {...stepProps("gold")}
-          setStatus={reviewStatus}
           allIssues={issues}
           onShow={(id) => show(id, "left")}
-          onDownload={() =>
-            saveDownload(
-              BUNDLE_NAME,
-              zipBytes(bundle(answers)),
-              "application/zip",
-            )}
-          onExport={() =>
-            saveDownload(
-              ANSWERS_NAME,
-              new TextEncoder().encode(exportText(answers)),
-              "application/json",
-            )}
-          onImport={importAnswers}
-          onReset={() => {
-            replace(EMPTY_ANSWERS);
-            setStatuses({});
-            show("identity", "move", EMPTY_ANSWERS);
-          }}
         />
       )}
       <div class="adapt-actions">

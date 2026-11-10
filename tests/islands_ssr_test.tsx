@@ -268,6 +268,9 @@ Deno.test("TrialsView over no trials renders the empty state and its readout", (
 Deno.test("the adapt wizard server-renders the stepper and the first step", () => {
   const html = renderToString(<AdaptWizard />);
   assertStringIncludes(html, 'class="adapt-stepper"');
+  // The action bar is pinned above the stepper, on every step.
+  const bar = html.indexOf('class="adapt-bar"');
+  assert(bar !== -1 && bar < html.indexOf('class="adapt-stepper"'), html);
   assertStringIncludes(html, "Identity");
   assertStringIncludes(html, "Disease name");
   // Until the island has read the stored draft the form is disabled, and a

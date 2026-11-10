@@ -466,6 +466,14 @@ test("a complete walk-through downloads a disease/ archive", async ({ page }) =>
 
 test("the download stays disabled while a step has issues", async ({ page }) => {
   await waitForHydration(page);
+  // The bar is on every step: all four buttons are reachable from step 1.
+  for (const name of ["Export answers", "Import answers", "Start over"]) {
+    await expect(page.getByRole("button", { name, exact: true }))
+      .toBeVisible();
+  }
+  await expect(
+    page.getByRole("button", { name: "Download disease-adaptation.zip" }),
+  ).toBeDisabled();
   await page.getByRole("button", { name: "Review" }).click();
   await expect(
     page.getByRole("button", { name: "Download disease-adaptation.zip" }),
@@ -558,9 +566,8 @@ test("a storage event the stored draft has moved past takes nothing back", async
   await expect(name).toHaveValue("exampleitis three");
 });
 
-/** Press Export answers on Review and read the file it downloads. */
+/** Press Export answers in the action bar and read the file it downloads. */
 async function exportAnswers(page: Page): Promise<string> {
-  await page.getByRole("button", { name: "Review", exact: true }).click();
   const [download] = await Promise.all([
     page.waitForEvent("download"),
     page.getByRole("button", { name: "Export answers" }).click(),
@@ -605,7 +612,6 @@ test("Export answers leaves the NCBI key behind, and an import keeps the one typ
     dialogs.push(dialog.message());
     dialog.dismiss();
   });
-  await page.getByRole("button", { name: "Review", exact: true }).click();
   await importFile(page, "adapt-answers.json", exported);
   await expect(statusLine(page)).toHaveText(
     "Imported the answers in adapt-answers.json.",
@@ -639,7 +645,6 @@ test("an import asks before it replaces answers, and refuses a file that is no e
   const older = await exportAnswers(page);
   await page.getByRole("button", { name: "Identity", exact: true }).click();
   await fill(page, "Disease name", "exampleosis");
-  await page.getByRole("button", { name: "Review", exact: true }).click();
 
   // Any JSON whose version is 1 once passed for an export, with every step
   // empty, and replaced the draft unasked.
@@ -1128,7 +1133,6 @@ test("a Start over in another tab takes back what this one had revealed", async 
   const other = await context.newPage();
   await other.goto("/adapt");
   await waitForHydration(other);
-  await other.getByRole("button", { name: "Review", exact: true }).click();
   other.once("dialog", (dialog) => dialog.accept());
   await other.getByRole("button", { name: "Start over" }).click();
   await expect(page.locator(".adapt-field.is-error")).toHaveCount(0);
@@ -1305,7 +1309,6 @@ test("a logo outlives a reload under its own key, and Start over clears it", asy
   await waitForHydration(page);
   await openCardOf(page.locator('input[data-field="logoLight"]'));
   await expect(page.getByText("Uploaded: logo-light.svg")).toBeVisible();
-  await page.getByRole("button", { name: "Review", exact: true }).click();
   page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Start over" }).click();
   await expect.poll(() => stored(`${DRAFT_KEY}-logo-light`)).toBeNull();

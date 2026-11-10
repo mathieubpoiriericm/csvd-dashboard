@@ -7,6 +7,7 @@ import {
 import { renderToString } from "preact-render-to-string";
 import type * as preact from "preact";
 
+import { ActionBar } from "../../components/adapt/ActionBar.tsx";
 import { Card } from "../../components/adapt/Card.tsx";
 import { CodeBlock } from "../../components/adapt/CodeBlock.tsx";
 import {
@@ -523,4 +524,49 @@ Deno.test("the echo draws an invisible offence, and keeps a far one in view", ()
   // The mark sits in a window of context, the rest elided on either side.
   assertMatch(echo, /^\u2026a a a .*<mark\s*>\{\{<\/mark>x b b .*\u2026$/);
   assert(echo.length < long.length);
+});
+
+const BAR = {
+  canDownload: true,
+  onDownload: () => {},
+  onExport: () => {},
+  onImport: () => {},
+  onReset: () => {},
+  resetConfirm: "Discard?",
+  session: null,
+};
+
+Deno.test("the action bar holds the four buttons and no session controls when sessions are off", () => {
+  const html = renderToString(<ActionBar {...BAR} />);
+  assertStringIncludes(html, "Export answers");
+  assertStringIncludes(html, "Import answers");
+  assertStringIncludes(html, "Start over");
+  assertStringIncludes(html, "Download disease-adaptation.zip");
+  assert(!html.includes("Save session"), html);
+  const download = (h: string) =>
+    h.match(/<button[^>]*>Download disease-adaptation\.zip<\/button>/)?.[0] ??
+      "";
+  assert(!download(html).includes("disabled"), download(html));
+  const blocked = renderToString(<ActionBar {...BAR} canDownload={false} />);
+  assertStringIncludes(download(blocked), "disabled");
+});
+
+Deno.test("the action bar's secondary group is a popover a More button opens", () => {
+  const html = renderToString(<ActionBar {...BAR} />);
+  const target = html.match(/<button[^>]*popovertarget="([^"]+)"/)?.[1];
+  assert(target !== undefined, html);
+  assertEquals(count(html, "popovertarget="), 1);
+  const group = html.match(
+    /<div class="adapt-bar-more" popover id="([^"]+)">([\s\S]*?)<\/div><\/div>$/,
+  );
+  assert(group !== null, html);
+  assertEquals(group[1], target);
+  for (
+    const label of [
+      "Export answers",
+      "Import answers",
+      "Start over",
+      "Download disease-adaptation.zip",
+    ]
+  ) assertStringIncludes(group[2], label);
 });

@@ -1,7 +1,5 @@
-import { useRef } from "preact/hooks";
-
 import { CodeBlock } from "../CodeBlock.tsx";
-import { bundle, BUNDLE_NAME } from "../../../lib/adapt/bundle.ts";
+import { bundle } from "../../../lib/adapt/bundle.ts";
 import { issueLabel } from "../../../lib/adapt/cards.ts";
 import { renderChecklist } from "../../../lib/adapt/checklist.ts";
 import {
@@ -17,29 +15,11 @@ interface ReviewProps extends StepProps {
   allIssues: Issue[];
   /** Go to a step, from the issues listed under its name. */
   onShow: (step: StepId) => void;
-  onDownload: () => void;
-  onExport: () => void;
-  onImport: (file: File) => void;
-  onReset: () => void;
 }
 
 export function ReviewStep(
-  {
-    answers,
-    allIssues,
-    onShow,
-    onDownload,
-    onExport,
-    onImport,
-    onReset,
-  }: ReviewProps,
+  { answers, allIssues, onShow }: ReviewProps,
 ) {
-  // The file input is the control the browser needs and the button above it
-  // is the one people reach: a <label> wrapped round a hidden input is in no
-  // tab order and in no accessibility tree. The input itself is taken out of
-  // the tab order, because .visually-hidden clips rather than hides and
-  // focus would otherwise land on a control nobody can see.
-  const importInput = useRef<HTMLInputElement>(null);
   const paths = bundle(answers).map((e) => e.path);
   const clean = allIssues.length === 0;
   return (
@@ -98,58 +78,6 @@ export function ReviewStep(
         );
       })}
       <CodeBlock>{paths.join("\n")}</CodeBlock>
-      <div class="adapt-actions">
-        <button
-          type="button"
-          class="adapt-button adapt-button-primary"
-          disabled={!clean}
-          onClick={onDownload}
-        >
-          Download {BUNDLE_NAME}
-        </button>
-        <button type="button" class="adapt-button" onClick={onExport}>
-          Export answers
-        </button>
-        <button
-          type="button"
-          class="adapt-button"
-          onClick={() => importInput.current?.click()}
-        >
-          Import answers
-        </button>
-        <input
-          ref={importInput}
-          class="visually-hidden"
-          tabIndex={-1}
-          type="file"
-          accept="application/json,.json"
-          aria-label="Import answers file"
-          onChange={(e) => {
-            const input = e.target as HTMLInputElement;
-            const f = input.files?.[0];
-            // Cleared so that choosing the same file again -- after
-            // fixing it, or after a Start over -- still fires a change.
-            input.value = "";
-            if (f) onImport(f);
-          }}
-        />
-        <button
-          type="button"
-          class="adapt-button"
-          onClick={() => {
-            // Every answer and the saved draft go at once, and the only
-            // copy of them is the export beside this button.
-            if (
-              !globalThis.confirm("Discard every answer and the saved draft?")
-            ) {
-              return;
-            }
-            onReset();
-          }}
-        >
-          Start over
-        </button>
-      </div>
       <h3 class="adapt-step-title">What comes next</h3>
       <p class="adapt-status">
         The same checklist is in the archive as ADAPT-CHECKLIST.md.
