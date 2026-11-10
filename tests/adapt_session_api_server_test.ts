@@ -463,6 +463,28 @@ Deno.test("an owner tag is 16 hex characters, stable, and keyed by the secret", 
   assert((await ownerTag(CLIENT, "another-secret")) !== tag);
 });
 
+Deno.test("an owner tag is the HMAC of 'adapt-owner:' and the client key, so it never meets a cookie's signature", async () => {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(SECRET),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const mac = new Uint8Array(
+    await crypto.subtle.sign(
+      "HMAC",
+      key,
+      new TextEncoder().encode(`adapt-owner:${CLIENT}`),
+    ),
+  );
+  const expected = Array.from(
+    mac.subarray(0, 8),
+    (b) => b.toString(16).padStart(2, "0"),
+  ).join("");
+  assertEquals(await ownerTag(CLIENT, SECRET), expected);
+});
+
 Deno.test("a connection at its cap is answered 429 quota, and never named by address", async () => {
   await withStore(async (store, dir) => {
     const lines: string[] = [];

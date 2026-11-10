@@ -76,9 +76,9 @@ variable and its fallback, the machine and the parallelism.
 sessions locally, in a directory outside the project that Vite does not watch;
 without it the guide has no Save session. The e2e server runs with sessions on,
 in a directory per port that its start command empties (a reused local server
-keeps it), and with `ADAPT_SESSION_PER_CLIENT_LIMIT` at 1000: its workers are
-one client to the session limiter, and a run creates more sessions a minute than
-one client may.
+keeps it, and so keeps counting toward `SESSION_PER_CLIENT_CAP`), and with
+`ADAPT_SESSION_PER_CLIENT_LIMIT` at 1000: its workers are one client to the
+session limiter, and a run creates more sessions a minute than one client may.
 
 **Playwright writes into `.playwright-mcp/` inside the project, and Vite watches
 the project.** `vite.config.ts` ignores that directory and `logs/` for exactly

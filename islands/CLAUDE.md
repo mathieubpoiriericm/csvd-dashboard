@@ -324,18 +324,18 @@ Eleven things are load-bearing:
   `<dialog>`s rendered outside the fieldset, which is disabled until the draft
   is read and would disable them too. Escape is reported, not obeyed, so every
   callback has to flip `open` itself, and `useModal` catches Chrome closing the
-  element on a second Escape without `cancel`. The server stores a session
-  through `parseExport()` and `exportText()`, so the NCBI email and key are
-  blanked whatever the browser sent, and a resume keeps this browser's own pair
-  (`importText()`). A session is deleted 14 days after its last save
-  (`SESSION_TTL_MS`), and a save after that saves it again under the same code.
-  That revival, like a forced save over a damaged file, continues past the
-  highest revision it can know of (the old file's, while it is still there, and
-  the saving browser's), never restarting at 1. Once the sweep has removed the
-  file its revision is gone, so a save names the copy it was made over by its
-  revision and its `savedAt` both, and a mismatch in either is a conflict: by
-  revision alone, a browser that missed a revival could meet its own number
-  again and overwrite newer saves without being asked.
+  element on a second Escape without `cancel`. The API parses the answers once
+  with `parseExport()`, and the store writes them through `exportableAnswers()`,
+  so the NCBI email and key are blanked whatever the browser sent, and a resume
+  keeps this browser's own pair (`importText()`). A session is deleted 14 days
+  after its last save (`SESSION_TTL_MS`), and a save after that saves it again
+  under the same code. That revival, like a forced save over a damaged file,
+  continues past the highest revision it can know of (the old file's, while it
+  is still there, and the saving browser's), never restarting at 1. Once the
+  sweep has removed the file its revision is gone, so a save names the copy it
+  was made over by its revision and its `savedAt` both, and a mismatch in either
+  is a conflict: by revision alone, a browser that missed a revival could meet
+  its own number again and overwrite newer saves without being asked.
 - **The stored draft is never lost to another version or another tab.** A draft
   `parseDraft()` cannot read -- another `DRAFT_VERSION`, damaged JSON -- is
   copied to `svd-adapt-draft-unreadable` before the first save and offered for

@@ -53,9 +53,12 @@ Nine things are non-obvious enough to state here:
   with the variable set and no volume mounted, root would otherwise create it
   on the machine's own filesystem, where sessions would report as on and vanish
   at every deploy or restart. Instead it prints
-  `docker-entrypoint: nothing is mounted at …`, leaves the directory uncreated,
-  and the server, unable to create it as `deno` under root-owned `/`, serves
-  with sessions off. If the directory cannot be made on the volume it prints
+  `docker-entrypoint: nothing is mounted at …` and does not prepare the
+  directory; the server, unable to create it as `deno` under root-owned `/`,
+  serves with sessions off. This check does not protect a path under a
+  directory the serving user can write (`/tmp`, `/app`): sessions kept there
+  are lost at every restart, so `ADAPT_SESSIONS_DIR` must name a path on the
+  mounted volume. If the directory cannot be made on the volume it prints
   one line to stderr and serves anyway. Tini stays the first process, as it was
   under the base image's own entrypoint, and is then the only thing running as
   root. The script lives outside `/app` because `deno` owns `/app` and could
@@ -192,7 +195,7 @@ fly ssh console -C "ls -l /session_storage/adapt-sessions"
 fly ssh console -C "sh -c 'ls /session_storage/adapt-sessions/*.json | wc -l'"
 fly ssh console -C "sh -c 'ls /session_storage/adapt-sessions/*.own | cut -d. -f2 | sort | uniq -c | sort -rn'"
 fly ssh console -C "du -sh /session_storage/adapt-sessions"
-fly ssh console -C "sh -c 'rm /session_storage/adapt-sessions/*.json /session_storage/adapt-sessions/*.own'"
+fly ssh console -C "sh -c 'rm -f /session_storage/adapt-sessions/*.json /session_storage/adapt-sessions/*.own'"
 ```
 
 The owner count prints each tag with the number of markers it holds; a tag at

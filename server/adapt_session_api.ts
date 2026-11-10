@@ -150,7 +150,10 @@ const encoder = new TextEncoder();
 /**
  * The owner tag the store marks a connection's sessions with: the first 16
  * hex characters of HMAC-SHA256 over the client key, keyed with the session
- * secret. Without the server's secret it cannot be turned back into an
+ * secret. The message is the key behind a fixed `adapt-owner:` label, because
+ * DASHBOARD_SESSION_SECRET also signs the session cookie (an expiry string,
+ * lib/auth.ts): under one key, two uses must never sign the same message.
+ * Without the server's secret it cannot be turned back into an
  * address, and nothing writes or logs the key itself. Rotating
  * DASHBOARD_SESSION_SECRET orphans every tag: the sessions already marked then
  * count toward nobody, which errs toward the people saving, and the markers
@@ -167,7 +170,11 @@ export async function ownerTag(
     false,
     ["sign"],
   );
-  const mac = await crypto.subtle.sign("HMAC", key, encoder.encode(clientKey));
+  const mac = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    encoder.encode(`adapt-owner:${clientKey}`),
+  );
   return Array.from(
     new Uint8Array(mac).subarray(0, 8),
     (b) => b.toString(16).padStart(2, "0"),
@@ -219,8 +226,8 @@ export async function handleSave(
   const body = await readJson(req);
   if (body instanceof Response) return body;
   const code = readCode(body);
-  // savedAt is optional on the wire: a page loaded before the browser sent
-  // it sends none, and the store treats that as a copy it has not seen.
+  // savedAt is optional on the wire, but no deployed page predates it: the
+  // store treats a save without it as a conflict whenever a file exists.
   const { revision, savedAt, force = false } = body;
   if (
     code === null || !Number.isSafeInteger(revision) ||

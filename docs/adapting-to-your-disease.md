@@ -891,6 +891,11 @@ on a volume. Taking them means creating the volume, as section 14 does, before
 the merge reaches your `main`, because every push there deploys; staying without
 sessions means deleting both from your `fly.toml`.
 
+The entrypoint's check that something is mounted does not protect a path under a
+directory the serving user can write (`/tmp`, `/app`): sessions kept there are
+lost at every restart, so `ADAPT_SESSIONS_DIR` must name a path on the mounted
+volume.
+
 A conflict anywhere outside this table is a bug in the seam; please report it
 upstream rather than resolving it locally. Run the checks from section 10
 afterwards. The Claude Code skill `/update-from-upstream` performs exactly this

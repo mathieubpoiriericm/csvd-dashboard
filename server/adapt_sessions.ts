@@ -38,9 +38,11 @@ export const SESSIONS_DIR_VAR = "ADAPT_SESSIONS_DIR";
  *
  * Both are checked against a listing taken under the new file's own chain,
  * not a lock on the directory, so creates in flight at once can each see
- * room for one more and overshoot either bound by the number in flight. The
- * session limiter's global limit (server/adapt_session_limiter.ts) bounds
- * how many those can be.
+ * room for one more and overshoot either bound by the number in flight. That
+ * number is bounded by the session limiter's pending reservations
+ * (server/adapt_session_limiter.ts), which stay under its global limit and,
+ * per connection, under its per-client limit (10 unless
+ * ADAPT_SESSION_PER_CLIENT_LIMIT raises it).
  */
 export const SESSION_CAP = 500;
 /**
@@ -66,7 +68,9 @@ export const SESSION_BYTES_BUDGET = 750_000_000;
  * session without a marker (saved before markers existed, or its marker
  * removed by hand) counts toward nobody. Markers count toward neither
  * SESSION_CAP nor the byte budget. Like those, the count comes from a listing,
- * so creates in flight at once can overshoot it by the number in flight.
+ * so creates in flight at once can overshoot it by the number in flight, which
+ * the session limiter's pending reservations bound: they stay under its
+ * per-client limit (10 unless ADAPT_SESSION_PER_CLIENT_LIMIT raises it).
  */
 export const SESSION_PER_CLIENT_CAP = 50;
 export const SWEEP_INTERVAL_MS = 60 * 60 * 1000;

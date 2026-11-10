@@ -98,6 +98,10 @@ export default defineConfig({
       ADAPT_SESSIONS_DIR: SESSIONS_DIR,
       // Every worker shares one client address, and a run creates more
       // sessions in a minute than the production limit of ten per client.
+      // A server reused between local runs also accumulates sessions toward
+      // SESSION_PER_CLIENT_CAP (every worker is one connection, about ten
+      // creates a run), and the session specs then fail with the quota
+      // message; restarting it empties adapt-sessions-e2e-<port> and clears it.
       ADAPT_SESSION_PER_CLIENT_LIMIT: "1000",
     },
   },

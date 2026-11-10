@@ -23,6 +23,11 @@
 # it is left alone, the server, as `deno`, cannot create it under root-owned
 # `/`, and the guide serves without sessions and says so.
 #
+# This check does not protect a path under a directory the serving user can
+# write (`/tmp`, `/app`): the server creates it itself, and sessions kept
+# there are lost at every restart, so ADAPT_SESSIONS_DIR must name a path on
+# the mounted volume.
+#
 # With ADAPT_SESSIONS_DIR unset (CI's unconfigured container, a plain local
 # `docker run`) it only drops privileges.
 
@@ -39,7 +44,7 @@ if [ -n "$dir" ]; then
   probe_dev=$(stat -L -c %d -- "$probe" 2>/dev/null || true)
   root_dev=$(stat -L -c %d / 2>/dev/null || true)
   if [ -z "$probe_dev" ] || [ "$probe_dev" = "$root_dev" ]; then
-    echo "docker-entrypoint: nothing is mounted at $dir (it would be on the container's own filesystem); leaving it uncreated, so sessions are off" >&2
+    echo "docker-entrypoint: nothing is mounted at $dir (it would be on the container's own filesystem); not preparing it" >&2
   # -h: a symlink planted at that path by `deno` (if a fork puts it under a
   # directory deno owns) must not have root chown whatever it points to.
   elif ! { mkdir -p "$dir" && chown -h deno:deno "$dir"; } 2>/dev/null; then
