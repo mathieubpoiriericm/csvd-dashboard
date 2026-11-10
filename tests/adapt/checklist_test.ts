@@ -234,6 +234,25 @@ Deno.test("step 9 names the fork's own Fly app before launching it", () => {
   ]);
 });
 
+Deno.test("step 9 creates the session volume before the first deploy, or takes sessions out of fly.toml", () => {
+  // fly.toml mounts the volume persistent_session_storage, and Fly's
+  // reference says a volume of that name "must exist in some region for the
+  // application to deploy"; created first, the first deploy cannot fail on
+  // it. A fork without saved sessions drops both lines that ask for them.
+  const text = flat(renderChecklist(EXAMPLEITIS));
+  assertInOrder(text, [
+    "## 9. Deploy",
+    "fly launch --no-deploy --copy-config",
+    "fly volumes create persistent_session_storage --region <region> --size 1",
+    "FLY_API_TOKEN",
+  ]);
+  assertStringIncludes(text, "before the first deploy");
+  assertStringIncludes(
+    text,
+    "removes the `[mounts]` section and the `ADAPT_SESSIONS_DIR` line from `fly.toml`",
+  );
+});
+
 Deno.test("step 2 unpacks the newest archive the browser saved", () => {
   const text = flat(renderChecklist(EXAMPLEITIS));
   // A second download is saved as `disease-adaptation (1).zip`, so the

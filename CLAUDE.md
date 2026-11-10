@@ -72,6 +72,13 @@ that change.
 each runner sets its own `E2E_PORT`. The `ci-runner` skill has the `CI_RUNNER`
 variable and its fallback, the machine and the parallelism.
 
+`ADAPT_SESSIONS_DIR=$(mktemp -d) deno task dev` turns on the adapt guide's saved
+sessions locally, in a directory outside the project that Vite does not watch;
+without it the guide has no Save session. The e2e server runs with sessions on,
+in a directory per port, and with `ADAPT_SESSION_PER_CLIENT_LIMIT` at 1000: its
+workers are one client to the session limiter, and a run creates more sessions a
+minute than one client may.
+
 **Playwright writes into `.playwright-mcp/` inside the project, and Vite watches
 the project.** `vite.config.ts` ignores that directory and `logs/` for exactly
 this reason. Before it did, screenshotting or logging during `deno task dev` put
@@ -186,6 +193,15 @@ the tests that exercise the complete boundary. Consequences worth remembering:
 - `tests/data_contract_test.ts` asserts against the raw committed JSON, and is
   the guardrail that proved the R-to-Python export port faithful. Keep it.
 
+**The server holds one kind of state: the adapt guide's saved sessions.** They
+are files, one per session, in the directory `ADAPT_SESSIONS_DIR` names (on Fly,
+the machine's volume), reached only through the POSTs
+`/adapt/session/{create,save,resume}` (`server/adapt_sessions.ts`). There is
+still no database, and still nothing reads the dataset at request time. With the
+variable unset, or its directory unwritable, sessions are off: the server logs
+why, and the guide works as it did before, without Save session. The `deploy`
+skill and `islands/CLAUDE.md` have the rest.
+
 ### Gene lists
 
 Three `genes` columns (references, GWAS traits, monogenic links) have been join
@@ -231,7 +247,10 @@ no store and no auth library. Three things hold everywhere: the gate in
 `DASHBOARD_PASSPHRASE` or `DASHBOARD_SESSION_SECRET` is unset, in development
 too; `/logout` is a POST guarded by `csrf()`, so do not turn it into a GET link;
 and the e2e suite runs pre-authenticated, so a spec about the logged-out state
-opts out with an empty `storageState`, as `login.spec.ts` does.
+opts out with an empty `storageState`, as `login.spec.ts` does. The adapt
+guide's three session POSTs sit behind the same gate and `csrf()`, and are
+counted by a limiter of their own (`server/adapt_session_limiter.ts`), so a
+resume cannot spend a visitor's sign-in attempts.
 
 ### Hosting
 
@@ -240,7 +259,11 @@ machine, and a push to `main` deploys it once every CI job passes. Because
 `data/*.json` is committed and bundled at build time, regenerating data and
 pushing it to `main` republishes the site — `tests/filters_test.ts`'s caveat
 about regeneration now has a production consequence as well as a test one. The
-`deploy` skill has the one-machine rule and the rest.
+adapt guide's sessions live on that machine's volume, so before a second machine
+is added `ADAPT_SESSIONS_MACHINE` must name the one holding them; otherwise a
+resume can reach a machine that never saw the save. The deploy's smoke test
+saves and resumes a real session when the repository holds `SMOKE_PASSPHRASE`.
+The `deploy` skill has the one-machine rule and the rest.
 
 ### Type graph
 

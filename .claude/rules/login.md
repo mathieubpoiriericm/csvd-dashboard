@@ -49,6 +49,20 @@ sign-out with a bare 403 while plain `csrf()` compared the two. `safeNext()`
 admits only printable ASCII after the one leading `/`: a browser drops tab, LF
 and CR from a `Location`, so `/\t/evil.example` used to redirect off-site.
 
+The only other writes are the adapt guide's `POST /adapt/session/create`,
+`/save` and `/resume`. They pass the same origin check and the same gate, so a
+signed-out guide gets the gate's redirect, which its `redirect: "manual"` fetch
+reads as "signed out". `server/adapt_session_limiter.ts` counts them on a ledger
+of its own, keyed on the same client header as the login limiter, so a visitor's
+resumes and sign-ins never spend each other's budget. It counts a resume that
+finds no session, as a wrong passphrase is counted, and every response that made
+a new session file. Unlike a correct passphrase, a resume that finds its session
+forgives nothing: anyone can create a session and so hold a valid code, and
+forgiving would let a client alternate guesses with a resume of its own code
+and never be limited. The per-client limit is 10 a minute;
+`ADAPT_SESSION_PER_CLIENT_LIMIT` raises it for the e2e server alone, and a
+malformed value stops the start.
+
 `_app.tsx` renders `/login` as a bare sheet (no navbar) and, for a verified
 session, a "Sign out" form beside the theme toggle; the flag it reads is
 `ctx.state.authenticated`, the one field in `State` (`utils.ts`).

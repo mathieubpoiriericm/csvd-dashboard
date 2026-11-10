@@ -142,12 +142,18 @@ Lookup Service and ClinicalTrials.gov. Q7's Orphadata cross-check is not among
 them; do it by hand or with the skill. It checks every answer and downloads
 `disease-adaptation.zip`, which holds the nine files of `disease/`, your logos
 under `static/institute/`, `ADAPT-CHECKLIST.md` (the steps that follow, written
-out for your disease) and `adapt-answers.json`. "Export answers" and "Import
-answers" save and restore the answers alone, so a draft can move to another
-browser or to a colleague; neither file carries your NCBI key or email. The
-checklist's step 2 unpacks the archive: it removes our logos, unzips `disease/`
-and `static/` over the clone and deletes our recall baseline. Use the page when
-nobody on the team wants to write JSON; steps 1 and 4 onwards are still yours.
+out for your disease) and `adapt-answers.json`. The buttons sit in a bar pinned
+above the steps. "Save session" keeps the answers on the server and gives you a
+resume code that opens them in any browser signed in to the same site, for 14
+days after the last save; it appears only where the server keeps sessions (run
+`deno task dev` with `ADAPT_SESSIONS_DIR` set to a directory, as
+`ADAPT_SESSIONS_DIR=$(mktemp -d) deno task dev`). "Export answers" and "Import
+answers" save and restore the answers alone as a file, so a draft can move to
+another browser or to a colleague anywhere; neither a file nor a session carries
+your NCBI key or email. The checklist's step 2 unpacks the archive: it removes
+our logos, unzips `disease/` and `static/` over the clone and deletes our recall
+baseline. Use the page when nobody on the team wants to write JSON; steps 1 and
+4 onwards are still yours.
 
 **Manual.** Follow this guide and the two files the skill itself reads:
 `.claude/skills/new-disease/interview.md` (the questions, with the exact web
@@ -822,9 +828,17 @@ Fly. Set the first two in `fly.toml` and commit, then:
 ```bash
 brew install flyctl && fly auth login
 fly launch --no-deploy --copy-config
+fly volumes create persistent_session_storage --region <region> --size 1
 fly secrets set DASHBOARD_PASSPHRASE='…' DASHBOARD_SESSION_SECRET='…'
 fly tokens create deploy
 ```
+
+The volume holds the adaptation guide's saved sessions, and `fly.toml` mounts
+it, so create it before the first deploy, in the region `primary_region` names.
+A dashboard that will not offer saved sessions skips that command and instead,
+before committing, removes the `[mounts]` section and the `ADAPT_SESSIONS_DIR`
+line from `fly.toml`; the guide then works without Save session, and Export
+answers is how a draft moves between computers.
 
 Store the token as the repository secret `FLY_API_TOKEN` on GitHub; from then on
 every push to `main` that passes CI deploys, and is checked from outside by
@@ -860,7 +874,7 @@ changing, so a merge can meet them again:
 | `disease/`                                         | Keep yours; then diff the two schemas for any new key                    |
 | The four `csvd/` test trees                        | Keep them deleted                                                        |
 | `README.md` first line                             | Keep yours                                                               |
-| `fly.toml`                                         | Keep your `app` and `primary_region`; take the rest                      |
+| `fly.toml`                                         | Keep your `app` and `primary_region`; take the rest (section 14 below)   |
 | `docs/screenshots/`                                | Recapture with `deno task screenshots`, once `data/` is yours            |
 | `tests/pipeline/cassettes/test_query_recall_gold/` | Keep yours; delete ours again if you have not recorded your own          |
 | `lib/gold_only.ts`                                 | Keep `GOLD_ONLY = false`; take the rest                                  |
@@ -871,6 +885,11 @@ changing, so a merge can meet them again:
 `lib/gold_only.ts` needs a look even when the merge is clean: if we switched
 gold-only on after you forked, our line arrives without a conflict, and
 `GOLD_ONLY` has to go back to `false` (section 7).
+
+`fly.toml`'s `[mounts]` and `ADAPT_SESSIONS_DIR` put the guide's saved sessions
+on a volume. Taking them means creating the volume, as section 14 does, before
+the merge reaches your `main`, because every push there deploys; staying without
+sessions means deleting both from your `fly.toml`.
 
 A conflict anywhere outside this table is a bug in the seam; please report it
 upstream rather than resolving it locally. Run the checks from section 10
@@ -973,5 +992,6 @@ Europe PMC and PDF traps and what each looks like in the run log.
 [ ] First commit pushed
 [ ] First live run, recall measured again, sentinels replaced, data committed
 [ ] Screenshots recaptured with deno task screenshots, committed
+[ ] Session volume created, or [mounts] and ADAPT_SESSIONS_DIR removed
 [ ] Deployed; hosting.url written and committed
 ```

@@ -1,6 +1,6 @@
 ---
 name: deploy
-description: Use when deploying the dashboard to Fly.io, setting up a fork's Fly app, or diagnosing a broken deploy - the one-machine rule the login limiter depends on, the Fly-Client-IP header, the allowlist .dockerignore, the CI deploy job and its FLY_API_TOKEN, why Fly's health check cannot see a missing login secret, the Fly-Client-IP spoof probe and its result, and retiring the old Deno Deploy project.
+description: Use when deploying the dashboard to Fly.io, setting up a fork's Fly app, or diagnosing a broken deploy - the one-machine rule the login limiter depends on, the Fly-Client-IP header, the allowlist .dockerignore, the CI deploy job and its FLY_API_TOKEN, why Fly's health check cannot see a missing login secret, the session volume and its root-owned mount, the adapt guide's saved sessions (ADAPT_SESSIONS_DIR, listing or clearing them by hand, ADAPT_SESSIONS_MACHINE before a second machine), what the deploy smoke test checks, the Fly-Client-IP spoof probe and its result, and retiring the old Deno Deploy project.
 ---
 
 # Hosting on Fly.io
@@ -24,7 +24,7 @@ the summary table. It moved there on 2 November 2026 from Deno Deploy, which
 shuts down about six months after Deno's 9 October 2026 announcement; "Retiring
 Deno Deploy" below has what is left.
 
-Six things are non-obvious enough to state here:
+Nine things are non-obvious enough to state here:
 
 - **Exactly one machine.** `server/login_post_limiter.ts` counts failed sign-ins
   in the server process: a second machine doubles the guess budget, and a
@@ -33,12 +33,42 @@ Six things are non-obvious enough to state here:
   two machines. `fly status` should list one. If it lists two,
   `fly scale count 1`. The app ran eight machines for part of 10 November 2026
   and was scaled back the same day.
-- **One volume, on that machine.** `fly.toml`'s `[mounts]` puts the 1 GB
-  `persistent_session_storage` volume at `/session_storage`. A volume attaches
-  to one machine and is not shared, so a second machine needs a volume of that
-  name in its region first and would not see this one's files. Nothing writes
-  there yet, and the volume's root belongs to root while the image runs as
-  `deno`.
+- **One volume, on that machine, holding the adapt guide's saved sessions.**
+  `fly.toml`'s `[mounts]` puts the 1 GB `persistent_session_storage` volume at
+  `/session_storage`, and its `ADAPT_SESSIONS_DIR` names
+  `/session_storage/adapt-sessions`, where `server/adapt_sessions.ts` keeps one
+  JSON file per session. A volume attaches to one machine and is not shared, so
+  a second machine needs a volume of that name in its region first and would not
+  see this one's files ("More than one machine" below). With the variable unset,
+  or the directory unwritable, the server logs `Adapt sessions are off:` and the
+  reason, and the guide serves without Save session rather than not at all.
+- **The image starts as root, and serves as `deno`.** A fresh volume mounts with
+  its root owned by root, and the server runs as `deno`, so it could not create
+  the sessions directory. The `ENTRYPOINT`, `scripts/docker-entrypoint.sh`
+  installed root-owned at `/usr/local/bin/docker-entrypoint.sh`, creates
+  `ADAPT_SESSIONS_DIR`, gives that directory alone to `deno`, sets `HOME` to
+  `deno`'s, and execs `/tini -- setpriv --reuid=deno --regid=deno
+  --init-groups` with the `CMD`. If the directory cannot be made it prints one
+  line to stderr and serves anyway. Tini stays the first process, as it was
+  under the base image's own entrypoint, and is then the only thing running as
+  root. The script lives outside `/app` because `deno` owns `/app` and could
+  otherwise rewrite what root runs at the next start, and the `deno`-owned copy
+  `COPY . .` brings into `/app/scripts` is deleted. CI's `container` job checks
+  that the first process is tini, that every `deno` process has a non-zero uid,
+  and that the entrypoint is `root 755`.
+- **The deploy's smoke test saves and resumes a real session, when it can sign
+  in.** `scripts/smoke_deploy.sh` with `SMOKE_EXPECT_SESSIONS=1` opens `/adapt`
+  and wants `data-sessions="on"`, then creates a session from
+  `scripts/smoke_session.json` (an empty export) and resumes it with the code
+  the create returned, which it never prints, even under `bash -x`. The `deploy`
+  job sets that flag when `fly.toml` has both `[mounts]` and
+  `ADAPT_SESSIONS_DIR` **and** the repository holds the live passphrase as the
+  secret `SMOKE_PASSPHRASE`, because `/adapt` sits behind the login. No such
+  secret exists today, so a production deploy prints a notice that the session
+  check was skipped; adding it makes every deploy sign in to production. Each
+  checked deploy leaves one empty session on the volume for its 14 days and
+  spends one of the session limiter's counted requests. CI's `container` job
+  always runs the check, against a Docker named volume.
 - **`LOGIN_CLIENT_IP_HEADER = "Fly-Client-IP"` in `fly.toml` is load-bearing.**
   Every request reaches the machine from Fly's proxy, so without it the limiter
   keys every visitor on the proxy's address, and five wrong guesses from anyone
@@ -93,30 +123,93 @@ These touch an account and its secrets, so the researcher runs them:
    the region nearest the readers (`fly platform regions`).
 3. `fly launch --no-deploy --copy-config` registers the app from `fly.toml`
    without building anything.
-4. `fly secrets set DASHBOARD_PASSPHRASE='…' DASHBOARD_SESSION_SECRET='…'`, in
+4. `fly volumes create persistent_session_storage --region <region> --size 1`,
+   in the `primary_region`, before the first deploy. Fly's documentation leans
+   towards a first deploy creating a missing volume itself, but its
+   configuration reference also says a volume of the `[mounts]` name "must exist
+   in _some_ region for the application to deploy"
+   (https://docs.fly.io/reference/configuration, read 10 November 2026), and
+   creating it first is harmless either way. A fork that will not offer saved
+   sessions removes `[mounts]` and `ADAPT_SESSIONS_DIR` from `fly.toml` instead
+   and skips this step.
+5. `fly secrets set DASHBOARD_PASSPHRASE='…' DASHBOARD_SESSION_SECRET='…'`, in
    the same single quotes `.env` uses. The passphrase keeps apostrophes out for
    that reason. `openssl rand -base64 32` makes the session secret. Never import
    the whole `.env`: the rest is the pipeline's database password and API keys.
-5. `fly tokens create deploy`, stored as the repository secret `FLY_API_TOKEN`
+6. `fly tokens create deploy`, stored as the repository secret `FLY_API_TOKEN`
    in GitHub. Store it in **one** repository only: this project pushes to two
    remotes, and CI's `container` job pushes the image and its `deploy` job
    releases it wherever the secret exists; where it does not, `container` pushes
    nothing and `deploy` skips with a notice.
-6. Push to `main`, or run `fly deploy --remote-only --ha=false` once by hand.
+7. Push to `main`, or run `fly deploy --remote-only --ha=false` once by hand.
    Then `scripts/smoke_deploy.sh https://<app>.fly.dev` should print seven
-   `ok` lines with `SMOKE_PASSPHRASE` set, or five and a skip without it.
+   `ok` lines with `SMOKE_PASSPHRASE` set, ten with `SMOKE_EXPECT_SESSIONS=1`
+   as well, or five and a skip without the passphrase. To have every deploy
+   check sessions, store the passphrase as the repository secret
+   `SMOKE_PASSPHRASE` too.
+
+## The adapt guide's sessions on the volume
+
+Each session is `/session_storage/adapt-sessions/<sha256>.json`, named by the
+SHA-256 of its normalised resume code (20 characters, upper case, no hyphens),
+so the directory cannot be read back into codes and nothing logs one. The file
+holds a version, the revision, `savedAt` and the answers as "Export answers"
+writes them, with the NCBI email and API key blanked by the server whatever the
+browser sent. A file's mtime is its `savedAt`; a sweep at start and then at most
+hourly, on the next session request, deletes a session 14 days after its last
+save, and a temporary file a write left behind after an hour. At 500 session
+files a create answers "full". By hand, as root:
+
+```sh
+# list, count, clear all
+fly ssh console -C "ls -l /session_storage/adapt-sessions"
+fly ssh console -C "sh -c 'ls /session_storage/adapt-sessions | wc -l'"
+fly ssh console -C "sh -c 'rm /session_storage/adapt-sessions/*.json'"
+```
+
+Clearing removes every session at once and cannot be undone; a researcher whose
+session is gone resumes from their own Export answers. One session is removed by
+its file name, which only its code gives (`printf %s <CODE> | sha256sum` on the
+normalised code): there is no index from a person or a date to a file beyond the
+mtime.
+
+## More than one machine
+
+Production is one machine, and `ADAPT_SESSIONS_MACHINE` is unset: every machine
+is then its own holder. A second machine has a volume of its own and cannot see
+the first one's files, so before adding one, set the variable to the id of the
+machine that keeps the sessions (`fly status` prints it), in `fly.toml`'s
+`[env]` or with `fly secrets set`. `server/adapt_session_holder.ts` reads it at
+start, and a value that is not 6 to 32 hexadecimal characters stops the server.
+Each machine compares it with the `FLY_MACHINE_ID` Fly sets; the others open no
+store and leave their volume alone.
+
+The page then writes the id into `data-sessions-machine`, and the guide sends
+every session request with `fly-force-instance-id: <id>`, which Fly's proxy
+routes to that machine with "No fallback if Machine is ultimately unavailable".
+A request that reaches another machine without the header, from a page served
+before the designation, is answered with a 503 carrying
+`fly-replay: instance=<id>`, which the proxy consumes and replays to the holder.
+"Requests larger than 1MB cannot be replayed"
+(https://docs.fly.io/networking/dynamic-request-routing, read 10 November
+2026), so a save carrying logos depends on the header, and without it the
+browser sees the 503 as "The session could not be reached". The replay path is
+untested against live Fly. Remember too that the login limiter counts per
+process ("Exactly one machine" above), which a second machine changes as well.
 
 ## Diagnosis
 
-| Symptom                                                   | Cause and fix                                                                                                                                                                                                                                         |
-| --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| every gated page answers 503, `/login` renders            | a login secret is unset: `fly secrets list`, then `fly secrets set` the missing one (this restarts the machine)                                                                                                                                       |
-| everyone gets "Too many sign-in attempts" at once         | `LOGIN_CLIENT_IP_HEADER` is missing from `fly.toml`'s `[env]`, or `fly status` lists more than one machine                                                                                                                                            |
-| the CI `deploy` job printed "FLY_API_TOKEN is not set"    | this repository holds no token, which is expected on the second remote and on a fork that hosts elsewhere                                                                                                                                             |
-| the `container` job's push step fails, so nothing deploys | `flyctl auth docker` or `docker push` to `registry.fly.io` was refused: check the token (`fly tokens create deploy`) and the app name in `fly.toml`; the live site keeps the previous release                                                         |
-| `deploy` fails with the image not found                   | this commit's image is not in the registry: the token was added after the run's `container` job had skipped the push and only `deploy` was re-run, or an old run's `deploy` was re-run after the image left Fly's registry. Re-run the whole workflow |
-| the CI `container` job fails at `deno task build`         | a file the build imports is missing from `.dockerignore`'s allowlist                                                                                                                                                                                  |
-| the machine starts and exits at once (`fly logs`)         | `--cached-only` met a module the build did not cache; reproduce with `container build` and `container run` (README, "Deployment")                                                                                                                     |
+| Symptom                                                          | Cause and fix                                                                                                                                                                                                                                                                                            |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| every gated page answers 503, `/login` renders                   | a login secret is unset: `fly secrets list`, then `fly secrets set` the missing one (this restarts the machine)                                                                                                                                                                                          |
+| everyone gets "Too many sign-in attempts" at once                | `LOGIN_CLIENT_IP_HEADER` is missing from `fly.toml`'s `[env]`, or `fly status` lists more than one machine                                                                                                                                                                                               |
+| the CI `deploy` job printed "FLY_API_TOKEN is not set"           | this repository holds no token, which is expected on the second remote and on a fork that hosts elsewhere                                                                                                                                                                                                |
+| the `container` job's push step fails, so nothing deploys        | `flyctl auth docker` or `docker push` to `registry.fly.io` was refused: check the token (`fly tokens create deploy`) and the app name in `fly.toml`; the live site keeps the previous release                                                                                                            |
+| `deploy` fails with the image not found                          | this commit's image is not in the registry: the token was added after the run's `container` job had skipped the push and only `deploy` was re-run, or an old run's `deploy` was re-run after the image left Fly's registry. Re-run the whole workflow                                                    |
+| the CI `container` job fails at `deno task build`                | a file the build imports is missing from `.dockerignore`'s allowlist                                                                                                                                                                                                                                     |
+| the machine starts and exits at once (`fly logs`)                | `--cached-only` met a module the build did not cache; reproduce with `container build` and `container run` (README, "Deployment")                                                                                                                                                                        |
+| Save session is missing on the live site                         | sessions are off: `fly logs` shows `Adapt sessions are off:` with the reason, and `docker-entrypoint: cannot create` if the entrypoint could not make the directory. Either `ADAPT_SESSIONS_DIR` is unset in `fly.toml`'s `[env]`, or the directory it names cannot be written, which the log line names |
+| a resume says no session answers to that code right after a save | more than one machine and no `ADAPT_SESSIONS_MACHINE`: the save and the resume reached different volumes. `fly status`; scale to one, or set the variable ("More than one machine")                                                                                                                      |
 
 **Probing whether `Fly-Client-IP` can be spoofed**, once, from a machine whose
 address may be locked out for a minute:

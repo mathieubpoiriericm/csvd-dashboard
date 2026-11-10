@@ -16,8 +16,9 @@ primary_region = "cdg"
   LOGIN_CLIENT_IP_HEADER = "Fly-Client-IP"
   # The adaptation guide's saved sessions, on the volume [mounts] puts at
   # /session_storage. Unset, or unwritable, the guide still works but cannot
-  # save on the server (server/adapt_sessions.ts), and the deploy job's smoke
-  # test fails for it.
+  # save on the server (server/adapt_sessions.ts); the deploy job's smoke test
+  # fails for it when the repository holds the SMOKE_PASSPHRASE secret it signs
+  # in with, and only notes that it did not check otherwise.
   ADAPT_SESSIONS_DIR = "/session_storage/adapt-sessions"
 
 [http_service]

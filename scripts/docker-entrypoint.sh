@@ -10,7 +10,9 @@
 # then serves without server-side sessions, which server/adapt_sessions.ts
 # logs, rather than the whole site not serving. A deploy that expects sessions
 # fails its smoke test instead (scripts/smoke_deploy.sh,
-# SMOKE_EXPECT_SESSIONS=1).
+# SMOKE_EXPECT_SESSIONS=1), when the repository holds the SMOKE_PASSPHRASE
+# secret that test signs in with; without it the deploy only notes that
+# sessions were not checked.
 #
 # With ADAPT_SESSIONS_DIR unset (CI's unconfigured container, a plain local
 # `docker run`) it only drops privileges.

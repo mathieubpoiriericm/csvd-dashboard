@@ -25,7 +25,7 @@ RUN deno task build
 # volume (fly.toml's [mounts]) with its root owned by root, so the entrypoint
 # creates ADAPT_SESSIONS_DIR there and gives it to `deno`, and only then
 # drops to `deno` with setpriv (util-linux, in the base image) to run the CMD.
-# Nothing runs as root after that exec.
+# Nothing but tini runs as root after that exec.
 #
 # The base image's entrypoint was `/tini -- docker-entrypoint.sh`, whose
 # script only prefixed `deno` to a bare subcommand; this CMD names `deno`
