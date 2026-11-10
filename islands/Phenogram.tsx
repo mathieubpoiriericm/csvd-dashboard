@@ -22,6 +22,7 @@ import {
   type GeneBlock,
 } from "../lib/phenogram.ts";
 import {
+  exportFontTexts,
   figureTextWidths,
   type KeyFont,
   layoutPhenogramKey,
@@ -118,12 +119,13 @@ export default function Phenogram({ rows = genes }: PhenogramProps = {}) {
   /** Called from the download menu's click handlers only, never during SSR. */
   const buildSvg = async (withKey: boolean): Promise<string> => {
     // A face the page has not used yet is not loaded, and canvas and SVG
-    // measurement would both fall back to a different font.
-    await Promise.all([
-      document.fonts.load('600 15px "Barlow Condensed"'),
-      document.fonts.load("400 12px Barlow"),
-      document.fonts.load("600 12px Barlow"),
-    ]);
+    // measurement would both fall back to a different font. Each face is
+    // asked for with its own text: the files are split by unicode-range.
+    await Promise.all(
+      exportFontTexts(karyogram, withKey).map(({ font, text }) =>
+        document.fonts.load(font, text)
+      ),
+    );
     await document.fonts.ready;
     // Not the live boxes: those are hinted at the page's scale, a little
     // narrower than the file's text in an editor.

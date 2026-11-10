@@ -13,6 +13,7 @@ import {
   type PhenogramLayout,
 } from "../lib/phenogram.ts";
 import {
+  exportFontTexts,
   figureTextWidths,
   KEY_FONTS,
   type KeyLayout,
@@ -403,4 +404,49 @@ Deno.test("a key wider than its minimum is untouched, and so is a wide page", ()
   assertEquals(phenogramKeyWidth(1732, margin, legend, measure), 1672);
   assertEquals(phenogramDocumentWidth(1732, margin, { width: 1672 }), 1732);
   assertEquals(phenogramDocumentWidth(188, margin, null), 188);
+});
+
+Deno.test("exportFontTexts names every character each face sets", () => {
+  const karyogram = computePhenogramLayout([
+    sampleGene({
+      gene: "G\u0141NE1",
+      chromosomalLocation: "1p36.32",
+      gwasTrait: [encoding.traits[0].key],
+    }),
+  ]);
+  const legend: PhenogramLayout["legend"] = {
+    evidence: [{ ...karyogram.legend.evidence[0], label: "Evid\u0119nce" }],
+    families: karyogram.legend.families.slice(0, 1).map((entry) => ({
+      family: { ...entry.family, label: "fam\u015b" },
+      traits: entry.traits.map((t) => ({ ...t, label: "tr\u0105it" })),
+    })),
+  };
+  const face = (texts: ReturnType<typeof exportFontTexts>, f: string) => {
+    const hit = texts.filter((t) => t.font === f);
+    assertEquals(hit.length, 1, f);
+    return hit[0].text;
+  };
+  const has = (text: string, chars: string) =>
+    [...chars].every((c) => text.includes(c));
+
+  const figure = exportFontTexts({ ...karyogram, legend }, false);
+  assertEquals(figure.map((t) => t.font).sort(), [
+    '400 9.5px "Barlow"',
+    '600 12px "Barlow"',
+  ]);
+  // The symbol and the chromosome's name are bold; the pill is regular.
+  assert(has(face(figure, '600 12px "Barlow"'), "G\u0141NE1"));
+  assert(
+    has(face(figure, '400 9.5px "Barlow"'), karyogram.blocks[0].pills[0].label),
+  );
+  assert(!face(figure, '400 9.5px "Barlow"').includes("\u0105"));
+
+  const withKey = exportFontTexts({ ...karyogram, legend }, true);
+  // The family name is drawn in capitals, so the capital is what must load.
+  assert(has(face(withKey, '600 12px "Barlow"'), "G\u0141NE1FAM\u015a"));
+  assert(has(face(withKey, '400 9.5px "Barlow"'), "tr\u0105itGWAS"));
+  assert(has(face(withKey, '400 12px "Barlow"'), "Evid\u0119nce"));
+  assert(
+    has(face(withKey, '600 15px "Barlow Condensed"'), "Supporting evidence"),
+  );
 });
