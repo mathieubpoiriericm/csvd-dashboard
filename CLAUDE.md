@@ -235,12 +235,12 @@ opts out with an empty `storageState`, as `login.spec.ts` does.
 
 ### Hosting
 
-The app runs at `https://csvd-dashboard.fly.dev` on always-on Fly.io machines,
-and a push to `main` deploys it once every CI job passes. Because `data/*.json`
-is committed and bundled at build time, regenerating data and pushing it to
-`main` republishes the site — `tests/filters_test.ts`'s caveat about
-regeneration now has a production consequence as well as a test one. The
-`deploy` skill has the machine count, the volumes and the rest.
+The app runs at `https://csvd-dashboard.fly.dev` on one always-on Fly.io
+machine, and a push to `main` deploys it once every CI job passes. Because
+`data/*.json` is committed and bundled at build time, regenerating data and
+pushing it to `main` republishes the site — `tests/filters_test.ts`'s caveat
+about regeneration now has a production consequence as well as a test one. The
+`deploy` skill has the one-machine rule and the rest.
 
 ### Type graph
 

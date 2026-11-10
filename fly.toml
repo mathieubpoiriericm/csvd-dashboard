@@ -1,5 +1,4 @@
-# Fly.io: eight always-on machines, four in Paris and four in Toronto, serving
-# the Dockerfile's image.
+# Fly.io: one always-on machine in Paris serving the Dockerfile's image.
 # `app` is also the host name, <app>.fly.dev; a fork changes it (and may change
 # the region) before `fly launch --no-deploy --copy-config`. The deploy skill
 # (.claude/skills/deploy/SKILL.md) has the setup and the diagnosis.
@@ -19,12 +18,10 @@ primary_region = "cdg"
 [http_service]
   internal_port = 8000
   force_https = true
-  # Always on. The login limiter's counters live in the server process, so
-  # each machine counts on its own and a stopped one would forget its count:
-  # with N machines a visitor can spend up to N times the per-client budget,
-  # and the global limit is N times 64 a minute. The machine count is set on
-  # Fly, not here (eight since 10 November 2026). CI deploys with --ha=false,
-  # which only keeps a first deploy from creating two machines by default.
+  # Always on, and exactly one machine. The login limiter's counters live in
+  # the server process, so a second machine would double the guess budget and
+  # a stopped one would forget it. CI deploys with --ha=false, which keeps
+  # the first deploy from creating the two machines Fly makes by default.
   auto_stop_machines = "off"
   auto_start_machines = true
   min_machines_running = 1
@@ -42,10 +39,10 @@ primary_region = "cdg"
     path = "/login"
     timeout = "5s"
 
-# One volume per machine: a volume attaches to a single machine and is not
-# shared, so what one machine writes here no other machine sees. Each machine
-# takes a volume of this name in its own region, created by hand before the
-# machine (`fly volumes create persistent_session_storage --region <region>`).
+# The machine's one volume, 1 GB, created by hand before the machine
+# (`fly volumes create persistent_session_storage --region cdg --size 1`).
+# A volume attaches to a single machine and is not shared, so a second machine
+# would need a volume of its own and would not see what this one holds.
 # Nothing in the app writes to it yet. The image runs as the `deno` user and a
 # fresh volume's root belongs to root, so whatever writes here first has to
 # own the directory.
@@ -54,6 +51,5 @@ primary_region = "cdg"
   destination = "/session_storage"
 
 [[vm]]
-  size = "shared-cpu-2x"
-  memory = "1gb"
-  processes = ["app"]
+  size = "shared-cpu-1x"
+  memory = "512mb"

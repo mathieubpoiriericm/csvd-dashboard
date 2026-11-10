@@ -659,8 +659,8 @@ repository sends them to a machine of its own (the `ci-runner` skill,
 
 The dashboard is hosted at **<https://csvd-dashboard.fly.dev>**. It is built
 into a container image by the root `Dockerfile` and runs on
-[Fly.io](https://fly.io) as always-on machines in Paris and Toronto, configured
-by `fly.toml`. It moved there on 2 November 2026 from Deno Deploy, which Deno
+[Fly.io](https://fly.io) as one always-on machine in Paris, configured by
+`fly.toml`. It moved there on 2 November 2026 from Deno Deploy, which Deno
 announced on 9 October 2026 would shut down six months later.
 
 Pushing to `main` deploys it once every other CI job has passed: the `container`
@@ -673,24 +673,20 @@ deploy nothing, and there are no preview URLs. Because `data/*.json` is
 committed and bundled at build time, regenerating data and pushing it to `main`
 republishes the site.
 
-| Where           | What it holds                                                                                                                |
-| --------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `fly.toml`      | the app name (also the host name, `<app>.fly.dev`), region `cdg`, 1 GB `shared-cpu-2x` machines, always on, a volume each    |
-| `Dockerfile`    | `denoland/deno:2.9.8`; `deno install --frozen`, `deno task build`, then `deno serve --cached-only`                           |
-| `.dockerignore` | an allowlist of what the build reads                                                                                         |
-| `FLY_API_TOKEN` | a GitHub Actions secret (`fly tokens create deploy`); without it the `container` job pushes nothing and the deploy job skips |
+| Where           | What it holds                                                                                                                  |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `fly.toml`      | the app name (also the host name, `<app>.fly.dev`), region `cdg`, one 512 MB `shared-cpu-1x` machine, always on, a 1 GB volume |
+| `Dockerfile`    | `denoland/deno:2.9.8`; `deno install --frozen`, `deno task build`, then `deno serve --cached-only`                             |
+| `.dockerignore` | an allowlist of what the build reads                                                                                           |
+| `FLY_API_TOKEN` | a GitHub Actions secret (`fly tokens create deploy`); without it the `container` job pushes nothing and the deploy job skips   |
 
 The machine costs about $3.69 a month at Fly's November 2026 prices.
 
-**Eight machines, and the login limiter counts on each.** Since 10 November 2026
-the app runs four machines in Paris (`cdg`) and four in Toronto (`yyz`), each
-with a 1 GB volume of its own mounted at `/session_storage`; a volume is not
-shared between machines, and nothing writes to it yet. The login limiter counts
-failed sign-ins in the server process, so every machine counts separately and a
-stopped one would forget its count: a visitor can spend up to eight times the
-per-client budget, and the global limit is eight times 64 a minute. `fly.toml`
-keeps the machines always on, and `--ha=false` only stops a first deploy from
-creating the pair Fly makes by default.
+**Exactly one machine.** The login limiter counts failed sign-ins in the server
+process, so a second machine would double the guess budget and a stopped one
+would forget it. `fly.toml` keeps the machine always on, and `--ha=false` stops
+a first deploy from creating the pair Fly makes by default; `fly status` should
+list one.
 
 **`LOGIN_CLIENT_IP_HEADER` stays set.** Every request reaches the machine from
 Fly's proxy, so without `fly.toml`'s `LOGIN_CLIENT_IP_HEADER = "Fly-Client-IP"`
