@@ -167,7 +167,7 @@ for (const viewport of [PHONE, DESKTOP]) {
     }
     await page.getByRole("button", { name: "Review", exact: true }).click();
     page.once("dialog", (dialog) => dialog.accept());
-    // Below 900px Start over sits in the bar's popover, behind More.
+    // Below 1100px Start over sits in the bar's popover, behind More.
     const more = page.getByRole("button", { name: "More" });
     if (await more.isVisible()) await more.click();
     await page.getByRole("button", { name: "Start over" }).click();

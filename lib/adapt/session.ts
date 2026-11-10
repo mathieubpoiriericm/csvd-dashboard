@@ -113,7 +113,7 @@ export const SESSION_COPY = {
   greetingResume: "I have a resume code",
   codeTitle: "Your resume code",
   codeBody:
-    "Write this down or copy it. It is the only way back to this session, and it stays in the bar above while you work. If you lose it, Export answers is your backup. A session is deleted 14 days after its last save.",
+    "Write this down or copy it. It is the only way back to this session, and it stays one click away in the bar above while you work. If you lose it, Export answers is your backup. A session is deleted 14 days after its last save.",
   resumeTitle: "Resume a session",
   resumeAction: "Resume",
   unknown:

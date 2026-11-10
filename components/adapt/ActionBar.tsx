@@ -1,5 +1,11 @@
 import { useEffect, useId, useRef } from "preact/hooks";
-import { autoUpdate, computePosition, offset, shift } from "@floating-ui/dom";
+import {
+  autoUpdate,
+  computePosition,
+  offset,
+  type Placement,
+  shift,
+} from "@floating-ui/dom";
 
 import { BUNDLE_NAME } from "../../lib/adapt/bundle.ts";
 
@@ -30,10 +36,90 @@ export interface ActionBarProps {
 }
 
 /**
+ * A `[popover]` panel placed under the button that opens it, by Floating UI
+ * as the tooltips are (see .claude/rules/tooltips.md), so it follows the
+ * button at any bar height rather than at a height the stylesheet guessed.
+ * A panel the stylesheet lays out in the bar never opens, so this never
+ * runs for it. `present` is whether the pair is rendered at all.
+ */
+function usePlacedPopover(placement: Placement, present: boolean) {
+  const toggle = useRef<HTMLButtonElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const button = toggle.current;
+    const pop = panel.current;
+    if (!button || !pop) return;
+    let stop: (() => void) | null = null;
+    const onToggle = (e: Event) => {
+      stop?.();
+      stop = null;
+      pop.classList.remove("is-placed");
+      if ((e as ToggleEvent).newState !== "open") return;
+      stop = autoUpdate(button, pop, async () => {
+        const { x, y } = await computePosition(button, pop, {
+          strategy: "fixed",
+          placement,
+          middleware: [offset(8), shift({ padding: 8 })],
+        });
+        if (!pop.matches(":popover-open")) return;
+        pop.style.left = `${x}px`;
+        pop.style.top = `${y}px`;
+        pop.classList.add("is-placed");
+      });
+    };
+    pop.addEventListener("toggle", onToggle);
+    return () => {
+      pop.removeEventListener("toggle", onToggle);
+      stop?.();
+    };
+  }, [present]);
+  return [toggle, panel] as const;
+}
+
+/**
+ * The session's code, its copy, how long it is kept and the way into
+ * another session: behind the Session button on a wide screen, first in
+ * More on a narrow one. The stylesheet shows exactly one of the two, and
+ * neither holds an id, so rendering it twice repeats none.
+ */
+function SessionDetails({ session }: { session: ActionBarSession }) {
+  return (
+    <div class="adapt-bar-details">
+      {session.code !== null && (
+        <div class="adapt-bar-code">
+          <code>{session.code}</code>
+          <button
+            type="button"
+            class="adapt-button"
+            onClick={() => {
+              // A refused clipboard must not surface as an unhandled
+              // rejection; the code is on screen to select.
+              navigator.clipboard?.writeText(session.code ?? "")?.catch(
+                () => {},
+              );
+            }}
+          >
+            Copy code
+          </button>
+          {session.keptUntil !== null && (
+            <span class="adapt-bar-kept">{session.keptUntil}</span>
+          )}
+        </div>
+      )}
+      <button type="button" class="adapt-button" onClick={session.onResume}>
+        I have a resume code
+      </button>
+    </div>
+  );
+}
+
+/**
  * The wizard's buttons, pinned above the stepper so they are on every step.
  * The primary group is always on screen; the rest sit in a `[popover]` that
  * a More button opens on a narrow screen and that the stylesheet lays out
- * inline in the bar on a wide one.
+ * inline in the bar on a wide one. The session's details never sit on the
+ * row, which they would wrap to three lines at every width: wide, a Session
+ * button opens them in a popover of their own; narrow, they head More.
  */
 export function ActionBar(
   {
@@ -53,41 +139,14 @@ export function ActionBar(
   // focus would otherwise land on a control nobody can see.
   const importInput = useRef<HTMLInputElement>(null);
   const moreId = useId();
-  const toggle = useRef<HTMLButtonElement>(null);
-  const more = useRef<HTMLDivElement>(null);
-  // Below 900px the panel is a popover in the top layer, placed under its
-  // More button by Floating UI as the tooltips are (see
-  // .claude/rules/tooltips.md), so it follows the button at any bar height
-  // rather than at a height the stylesheet guessed. Wide, the panel is
-  // static in the bar and never opens, so this never runs.
-  useEffect(() => {
-    const button = toggle.current;
-    const pop = more.current;
-    if (!button || !pop) return;
-    let stop: (() => void) | null = null;
-    const onToggle = (e: Event) => {
-      stop?.();
-      stop = null;
-      pop.classList.remove("is-placed");
-      if ((e as ToggleEvent).newState !== "open") return;
-      stop = autoUpdate(button, pop, async () => {
-        const { x, y } = await computePosition(button, pop, {
-          strategy: "fixed",
-          placement: "bottom-end",
-          middleware: [offset(8), shift({ padding: 8 })],
-        });
-        if (!pop.matches(":popover-open")) return;
-        pop.style.left = `${x}px`;
-        pop.style.top = `${y}px`;
-        pop.classList.add("is-placed");
-      });
-    };
-    pop.addEventListener("toggle", onToggle);
-    return () => {
-      pop.removeEventListener("toggle", onToggle);
-      stop?.();
-    };
-  }, []);
+  const sessionId = useId();
+  // Below 1100px the More panel is a popover; at 1100px and up the Session
+  // panel is. Each opens under its own button.
+  const [toggle, more] = usePlacedPopover("bottom-end", true);
+  const [sessionToggle, sessionPanel] = usePlacedPopover(
+    "bottom-start",
+    session !== null,
+  );
   return (
     <div class="adapt-bar">
       {session !== null && (
@@ -105,6 +164,24 @@ export function ActionBar(
               {session.indicator.text}
             </span>
           )}
+          <button
+            type="button"
+            class="adapt-button adapt-bar-session-toggle"
+            ref={sessionToggle}
+            popovertarget={sessionId}
+          >
+            Session
+          </button>
+        </div>
+      )}
+      {session !== null && (
+        <div
+          class="adapt-bar-session"
+          popover
+          id={sessionId}
+          ref={sessionPanel}
+        >
+          <SessionDetails session={session} />
         </div>
       )}
       <button
@@ -116,32 +193,7 @@ export function ActionBar(
         More
       </button>
       <div class="adapt-bar-more" popover id={moreId} ref={more}>
-        {session !== null && session.code !== null && (
-          <div class="adapt-bar-code">
-            <code>{session.code}</code>
-            <button
-              type="button"
-              class="adapt-button"
-              onClick={() => {
-                // A refused clipboard must not surface as an unhandled
-                // rejection; the code is on screen to select.
-                navigator.clipboard?.writeText(session.code ?? "")?.catch(
-                  () => {},
-                );
-              }}
-            >
-              Copy code
-            </button>
-            {session.keptUntil !== null && (
-              <span class="adapt-bar-kept">{session.keptUntil}</span>
-            )}
-          </div>
-        )}
-        {session !== null && (
-          <button type="button" class="adapt-button" onClick={session.onResume}>
-            I have a resume code
-          </button>
-        )}
+        {session !== null && <SessionDetails session={session} />}
         <button type="button" class="adapt-button" onClick={onExport}>
           Export answers
         </button>

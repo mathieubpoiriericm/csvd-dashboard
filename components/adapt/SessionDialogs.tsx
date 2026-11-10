@@ -271,11 +271,28 @@ export function WelcomeBack(
   const items = remaining.reduce((n, r) => n + r.count, 0);
   const doneId = useId();
   const leftId = useId();
+  // The screen replaces the step the researcher was on, so its heading takes
+  // focus as a new step's does: it scrolls into view and is announced. Not
+  // in a layout effect, as a step heading's is: the resume window closes in
+  // the same commit, in a layout effect of its own that runs after this
+  // one, and until then the page is inert under it and focus cannot land;
+  // its close() then hands focus back to the button that opened it. The
+  // passive effect runs after both, and the screen has no field a click
+  // could have reached first.
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    heading.current?.focus();
+  }, []);
   return (
     <section class="adapt-welcome">
-      <p class="adapt-welcome-saved">
-        last saved {lastSaved} · {keptUntil}
-      </p>
+      <header>
+        <h2 class="adapt-welcome-title" ref={heading} tabIndex={-1}>
+          Welcome back
+        </h2>
+        <p class="adapt-welcome-saved">
+          last saved {lastSaved} · {keptUntil}
+        </p>
+      </header>
       <div class="adapt-welcome-panels">
         <section
           class="adapt-welcome-panel adapt-welcome-done"

@@ -560,6 +560,27 @@ Deno.test("the action bar holds the four buttons and no session controls when se
   assertStringIncludes(download(blocked), "disabled");
 });
 
+/**
+ * The wide Session popover, opened by the Session button its
+ * `popovertarget` names, and the narrow More panel.
+ */
+function barPanels(html: string) {
+  const target = html.match(
+    /<button[^>]*popovertarget="([^"]+)"[^>]*>Session<\/button>/,
+  )?.[1];
+  assert(target !== undefined, html);
+  const start = html.indexOf(
+    `<div class="adapt-bar-session" popover id="${target}"`,
+  );
+  assert(start !== -1, html);
+  const toggle = html.indexOf('class="adapt-button adapt-bar-toggle"');
+  assert(toggle > start, html);
+  return {
+    session: html.slice(start, toggle),
+    more: html.slice(html.indexOf('class="adapt-bar-more"')),
+  };
+}
+
 Deno.test("the action bar with a session holds Save session, its state and its code", () => {
   const session = {
     onSave: () => {},
@@ -579,16 +600,24 @@ Deno.test("the action bar with a session holds Save session, its state and its c
     primary,
     '<span class="adapt-bar-indicator is-danger">Unsaved changes</span>',
   );
-  // The code, its copy and its expiry, then the resume entry, all in the
-  // group More opens on a narrow screen.
-  const more = html.slice(html.indexOf('class="adapt-bar-more"'));
-  assertStringIncludes(more, "<code>ABCDE-FGHJK-MNPQR-STVWX</code>");
-  assertStringIncludes(more, "Copy code");
-  assertStringIncludes(
-    more,
-    '<span class="adapt-bar-kept">kept until 8 Dec 2026</span>',
-  );
-  assertStringIncludes(more, "I have a resume code");
+  // The code, its copy, its expiry and the resume entry are behind a
+  // Session button on a wide screen and first in More on a narrow one;
+  // neither is on the bar's row.
+  const { session: wide, more } = barPanels(html);
+  for (const panel of [wide, more]) {
+    assertStringIncludes(panel, "<code>ABCDE-FGHJK-MNPQR-STVWX</code>");
+    assertEquals(count(panel, ">Copy code</button>"), 1);
+    assertStringIncludes(
+      panel,
+      '<span class="adapt-bar-kept">kept until 8 Dec 2026</span>',
+    );
+    assertEquals(count(panel, ">I have a resume code</button>"), 1);
+  }
+  assert(more.indexOf("adapt-bar-details") < more.indexOf("Export answers"));
+  assert(!primary.includes("<code>"), primary);
+  // The one block twice, and no id twice.
+  const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map((m) => m[1]);
+  assertEquals(new Set(ids).size, ids.length);
   // While a save runs the button is disabled, and an unattached session
   // shows no indicator and no code.
   const busy = renderToString(
@@ -606,7 +635,19 @@ Deno.test("the action bar with a session holds Save session, its state and its c
   assertMatch(busy, /<button[^>]*disabled[^>]*>Save session<\/button>/);
   assert(!busy.includes("adapt-bar-indicator"), busy);
   assert(!busy.includes("adapt-bar-code"), busy);
-  assertStringIncludes(busy, "I have a resume code");
+  const unattached = barPanels(busy);
+  for (const panel of [unattached.session, unattached.more]) {
+    assertEquals(count(panel, ">I have a resume code</button>"), 1);
+    assert(!panel.includes("Copy code"), panel);
+    assert(!panel.includes("adapt-bar-kept"), panel);
+  }
+});
+
+Deno.test("the action bar has no Session button when sessions are off", () => {
+  const html = renderToString(<ActionBar {...BAR} />);
+  assert(!html.includes("adapt-bar-session"), html);
+  assert(!html.includes(">Session</button>"), html);
+  assert(!html.includes("adapt-bar-details"), html);
 });
 
 Deno.test("the action bar's secondary group is a popover a More button opens", () => {
@@ -660,6 +701,11 @@ Deno.test("the code dialog shows the formatted code, a Copy button and Done", ()
   );
   assertEquals(dialogHeading(html), SESSION_COPY.codeTitle);
   assertStringIncludes(html, SESSION_COPY.codeBody);
+  // The code is behind the bar's Session button, not on its row.
+  assertStringIncludes(
+    SESSION_COPY.codeBody,
+    "it stays one click away in the bar above while you work",
+  );
   assertStringIncludes(html, formatCode("ABCDEFGHJKMNPQRSTVWX"));
   assertStringIncludes(html, "kept until 24 Nov 2026");
   assertStringIncludes(html, ">Copy code</button>");
@@ -715,6 +761,11 @@ Deno.test("the welcome-back screen lists the finished steps and what the last on
   const o = overview(answers);
   const html = welcome(o);
   assertStringIncludes(html, "last saved 24 Nov 2026 at 16:42");
+  // Its heading is what takes focus as the screen appears.
+  assertMatch(
+    html,
+    /<h2 class="adapt-welcome-title"\s+tabindex="-1"\s*>Welcome back<\/h2>/i,
+  );
   assertStringIncludes(html, "kept until 8 Dec 2026");
   const done = panel(html, "adapt-welcome-done");
   assertStringIncludes(done, "Completed");

@@ -2699,10 +2699,33 @@ svg {
   color: var(--svd-text-muted);
 }
 
-/* Below 900px the group is the native popover its More button opens, in the
+/* The session's details: the code with its copy and expiry, and the way into
+   another session. A column of their own, in whichever panel shows them. */
+.adapt-bar-details {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--svd-space-2);
+}
+
+/* First in More, ruled off from the four buttons below them. */
+.adapt-bar-more > .adapt-bar-details {
+  padding-bottom: var(--svd-space-3);
+  border-bottom: 1px solid var(--svd-border);
+}
+
+/* The Session button opens the details on a wide screen only; narrow, they
+   head More instead. */
+.adapt-bar-session-toggle {
+  display: none;
+}
+
+/* Below 1100px the group is the native popover its More button opens, in the
    top layer under the navbar; the UA's panel box is undone so it is a plain
-   column of buttons on the card colour. */
-.adapt-bar-more {
+   column of buttons on the card colour. The Session panel, at 1100px and up,
+   is the same box. */
+.adapt-bar-more,
+.adapt-bar-session {
   inset: auto;
   margin: 0;
   padding: var(--svd-space-3);
@@ -2713,7 +2736,8 @@ svg {
   box-shadow: var(--svd-shadow-md);
 }
 
-.adapt-bar-more:popover-open {
+.adapt-bar-more:popover-open,
+.adapt-bar-session:popover-open {
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -2724,21 +2748,40 @@ svg {
      truly cannot fit, as on a landscape phone. */
   max-height: calc(100dvh - 2 * var(--svd-space-2));
   overflow-y: auto;
-  /* Placed by ActionBar.tsx under its More button; unseen until then, so
-     it does not paint once at the UA's position. */
+  /* Placed by ActionBar.tsx under its button; unseen until then, so it
+     does not paint once at the UA's position. */
   visibility: hidden;
 }
 
-.adapt-bar-more.is-placed {
+.adapt-bar-more.is-placed,
+.adapt-bar-session.is-placed {
   visibility: visible;
 }
 
 /* Wide, the group is laid out in the bar and More is not needed. `display`
    is set on the closed state here on purpose, to override the UA's
-   [popover]:not(:popover-open) hiding. */
-@media (min-width: 900px) {
+   [popover]:not(:popover-open) hiding. The session's details stay off the
+   row, behind the Session button: on it they wrapped the bar to three rows
+   at every width, the contained page being 1152px at most and the full row
+   1431px. Without them the wide row, Session button and "Unsaved changes"
+   included, is 897px: one row only from a 937px viewport, so it waits for
+   1100px, and below that Save session, its indicator and More are the row. */
+@media (min-width: 1100px) {
   .adapt-bar-toggle {
     display: none;
+  }
+
+  .adapt-bar-session-toggle {
+    display: inline-block;
+  }
+
+  .adapt-bar-more > .adapt-bar-details {
+    display: none;
+  }
+
+  /* With the session's group on its left, the four buttons sit right. */
+  .adapt-bar-primary ~ .adapt-bar-more {
+    margin-inline-start: auto;
   }
 
   .adapt-bar-more,
@@ -3067,7 +3110,8 @@ svg {
   gap: var(--svd-space-4);
 }
 
-.adapt-step-title {
+.adapt-step-title,
+.adapt-welcome-title {
   margin: 0;
   font-family: var(--svd-font-heading);
   font-size: var(--svd-text-2xl);
