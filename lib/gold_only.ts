@@ -23,6 +23,10 @@
  *    (`git checkout 06df770 -- tests/csvd e2e/tests/csvd tests/pipeline/csvd
  *    tests/scripts/csvd`) and re-pin what the lasting changes below move.
  *
+ * A fork for another disease takes step 1 alone, before its first run
+ * (docs/adapting-to-your-disease.md, section 7): the dump, the export and
+ * the `csvd/` trees of steps 2 to 4 are this repository's own.
+ *
  * These changes outlast the switch, and the undo keeps them:
  *
  * - the export publishes a protein as stored; it no longer rewrites a protein

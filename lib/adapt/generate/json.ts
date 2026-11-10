@@ -39,6 +39,18 @@ export function clean(value: string): string {
   return trim(value).normalize("NFC");
 }
 
+/**
+ * An answer on one line, for the Markdown the README and the checklist
+ * are. validate() refuses a line break in every answer written there, and
+ * the archive is built from a draft that passes; were one to arrive all
+ * the same -- an imported draft reaches the Review step's copy -- the text
+ * after it would open a block of its own: a heading, a table row, a
+ * command.
+ */
+export function oneLine(value: string): string {
+  return clean(value).replace(/\s+/g, " ");
+}
+
 /** A record with every string value through clean(), keys and order kept. */
 export function cleanAll<T extends object>(record: T): T {
   return Object.fromEntries(

