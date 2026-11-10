@@ -10,6 +10,7 @@ import { MiniRadar } from "../components/timeline/MiniRadar.tsx";
 import { PhaseList } from "../components/timeline/PhaseList.tsx";
 import { computeTimelineLayout, encoding } from "../lib/timeline.ts";
 import { sampleTrial } from "./fixtures/rows.ts";
+import { escapeHtml } from "./helpers/html.ts";
 
 const POP_A = encoding.populations[0].key;
 // Two populations of the test's own, because a disease may declare only one.
@@ -121,7 +122,10 @@ Deno.test("the small radar marks the active trial only", () => {
 Deno.test("the small radar's legend omits empty sectors", () => {
   const html = mini(null);
   assertEquals(html.match(/<li[ >]/g)?.length, 1);
-  assertStringIncludes(html, encoding.populations[0].label.join(" "));
+  assertStringIncludes(
+    html,
+    escapeHtml(encoding.populations[0].label.join(" ")),
+  );
   const two = computeTimelineLayout([
     trial("A", P_OUTER),
     trial("B", P_OUTER, POP_B),

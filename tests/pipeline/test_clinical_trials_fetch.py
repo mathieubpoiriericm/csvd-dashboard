@@ -674,11 +674,21 @@ class TestIsDiseaseStudy:
         d = load_disease()
         assert is_disease_study(self._study(d.ct_condition_substrings[0].upper()))
 
-    def test_a_condition_pair_is_matched_inside_one_string(self):
-        d = load_disease()
-        first, second = d.ct_condition_pairs[0]
-        assert is_disease_study(self._study(f"{first} something {second}"))
-        assert not is_disease_study(self._study(first, second))
+    def test_a_condition_pair_is_matched_inside_one_string(self, monkeypatch):
+        # The vocabulary is the test's own: a disease may list no pair at
+        # all, and a pair word that holds one of its condition substrings
+        # is kept on that substring alone, wherever the other word sits.
+        import pipeline.clinical_trials_fetch as fetch
+
+        monkeypatch.setattr(fetch, "_FOLDED_CONDITIONS", ("alpha",))
+        monkeypatch.setattr(fetch, "_FOLDED_PAIRS", (("beta", "gamma"),))
+        assert is_disease_study(self._study("Gamma something, Beta"))
+        assert not is_disease_study(self._study("Beta", "Gamma"))
+
+    def test_every_listed_condition_pair_is_kept(self):
+        """The disease's own pairs reach the gate; there may be none."""
+        for first, second in load_disease().ct_condition_pairs:
+            assert is_disease_study(self._study(f"{first} something {second}"))
 
     def test_an_unrelated_condition_is_dropped(self):
         assert not is_disease_study(self._study("Common Cold"))

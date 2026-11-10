@@ -15,6 +15,7 @@ import { AcronymText } from "../components/AcronymText.tsx";
 import { OmicsEntryView } from "../components/OmicsEntryView.tsx";
 import { Tooltip } from "../components/Tooltip.tsx";
 import {
+  DEFAULT_PAGE_SIZE,
   selectShellState,
   SHELL_FEATURES,
   type ShellFeatures,
@@ -297,7 +298,8 @@ function cellTypesText(value: string): string {
   return chains
     .map(({ label, parts, separators }) => {
       const chain = parts
-        .map(cellTypeText)
+        // Not `.map(cellTypeText)`: its second parameter is a glossary.
+        .map((part) => cellTypeText(part))
         .map((part, i) => i > 0 ? `${separators[i - 1] ?? ">"} ${part}` : part)
         .join(" ");
       return label === null ? chain : `${label}: ${chain}`;
@@ -523,7 +525,9 @@ export default function GenesView(
     features: SHELL_FEATURES,
     data: filtered,
     columns: goldOnly ? GOLD_COLUMNS : COLUMNS,
-    initialState: { pagination: { pageIndex: 0, pageSize: 10 } },
+    initialState: {
+      pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE },
+    },
     // A column's key is `undefined` exactly where its cell shows the absent
     // dash (`presentOrUndefined`), and those rows sort last either way.
     defaultColumn: { sortUndefined: "last" },

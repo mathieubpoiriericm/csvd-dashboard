@@ -212,6 +212,9 @@ class TestValidateToolInput:
         Strict tool use should make an off-vocabulary trait impossible on
         the wire; this is what catches one arriving anyway -- from the
         batch path, a retry, or a schema that stopped being sent.
+
+        The value holds a comma because no trait key can: any plain phrase
+        is one some disease's vocabulary may declare.
         """
         with pytest.raises(ValidationError):
             ExtractionResult.model_validate(
@@ -220,7 +223,7 @@ class TestValidateToolInput:
                         {
                             "gene_symbol": "X",
                             "confidence": 0.9,
-                            "gwas_trait": ["white matter hyperintensities"],
+                            "gwas_trait": ["not a trait, in any vocabulary"],
                             "source_quote": "X was associated with WMH (p=1e-8).",
                         }
                     ]

@@ -197,10 +197,11 @@ export function referenceTooltip(
 // ABBREVIATIONS
 // -----------------------------------------------------------------------------
 
-/** `Matrix, PC`: a subtype qualifier, then the abbreviation it qualifies. */
-const SUBTYPED_CELL_TYPE = /^(.+?),\s*(\S+)$/;
 /** `Exc Neu (allen brain atlas)`: an abbreviation, then a note on its source. */
 const NOTED_CELL_TYPE = /^(.+?)\s*(\([^()]*\))$/;
+
+/** Abbreviation → full name; the manifest's unless a caller brings its own. */
+type CellTypeGlossary = Readonly<Record<string, string>>;
 
 /**
  * One cell type split into the subtype qualifying it, if any, and the
@@ -208,21 +209,35 @@ const NOTED_CELL_TYPE = /^(.+?)\s*(\([^()]*\))$/;
  *
  * The comma is the stored form's and stays there, because it is what marks
  * where the subtype ends: an abbreviation can itself hold a space (`Exc Neu`).
- * It is only read as a subtype when the glossary defines what follows it, so
- * free text holding a comma comes back whole, with no subtype.
+ * So the glossary decides where that is, never the abbreviation's spelling --
+ * a pattern that took the abbreviation to be one unbroken word left
+ * `Venous, Exc Neu` whole, with no tooltip. The subtype ends at the first
+ * comma the glossary defines everything after; a part with no such comma
+ * (free text, or one that is itself an abbreviation) comes back whole, with
+ * no subtype.
  */
 export function splitSubtype(
   part: string,
+  glossary: CellTypeGlossary = CELL_TYPE_NAMES,
 ): { subtype: string | null; abbreviation: string } {
-  const subtyped = SUBTYPED_CELL_TYPE.exec(part);
-  return subtyped && Object.hasOwn(CELL_TYPE_NAMES, subtyped[2])
-    ? { subtype: subtyped[1].trim(), abbreviation: subtyped[2] }
-    : { subtype: null, abbreviation: part };
+  const whole = { subtype: null, abbreviation: part };
+  if (Object.hasOwn(glossary, part)) return whole;
+  for (let at = part.indexOf(","); at !== -1; at = part.indexOf(",", at + 1)) {
+    const subtype = part.slice(0, at).trim();
+    const abbreviation = part.slice(at + 1).trim();
+    if (subtype !== "" && Object.hasOwn(glossary, abbreviation)) {
+      return { subtype, abbreviation };
+    }
+  }
+  return whole;
 }
 
 /** A cell type as the cell prints it: `Matrix PC` for the stored `Matrix, PC`. */
-export function cellTypeText(part: string): string {
-  const { subtype, abbreviation } = splitSubtype(part);
+export function cellTypeText(
+  part: string,
+  glossary: CellTypeGlossary = CELL_TYPE_NAMES,
+): string {
+  const { subtype, abbreviation } = splitSubtype(part, glossary);
   return subtype === null ? abbreviation : `${subtype} ${abbreviation}`;
 }
 
@@ -230,28 +245,31 @@ export function cellTypeText(part: string): string {
  * Expansion for one brain cell type: a bare abbreviation (`PC`), a subtype of
  * one (`Matrix, PC` -> "Matrix Pericytes", under the printed `Matrix PC`), or
  * one followed by a parenthesised note (`Exc Neu (allen brain atlas)`), which
- * the expansion keeps.
+ * the expansion keeps. The glossary defaults to the manifest's.
  */
-export function cellTypeTooltip(part: string): TooltipContent | null {
-  if (Object.hasOwn(CELL_TYPE_NAMES, part)) {
-    return { rows: [{ label: part, value: CELL_TYPE_NAMES[part] }] };
+export function cellTypeTooltip(
+  part: string,
+  glossary: CellTypeGlossary = CELL_TYPE_NAMES,
+): TooltipContent | null {
+  if (Object.hasOwn(glossary, part)) {
+    return { rows: [{ label: part, value: glossary[part] }] };
   }
-  const { subtype, abbreviation } = splitSubtype(part);
+  const { subtype, abbreviation } = splitSubtype(part, glossary);
   if (subtype !== null) {
     return {
       rows: [{
-        label: cellTypeText(part),
-        value: `${subtype} ${CELL_TYPE_NAMES[abbreviation]}`,
+        label: `${subtype} ${abbreviation}`,
+        value: `${subtype} ${glossary[abbreviation]}`,
       }],
     };
   }
   const noted = NOTED_CELL_TYPE.exec(part);
-  if (noted && Object.hasOwn(CELL_TYPE_NAMES, noted[1])) {
+  if (noted && Object.hasOwn(glossary, noted[1])) {
     const [, abbreviation, note] = noted;
     return {
       rows: [{
         label: abbreviation,
-        value: `${CELL_TYPE_NAMES[abbreviation]} ${note}`,
+        value: `${glossary[abbreviation]} ${note}`,
       }],
     };
   }

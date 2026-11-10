@@ -136,6 +136,9 @@ interface TableShellProps<TData extends RowData> {
 
 const PAGE_SIZES = [10, 25, 50, 100];
 
+/** The page size both tables open on: the first the selector offers. */
+export const DEFAULT_PAGE_SIZE = PAGE_SIZES[0];
+
 /**
  * New rows drawn in the frame that answers an interaction; the rest of the
  * page follows once that frame has painted (lib/row_batches.ts). Twenty

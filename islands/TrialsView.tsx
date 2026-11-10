@@ -20,6 +20,7 @@ import { useCheckboxFilters } from "../components/useCheckboxFilters.ts";
 import { DensityReadout } from "../components/DensityReadout.tsx";
 import { FilterPanel } from "../components/FilterPanel.tsx";
 import {
+  DEFAULT_PAGE_SIZE,
   selectShellState,
   SHELL_FEATURES,
   type ShellFeatures,
@@ -326,7 +327,9 @@ export default function TrialsView({ rows = trials }: TrialsViewProps = {}) {
     features: SHELL_FEATURES,
     data: filtered,
     columns: COLUMNS,
-    initialState: { pagination: { pageIndex: 0, pageSize: 10 } },
+    initialState: {
+      pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE },
+    },
     state: { sorting },
     onSortingChange: setSorting,
     globalFilterFn: searchShownText,
