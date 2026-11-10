@@ -68,7 +68,7 @@ const UNTABBED_TITLES: ReadonlyArray<[string, string]> = [[
  */
 const ADAPT_TIP_ID = "nav-adapt-tip";
 const ADAPT_TIP =
-  "Recently updated. A step-by-step guide to building this dashboard for your own disease: answer nine questions, have them checked against PubMed, the ontology services and ClinicalTrials.gov, and download the folder for a fork.";
+  "Recently updated. A step-by-step guide to building this dashboard for your disease of interest: answer nine questions, have them checked against PubMed, the ontology services and ClinicalTrials.gov, and download the folder for a fork.";
 
 function pageTitle(pathname: string): string {
   if (pathname === LOGIN_PATH) return `Sign in | ${SITE_TITLE}`;
