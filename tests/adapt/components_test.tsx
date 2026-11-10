@@ -560,6 +560,55 @@ Deno.test("the action bar holds the four buttons and no session controls when se
   assertStringIncludes(download(blocked), "disabled");
 });
 
+Deno.test("the action bar with a session holds Save session, its state and its code", () => {
+  const session = {
+    onSave: () => {},
+    onResume: () => {},
+    saving: false,
+    indicator: { tone: "danger" as const, text: "Unsaved changes" },
+    code: "ABCDE-FGHJK-MNPQR-STVWX",
+    keptUntil: "kept until 8 Dec 2026",
+  };
+  const html = renderToString(<ActionBar {...BAR} session={session} />);
+  const primary = html.match(
+    /<div class="adapt-bar-primary">([\s\S]*?)<\/div>/,
+  )?.[1] ?? "";
+  assertMatch(primary, /<button[^>]*>Save session<\/button>/);
+  assert(!primary.match(/<button[^>]*>Save session/)![0].includes("disabled"));
+  assertStringIncludes(
+    primary,
+    '<span class="adapt-bar-indicator is-danger">Unsaved changes</span>',
+  );
+  // The code, its copy and its expiry, then the resume entry, all in the
+  // group More opens on a narrow screen.
+  const more = html.slice(html.indexOf('class="adapt-bar-more"'));
+  assertStringIncludes(more, "<code>ABCDE-FGHJK-MNPQR-STVWX</code>");
+  assertStringIncludes(more, "Copy code");
+  assertStringIncludes(
+    more,
+    '<span class="adapt-bar-kept">kept until 8 Dec 2026</span>',
+  );
+  assertStringIncludes(more, "I have a resume code");
+  // While a save runs the button is disabled, and an unattached session
+  // shows no indicator and no code.
+  const busy = renderToString(
+    <ActionBar
+      {...BAR}
+      session={{
+        ...session,
+        saving: true,
+        indicator: null,
+        code: null,
+        keptUntil: null,
+      }}
+    />,
+  );
+  assertMatch(busy, /<button[^>]*disabled[^>]*>Save session<\/button>/);
+  assert(!busy.includes("adapt-bar-indicator"), busy);
+  assert(!busy.includes("adapt-bar-code"), busy);
+  assertStringIncludes(busy, "I have a resume code");
+});
+
 Deno.test("the action bar's secondary group is a popover a More button opens", () => {
   const html = renderToString(<ActionBar {...BAR} />);
   const target = html.match(/<button[^>]*popovertarget="([^"]+)"/)?.[1];

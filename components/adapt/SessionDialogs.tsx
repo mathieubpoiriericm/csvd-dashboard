@@ -1,4 +1,10 @@
-import { useId, useLayoutEffect, useRef, useState } from "preact/hooks";
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "preact/hooks";
 
 import {
   type Overview,
@@ -12,16 +18,37 @@ import { STEP_ORDER, type StepId } from "../../lib/adapt/validate.ts";
  * Opens and closes a native <dialog> from a prop. The server renders it
  * closed; showModal() needs the element, so it runs in a layout effect, and
  * a dialog already in the wanted state is left alone because showModal()
- * on an open one throws.
+ * on an open one throws. It runs after every render, not only when `open`
+ * changes, so an element closed while the prop held (see below) is opened
+ * again by the next render that still says it is open.
+ *
+ * `leave` is the callback Escape reports to. The browser can also close the
+ * element itself -- Chrome closes on a second Escape without firing
+ * `cancel` -- and then the `close` event reports the same leave while the
+ * prop still says open, so the prop and the element cannot drift apart.
  */
-function useModal(open: boolean) {
+function useModal(open: boolean, leave: () => void) {
   const ref = useRef<HTMLDialogElement>(null);
+  const wanted = useRef(open);
+  wanted.current = open;
+  const onLeave = useRef(leave);
+  onLeave.current = leave;
   useLayoutEffect(() => {
     const dialog = ref.current;
     if (!dialog) return;
     if (open && !dialog.open) dialog.showModal();
     else if (!open && dialog.open) dialog.close();
-  }, [open]);
+  });
+  useEffect(() => {
+    const dialog = ref.current;
+    if (!dialog) return;
+    // Our own close() runs once the prop is false, so this does nothing then.
+    const closed = () => {
+      if (wanted.current) onLeave.current();
+    };
+    dialog.addEventListener("close", closed);
+    return () => dialog.removeEventListener("close", closed);
+  }, []);
   return ref;
 }
 
@@ -43,7 +70,7 @@ export function GreetingDialog(
     onResume: () => void;
   },
 ) {
-  const ref = useModal(open);
+  const ref = useModal(open, onNew);
   const titleId = useId();
   return (
     <dialog
@@ -80,7 +107,7 @@ export function CodeDialog(
     onDone: () => void;
   },
 ) {
-  const ref = useModal(open);
+  const ref = useModal(open, onDone);
   const titleId = useId();
   const shown = formatCode(code);
   return (
@@ -131,16 +158,27 @@ export function ResumeDialog(
     onCancel: () => void;
   },
 ) {
-  const ref = useModal(open);
+  // While the request runs, Cancel and Escape do nothing: it settles first,
+  // into the answers replaced or a reason shown here, and a window closed
+  // under it would replace the answers with nothing on screen to say so.
+  const cancel = () => {
+    if (!busy) onCancel();
+  };
+  const ref = useModal(open, cancel);
   const titleId = useId();
   const inputId = useId();
   const [value, setValue] = useState("");
+  // Each opening starts empty: a code typed for an earlier attempt, or a
+  // wrong one, is not offered again.
+  useLayoutEffect(() => {
+    if (open) setValue("");
+  }, [open]);
   return (
     <dialog
       class="adapt-dialog"
       ref={ref}
       aria-labelledby={titleId}
-      onCancel={onEscape(onCancel)}
+      onCancel={onEscape(cancel)}
     >
       <h2 class="adapt-dialog-title" id={titleId}>
         {SESSION_COPY.resumeTitle}
@@ -169,7 +207,7 @@ export function ResumeDialog(
         />
         {error !== "" && <p class="adapt-dialog-error" role="alert">{error}</p>}
         <div class="adapt-dialog-actions">
-          <button type="button" class="adapt-button" onClick={onCancel}>
+          <button type="button" class="adapt-button" onClick={cancel}>
             Cancel
           </button>
           <button

@@ -281,6 +281,26 @@ Deno.test("the adapt wizard server-renders the stepper and the first step", () =
   );
 });
 
+Deno.test("the adapt wizard offers sessions only when the server keeps them", () => {
+  for (
+    const html of [
+      renderToString(<AdaptWizard />),
+      renderToString(<AdaptWizard sessions={false} />),
+    ]
+  ) {
+    assert(!html.includes("Save session"), html);
+    assert(!html.includes("<dialog"), html);
+    assertStringIncludes(html, 'data-sessions="off"');
+  }
+  const on = renderToString(<AdaptWizard sessions />);
+  assertStringIncludes(on, "Save session");
+  assertMatch(on, /<fieldset class="adapt"[^>]*data-sessions="on"/);
+  // The windows sit outside the fieldset, which is disabled until the
+  // draft is read and would disable every control inside them.
+  const fieldsetEnd = on.lastIndexOf("</fieldset>");
+  assert(on.indexOf("<dialog") > fieldsetEnd, on);
+});
+
 Deno.test("the wizard saves a draft whenever a step edits the answers", () => {
   // The island hands each step an `update`, and every field calls it. This
   // takes the one the first step was handed and applies a real edit: what

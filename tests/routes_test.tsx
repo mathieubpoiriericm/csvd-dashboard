@@ -389,6 +389,20 @@ Deno.test("Adapt route renders the intro, the prerequisites and the wizard's fir
   assertStringIncludes(html, "a few hand edits and the deploy settings");
 });
 
+Deno.test("Adapt route renders with sessions off while ADAPT_SESSIONS_DIR is unset", () => {
+  // The store is opened once per process from the environment; the suite
+  // sets no directory, so the page renders without the session controls.
+  assertEquals(Deno.env.get("ADAPT_SESSIONS_DIR"), undefined);
+  const html = render(AdaptPage);
+  assertStringIncludes(html, 'data-sessions="off"');
+  // The tip names the button; the bar does not hold it.
+  assert(!/<button[^>]*>Save session/.test(html), html);
+  assertStringIncludes(
+    html,
+    "if you press Save session, a copy of your answers kept on this server for 14 days.",
+  );
+});
+
 Deno.test("the About page links to the adapt page", () => {
   const html = render(About);
   assertMatch(html, /<a[^>]*href="\/adapt"[^>]*>/);

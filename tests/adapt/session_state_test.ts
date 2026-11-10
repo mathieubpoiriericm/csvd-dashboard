@@ -1,0 +1,244 @@
+import { assertEquals, assertStrictEquals } from "@std/assert";
+
+import { formatDay, SESSION_COPY } from "../../lib/adapt/session.ts";
+import type { SessionLink } from "../../lib/adapt/session.ts";
+import { SESSION_TTL_MS } from "../../lib/adapt/session_code.ts";
+import {
+  indicator,
+  INITIAL_SESSION,
+  sessionReducer,
+  type SessionState,
+  warnsOnLeave,
+} from "../../lib/adapt/session_state.ts";
+
+// 2026-11-24 16:42 UTC.
+const SAVED_AT = Date.UTC(2026, 10, 24, 16, 42);
+const LINK: SessionLink = {
+  code: "ABCDEFGHJKMNPQRSTVWX",
+  revision: 3,
+  savedAt: SAVED_AT,
+  dirty: false,
+};
+const DIRTY: SessionLink = { ...LINK, dirty: true };
+
+const attached = (link: SessionLink = LINK): SessionState => ({
+  ...INITIAL_SESSION,
+  link,
+});
+
+Deno.test("a browser with sessions on, no link and no draft is greeted", () => {
+  const state = sessionReducer(INITIAL_SESSION, {
+    type: "loaded",
+    enabled: true,
+    link: null,
+    hasDraft: false,
+  });
+  assertEquals(state.dialog, "greeting");
+  assertEquals(state.link, null);
+});
+
+Deno.test("a browser with a draft or a link is not greeted", () => {
+  const withDraft = sessionReducer(INITIAL_SESSION, {
+    type: "loaded",
+    enabled: true,
+    link: null,
+    hasDraft: true,
+  });
+  assertEquals(withDraft.dialog, "none");
+  const withLink = sessionReducer(INITIAL_SESSION, {
+    type: "loaded",
+    enabled: true,
+    link: DIRTY,
+    hasDraft: false,
+  });
+  assertEquals(withLink.dialog, "none");
+  // The link's dirty flag survives the reload.
+  assertEquals(withLink.link, DIRTY);
+});
+
+Deno.test("with sessions off nothing is greeted and no link is held", () => {
+  for (const link of [null, LINK]) {
+    const state = sessionReducer(INITIAL_SESSION, {
+      type: "loaded",
+      enabled: false,
+      link,
+      hasDraft: false,
+    });
+    assertEquals(state, INITIAL_SESSION);
+  }
+});
+
+Deno.test("an edit marks an attached session unsaved and nothing else", () => {
+  assertEquals(
+    sessionReducer(attached(), { type: "edited" }).link,
+    DIRTY,
+  );
+  // Already unsaved, or not attached: the same state, so nothing re-renders
+  // and the link is not written again.
+  const dirty = attached(DIRTY);
+  assertStrictEquals(sessionReducer(dirty, { type: "edited" }), dirty);
+  assertStrictEquals(
+    sessionReducer(INITIAL_SESSION, { type: "edited" }),
+    INITIAL_SESSION,
+  );
+});
+
+Deno.test("a save in flight ignores a second press", () => {
+  const started = sessionReducer(
+    { ...attached(DIRTY), message: "old" },
+    { type: "save-started" },
+  );
+  assertEquals(started.saving, true);
+  assertEquals(started.message, "");
+  assertStrictEquals(
+    sessionReducer(started, { type: "save-started" }),
+    started,
+  );
+  assertStrictEquals(
+    sessionReducer(started, { type: "resume-started" }),
+    started,
+  );
+});
+
+Deno.test("a created session is held and its code shown", () => {
+  const state = sessionReducer(
+    { ...INITIAL_SESSION, saving: true },
+    { type: "created", link: LINK },
+  );
+  assertEquals(state.link, LINK);
+  assertEquals(state.dialog, "code");
+  assertEquals(state.saving, false);
+});
+
+Deno.test("a save clears the unsaved mark and says when the copy was revived", () => {
+  const saving = { ...attached(DIRTY), saving: true };
+  const saved = sessionReducer(saving, {
+    type: "saved",
+    link: LINK,
+    revived: false,
+  });
+  assertEquals(saved.link?.dirty, false);
+  assertEquals(saved.message, "");
+  assertEquals(saved.saving, false);
+  const revived = sessionReducer(saving, {
+    type: "saved",
+    link: LINK,
+    revived: true,
+    timeZone: "UTC",
+  });
+  assertEquals(
+    revived.message,
+    SESSION_COPY.revived(formatDay(SAVED_AT + SESSION_TTL_MS, "UTC")),
+  );
+  assertEquals(revived.message.includes("8 Dec 2026"), true);
+});
+
+Deno.test("a failed save keeps the link unsaved and says why", () => {
+  const state = sessionReducer(
+    { ...attached(DIRTY), saving: true },
+    { type: "save-failed", message: SESSION_COPY.failed },
+  );
+  assertEquals(state.link, DIRTY);
+  assertEquals(state.message, SESSION_COPY.failed);
+  assertEquals(state.saving, false);
+});
+
+Deno.test("a resume opens the welcome screen, and leaving it the wizard", () => {
+  const opened = sessionReducer(
+    { ...INITIAL_SESSION, dialog: "greeting" },
+    { type: "resume-opened" },
+  );
+  assertEquals(opened.dialog, "resume");
+  const busy = sessionReducer(opened, { type: "resume-started" });
+  assertEquals(busy.saving, true);
+  const resumed = sessionReducer(busy, { type: "resumed", link: LINK });
+  assertEquals(resumed.screen, "welcome");
+  assertEquals(resumed.dialog, "none");
+  assertEquals(resumed.link, LINK);
+  assertEquals(resumed.saving, false);
+  const left = sessionReducer(resumed, { type: "welcome-left" });
+  assertEquals(left.screen, "wizard");
+  assertEquals(left.link, LINK);
+});
+
+Deno.test("a failed resume keeps its window open with the reason, until reopened", () => {
+  const failed = sessionReducer(
+    { ...INITIAL_SESSION, dialog: "resume", saving: true },
+    { type: "resume-failed", message: SESSION_COPY.unknown },
+  );
+  assertEquals(failed.dialog, "resume");
+  assertEquals(failed.resumeError, SESSION_COPY.unknown);
+  assertEquals(failed.saving, false);
+  assertEquals(
+    sessionReducer(failed, { type: "resume-opened" }).resumeError,
+    "",
+  );
+  const closed = sessionReducer(failed, { type: "dialog-closed" });
+  assertEquals(closed.dialog, "none");
+  assertEquals(closed.resumeError, "");
+});
+
+Deno.test("the resume window cannot be closed while its request runs", () => {
+  const busy: SessionState = {
+    ...INITIAL_SESSION,
+    dialog: "resume",
+    saving: true,
+  };
+  assertStrictEquals(sessionReducer(busy, { type: "dialog-closed" }), busy);
+  // Any other window closes whatever is in flight.
+  assertEquals(
+    sessionReducer({ ...attached(), dialog: "code", saving: true }, {
+      type: "dialog-closed",
+    }).dialog,
+    "none",
+  );
+});
+
+Deno.test("another tab's link is adopted without opening a window", () => {
+  const adopted = sessionReducer(INITIAL_SESSION, {
+    type: "link-adopted",
+    link: DIRTY,
+  });
+  assertEquals(adopted.link, DIRTY);
+  assertEquals(adopted.dialog, "none");
+  const greeted = sessionReducer({ ...attached(), dialog: "greeting" }, {
+    type: "link-adopted",
+    link: null,
+  });
+  assertEquals(greeted.link, null);
+  assertEquals(greeted.dialog, "greeting");
+  // The code window has nothing to show once the link is gone.
+  const shown = sessionReducer({ ...attached(), dialog: "code" }, {
+    type: "link-adopted",
+    link: null,
+  });
+  assertEquals(shown.dialog, "none");
+});
+
+Deno.test("Start over detaches the session", () => {
+  const state = sessionReducer(
+    { ...attached(DIRTY), dialog: "code", screen: "welcome" },
+    { type: "detached" },
+  );
+  assertEquals(state.link, null);
+  assertEquals(state.dialog, "none");
+  assertEquals(state.screen, "wizard");
+});
+
+Deno.test("the indicator says whether the session holds the answers", () => {
+  assertEquals(indicator(INITIAL_SESSION), null);
+  assertEquals(indicator(attached(DIRTY), "UTC"), {
+    tone: "danger",
+    text: "Unsaved changes",
+  });
+  assertEquals(indicator(attached(), "UTC"), {
+    tone: "ok",
+    text: "Saved 16:42",
+  });
+});
+
+Deno.test("leaving warns only over unsaved session changes", () => {
+  assertEquals(warnsOnLeave(INITIAL_SESSION), false);
+  assertEquals(warnsOnLeave(attached()), false);
+  assertEquals(warnsOnLeave(attached(DIRTY)), true);
+});

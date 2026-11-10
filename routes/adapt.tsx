@@ -2,6 +2,7 @@ import { define } from "../utils.ts";
 import { Page } from "../components/Page.tsx";
 import { TipBox } from "../components/TipBox.tsx";
 import AdaptWizard from "../islands/AdaptWizard.tsx";
+import { sessionStore } from "../server/adapt_sessions.ts";
 
 const NEEDS: ReadonlyArray<[string, string]> = [
   [
@@ -40,9 +41,10 @@ export default define.page(function AdaptPage() {
     >
       <div class="tip-row">
         <TipBox>
-          Your answers are saved in this browser as you go. Nothing is sent
-          anywhere except the lookups to NCBI, the EBI Ontology Lookup Service
-          and ClinicalTrials.gov.
+          Your answers are saved in this browser as you go. Nothing leaves it
+          except the lookups to NCBI, the EBI Ontology Lookup Service and
+          ClinicalTrials.gov, and, if you press Save session, a copy of your
+          answers kept on this server for 14 days.
         </TipBox>
       </div>
       <div class="card">
@@ -67,7 +69,8 @@ export default define.page(function AdaptPage() {
           interview by hand.
         </p>
       </noscript>
-      <AdaptWizard />
+      {/* Only whether the server keeps sessions crosses into the island. */}
+      <AdaptWizard sessions={sessionStore() !== null} />
     </Page>
   );
 });
