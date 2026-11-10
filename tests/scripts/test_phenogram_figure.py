@@ -22,6 +22,7 @@ from scripts.phenogram_figure import (
     DEFAULT_CYTOBANDS,
     DEFAULT_GENES,
     Layout,
+    Pill,
     block_height,
     canvas_for,
     chromosome_shapes,
@@ -413,6 +414,24 @@ class TestDerivedCanvas:
             + geometry["labelColumn"]
         )
         assert [len(r) for r in chromosome_shapes(["7"], cytobands, encoding)] == [1, 0]
+
+    def test_the_measurement_twins_agree_on_synthetic_literals(
+        self, encoding, metrics
+    ) -> None:
+        """Pinned identically in tests/phenogram_layout_test.ts, so the two
+        renderers cannot drift apart even with the csvd/ trees gone. They move
+        only with the Barlow files or the layout constants."""
+        geometry = encoding["layout"]
+        label = "Synthetic label (42, X/Y)"
+        assert text_width(label, 400, 9.5, metrics) == pytest.approx(97.261, abs=1e-6)
+        assert text_width(label, 600, 12, metrics) == pytest.approx(127.656, abs=1e-6)
+        assert label_width("GENE1", (), 3, geometry, metrics) == pytest.approx(
+            76.828, abs=1e-6
+        )
+        long = "MTAG (every trait this gene was ever linked with, at once)"
+        pill = Pill(label=long, family="unknown", fill="#ffffff", stroke="#888888")
+        widest = label_width("GENE2", (pill,), 0, geometry, metrics)
+        assert column_width([widest], geometry) == 252
 
     def test_an_empty_layout_gets_the_one_column_canvas(
         self, encoding, cytobands

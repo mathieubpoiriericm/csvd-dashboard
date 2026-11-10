@@ -101,7 +101,7 @@ class TestPlacement:
             c.name: c.column_width for c in layout.chromosomes if c.column_width != 128
         } == {"2": 172, "5": 156, "10": 172, "13": 172, "19": 172}
         assert sum(b.x + b.y + b.width + b.height for b in layout.blocks) == (
-            pytest.approx(164469.93730683517)
+            pytest.approx(164469.93730683517, abs=1e-6)
         )
 
     def test_the_rasters_errors_are_gone(self, layout) -> None:

@@ -557,3 +557,16 @@ Deno.test("an empty layout gets the one-column empty canvas", () => {
   assertEquals(computePhenogramLayout([]).canvas, empty);
   assertEquals(canvasFor([[], []], []), empty);
 });
+
+// Disease-neutral numbers pinned identically in
+// tests/scripts/test_phenogram_figure.py (TestDerivedCanvas), so the two
+// renderers' measurement cannot drift apart even with the csvd/ trees gone.
+// They move only with the Barlow files or the layout constants.
+Deno.test("the measurement twins agree on synthetic literals", () => {
+  const label = "Synthetic label (42, X/Y)";
+  assertAlmostEquals(textWidth(label, 400, 9.5), 97.261, 1e-6);
+  assertAlmostEquals(textWidth(label, 600, 12), 127.656, 1e-6);
+  assertAlmostEquals(labelWidth("GENE1", [], 3), 76.828, 1e-6);
+  const long = "MTAG (every trait this gene was ever linked with, at once)";
+  assertEquals(columnWidth([labelWidth("GENE2", [{ label: long }], 0)]), 252);
+});
