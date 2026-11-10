@@ -64,9 +64,14 @@ function limited(retryAfterSeconds: number): Response {
  * A resume that finds no session stays counted, as a wrong passphrase does,
  * and so does any response that made a new file (a create, or a save that
  * revived an expired session), which bounds how fast one client can fill
- * the volume. A resume that finds its session clears that client's earlier
- * counted requests; everything else, an ordinary save among them, releases
- * only its own reservation. The client is identified exactly as the login
+ * the volume. Everything else, an ordinary save and a resume that finds its
+ * session among them, releases only its own reservation and forgives
+ * nothing. Unlike a correct passphrase, a found session must not clear the
+ * client's earlier counts: anyone can create a session and so hold a valid
+ * code, and forgiving on success would let a client alternate creates or
+ * guesses with a resume of its own code and never be limited. The cost is
+ * that someone who mistypes their code ten times waits out the window.
+ * The client is identified exactly as the login
  * limiter identifies it, `trustedClientIpHeader` included.
  */
 export function adaptSessionLimiter<State>(
@@ -99,13 +104,10 @@ export function adaptSessionLimiter<State>(
       throw error;
     }
 
-    const resume = operation === "resume";
     reservation.settle(
       response.headers.get(CREATED_HEADER) === "created" ||
-        (resume && response.status === 404)
+        (operation === "resume" && response.status === 404)
         ? "auth-failure"
-        : resume && response.status === 200
-        ? "success"
         : "other",
     );
     return response;

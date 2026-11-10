@@ -151,13 +151,27 @@ Deno.test("plain saves release their reservation", async () => {
   }
 });
 
-Deno.test("a resumed session clears the client's wrong codes", async () => {
-  const limiter = adaptSessionLimiter({ perClientLimit: 2 });
+Deno.test("a resumed session forgives no wrong code or new session", async () => {
+  const limiter = adaptSessionLimiter({ perClientLimit: 3 });
   assertEquals((await invoke(limiter)).status, 404);
-  assertEquals((await invoke(limiter, { next: saved })).status, 200);
-  assertEquals((await invoke(limiter)).status, 404);
+  assertEquals(
+    (await invoke(limiter, {
+      pathname: "/adapt/session/create",
+      next: created,
+    }))
+      .status,
+    201,
+  );
+  // A resume of the client's own code is not counted: many in a row pass.
+  for (let i = 0; i < 30; i++) {
+    assertEquals((await invoke(limiter, { next: saved })).status, 200);
+  }
+  // Nor does it restore the budget the two counted requests spent.
   assertEquals((await invoke(limiter)).status, 404);
   assertLimited(await invoke(limiter));
+  assertLimited(
+    await invoke(limiter, { pathname: "/adapt/session/create", next: created }),
+  );
 });
 
 Deno.test("other requests pass through uncounted", async () => {
