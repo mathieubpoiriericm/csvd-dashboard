@@ -6,6 +6,7 @@ import {
   useState,
 } from "preact/hooks";
 
+import { saveDownload } from "../components/download.ts";
 import { Stepper, type StepperStep } from "../components/adapt/Stepper.tsx";
 import { GoldStep } from "../components/adapt/steps/GoldStep.tsx";
 import { IdentityStep } from "../components/adapt/steps/IdentityStep.tsx";
@@ -81,21 +82,6 @@ const UNREADABLE =
 
 const UNREADABLE_UNKEPT =
   "The draft saved in this browser was written by another version of the wizard, or is damaged, so it could not be read, and the browser refused the room to keep a copy aside. Nothing is saved over it until you download it.";
-
-function saveDownload(name: string, bytes: Uint8Array, type: string) {
-  // A Uint8Array's buffer types as ArrayBufferLike, which BlobPart no longer
-  // admits; every array reaching here sits on a plain ArrayBuffer.
-  const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = name;
-  document.body.append(a);
-  a.click();
-  a.remove();
-  // Safari and Firefox abort a download whose object URL is revoked in the
-  // same task as the click, so the revoke waits for the next one.
-  setTimeout(() => URL.revokeObjectURL(url), 0);
-}
 
 /**
  * The answers to change, cloned but for the logos: a logo is replaced

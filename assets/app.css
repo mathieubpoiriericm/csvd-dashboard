@@ -4525,6 +4525,96 @@ button.adapt-card-head:focus-visible {
   margin-bottom: var(--svd-space-4);
 }
 
+/* === PHENOGRAM DOWNLOAD === */
+
+/* The download button and the Key disclosure share a row. An open key is a
+   full-width panel, so it wraps onto a row of its own below the button. */
+.phenogram-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--svd-space-3);
+}
+
+.phenogram-toolbar > .figure-key[open] {
+  flex: 1 1 100%;
+}
+
+/* A line drawing, not a filled button: it is a secondary action beside the
+   Key's filled summary, with that summary's padding. */
+.phenogram-download-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--svd-space-2);
+  padding: var(--svd-space-2) var(--svd-space-4);
+  border: 1px solid var(--svd-line-strong);
+  border-radius: var(--svd-radius-sm);
+  background: transparent;
+  color: var(--svd-ink);
+  font: inherit;
+  font-weight: var(--svd-weight-bold);
+  cursor: pointer;
+  transition: border-color var(--svd-transition),
+    color var(--svd-transition);
+}
+
+.phenogram-download-toggle:hover,
+.phenogram-download-toggle:focus-visible {
+  border-color: var(--svd-color-accent-text);
+  color: var(--svd-color-accent-text);
+}
+
+/* The panel is the tooltip panel's surface and shadow. Like it, `display` is
+   only ever set under `:popover-open`, or the UA's closed rule would lose. The
+   placement is written by PhenogramDownload.tsx. */
+.phenogram-download-pop {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  border: 0;
+  padding: var(--svd-space-2);
+  width: max-content;
+  max-width: min(20rem, calc(100vw - var(--svd-space-4)));
+  background: var(--svd-tooltip-bg);
+  color: var(--svd-tooltip-ink);
+  font-size: var(--svd-text-base);
+  line-height: var(--svd-leading-normal);
+  border-radius: var(--svd-radius-md);
+  box-shadow: var(--svd-shadow-lg);
+  outline: 1px solid var(--svd-border);
+  outline-offset: -1px;
+}
+
+.phenogram-download-pop:popover-open {
+  display: block;
+}
+
+.phenogram-download-item {
+  display: block;
+  width: 100%;
+  padding: var(--svd-space-2) var(--svd-space-3);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.phenogram-download-item:hover,
+.phenogram-download-item:focus-visible {
+  background: var(--svd-ground);
+  color: var(--svd-color-accent-text);
+}
+
+.phenogram-download-note {
+  margin: var(--svd-space-2) 0 0;
+  padding: var(--svd-space-3) var(--svd-space-3) var(--svd-space-1);
+  border-top: 1px solid var(--svd-border);
+  color: var(--svd-ink-muted);
+  font-size: var(--svd-text-sm);
+}
+
 /* A closed `<details>` keeps its body out of layout, but its children still
    report a non-zero `getBoundingClientRect()` -- the same size-containment
    gap F24 documents for `.pipeline-apis`. This is that fix for both figure

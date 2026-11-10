@@ -8,6 +8,8 @@ import {
 } from "preact/hooks";
 
 import { Tooltip } from "../components/Tooltip.tsx";
+import { PhenogramDownload } from "../components/PhenogramDownload.tsx";
+import { phenogramSvg } from "../components/PhenogramExport.tsx";
 import {
   measureSvgTextWidths,
   whenFontsReady,
@@ -15,7 +17,12 @@ import {
 import { genes } from "../lib/data/genes.ts";
 import { isAbsent } from "../lib/sentinels.ts";
 import type { Gene } from "../lib/types.ts";
-import { computePhenogramLayout, type GeneBlock } from "../lib/phenogram.ts";
+import {
+  computePhenogramLayout,
+  encoding,
+  type GeneBlock,
+} from "../lib/phenogram.ts";
+import { type KeyFont, layoutPhenogramKey } from "../lib/phenogram_svg.ts";
 import {
   Block,
   Chromosome,
@@ -26,6 +33,20 @@ import {
   phenogramTooltip,
   phenotypeTooltip,
 } from "../lib/phenogram_tooltips.ts";
+
+/** Widths of key text, measured with the page's own loaded faces. */
+function measureWithCanvas(text: string, font: KeyFont): number {
+  const canvas = typeof OffscreenCanvas === "undefined"
+    ? document.createElement("canvas")
+    : new OffscreenCanvas(1, 1);
+  const ctx = canvas.getContext("2d") as
+    | CanvasRenderingContext2D
+    | OffscreenCanvasRenderingContext2D
+    | null;
+  if (!ctx) throw new Error("No 2D canvas context to measure key text with.");
+  ctx.font = `${font.weight} ${font.size}px "${font.family}"`;
+  return ctx.measureText(text).width;
+}
 
 const percent = (value: number, of: number) => `${(value / of) * 100}%`;
 
@@ -90,75 +111,106 @@ export default function Phenogram({ rows = genes }: PhenogramProps = {}) {
 
   const { families, evidence } = karyogram.legend;
 
+  /** Called from the download menu's click handlers only, never during SSR. */
+  const buildSvg = async (withKey: boolean): Promise<string> => {
+    // A face the page has not used yet is not loaded, and canvas and SVG
+    // measurement would both fall back to a different font.
+    await Promise.all([
+      document.fonts.load('600 15px "Barlow Condensed"'),
+      document.fonts.load("400 12px Barlow"),
+      document.fonts.load("600 12px Barlow"),
+    ]);
+    await document.fonts.ready;
+    const svg = svgRef.current;
+    const measured = svg
+      ? measureSvgTextWidths(
+        svg,
+        "text[data-pill], text[data-symbol]",
+        (text) => text.dataset.pill ?? text.dataset.symbol ?? "",
+      )
+      : new Map<string, number>();
+    const key = withKey
+      ? layoutPhenogramKey(
+        karyogram.legend,
+        width - 2 * encoding.layout.margin,
+        measureWithCanvas,
+      )
+      : null;
+    return phenogramSvg({ karyogram, widths: measured, key });
+  };
+
   return (
     <div class="phenogram-layout" ref={hydratedRef}>
       <a class="skip-figure" href="#phenogram-end">Skip the figure</a>
 
-      <details class="figure-key" id="phenogram-key">
-        <summary class="figure-key-summary">Key</summary>
-        <div class="phenogram-legend">
-          <section class="phenogram-legend-panel">
-            <h2 class="phenogram-legend-title">Supporting evidence</h2>
-            <ul class="phenogram-legend-list">
-              <li class="phenogram-legend-item">
-                <span class="phenogram-pill phenogram-pill-sample">
-                  GWAS
-                </span>
-                one pill per associated phenotype
-              </li>
-              {evidence.map((entry) => (
-                <li key={entry.key} class="phenogram-legend-item">
-                  <svg
-                    class="phenogram-legend-glyph"
-                    viewBox={`0 0 ${GLYPH_SIZE} ${GLYPH_SIZE}`}
-                    aria-hidden="true"
-                  >
-                    <path
-                      d={glyphPath(entry.shape, 0, 0, GLYPH_SIZE)}
-                      fill="currentColor"
-                    />
-                  </svg>
-                  {entry.label}
-                </li>
-              ))}
-            </ul>
-          </section>
-          <section class="phenogram-legend-panel">
-            <h2 class="phenogram-legend-title">GWAS phenotypes</h2>
-            <ul class="phenogram-legend-list">
-              {families.map(({ family, traits }) => (
-                <li key={family.key} class="phenogram-legend-family">
-                  <span class="phenogram-legend-family-name">
-                    <span
-                      class="phenogram-legend-swatch"
-                      style={{ background: family.hue }}
-                      aria-hidden="true"
-                    />
-                    {family.label}
+      <div class="phenogram-toolbar">
+        <PhenogramDownload build={buildSvg} />
+        <details class="figure-key" id="phenogram-key">
+          <summary class="figure-key-summary">Key</summary>
+          <div class="phenogram-legend">
+            <section class="phenogram-legend-panel">
+              <h2 class="phenogram-legend-title">Supporting evidence</h2>
+              <ul class="phenogram-legend-list">
+                <li class="phenogram-legend-item">
+                  <span class="phenogram-pill phenogram-pill-sample">
+                    GWAS
                   </span>
-                  <ul class="phenogram-legend-traits">
-                    {traits.map((trait) => (
-                      <li key={trait.key}>
-                        <Tooltip content={phenotypeTooltip(trait)}>
-                          <span
-                            class="phenogram-pill"
-                            style={{
-                              background: family.tint,
-                              borderColor: family.hue,
-                            }}
-                          >
-                            {trait.label}
-                          </span>
-                        </Tooltip>
-                      </li>
-                    ))}
-                  </ul>
+                  one pill per associated phenotype
                 </li>
-              ))}
-            </ul>
-          </section>
-        </div>
-      </details>
+                {evidence.map((entry) => (
+                  <li key={entry.key} class="phenogram-legend-item">
+                    <svg
+                      class="phenogram-legend-glyph"
+                      viewBox={`0 0 ${GLYPH_SIZE} ${GLYPH_SIZE}`}
+                      aria-hidden="true"
+                    >
+                      <path
+                        d={glyphPath(entry.shape, 0, 0, GLYPH_SIZE)}
+                        fill="currentColor"
+                      />
+                    </svg>
+                    {entry.label}
+                  </li>
+                ))}
+              </ul>
+            </section>
+            <section class="phenogram-legend-panel">
+              <h2 class="phenogram-legend-title">GWAS phenotypes</h2>
+              <ul class="phenogram-legend-list">
+                {families.map(({ family, traits }) => (
+                  <li key={family.key} class="phenogram-legend-family">
+                    <span class="phenogram-legend-family-name">
+                      <span
+                        class="phenogram-legend-swatch"
+                        style={{ background: family.hue }}
+                        aria-hidden="true"
+                      />
+                      {family.label}
+                    </span>
+                    <ul class="phenogram-legend-traits">
+                      {traits.map((trait) => (
+                        <li key={trait.key}>
+                          <Tooltip content={phenotypeTooltip(trait)}>
+                            <span
+                              class="phenogram-pill"
+                              style={{
+                                background: family.tint,
+                                borderColor: family.hue,
+                              }}
+                            >
+                              {trait.label}
+                            </span>
+                          </Tooltip>
+                        </li>
+                      ))}
+                    </ul>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          </div>
+        </details>
+      </div>
 
       {
         /* The scroller is `overflow: auto`, which clips the frame's
