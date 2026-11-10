@@ -256,8 +256,8 @@ computes lives in `lib/adapt/` under the 100 % floor: the `Answers` model,
 passes its own and the tests pass a stub), the generators and `bundle()`. The
 island's fetch is `spaced()` (`lib/adapt/edits.ts`): requests to NCBI start 350
 ms apart, 110 ms with an API key, across every lookup at once, because a lookup
-costs several requests a row (four for a gene) and a burst over the limit is a
-429. The draft is kept in `localStorage` under `svd-adapt-draft`
+costs several requests a row (four or more for a gene) and a burst over the
+limit is a 429. The draft is kept in `localStorage` under `svd-adapt-draft`
 (`lib/adapt/draft_storage.ts`); the literal scan matches the short form as
 written, so the lower-case `svd-` keys need no allow-list entry. `fflate` is the
 zip writer and is imported only by `lib/adapt/bundle.ts`. The step forms under
@@ -290,14 +290,21 @@ Nine things are load-bearing:
   `parseDraft()` cannot read -- another `DRAFT_VERSION`, damaged JSON -- is
   copied to `svd-adapt-draft-unreadable` before the first save and offered for
   download; bump `DRAFT_VERSION` only for a shape `STEPS_SHAPE` cannot rebuild,
-  since every older draft then takes that path. The logos live under keys of
-  their own (`-logo-light`, `-logo-dark`), written only when their bytes change,
-  so a keystroke does not rewrite a megabyte. A save from another tab is merged,
-  not adopted wholesale (`mergeDrafts()`: three-way against the draft both last
-  agreed on, this tab winning a leaf both changed), so two tabs stay one draft
-  and a tab whose saves are refused keeps its answers. Start over and an import
-  write `svd-adapt-draft-replaced`, and a tab seeing it drops what it had
-  revealed.
+  since every older draft then takes that path. A second one is kept beside the
+  first (`-unreadable-2`), never instead of it, and the notice reads
+  `keptDrafts()` on every load, not only the one that found a draft unreadable:
+  the copies stay, offered, until the researcher discards them. The logos live
+  under keys of their own (`-logo-light`, `-logo-dark`), written only when their
+  bytes change, so a keystroke does not rewrite a megabyte. A save from another
+  tab is merged, not adopted wholesale (`mergeDrafts()`: three-way against the
+  draft both last agreed on, this tab winning a leaf both changed), so two tabs
+  stay one draft and a tab whose saves are refused keeps its answers. `synced`,
+  that agreed draft, follows the draft key and not the save: `saveDraft()`
+  writes the key before the logos, so a refused logo still leaves the tab
+  holding what the key holds, and `adoptDraft()` ignores a storage event the key
+  has moved past, which this tab's own save had merged already. Start over and
+  an import write `svd-adapt-draft-replaced`, and a tab seeing it drops what it
+  had revealed.
 - **Every entry of a list a step iterates is an object.** A lookup that writes a
   row back by index must go through `alignMeshTerms()` rather than stretch the
   array: a hole serialises as `null`, `validate()` then throws on the reload
@@ -323,7 +330,10 @@ Nine things are load-bearing:
   a trait's ontology search inside a row.
 - **The NCBI credentials leave the browser in nothing.** Both the archive entry
   and "Export answers" write `exportableAnswers()`, which blanks `search.ncbi`;
-  the archive is committed to a repository and the export is mailed around.
+  the archive is committed to a repository and the export is mailed around. The
+  third download, a kept unreadable draft, goes through `unreadableDownload()`,
+  which blanks every `ncbi` record in a text no shape can be assumed of; the
+  copy in storage stays as it was stored.
 - **A key is compared trimmed on both sides.** The generators write keys,
   labels, symbols and mechanism names through `clean()` and `validate()`
   compares them with the same trim, so a trailing space cannot make a family
@@ -352,6 +362,11 @@ Nine things are load-bearing:
   and the stepper reveal nothing. A field left by a press on a button waits for
   the pointer's release: the message it shows moves what is below it, and shown
   on the press it moved the button out from under the pointer and the click was
+  lost. The press is `mousedown` to `mouseup` as well as the pointer's events,
+  because a touch tap sends `pointerup` before the `mousedown` that moves focus.
+  The stepper keeps the same rule from the other side: `focusInView()` centres a
+  segment only for focus that draws a ring, since a press focuses it before the
+  release, and a row scrolled then slides out from under it and the click is
   lost. The touched state is "step:path" keys in the island, never saved;
   `forgetRemoved()` shifts them when a row goes. The fields, notes and cards
   read it through `WizardContext`, so no step renders a new function prop and

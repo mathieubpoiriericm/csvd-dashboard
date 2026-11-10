@@ -39,8 +39,8 @@ they compose it:
   the cSVD sentences with the name substituted; read them back.
 
 **Validates:** `disease.key` is `^[a-z][a-z0-9_]*$` — it becomes the database
-name (`<key>_dashboard`), the Deploy project name (with each `_` written `-`,
-since a project name becomes a host name) and the `disease` column every
+name (`<key>_dashboard`), the Fly app name (with each `_` written `-`,
+since an app name becomes a host name) and the `disease` column every
 extracted row carries. The logo files `institute.logo.src` and `srcOnDark`
 name must exist under `static/`; ask for an SVG or PNG for each, one for a
 light background and one for a dark one, or set `srcOnDark` to `null` and use
@@ -85,7 +85,10 @@ The heading is the one the translation maps the whole phrase to: the
 its `to` as `"<Heading>"[MeSH Terms]`; take that descriptor's
 `ds_meshterms[0]`, not the first hit's. Only when the translation names none,
 take the hit with a term equal to the phrase, or else the one whose shortest
-term contains it, among up to 200 hits. Read `ds_scopenote` back to the
+term holds it as whole words, among up to 200 hits. Only a phrase of two or
+more words is looked for inside a term: an abbreviation the translation maps
+to nothing sits inside drug codes and unrelated terms, so a one-word phrase
+with no equal term has no heading. Read `ds_scopenote` back to the
 researcher so they confirm it is their disease. Print the all-time count per
 heading; a heading in the hundreds of thousands (`"Stroke"`, `"Dementia"`)
 is a parent, not a disease, and the researcher should pick a child.
@@ -149,18 +152,21 @@ researcher's.
 **Feeds:** `vocabulary.json` → `traits[]` (`key`, `label`, `family`, `name`,
 `standard`, `definition`, `xref`, `xrefNote`); `phenogram.json` → one
 `families[]` entry per distinct `family`; `manifest.json` →
-`citationStandard`; `prompt.md` → `## traits.canonical`,
+`citationStandard`, and an `acronyms` entry for every key that holds an
+acronym (`SKILL.md`, the manifest step); `prompt.md` → `## traits.canonical`,
 `## criteria.phenotypes`, `## strategy.phenotype_shortlist`.
 
 **Pre-fill:** an ontology cross-reference per trait:
 
 ```text
-GET https://www.ebi.ac.uk/ols4/api/search?q=<trait+name>&ontology=efo,hp,mondo&rows=5
+GET https://www.ebi.ac.uk/ols4/api/search?q=<trait+name>&ontology=efo,hp,mondo&rows=15
 {"response":{"docs":[
   {"obo_id":"HP:0030890","label":"Hyperintensity of cerebral white matter on MRI",
    "ontology_name":"hp","exact_synonyms":["White matter hyperintensity"]}, …]}}
 ```
 
+A term comes back once per ontology that holds it, and the three import each
+other's: list each `obo_id` once, where it first stands, and keep five.
 Offer the top hit's `obo_id` and `label`; the researcher accepts, picks
 another row, or says none fits. A miss becomes `"xref": null` with an
 `xrefNote` saying what was searched and why nothing matched. `xref` is a
@@ -243,10 +249,10 @@ list joined by `, `), `## rubric.monogenic_examples`,
 gene-disorder associations of an ORPHAcode ClinVar names:
 
 ```text
-GET esearch.fcgi?db=clinvar&term=<GENE>%5Bgene%5D&retmode=json&retmax=200
+GET esearch.fcgi?db=clinvar&term=<GENE>%5Bgene%5D&retmode=json&retmax=500
 {"esearchresult":{"count":"443","idlist":["4887740","4873483", …]}}
 
-GET esummary.fcgi?db=clinvar&id=<ids>&retmode=json
+GET esummary.fcgi?db=clinvar&id=<200 ids at most>&retmode=json
 … "germline_classification":{"trait_set":[{"trait_name":"CARASIL syndrome",
     "trait_xrefs":[{"db_source":"OMIM","db_id":"600142"},
                    {"db_source":"Orphanet","db_id":"199354"}]}]} …
@@ -261,9 +267,14 @@ Search pathogenic records only (`AND "clinsig pathogenic"[Properties]` on
 the esearch), and read a record only when it describes the gene itself: its
 one gene, or one of at most five genes with no copy-number type
 (`copy number gain`/`loss`) and variants spanning no more than 1 kb.
+Read up to 500 records, the pipeline's `clinvar_max_records`, summarised 200
+ids to a request, and when `count` is larger than the ids returned tell the
+researcher the list comes from a sample.
 Collect the distinct `trait_name` / OMIM `db_id` pairs of the traits that
 carry an OMIM, MONDO or Orphanet xref (that drops `not provided`, `not
-specified` and `See cases`) and read them back. The
+specified` and `See cases`) and read them back. Only a six-digit `db_id` is
+an OMIM number: `PS` and six digits is a phenotypic series, a group of
+entries, and such a trait is read back with no number. The
 traits sit under each record's `germline_classification`; the record has no
 top-level `trait_set` since ClinVar's 2024 change, so reading one finds
 nothing. The

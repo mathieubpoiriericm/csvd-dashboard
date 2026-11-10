@@ -1,6 +1,6 @@
 ---
 name: update-from-upstream
-description: Use when pulling upstream changes into a disease fork - the merge, the one resolution per location (data/, disease/, the csvd/ trees, the README's first line, fly.toml's app and region, docs/screenshots/), the schema diff for new manifest keys, and the gates afterwards.
+description: Use when pulling upstream changes into a disease fork - the merge, the one resolution per location (data/, disease/, the csvd/ trees, the README's first line, fly.toml's app and region, docs/screenshots/, and the fork's own edits outside disease/ - the recall cassettes, GOLD_ONLY, _ADMITTED_UNASKED, the leak sentinels, e2e/package.json), the schema diff for new manifest keys, and the gates afterwards.
 ---
 
 # Updating a disease fork from upstream
@@ -8,10 +8,14 @@ description: Use when pulling upstream changes into a disease fork - the merge, 
 The fork was set up by the `new-disease` skill, with the upstream repository
 as the `upstream` remote. Upstream keeps shipping code, tests and its own
 cSVD data and screenshots; the fork keeps its own `disease/`, its own `data/`,
-its own `docs/screenshots/` and none of the `csvd/` test trees. Everything
-outside those locations merges clean by construction — that is what the
-disease seam is for — so a conflict anywhere else is a bug to report upstream,
-not something to resolve locally.
+its own `docs/screenshots/` and none of the `csvd/` test trees. The
+`new-disease` skill also had the fork edit five files upstream goes on
+changing — the recall cassettes, `lib/gold_only.ts`,
+`tests/pipeline/test_prompt_vocabulary.py`, `server/protected_data_build.ts`
+and `e2e/package.json` — and a merge can meet each of those edits again.
+Everything outside the table below merges clean by construction — that is
+what the disease seam is for — so a conflict anywhere else is a bug to report
+upstream, not something to resolve locally.
 
 ## The merge
 
@@ -33,7 +37,11 @@ Then one resolution per location, in this order.
 | `README.md`                                                                | Generic upstream, so it normally merges clean. If the fork retitled it, the H1 is **ours**; everything below it is upstream's.                                                                                                                 |
 | `disease/README.md`                                                        | **Ours**, entirely; upstream's is the cSVD page.                                                                                                                                                                                             |
 | `fly.toml`                                                                 | **Ours** for `app` and `primary_region`, which name the fork's own Fly app; **upstream's** for every other line.                                                                                                                             |
-| `lib/gold_only.ts`                                                         | **`GOLD_ONLY = false`**, whatever upstream's line says. Upstream switches it on while its own data is limited to its hand-curated tables; merged into a fork, it shows upstream's notice on the About page and makes `pipeline.main` refuse `--pubmed` and `--clinical-trials`. Every other line of the file is upstream's. |
+| `lib/gold_only.ts`                                                         | **`GOLD_ONLY = false`**, whatever upstream's line says, **and checked after a clean merge too**: a fork that branched while the switch was off never edited the line, so upstream's `true` arrives without a conflict. Upstream switches it on while its own data is limited to its hand-curated tables; merged into a fork, it shows upstream's notice on the About page and makes `pipeline.main` refuse `--pubmed` and `--clinical-trials`. Every other line of the file is upstream's. |
+| `tests/pipeline/cassettes/test_query_recall_gold/`                         | **Ours**: `git checkout --ours -- tests/pipeline/cassettes/test_query_recall_gold && git add tests/pipeline/cassettes/test_query_recall_gold`. The two files are named after the generic replay tests, so the fork's recordings and upstream's share their paths, and upstream records its own again whenever its data moves. A fork that has not recorded yet sees "deleted by us" instead: `git rm -r -q -f --ignore-unmatch tests/pipeline/cassettes/test_query_recall_gold`, or upstream's cSVD responses are replayed in place of the fork's recording. |
+| `tests/pipeline/test_prompt_vocabulary.py`                                 | **`_ADMITTED_UNASKED = {}`**, whatever upstream's entries say: they explain cSVD trait keys, and a stale one fails `test_the_admitted_unasked_list_does_not_go_stale`. Every other line of the file is upstream's. |
+| `server/protected_data_build.ts`                                           | **Ours** for the strings in `PROTECTED_DATA_SENTINELS`, once the fork has replaced them with its own data's; **upstream's** for every other line. |
+| `e2e/package.json`                                                         | **Ours** for `name` and `description`; **upstream's** for every other line, its dependency versions included. |
 | `docs/screenshots/`                                                        | **Recaptured**, whatever the merge left. Upstream's images are of the cSVD dashboard: they conflict where the fork recaptured its own, and arrive silently where it never did. After `data/` is regenerated, `deno task screenshots && git add docs/screenshots`; the task builds the merged code, so the images follow any page upstream changed too. |
 | Anything else                                                              | Should not conflict. If it does, resolve nothing yet: note the file, finish the merge with the rest, and open an upstream issue naming the file and the two hunks — the seam has a leak there.                                                 |
 

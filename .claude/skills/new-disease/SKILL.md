@@ -37,18 +37,45 @@ from a lookup you ran and can show, never from what a disease "probably" has.
 
 ## Order of work
 
-1. **Interview** — the nine questions of `interview.md`, in order, because
+1. **Install**, in the fork's checkout, before anything is drafted: every
+   validation and gate below needs these, and `nodeModulesDir` is `"manual"`,
+   so `deno task check` resolves nothing until `deno install` has run.
+
+   ```bash
+   git remote add upstream https://github.com/mathieubpoiriericm/csvd-dashboard.git
+   deno install
+   uv sync --group dev --group figure
+   deno task e2e:install           # npm ci, then the Chromium build the e2e gate drives
+   ```
+
+   The `upstream` remote is what the `update-from-upstream` skill merges
+   from. Without the `figure` group `uv run pytest tests/scripts` skips its
+   figure tests and passes having run nothing. `npm ci --prefix e2e` alone
+   installs no browser (Playwright's packages have no install script), and
+   the e2e gate fails with "Executable doesn't exist"; on Linux,
+   `npx --prefix e2e playwright install --with-deps chromium` adds the system
+   libraries Chromium needs.
+2. **Interview** — the nine questions of `interview.md`, in order, because
    each feeds the next. Run the pre-fill lookups before asking, and show the
    researcher what came back; a count they can see is a decision they can
    make.
-2. **Draft `disease/`** in dependency order, validating each file as it lands
+3. **Draft `disease/`** in dependency order, validating each file as it lands
    (`deno task check` and `uv run pytest tests/pipeline/test_disease.py` are
    cheap and name the key that is wrong):
-   1. `manifest.json` — questions 1 and 6. `hosting.url` is `null` until the
-      deploy hand-off. `about.citation`, `board`, `contactUs` and
+   1. `manifest.json` — questions 1, 5 and 6. `hosting.url` is `null` until
+      the deploy hand-off. `about.citation`, `board`, `contactUs` and
       `acknowledgements` are `null` until the researcher has text;
       `additionalSources` is `[]`. `citationStandard` is `null` unless the
       field has a phenotype standard the researcher names (question 5).
+      **`acronyms` gets an entry for every trait key that holds an acronym**
+      — a word with a capital and at least two capitals or digits, which
+      most keys are — giving its `kind` (the cSVD ones read
+      `cSVD MRI biomarker`, `clinical outcome`; ask the researcher, or use
+      the family's label as the wizard does) and its `name`, which may be
+      left out when `vocabulary.json` names the trait other than by its key.
+      The Genes table explains a trait cell from it. Nothing checks this on
+      empty data: `tests/acronym_coverage_test.ts` fails on the first
+      exported gene whose trait has no entry, which is after the hand-off.
    2. `pipeline.json` — questions 2, 3, 6 and 7. Rewrite the `$comment`s; the
       ones there quote cSVD measurements.
    3. `vocabulary.json` — question 5. `synonyms` and `untracked` start `[]`.
@@ -78,7 +105,7 @@ from a lookup you ran and can show, never from what a disease "probably" has.
       "not yet hosted"), the trait table, the populations, the query
       rationale from questions 2 and 3, "How to cite: pending". Then
       `deno fmt disease/README.md`; the check gate formats Markdown too.
-3. **`deno task data:empty`** — every `data/*.json` empty or `null`, the OMIM
+4. **`deno task data:empty`** — every `data/*.json` empty or `null`, the OMIM
    table too (it publishes only the entries a published gene links to, and
    no gene is published yet), the cytobands untouched. No database is needed.
    **Then set `GOLD_ONLY = false` in `lib/gold_only.ts`.** Upstream switches
@@ -87,17 +114,17 @@ from a lookup you ran and can show, never from what a disease "probably" has.
    the run report, the Genes page would offer only the traits a gene
    carries, and `pipeline.main` would refuse the `--pubmed` and
    `--clinical-trials` runs the fork needs.
-4. **Remove the four cSVD test trees** with one command:
+5. **Remove the four cSVD test trees** with one command:
    `git rm -r tests/csvd e2e/tests/csvd tests/pipeline/csvd tests/scripts/csvd`.
    Everything left holds for any disease, bar one recording: the cSVD recall
    cassettes sit beside the generic replay test, so remove them too with
    `git rm -r tests/pipeline/cassettes/test_query_recall_gold` -- the recall
    step records the fork's own, and one left in place is replayed instead.
-5. **The test-side edits** `checklist.md` names — the ones a fork must make by
+6. **The test-side edits** `checklist.md` names — the ones a fork must make by
    hand because they carry cSVD content outside `disease/` for a reason each.
-6. **Gates**, then the **cost estimate**, then the **recall measurement**
+7. **Gates**, then the **cost estimate**, then the **recall measurement**
    (below).
-7. **Fork setup** and the **deploy hand-off** (below).
+8. **Fork setup** and the **deploy hand-off** (below).
 
 ## What the code reads
 
@@ -128,6 +155,19 @@ uv run pytest --cov=pipeline --cov=pipeline/alembic --cov-branch --cov-report=te
 uv run pytest tests/scripts
 npx --prefix e2e playwright test -c e2e/playwright.config.ts
 ```
+
+The pipeline gate wants a PostgreSQL database of its own, named by
+`CSVD_TEST_DB_URL=postgresql://user:password@host:port/database`: a throwaway
+one the fixture migrates and writes to, **never the dashboard's**, which does
+not exist yet at this step anyway. Create a role and a database for it first
+(`createuser -P <key>_test && createdb -O <key>_test <key>_test`, after
+`sudo -u postgres` on Linux, with a password of letters and digits because it
+goes into the URL). Without the variable the database tests fall back to
+Apple's `container` runtime and skip where it is missing, and the coverage
+they carry is what holds the total at the floor: the report then ends in
+`FAIL Required test coverage of 99.5% not reached`. A gate that printed that
+line is not green, whatever the exit status; say so in the hand-off rather
+than tick it.
 
 Two disease-literal tests scan the code for the *new* disease's terms
 (`tests/no_disease_literals_test.ts`, `tests/pipeline/test_no_disease_literals.py`).
@@ -187,14 +227,12 @@ uv run pytest tests/pipeline/test_query_recall_gold.py --record-mode=once
 
 ## Fork setup
 
-Run from the fork's checkout, after the drafting above is green:
+Run from the fork's checkout, after the drafting above is green; the remote
+and the three installs are step 1 of the order of work, because the drafting
+cannot be green without them:
 
 ```bash
-git remote add upstream https://github.com/mathieubpoiriericm/csvd-dashboard.git
 cp .env.example .env            # filled as below
-deno install
-uv sync --group dev --group figure
-deno task e2e:install           # npm ci, then the Chromium build the e2e gate drives
 brew services start postgresql@18                        # macOS: Homebrew's formula is keg-only,
 export PATH="$(brew --prefix postgresql@18)/bin:$PATH"   # so neither started nor on PATH
 createuser -s -P <key>_user && createdb -O <key>_user <key>_dashboard   # -P asks for DB_PASSWORD
@@ -202,12 +240,7 @@ cd pipeline && uv run alembic upgrade head && cd ..
 git add -A && git commit -m "Set the repository up for <disease name>"
 ```
 
-`<key>` is `disease.key` from the manifest. The `upstream` remote is what the
-`update-from-upstream` skill merges from. `npm ci --prefix e2e` alone installs
-no browser (Playwright's packages have no install script), and the e2e gate
-fails with "Executable doesn't exist"; on Linux,
-`npx --prefix e2e playwright install --with-deps chromium` adds the system
-libraries Chromium needs.
+`<key>` is `disease.key` from the manifest.
 
 `.env` takes `DB_NAME=<key>_dashboard`, `DB_USER=<key>_user` and a
 `DB_PASSWORD` (the pipeline and alembic refuse to start without all three),
