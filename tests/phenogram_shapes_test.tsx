@@ -1,5 +1,5 @@
 /** The shared shapes carry their own colours, so an exported file needs no stylesheet. */
-import { assert } from "@std/assert";
+import { assert, assertEquals } from "@std/assert";
 import { renderToString } from "preact-render-to-string";
 
 import { Block, Chromosome } from "../components/PhenogramShapes.tsx";
@@ -11,6 +11,9 @@ Deno.test("shapes carry literal colours", () => {
     sampleGene({
       chromosomalLocation: "1p36.32",
       gwasTrait: [encoding.traits[0].key],
+      evidenceFromOtherOmicsStudies: ["TWAS"],
+      linkToMonogenicDisease: ["100000"],
+      mendelianRandomization: "Yes",
     }),
   ]);
   const block = layout.blocks[0];
@@ -26,15 +29,14 @@ Deno.test("shapes carry literal colours", () => {
     assert(tag.includes('fill="#1d1f20"'), tag);
     assert(tag.includes('font-family="Barlow, sans-serif"'), tag);
   }
-  assert(
-    /<line\b[^>]*class="phenogram-marker"[^>]*stroke="#1d1f20"[^>]*stroke-width="2"/
-      .test(html),
-    "marker stroke",
-  );
-  assert(
-    /<path\b[^>]*class="phenogram-leader"[^>]*stroke="#1d1f20"/.test(html),
-    "leader stroke",
-  );
+  const tag = (pattern: RegExp) => html.match(pattern)?.[0] ?? "";
+  const marker = tag(/<line\b[^>]*class="phenogram-marker"[^>]*>/);
+  assert(marker.includes('stroke="#1d1f20"'), marker);
+  assert(marker.includes('stroke-width="2"'), marker);
+  const leader = tag(/<path\b[^>]*class="phenogram-leader"[^>]*>/);
+  assert(leader.includes('stroke="#1d1f20"'), leader);
+  assert(leader.includes('stroke-width="1"'), leader);
   const glyphs = html.match(/<path\b[^>]*phenogram-glyph[^>]*>/g) ?? [];
+  assertEquals(glyphs.length, 3, "omics, monogenic and mr glyphs");
   for (const g of glyphs) assert(g.includes('fill="#1d1f20"'), g);
 });
