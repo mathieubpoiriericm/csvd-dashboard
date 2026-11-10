@@ -400,6 +400,61 @@ test("on a phone the bar shows More and no row wraps", async ({ page }) => {
   ).toBe(true);
 });
 
+test("on a short phone the opened More panel stays on screen and reaches its last button", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 500 });
+  await openWizard(page);
+  const more = page.getByRole("button", { name: "More" });
+  const panel = page.locator(".adapt-bar-more");
+  const bottomOf = (target: Locator) =>
+    target.evaluate((el) => el.getBoundingClientRect().bottom);
+  // Its natural height, opened where it has room.
+  await page.evaluate(() => scrollTo(0, document.body.scrollHeight));
+  await more.click();
+  await expect(panel).toBeVisible();
+  const natural = (await panel.boundingBox())!.height;
+  await page.keyboard.press("Escape");
+  for (
+    const [height, place] of [
+      // The bar low on the page, where the panel cannot fit under it.
+      [500, async () => {
+        await page.evaluate(() => scrollTo(0, 0));
+        await page.evaluate(
+          (by) => scrollBy(0, by),
+          (await bottomOf(more)) - (500 - natural / 2),
+        );
+      }],
+      // Too short for the panel on either side of the bar, pinned.
+      [
+        Math.round(natural * 1.2),
+        () => page.evaluate(() => scrollTo(0, document.body.scrollHeight)),
+      ],
+    ] as const
+  ) {
+    await page.setViewportSize({ width: 390, height });
+    await place();
+    expect(await bottomOf(more) + 8 + natural).toBeGreaterThan(height);
+    await more.click();
+    await expect(panel).toHaveClass(/is-placed/);
+    const box = (await panel.boundingBox())!;
+    expect(box.y, `top at ${height}px`).toBeGreaterThanOrEqual(0);
+    expect(box.y + box.height, `bottom at ${height}px`)
+      .toBeLessThanOrEqual(height);
+    // Download is the last button; disabled on an empty draft, it is
+    // brought into view, and Start over above it is pressed.
+    const last = panel.getByRole("button").last();
+    await last.scrollIntoViewIfNeeded();
+    await expect(last).toBeInViewport({ ratio: 1 });
+    let asked = false;
+    page.once("dialog", (dialog) => {
+      asked = true;
+      return dialog.dismiss();
+    });
+    await panel.getByRole("button", { name: "Start over" }).click();
+    expect(asked, `Start over pressed at ${height}px`).toBe(true);
+    if (await panel.isVisible()) await page.keyboard.press("Escape");
+  }
+});
+
 test("on a phone the opened More panel sits under its button at any bar height", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openWizard(page);

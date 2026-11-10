@@ -640,36 +640,49 @@ export default function AdaptWizard(
   // Save session: a first save creates the session and shows its code,
   // later ones write over it. `saving` holds a second press off until the
   // first settles.
+  //
+  // Every result carries the epoch the request started in, and the reducer
+  // drops one whose epoch has passed (a Start over, another tab's session).
+  // `left()` is the same test here, for what the island itself does with a
+  // result: ask a question, or replace the answers.
+  const left = (epoch: number) => sessionRef.current.epoch !== epoch;
   const saveSession = async () => {
     if (sessionRef.current.saving) return;
+    const epoch = sessionRef.current.epoch;
     dispatch({ type: "save-started" });
     const sent = latest.current;
     const link = sessionRef.current.link;
     if (link === null) {
       const created = await client.create(sent);
       if (!created.ok) {
-        dispatch({ type: "save-failed", message: created.message });
+        dispatch({ type: "save-failed", message: created.message, epoch });
         return;
       }
-      dispatch({ type: "created", link: created.link });
+      dispatch({ type: "created", link: created.link, epoch });
     } else {
       let saved = await client.save(link, sent, false);
       if (!saved.ok && saved.reason === "conflict") {
+        if (left(epoch)) return;
         // The message names when the other copy was saved.
         if (!globalThis.confirm(saved.message)) {
-          dispatch({ type: "save-failed", message: KEPT_OTHER });
+          dispatch({ type: "save-failed", message: KEPT_OTHER, epoch });
           return;
         }
         saved = await client.save(link, sent, true);
       }
       if (!saved.ok) {
-        dispatch({ type: "save-failed", message: saved.message });
+        dispatch({ type: "save-failed", message: saved.message, epoch });
         return;
       }
-      dispatch({ type: "saved", link: saved.link, revived: saved.revived });
+      dispatch({
+        type: "saved",
+        link: saved.link,
+        revived: saved.revived,
+        epoch,
+      });
     }
     // An edit made while the request ran is not in the copy it saved.
-    if (latest.current !== sent) dispatch({ type: "edited" });
+    if (!left(epoch) && latest.current !== sent) dispatch({ type: "edited" });
   };
 
   // What a resume could not read is said once the welcome screen is left,
@@ -677,12 +690,16 @@ export default function AdaptWizard(
   const resumeNote = useRef("");
   const resumeSession = async (code: string) => {
     if (sessionRef.current.saving) return;
+    const epoch = sessionRef.current.epoch;
     dispatch({ type: "resume-started" });
     const result = await client.resume(code, latest.current);
     if (!result.ok) {
-      dispatch({ type: "resume-failed", message: result.message });
+      dispatch({ type: "resume-failed", message: result.message, epoch });
       return;
     }
+    // Another tab's session took this one's place meanwhile; the window
+    // stays open, free again, to resume or cancel.
+    if (left(epoch)) return;
     if (
       holdsAnswers(latest.current) &&
       exportText(result.answers) !== exportText(latest.current) &&
@@ -691,6 +708,7 @@ export default function AdaptWizard(
       dispatch({
         type: "resume-failed",
         message: "Kept the answers here; the session was not resumed.",
+        epoch,
       });
       return;
     }
@@ -698,7 +716,7 @@ export default function AdaptWizard(
     // the draft already holds the link that owns it (see the adoption).
     storeLink(result.link);
     replace(result.answers);
-    dispatch({ type: "resumed", link: result.link });
+    dispatch({ type: "resumed", link: result.link, epoch });
     const lost = result.dropped.length;
     resumeNote.current = lost === 0
       ? ""
@@ -1033,12 +1051,16 @@ export default function AdaptWizard(
               </p>
             )}
             {
-              /* The refused-save alert stays over the welcome screen; the
-              status line belongs to a step, and none is showing. The live
-              region itself stays in the page, so what it says on leaving
-              the welcome screen is announced. */
+              /* The refused-save alert stays over the welcome screen. A
+              step's status line belongs to a step, and none is showing, so
+              there the line says what the session last said: a Save pressed
+              from the welcome screen still answers where it was pressed. The
+              live region stays in the page, so what it says on leaving the
+              welcome screen is announced too. */
             }
-            <p class="adapt-status" role="status">{welcome ? "" : status}</p>
+            <p class="adapt-status" role="status">
+              {welcome ? session.message : status}
+            </p>
           </div>
         </div>
         {welcome

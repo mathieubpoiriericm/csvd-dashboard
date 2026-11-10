@@ -2,9 +2,11 @@ import { useEffect, useId, useRef } from "preact/hooks";
 import {
   autoUpdate,
   computePosition,
+  flip,
   offset,
   type Placement,
   shift,
+  size,
 } from "@floating-ui/dom";
 
 import { BUNDLE_NAME } from "../../lib/adapt/bundle.ts";
@@ -41,6 +43,13 @@ export interface ActionBarProps {
  * button at any bar height rather than at a height the stylesheet guessed.
  * A panel the stylesheet lays out in the bar never opens, so this never
  * runs for it. `present` is whether the pair is rendered at all.
+ *
+ * Its height is the room on the side it opens to: the panel is fixed, so a
+ * part past the viewport's edge could never be scrolled to, and with the
+ * bar low on a short screen that was Start over and Download. `flip` opens
+ * it above the button when there is more room there, and `size` caps it to
+ * what is left, so its own `overflow-y: auto` scrolls the rest. The
+ * stylesheet's viewport cap stays only as an outer bound.
  */
 function usePlacedPopover(placement: Placement, present: boolean) {
   const toggle = useRef<HTMLButtonElement>(null);
@@ -54,12 +63,27 @@ function usePlacedPopover(placement: Placement, present: boolean) {
       stop?.();
       stop = null;
       pop.classList.remove("is-placed");
+      // Closed, it keeps no cap a later, taller room would not need, nor
+      // one the wide layout's static panel would inherit.
+      pop.style.maxHeight = "";
       if ((e as ToggleEvent).newState !== "open") return;
       stop = autoUpdate(button, pop, async () => {
         const { x, y } = await computePosition(button, pop, {
           strategy: "fixed",
           placement,
-          middleware: [offset(8), shift({ padding: 8 })],
+          middleware: [
+            offset(8),
+            flip({ padding: 8 }),
+            shift({ padding: 8 }),
+            size({
+              padding: 8,
+              apply({ availableHeight, elements }) {
+                elements.floating.style.maxHeight = `${
+                  Math.max(0, availableHeight)
+                }px`;
+              },
+            }),
+          ],
         });
         if (!pop.matches(":popover-open")) return;
         pop.style.left = `${x}px`;

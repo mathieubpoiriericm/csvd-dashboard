@@ -6,6 +6,7 @@ import { SESSION_TTL_MS } from "../../lib/adapt/session_code.ts";
 import {
   indicator,
   INITIAL_SESSION,
+  type SessionEvent,
   sessionReducer,
   type SessionState,
   warnsOnLeave,
@@ -103,7 +104,7 @@ Deno.test("a save in flight ignores a second press", () => {
 Deno.test("a created session is held and its code shown", () => {
   const state = sessionReducer(
     { ...INITIAL_SESSION, saving: true },
-    { type: "created", link: LINK },
+    { type: "created", link: LINK, epoch: 0 },
   );
   assertEquals(state.link, LINK);
   assertEquals(state.dialog, "code");
@@ -114,6 +115,7 @@ Deno.test("a save clears the unsaved mark and says when the copy was revived", (
   const saving = { ...attached(DIRTY), saving: true };
   const saved = sessionReducer(saving, {
     type: "saved",
+    epoch: 0,
     link: LINK,
     revived: false,
   });
@@ -122,6 +124,7 @@ Deno.test("a save clears the unsaved mark and says when the copy was revived", (
   assertEquals(saved.saving, false);
   const revived = sessionReducer(saving, {
     type: "saved",
+    epoch: 0,
     link: LINK,
     revived: true,
     timeZone: "UTC",
@@ -136,7 +139,7 @@ Deno.test("a save clears the unsaved mark and says when the copy was revived", (
 Deno.test("a failed save keeps the link unsaved and says why", () => {
   const state = sessionReducer(
     { ...attached(DIRTY), saving: true },
-    { type: "save-failed", message: SESSION_COPY.failed },
+    { type: "save-failed", message: SESSION_COPY.failed, epoch: 0 },
   );
   assertEquals(state.link, DIRTY);
   assertEquals(state.message, SESSION_COPY.failed);
@@ -151,7 +154,11 @@ Deno.test("a resume opens the welcome screen, and leaving it the wizard", () => 
   assertEquals(opened.dialog, "resume");
   const busy = sessionReducer(opened, { type: "resume-started" });
   assertEquals(busy.saving, true);
-  const resumed = sessionReducer(busy, { type: "resumed", link: LINK });
+  const resumed = sessionReducer(busy, {
+    type: "resumed",
+    link: LINK,
+    epoch: 0,
+  });
   assertEquals(resumed.screen, "welcome");
   assertEquals(resumed.dialog, "none");
   assertEquals(resumed.link, LINK);
@@ -164,7 +171,7 @@ Deno.test("a resume opens the welcome screen, and leaving it the wizard", () => 
 Deno.test("a failed resume keeps its window open with the reason, until reopened", () => {
   const failed = sessionReducer(
     { ...INITIAL_SESSION, dialog: "resume", saving: true },
-    { type: "resume-failed", message: SESSION_COPY.unknown },
+    { type: "resume-failed", message: SESSION_COPY.unknown, epoch: 0 },
   );
   assertEquals(failed.dialog, "resume");
   assertEquals(failed.resumeError, SESSION_COPY.unknown);
@@ -241,4 +248,61 @@ Deno.test("leaving warns only over unsaved session changes", () => {
   assertEquals(warnsOnLeave(INITIAL_SESSION), false);
   assertEquals(warnsOnLeave(attached()), false);
   assertEquals(warnsOnLeave(attached(DIRTY)), true);
+});
+
+Deno.test("a save that lands after Start over is dropped", () => {
+  // Saving, then Start over while the request runs: a new epoch, nothing in
+  // flight, and the results of the old request change nothing.
+  const saving = sessionReducer(attached(DIRTY), { type: "save-started" });
+  const detached = sessionReducer(saving, { type: "detached" });
+  assertEquals(detached.saving, false);
+  assertEquals(detached.epoch, saving.epoch + 1);
+  const late: SessionEvent[] = [
+    { type: "created", link: LINK, epoch: saving.epoch },
+    { type: "saved", link: LINK, revived: false, epoch: saving.epoch },
+    { type: "save-failed", message: "x", epoch: saving.epoch },
+    { type: "resumed", link: LINK, epoch: saving.epoch },
+    { type: "resume-failed", message: "x", epoch: saving.epoch },
+  ];
+  for (const event of late) {
+    assertStrictEquals(sessionReducer(detached, event), detached);
+  }
+  // A save started afterwards is answered.
+  const again = sessionReducer(detached, { type: "save-started" });
+  assertEquals(
+    sessionReducer(again, { type: "created", link: LINK, epoch: again.epoch })
+      .link,
+    LINK,
+  );
+});
+
+Deno.test("another tab leaving or changing the session drops what is in flight", () => {
+  const OTHER: SessionLink = { ...LINK, code: "ZYXWVTSRQPNMKJHGFEDC" };
+  const saving: SessionState = {
+    ...attached(DIRTY),
+    saving: true,
+    screen: "welcome",
+  };
+  for (const link of [null, OTHER]) {
+    const adopted = sessionReducer(saving, { type: "link-adopted", link });
+    assertEquals(adopted.link, link);
+    assertEquals(adopted.saving, false);
+    // A welcome screen must not come back later, unasked.
+    assertEquals(adopted.screen, "wizard");
+    assertEquals(adopted.epoch, saving.epoch + 1);
+    const late: SessionEvent = {
+      type: "saved",
+      link: LINK,
+      revived: false,
+      epoch: saving.epoch,
+    };
+    assertStrictEquals(sessionReducer(adopted, late), adopted);
+  }
+  // The same session saved or edited there moves only its state: the
+  // request here still answers for it, and the welcome screen stays.
+  const same = sessionReducer(saving, { type: "link-adopted", link: LINK });
+  assertEquals(same.link, LINK);
+  assertEquals(same.saving, true);
+  assertEquals(same.screen, "welcome");
+  assertEquals(same.epoch, saving.epoch);
 });

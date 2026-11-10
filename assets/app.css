@@ -2744,8 +2744,9 @@ svg {
   gap: var(--svd-space-2);
   position: fixed;
   max-width: calc(100vw - 2 * var(--svd-space-2));
-  /* Never taller than the viewport, and scrolled only when its buttons
-     truly cannot fit, as on a landscape phone. */
+  /* Only an outer bound: ActionBar.tsx caps the panel to the room on the
+     side of its button it opens to, and it scrolls only when its buttons
+     truly cannot fit there, as on a landscape phone. */
   max-height: calc(100dvh - 2 * var(--svd-space-2));
   overflow-y: auto;
   /* Placed by ActionBar.tsx under its button; unseen until then, so it
