@@ -60,10 +60,11 @@ Because of this split, the same code can serve your disease from your
 `disease/`, and you can keep pulling our improvements later (section 15) without
 touching your content.
 
-**One rule that matters for security.** `disease/manifest.json` is shipped to
-every browser _before login_, so it must never contain a gene symbol. Gene
-symbols and search terms go in `disease/pipeline.json`, which only the pipeline
-reads. A test enforces this.
+**One rule that matters for security.** `disease/manifest.json`,
+`vocabulary.json`, `timeline.json` and `phenogram.json` are shipped to every
+browser _before login_, so none of them may contain a gene symbol. Gene symbols
+and search terms go in `disease/pipeline.json`, which only the pipeline reads. A
+test enforces this.
 
 ---
 
@@ -77,7 +78,7 @@ reads. A test enforces this.
 | Deno                     | the web app and its checks   | 2.9+    |
 | uv                       | the Python pipeline          | 0.12+   |
 | Node.js + npm            | the browser end-to-end tests | 26+     |
-| PostgreSQL               | the pipeline's database      | 18.6    |
+| PostgreSQL               | the pipeline and its tests   | 18.6    |
 | libwebp (`cwebp`)        | the README's screenshots     | 1.0+    |
 | Claude Code              | the guided path (optional)   | current |
 
@@ -218,9 +219,9 @@ institute's name, short name, URL and copyright line; the maintainer's name and
 email.
 
 The key must match `^[a-z][a-z0-9_]*$`. It becomes the database name
-(`<key>_dashboard`), the deploy project name (with each `_` written `-`, as in
-step 1), and the `disease` column on every row the pipeline extracts, so choose
-it once.
+(`<key>_dashboard`), the Fly.io app name (with each `_` written `-`, as in step
+1), and the `disease` column on every row the pipeline extracts, so choose it
+once.
 
 Ours, for comparison:
 
@@ -310,7 +311,8 @@ list is a contract between your field's vocabulary and the site's filters.
 You supply: four to sixteen traits. Each has a key (the value the model writes
 and the data stores), a label (the short text on the karyogram's pills and the
 filter choices, 20 characters or fewer), a long name, a one-sentence definition,
-and a family (two to five traits sharing a colour). If your field has a
+and a family (two to five traits sharing a colour). No two traits share a key or
+a label: the filter would offer the same choice twice. If your field has a
 phenotype standard (as STRIVE-2 is for us), cite it; definitions quoted from it
 are marked `standard: true`.
 
@@ -366,9 +368,10 @@ _instead of_ their HGNC symbols: every extraction of the members is stored, and
 published, under the alias. Use one for a group the literature treats as one
 (our `COL4A1/2` stands for two genes) or for a symbol NCBI has retired that the
 literature still writes (our `C6orf195`, now `LINC01600`), never for a synonym
-of a gene you want shown by its own symbol. NCBI Gene and UniProt are asked for
-the members, not the alias, and the gene and protein tooltips show each member
-with its own record.
+of a gene you want shown by its own symbol. A member belongs to one alias only;
+the pipeline refuses to load a symbol filed under two. NCBI Gene and UniProt are
+asked for the members, not the alias, and the gene and protein tooltips show
+each member with its own record.
 
 Lookup: NCBI Gene for each symbol's official spelling, searched among current
 records only (a replaced record answers with its old name, which is not the
@@ -437,7 +440,7 @@ uv run pytest tests/pipeline/test_disease.py
 | ----------------- | -------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------- |
 | `manifest.json`   | Q1, Q5, Q6     | Everything the web app prints                        | No gene symbols. `hosting.url` and the four `about.*` texts start `null`.    |
 | `pipeline.json`   | Q2, Q3, Q6, Q7 | Search terms, gene lists                             | Rewrite the `$comment` strings; ours quote cSVD measurements.                |
-| `vocabulary.json` | Q5             | The traits                                           | `synonyms` and `untracked` start `[]`.                                       |
+| `vocabulary.json` | Q5             | The traits                                           | No gene symbols. `synonyms` and `untracked` start `[]`.                      |
 | `timeline.json`   | Q6             | Trial populations, mechanisms, families with colours | Populations in the manifest's order; at least one family with one mechanism. |
 | `phenogram.json`  | Q5             | One colour pair per trait family                     | Reuse our seven pairs in order; a new pair must pass the contrast test.      |
 | `omim_info.csv`   | Q7             | OMIM tooltip rows                                    | Nine columns; header line alone if none.                                     |
@@ -445,13 +448,22 @@ uv run pytest tests/pipeline/test_disease.py
 | `recall_gold.csv` | Q9             | The gold papers                                      | **Delete `recall_baseline.json`**; you will write your own in section 11.    |
 | `README.md`       | all            | The human-readable disease page                      | Then `deno fmt disease/ static/institute/`.                                  |
 
-Three cross-file rules the tests pin:
+Four cross-file rules the tests pin:
 
 - `## strategy.monogenic_genes` in `prompt.md` is exactly `monogenicGenes` from
   `pipeline.json` joined by `,`.
 - `## traits.canonical` in `prompt.md` names every trait key in
   `vocabulary.json` and nothing else.
 - The `populations` in `timeline.json` equal the manifest's, in the same order.
+- `acronyms` in `manifest.json` has an entry for every trait key that holds an
+  acronym, which most do: a word with a capital and at least two capitals or
+  digits, such as `PSMD` or `T1`. The Genes table explains a trait cell from
+  that entry. Each one gives a `kind` (ours read `cSVD MRI biomarker`,
+  `clinical outcome`) and a `name`, which may be left out when `vocabulary.json`
+  gives the trait a name other than its key. The page writes them for you, with
+  the family's label as the `kind`; reword it if you like. Nothing fails while
+  the data is empty: `tests/acronym_coverage_test.ts` fails on the first
+  exported gene whose trait has no entry.
 
 An example of `pipeline.json`, trimmed:
 
@@ -496,6 +508,20 @@ CSV that a published gene links to), and leaves the genome reference file
 (cytobands) untouched. It needs no database. Our CI runs the whole test suite in
 exactly this state, so it is a supported configuration, not a degraded one.
 
+Then open `lib/gold_only.ts` and set the switch off:
+
+```ts
+export const GOLD_ONLY = false;
+```
+
+We switch it on while our own data is limited to our hand-curated tables, and
+your fork arrives with it on. Left that way, the About page shows our
+curated-data notice in place of your run report, the Genes page offers only the
+traits a gene carries, and `pipeline.main` refuses the two kinds of run your
+fork needs: `--pubmed`, which the cost estimate in section 11 and the first run
+in section 13 select, and `--clinical-trials`. Leave the rest of the file as it
+is.
+
 ---
 
 ## 8. Step 5: remove the tests that name our disease
@@ -523,7 +549,7 @@ reason. They are judgement calls you make once.
 
 | File                                                                                 | What to do                                                                                                                                                                                                       |
 | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `tests/pipeline/test_prompt_vocabulary.py`                                           | Set `_ADMITTED_UNASKED` to `{}`. It explains why two of our trait keys are absent from our prompt's canonical sentence; yours names every key, so there is nothing to explain.                                   |
+| `tests/pipeline/test_prompt_vocabulary.py`                                           | Set `_ADMITTED_UNASKED` to `{}`. It explains why some of our trait keys are absent from our prompt's canonical sentence; yours names every key, so there is nothing to explain.                                  |
 | `tests/no_disease_literals_test.ts` and `tests/pipeline/test_no_disease_literals.py` | Only if they fail. They scan the code for **your** disease's terms; add an allow-list entry only for a hit that is about something else.                                                                         |
 | `server/protected_data_build.ts`                                                     | `PROTECTED_DATA_SENTINELS` lists strings that must never appear in a public bundle (leak canaries). Passes on empty data. After your first real export, replace the seven strings with ones unique to your data. |
 | `e2e/package.json`                                                                   | The `name` and `description` fields.                                                                                                                                                                             |
@@ -537,6 +563,25 @@ reason. They are judgement calls you make once.
 
 **Purpose:** prove the repository is consistent before the first run. These are
 the same commands our CI runs on the empty-data configuration. All must pass.
+
+The pipeline's database tests migrate and write to a PostgreSQL database of
+their own, as our CI gives them one: a throwaway database, never the dashboard's
+own, which section 12 creates. Create it once and name it in `CSVD_TEST_DB_URL`.
+`createuser -P` asks for the role's password; keep it to letters and digits,
+since it goes into a URL. On a Mac, start PostgreSQL and put its commands on
+your `PATH` first (the first two lines of section 12's block); on Linux, run the
+first two lines below as the `postgres` user, as section 12 does.
+
+```bash
+createuser -P <key>_test
+createdb -O <key>_test <key>_test
+export CSVD_TEST_DB_URL=postgresql://<key>_test:<password>@localhost:5432/<key>_test
+```
+
+Without the variable those tests look for Apple's `container` runtime and, on a
+machine without it, are skipped. The fifth command's report then ends in
+`FAIL Required test coverage of 99.5% not reached`: the coverage they carry is
+what holds the total at its floor.
 
 ```bash
 deno task check                 # format, lint, type-check
@@ -803,20 +848,32 @@ git fetch upstream
 git merge upstream/main
 ```
 
-Then one resolution per location, and only these:
+Then one resolution per location. The first six are where your content lives;
+the last five are the edits sections 7 to 13 had you make in files we go on
+changing, so a merge can meet them again:
 
-| Location                    | Resolution                                                    |
-| --------------------------- | ------------------------------------------------------------- |
-| `data/`                     | Keep yours                                                    |
-| `disease/`                  | Keep yours; then diff the two schemas for any new key         |
-| The four `csvd/` test trees | Keep them deleted                                             |
-| `README.md` first line      | Keep yours                                                    |
-| `fly.toml`                  | Keep your `app` and `primary_region`; take the rest           |
-| `docs/screenshots/`         | Recapture with `deno task screenshots`, once `data/` is yours |
+| Location                                           | Resolution                                                               |
+| -------------------------------------------------- | ------------------------------------------------------------------------ |
+| `data/`                                            | Keep yours                                                               |
+| `disease/`                                         | Keep yours; then diff the two schemas for any new key                    |
+| The four `csvd/` test trees                        | Keep them deleted                                                        |
+| `README.md` first line                             | Keep yours                                                               |
+| `fly.toml`                                         | Keep your `app` and `primary_region`; take the rest                      |
+| `docs/screenshots/`                                | Recapture with `deno task screenshots`, once `data/` is yours            |
+| `tests/pipeline/cassettes/test_query_recall_gold/` | Keep yours; delete ours again if you have not recorded your own          |
+| `lib/gold_only.ts`                                 | Keep `GOLD_ONLY = false`; take the rest                                  |
+| `tests/pipeline/test_prompt_vocabulary.py`         | Keep `_ADMITTED_UNASKED = {}`; take the rest                             |
+| `server/protected_data_build.ts`                   | Keep your `PROTECTED_DATA_SENTINELS`; take the rest                      |
+| `e2e/package.json`                                 | Keep your `name` and `description`; take the rest, our versions included |
 
-A conflict anywhere else is a bug in the seam; please report it upstream rather
-than resolving it locally. Run the checks from section 10 afterwards. The Claude
-Code skill `/update-from-upstream` performs exactly this sequence.
+`lib/gold_only.ts` needs a look even when the merge is clean: if we switched
+gold-only on after you forked, our line arrives without a conflict, and
+`GOLD_ONLY` has to go back to `false` (section 7).
+
+A conflict anywhere outside this table is a bug in the seam; please report it
+upstream rather than resolving it locally. Run the checks from section 10
+afterwards. The Claude Code skill `/update-from-upstream` performs exactly this
+sequence.
 
 If you fix or improve the shared code, a pull request upstream benefits every
 fork.
@@ -826,7 +883,18 @@ fork.
 ## 16. Troubleshooting
 
 **Every page answers 503.** One of the two login variables is unset. Check
-`.env` locally, or the Deploy project's secrets.
+`.env` locally, or the Fly app's secrets (`fly secrets list`; section 14 sets
+them).
+
+**A pipeline run exits with "refused: GOLD_ONLY is true".** `lib/gold_only.ts`
+still carries our switch, or a merge from upstream brought it back. Set
+`GOLD_ONLY = false` (section 7) and run the command again. The message points at
+an undo checklist in that file; its other steps restore our database and our
+tests, and a fork needs none of them.
+
+**The pytest coverage report ends in "FAIL Required test coverage".** The
+database tests were skipped for want of a database. Name a throwaway one in
+`CSVD_TEST_DB_URL` (section 10).
 
 **Login succeeds and the form reappears.** You opened the site on
 `http://0.0.0.0:8000` rather than `http://127.0.0.1:8000`. The session cookie is
@@ -880,7 +948,7 @@ Europe PMC and PDF traps and what each looks like in the run log.
 [ ] Forked as <key>-dashboard, cloned, upstream remote added
 [ ] deno install, uv sync, deno task e2e:install
 [ ] Interview answered (Q1 to Q9)
-[ ] disease/manifest.json          (no gene symbols)
+[ ] disease/manifest.json          (no gene symbols; acronyms for the trait keys)
 [ ] disease/pipeline.json          ($comments rewritten)
 [ ] disease/vocabulary.json
 [ ] disease/timeline.json          (>= 1 family, populations in manifest order)
@@ -890,9 +958,11 @@ Europe PMC and PDF traps and what each looks like in the run log.
 [ ] disease/recall_gold.csv        (recall_baseline.json deleted)
 [ ] disease/README.md              (deno fmt)
 [ ] deno task data:empty
+[ ] GOLD_ONLY = false in lib/gold_only.ts
 [ ] git rm -r tests/csvd e2e/tests/csvd tests/pipeline/csvd tests/scripts/csvd
 [ ] git rm -r tests/pipeline/cassettes/test_query_recall_gold
 [ ] _ADMITTED_UNASKED = {}, e2e/package.json, logos
+[ ] CSVD_TEST_DB_URL names a throwaway test database
 [ ] All seven checks green
 [ ] Cost estimate printed and acceptable
 [ ] Recall measured, baseline and cassette committed

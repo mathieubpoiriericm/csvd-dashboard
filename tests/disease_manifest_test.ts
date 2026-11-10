@@ -20,6 +20,10 @@ import {
 import { genes } from "../lib/data/genes.ts";
 import { type Schema, schemaErrors } from "../lib/adapt/schema.ts";
 import { cellTypeTooltip, splitCellTypes } from "../lib/tooltips.ts";
+import {
+  PUBLIC_DISEASE_FILES,
+  publicSymbolHits,
+} from "./helpers/public_symbols.ts";
 
 // The committed values themselves are pinned in tests/csvd/disease_manifest_test.ts.
 Deno.test("the manifest normalizes to the committed document", () => {
@@ -347,42 +351,18 @@ Deno.test("an unknown key at the root of either document is reported", async () 
 });
 
 Deno.test("no gene symbol reaches the files every visitor downloads before login", async () => {
-  // The manifest, the radar's timeline and the karyogram's families ship in
-  // chunks served before the login, which the gene table sits behind.
-  const pipeline = await readDiseaseJson("pipeline.json") as {
-    monogenicGenes: string[];
-    geneAliases: Record<string, string[]>;
-  };
-  const symbols = [
-    ...pipeline.monogenicGenes,
-    ...Object.entries(pipeline.geneAliases).flat(2),
-  ].filter((symbol) => symbol.trim() !== "");
-  if (symbols.length === 0) return;
-  const escaped = [...new Set(symbols)]
-    .sort((a, b) => b.length - a.length)
-    .map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-  const word = new RegExp(
-    `(?<![\\p{L}\\p{N}])(?:${escaped.join("|")})(?![\\p{L}\\p{N}])`,
-    "u",
-  );
-  const hits: string[] = [];
-  const walk = (value: unknown, path: string) => {
-    if (typeof value === "string") {
-      const hit = word.exec(value);
-      if (hit) hits.push(`${path}: ${hit[0]}`);
-    } else if (Array.isArray(value)) {
-      value.forEach((item, i) => walk(item, `${path}[${i}]`));
-    } else if (value !== null && typeof value === "object") {
-      for (const [key, item] of Object.entries(value)) {
-        walk(key, `${path} key`);
-        walk(item, `${path}.${key}`);
-      }
-    }
-  };
-  for (const name of ["manifest.json", "timeline.json", "phenogram.json"]) {
-    walk(await readDiseaseJson(name), name);
+  // The manifest, the radar's timeline, the karyogram's families and the
+  // trait vocabulary ship in chunks served before the login, which the gene
+  // table sits behind. tests/adapt/validate_test.ts holds the wizard to the
+  // same walk, so a bundle it approves passes here.
+  const files: Record<string, unknown> = {};
+  for (const name of PUBLIC_DISEASE_FILES) {
+    files[name] = await readDiseaseJson(name);
   }
-  assertEquals(hits, []);
+  assertEquals(
+    publicSymbolHits(await readDiseaseJson("pipeline.json"), files),
+    [],
+  );
 });
 
 Deno.test("a manifest without acronyms normalizes to an empty glossary", () => {

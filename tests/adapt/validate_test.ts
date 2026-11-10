@@ -2,6 +2,7 @@ import { assert, assertEquals } from "@std/assert";
 
 import type { Answers } from "../../lib/adapt/answers.ts";
 import { EMPTY_ANSWERS } from "../../lib/adapt/answers.ts";
+import { bundle } from "../../lib/adapt/bundle.ts";
 import { clean, trim } from "../../lib/adapt/generate/json.ts";
 import {
   FAMILY_PALETTE,
@@ -24,8 +25,13 @@ import {
 } from "../../lib/adapt/validate.ts";
 import { SHOW_ALL } from "../../lib/constants.ts";
 import { NONE_FOUND, UNKNOWN } from "../../lib/sentinels.ts";
+import {
+  PUBLIC_DISEASE_FILES,
+  publicSymbolHits,
+} from "../helpers/public_symbols.ts";
 import { EXAMPLEITIS } from "./fixtures/exampleitis.ts";
 import { FORK_HARD } from "./fixtures/fork_hard.ts";
+import { MAXIMAL } from "./fixtures/maximal.ts";
 
 const withChange = (change: (a: Answers) => void): Answers => {
   const copy = structuredClone(EXAMPLEITIS);
@@ -353,6 +359,7 @@ Deno.test("monogenic rules", () => {
           symbol: `G${i}`,
           verified: true,
           clinvarTraits: [],
+          clinvarSample: null,
         });
       }
     }),
@@ -748,13 +755,36 @@ Deno.test("identity: padded answers pass, and a logo must be SVG or PNG", () => 
     withChange((a) => a.identity.institute.url = "https://exa mple.org"),
     "identity:institute.url",
   );
-  has(
-    withChange((a) => a.identity.logoLight = { name: "logo.jpg", base64: "" }),
+  // The archive publishes the file under the extension its name ends in,
+  // so the name is held to .svg or .png whatever the bytes are: these are
+  // the fixture's own, which pass every other check.
+  const { base64 } = EXAMPLEITIS.identity.logoLight!;
+  for (
+    const name of [
+      "logo.jpg",
+      "logo",
+      "logo.svg.html",
+      "logo.svgz",
+      "logo.png.txt",
+      "svg",
+    ]
+  ) {
+    const renamed = validate(withChange((a) => {
+      a.identity.logoLight = { name, base64 };
+      a.identity.logoDark = { name, base64 };
+    }));
+    assertEquals(renamed.map((i) => [i.field, i.kind, i.message]), [
+      ["logoLight", "wrong", "The logo must be an .svg or a .png file."],
+      [
+        "logoDark",
+        "wrong",
+        "The dark-theme logo must be an .svg or a .png file.",
+      ],
+    ], name);
+  }
+  lacks(
+    withChange((a) => a.identity.logoLight = { name: "LOGO.SVG", base64 }),
     "identity:logoLight",
-  );
-  has(
-    withChange((a) => a.identity.logoDark = { name: "logo", base64: "" }),
-    "identity:logoDark",
   );
   lacks(
     withChange((a) => a.identity.logoDark = { name: "Logo.PNG", base64: PNG }),
@@ -878,10 +908,25 @@ Deno.test("prompt: a slot or a heading anywhere in the file, and a bad example t
       "prompt:traits.canonical",
     ),
   );
-  has(
-    withChange((a) => a.prompt.examples[0].type = 'include" x="y'),
-    "prompt:examples[0].type",
-  );
+  // The type is written between double quotes in the example block, with
+  // nothing escaped: each of these keeps the include_ prefix, so only the
+  // rest of the pattern refuses it.
+  for (
+    const type of [
+      'include_x" y="z',
+      "include_validated>",
+      "include_a-b",
+      "include_a b",
+      "include_A",
+      "include_",
+      "include_one\ninclude_two",
+    ]
+  ) {
+    has(
+      withChange((a) => a.prompt.examples[0].type = type),
+      "prompt:examples[0].type",
+    );
+  }
   lacks(
     withChange((a) => a.prompt.examples[0].pmid = " 10000001 "),
     "prompt:examples[0].pmid",
@@ -891,6 +936,9 @@ Deno.test("prompt: a slot or a heading anywhere in the file, and a bad example t
 Deno.test("the patterns validate() applies are exported unchanged", () => {
   assert(KEY.test("exampleitis") && !KEY.test("Example-itis"));
   assert(EXAMPLE_TYPE.test("include_validated") && !EXAMPLE_TYPE.test("2x"));
+  for (const type of ['include_x"', "include_x y", "include_x>", "include_"]) {
+    assert(!EXAMPLE_TYPE.test(type), type);
+  }
   assert(CONDITION.test("small vessel") && !CONDITION.test("small-vessel"));
   assert(emailOk("ada@example.org") && !emailOk("ada@example"));
   assert(WEB_URL.test("https://example.org") && !WEB_URL.test("example.org"));
@@ -914,6 +962,7 @@ Deno.test("each issue says whether its answer is missing, pending or wrong", () 
       symbol: "GENEZ",
       verified: null,
       clinvarTraits: [],
+      clinvarSample: null,
     });
     a.gold.rows[0].exists = null;
     a.search.diseaseTerms.push("example disease");
@@ -1170,6 +1219,30 @@ Deno.test("a trait label fits the karyogram's label column", () => {
   );
 });
 
+Deno.test("two traits cannot share one label", () => {
+  // The label is the text of the filter choice and of the karyogram pill:
+  // two traits with one label cannot be told apart on the page, and the
+  // fork's own gold-only test then fails naming neither.
+  const shared = withChange((a) => a.vocabulary.traits[1].label = " t1 ");
+  has(shared, "vocabulary:traits[1].label");
+  lacks(shared, "vocabulary:traits[0].label");
+  assertEquals(
+    validate(shared).map((i) => [i.message, i.kind]),
+    [[
+      '"t1" is already another trait\'s label; the filter and the karyogram could not tell the two apart.',
+      "wrong",
+    ]],
+  );
+  // A blank label is asked for once, not also reported as a repeat.
+  assertEquals(
+    validate(withChange((a) => {
+      a.vocabulary.traits[0].label = "";
+      a.vocabulary.traits[1].label = " ";
+    })).map((i) => `${i.field}:${i.kind}`),
+    ["traits[0].label:missing", "traits[1].label:missing"],
+  );
+});
+
 Deno.test("a logo's bytes are what its name says, and inert", () => {
   const svg = (text: string) => ({ name: "logo.svg", base64: btoa(text) });
   const NS = 'xmlns="http://www.w3.org/2000/svg"';
@@ -1191,7 +1264,19 @@ Deno.test("a logo's bytes are what its name says, and inert", () => {
         `<svg ${NS} xmlns:s="http://www.w3.org/2000/svg"><s:set attributeName="onload" to="alert(1)"/></svg>`,
       ),
       svg(`<!DOCTYPE svg [<!ENTITY x "y">]><svg ${NS}/>`),
+      // An internal subset is refused with or without an entity in it, and
+      // so is one a second DOCTYPE opens.
+      svg(`<!DOCTYPE svg [ ]><svg ${NS}/>`),
+      svg(`<!DOCTYPE svg><!DOCTYPE svg [ ]><svg ${NS}/>`),
       svg("<svg/>"),
+      // What stands before the root is a declaration closed with "?>",
+      // comments closed with "-->" and a DOCTYPE closed with ">"; a comment
+      // ends at its first "-->".
+      svg(`<?xml version="1.0"><svg ${NS}/>`),
+      svg(`<!-- never closed <svg ${NS}/>`),
+      svg(`<!-- one --> stray --><svg ${NS}/>`),
+      svg(`<!DOCTYPE svg <svg ${NS}/`),
+      svg(`<!-- a --><p ${NS}/>`),
       { name: "logo.svg", base64: PNG },
       { name: "logo.png", base64: btoa(`<svg ${NS}/>`) },
       { name: "logo.png", base64: "" },
@@ -1207,10 +1292,47 @@ Deno.test("a logo's bytes are what its name says, and inert", () => {
       svg(
         `<?xml version="1.0"?>\n<!-- made by hand -->\n<svg ${NS} width="40" height="10"><rect width="40" height="10" fill="#123456"/><text x="1" y="8">EI</text></svg>`,
       ),
+      // A byte-order mark, a declaration, comments (one holding "--") and
+      // a DOCTYPE with no internal subset, as an editor exports them.
+      svg(
+        `\xef\xbb\xbf<?xml version="1.0" encoding="UTF-8"?>\n<!-- a -- b -->\n<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">\n<!----><SVG ${NS}><set attributeName="x" to="1"/><animate attributeName="opacity"/></SVG>`,
+      ),
       { name: "logo.png", base64: PNG },
     ]
   ) {
     lacks(withChange((a) => a.identity.logoLight = logo), "identity:logoLight");
+  }
+});
+
+Deno.test("a logo is judged in time proportional to its size", () => {
+  // validate() runs on every render, and an imported logo is stored before
+  // it is judged: one that took minutes to refuse froze the wizard on every
+  // load of the page. As one pattern, a run of comments with no <svg after
+  // it was split every possible way, and each of the other two shapes was
+  // read again from every tag in it.
+  const NS = 'xmlns="http://www.w3.org/2000/svg"';
+  const message = (text: string) =>
+    validate(
+      withChange((a) =>
+        a.identity.logoLight = { name: "logo.svg", base64: btoa(text) }
+      ),
+    ).filter((i) => i.field === "logoLight").map((i) => i.message.slice(0, 26));
+  const shapes: Array<[string, string[]]> = [
+    ["<!---->".repeat(30) + "<x/>", ["This SVG has no <svg xmlns"]],
+    ["<!-- a -->\n".repeat(20_000) + `<svg ${NS}/>`, []],
+    [`<svg ${NS}>` + "<set ".repeat(40_000), []],
+    [
+      `<svg ${NS}>` + "<set ".repeat(40_000) + 'attributeName="onload"',
+      ["This SVG carries a script "],
+    ],
+    ["<!DOCTYPE ".repeat(40_000), ["This SVG has no <svg xmlns"]],
+    ["<!DOCTYPE ".repeat(40_000) + "[", ["This SVG declares entities"]],
+  ];
+  for (const [text, verdict] of shapes) {
+    const started = performance.now();
+    assertEquals(message(text), verdict, text.slice(0, 40));
+    const took = performance.now() - started;
+    assert(took < 500, `${text.slice(0, 40)}: ${took} ms`);
   }
 });
 
@@ -1304,6 +1426,86 @@ Deno.test("a gene symbol cannot reach any string the public files hold", () => {
   );
 });
 
+Deno.test("a gene symbol is reported wherever an answer would write it into a public file", () => {
+  // Read from the generated files rather than from a list of fields: each
+  // text answer in turn gains a symbol, and whenever the fork's own walker
+  // then finds it in a file served before login, validate() has to have
+  // said so. A public string validate() does not check, or one a generator
+  // starts writing, fails here instead of in the fork.
+  const hits = (answers: Answers): string[] => {
+    const entries = bundle(answers);
+    const read = (name: string) =>
+      JSON.parse(
+        new TextDecoder().decode(
+          entries.find((e) => e.path === `disease/${name}`)!.bytes,
+        ),
+      );
+    return publicSymbolHits(
+      read("pipeline.json"),
+      Object.fromEntries(
+        PUBLIC_DISEASE_FILES.map((name) => [name, read(name)]),
+      ),
+    );
+  };
+  const reported = (answers: Answers, symbol: string): boolean =>
+    validate(answers).some((i) =>
+      i.message.startsWith(`"${symbol}" is a gene symbol`)
+    );
+  const leaves = (value: unknown, path: string[] = []): string[][] =>
+    typeof value === "string"
+      ? [path]
+      : value !== null && typeof value === "object"
+      ? Object.entries(value).flatMap(([key, item]) =>
+        leaves(item, [...path, key])
+      )
+      : [];
+  const append = (path: string[], text: string): Answers => {
+    const answers = structuredClone(MAXIMAL);
+    let node = answers as unknown as Record<string, unknown>;
+    for (const key of path.slice(0, -1)) {
+      node = node[key] as Record<string, unknown>;
+    }
+    const last = path[path.length - 1];
+    node[last] = `${node[last]}${text}`;
+    return answers;
+  };
+  assertEquals(hits(MAXIMAL), []);
+  const { identity, vocabulary, trials } = MAXIMAL;
+  const reached = new Set<string>();
+  let written = 0;
+  for (const path of leaves({ identity, vocabulary, trials })) {
+    // A logo's bytes are no text of these files. A trait's or a mechanism's
+    // family is the key of a row checked in its own right, and one naming
+    // no row is refused as that.
+    if (path.includes("base64") || path[path.length - 1] === "family") continue;
+    const changed = append(path, " GENEA");
+    const found = hits(changed);
+    if (found.length === 0) continue;
+    written++;
+    for (const hit of found) reached.add(hit.slice(0, hit.search(/[.[ ]/)));
+    assert(
+      reported(changed, "GENEA"),
+      `${path.join(".")}\n${found.join("\n")}`,
+    );
+  }
+  // Every public file was reached, and most of the answers reach one.
+  assertEquals([...reached].sort(), [
+    "manifest",
+    "phenogram",
+    "timeline",
+    "vocabulary",
+  ]);
+  assert(written >= 40, `${written}`);
+  // An alias and each of its members are symbols as much as a monogenic
+  // gene is: the fork's walker reads all three from pipeline.json.
+  for (const symbol of ["GENEZ", "GENEZ-like"]) {
+    const aliased = append(["identity", "site", "aboutLede"], ` ${symbol}`);
+    aliased.monogenic.aliases = [{ alias: "GENEZ-like", symbols: ["GENEZ"] }];
+    assert(hits(aliased).length > 0, symbol);
+    assert(reported(aliased, symbol), symbol);
+  }
+});
+
 Deno.test("a DOI holding an invisible character is refused", () => {
   const standard = (doi: string) =>
     withChange((a) =>
@@ -1344,12 +1546,62 @@ Deno.test("an alias cannot rename a monogenic gene", () => {
         symbol: "GENEB",
         verified: true,
         clinvarTraits: [],
+        clinvarSample: null,
       });
     }),
     "monogenic:aliases[0]",
   );
   // The fixture's combined key over one monogenic member and one other.
   lacks(EXAMPLEITIS, "monogenic:aliases[0]");
+});
+
+Deno.test("a symbol is filed under one alias, once", () => {
+  // pipeline/data_merger.py keeps one alias per member, the last listed,
+  // and pipeline/annotations.py files a shared member's lookups under the
+  // first: the gene's papers went under one name and its annotations under
+  // the other, and the fork's test of the two maps failed.
+  const messages = (answers: Answers, field: string) =>
+    validate(answers).filter((i) => i.field === field).map((i) =>
+      `${i.kind}: ${i.message}`
+    );
+  const shared = withChange((a) =>
+    a.monogenic.aliases.push({
+      alias: "GENEA-like",
+      symbols: ["GENEQ", "GENEA"],
+    })
+  );
+  assertEquals(messages(shared, "aliases[1].symbols"), [
+    'wrong: GENEA is already filed under "GENEA/B"; a symbol has one alias.',
+  ]);
+  lacks(shared, "monogenic:aliases[0].symbols");
+  // Compared as the pipeline compares them: stripped and upper-cased.
+  const spelled = withChange((a) =>
+    a.monogenic.aliases = [
+      { alias: "GENEX-old", symbols: ["GeneX"] },
+      { alias: "GENEX-older", symbols: [" genex "] },
+    ]
+  );
+  assertEquals(messages(spelled, "aliases[1].symbols"), [
+    'wrong: genex is already filed under "GENEX-old"; a symbol has one alias.',
+  ]);
+  lacks(spelled, "monogenic:aliases[0].symbols");
+  assertEquals(
+    messages(
+      withChange((a) =>
+        a.monogenic.aliases[0].symbols = ["GENEA", "GENEB", "geneb"]
+      ),
+      "aliases[0].symbols",
+    ),
+    ['wrong: "geneb" is listed twice.'],
+  );
+  // An empty item is asked for, and is no symbol to repeat.
+  assertEquals(
+    messages(
+      withChange((a) => a.monogenic.aliases[0].symbols = ["GENEA", "", " "]),
+      "aliases[0].symbols",
+    ),
+    ["missing: An alias needs at least one HGNC symbol, with no empty item."],
+  );
 });
 
 Deno.test("the OMIM table is plain ASCII", () => {
@@ -1412,6 +1664,132 @@ Deno.test("an invisible character is refused inside a label", () => {
   has(
     withChange((a) => a.identity.site.title = "\u200bExample"),
     "identity:site.title",
+  );
+});
+
+Deno.test("an answer typed on one line holds no line break", () => {
+  // An <input> cannot hold one, but an imported answers file can, and the
+  // README and the checklist write these answers into Markdown: a disease
+  // name that went on to a new line opened a heading and a block of
+  // commands of its own, under the wizard's name.
+  const standard = (a: Answers) =>
+    a.vocabulary.citationStandard ??= {
+      name: "Standard",
+      label: "Example et al. 2020",
+      doi: "10.1000/xyz",
+      linkLabel: "View the standard",
+    };
+  const oneLine: Array<[string, (a: Answers, text: string) => void]> = [
+    ["identity:disease.name", (a, t) => a.identity.disease.name = t],
+    ["identity:disease.short", (a, t) => a.identity.disease.short = t],
+    [
+      "identity:disease.abbreviation",
+      (a, t) => a.identity.disease.abbreviation = t,
+    ],
+    ["identity:disease.adjective", (a, t) => a.identity.disease.adjective = t],
+    ["identity:site.title", (a, t) => a.identity.site.title = t],
+    ["identity:institute.name", (a, t) => a.identity.institute.name = t],
+    ["identity:institute.short", (a, t) => a.identity.institute.short = t],
+    [
+      "identity:institute.copyright",
+      (a, t) => a.identity.institute.copyright = t,
+    ],
+    ["identity:institute.logoAlt", (a, t) => a.identity.institute.logoAlt = t],
+    ["identity:maintainer.name", (a, t) => a.identity.maintainer.name = t],
+    ["identity:cellTypes.label", (a, t) => a.identity.cellTypes.label = t],
+    [
+      "identity:cellTypes.glossary[0]",
+      (a, t) => a.identity.cellTypes.glossary[0].abbrev = t,
+    ],
+    [
+      "identity:cellTypes.glossary[0].name",
+      (a, t) => a.identity.cellTypes.glossary[0].name = t,
+    ],
+    ["search:diseaseTerms[0]", (a, t) => a.search.diseaseTerms[0] = t],
+    ["search:markerTerms[0]", (a, t) => a.search.markerTerms[0].term = t],
+    ["vocabulary:families[0]", (a, t) => {
+      for (const trait of a.vocabulary.traits) {
+        if (trait.family === a.vocabulary.families[0].key) trait.family = t;
+      }
+      a.vocabulary.families[0].key = t;
+    }],
+    [
+      "vocabulary:families[0].label",
+      (a, t) => a.vocabulary.families[0].label = t,
+    ],
+    ["vocabulary:traits[0].label", (a, t) => a.vocabulary.traits[0].label = t],
+    ["vocabulary:traits[0].name", (a, t) => a.vocabulary.traits[0].name = t],
+    [
+      "vocabulary:traits[0].xrefNote",
+      (a, t) => a.vocabulary.traits[0].xrefNote = t,
+    ],
+    ["vocabulary:citationStandard.name", (a, t) => standard(a).name = t],
+    ["vocabulary:citationStandard.label", (a, t) => standard(a).label = t],
+    [
+      "vocabulary:citationStandard.linkLabel",
+      (a, t) => standard(a).linkLabel = t,
+    ],
+    ["trials:populations[0].key", (a, t) => a.trials.populations[0].key = t],
+    [
+      "trials:populations[0].label",
+      (a, t) => a.trials.populations[0].label = t,
+    ],
+    [
+      "trials:populationField.label",
+      (a, t) => a.trials.populationField.label = t,
+    ],
+    [
+      "trials:populationField.detailsLabel",
+      (a, t) => a.trials.populationField.detailsLabel = t,
+    ],
+    ["trials:searchTerms[0]", (a, t) => a.trials.searchTerms[0].term = t],
+    ["trials:mechanismFamilies[0]", (a, t) => {
+      for (const mechanism of a.trials.mechanisms) mechanism.family = t;
+      a.trials.mechanismFamilies[0].key = t;
+    }],
+    [
+      "trials:mechanismFamilies[0].label",
+      (a, t) => a.trials.mechanismFamilies[0].label = t,
+    ],
+    ["trials:mechanisms[0].name", (a, t) => a.trials.mechanisms[0].name = t],
+    ["monogenic:aliases[0]", (a, t) => a.monogenic.aliases[0].alias = t],
+    [
+      "monogenic:aliases[0].symbols",
+      (a, t) => a.monogenic.aliases[0].symbols = ["GENEA", t],
+    ],
+    ["prompt:examples[0].gene", (a, t) => a.prompt.examples[0].gene = t],
+    [
+      "prompt:examples[0].reasoning",
+      (a, t) => a.prompt.examples[0].reasoning = t,
+    ],
+    ["gold:rows[0].note", (a, t) => a.gold.rows[0].note = t],
+  ];
+  const broken = (answers: Answers) =>
+    validate(answers).filter((i) =>
+      i.message === "This answer is one line; remove the line break." &&
+      i.kind === "wrong"
+    ).map((i) => `${i.step}:${i.field}`);
+  for (const [field, set] of oneLine) {
+    // Said once: an example's gene and reasoning are looked at for "{{"
+    // too, and that look repeated this one.
+    assertEquals(
+      broken(withChange((a) => set(a, "one\ntwo"))).filter((f) => f === field),
+      [field],
+    );
+    // One at either end is no part of the answer the files write.
+    assertEquals(broken(withChange((a) => set(a, "\none two\n"))), [], field);
+  }
+  // The answers typed into a box of several lines keep theirs.
+  assertEquals(
+    validate(withChange((a) => {
+      a.identity.site.heading = "EXD\nDashboard";
+      a.identity.site.aboutLede = "One paragraph.\n\nAnother.";
+      a.identity.site.pages.genes = "Genes,\nline by line.";
+      a.vocabulary.traits[0].definition = "A definition\nof two lines.";
+      a.trials.populations[1].lines = ["Late", "stage"];
+      a.prompt.examples[0].sentence = "GENEC reached\nsignificance for T1.";
+    })),
+    [],
   );
 });
 

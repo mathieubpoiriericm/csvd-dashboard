@@ -2,6 +2,7 @@ import { assertEquals, assertStringIncludes } from "@std/assert";
 import { renderToString } from "preact-render-to-string";
 
 import {
+  focusInView,
   keepInView,
   Stepper,
   type StepperStep,
@@ -84,4 +85,33 @@ Deno.test("the current segment is scrolled to the middle of its row", () => {
   // Preact hands a ref null as its element goes; nothing moves then.
   keepInView(null);
   assertEquals(row.scrollLeft, 300.5);
+});
+
+Deno.test("a segment focused by a press stays under the pointer; one tabbed to is centred", () => {
+  const row = {
+    scrollLeft: 0,
+    getBoundingClientRect: () => ({ left: 8, width: 359 }),
+  };
+  const segment = {
+    parentElement: row,
+    getBoundingClientRect: () => ({ left: 216, width: 104 }),
+  };
+  const asked: string[] = [];
+  const button = (ringed: boolean) =>
+    ({
+      parentElement: segment,
+      matches: (selector: string) => {
+        asked.push(selector);
+        return ringed;
+      },
+    }) as unknown as HTMLButtonElement;
+  // A press focuses the button before it is released. Scrolled then, the
+  // row slid the segment out from under the pointer, the release landed on
+  // its neighbour, and the click reached neither.
+  focusInView(button(false));
+  assertEquals(row.scrollLeft, 0);
+  // The keyboard's focus draws the ring, which is what the centring is for.
+  focusInView(button(true));
+  assertEquals(row.scrollLeft, 80.5);
+  assertEquals(asked, [":focus-visible", ":focus-visible"]);
 });

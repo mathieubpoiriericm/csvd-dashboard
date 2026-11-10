@@ -1,7 +1,7 @@
 import { assert, assertAlmostEquals, assertEquals } from "@std/assert";
 
 import { trials } from "../lib/data.ts";
-import { sampleTrial } from "./fixtures/rows.ts";
+import { characterisedMechanism, sampleTrial } from "./fixtures/rows.ts";
 import {
   type Anchor,
   anchorOffsetX,
@@ -39,7 +39,9 @@ const layout = computeTimelineLayout(trials);
 
 const POPULATION = encoding.populations[0].key;
 const PHASE = encoding.rings[0].phase;
-const MECHANISM = Object.keys(encoding.mechanisms)[0];
+// Not simply the first: a disease may list its `uncharacterised` family's
+// mechanism first, and every count of flags below would then be one out.
+const MECHANISM = characterisedMechanism(encoding);
 
 /** A trial the radar places in the first population's first ring. */
 const placed = (overrides: Partial<ReturnType<typeof sampleTrial>> = {}) =>
@@ -464,6 +466,32 @@ Deno.test("record-flag rules fire on the exact values and nothing near them", ()
       estimatedCompletionDate: "(unknown)",
     }, withFamily),
     ["mechanism-uncharacterised", "enrolment-unstated", "completion-unstated"],
+  );
+});
+
+Deno.test("the sample mechanism is unflagged, whatever the encoding lists first", () => {
+  // The constructed cases count flags on `placed()` rows, so their mechanism
+  // has to be one the flag leaves alone -- also where a disease lists its
+  // `uncharacterised` family first, or has no other.
+  assertEquals(resolveRecordFlag(placed()), []);
+  const unstated = { key: "uncharacterised", label: "U", mechanisms: ["Zed"] };
+  const named = { key: "named", label: "N", mechanisms: ["Wye"] };
+  const first = {
+    ...encoding,
+    mechanisms: { Zed: "#111111", Wye: "#222222" },
+    families: [unstated, named],
+  };
+  assertEquals(characterisedMechanism(first), "Wye");
+  const only = {
+    ...encoding,
+    mechanisms: { Zed: "#111111" },
+    families: [unstated],
+  };
+  const fallback = characterisedMechanism(only);
+  assert(!(fallback in only.mechanisms));
+  assertEquals(
+    resolveRecordFlag(sampleTrial({ mechanismOfAction: fallback }), only),
+    [],
   );
 });
 

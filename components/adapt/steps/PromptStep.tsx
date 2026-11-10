@@ -4,9 +4,13 @@ import { StepSummary } from "../StepSummary.tsx";
 import { ListEditor } from "../ListEditor.tsx";
 import { CodeBlock } from "../CodeBlock.tsx";
 import { cardOf } from "../../../lib/adapt/cards.ts";
-import { applyAbstract, parseConfidence } from "../../../lib/adapt/edits.ts";
+import {
+  applyAbstract,
+  parseConfidence,
+  pmidsToCheck,
+} from "../../../lib/adapt/edits.ts";
+import { stepRequired } from "../../../lib/adapt/feedback.ts";
 import { pubmedAbstract } from "../../../lib/adapt/lookups.ts";
-import { PMID } from "../../../lib/adapt/validate.ts";
 import {
   prefillSections,
   SECTION_HELP,
@@ -31,6 +35,12 @@ export function PromptStep(
 ) {
   const { sections, examples } = answers.prompt;
   const traitKeys = answers.vocabulary.traits.map((t) => t.key);
+  // A section is required exactly when validate() asks for it, read off
+  // validate() itself rather than restated: the disease steps never are,
+  // nor the two naming a monogenic gene while there is none. Restated as
+  // the first alone, those two were marked required, and red once left, on
+  // a step validate() called complete.
+  const asked = new Set(stepRequired(answers, "prompt"));
 
   // The derived sections filled where they are blank; the status line says
   // which, since a filled section can sit in a folded card.
@@ -60,8 +70,8 @@ export function PromptStep(
   // line, or else what was fetched.
   async function fetchAbstract(i: number) {
     let outcome = "";
-    const pmid = examples[i].pmid.trim();
-    if (!PMID.test(pmid)) {
+    const [pmid] = pmidsToCheck([examples[i].pmid]);
+    if (pmid === undefined) {
       setStatus(
         "Enter the paper's PMID, digits with no leading zero, before fetching it.",
       );
@@ -112,7 +122,7 @@ export function PromptStep(
               onInput={(v) =>
                 update((d) => d.prompt.sections[id] = v)}
               multiline
-              optional={id === "strategy.disease_steps"}
+              optional={!asked.has(`sections.${id}`)}
               hint={SECTION_HELP[id]}
               field={`sections.${id}`}
             />

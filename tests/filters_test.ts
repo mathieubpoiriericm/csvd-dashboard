@@ -14,7 +14,7 @@ import {
 import { formatTrialPlace, registryOf } from "../lib/trials.ts";
 import { genes, trials } from "../lib/data.ts";
 import type { Trial } from "../lib/types.ts";
-import { sampleGene, sampleTrial } from "./fixtures/rows.ts";
+import { sampleGene, sampleTrial, swapAsciiCase } from "./fixtures/rows.ts";
 import {
   DEFAULT_TRIAL_STATUSES,
   defaultTrialStatuses,
@@ -212,7 +212,7 @@ Deno.test("under gold-only the trait choices are the traits the rows carry, in v
   const last = VOCABULARY_TRAITS.at(-1)!;
   // Carried out of order, padded and recased: the filters' own comparison.
   const rows = [
-    sampleGene({ gwasTrait: [` ${last.value.toUpperCase()} `] }),
+    sampleGene({ gwasTrait: [` ${swapAsciiCase(last.value)} `] }),
     sampleGene({ gwasTrait: [first.value] }),
     sampleGene(),
   ];
@@ -225,6 +225,19 @@ Deno.test("under gold-only the trait choices are the traits the rows carry, in v
     gwasTraitChoices([], true).map((choice) => choice.value),
     [SHOW_ALL, NONE_FOUND],
   );
+});
+
+Deno.test("a recased sample value is one the filters' comparison still finds", () => {
+  // Upper-casing is not: a trait keyed with the micro sign or an eszett came
+  // back as another key, and the two tests that recase a vocabulary trait
+  // failed on a fork that had one.
+  for (const key of ["µFA", "Größe", "T1", "a-β 42"]) {
+    const recased = swapAsciiCase(key);
+    assertEquals(recased.toLowerCase(), key.toLowerCase(), key);
+    assertEquals(swapAsciiCase(recased), key);
+  }
+  assert(swapAsciiCase("µFA") !== "µFA");
+  assert("µFA".toUpperCase().toLowerCase() !== "µfa");
 });
 
 // -----------------------------------------------------------------------------

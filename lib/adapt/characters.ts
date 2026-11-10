@@ -54,7 +54,9 @@ export type Rule =
   | "confidence"
   | "doi"
   | "slotless"
+  | "slotlessLines"
   | "plain"
+  | "plainLines"
   | "section"
   | "inline"
   | "steps";
@@ -92,7 +94,8 @@ const RULES: ReadonlyArray<readonly [RegExp, Rule]> = [
   [/^disease\.key$/, "key"],
   [/^disease\.(?:name|abbreviation)$/, "slotless"],
   [/^examples\[\d+\]\.type$/, "exampleType"],
-  [/^examples\[\d+\]\.(?:gene|sentence|reasoning)$/, "slotless"],
+  [/^examples\[\d+\]\.(?:gene|reasoning)$/, "slotless"],
+  [/^examples\[\d+\]\.sentence$/, "slotlessLines"],
   [/^institute\.url$/, "url"],
   [/^maintainer\.email$/, "email"],
   [/^(?:diseaseTerms|markerTerms)\[\d+\]$/, "quoteless"],
@@ -115,8 +118,14 @@ const RULES: ReadonlyArray<readonly [RegExp, Rule]> = [
   ],
   [/^examples\[\d+\]\.confidence$/, "confidence"],
   [/^citationStandard\.doi$/, "doi"],
+  // The answers typed into a box of several lines: every site text but the
+  // title, a trait's definition, a population's radar lines.
   [
-    /^(?:disease\.(?:short|adjective)|site\.|institute\.(?:name|short|copyright|logoAlt)$|maintainer\.name$|cellTypes\.(?:label|glossary\[\d+\]\.name)$|families\[\d+\](?:\.label)?$|traits\[\d+\]\.(?:name|definition|xrefNote)$|citationStandard\.(?:name|label|linkLabel)$|populations\[\d+\]\.(?:label|lines)$|populationField\.|mechanismFamilies\[\d+\](?:\.label)?$|aliases\[\d+\]\.symbols$|omimRows\[\d+\]\.geneOrLocus$|rows\[\d+\]\.note$)/,
+    /^(?:site\.(?!title$)|traits\[\d+\]\.definition$|populations\[\d+\]\.lines$)/,
+    "plainLines",
+  ],
+  [
+    /^(?:disease\.(?:short|adjective)|site\.title$|institute\.(?:name|short|copyright|logoAlt)$|maintainer\.name$|cellTypes\.(?:label|glossary\[\d+\]\.name)$|families\[\d+\](?:\.label)?$|traits\[\d+\]\.(?:name|xrefNote)$|citationStandard\.(?:name|label|linkLabel)$|populations\[\d+\]\.label$|populationField\.|mechanismFamilies\[\d+\](?:\.label)?$|aliases\[\d+\]\.symbols$|omimRows\[\d+\]\.geneOrLocus$|rows\[\d+\]\.note$)/,
     "plain",
   ],
 ];
@@ -189,6 +198,23 @@ const hiddenMessage = (offences: Offence[]): string =>
   `${
     named(offences)
   } can't be used: an invisible character would reach the files unseen.`;
+
+/**
+ * Each line break inside the trimmed text of an answer typed on one line.
+ * An <input> cannot hold one, but an imported file can, and the README and
+ * the checklist write the answer into Markdown, where the next line could
+ * open a heading.
+ */
+function lineBreaks(text: string): Offence[] {
+  const [from, to] = textSpan(text);
+  return scan(text, from, to, (c) => c === "\n");
+}
+
+const BREAK_MESSAGE = "A line break can't be used: this answer is one line.";
+
+/** The text on one line: its lines trimmed and joined with single spaces. */
+const oneLine = (text: string): string =>
+  text.split("\n").map(trim).filter((line) => line !== "").join(" ");
 
 /** The text with the offending spans taken out, trimmed. */
 function without(text: string, offences: Offence[]): string {
@@ -375,12 +401,16 @@ function email(text: string): Diagnosis {
     parts.push('"@" appears once in an address.');
   }
   const ok = emailOk(t);
+  // Read off the end by hand: a pattern anchored only there reads a run of
+  // punctuation inside the value again from every place in it.
+  let end = t.length;
+  while (end > 0 && ",;.".includes(t[end - 1])) end--;
   // "Ada Example <ada@example.org>" pasted from a mail client, a mailto:
   // link's address, and one copied with the punctuation after it.
   const candidates = [
     /<\s*([^\s<>]+)\s*>/.exec(t)?.[1] ?? "",
     t.replace(/^mailto:/i, "").replace(/^<(.*)>$/, "$1"),
-    t.replace(/[,;.]+$/, ""),
+    t.slice(0, end),
   ];
   let note: string | null = null;
   if (!ok && offences.length === 0) {
@@ -414,7 +444,7 @@ function quoteless(text: string): Diagnosis {
     text,
     from,
     to,
-    (c) => c === '"' || c === "[" || c === "]" || hiddenChar(c),
+    (c) => c === '"' || c === "[" || c === "]" || c === "\n" || hiddenChar(c),
   );
   if (offences.length === 0) {
     return OPERATOR.test(t) ? { ...FAILS, note: PHRASE_NOTE } : CLEAN;
@@ -430,9 +460,10 @@ function quoteless(text: string): Diagnosis {
       "Square brackets can't be used: the search tags each phrase itself; remove the [tag].",
     );
   }
+  if (offences.some((o) => o.char === "\n")) parts.push(BREAK_MESSAGE);
   const hidden = offences.filter((o) => hiddenChar(o.char));
   if (hidden.length > 0) parts.push(hiddenMessage(hidden));
-  const bare = trim(
+  const bare = oneLine(
     t.replace(/\s*\[[^\]]*\]\s*$/, "").replace(/["[\]]/g, "")
       .replace(/[\p{Cc}\p{Cf}\u2028\u2029]/gu, (c) => hiddenChar(c) ? "" : c),
   ).replace(/\s{2,}/g, " ");
@@ -452,7 +483,7 @@ function ctgovTerm(text: string): Diagnosis {
     text,
     from,
     to,
-    (c) => c === "[" || c === "]" || hiddenChar(c),
+    (c) => c === "[" || c === "]" || c === "\n" || hiddenChar(c),
   );
   if (offences.length === 0) {
     return ctgovTermRefused(t)
@@ -464,15 +495,16 @@ function ctgovTerm(text: string): Diagnosis {
       : CLEAN;
   }
   const hidden = offences.filter((o) => hiddenChar(o.char));
-  const fixed = trim(
+  const fixed = oneLine(
     without(text, hidden).replace(/\[[^\]]*\]/g, " ").replace(/[[\]]/g, " "),
   ).replace(/\s{2,}/g, " ");
   return {
     ...FAILS,
     offences,
     message: [
-      hidden.length < offences.length &&
+      offences.some((o) => o.char === "[" || o.char === "]") &&
       "Square brackets can't be used: ClinicalTrials.gov cannot parse them.",
+      offences.some((o) => o.char === "\n") && BREAK_MESSAGE,
       hidden.length > 0 && hiddenMessage(hidden),
     ].filter(Boolean).join(" "),
     fix: fixed === "" || ctgovTermRefused(fixed) ? null : fixed,
@@ -533,23 +565,33 @@ function traitKey(text: string): Diagnosis {
     ...FAILS,
     offences,
     message: parts.join(" "),
+    // Taking a character out can leave a key still refused: one that opens
+    // with "#", one whose two braces now meet, one the filters keep.
     fix: hidden.length + gaps.length === offences.length && fixed !== "" &&
-        !fixed.startsWith("#") && !reserved(fixed)
+        !fixed.startsWith("#") && !fixed.includes(SLOT) && !reserved(fixed)
       ? fixed
       : null,
   };
 }
 
-/** Text that only an invisible character can spoil. */
-function plain(text: string): Diagnosis {
+/**
+ * Text that only an invisible character can spoil -- and, unless it is typed
+ * into a box of several `lines`, a line break.
+ */
+function plain(text: string, lines = false): Diagnosis {
   if (trim(text) === "") return CLEAN;
-  const offences = invisibles(text);
+  const hidden = invisibles(text);
+  const broken = lines ? [] : lineBreaks(text);
+  const offences = ordered([...hidden, ...broken]);
   if (offences.length === 0) return CLEAN;
-  const fixed = without(text, offences);
+  const fixed = lines ? without(text, hidden) : oneLine(without(text, hidden));
   return {
     ...FAILS,
     offences,
-    message: hiddenMessage(offences),
+    message: [
+      broken.length > 0 && BREAK_MESSAGE,
+      hidden.length > 0 && hiddenMessage(hidden),
+    ].filter(Boolean).join(" "),
     fix: fixed === "" ? null : fixed,
   };
 }
@@ -580,21 +622,30 @@ function traitLabel(text: string): Diagnosis {
     : CLEAN;
 }
 
-/** Text spliced into the prompt: no invisible character, and no "{{". */
-function slotless(text: string): Diagnosis {
+/**
+ * Text spliced into the prompt: no invisible character, no "{{" and, unless
+ * it is typed into a box of several `lines`, no line break.
+ */
+function slotless(text: string, lines = false): Diagnosis {
   if (trim(text) === "") return CLEAN;
   const hidden = invisibles(text);
-  const offences = ordered([...hidden, ...slots(text)]);
+  const broken = lines ? [] : lineBreaks(text);
+  const offences = ordered([...hidden, ...broken, ...slots(text)]);
   if (offences.length === 0) return CLEAN;
-  const fixed = without(text, hidden);
+  const fixed = lines ? without(text, hidden) : oneLine(without(text, hidden));
   return {
     ...FAILS,
     offences,
     message: [
       offences.some((o) => o.char === SLOT) && SLOT_MESSAGE,
+      broken.length > 0 && BREAK_MESSAGE,
       hidden.length > 0 && hiddenMessage(hidden),
     ].filter(Boolean).join(" "),
-    fix: hidden.length === offences.length && fixed !== "" ? fixed : null,
+    // Not when the character stood between two braces: they would meet.
+    fix: hidden.length + broken.length === offences.length && fixed !== "" &&
+        !fixed.includes(SLOT)
+      ? fixed
+      : null,
   };
 }
 
@@ -881,6 +932,7 @@ function inline(text: string): Diagnosis {
     ...scan(text, from, to, (c) => c === "\n"),
   ]);
   if (offences.length === 0) return CLEAN;
+  const joined = oneLine(text);
   return {
     ...FAILS,
     offences,
@@ -888,7 +940,10 @@ function inline(text: string): Diagnosis {
       offences,
       "A line break can't be used: this text is spliced into one line of the model's instructions.",
     ),
-    fix: faults.length === 0 ? trim(text).split(/\s*\n\s*/).join(" ") : null,
+    // A first line of "##" alone would be joined into a heading.
+    fix: faults.length === 0 && blockOffences(joined).length === 0
+      ? joined
+      : null,
   };
 }
 
@@ -981,8 +1036,12 @@ export function diagnose(rule: Rule, text: string): Diagnosis {
       return doi(text);
     case "slotless":
       return slotless(text);
+    case "slotlessLines":
+      return slotless(text, true);
     case "plain":
       return plain(text);
+    case "plainLines":
+      return plain(text, true);
     case "section":
       return section(text);
     case "inline":

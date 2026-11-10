@@ -218,6 +218,67 @@ Deno.test("a cell subtype splits from its abbreviation, and prints without the c
   assertEquals(cellTypeText("Venous, ZZQQ"), "Venous, ZZQQ");
 });
 
+Deno.test("every glossary abbreviation takes a subtype, whatever it holds", () => {
+  // Not only the first: the split used to stop at whitespace, so a subtype
+  // of an abbreviation holding a space came back whole, with no tooltip.
+  for (const [abbreviation, name] of Object.entries(CELL_TYPE_NAMES)) {
+    assertEquals(splitSubtype(`Venous, ${abbreviation}`), {
+      subtype: "Venous",
+      abbreviation,
+    }, abbreviation);
+    assertEquals(cellTypeTooltip(`Venous, ${abbreviation}`), {
+      rows: [{ label: `Venous ${abbreviation}`, value: `Venous ${name}` }],
+    }, abbreviation);
+  }
+});
+
+Deno.test("the glossary decides where a subtype ends, not the abbreviation's spelling", () => {
+  // A glossary of the test's own: a disease's may hold no such abbreviation.
+  const glossary = {
+    "T cells": "T lymphocytes",
+    "NK": "Natural killer cells",
+    "T, NK": "T and natural killer cells",
+  };
+  assertEquals(splitSubtype("Venous, T cells", glossary), {
+    subtype: "Venous",
+    abbreviation: "T cells",
+  });
+  assertEquals(cellTypeText("Venous, T cells", glossary), "Venous T cells");
+  assertEquals(cellTypeTooltip("Venous, T cells", glossary), {
+    rows: [{ label: "Venous T cells", value: "Venous T lymphocytes" }],
+  });
+  // The subtype is everything before the abbreviation, commas included, and
+  // the longest abbreviation the glossary defines wins.
+  assertEquals(splitSubtype("Inner, outer,NK", glossary), {
+    subtype: "Inner, outer",
+    abbreviation: "NK",
+  });
+  assertEquals(splitSubtype("Venous, T, NK", glossary), {
+    subtype: "Venous",
+    abbreviation: "T, NK",
+  });
+  // An abbreviation is not a subtype of its own last word.
+  assertEquals(splitSubtype("T, NK", glossary), {
+    subtype: null,
+    abbreviation: "T, NK",
+  });
+  assertEquals(cellTypeTooltip("T, NK", glossary), {
+    rows: [{ label: "T, NK", value: "T and natural killer cells" }],
+  });
+  // Free text holding a comma, and a comma with nothing before it, stay whole.
+  for (const whole of ["Venous, ZZ QQ", "Venous, T", ", NK"]) {
+    assertEquals(splitSubtype(whole, glossary), {
+      subtype: null,
+      abbreviation: whole,
+    });
+    assertEquals(cellTypeText(whole, glossary), whole);
+    assertEquals(cellTypeTooltip(whole, glossary), null);
+  }
+  assertEquals(cellTypeTooltip("T cells (some atlas)", glossary), {
+    rows: [{ label: "T cells", value: "T lymphocytes (some atlas)" }],
+  });
+});
+
 const OMICS_GLOSSARY = new Map([
   ["TWAS", {
     name: "Transcriptome-Wide Association Study",

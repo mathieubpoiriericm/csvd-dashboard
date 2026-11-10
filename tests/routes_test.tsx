@@ -16,6 +16,7 @@ import MapPage from "../routes/map.tsx";
 import PhenogramPage from "../routes/phenogram.tsx";
 import TimelinePage from "../routes/timeline.tsx";
 import Trials from "../routes/trials.tsx";
+import { DEFAULT_PAGE_SIZE } from "../components/TableShell.tsx";
 import { genes, trialLocations, trials } from "../lib/data.ts";
 import { pipelineStatus } from "../lib/data/pipeline.ts";
 import { MAINTAINER, RADAR_TITLE, SITE_TITLE } from "../lib/disease.ts";
@@ -154,7 +155,7 @@ Deno.test("About route renders its warning, totals, and the gold-only notice", (
   assertStringIncludes(html, "Dashboard totals");
   assertStringIncludes(html, "Putative Causal Genes");
   assertStringIncludes(html, "Publications");
-  assertStringIncludes(html, MAINTAINER.email);
+  assertStringIncludes(html, escapeHtml(MAINTAINER.email));
   // The route renders whichever branch the switch selects; the run branch
   // is covered above through `goldOnly={false}`.
   if (GOLD_ONLY) {
@@ -239,7 +240,14 @@ Deno.test("Genes route server-renders filters, readout, and the first table page
   if (genes.length === 0) {
     assertStringIncludes(html, "No rows match the current filters.");
   } else {
-    assertMatch(html, /Showing 1–10 of \d+/);
+    // The first page is as long as the table's page size, or as the table:
+    // a disease's first export may publish fewer rows than a page holds.
+    assertStringIncludes(
+      html,
+      `Showing 1–${
+        Math.min(DEFAULT_PAGE_SIZE, genes.length)
+      } of ${genes.length}`,
+    );
   }
 });
 
@@ -280,7 +288,7 @@ Deno.test("Phenogram route server-renders every placed gene and both legends", (
 
 Deno.test("Timeline route server-renders the visible trial markers and its legends", () => {
   const html = render(TimelinePage);
-  assertStringIncludes(html, RADAR_TITLE);
+  assertStringIncludes(html, escapeHtml(RADAR_TITLE));
   assertStringIncludes(html, "Mechanism of action");
   assertStringIncludes(html, "Genetic evidence");
   assertStringIncludes(html, "Study status");

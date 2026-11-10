@@ -11,6 +11,7 @@
  * band one the hg38 table carries. Nothing here names a disease.
  */
 
+import type { TimelineEncoding } from "../../lib/timeline.ts";
 import type { Gene, Trial, TrialLocation } from "../../lib/types.ts";
 import { NONE, NONE_FOUND, UNKNOWN } from "../../lib/sentinels.ts";
 
@@ -52,6 +53,36 @@ export function sampleTrial(overrides: Partial<Trial> = {}): Trial {
     overallStatus: "RECRUITING",
     ...overrides,
   };
+}
+
+/**
+ * A mechanism the radar's record flag leaves alone: the encoding's first
+ * outside its `uncharacterised` family, which a disease may list first.
+ * When every mechanism is filed there it is `sampleTrial`'s own, which the
+ * encoding does not list -- drawn in the fallback colour, and not flagged
+ * either. `_mechanism` in tests/scripts/test_timeline_figure.py is its twin.
+ */
+export function characterisedMechanism(
+  enc: Pick<TimelineEncoding, "mechanisms" | "families">,
+): string {
+  const flagged = enc.families.find((f) => f.key === "uncharacterised")
+    ?.mechanisms ?? [];
+  return Object.keys(enc.mechanisms).find((m) => !flagged.includes(m)) ??
+    sampleTrial().mechanismOfAction;
+}
+
+/**
+ * A value in the other case, ASCII letters only: what the filters'
+ * `trim().toLowerCase()` comparison is defined to ignore. `toUpperCase()`
+ * is not that -- it turns the micro sign into a capital mu, which lowers to
+ * the Greek letter, and "ß" into "SS" -- so a trait keyed with either came
+ * back as a different key.
+ */
+export function swapAsciiCase(value: string): string {
+  return value.replace(
+    /[A-Za-z]/g,
+    (c) => c === c.toLowerCase() ? c.toUpperCase() : c.toLowerCase(),
+  );
 }
 
 /** A geocoded facility the map can place. */

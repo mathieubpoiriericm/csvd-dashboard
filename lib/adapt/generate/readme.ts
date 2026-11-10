@@ -1,6 +1,6 @@
 import type { Answers } from "../answers.ts";
 import { titleCase } from "../site_drafts.ts";
-import { clean, wrap80 } from "./json.ts";
+import { clean, oneLine, wrap80 } from "./json.ts";
 import { meshHeadings } from "./pipeline.ts";
 
 /**
@@ -9,7 +9,7 @@ import { meshHeadings } from "./pipeline.ts";
  * no tag -- and the pipe with them, which would end a table cell.
  */
 const md = (value: string): string =>
-  clean(value).replace(/[\\`*_<>[\]|]/g, "\\$&");
+  oneLine(value).replace(/[\\`*_<>[\]|]/g, "\\$&");
 
 /**
  * A key as a code span, fenced with one backtick more than the longest run
@@ -18,7 +18,7 @@ const md = (value: string): string =>
  * before the span does.
  */
 function code(value: string): string {
-  const text = clean(value).replace(/\|/g, "\\|");
+  const text = oneLine(value).replace(/\|/g, "\\|");
   const run = Math.max(0, ...[...text.matchAll(/`+/g)].map((m) => m[0].length));
   const fence = "`".repeat(run + 1);
   const pad = text.startsWith("`") || text.endsWith("`") ? " " : "";

@@ -7,9 +7,11 @@
  * abbreviation, one trial population -- never surfaced upstream. This copies
  * the tree, unpacks a wizard bundle over it and follows the adaptation
  * checklist's steps 2 to 4 (lib/adapt/checklist.ts): the upstream logos go,
- * the data is emptied, the four cSVD test trees and the recall cassettes are
- * deleted and `_ADMITTED_UNASKED` is emptied. Then it runs step 5's checks
- * and the production build.
+ * the data is emptied, `GOLD_ONLY` is switched off, the four cSVD test trees
+ * and the recall cassettes are deleted and `_ADMITTED_UNASKED` is emptied.
+ * Then it runs step 5's checks and the production build. A fork's CI runs it
+ * too, on a checkout those steps were applied to long ago, so each of them
+ * holds on a tree that already carries it.
  *
  *   deno run -A scripts/adapt_fork_check.ts [exampleitis] [hard] [--e2e] [--keep]
  *                                            [--shard=K/N] [--only=FAMILY]
@@ -57,7 +59,7 @@ export function shard(names: readonly string[], spec: string): string[] {
 }
 
 /** The trees and the cassettes checklist step 3 deletes. */
-const UPSTREAM_TESTS = [
+export const UPSTREAM_TESTS: readonly string[] = [
   "tests/csvd",
   "e2e/tests/csvd",
   "tests/pipeline/csvd",
@@ -117,32 +119,95 @@ async function copyTree(into: string) {
   }
 }
 
-/** Checklist steps 2 to 4, on the copy at `fork`. */
-async function adapt(fork: string, answers: Answers) {
+// The checkout is upstream's here and a fork's own in that fork's CI, which
+// runs this script unchanged on a tree that followed the checklist long ago.
+// So each step below ends in the same state from either start: what the
+// checklist deletes may already be gone, and what it edits already edited.
+
+/**
+ * Whether the tree at `fork` is still upstream's: it holds the cSVD tests,
+ * which checklist step 3 deletes and no fork puts back.
+ */
+async function isUpstream(fork: string): Promise<boolean> {
+  try {
+    await Deno.stat(join(fork, UPSTREAM_TESTS[0]));
+    return true;
+  } catch (error) {
+    if (error instanceof Deno.errors.NotFound) return false;
+    throw error;
+  }
+}
+
+/**
+ * Removes `path`, a file or a tree. Only a fork's own tree (`upstream`
+ * false) may already lack it: on upstream's, a path the checklist names and
+ * the tree no longer has is a checklist that fails for the next fork
+ * (`git rm` on a pathspec that matches nothing), and tolerated here too it
+ * would leave this check green over it.
+ */
+async function removeListed(path: string, upstream: boolean) {
+  try {
+    await Deno.remove(path, { recursive: true });
+  } catch (error) {
+    if (upstream || !(error instanceof Deno.errors.NotFound)) throw error;
+  }
+}
+
+/**
+ * `text` (tests/pipeline/test_prompt_vocabulary.py) with the dict emptied,
+ * which is `text` itself where it already is. A file that no longer declares
+ * the dict is refused: the edit would otherwise pass for done.
+ */
+export function emptyAdmittedUnasked(text: string): string {
+  const declaration =
+    /^(_ADMITTED_UNASKED: Final\[dict\[str, str\]\] = )\{(?:\}|\n[\s\S]*?^\})$/m;
+  if (!declaration.test(text)) {
+    throw new Error("_ADMITTED_UNASKED was not found");
+  }
+  return text.replace(declaration, "$1{}");
+}
+
+/**
+ * `text` (lib/gold_only.ts) with the switch off, which is `text` itself where
+ * it already is. The declaration is matched as pipeline/gold_only.py reads
+ * it, so a line Python would refuse is refused here too.
+ */
+export function switchGoldOnlyOff(text: string): string {
+  const declaration = /^export const GOLD_ONLY = (?:true|false);$/m;
+  if (!declaration.test(text)) throw new Error("GOLD_ONLY was not found");
+  return text.replace(declaration, "export const GOLD_ONLY = false;");
+}
+
+/** A file edited in place. */
+async function rewrite(path: string, change: (text: string) => string) {
+  await Deno.writeTextFile(path, change(await Deno.readTextFile(path)));
+}
+
+/** The files of checklist step 2: the bundle in, what it replaces out. */
+export async function unpack(fork: string, answers: Answers) {
+  const upstream = await isUpstream(fork);
   for (const logo of ["logo-light.svg", "logo-dark.svg"]) {
-    await Deno.remove(join(fork, "static/institute", logo)).catch(() => {});
+    await removeListed(join(fork, "static/institute", logo), upstream);
   }
   for (const entry of bundle(answers)) {
     if (!/^(disease|static)\//.test(entry.path)) continue;
     await Deno.mkdir(dirname(join(fork, entry.path)), { recursive: true });
     await Deno.writeFile(join(fork, entry.path), entry.bytes);
   }
-  await Deno.remove(join(fork, "disease/recall_baseline.json"));
-  await run(fork, "deno", ["fmt", "disease/", "static/institute/"]);
+  await removeListed(join(fork, "disease/recall_baseline.json"), upstream);
+}
 
-  await run(fork, "deno", ["task", "data:empty"], PYTHON_ENV);
+/** The deletions and the switch of checklist step 3, and step 4's edits. */
+export async function edit(fork: string, answers: Answers) {
+  const upstream = await isUpstream(fork);
   for (const tree of UPSTREAM_TESTS) {
-    await Deno.remove(join(fork, tree), { recursive: true });
+    await removeListed(join(fork, tree), upstream);
   }
-
-  const vocabularyTest = join(fork, "tests/pipeline/test_prompt_vocabulary.py");
-  const text = await Deno.readTextFile(vocabularyTest);
-  const emptied = text.replace(
-    /^(_ADMITTED_UNASKED: Final\[dict\[str, str\]\] = )\{\n[\s\S]*?^\}$/m,
-    "$1{}",
+  await rewrite(join(fork, "lib/gold_only.ts"), switchGoldOnlyOff);
+  await rewrite(
+    join(fork, "tests/pipeline/test_prompt_vocabulary.py"),
+    emptyAdmittedUnasked,
   );
-  if (emptied === text) throw new Error("_ADMITTED_UNASKED was not found");
-  await Deno.writeTextFile(vocabularyTest, emptied);
 
   const packageJson = join(fork, "e2e/package.json");
   const pkg = JSON.parse(await Deno.readTextFile(packageJson));
@@ -150,6 +215,14 @@ async function adapt(fork: string, answers: Answers) {
   pkg.name = `${key.replaceAll("_", "-")}-dashboard-e2e`;
   pkg.description = `Playwright end-to-end suite for the ${short} dashboard.`;
   await Deno.writeTextFile(packageJson, `${JSON.stringify(pkg, null, 2)}\n`);
+}
+
+/** Checklist steps 2 to 4, on the copy at `fork`. */
+async function adapt(fork: string, answers: Answers) {
+  await unpack(fork, answers);
+  await run(fork, "deno", ["fmt", "disease/", "static/institute/"]);
+  await run(fork, "deno", ["task", "data:empty"], PYTHON_ENV);
+  await edit(fork, answers);
 }
 
 /** The gate families `--only` picks between. */

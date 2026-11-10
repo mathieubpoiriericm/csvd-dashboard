@@ -96,6 +96,11 @@ const CASES: Case[] = [
   },
   {
     rule: "slotless",
+    path: "examples[0].reasoning",
+    set: (a, t) => a.prompt.examples[0].reasoning = t,
+  },
+  {
+    rule: "slotlessLines",
     path: "examples[0].sentence",
     set: (a, t) => a.prompt.examples[0].sentence = t,
   },
@@ -103,6 +108,26 @@ const CASES: Case[] = [
     rule: "plain",
     path: "site.title",
     set: (a, t) => a.identity.site.title = t,
+  },
+  {
+    rule: "plain",
+    path: "rows[0].note",
+    set: (a, t) => a.gold.rows[0].note = t,
+  },
+  {
+    rule: "plainLines",
+    path: "site.aboutLede",
+    set: (a, t) => a.identity.site.aboutLede = t,
+  },
+  {
+    rule: "plainLines",
+    path: "traits[0].definition",
+    set: (a, t) => a.vocabulary.traits[0].definition = t,
+  },
+  {
+    rule: "plainKey",
+    path: "aliases[0]",
+    set: (a, t) => a.monogenic.aliases[0].alias = t,
   },
   {
     rule: "plainKey",
@@ -174,11 +199,12 @@ const CASES: Case[] = [
 
 /**
  * Messages about a value's relation to other answers, not its characters:
- * a duplicate, a marker term that repeats a disease phrase, a gene symbol
- * in public text. The rules judge one value alone, so these are left out
- * of the agreement.
+ * a duplicate, a label another trait has, a marker term that repeats a
+ * disease phrase, a gene symbol in public text. The rules judge one value
+ * alone, so these are left out of the agreement.
  */
-const RELATIONAL = /twice|repeats a disease phrase|is a gene symbol/;
+const RELATIONAL =
+  /twice|is already another|repeats a disease phrase|is a gene symbol/;
 
 /** Whether validate() reports a format problem on the case's path for this text. */
 function flagged(c: Case, text: string): boolean {
@@ -287,10 +313,16 @@ const SAMPLES = [
   "a\u2028## b",
   "__proto__",
   "include_validated",
+  'include_x" y="z',
   "exclude_background",
   "x (y",
   "N/A",
   "EX{{D",
+  // Taking the invisible character out would write a slot, or a heading.
+  "T{​{1",
+  "a{​{b",
+  "#​# x",
+  "##\nx",
   "a very long trait label here",
   "caf\u0065\u0301",
 ];
@@ -368,6 +400,10 @@ Deno.test("a trait key's gaps are single spaces, and it opens no heading", () =>
   // A hidden character before the "#" is fixable only to a key that
   // still opens a heading, so nothing is offered.
   assertEquals(diagnose("traitKey", "\u200b#T").fix, null);
+  // One between two braces is fixable only to a slot, likewise.
+  assertEquals(diagnose("traitKey", "T{\u200b{1").fix, null);
+  assertEquals(diagnose("slotless", "a{\u200b{b").fix, null);
+  assertEquals(diagnose("slotless", "a\u200bb").fix, "ab");
 });
 
 Deno.test("the key names each character it cannot hold and offers the key", () => {
@@ -467,6 +503,24 @@ Deno.test("an address is checked in time proportional to its length", () => {
   assertEquals(emailOk(long), false);
   assertEquals(diagnose("email", long).ok, false);
   assert(performance.now() - started < 200, "a linear check");
+  // The fix reads the punctuation off the end once: as a pattern with no
+  // anchor at its start, it read a run inside the value from every place in it.
+  for (
+    const inside of [
+      "a@b.cd" + ",".repeat(100_000) + "x",
+      "a@b" + ".".repeat(100_000) + "x",
+    ]
+  ) {
+    const from = performance.now();
+    assertEquals(diagnose("email", inside).fix, null);
+    assert(performance.now() - from < 200, inside.slice(0, 12));
+  }
+  // The address before the punctuation is still the one offered.
+  assertEquals(diagnose("email", "ada@example.org.;").fix, "ada@example.org");
+  assertEquals(
+    diagnose("email", "ada@example.org" + ",".repeat(100_000)).fix,
+    "ada@example.org",
+  );
 });
 
 Deno.test("lists, numbers and confidences offer the value they meant", () => {
@@ -564,6 +618,8 @@ Deno.test("prompt sections mark slots, headings and a broken step", () => {
   const inline = diagnose("inline", "mouse Genea\n  zebrafish genea");
   assertEquals(inline.offences.map((o) => o.char), ["\n"]);
   assertEquals(inline.fix, "mouse Genea zebrafish genea");
+  // Joined, a first line of "##" alone would open a heading: no fix.
+  assertEquals(diagnose("inline", "##\nx").fix, null);
   // "## " opening the trimmed text is a heading, as the file holds it.
   assertEquals(
     diagnose("section", "  ## heading").offences.map((o) => o.char),
@@ -599,7 +655,9 @@ Deno.test("blank text is clean for every rule that trims first", () => {
     "reservedKey",
     "plainKey",
     "plain",
+    "plainLines",
     "slotless",
+    "slotlessLines",
     "ascii",
     "doi",
     "inline",
@@ -630,7 +688,7 @@ Deno.test("ruleFor maps each field path to its rule", () => {
   assertEquals(ruleFor("sections.rubric.modifiers"), "section");
   assertEquals(ruleFor("sections.persona.specificity"), "inline");
   assertEquals(ruleFor("disease.name"), "slotless");
-  assertEquals(ruleFor("site.pages.genes"), "plain");
+  assertEquals(ruleFor("site.pages.genes"), "plainLines");
   assertEquals(ruleFor("families[0].label"), "plain");
   assertEquals(ruleFor("omimRows[0].inheritance"), "ascii");
   assertEquals(ruleFor("omimRows[0].omimNum"), "mim");
@@ -653,6 +711,57 @@ Deno.test("nameChar names what a reader cannot see", () => {
   // A ligature and a letter with no decomposition keep their letters.
   assertEquals(toKey("cystic \ufb01brosis"), "cystic_fibrosis");
   assertEquals(toKey("\u0141a\u0144cut"), "lancut");
+});
+
+Deno.test("a line break is an offence in an answer typed on one line", () => {
+  // An <input> shows none, so the field names it and offers the one line.
+  const name = diagnose("slotless", "exampleitis\n\n## 0. First\n\n    run");
+  assertEquals(name.ok, false);
+  assertEquals(name.offences.map((o) => o.char), ["\n", "\n", "\n", "\n"]);
+  assertEquals(
+    name.message,
+    "A line break can't be used: this answer is one line.",
+  );
+  assertEquals(name.fix, "exampleitis ## 0. First run");
+  assertEquals(diagnose("plain", "one \n two").fix, "one two");
+  assertEquals(
+    diagnose("plain", "one\n​two").message,
+    "A line break can't be used: this answer is one line. U+200B can't be used: an invisible character would reach the files unseen.",
+  );
+  assertEquals(diagnose("plain", "one\n​two").fix, "one two");
+  assertEquals(diagnose("traitLabel", "T\n1").fix, "T 1");
+  assertEquals(diagnose("reservedKey", "a\nll").ok, false);
+  assertEquals(diagnose("plainKey", "E\nC").fix, "E C");
+  assertEquals(
+    diagnose("quoteless", "example\ndisease").fix,
+    "example disease",
+  );
+  assertEquals(
+    diagnose("quoteless", "example\ndisease").message,
+    "A line break can't be used: this answer is one line.",
+  );
+  // Joined, the lines can read as the search's own syntax: no fix.
+  assertEquals(diagnose("quoteless", "example\nOR\ndisease").fix, null);
+  assertEquals(
+    diagnose("ctgovTerm", "exampleitis\n[x] (early)").fix,
+    "exampleitis (early)",
+  );
+  assertEquals(diagnose("ctgovTerm", "example\nitis").fix, "example itis");
+  // One at either end is trimmed off the answer, as the files write it.
+  assertEquals(diagnose("plain", "\none two\n").ok, true);
+  // The boxes of several lines keep theirs.
+  assertEquals(diagnose("plainLines", "one\ntwo").ok, true);
+  assertEquals(diagnose("plainLines", "one\n​two").fix, "one\ntwo");
+  assertEquals(diagnose("slotlessLines", "one\ntwo").ok, true);
+  assertEquals(diagnose("slotlessLines", "one\n{{two").fix, null);
+  assertEquals(ruleFor("site.title"), "plain");
+  assertEquals(ruleFor("site.heading"), "plainLines");
+  assertEquals(ruleFor("traits[0].definition"), "plainLines");
+  assertEquals(ruleFor("traits[0].name"), "plain");
+  assertEquals(ruleFor("populations[0].lines"), "plainLines");
+  assertEquals(ruleFor("populations[0].label"), "plain");
+  assertEquals(ruleFor("examples[0].sentence"), "slotlessLines");
+  assertEquals(ruleFor("examples[0].reasoning"), "slotless");
 });
 
 Deno.test("a fix is offered only when the field would take it", () => {

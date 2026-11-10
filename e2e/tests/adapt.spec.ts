@@ -452,8 +452,11 @@ test("a complete walk-through downloads a disease/ archive", async ({ page }) =>
   );
   expect(manifest.disease.key).toBe("exampleitis");
   expect(manifest.populations).toEqual([{ key: "Early", label: "Early" }]);
+  // No file of the archive carries the key, not the answers file alone.
+  for (const [path, bytes] of Object.entries(entries)) {
+    expect(new TextDecoder().decode(bytes), path).not.toContain("e2e-stub-key");
+  }
   const answers = new TextDecoder().decode(entries["adapt-answers.json"]);
-  expect(answers).not.toContain("e2e-stub-key");
   expect(JSON.parse(answers).identity.disease.name).toBe("exampleitis");
 
   // The draft survives a reload.
@@ -517,6 +520,42 @@ test("a second tab takes the draft the first one saves", async ({ page, context 
   await expect(other.getByLabel("Disease name", { exact: true }))
     .toHaveValue("exampleitis");
   await other.close();
+});
+
+test("a storage event the stored draft has moved past takes nothing back", async ({ page }) => {
+  // Another tab's save can still be on its way here as an event when this
+  // tab saves, having found that write in storage and merged it. Delivered
+  // after, the event is older than the stored draft; adopted, it read as
+  // the other tab undoing this one's edit and took the keystrokes back.
+  await waitForHydration(page);
+  const name = page.getByLabel("Disease name", { exact: true });
+  await fill(page, "Disease name", "exampleitis");
+  const earlier = await page.evaluate(
+    (key) => localStorage.getItem(key)!,
+    DRAFT_KEY,
+  );
+  await fill(page, "Disease name", "exampleitis two");
+  const hear = (text: string) =>
+    page.evaluate(
+      ([key, newValue]) => {
+        globalThis.dispatchEvent(
+          new StorageEvent("storage", { key, newValue }),
+        );
+      },
+      [DRAFT_KEY, text],
+    );
+  await hear(earlier);
+  await expect(name).toHaveValue("exampleitis two");
+  // An event carrying what storage holds is another tab's save, and is
+  // still adopted.
+  const theirs = JSON.parse(earlier);
+  theirs.identity.disease.name = "exampleitis three";
+  await page.evaluate(
+    ([key, text]) => localStorage.setItem(key, text),
+    [DRAFT_KEY, JSON.stringify(theirs)],
+  );
+  await hear(JSON.stringify(theirs));
+  await expect(name).toHaveValue("exampleitis three");
 });
 
 /** Press Export answers on Review and read the file it downloads. */
@@ -920,10 +959,126 @@ test("a draft this build cannot read is kept aside, offered, and never saved ove
   expect(await kept()).toBe(foreign);
   const [download] = await Promise.all([
     page.waitForEvent("download"),
-    notice.getByRole("button", { name: "Download the stored draft" }).click(),
+    notice.getByRole("button", { name: "Download the kept draft" }).click(),
   ]);
   expect(download.suggestedFilename()).toBe("adapt-draft-unreadable.json");
   expect(readFileSync((await download.path())!, "utf8")).toBe(foreign);
+  // That keystroke made the stored draft readable again. The copy is still
+  // offered on the next visit -- offered once, it stayed in storage with
+  // nothing on the page to reach or free it -- until it is discarded.
+  await page.reload();
+  await waitForHydration(page);
+  await expect(notice).toContainText("still kept aside");
+  await expect(page.getByLabel("Disease name", { exact: true }))
+    .toHaveValue("exampleitis");
+  expect(await kept()).toBe(foreign);
+  page.once("dialog", (dialog) => dialog.accept());
+  await notice.getByRole("button", { name: "Discard the kept draft" }).click();
+  await expect(notice).toHaveCount(0);
+  expect(await kept()).toBeNull();
+  await page.reload();
+  await waitForHydration(page);
+  await expect(notice).toHaveCount(0);
+});
+
+test("a kept draft discarded before anything is typed does not come back", async ({ page }) => {
+  const foreign = '{"version": 99, "identity": {}}';
+  await page.evaluate(
+    ([key, text]) => localStorage.setItem(key, text),
+    [DRAFT_KEY, foreign],
+  );
+  await page.reload();
+  await waitForHydration(page);
+  const notice = page.getByRole("alert").filter({
+    hasText: "could not be read",
+  });
+  await expect(notice).toBeVisible();
+  // Nothing has been saved, so the draft key still holds the text that was
+  // kept: discarded from the kept key alone, the reload kept it again.
+  page.once("dialog", (dialog) => dialog.accept());
+  await notice.getByRole("button", { name: "Discard the kept draft" }).click();
+  await expect(notice).toHaveCount(0);
+  await page.reload();
+  await waitForHydration(page);
+  await expect(notice).toHaveCount(0);
+  expect(
+    await page.evaluate(
+      (key) => [key, `${key}-unreadable`].map((k) => localStorage.getItem(k)),
+      DRAFT_KEY,
+    ),
+  ).toEqual([null, null]);
+});
+
+test("a second unreadable draft is kept beside the first, and no download carries the NCBI key", async ({ page }) => {
+  const stored = (key: string) =>
+    page.evaluate((name) => localStorage.getItem(name), key);
+  const store = (text: string) =>
+    page.evaluate(
+      ([key, value]) => localStorage.setItem(key, value),
+      [DRAFT_KEY, text],
+    );
+  const notice = page.getByRole("alert").filter({
+    hasText: "could not be read",
+  });
+  const downloaded = async (button: string) => {
+    const [download] = await Promise.all([
+      page.waitForEvent("download"),
+      notice.getByRole("button", { name: button, exact: true }).click(),
+    ]);
+    return {
+      name: download.suggestedFilename(),
+      text: readFileSync((await download.path())!, "utf8"),
+    };
+  };
+  // Another version's draft, holding the credentials a stored draft holds
+  // in clear. The file is what a researcher mails a maintainer to get the
+  // answers back, so it leaves them out as "Export answers" does; the
+  // maintainer's own address is an answer and stays.
+  const first = JSON.stringify({
+    version: 99,
+    identity: { maintainer: { name: "Ada Example", email: "ada@example.org" } },
+    search: { ncbi: { email: "ada@example.org", apiKey: "0123456789abcdef" } },
+  });
+  await store(first);
+  await page.reload();
+  await waitForHydration(page);
+  await expect(notice).toContainText("leaves out the NCBI e-mail and API key");
+  const file = await downloaded("Download the kept draft");
+  expect(file.text).not.toContain("0123456789abcdef");
+  expect(JSON.parse(file.text)).toEqual({
+    version: 99,
+    identity: { maintainer: { name: "Ada Example", email: "ada@example.org" } },
+    search: { ncbi: { email: "", apiKey: "" } },
+  });
+  // The copy in storage is the draft as it was stored.
+  expect(await stored(`${DRAFT_KEY}-unreadable`)).toBe(first);
+  // This version's draft is saved over the first, and then a second one it
+  // cannot read arrives: a rollback after a version bump. Kept "once", the
+  // notice offered the first again and the next keystroke destroyed this.
+  await fill(page, "Disease name", "exampleitis");
+  const second = '{"version": 98, "identity": {}}';
+  await store(second);
+  await page.reload();
+  await waitForHydration(page);
+  await expect(notice).toBeVisible();
+  expect(await stored(`${DRAFT_KEY}-unreadable`)).toBe(first);
+  expect(await stored(`${DRAFT_KEY}-unreadable-2`)).toBe(second);
+  expect(await downloaded("Download kept draft 2 of 2")).toEqual({
+    name: "adapt-draft-unreadable-2.json",
+    text: second,
+  });
+  expect((await downloaded("Download kept draft 1 of 2")).name).toBe(
+    "adapt-draft-unreadable.json",
+  );
+  await fill(page, "Disease name", "exampleitis");
+  await expect.poll(() => stored(DRAFT_KEY)).toContain('"exampleitis"');
+  expect(await stored(`${DRAFT_KEY}-unreadable`)).toBe(first);
+  expect(await stored(`${DRAFT_KEY}-unreadable-2`)).toBe(second);
+  page.once("dialog", (dialog) => dialog.accept());
+  await notice.getByRole("button", { name: "Discard the kept drafts" }).click();
+  await expect(notice).toHaveCount(0);
+  expect(await stored(`${DRAFT_KEY}-unreadable`)).toBeNull();
+  expect(await stored(`${DRAFT_KEY}-unreadable-2`)).toBeNull();
 });
 
 test("a tab whose saves are refused keeps its answers and takes the other tab's", async ({ page, context }) => {
@@ -1038,6 +1193,44 @@ test("a click that leaves a field lands, though leaving it shows a message", asy
     .not.toHaveCount(0);
 });
 
+test.describe("on a touch screen", () => {
+  test.use({ hasTouch: true, viewport: { width: 375, height: 667 } });
+
+  test("a tap that leaves a field lands, though leaving it shows a message", async ({ page }) => {
+    await waitForHydration(page);
+    const email = page.getByLabel("Maintainer email", { exact: true });
+    await openCardOf(email);
+    // A tap sends its pointer events first and, after them, the mouse
+    // events that move focus and click. Waiting on the pointer's release
+    // alone, the field's message showed between that mousedown and its
+    // click: at a phone's width it wraps to a second line, Continue moved
+    // down by one, and the click landed on the card instead.
+    await email.fill("ada@example");
+    const next = page.locator('[data-card="maintainer"]').getByRole("button", {
+      name: "Continue",
+      exact: true,
+    });
+    await next.evaluate((button) => {
+      Object.assign(globalThis, { __clicks: 0 });
+      button.addEventListener("click", () => {
+        const counter = globalThis as unknown as { __clicks: number };
+        counter.__clicks += 1;
+      });
+    });
+    await next.tap();
+    expect(
+      await page.evaluate(() =>
+        (globalThis as unknown as { __clicks: number }).__clicks
+      ),
+    ).toBe(1);
+    // Continue ran: it reveals the card's other gap, the name, as well as
+    // the address the tap left.
+    await expect(
+      page.locator('[data-card="maintainer"] .adapt-field.is-error'),
+    ).toHaveCount(2);
+  });
+});
+
 test("until the island runs, the page says so and the form stays shut", async ({ page }) => {
   await page.route("**/fresh-island__AdaptWizard*", (route) => route.abort());
   await page.goto("/adapt");
@@ -1099,6 +1292,9 @@ test("a refused logo write keeps the alert until the logo itself is stored", asy
   const alert = page.getByRole("alert").filter({
     hasText: "refused to save the draft",
   });
+  // Saved whole before the logo: the draft both sides of a merge agree on.
+  await fill(page, "Disease name", "exampleitis");
+  await expect(alert).toHaveCount(0);
   const logo = page.locator('input[data-field="logoLight"]');
   await openCardOf(logo);
   await logo.setInputFiles({
@@ -1108,6 +1304,12 @@ test("a refused logo write keeps the alert until the logo itself is stored", asy
       '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"/>',
     ),
   });
+  await expect(alert).toBeVisible();
+  // A character typed and deleted again while the refusal lasts. Each save
+  // writes the draft key before the logo is refused; while the tab took
+  // that write for another tab's, the deletion read as "unchanged here" and
+  // the character came back with the first save that landed.
+  await fill(page, "Disease name", "exampleitisx");
   await expect(alert).toBeVisible();
   await fill(page, "Disease name", "exampleitis");
   await expect(alert).toBeVisible();
@@ -1122,4 +1324,12 @@ test("a refused logo write keeps the alert until the logo itself is stored", asy
       `${DRAFT_KEY}-logo-light`,
     ),
   ).toContain("logo-light.svg");
+  await expect(page.getByLabel("Disease name", { exact: true }))
+    .toHaveValue("exampleitis");
+  expect(
+    await page.evaluate(
+      (key) => JSON.parse(localStorage.getItem(key)!).identity.disease,
+      DRAFT_KEY,
+    ),
+  ).toMatchObject({ name: "exampleitis", short: "EXD" });
 });

@@ -3,11 +3,22 @@
 Tick every line. A line that cannot be ticked is named in the hand-off with
 the reason; nothing is quietly skipped.
 
+## Before anything is drafted
+
+- [ ] `git remote add upstream …`
+- [ ] `deno install`; `uv sync --group dev --group figure`;
+      `deno task e2e:install` (npm ci alone downloads no browser; on Linux,
+      `npx --prefix e2e playwright install --with-deps chromium` as well).
+      Every validation and gate below needs them.
+
 ## The `disease/` directory
 
 - [ ] `manifest.json` — questions 1, 5, 6. `hosting.url: null`; the four
-      `about.*` texts `null`; `additionalSources: []`. Validates against
-      `manifest.schema.json` (`deno test tests/disease_manifest_test.ts`).
+      `about.*` texts `null`; `additionalSources: []`; an `acronyms` entry
+      for every trait key that holds an acronym (`SKILL.md`, the manifest
+      step). Validates against `manifest.schema.json`
+      (`deno test -A tests/disease_manifest_test.ts`; the test reads the
+      schemas from disk, so without `-A` it fails on a valid manifest).
 - [ ] `pipeline.json` — questions 2, 3, 6, 7. `$comment`s rewritten.
       Validates against `pipeline.schema.json`
       (`uv run pytest tests/pipeline/test_disease.py`).
@@ -15,7 +26,7 @@ the reason; nothing is quietly skipped.
 - [ ] `timeline.json` — question 6. Populations in the manifest's order; at
       least one family with at least one mechanism.
 - [ ] `phenogram.json` — one family per vocabulary family, hues from the
-      cSVD palette (`deno test tests/phenogram_encoding_test.ts`).
+      cSVD palette (`deno test -A tests/phenogram_encoding_test.ts`).
 - [ ] `omim_info.csv` — question 7, or the header line alone.
 - [ ] `prompt.md` — every section id the cSVD file has, in its order;
       `## strategy.monogenic_genes` equals `monogenicGenes`;
@@ -31,7 +42,7 @@ the reason; nothing is quietly skipped.
 
 - [ ] `deno task data:empty`.
 - [ ] `GOLD_ONLY = false` in `lib/gold_only.ts` — upstream's gold-only switch,
-      which a fork never inherits (`SKILL.md`, step 3).
+      which a fork never inherits (`SKILL.md`, step 4).
 - [ ] `git rm -r tests/csvd e2e/tests/csvd tests/pipeline/csvd tests/scripts/csvd`.
 - [ ] `git rm -r tests/pipeline/cassettes/test_query_recall_gold` — the cSVD
       recall recordings, which `--record-mode=once` would replay in place of
@@ -43,7 +54,7 @@ Each carries cSVD content outside `disease/` for a reason, and each is a
 judgement the fork's owner makes once:
 
 - [ ] `_ADMITTED_UNASKED` in `tests/pipeline/test_prompt_vocabulary.py` →
-      `{}`. Its entries explain why two cSVD trait keys are absent from the
+      `{}`. Its entries explain why some cSVD trait keys are absent from the
       cSVD prompt's canonical sentence; a fork whose sentence names every key
       has nothing to explain, and a stale entry fails
       `test_the_admitted_unasked_list_does_not_go_stale`.
@@ -84,8 +95,11 @@ judgement the fork's owner makes once:
 - [ ] `deno task test:coverage` (100 % under `lib/`; 85/95/90 global)
 - [ ] `uv run ruff check .`
 - [ ] `uv run ty check`
+- [ ] `CSVD_TEST_DB_URL` names a throwaway PostgreSQL database for the
+      pipeline gate, never the dashboard's (`SKILL.md`, "Verification").
 - [ ] `uv run pytest --cov=pipeline --cov=pipeline/alembic --cov-branch --cov-report=term-missing:skip-covered`
-      (99.5 % floor)
+      (99.5 % floor; a report ending in `FAIL Required test coverage` means
+      the database tests were skipped, and is not a tick)
 - [ ] `uv run pytest tests/scripts`
 - [ ] `npx --prefix e2e playwright test -c e2e/playwright.config.ts`
 
@@ -108,16 +122,12 @@ judgement the fork's owner makes once:
 
 ## Fork setup and hand-off
 
-- [ ] `git remote add upstream …`
 - [ ] `.env` from `.env.example`, `DB_NAME=<key>_dashboard`,
       `DB_USER=<key>_user` and a `DB_PASSWORD` (the pipeline and alembic
       refuse to start without them), the two login values, `ANTHROPIC_API_KEY`,
       `ENTREZ_EMAIL` and `UNPAYWALL_EMAIL` filled. The passphrase
       single-quoted, with no apostrophe; `NCBI_API_KEY` left commented out
       unless the key is real (NCBI answers any other value with HTTP 400).
-- [ ] `deno install`; `uv sync --group dev --group figure`;
-      `deno task e2e:install` (npm ci alone downloads no browser; on Linux,
-      `npx --prefix e2e playwright install --with-deps chromium` as well).
 - [ ] On macOS, `brew services start postgresql@18` and
       `export PATH="$(brew --prefix postgresql@18)/bin:$PATH"` (keg-only).
       `createuser -s -P <key>_user`, typing the `DB_PASSWORD` value, and

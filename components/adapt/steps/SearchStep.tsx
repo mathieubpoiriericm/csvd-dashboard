@@ -6,6 +6,7 @@ import { ListEditor } from "../ListEditor.tsx";
 import {
   addDiseaseTerm,
   applyMarkerCount,
+  checkedMeshRow,
   dropMeshHeading,
   lookupSummary,
   lookupValues,
@@ -22,7 +23,7 @@ import type { StepProps } from "./types.ts";
 export function SearchStep(
   { answers, update, fetch, setStatus, busy, lookup }: StepProps,
 ) {
-  const { diseaseTerms, meshTerms, markerTerms, ncbi } = answers.search;
+  const { diseaseTerms, markerTerms, ncbi } = answers.search;
 
   // Every lookup below writes its answer back through lib/adapt/edits.ts,
   // which finds the row by the value asked about as the answer lands: the
@@ -169,14 +170,12 @@ export function SearchStep(
         </div>
         <FieldNote field="meshTerms" />
         <div class="adapt-lookup">
-          {diseaseTerms.map((phrase, i) => {
+          {diseaseTerms.map((_, i) => {
             // A row answers its phrase only while it still names it; one
             // resolved for words since retyped is not shown, and its note
             // says the phrase is unchecked.
-            const m = meshTerms[i];
-            const checked = phrase.trim() !== "" && m !== undefined &&
-              m.phrase.trim() === phrase.trim();
-            if (!checked) {
+            const m = checkedMeshRow(answers.search, i);
+            if (m === undefined) {
               return <FieldNote key={i} field={`meshTerms[${i}]`} />;
             }
             return (

@@ -21,6 +21,13 @@ import { SECTION_IDS } from "../../lib/adapt/prompt_sections.ts";
 import { type Schema, schemaErrors } from "../../lib/adapt/schema.ts";
 import { normalizeManifest } from "../../lib/disease/manifest.ts";
 import { EXAMPLEITIS } from "./fixtures/exampleitis.ts";
+// The acronym gate a fork runs, for the glossary the manifest must feed it.
+import type { Answers, Trait } from "../../lib/adapt/answers.ts";
+import { glossaryGaps } from "../../lib/acronyms.ts";
+import { GENERIC_ACRONYMS } from "../../lib/constants.ts";
+import { resolveAcronyms } from "../../lib/disease/acronyms.ts";
+import { sampleGene } from "../fixtures/rows.ts";
+import { FORK_HARD } from "./fixtures/fork_hard.ts";
 
 const readSchema = async (name: string): Promise<Schema> =>
   JSON.parse(await Deno.readTextFile(`disease/${name}`));
@@ -624,4 +631,72 @@ Deno.test("a pipe in a README trait cell is escaped rather than ending the cell"
   const answers = structuredClone(EXAMPLEITIS);
   answers.vocabulary.traits[0].name = "Left | right";
   assertStringIncludes(generateReadme(answers), "Left \\| right");
+});
+
+/** The glossary a fork built from `answers` resolves, as lib/disease/acronyms.ts does. */
+function forkGlossary(answers: Answers) {
+  const { acronyms } = normalizeManifest(JSON.parse(generateManifest(answers)));
+  const traits: Trait[] = JSON.parse(generateVocabulary(answers)).traits;
+  const traitNames = new Map(
+    traits.filter((t) => t.name !== t.key).map((t) => [t.key, t.name]),
+  );
+  return {
+    traits,
+    glossary: resolveAcronyms(GENERIC_ACRONYMS, acronyms, traitNames),
+  };
+}
+
+Deno.test("the manifest's glossary explains every acronym a trait key holds", () => {
+  // tests/acronym_coverage_test.ts holds a fork to this from its first
+  // exported gene: a trait is a closed-vocabulary value, so one the glossary
+  // cannot explain fails there, and the fork's deploy with it.
+  for (const answers of [EXAMPLEITIS, FORK_HARD]) {
+    const { traits, glossary } = forkGlossary(answers);
+    const rows = traits.map((t, i) =>
+      sampleGene({ gene: `GENE${i + 1}`, gwasTrait: [t.key] })
+    );
+    assertEquals(glossaryGaps(rows, glossary).enforced, []);
+  }
+  const { acronyms } = JSON.parse(generateManifest(EXAMPLEITIS));
+  assertEquals(acronyms.T1, { name: "Trait one", kind: "Family A" });
+  assertEquals(Object.keys(acronyms), ["T1", "T2", "T3", "T4"]);
+});
+
+Deno.test("a trait key gets a glossary entry only when the generic glossary leaves an acronym in it", () => {
+  const answers = structuredClone(EXAMPLEITIS);
+  const [first, second, third, fourth] = answers.vocabulary.traits;
+  // No acronym at all: an entry would box an ordinary word.
+  first.key = "Zeta score";
+  // One the generic glossary already explains keeps that explanation.
+  second.key = " MR ";
+  // An acronym inside a longer key: the entry is the whole key, so the cell
+  // is explained as the trait it is rather than as one token of it.
+  third.key = "QQ7 & ZZ9-based score ";
+  // A name equal to its key is written out all the same: the vocabulary
+  // offers lib/disease/acronyms.ts no name for such a trait, and an entry
+  // without one is a build error.
+  fourth.key = "QX3";
+  fourth.name = "QX3";
+  const { acronyms } = JSON.parse(generateManifest(answers));
+  assertEquals(Object.keys(acronyms), ["QQ7 & ZZ9-based score", "QX3"]);
+  assertEquals(acronyms.QX3, { name: "QX3", kind: "Family B" });
+
+  const { traits, glossary } = forkGlossary(answers);
+  const rows = traits.map((t) => sampleGene({ gwasTrait: [t.key] }));
+  assertEquals(glossaryGaps(rows, glossary).enforced, []);
+
+  // The Review step generates the files of an unfinished draft too: a trait
+  // whose family is not listed yet shows the key typed for it.
+  fourth.family = " fam-z ";
+  assertEquals(JSON.parse(generateManifest(answers)).acronyms.QX3, {
+    name: "QX3",
+    kind: "fam-z",
+  });
+});
+
+Deno.test("the manifest's glossary keeps the families' order, as vocabulary.json does", () => {
+  const answers = structuredClone(EXAMPLEITIS);
+  answers.vocabulary.traits.reverse();
+  const { acronyms } = JSON.parse(generateManifest(answers));
+  assertEquals(Object.keys(acronyms), ["T2", "T1", "T4", "T3"]);
 });

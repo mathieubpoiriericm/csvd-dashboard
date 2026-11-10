@@ -167,11 +167,13 @@ def test_a_blank_gene_symbol_is_refused() -> None:
 
 
 def test_an_off_vocabulary_trait_is_refused() -> None:
+    # A comma, because no trait key can hold one: any plain phrase is a key
+    # some disease's vocabulary may declare.
     with pytest.raises(ValidationError):
         GeneEntry(
             gene_symbol="NOTCH3",
             confidence=0.9,
-            gwas_trait=["not a trait the vocabulary declares"],
+            gwas_trait=["not a trait, in any vocabulary"],
             source_quote="NOTCH3 variants were associated with WMH (p=1e-12).",
         )
 

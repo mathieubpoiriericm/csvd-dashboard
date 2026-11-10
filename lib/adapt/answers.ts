@@ -151,7 +151,18 @@ export interface Monogenic {
     symbol: string;
     /** null until checked, then whether NCBI Gene knows the symbol. */
     verified: boolean | null;
-    clinvarTraits: Array<{ name: string; omim: string | null }>;
+    /**
+     * The diseases ClinVar attests for the gene; null for one NCBI Gene
+     * confirmed whose ClinVar lookup did not answer, which is not none.
+     */
+    clinvarTraits: Array<{ name: string; omim: string | null }> | null;
+    /**
+     * Set when ClinVar holds more pathogenic records for the gene than were
+     * read (`total` against `read`), so the list above may be short of a
+     * disease. Kept with the row: said only on the status line, the next
+     * press or a reload left a truncated list looking complete.
+     */
+    clinvarSample: { total: number; read: number } | null;
   }>;
   aliases: Array<{ alias: string; symbols: string[] }>;
   omimRows: OmimRow[];
@@ -363,7 +374,10 @@ const STEPS_SHAPE = obj({
     genes: list(obj({
       symbol: str,
       verified: nullable(bool),
-      clinvarTraits: list(obj({ name: str, omim: nullable(str) })),
+      // Null is "ClinVar not read", which an absent list is too: read as
+      // empty, it would say ClinVar attests nothing for the gene.
+      clinvarTraits: nullable(list(obj({ name: str, omim: nullable(str) }))),
+      clinvarSample: nullable(obj({ total: num, read: num })),
     })),
     aliases: list(obj({ alias: str, symbols: list(str) })),
     omimRows: list(obj({
@@ -445,9 +459,13 @@ export function parseDraft(text: string): Answers | null {
  * of the two (a trait with no ontology term owes a note). A bare leaf name
  * would collide with `identity.site`'s `title` and `heading`, which are
  * ordinary required text, not a lookup result -- hence the full path rather
- * than the key alone.
+ * than the key alone. The logos are named the same way: told by their
+ * `base64` field instead, a prompt section a draft keyed "base64" took the
+ * whole of `sections` to null, and validate() threw on every render.
  */
 const NULLED = new Set([
+  "logoLight",
+  "logoDark",
   "meshTerms.heading",
   "meshTerms.scopeNote",
   "meshTerms.count",
@@ -456,6 +474,7 @@ const NULLED = new Set([
   "traits.xref",
   "genes.verified",
   "genes.clinvarTraits.omim",
+  "genes.clinvarSample",
   "rows.title",
   "rows.exists",
   "examples.abstract",
@@ -469,7 +488,6 @@ function blankValue(value: unknown, path = ""): unknown {
     return value.map((entry) => blankValue(entry, path));
   }
   if (isRecord(value)) {
-    if (typeof value.base64 === "string") return null;
     return Object.fromEntries(
       Object.entries(value).map((
         [k, v],

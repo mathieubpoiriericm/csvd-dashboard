@@ -46,11 +46,29 @@ def encoding() -> dict:
     return load_encoding(DEFAULT_ENCODING)
 
 
+def _mechanism(encoding: dict) -> str:
+    """A mechanism the record flag leaves alone; the twin of
+    characterisedMechanism in tests/fixtures/rows.ts.
+
+    The encoding's first outside its `uncharacterised` family -- a disease may
+    list that family's mechanism first -- or, when every mechanism is filed
+    there, one the encoding does not list, which is drawn in the fallback
+    colour and is not flagged either.
+    """
+    flagged = {
+        mechanism
+        for family in encoding["families"]
+        if family["key"] == "uncharacterised"
+        for mechanism in family["mechanisms"]
+    }
+    return next((m for m in encoding["mechanisms"] if m not in flagged), "Mechanism A")
+
+
 def _trial(encoding: dict, **overrides: Any) -> dict[str, str]:
     """A trial row every rule accepts, built from the encoding's own keys."""
     row = {
         "drug": "Drug A",
-        "mechanismOfAction": next(iter(encoding["mechanisms"])),
+        "mechanismOfAction": _mechanism(encoding),
         "geneticTarget": "(none)",
         "geneticEvidence": "No",
         "trialName": "Trial A",
@@ -247,6 +265,26 @@ class TestLayout:
             "completion-unstated",
         )
 
+    def test_the_sample_trial_is_unflagged_whatever_the_encoding_lists_first(
+        self, encoding
+    ) -> None:
+        """Every constructed case here counts flags on `_trial` rows, so its
+        mechanism has to be one the flag leaves alone -- also where a disease
+        lists its `uncharacterised` family first, or has no other."""
+        assert resolve_record_flag(_trial(encoding), encoding) == ()
+        unstated = {"key": "uncharacterised", "label": "U", "mechanisms": ["Zed"]}
+        named = {"key": "named", "label": "N", "mechanisms": ["Wye"]}
+        first = {
+            **encoding,
+            "mechanisms": {"Zed": "#111111", "Wye": "#222222"},
+            "families": [unstated, named],
+        }
+        assert _mechanism(first) == "Wye"
+        assert resolve_record_flag(_trial(first), first) == ()
+        only = {**encoding, "mechanisms": {"Zed": "#111111"}, "families": [unstated]}
+        assert _mechanism(only) not in only["mechanisms"]
+        assert resolve_record_flag(_trial(only), only) == ()
+
     def test_rim_bands_frame_only_the_populated_sectors(
         self, trials, encoding
     ) -> None:
@@ -374,6 +412,11 @@ class TestSeparateLabels:
         ) == [(150, 0)]
 
 
+# A band's id ends in its population key, and matplotlib quotes an attribute
+# holding a double quote with single ones -- so the opening quote is either.
+_BAND_ID = re.compile(r"""id=["']band-""")
+
+
 class TestRender:
     def test_svg_carries_a_marker_and_a_label_per_trial_and_both_legends(
         self, encoding, tmp_path: Path
@@ -394,7 +437,7 @@ class TestRender:
         svg = target.read_text(encoding="utf-8")
         assert svg.count('id="marker-') == 2
         assert svg.count('id="label-') == 2
-        assert svg.count('id="band-') == 1
+        assert len(_BAND_ID.findall(svg)) == 1
         assert svg.count('id="ring-') == 1
         assert svg.count('id="gap-') == 1
         assert "Genetic evidence" in svg
@@ -402,6 +445,20 @@ class TestRender:
         assert "Mechanism of action" in svg
         # Text stays text: no glyph outlines in place of the drug names.
         assert "Drug A" in svg
+
+    def test_a_population_key_holding_a_quote_still_draws_its_band(
+        self, encoding, tmp_path: Path
+    ) -> None:
+        quoted = {
+            **encoding,
+            "populations": [{**encoding["populations"][0], "key": 'A & "B"'}],
+        }
+        fig = draw([_trial(quoted)], quoted)
+        target = tmp_path / "timeline.svg"
+        fig.savefig(target, format="svg", bbox_inches="tight")
+        svg = target.read_text(encoding="utf-8")
+        assert len(_BAND_ID.findall(svg)) == 1
+        assert svg.count('id="band-') == 0, "the id is quoted with single quotes"
 
     def test_main_writes_the_requested_formats(
         self, encoding, tmp_path: Path

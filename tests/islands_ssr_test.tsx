@@ -32,14 +32,19 @@ import { placeGene } from "../lib/cytobands.ts";
 import { GOLD_ONLY } from "../lib/gold_only.ts";
 import { encoding as phenogram } from "../lib/phenogram.ts";
 import { encoding as timeline } from "../lib/timeline.ts";
-import { sampleGene, sampleTrial } from "./fixtures/rows.ts";
+import {
+  characterisedMechanism,
+  sampleGene,
+  sampleTrial,
+} from "./fixtures/rows.ts";
 import { escapeHtml } from "./helpers/html.ts";
 
 const count = (html: string, needle: string) => html.split(needle).length - 1;
 
 const TRAIT = phenogram.traits[0];
 const POPULATION = timeline.populations[0].key;
-const MECHANISM = Object.keys(timeline.mechanisms)[0];
+// Never the flagged family's, which a disease may list first.
+const MECHANISM = characterisedMechanism(timeline);
 const UNCHARACTERISED = timeline.families.find((f) =>
   f.key === "uncharacterised"
 )?.mechanisms[0];
@@ -150,6 +155,13 @@ Deno.test("GenesView renders tooltipped values, absent cells and citations from 
   assertStringIncludes(html, "Genes by chromosome");
 });
 
+Deno.test("GenesView's first page ends at the last row when the table is shorter than a page", () => {
+  // Where a disease's first export leaves it: fewer genes than a page holds.
+  const html = renderToString(<GenesView rows={GENES.slice(0, 3)} />);
+  assertStringIncludes(html, "showing 3 of 3 rows");
+  assertStringIncludes(html, "Showing 1–3 of 3");
+});
+
 Deno.test("GenesView offers the traits its rows carry under gold-only, and every one otherwise", () => {
   // GENES carries one trait; the label of any other must be absent under
   // gold-only and present otherwise.
@@ -191,7 +203,7 @@ Deno.test("Phenogram draws a block per placeable gene and reports the rest", () 
   // never printed raw inside the note's own parentheses.
   assertStringIncludes(html, "GENE3 (no location recorded)");
   assert(!html.includes("((unknown))"));
-  assertStringIncludes(html, TRAIT.label);
+  assertStringIncludes(html, escapeHtml(TRAIT.label));
 });
 
 Deno.test("phenogram renders the download control", () => {
@@ -222,7 +234,10 @@ Deno.test("TrialsTimeline draws a marker per visible trial with rings, gaps and 
   assertStringIncludes(html, 'class="gap"');
   assertStringIncludes(html, `Showing ${GOLD_ONLY ? 5 : 4} of 5 trials`);
   assertStringIncludes(html, 'class="timeline-legend-item"');
-  assertStringIncludes(html, timeline.populations[0].label.join(" "));
+  assertStringIncludes(
+    html,
+    escapeHtml(timeline.populations[0].label.join(" ")),
+  );
 });
 
 Deno.test("TrialsTimeline over no trials keeps its key and its count", () => {

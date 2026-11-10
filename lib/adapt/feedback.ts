@@ -278,7 +278,7 @@ export function valueAt(answers: Answers, step: StepId, path: string): unknown {
   return value;
 }
 
-/** A family or gene no key can take: see stepRequired(). */
+/** A family, gene or trait no key can take: see stepRequired(). */
 const UNPICKED = "\0";
 
 /**
@@ -288,8 +288,11 @@ const UNPICKED = "\0";
  * family then matches a blank key: the question a trait's family, a
  * mechanism's family and an OMIM row's gene ask would be asked only while
  * open, so answering one shrank the count instead of raising it. They are
- * asked of a value no key can take instead. A phrase blanked asks nothing
- * of MeSH, so each phrase typed asks it here.
+ * asked of a value no key can take instead. So are an example's traits,
+ * whose keys are another step's and are not blanked with this one: a trait
+ * row added and not yet keyed is a blank key all the same, and a blanked
+ * trait matched it. A phrase blanked asks nothing of MeSH, so each phrase
+ * typed asks it here.
  */
 export function stepRequired(answers: Answers, step: StepId): string[] {
   const blanked = blankStep(answers, step);
@@ -301,6 +304,9 @@ export function stepRequired(answers: Answers, step: StepId): string[] {
   }
   for (const row of blanked.monogenic.omimRows) {
     if (step === "monogenic") row.geneOrLocus = UNPICKED;
+  }
+  for (const example of blanked.prompt.examples) {
+    if (step === "prompt") example.traits = [UNPICKED];
   }
   const paths = issuesFor(validate(blanked), step).map((i) => i.field);
   if (step === "search") {

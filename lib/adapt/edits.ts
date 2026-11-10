@@ -91,6 +91,25 @@ export function applyMarkerCount(
 }
 
 /**
+ * The row answering phrase `i`, or undefined: the one beside it, while it
+ * names the phrase as the files write it. A lookup asks about that
+ * spelling and stores it, so the row of a phrase pasted decomposed, or
+ * with a separator at its end, names the phrase without matching what the
+ * field holds; the step draws the row this returns, so what is on the page
+ * is what validate() and pipeline.json take for the answer.
+ */
+export function checkedMeshRow(
+  search: Search,
+  i: number,
+): MeshChoice | undefined {
+  const phrase = clean(search.diseaseTerms[i]);
+  const row = search.meshTerms[i];
+  return phrase !== "" && row !== undefined && clean(row.phrase) === phrase
+    ? row
+    : undefined;
+}
+
+/**
  * Whether phrase `i` still needs its MeSH lookup: no row answers it yet --
  * the one beside it names other words, or is not there -- or the one that
  * does has a heading whose count never came back. A row naming the phrase
@@ -98,11 +117,9 @@ export function applyMarkerCount(
  * dropped it, and asking again would bring a dropped heading back.
  */
 function meshPending(search: Search, i: number): boolean {
-  const phrase = clean(search.diseaseTerms[i]);
-  const row = search.meshTerms[i];
-  if (phrase === "") return false;
-  if (row === undefined || clean(row.phrase) !== phrase) return true;
-  return row.heading !== null && row.count === null;
+  if (clean(search.diseaseTerms[i]) === "") return false;
+  const row = checkedMeshRow(search, i);
+  return row === undefined || (row.heading !== null && row.count === null);
 }
 
 /** The phrases "Check MeSH headings" looks up: those still pending, once each. */
@@ -186,25 +203,50 @@ export function renameGene(draft: Answers, from: string, to: string) {
   }
 }
 
+type Gene = Answers["monogenic"]["genes"][number];
+
+/**
+ * Whether a gene still waits on its check: never checked, or confirmed by
+ * NCBI Gene with its ClinVar diseases not read (null), which is what a
+ * failed ClinVar lookup leaves. A gene ClinVar attests nothing for holds
+ * an empty list, and is answered.
+ */
+const unchecked = (gene: Gene): boolean =>
+  gene.verified === null ||
+  (gene.verified === true && gene.clinvarTraits === null);
+
+/**
+ * The symbols "Check symbols" asks about: those of the rows still
+ * unchecked, once each. A row whose ClinVar lookup failed is among them,
+ * so the "try again" its failure says is a press of the same button.
+ */
+export function genesToCheck(genes: Gene[]): string[] {
+  return lookupValues(genes.filter(unchecked).map((g) => g.symbol));
+}
+
 /**
  * Write a gene check onto the row that asked: the first still holding the
  * symbol as typed and still unchecked, found as the answer lands, since a
  * row above can be removed meanwhile. The official spelling replaces the
- * typed one there and wherever else the answers name it. Returns whether a
- * row was found.
+ * typed one there and wherever else the answers name it. `traits` is null
+ * when ClinVar could not be read: NCBI Gene's verdict is kept, so an
+ * outage there does not hold the step open, and the row stays unchecked
+ * for its diseases alone. Returns whether a row was found.
  */
 export function applyGeneCheck(
   draft: Answers,
   typed: string,
   official: string | null,
-  traits: Array<{ name: string; omim: string | null }>,
+  traits: Array<{ name: string; omim: string | null }> | null,
+  sample: { total: number; read: number } | null = null,
 ): boolean {
   const row = draft.monogenic.genes.find((g) =>
-    g.verified === null && clean(g.symbol) === clean(typed)
+    unchecked(g) && clean(g.symbol) === clean(typed)
   );
   if (row === undefined) return false;
   row.verified = official !== null;
   row.clinvarTraits = traits;
+  row.clinvarSample = traits === null ? null : sample;
   if (official !== null && official !== row.symbol) {
     renameGene(draft, row.symbol, official);
     row.symbol = official;
@@ -233,10 +275,17 @@ const NO_TERM_NOTE = /^no term in EFO, HP or MONDO for /;
 /**
  * The term and note an ontology search writes: its top hit with the
  * alternatives listed, or none, noted as such.
+ *
+ * The note ships before login with the rest of vocabulary.json, so a hit
+ * whose label names a listed gene (`genes`, validate.ts's symbolFinder) is
+ * given by its id alone: an ontology names a monogenic form after its
+ * gene, and written out, the label made validate() refuse a note the
+ * researcher never typed, which the next search wrote straight back.
  */
 export function xrefAnswer(
   name: string,
   hits: Array<{ id: string; label: string }>,
+  genes: RegExp | null = null,
 ): { xref: string | null; xrefNote: string } {
   if (hits.length === 0) {
     return {
@@ -246,8 +295,12 @@ export function xrefAnswer(
   }
   return {
     xref: hits[0].id,
-    xrefNote: `OLS4 top hit: ${hits[0].label}; alternatives: ${
-      hits.slice(1).map((h) => `${h.id} ${h.label}`).join("; ") || "none"
+    xrefNote: `OLS4 top hit: ${
+      genes?.test(hits[0].label) ? hits[0].id : hits[0].label
+    }; alternatives: ${
+      hits.slice(1).map((h) =>
+        genes?.test(h.label) ? h.id : `${h.id} ${h.label}`
+      ).join("; ") || "none"
     }`,
   };
 }
@@ -441,20 +494,28 @@ export function renameFamily(
 }
 
 /**
- * Remove family `i`. Its parked members go back to no family, so "pick a
- * family" shows and validate() asks for one, rather than waiting on the
- * row for whichever family next takes its place; a park below it moves up
- * with its row. A member naming a key is left alone.
+ * Remove family `i`. Its members go back to no family, so "pick a family"
+ * shows and validate() asks for one: the parked ones, rather than waiting
+ * on the row for whichever family next takes its place, and the ones
+ * naming its key, when no other family holds it. Left naming a key no
+ * family has, those would be taken up by the next family whose key passed
+ * through it a keystroke at a time (renameFamily cannot tell them from
+ * that family's own) and by none pasted whole. A key another family still
+ * holds is that family's, and its members are left alone; a park below the
+ * row moves up with it.
  */
 export function removeFamily(
   families: Array<{ key: string }>,
   members: Array<{ family: string }>,
   i: number,
 ) {
+  const key = clean(families[i]?.key ?? "");
+  const last = key !== "" && holders(families, key, i).length === 0;
   for (const member of members) {
     const row = parkedRow(member.family);
-    if (row === i) member.family = "";
-    else if (row > i) member.family = parkedOn(row - 1);
+    if (row === i || (last && clean(member.family) === key)) {
+      member.family = "";
+    } else if (row > i) member.family = parkedOn(row - 1);
   }
   families.splice(i, 1);
   settle(families, members);
@@ -479,6 +540,17 @@ export function addExamplePapers(draft: Answers) {
       exists: null,
     });
   }
+}
+
+/**
+ * The PMIDs a lookup asks about: each field that holds one, read as the
+ * files write it, once. validate() and the write-backs (applyTitles,
+ * applyAbstract) read a PMID through clean(), which takes a separator off
+ * its end that String.trim() leaves; a lookup reading it any other way
+ * dropped a PMID validate() was waiting on, and nothing could confirm it.
+ */
+export function pmidsToCheck(values: string[]): string[] {
+  return lookupValues(values).filter((pmid) => PMID.test(pmid));
 }
 
 /**
@@ -516,7 +588,8 @@ const pause = (delay: number) =>
  *
  * NCBI allows three requests a second without an API key and ten with
  * one, and answers a burst over it with 429. A lookup costs several
- * requests per row (four for a gene: its symbol and its ClinVar traits),
+ * requests per row (four for a gene, its symbol and its ClinVar traits,
+ * and one more for each 200 pathogenic records it has past the first),
  * so the spacing is held here -- across the requests of one lookup's loop,
  * its retries, and lookups started back to back -- rather than in each
  * loop. The clock is monotonic, and the next start is

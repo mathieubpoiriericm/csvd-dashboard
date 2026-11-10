@@ -1,6 +1,11 @@
 import { assert, assertEquals } from "@std/assert";
 
-import { type Answers, EMPTY_ANSWERS } from "../../lib/adapt/answers.ts";
+import {
+  type Answers,
+  EMPTY_ANSWERS,
+  parseDraft,
+  serialiseDraft,
+} from "../../lib/adapt/answers.ts";
 import { entryCard } from "../../lib/adapt/cards.ts";
 import {
   covers,
@@ -529,6 +534,7 @@ Deno.test("to fix counts what validate() calls wrong, whatever the value's shape
         symbol: "A,",
         verified: null,
         clinvarTraits: [],
+        clinvarSample: null,
       })
     ),
     "monogenic",
@@ -589,6 +595,38 @@ Deno.test("answering a cross-reference raises answered and leaves asked alone", 
   const row = progress(geneless, "monogenic");
   const named = progress(EXAMPLEITIS, "monogenic");
   assertEquals([named.asked, named.answered], [row.asked, row.answered + 1]);
+  // An example's traits name keys of another step, which is not blanked
+  // with this one: a trait row just added, its key not typed yet, must not
+  // answer for them.
+  const keyless = structuredClone(EXAMPLEITIS);
+  keyless.vocabulary.traits.push({
+    ...keyless.vocabulary.traits[0],
+    key: "",
+  });
+  const traitless = structuredClone(keyless);
+  traitless.prompt.examples[0].traits = [];
+  const open = progress(traitless, "prompt");
+  const picked = progress(keyless, "prompt");
+  assertEquals([picked.asked, picked.answered], [
+    open.asked,
+    open.answered + 1,
+  ]);
+  for (const answers of [traitless, keyless]) {
+    assert(stepRequired(answers, "prompt").includes("examples[0].traits"));
+  }
+});
+
+Deno.test("a section named like a logo's field does not stop the step's questions being listed", () => {
+  // A draft keeps any section id it holds, and the island lists every
+  // step's questions on every render: a throw here is a page that never
+  // draws, with "Start over" inside it.
+  const draft = structuredClone(EXAMPLEITIS);
+  draft.prompt.sections.base64 = "x";
+  const reloaded = parseDraft(serialiseDraft(draft))!;
+  assertEquals(
+    stepRequired(reloaded, "prompt"),
+    stepRequired(EXAMPLEITIS, "prompt"),
+  );
 });
 
 Deno.test("the empty draft asks for a family, and the Traits step opens on its card", () => {

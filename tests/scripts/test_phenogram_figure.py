@@ -8,12 +8,14 @@ over, and the constructed cases build their rows from the encoding. The
 cSVD karyogram's own numbers are pinned in tests/scripts/csvd/.
 """
 
+import copy
 import itertools
 import json
 import math
 import re
 from pathlib import Path
 from typing import Any
+from xml.sax.saxutils import escape
 
 import pytest
 from scripts import phenogram_figure
@@ -455,7 +457,7 @@ class TestEncoding:
             mendelianRandomization="Yes",
         )
         pills = pills_for(evidence, encoding)
-        assert [p.label for p in pills] == [first["key"]]
+        assert [p.label for p in pills] == [first["label"]]
         assert pills[0].family == family["key"]
         assert pills[0].fill == family["tint"]
         assert pills[0].stroke == family["hue"]
@@ -470,6 +472,16 @@ class TestEncoding:
         assert block_height(len(pills), encoding["layout"]) > block_height(
             0, encoding["layout"]
         )
+
+    def test_a_pill_carries_the_trait_label_not_its_key(self, encoding) -> None:
+        # The row holds the key and the pill prints the label. A disease may
+        # label its first trait exactly as it keys it, so the test brings a
+        # label of its own.
+        relabelled = copy.deepcopy(encoding)
+        first = relabelled["traits"][0]
+        first["label"] = f"{first['key']} (label)"
+        pills = pills_for(_gene(relabelled), relabelled)
+        assert [p.label for p in pills] == [first["label"]]
 
 
 class TestResolveCollisions:
@@ -519,7 +531,9 @@ class TestRender:
         assert 'id="gene-GENE2-3"' in svg
         assert "Supporting evidence" in svg
         assert "GWAS phenotypes" in svg
-        assert encoding["families"][0]["label"] in svg
+        # matplotlib writes text as XML character data: a family labelled
+        # "A & B" is in the file as "A &amp; B".
+        assert escape(encoding["families"][0]["label"]) in svg
         # Text stays text: real <text> elements, not glyph outlines. Comments
         # and gids carry the symbols regardless of svg.fonttype, so look for
         # the symbol as element content.
@@ -587,7 +601,7 @@ class TestNormalization:
         row = normalize_gene(raw_row)
         first = encoding["traits"][0]
         pills = pills_for(row, encoding)
-        assert [p.label for p in pills] == [first["key"]]
+        assert [p.label for p in pills] == [first["label"]]
         assert pills[0].family == first["family"]
         family = next(f for f in encoding["families"] if f["key"] == first["family"])
         assert pills[0].fill == family["tint"]

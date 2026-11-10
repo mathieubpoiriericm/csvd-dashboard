@@ -115,19 +115,25 @@ of `disease/manifest.json` — not only the ones a page renders — ships inside
 public client chunk that is served before login**, which is why gene symbols
 live in `disease/pipeline.json` and why each schema's
 `additionalProperties: false` is enforced by a test on both sides of the seam.
-`disease/prompt.md` is the disease half of the extraction prompt (the
-methodology is the v8 template in `pipeline/prompts.py`); it is excluded from
-`deno fmt` in `deno.json` because `deno fmt` rewraps Markdown prose and every
-inserted newline would reach the model;
-`tests/pipeline/csvd/test_csvd_prompt_assembly.py` pins the cSVD rendering
-byte-identical to the v6 literals but for the omics lines v8 changed. TypeScript
-reads the manifest through the narrow modules under `lib/disease/`, and Python
-through `pipeline/disease.py`, which is stdlib-only so `config.py` and
-`extraction_models.py` can both import it. `tests/no_disease_literals_test.ts`
-and `tests/pipeline/test_no_disease_literals.py` scan the code for the
-manifest's own terms and fail on any hit outside a reasoned allow-list. Every
-measurement in this file and in `.claude/rules/pipeline/` is of the cSVD dataset
-this repository was built on.
+**Three more files ship before login the same way** — `vocabulary.json` (the
+filter choices, which the login route imports), `timeline.json` and
+`phenogram.json` — so none of the four may name a gene: `PUBLIC_DISEASE_FILES`
+in `tests/helpers/public_symbols.ts` lists them,
+`tests/disease_manifest_test.ts` fails on a symbol of `pipeline.json` in any,
+and the wizard's `validate()` refuses the same strings. `disease/prompt.md` is
+the disease half of the extraction prompt (the methodology is the v8 template in
+`pipeline/prompts.py`); it is excluded from `deno fmt` in `deno.json` because
+`deno fmt` rewraps Markdown prose and every inserted newline would reach the
+model; `tests/pipeline/csvd/test_csvd_prompt_assembly.py` pins the cSVD
+rendering byte-identical to the v6 literals but for the omics lines v8 changed.
+TypeScript reads the manifest through the narrow modules under `lib/disease/`,
+and Python through `pipeline/disease.py`, which is stdlib-only so `config.py`
+and `extraction_models.py` can both import it.
+`tests/no_disease_literals_test.ts` and
+`tests/pipeline/test_no_disease_literals.py` scan the code for the manifest's
+own terms and fail on any hit outside a reasoned allow-list. Every measurement
+in this file and in `.claude/rules/pipeline/` is of the cSVD dataset this
+repository was built on.
 
 **The tests that name the disease live in four `csvd/` trees** — `tests/csvd`,
 `tests/pipeline/csvd`, `tests/scripts/csvd` and `e2e/tests/csvd` — and nowhere

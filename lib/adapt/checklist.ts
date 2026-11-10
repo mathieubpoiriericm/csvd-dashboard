@@ -1,5 +1,5 @@
 import type { Answers } from "./answers.ts";
-import { clean, wrap80 } from "./generate/json.ts";
+import { clean, oneLine, wrap80 } from "./generate/json.ts";
 import { KEY } from "./validate.ts";
 
 /** The archive's file name; the checklist unpacks the newest one saved. */
@@ -18,8 +18,10 @@ export function renderChecklist(answers: Answers): string {
   // as the guide's placeholder instead; the archive is only built from a
   // draft that passes, so its copy is whole.
   const key = KEY.test(clean(disease.key)) ? clean(disease.key) : "<key>";
-  const name = clean(disease.name) || "<disease name>";
-  const abbreviation = clean(disease.abbreviation) || "<abbreviation>";
+  // On one line, as the title holds them (oneLine): whatever followed a
+  // break would stand as a heading and commands of its own.
+  const name = oneLine(disease.name) || "<disease name>";
+  const abbreviation = oneLine(disease.abbreviation) || "<abbreviation>";
   // The repository and the Fly app are named with a hyphen where the key has
   // an underscore: the app's name becomes a host name, and a host name holds
   // no underscore. The database names keep the key.
@@ -62,6 +64,8 @@ export function renderChecklist(answers: Answers): string {
     "    git rm -r tests/csvd e2e/tests/csvd tests/pipeline/csvd tests/scripts/csvd",
     "    git rm -r tests/pipeline/cassettes/test_query_recall_gold",
     "",
+    "Then, in `lib/gold_only.ts`, set `GOLD_ONLY = false`. Upstream switches it on while its own data is limited to its hand-curated tables. Left on in a fork, the About page shows upstream's curated-data notice in place of your run report, and `pipeline.main` refuses the runs of steps 6 and 8.",
+    "",
     "## 4. The edits outside disease/",
     "",
     "- In `tests/pipeline/test_prompt_vocabulary.py`, set `_ADMITTED_UNASKED = {}`.",
@@ -69,6 +73,14 @@ export function renderChecklist(answers: Answers): string {
     "- If a check below reports a hit in `tests/no_disease_literals_test.ts` or `tests/pipeline/test_no_disease_literals.py`: a hit is a line holding one of your terms as a whole word. Reword it when it is about your disease; when it is a unit, an identifier or an unrelated code, add an entry with the reason to the test's allow-list (`ALLOWED` or `_ALLOWED`), as its message says.",
     "",
     "## 5. Run the checks",
+    "",
+    "The pipeline's database tests migrate and write to a PostgreSQL database of their own: a throwaway one, never the dashboard's own, which step 7 creates. Create it and name it in `CSVD_TEST_DB_URL`. `createuser -P` asks for the role's password; keep it to letters and digits, since it goes into a URL. On a Mac, the first two lines of step 7's database block start PostgreSQL and put these commands on the `PATH`; on Linux, run the first two lines below as the `postgres` user, the way step 7 does.",
+    "",
+    `    createuser -P ${key}_test`,
+    `    createdb -O ${key}_test ${key}_test`,
+    `    export CSVD_TEST_DB_URL=postgresql://${key}_test:<password>@localhost:5432/${key}_test`,
+    "",
+    "Then the checks:",
     "",
     "    deno task check",
     "    deno task test:coverage",
@@ -78,7 +90,7 @@ export function renderChecklist(answers: Answers): string {
     "    uv run pytest tests/scripts",
     "    npx --prefix e2e playwright test -c e2e/playwright.config.ts",
     "",
-    "A failure names the file and the key. Fix it in `disease/` and run the command again.",
+    "A failure names the file and the key. Fix it in `disease/` and run the command again. Without `CSVD_TEST_DB_URL` the database tests are skipped, and the fifth command's report ends in `FAIL Required test coverage of 99.5% not reached`: the coverage those tests carry is what holds the total at its floor.",
     "",
     "## 6. Measure cost and recall",
     "",

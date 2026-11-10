@@ -147,3 +147,30 @@ def test_the_prompt_parser_refuses_a_heading_that_is_not_a_section_id() -> None:
         disease_module._parse_prompt_sections(
             "## a.b\n\none\n\n## Provenance\n\nwritten by hand\n"
         )
+
+
+def test_the_parser_refuses_a_symbol_filed_under_two_aliases() -> None:
+    """The merge keeps a member's last alias and the lookups file it under the
+    first, so its papers would go under one name and its annotations another.
+    """
+    pipeline_raw = copy.deepcopy(_PIPELINE_RAW)
+    pipeline_raw["geneAliases"] = {
+        "GENEA/B": ["GENEA", "GENEB"],
+        "GENEA-like": ["GENEQ", " genea "],
+    }
+    with pytest.raises(
+        ValueError, match="geneAliases files genea under 'GENEA/B' and 'GENEA-like'"
+    ):
+        disease_module._parse_manifest(_MANIFEST_RAW, pipeline_raw)
+    # Once under one alias too: the two maps disagree over a repeat as well.
+    pipeline_raw["geneAliases"] = {"GENEA/B": ["GENEA", "GENEB", "GeneB"]}
+    with pytest.raises(
+        ValueError, match="geneAliases files GeneB under 'GENEA/B' and 'GENEA/B'"
+    ):
+        disease_module._parse_manifest(_MANIFEST_RAW, pipeline_raw)
+    pipeline_raw["geneAliases"] = {"GENEA/B": ["GENEA", "GENEB"], "GENEC/D": ["GENEC"]}
+    parsed = disease_module._parse_manifest(_MANIFEST_RAW, pipeline_raw)
+    assert parsed.gene_aliases == {
+        "GENEA/B": ("GENEA", "GENEB"),
+        "GENEC/D": ("GENEC",),
+    }

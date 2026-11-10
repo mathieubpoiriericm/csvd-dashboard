@@ -9,7 +9,7 @@ import { cytobands, type CytobandTable, placeGene } from "../lib/cytobands.ts";
 import families from "../disease/phenogram.json" with { type: "json" };
 import vocabulary from "../disease/vocabulary.json" with { type: "json" };
 import { genes } from "../lib/data.ts";
-import { sampleGene } from "./fixtures/rows.ts";
+import { sampleGene, swapAsciiCase } from "./fixtures/rows.ts";
 import {
   blockHeight,
   canvasFor,
@@ -390,7 +390,7 @@ Deno.test("under gold-only the legend lists only the traits the rows carry", () 
   const first = vocabulary.traits[0];
   const last = vocabulary.traits.at(-1)!;
   const rows = [
-    sampleGene({ gwasTrait: [` ${last.key.toUpperCase()} `] }),
+    sampleGene({ gwasTrait: [` ${swapAsciiCase(last.key)} `] }),
     sampleGene({ gwasTrait: [first.key] }),
     sampleGene(),
   ];

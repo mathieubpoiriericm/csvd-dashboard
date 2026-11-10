@@ -6,9 +6,9 @@ import {
   addExamplePapers,
   applyTitles,
   lookupSummary,
+  pmidsToCheck,
 } from "../../../lib/adapt/edits.ts";
 import { pubmedSummaries } from "../../../lib/adapt/lookups.ts";
-import { PMID } from "../../../lib/adapt/validate.ts";
 import type { StepProps } from "./types.ts";
 
 export function GoldStep(
@@ -24,9 +24,7 @@ export function GoldStep(
     let outcome = "";
     setStatus("Checking PMIDs…");
     try {
-      const pmids = [
-        ...new Set(rows.map((r) => r.pmid.trim()).filter((p) => PMID.test(p))),
-      ];
+      const pmids = pmidsToCheck(rows.map((r) => r.pmid));
       const titles = await pubmedSummaries(fetch, pmids, answers.search.ncbi);
       if (!titles.ok) {
         outcome = `PubMed lookup failed: ${titles.error}`;
