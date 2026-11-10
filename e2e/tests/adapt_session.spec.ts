@@ -14,8 +14,9 @@ import { openAdapt } from "../helpers.ts";
  * the code window, resuming from another browser, the conflict question, the
  * sign-out message, and the native dialogs' own behaviour under Escape.
  * The e2e server runs with sessions on (playwright.config.ts). Its sessions
- * directory outlives a run, so every test makes its own session and none
- * relies on the directory being empty. Nothing here names a disease: the
+ * directory is emptied when the server starts, but a reused local server
+ * keeps it, so every test makes its own session and none relies on the
+ * directory being empty. Nothing here names a disease: the
  * answers are the placeholders any adaptation starts with.
  */
 

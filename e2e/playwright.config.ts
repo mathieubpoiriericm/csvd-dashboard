@@ -34,6 +34,20 @@ if (WORKERS !== undefined && (!Number.isInteger(WORKERS) || WORKERS < 1)) {
   throw new Error("E2E_WORKERS must be a positive integer");
 }
 
+// Saved sessions are on for the suite, kept here. Derived from the port, not
+// made with mkdtemp: Playwright evaluates this config once per worker, and
+// every runner already has its own E2E_PORT.
+const SESSIONS_DIR = path.join(os.tmpdir(), `adapt-sessions-e2e-${PORT}`);
+
+// The web server's command empties SESSIONS_DIR before the server starts, and
+// so once per run in Playwright's main process, never per worker. Each run
+// leaves about ten sessions behind and the server's sweep removes only those
+// 14 days old, so on a runner with a fixed port and a lasting /tmp the
+// directory would reach the server's cap of 500 sessions within weeks, and
+// every create would then answer "full". `rm -rf` is given this one path,
+// quoted, and succeeds when it does not exist yet.
+const quotedSessionsDir = `'${SESSIONS_DIR.replaceAll("'", `'\\''`)}'`;
+
 export default defineConfig({
   testDir: "./tests",
   fullyParallel: true,
@@ -68,7 +82,8 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: `deno task build && deno serve -A --port ${PORT} _fresh/server.js`,
+    command: `rm -rf -- ${quotedSessionsDir} && deno task build && ` +
+      `deno serve -A --port ${PORT} _fresh/server.js`,
     cwd: "..",
     // The gate answers 303 for `/`; Playwright treats any non-error status
     // as "up", so the health check needs no login.
@@ -78,11 +93,9 @@ export default defineConfig({
     env: {
       DASHBOARD_PASSPHRASE: PASSPHRASE,
       DASHBOARD_SESSION_SECRET: SESSION_SECRET,
-      // Saved sessions are on for the suite. Derived from the port, not made
-      // with mkdtemp: Playwright evaluates this config once per worker, and
-      // every runner already has its own E2E_PORT. The directory persists
-      // between local runs, so no spec may rely on it being empty.
-      ADAPT_SESSIONS_DIR: path.join(os.tmpdir(), `adapt-sessions-e2e-${PORT}`),
+      // Emptied when this server starts, but a reused local server keeps
+      // what earlier runs left, so no spec may rely on it being empty.
+      ADAPT_SESSIONS_DIR: SESSIONS_DIR,
       // Every worker shares one client address, and a run creates more
       // sessions in a minute than the production limit of ten per client.
       ADAPT_SESSION_PER_CLIENT_LIMIT: "1000",

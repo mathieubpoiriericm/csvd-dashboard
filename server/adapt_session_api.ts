@@ -11,7 +11,7 @@
  * handed over before its body is read (server/adapt_session_holder.ts).
  */
 
-import { IMPORT_BYTE_LIMIT, parseExport } from "../lib/adapt/bundle.ts";
+import { parseExport } from "../lib/adapt/bundle.ts";
 import { normaliseCode } from "../lib/adapt/session_code.ts";
 import { type Holder, replayToHolder } from "./adapt_session_holder.ts";
 import type { SessionStore } from "./adapt_sessions.ts";
@@ -19,8 +19,16 @@ import type { SessionStore } from "./adapt_sessions.ts";
 /** Set to "created" on a response that made a new session file. */
 export const CREATED_HEADER = "X-Adapt-Session";
 
-/** An export at the limit, escaped into a JSON string, plus the other fields. */
-const BODY_BYTE_LIMIT = IMPORT_BYTE_LIMIT + 4096;
+/**
+ * The largest body the three routes read, in bytes. Two logos at their 1 MB
+ * cap make an export of about 2.7 MB, escaped into a JSON string with the
+ * other fields; this leaves room for that and no more. It is well under
+ * IMPORT_BYTE_LIMIT (lib/adapt/bundle.ts), which bounds a file imported in
+ * the browser and so never reaches the server: each request here is held
+ * several times over while it is parsed, on a machine that serves the whole
+ * dashboard, and every byte of it may end up on the session volume.
+ */
+export const SESSION_BODY_LIMIT = 4_000_000;
 const NOT_A_REQUEST = "That request is not one this page sends.";
 
 type Body = Record<string, unknown>;
@@ -44,13 +52,13 @@ const invalid = (message = NOT_A_REQUEST) =>
   reply(400, { error: "invalid", message });
 
 /**
- * The body as text, or null once it is past BODY_BYTE_LIMIT. Counted as it
+ * The body as text, or null once it is past SESSION_BODY_LIMIT. Counted as it
  * arrives, so neither a false Content-Length nor a body without one makes
  * the server hold more than the limit.
  */
 async function readCapped(req: Request): Promise<string | null> {
   const declared = Number(req.headers.get("content-length"));
-  if (declared > BODY_BYTE_LIMIT) {
+  if (declared > SESSION_BODY_LIMIT) {
     await req.body?.cancel();
     return null;
   }
@@ -62,7 +70,7 @@ async function readCapped(req: Request): Promise<string | null> {
     const { done, value } = await reader.read();
     if (done) break;
     total += value.byteLength;
-    if (total > BODY_BYTE_LIMIT) {
+    if (total > SESSION_BODY_LIMIT) {
       await reader.cancel();
       return null;
     }
@@ -92,13 +100,14 @@ async function readJson(req: Request): Promise<Body | Response> {
     : invalid();
 }
 
-/** The body's answers, checked as Import checks a file, or the refusal. */
+/**
+ * The body's answers, checked as Import checks a file, or the refusal. Their
+ * size needs no check of its own: the body around them is already within
+ * SESSION_BODY_LIMIT.
+ */
 function readAnswers(body: Body): string | Response {
   const { answers } = body;
   if (typeof answers !== "string") return invalid();
-  if (new TextEncoder().encode(answers).byteLength > IMPORT_BYTE_LIMIT) {
-    return tooLarge();
-  }
   const parsed = parseExport(answers);
   return "error" in parsed ? invalid(parsed.error) : answers;
 }

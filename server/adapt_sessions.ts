@@ -26,12 +26,24 @@ import {
 
 export const SESSIONS_DIR_VAR = "ADAPT_SESSIONS_DIR";
 /**
- * Files, not bytes. Typical sessions are under 100 KB, so 500 of them leave
- * a 1 GB volume most of its room; the worst case (two 1 MB logos make an
- * export of about 2.7 MB) is above 1 GB, and a volume that fills before the
- * cap does answers "failed" on the write rather than losing data silently.
+ * How many sessions the directory holds at most. Typical sessions are under
+ * 100 KB; SESSION_BYTES_BUDGET bounds the rest.
+ *
+ * Both are checked against a listing taken under the new file's own chain,
+ * not a lock on the directory, so creates in flight at once can each see
+ * room for one more and overshoot either bound by the number in flight. The
+ * session limiter's global limit (server/adapt_session_limiter.ts) bounds
+ * how many those can be.
  */
 export const SESSION_CAP = 500;
+/**
+ * The most bytes the directory's session files may hold together. The volume
+ * is 1 GB (fly.toml); the rest is room for temporary files mid-write and for
+ * the filesystem itself. Without it one signed-in user could fill the volume
+ * well under the file cap (two 1 MB logos make an export of about 2.7 MB),
+ * and then every save by anyone would fail.
+ */
+export const SESSION_BYTES_BUDGET = 750_000_000;
 export const SWEEP_INTERVAL_MS = 60 * 60 * 1000;
 
 export interface SessionMeta {
@@ -73,6 +85,7 @@ export interface SessionStore {
 interface StoreOptions {
   now?: () => number;
   cap?: number;
+  budget?: number;
 }
 
 const FILE_VERSION = 1;
@@ -103,6 +116,29 @@ async function fileName(code: string): Promise<string> {
   return `${hex}.json`;
 }
 
+/** What a session file holds, as written. */
+function fileBody(revision: number, savedAt: number, answers: unknown): string {
+  return JSON.stringify({ version: FILE_VERSION, revision, savedAt, answers });
+}
+
+/**
+ * A failure the caller turns into "failed" or "unreadable", logged so that
+ * a volume that fills or turns read-only leaves a line in the logs. The file
+ * is named by the first 12 characters of its hash, also inside the error's
+ * message, which names the path: enough to find the file, and never the
+ * code or the answers.
+ */
+function logFailure(operation: string, name: string, error: unknown): void {
+  const hash = name.slice(0, 64);
+  const short = hash.slice(0, 12);
+  const kind = error instanceof Error ? error.name : typeof error;
+  const message = (error instanceof Error ? error.message : String(error))
+    .replaceAll(hash, short);
+  console.error(
+    `Adapt session ${operation} failed for ${short}: ${kind}: ${message}`,
+  );
+}
+
 /** The export a text holds, with the NCBI pair blanked, or null if it is not one. */
 function sanitised(text: string): unknown {
   const parsed = parseExport(text);
@@ -123,6 +159,7 @@ class FileSessionStore implements SessionStore {
   readonly #dir: string;
   readonly #now: () => number;
   readonly #cap: number;
+  readonly #budget: number;
   readonly #chains = new Map<string, Promise<void>>();
   #lastSweep: number;
 
@@ -130,6 +167,7 @@ class FileSessionStore implements SessionStore {
     this.#dir = dir;
     this.#now = options.now ?? Date.now;
     this.#cap = options.cap ?? SESSION_CAP;
+    this.#budget = options.budget ?? SESSION_BYTES_BUDGET;
     this.#lastSweep = this.#now();
     this.#sweepSync(this.#lastSweep);
   }
@@ -148,9 +186,10 @@ class FileSessionStore implements SessionStore {
           const stored = await this.#read(name);
           if (stored === null) return { error: "failed" };
           if (stored.kind !== "absent") return null;
-          if (await this.#full()) return { error: "full" };
           const savedAt = this.#now();
-          return await this.#write(name, 1, savedAt, answers)
+          const body = fileBody(1, savedAt, answers);
+          if (await this.#full(name, body, true)) return { error: "full" };
+          return await this.#write(name, savedAt, body)
             ? { code, revision: 1, savedAt }
             : { error: "failed" };
         },
@@ -197,11 +236,12 @@ class FileSessionStore implements SessionStore {
         // Gone, or expired and not yet swept: the holder of the code has
         // the whole draft, so it is saved again under the same code.
         revived = true;
-        if (stored.kind === "absent" && await this.#full()) {
-          return { error: "full" };
-        }
       }
-      return await this.#write(name, revision, savedAt, answers)
+      const body = fileBody(revision, savedAt, answers);
+      if (await this.#full(name, body, stored.kind === "absent")) {
+        return { error: "full" };
+      }
+      return await this.#write(name, savedAt, body)
         ? { revision, savedAt, revived }
         : { error: "failed" };
     });
@@ -293,7 +333,10 @@ class FileSessionStore implements SessionStore {
     try {
       await Deno.remove(`${this.#dir}/${name}`);
       return true;
-    } catch {
+    } catch (error) {
+      if (!(error instanceof Deno.errors.NotFound)) {
+        logFailure("remove", name, error);
+      }
       return false;
     }
   }
@@ -302,18 +345,39 @@ class FileSessionStore implements SessionStore {
     return stored.savedAt + SESSION_TTL_MS <= now;
   }
 
-  async #full(): Promise<boolean> {
+  /**
+   * Whether writing `body` as the file `name` would take the directory past
+   * the file cap or the byte budget. `adds` says the write makes a new file,
+   * which the cap counts. A write over an existing file is refused only when
+   * it grows the total past the budget, so a save that keeps or shrinks a
+   * session always passes. The sizes come from stat, so nothing is read.
+   */
+  async #full(name: string, body: string, adds: boolean): Promise<boolean> {
     let count = 0;
+    let total = 0;
+    let own = 0;
     try {
       for await (const entry of Deno.readDir(this.#dir)) {
-        if (entry.isFile && SESSION_FILE.test(entry.name)) count++;
+        if (!entry.isFile || !SESSION_FILE.test(entry.name)) continue;
+        count++;
+        let size: number;
+        try {
+          size = (await Deno.stat(`${this.#dir}/${entry.name}`)).size;
+        } catch {
+          // Removed by a sweep since the listing: it holds nothing now.
+          continue;
+        }
+        total += size;
+        if (entry.name === name) own = size;
       }
     } catch {
       // A directory that cannot be listed will not take the write either,
       // and the write reports that as "failed".
       return false;
     }
-    return count >= this.#cap;
+    if (adds && count >= this.#cap) return true;
+    const after = total - own + new TextEncoder().encode(body).byteLength;
+    return after > this.#budget && after > total;
   }
 
   /** The file read back, or null when it exists but cannot be read at all. */
@@ -323,7 +387,9 @@ class FileSessionStore implements SessionStore {
     try {
       text = await Deno.readTextFile(path);
     } catch (error) {
-      return error instanceof Deno.errors.NotFound ? { kind: "absent" } : null;
+      if (error instanceof Deno.errors.NotFound) return { kind: "absent" };
+      logFailure("read", name, error);
+      return null;
     }
     let raw: unknown;
     try {
@@ -346,32 +412,25 @@ class FileSessionStore implements SessionStore {
     try {
       const modifiedAt = (await Deno.stat(path)).mtime?.getTime();
       return { kind: "damaged", modifiedAt: modifiedAt ?? this.#now() };
-    } catch {
+    } catch (error) {
+      logFailure("read", name, error);
       return null;
     }
   }
 
-  async #write(
-    name: string,
-    revision: number,
-    savedAt: number,
-    answers: unknown,
-  ): Promise<boolean> {
+  async #write(name: string, savedAt: number, body: string): Promise<boolean> {
     const path = `${this.#dir}/${name}`;
     const temp = `${path}${TEMP_MARK}${crypto.randomUUID()}`;
-    const body = JSON.stringify({
-      version: FILE_VERSION,
-      revision,
-      savedAt,
-      answers,
-    });
     try {
       await Deno.writeTextFile(temp, body);
       // The sweep reads the age from here; rename keeps it.
       await Deno.utime(temp, new Date(savedAt), new Date(savedAt));
       await Deno.rename(temp, path);
       return true;
-    } catch {
+    } catch (error) {
+      logFailure("write", name, error);
+      // Most often there is no temporary file to remove; one left behind is
+      // the sweep's after an hour.
       await Deno.remove(temp).catch(() => {});
       return false;
     }

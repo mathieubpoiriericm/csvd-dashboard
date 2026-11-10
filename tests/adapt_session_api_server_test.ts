@@ -1,13 +1,14 @@
 import { assert, assertEquals, assertMatch } from "@std/assert";
 
 import { EMPTY_ANSWERS } from "../lib/adapt/answers.ts";
-import { exportText, IMPORT_BYTE_LIMIT } from "../lib/adapt/bundle.ts";
+import { exportText } from "../lib/adapt/bundle.ts";
 import { formatCode, SESSION_TTL_MS } from "../lib/adapt/session_code.ts";
 import {
   CREATED_HEADER,
   handleCreate,
   handleResume,
   handleSave,
+  SESSION_BODY_LIMIT,
 } from "../server/adapt_session_api.ts";
 import {
   openSessionStore,
@@ -144,11 +145,40 @@ Deno.test("create refuses a body that is not JSON or carries no answers", async 
   });
 });
 
+/** A create body of exactly `bytes` bytes, the answers padded with spaces. */
+function createBody(bytes: number): string {
+  const bare = JSON.stringify({ answers: VALID });
+  return JSON.stringify({ answers: VALID + " ".repeat(bytes - bare.length) });
+}
+
+Deno.test("the session body limit takes two logos at their cap", () => {
+  // Two 1 MB logos make an export of about 2.7 MB.
+  assertEquals(SESSION_BODY_LIMIT, 4_000_000);
+});
+
+Deno.test("a body at the limit is taken and one byte over it is refused", async () => {
+  await withStore(async (store, dir) => {
+    const atLimit = createBody(SESSION_BODY_LIMIT);
+    assertEquals(new TextEncoder().encode(atLimit).byteLength, 4_000_000);
+    const taken = await handleCreate(request("create", atLimit), store);
+    assertEquals(taken.status, 201);
+    await taken.body?.cancel();
+    assertEquals((await files(dir)).length, 1);
+
+    const over = createBody(SESSION_BODY_LIMIT + 1);
+    assertEquals(new TextEncoder().encode(over).byteLength, 4_000_001);
+    const refused = await handleCreate(request("create", over), store);
+    assertEquals(refused.status, 413);
+    assertEquals(await json(refused), { error: "too-large" });
+    assertEquals((await files(dir)).length, 1);
+  });
+});
+
 Deno.test("create refuses a declared or streamed body above the limit", async () => {
   await withStore(async (store, dir) => {
     const declared = await handleCreate(
       request("create", JSON.stringify({ answers: VALID }), {
-        "Content-Length": String(IMPORT_BYTE_LIMIT + 8192),
+        "Content-Length": String(SESSION_BODY_LIMIT + 1),
       }),
       store,
     );
@@ -171,13 +201,7 @@ Deno.test("create refuses a declared or streamed body above the limit", async ()
     assertEquals(streamed.status, 413);
     assertEquals(await json(streamed), { error: "too-large" });
     assert(cancelled);
-    assert(pulled < IMPORT_BYTE_LIMIT + 4096 + 2 * chunk.length);
-
-    // Under the body's cap but above the export's own.
-    const padded = await post(handleCreate, store, "create", {
-      answers: VALID + " ".repeat(IMPORT_BYTE_LIMIT),
-    });
-    assertEquals(padded.status, 413);
+    assert(pulled < SESSION_BODY_LIMIT + 2 * chunk.length);
     assertEquals(await files(dir), []);
   });
 });
@@ -351,13 +375,20 @@ Deno.test({
   fn: async () => {
     await withStore(async (store, dir) => {
       await Deno.chmod(dir, 0o500);
+      // The store logs the refused write (tests/adapt_sessions_server_test.ts
+      // checks the line); kept out of the test output here.
+      const logged: unknown[] = [];
+      const original = console.error;
+      console.error = (...args: unknown[]) => void logged.push(args);
       try {
         const response = await post(handleCreate, store, "create", {
           answers: VALID,
         });
         assertEquals(response.status, 503);
         assertEquals(await json(response), { error: "failed" });
+        assertEquals(logged.length, 1);
       } finally {
+        console.error = original;
         await Deno.chmod(dir, 0o700);
       }
     });

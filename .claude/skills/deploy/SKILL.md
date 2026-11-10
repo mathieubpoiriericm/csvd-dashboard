@@ -157,13 +157,23 @@ holds a version, the revision, `savedAt` and the answers as "Export answers"
 writes them, with the NCBI email and API key blanked by the server whatever the
 browser sent. A file's mtime is its `savedAt`; a sweep at start and then at most
 hourly, on the next session request, deletes a session 14 days after its last
-save, and a temporary file a write left behind after an hour. At 500 session
-files a create answers "full". By hand, as root:
+save, and a temporary file a write left behind after an hour. Two bounds keep
+the 1 GB volume from filling (`server/adapt_sessions.ts`): at 500 session files
+(`SESSION_CAP`), or when the session files would hold more than 750,000,000
+bytes together (`SESSION_BYTES_BUDGET`), a create or a revival answers "full";
+a save to an existing session is refused as "full" only when it would grow the
+total past the budget. The three session routes read at most 4,000,000 bytes of
+body (`SESSION_BODY_LIMIT` in `server/adapt_session_api.ts`; two logos at their
+1 MB cap make an export of about 2.7 MB) and answer 413 above it; the 8 MB
+`IMPORT_BYTE_LIMIT` bounds only a file imported in the browser. A write or read
+that fails logs one line, `Adapt session <operation> failed for <first 12 hex
+characters of the file's hash>: <error>`, never the code. By hand, as root:
 
 ```sh
-# list, count, clear all
+# list, count, total size, clear all
 fly ssh console -C "ls -l /session_storage/adapt-sessions"
 fly ssh console -C "sh -c 'ls /session_storage/adapt-sessions | wc -l'"
+fly ssh console -C "du -sh /session_storage/adapt-sessions"
 fly ssh console -C "sh -c 'rm /session_storage/adapt-sessions/*.json'"
 ```
 
@@ -222,6 +232,7 @@ process ("Exactly one machine" above), which a second machine changes as well.
 | the CI `container` job fails at `deno task build`                | a file the build imports is missing from `.dockerignore`'s allowlist                                                                                                                                                                                                                                     |
 | the machine starts and exits at once (`fly logs`)                | `--cached-only` met a module the build did not cache; reproduce with `container build` and `container run` (README, "Deployment")                                                                                                                                                                        |
 | Save session is missing on the live site                         | sessions are off: `fly logs` shows `Adapt sessions are off:` with the reason, and `docker-entrypoint: cannot create` if the entrypoint could not make the directory. Either `ADAPT_SESSIONS_DIR` is unset in `fly.toml`'s `[env]`, or the directory it names cannot be written, which the log line names |
+| every save answers "The server cannot take another session right now" | the volume's sessions reached a bound: 500 files or 750,000,000 bytes (503 `full`). Count and size them (the `ls` and `du` lines above); the sweep frees nothing younger than 14 days, so delete by hand the largest or oldest files you can spare, or every one (it cannot be undone). `fly logs` lines `Adapt session write failed` instead mean the disk itself refused (full or read-only) |
 | a resume says no session answers to that code right after a save | more than one machine and no `ADAPT_SESSIONS_MACHINE`: the save and the resume reached different volumes. `fly status`; scale to one, or set the variable ("More than one machine")                                                                                                                      |
 
 **Probing whether `Fly-Client-IP` can be spoofed**, once, from a machine whose

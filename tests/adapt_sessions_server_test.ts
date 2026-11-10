@@ -8,9 +8,10 @@ import {
 import { EMPTY_ANSWERS } from "../lib/adapt/answers.ts";
 import type { Answers } from "../lib/adapt/answers.ts";
 import { exportText, parseExport } from "../lib/adapt/bundle.ts";
-import { SESSION_TTL_MS } from "../lib/adapt/session_code.ts";
+import { formatCode, SESSION_TTL_MS } from "../lib/adapt/session_code.ts";
 import {
   openSessionStore,
+  SESSION_BYTES_BUDGET,
   SESSION_CAP,
   type SessionStore,
   SWEEP_INTERVAL_MS,
@@ -429,6 +430,154 @@ Deno.test("a save over a damaged file asks before overwriting it", async () => {
   });
 });
 
+/** Runs `fn` with console.error captured, and the lines it was given. */
+async function loggedErrors(fn: () => Promise<void>): Promise<string[]> {
+  const lines: string[] = [];
+  const original = console.error;
+  console.error = (...args: unknown[]) => void lines.push(args.join(" "));
+  try {
+    await fn();
+  } finally {
+    console.error = original;
+  }
+  return lines;
+}
+
+/** Neither the code nor any spelling of it a person would type. */
+function assertNoCode(line: string, code: string): void {
+  for (const spelling of [code, formatCode(code), code.toLowerCase()]) {
+    assert(!line.includes(spelling), line);
+  }
+  // Nor its first or last half, which would narrow a guess.
+  assert(!line.includes(code.slice(0, 10)), line);
+  assert(!line.includes(code.slice(10)), line);
+}
+
+/** The file's hash as the log names it: the first 12 hex characters. */
+function shortHash(path: string): string {
+  return path.slice(path.lastIndexOf("/") + 1).slice(0, 12);
+}
+
+Deno.test({
+  name: "a failed write is logged by operation, error and hash, never by code",
+  ignore: Deno.build.os === "windows",
+  fn: async () => {
+    await withStore(async (store, dir) => {
+      const code = created(await store.create(VALID));
+      const path = await onlyFile(dir);
+      await Deno.chmod(dir, 0o500);
+      const lines = await loggedErrors(async () => {
+        assertEquals(
+          await store.save(code, { revision: 1, savedAt: T0 }, VALID2, false),
+          { error: "failed" },
+        );
+      });
+      assertEquals(lines.length, 1, lines.join("\n"));
+      const [line] = lines;
+      assertMatch(line, /\bwrite\b/);
+      assertMatch(line, /PermissionDenied/);
+      assert(line.includes(shortHash(path)), line);
+      // Neither the full hash nor anything of the code or the answers.
+      assert(!line.includes(path.slice(dir.length + 1, -5)), line);
+      assertNoCode(line, code);
+      assert(!line.includes("condition"), line);
+    });
+  },
+});
+
+Deno.test({
+  name: "a file that cannot be read is logged by operation, error and hash",
+  ignore: Deno.build.os === "windows",
+  fn: async () => {
+    await withStore(async (store, dir) => {
+      const code = created(await store.create(VALID));
+      const path = await onlyFile(dir);
+      await Deno.chmod(path, 0o000);
+      try {
+        const lines = await loggedErrors(async () => {
+          assertEquals(await store.load(code), { error: "unreadable" });
+        });
+        assertEquals(lines.length, 1, lines.join("\n"));
+        const [line] = lines;
+        assertMatch(line, /\bread\b/);
+        assertMatch(line, /PermissionDenied/);
+        assert(line.includes(shortHash(path)), line);
+        assert(!line.includes(path.slice(dir.length + 1, -5)), line);
+        assertNoCode(line, code);
+      } finally {
+        await Deno.chmod(path, 0o600);
+      }
+    });
+  },
+});
+
+Deno.test("the byte budget leaves a 1 GB volume room for temporary files", () => {
+  assertEquals(SESSION_BYTES_BUDGET, 750_000_000);
+});
+
+/** A store over `dir` whose byte budget is exactly what `dir` holds now. */
+async function atBudget(
+  dir: string,
+  clock: { now: number },
+): Promise<SessionStore> {
+  let total = 0;
+  for (const name of await files(dir)) {
+    total += (await Deno.stat(join(dir, name))).size;
+  }
+  const store = openSessionStore(dir, { now: () => clock.now, budget: total });
+  assert(store !== null);
+  return store;
+}
+
+Deno.test("once the byte budget is reached a new session is refused", async () => {
+  await withStore(async (first, dir, clock) => {
+    created(await first.create(VALID));
+    const store = await atBudget(dir, clock);
+    assertEquals(await store.create(VALID), { error: "full" });
+    assertEquals(
+      await store.save(
+        "ABCDEFGHJKMNPQRSTVWX",
+        { revision: 1, savedAt: T0 },
+        VALID,
+        false,
+      ),
+      { error: "full" },
+    );
+    assertEquals((await files(dir)).length, 1);
+  });
+});
+
+Deno.test("at the byte budget a save that keeps or shrinks the size still passes", async () => {
+  await withStore(async (first, dir, clock) => {
+    const code = created(await first.create(VALID2));
+    const store = await atBudget(dir, clock);
+    // The same text at revision 2: the same number of bytes.
+    assert(
+      "revision" in
+        await store.save(code, { revision: 1, savedAt: T0 }, VALID2, false),
+    );
+    // "First condition" is one character shorter than "Second condition".
+    assert(
+      "revision" in
+        await store.save(code, { revision: 2, savedAt: T0 }, VALID, false),
+    );
+  });
+});
+
+Deno.test("at the byte budget a save that grows the session is refused", async () => {
+  await withStore(async (first, dir, clock) => {
+    const code = created(await first.create(VALID));
+    const path = await onlyFile(dir);
+    const before = await Deno.readTextFile(path);
+    const store = await atBudget(dir, clock);
+    assertEquals(
+      await store.save(code, { revision: 1, savedAt: T0 }, VALID2, false),
+      { error: "full" },
+    );
+    assertEquals(await Deno.readTextFile(path), before);
+  });
+});
+
 Deno.test({
   name: "a directory that stops taking writes fails the write, not the server",
   ignore: Deno.build.os === "windows",
@@ -436,24 +585,24 @@ Deno.test({
     await withStore(async (store, dir) => {
       const code = created(await store.create(VALID));
       await Deno.chmod(dir, 0o500);
-      assertEquals(await store.create(VALID), { error: "failed" });
-      assertEquals(
-        await store.save(code, { revision: 1, savedAt: T0 }, VALID2, false),
-        {
-          error: "failed",
-        },
-      );
-      assertEquals(
-        await store.save(
-          "ABCDEFGHJKMNPQRSTVWX",
-          { revision: 1, savedAt: T0 },
-          VALID,
-          false,
-        ),
-        {
-          error: "failed",
-        },
-      );
+      const lines = await loggedErrors(async () => {
+        assertEquals(await store.create(VALID), { error: "failed" });
+        assertEquals(
+          await store.save(code, { revision: 1, savedAt: T0 }, VALID2, false),
+          { error: "failed" },
+        );
+        assertEquals(
+          await store.save(
+            "ABCDEFGHJKMNPQRSTVWX",
+            { revision: 1, savedAt: T0 },
+            VALID,
+            false,
+          ),
+          { error: "failed" },
+        );
+      });
+      // One line for each refused write.
+      assertEquals(lines.length, 3, lines.join("\n"));
       assertEquals((await files(dir)).length, 1);
     });
   },
