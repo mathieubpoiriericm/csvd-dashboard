@@ -49,11 +49,19 @@ export type LoadResult = (SessionMeta & { text: string }) | {
   error: "unknown" | "unreadable";
   message?: string;
 };
+/**
+ * The copy a save was made over, as the browser last saw it. `savedAt` is
+ * absent from a page loaded before the browser sent it.
+ */
+export interface SaveBase {
+  revision: number;
+  savedAt?: number;
+}
 export interface SessionStore {
   create(exportText: string): Promise<CreateResult>;
   save(
     code: string,
-    baseRevision: number,
+    base: SaveBase,
     exportText: string,
     force: boolean,
   ): Promise<SaveResult>;
@@ -154,7 +162,7 @@ class FileSessionStore implements SessionStore {
 
   async save(
     code: string,
-    baseRevision: number,
+    base: SaveBase,
     text: string,
     force: boolean,
   ): Promise<SaveResult> {
@@ -174,7 +182,14 @@ class FileSessionStore implements SessionStore {
         // still want: overwrite only when asked to.
         if (!force) return { error: "conflict", savedAt: stored.modifiedAt };
       } else if (stored.kind === "valid" && !this.#expired(stored, savedAt)) {
-        if (!force && baseRevision !== stored.revision) {
+        // Both must match. A revival restarts the revision at 1, so after
+        // one a browser still holding the old copy's revision can meet the
+        // same number again; the time it was saved it cannot.
+        if (
+          !force &&
+          (base.revision !== stored.revision ||
+            base.savedAt !== stored.savedAt)
+        ) {
           return { error: "conflict", savedAt: stored.savedAt };
         }
         revision = stored.revision + 1;

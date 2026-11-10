@@ -282,9 +282,12 @@ export function sessionClient(
     },
 
     async save(link, answers, force) {
+      // The revision and the time together name the copy this browser last
+      // saw; after a revival the revision alone can repeat.
       const result = await request("save", {
         code: link.code,
         revision: link.revision,
+        savedAt: link.savedAt,
         force,
         answers: exportText(answers),
       });

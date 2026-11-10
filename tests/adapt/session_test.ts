@@ -147,7 +147,7 @@ Deno.test("create reports a 201 it cannot read as a failure", async () => {
   assert(!result.ok && result.reason === "failed");
 });
 
-Deno.test("save sends the code, revision and force, and passes revived on", async () => {
+Deno.test("save sends the code, revision, savedAt and force, and passes revived on", async () => {
   const { calls, client } = stub(() =>
     json(200, { revision: 4, savedAt: 9, revived: true })
   );
@@ -161,6 +161,9 @@ Deno.test("save sends the code, revision and force, and passes revived on", asyn
   const body = JSON.parse(calls[0].init.body as string);
   assertEquals(body.code, CODE);
   assertEquals(body.revision, 3);
+  // The copy this browser last saw is named by both: after a revival the
+  // revision alone can meet its own number again (server/adapt_sessions.ts).
+  assertEquals(body.savedAt, 1000);
   assertEquals(body.force, true);
   assertEquals(body.answers, exportText(EXAMPLEITIS));
 });

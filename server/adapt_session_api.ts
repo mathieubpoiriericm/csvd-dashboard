@@ -137,16 +137,24 @@ export async function handleSave(
   const body = await readJson(req);
   if (body instanceof Response) return body;
   const code = readCode(body);
-  const { revision, force = false } = body;
+  // savedAt is optional on the wire: a page loaded before the browser sent
+  // it sends none, and the store treats that as a copy it has not seen.
+  const { revision, savedAt, force = false } = body;
   if (
     code === null || !Number.isSafeInteger(revision) ||
+    (savedAt !== undefined && !Number.isSafeInteger(savedAt)) ||
     typeof force !== "boolean"
   ) {
     return invalid();
   }
   const answers = readAnswers(body);
   if (answers instanceof Response) return answers;
-  const result = await store.save(code, revision as number, answers, force);
+  const result = await store.save(
+    code,
+    { revision: revision as number, savedAt: savedAt as number | undefined },
+    answers,
+    force,
+  );
   if (!("error" in result)) return reply(200, result, result.revived);
   if (result.error === "conflict") return reply(409, result);
   return unavailable(result.error);

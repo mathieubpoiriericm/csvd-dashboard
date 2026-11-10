@@ -153,26 +153,35 @@ Deno.test("a save on a stale revision is a conflict unless forced", async () => 
   await withStore(async (store, dir, clock) => {
     const code = created(await store.create(VALID));
     clock.now = T0 + 1000;
-    assertEquals(await store.save(code, 1, VALID2, false), {
-      revision: 2,
-      savedAt: T0 + 1000,
-      revived: false,
-    });
+    assertEquals(
+      await store.save(code, { revision: 1, savedAt: T0 }, VALID2, false),
+      {
+        revision: 2,
+        savedAt: T0 + 1000,
+        revived: false,
+      },
+    );
     const path = await onlyFile(dir);
     const before = await Deno.readTextFile(path);
 
     clock.now = T0 + 2000;
-    assertEquals(await store.save(code, 1, VALID, false), {
-      error: "conflict",
-      savedAt: T0 + 1000,
-    });
+    assertEquals(
+      await store.save(code, { revision: 1, savedAt: T0 }, VALID, false),
+      {
+        error: "conflict",
+        savedAt: T0 + 1000,
+      },
+    );
     assertEquals(await Deno.readTextFile(path), before);
 
-    assertEquals(await store.save(code, 1, VALID, true), {
-      revision: 3,
-      savedAt: T0 + 2000,
-      revived: false,
-    });
+    assertEquals(
+      await store.save(code, { revision: 1, savedAt: T0 }, VALID, true),
+      {
+        revision: 3,
+        savedAt: T0 + 2000,
+        revived: false,
+      },
+    );
     const loaded = await store.load(code);
     assert("text" in loaded);
     const parsed = parseExport(loaded.text);
@@ -181,12 +190,91 @@ Deno.test("a save on a stale revision is a conflict unless forced", async () => 
   });
 });
 
+Deno.test("a save on the right revision but another savedAt is a conflict", async () => {
+  await withStore(async (store, dir) => {
+    const code = created(await store.create(VALID));
+    const before = await Deno.readTextFile(await onlyFile(dir));
+    assertEquals(
+      await store.save(code, { revision: 1, savedAt: T0 - 1 }, VALID2, false),
+      { error: "conflict", savedAt: T0 },
+    );
+    // A page loaded before the browser sent savedAt sends none: over an
+    // existing file it is asked, never let through on the revision alone.
+    assertEquals(
+      await store.save(code, { revision: 1 }, VALID2, false),
+      { error: "conflict", savedAt: T0 },
+    );
+    assertEquals(await Deno.readTextFile(await onlyFile(dir)), before);
+    assertEquals(await store.save(code, { revision: 1 }, VALID2, true), {
+      revision: 2,
+      savedAt: T0,
+      revived: false,
+    });
+  });
+});
+
+Deno.test("after a revival, a browser holding the old copy's revision is asked", async () => {
+  await withStore(async (store, _dir, clock) => {
+    // A and B both hold revision 3, saved at `third`.
+    const code = created(await store.create(VALID));
+    clock.now = T0 + 1000;
+    assert(
+      "revision" in
+        await store.save(code, { revision: 1, savedAt: T0 }, VALID, false),
+    );
+    clock.now = T0 + 2000;
+    assert(
+      "revision" in
+        await store.save(
+          code,
+          { revision: 2, savedAt: T0 + 1000 },
+          VALID,
+          false,
+        ),
+    );
+    const third = T0 + 2000;
+
+    // The session expires; B saves three times and is back at revision 3.
+    clock.now = third + SESSION_TTL_MS;
+    let b = await store.save(
+      code,
+      { revision: 3, savedAt: third },
+      VALID2,
+      false,
+    );
+    assert("revived" in b && b.revived && b.revision === 1);
+    for (const step of [1, 2]) {
+      clock.now = third + SESSION_TTL_MS + step;
+      b = await store.save(
+        code,
+        { revision: b.revision, savedAt: b.savedAt },
+        VALID2,
+        false,
+      );
+      assert("revision" in b);
+    }
+    assertEquals(b.revision, 3);
+
+    // A saves on its own revision 3 and its old savedAt: asked, not let through.
+    clock.now = third + SESSION_TTL_MS + 3;
+    assertEquals(
+      await store.save(code, { revision: 3, savedAt: third }, VALID, false),
+      { error: "conflict", savedAt: b.savedAt },
+    );
+    const loaded = await store.load(code);
+    assert("text" in loaded);
+    const parsed = parseExport(loaded.text);
+    assert("answers" in parsed);
+    assertEquals(parsed.answers.identity.disease.name, "Second condition");
+  });
+});
+
 Deno.test("two saves on the same revision: one wins, one conflicts", async () => {
   await withStore(async (store) => {
     const code = created(await store.create(VALID));
     const results = await Promise.all([
-      store.save(code, 1, VALID2, false),
-      store.save(code, 1, VALID, false),
+      store.save(code, { revision: 1, savedAt: T0 }, VALID2, false),
+      store.save(code, { revision: 1, savedAt: T0 }, VALID, false),
     ]);
     assertEquals(results.filter((r) => "revision" in r).length, 1);
     assertEquals(
@@ -212,11 +300,14 @@ Deno.test("a session expires 14 days after its last save", async () => {
 Deno.test("saving to a code with no file revives it at revision 1", async () => {
   await withStore(async (store, dir) => {
     const code = "ABCDEFGHJKMNPQRSTVWX";
-    assertEquals(await store.save(code, 4, VALID, false), {
-      revision: 1,
-      savedAt: T0,
-      revived: true,
-    });
+    assertEquals(
+      await store.save(code, { revision: 4, savedAt: T0 }, VALID, false),
+      {
+        revision: 1,
+        savedAt: T0,
+        revived: true,
+      },
+    );
     await onlyFile(dir);
     assert("text" in await store.load(code));
   });
@@ -231,11 +322,14 @@ Deno.test("saving to an expired file the sweep has not reached revives it", asyn
     assert("text" in await store.load(code));
     clock.now = T0 + SESSION_TTL_MS;
     assertEquals((await files(dir)).length, 1);
-    assertEquals(await store.save(code, 1, VALID2, false), {
-      revision: 1,
-      savedAt: T0 + SESSION_TTL_MS,
-      revived: true,
-    });
+    assertEquals(
+      await store.save(code, { revision: 1, savedAt: T0 }, VALID2, false),
+      {
+        revision: 1,
+        savedAt: T0 + SESSION_TTL_MS,
+        revived: true,
+      },
+    );
   });
 });
 
@@ -243,7 +337,10 @@ Deno.test("each save restarts the clock", async () => {
   await withStore(async (store, _dir, clock) => {
     const code = created(await store.create(VALID));
     clock.now = T0 + 13 * DAY;
-    assert("revision" in await store.save(code, 1, VALID2, false));
+    assert(
+      "revision" in
+        await store.save(code, { revision: 1, savedAt: T0 }, VALID2, false),
+    );
     clock.now = T0 + 20 * DAY;
     assert("text" in await store.load(code));
     assertEquals(await store.sweep(), 0);
@@ -255,9 +352,17 @@ Deno.test("at the cap new sessions are refused and existing ones still save", as
     const first = created(await store.create(VALID));
     created(await store.create(VALID));
     assertEquals(await store.create(VALID), { error: "full" });
-    assert("revision" in await store.save(first, 1, VALID2, false));
+    assert(
+      "revision" in
+        await store.save(first, { revision: 1, savedAt: T0 }, VALID2, false),
+    );
     assertEquals(
-      await store.save("ABCDEFGHJKMNPQRSTVWX", 1, VALID, false),
+      await store.save(
+        "ABCDEFGHJKMNPQRSTVWX",
+        { revision: 1, savedAt: T0 },
+        VALID,
+        false,
+      ),
       { error: "full" },
     );
     assertEquals((await files(dir)).length, 2);
@@ -304,14 +409,22 @@ Deno.test("a save over a damaged file asks before overwriting it", async () => {
     const code = created(await store.create(VALID));
     const path = await onlyFile(dir);
     await Deno.writeTextFile(path, "{");
-    const refused = await store.save(code, 1, VALID2, false);
+    const refused = await store.save(
+      code,
+      { revision: 1, savedAt: T0 },
+      VALID2,
+      false,
+    );
     assert("error" in refused);
     assertEquals(refused.error, "conflict");
-    assertEquals(await store.save(code, 1, VALID2, true), {
-      revision: 1,
-      savedAt: T0,
-      revived: false,
-    });
+    assertEquals(
+      await store.save(code, { revision: 1, savedAt: T0 }, VALID2, true),
+      {
+        revision: 1,
+        savedAt: T0,
+        revived: false,
+      },
+    );
     assert("text" in await store.load(code));
   });
 });
@@ -324,12 +437,23 @@ Deno.test({
       const code = created(await store.create(VALID));
       await Deno.chmod(dir, 0o500);
       assertEquals(await store.create(VALID), { error: "failed" });
-      assertEquals(await store.save(code, 1, VALID2, false), {
-        error: "failed",
-      });
-      assertEquals(await store.save("ABCDEFGHJKMNPQRSTVWX", 1, VALID, false), {
-        error: "failed",
-      });
+      assertEquals(
+        await store.save(code, { revision: 1, savedAt: T0 }, VALID2, false),
+        {
+          error: "failed",
+        },
+      );
+      assertEquals(
+        await store.save(
+          "ABCDEFGHJKMNPQRSTVWX",
+          { revision: 1, savedAt: T0 },
+          VALID,
+          false,
+        ),
+        {
+          error: "failed",
+        },
+      );
       assertEquals((await files(dir)).length, 1);
     });
   },

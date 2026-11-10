@@ -99,9 +99,12 @@ function limited(retryAfterSeconds: number): Response {
 export function adaptSessionLimiter<State>(
   options: LoginPostLimiterOptions = {},
 ): Middleware<State> {
+  // The default goes after the options: main.ts passes an explicit
+  // undefined when ADAPT_SESSION_PER_CLIENT_LIMIT is unset, which a spread
+  // would let through to the login limiter's own default.
   const resolved = resolveOptions({
-    perClientLimit: SESSION_PER_CLIENT_LIMIT,
     ...options,
+    perClientLimit: options.perClientLimit ?? SESSION_PER_CLIENT_LIMIT,
   });
   const header = resolved.trustedClientIpHeader;
   const ledger = new AttemptLedger(resolved);

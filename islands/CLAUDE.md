@@ -329,6 +329,10 @@ Eleven things are load-bearing:
   blanked whatever the browser sent, and a resume keeps this browser's own pair
   (`importText()`). A session is deleted 14 days after its last save
   (`SESSION_TTL_MS`), and a save after that saves it again under the same code.
+  That revival restarts the revision at 1, so a save names the copy it was made
+  over by its revision and its `savedAt` both, and a mismatch in either is a
+  conflict: by revision alone, a browser that missed a revival could meet its
+  own number again and overwrite newer saves without being asked.
 - **The stored draft is never lost to another version or another tab.** A draft
   `parseDraft()` cannot read -- another `DRAFT_VERSION`, damaged JSON -- is
   copied to `svd-adapt-draft-unreadable` before the first save and offered for

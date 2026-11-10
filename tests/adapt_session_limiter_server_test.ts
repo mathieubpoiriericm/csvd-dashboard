@@ -303,3 +303,16 @@ Deno.test("a raised limit lets that many wrong codes pass and refuses the next",
   }
   assertLimited(await invoke(limiter));
 });
+
+Deno.test("built as main.ts builds it with the variable unset, the limit is ten", async () => {
+  // main.ts passes sessionLimitFromEnv()'s answer as it is, so production
+  // hands the limiter an explicit undefined, which must not hide the default.
+  const limiter = adaptSessionLimiter({
+    trustedClientIpHeader: undefined,
+    perClientLimit: sessionLimitFromEnv(undefined),
+  });
+  for (let i = 0; i < 10; i++) {
+    assertEquals((await invoke(limiter)).status, 404, `request ${i + 1}`);
+  }
+  assertLimited(await invoke(limiter));
+});

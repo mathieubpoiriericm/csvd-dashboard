@@ -197,6 +197,8 @@ Deno.test("save answers conflicts, forced overwrites and revivals", async () => 
       const body of [
         { code, revision: "1", answers: VALID },
         { code, revision: 1, answers: VALID, force: "yes" },
+        { code, revision: 1, savedAt: "yesterday", answers: VALID },
+        { code, revision: 1, savedAt: 1.5, answers: VALID },
         { code, revision: 1 },
       ]
     ) {
@@ -205,9 +207,19 @@ Deno.test("save answers conflicts, forced overwrites and revivals", async () => 
       await response.body?.cancel();
     }
 
+    // A page loaded before the browser sent savedAt: asked, not let through.
+    const unstamped = await post(handleSave, store, "save", {
+      code,
+      revision: 1,
+      answers: VALID,
+    });
+    assertEquals(unstamped.status, 409);
+    assertEquals(await json(unstamped), { error: "conflict", savedAt: T0 });
+
     const saved = await post(handleSave, store, "save", {
       code,
       revision: 1,
+      savedAt: T0,
       answers: VALID,
     });
     assertEquals(saved.status, 200);
@@ -221,6 +233,7 @@ Deno.test("save answers conflicts, forced overwrites and revivals", async () => 
     const conflict = await post(handleSave, store, "save", {
       code,
       revision: 1,
+      savedAt: T0,
       answers: VALID,
     });
     assertEquals(conflict.status, 409);
@@ -229,12 +242,14 @@ Deno.test("save answers conflicts, forced overwrites and revivals", async () => 
     const forced = await post(handleSave, store, "save", {
       code,
       revision: 1,
+      savedAt: T0,
       answers: VALID,
       force: true,
     });
     assertEquals(forced.status, 200);
     assertEquals((await json(forced)).revision, 3);
 
+    // A revival needs no savedAt: there is no copy to compare it with.
     const revived = await post(handleSave, store, "save", {
       code: "ABCDEFGHJKMNPQRSTVWX",
       revision: 7,
