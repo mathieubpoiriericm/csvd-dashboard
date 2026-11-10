@@ -100,6 +100,7 @@ export const EXAMPLEITIS: Answers = {
     }],
   },
   monogenic: {
+    none: false,
     genes: [{
       symbol: "GENEA",
       verified: true,

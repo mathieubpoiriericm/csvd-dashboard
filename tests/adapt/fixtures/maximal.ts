@@ -142,6 +142,7 @@ export const MAXIMAL: Answers = {
     }],
   },
   monogenic: {
+    none: true,
     genes: [
       {
         symbol: "GENEA",

@@ -206,6 +206,29 @@ export function renameGene(draft: Answers, from: string, to: string) {
 type Gene = Answers["monogenic"]["genes"][number];
 
 /**
+ * A blank gene row. Listing one withdraws "the disease has none", so that
+ * the answer is never found standing behind a list that was emptied later.
+ */
+export function addGene(draft: Answers) {
+  draft.monogenic.none = false;
+  draft.monogenic.genes.push({
+    symbol: "",
+    verified: null,
+    clinvarTraits: [],
+    clinvarSample: null,
+  });
+}
+
+/**
+ * Drop a gene row. Two tabs merged can hold a gene beside "none", so the
+ * answer goes here too: emptying the list asks the question again.
+ */
+export function removeGene(draft: Answers, index: number) {
+  draft.monogenic.none = false;
+  draft.monogenic.genes.splice(index, 1);
+}
+
+/**
  * Whether a gene still waits on its check: never checked, or confirmed by
  * NCBI Gene with its ClinVar diseases not read (null), which is what a
  * failed ClinVar lookup leaves. A gene ClinVar attests nothing for holds

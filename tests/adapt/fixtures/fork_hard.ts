@@ -68,7 +68,7 @@ export const FORK_HARD: Answers = (() => {
     { name: "Mechanism not stated", family: "uncharacterised" },
     ...answers.trials.mechanisms,
   ];
-  answers.monogenic = { genes: [], aliases: [], omimRows: [] };
+  answers.monogenic = { none: true, genes: [], aliases: [], omimRows: [] };
   const sections = answers.prompt.sections;
   sections["rubric.cell_types"] = "Microglia";
   sections["strategy.background_example"] = "";

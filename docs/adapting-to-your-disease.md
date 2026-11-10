@@ -384,7 +384,9 @@ on omim.org and copy the location, inheritance, mapping key and gene MIM number
 from the entry page. The pipeline has no OMIM licence; this CSV has always been
 hand-copied.
 
-With no monogenic gene, the list is `[]` and the CSV is its header line only.
+With no monogenic gene, say so: the page has a box to tick, and until it is
+ticked an empty list leaves the step unanswered. The list is then `[]` and the
+CSV is its header line only.
 
 ### Q8. Papers for the prompt's examples
 

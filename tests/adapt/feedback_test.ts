@@ -575,6 +575,23 @@ Deno.test("to fix counts what validate() calls wrong, whatever the value's shape
   }
 });
 
+Deno.test("no monogenic gene is an answer only once it is given", () => {
+  // A fresh draft has answered nothing, so no step of it is done: the gene
+  // list being empty asked nothing, and its step read "Done" unopened.
+  for (const step of STEP_ORDER) {
+    assertEquals(stepState(progress(EMPTY_ANSWERS, step)).state, "todo", step);
+  }
+  const fresh = progress(EMPTY_ANSWERS, "monogenic");
+  assertEquals([fresh.asked, fresh.answered, fresh.open], [1, 0, ["genes"]]);
+  const none = structuredClone(EMPTY_ANSWERS);
+  none.monogenic.none = true;
+  const said = progress(none, "monogenic");
+  assertEquals([said.asked, said.answered], [1, 1]);
+  assertEquals(stepState(said).state, "done");
+  // A gene listed is the answer: its own row is asked, the list is not.
+  assert(!stepRequired(EXAMPLEITIS, "monogenic").includes("genes"));
+});
+
 Deno.test("answering a cross-reference raises answered and leaves asked alone", () => {
   const unpicked = structuredClone(EXAMPLEITIS);
   unpicked.vocabulary.traits[1].family = "";

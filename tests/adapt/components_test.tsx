@@ -306,6 +306,31 @@ Deno.test("a card folds to its summary and opens on its fields", () => {
   assertEquals(count(fixed, "Continue"), 0);
 });
 
+Deno.test("a card that asks nothing says so, and is not complete", () => {
+  // Aliases are asked of no draft, so the card was ticked "Complete" on a
+  // page nobody had typed into.
+  const optional = inside(
+    wizardFor(EMPTY_ANSWERS, "monogenic", { openCard: "genes" }),
+    <Card step="monogenic" id="aliases">
+      <span>fields</span>
+    </Card>,
+  );
+  assertStringIncludes(optional, ">Nothing required</span>");
+  assertEquals(count(optional, "Complete"), 0);
+  assertEquals(count(optional, "is-done"), 0);
+  // Its number, not a check.
+  assertMatch(optional, /class="adapt-card-number"[^>]*>2</);
+  // Rows written and valid are work done.
+  const filled = inside(
+    wizardFor(EXAMPLEITIS, "monogenic", { openCard: "genes" }),
+    <Card step="monogenic" id="aliases">
+      <span>fields</span>
+    </Card>,
+  );
+  assertStringIncludes(filled, ">Complete</span>");
+  assertEquals(count(filled, "Nothing required"), 0);
+});
+
 Deno.test("the step summary counts what is answered and offers what is left", () => {
   const typed = structuredClone(EMPTY_ANSWERS);
   typed.identity.disease.key = "Example-itis";

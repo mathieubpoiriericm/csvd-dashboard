@@ -97,6 +97,7 @@ Deno.test("an empty step is calm until revealed, and red after", () => {
       ["search", SearchStep],
       ["vocabulary", VocabularyStep],
       ["trials", TrialsStep],
+      ["monogenic", MonogenicStep],
       ["prompt", PromptStep],
       ["gold", GoldStep],
     ] as const
@@ -121,10 +122,24 @@ Deno.test("an empty step is calm until revealed, and red after", () => {
     );
     assert(red.includes("is-error"), step);
   }
-  const monogenic = renderToString(<MonogenicStep {...props(EMPTY_ANSWERS)} />);
-  assertStringIncludes(
-    monogenic,
-    "No monogenic genes. That is a valid answer.",
+});
+
+Deno.test("an empty gene list offers the answer that there is none", () => {
+  const box = (answers: Answers) =>
+    renderToString(<MonogenicStep {...props(answers)} />).match(
+      /<input type="checkbox"[^>]*>/,
+    )?.[0];
+  const label = "This disease has no monogenic gene";
+  const empty = renderToString(<MonogenicStep {...props(EMPTY_ANSWERS)} />);
+  assertStringIncludes(empty, label);
+  assert(!box(EMPTY_ANSWERS)!.includes("checked"));
+  const none = structuredClone(EMPTY_ANSWERS);
+  none.monogenic.none = true;
+  assertStringIncludes(box(none)!, "checked");
+  // With a gene listed there is nothing to say: the list is the answer.
+  assertEquals(box(EXAMPLEITIS), undefined);
+  assert(
+    !renderToString(<MonogenicStep {...props()} />).includes(label),
   );
 });
 
@@ -784,7 +799,7 @@ Deno.test("a prompt section is marked required exactly when validate() asks for 
   // their hints say; marked required they turned red once left, on a step
   // validate() called complete.
   const geneless = structuredClone(EXAMPLEITIS);
-  geneless.monogenic = { genes: [], aliases: [], omimRows: [] };
+  geneless.monogenic = { none: true, genes: [], aliases: [], omimRows: [] };
   for (const answers of [EXAMPLEITIS, geneless]) {
     const html = renderToString(
       <WizardContext.Provider value={wizardFor(answers, "prompt")}>

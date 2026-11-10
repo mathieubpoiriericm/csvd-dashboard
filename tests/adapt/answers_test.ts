@@ -258,6 +258,8 @@ Deno.test("a draft is rebuilt field by field against the answers' shape", () => 
   assertEquals(parsed.vocabulary.traits[0].key, "T1");
   assertEquals(parsed.trials.conditionPairs, [["a", ""], ["c", "d"]]);
   assertEquals(parsed.trials.populationField, { label: "", detailsLabel: "" });
+  // A draft from before the answer existed has not given it.
+  assertEquals(parsed.monogenic.none, false);
   // No list of ClinVar diseases is one not read, not an empty one.
   assertEquals(parsed.monogenic.genes, [
     {
