@@ -29,4 +29,11 @@ fi
 HOME=$(getent passwd deno | cut -d: -f6)
 export HOME
 
+# The base image's init, kept: this script is the container's first process
+# and becomes tini, which forwards signals to the server and reaps zombies,
+# as it did under the base image's own entrypoint. Without it (another base
+# image), the server becomes the first process itself.
+if [ -x /tini ]; then
+  exec /tini -- setpriv --reuid=deno --regid=deno --init-groups "$@"
+fi
 exec setpriv --reuid=deno --regid=deno --init-groups "$@"

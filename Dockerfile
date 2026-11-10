@@ -25,13 +25,23 @@ RUN deno task build
 # volume (fly.toml's [mounts]) with its root owned by root, so the entrypoint
 # creates ADAPT_SESSIONS_DIR there and gives it to `deno`, and only then
 # drops to `deno` with setpriv (util-linux, in the base image) to run the CMD.
-# Nothing runs as root after that exec. The script is copied again as root's,
-# over the copy above, so the user it drops to cannot edit it in place. It
-# replaces the base image's entrypoint, /tini running the base's own
-# docker-entrypoint.sh, so the server is the container's first process.
+# Nothing runs as root after that exec.
+#
+# The base image's entrypoint was `/tini -- docker-entrypoint.sh`, whose
+# script only prefixed `deno` to a bare subcommand; this CMD names `deno`
+# itself, so nothing relied on it. Ours takes its path and keeps tini: it
+# execs `/tini -- setpriv …`, so tini is still the first process, forwarding
+# signals to the server and reaping zombies.
+#
+# The script lives outside /app, owned by root and writable by root alone,
+# because `deno` owns /app and could otherwise replace what root runs at the
+# next start. The allowlist has to let it into the build context, so the
+# app copy above brought a deno-owned duplicate into /app/scripts; that is
+# removed here, leaving no second copy to mistake for the live one.
 USER root
-COPY --chmod=755 scripts/docker-entrypoint.sh scripts/docker-entrypoint.sh
-ENTRYPOINT ["/app/scripts/docker-entrypoint.sh"]
+COPY --chown=root:root --chmod=0755 scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN rm -r /app/scripts
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
 EXPOSE 8000
 

@@ -475,15 +475,32 @@ jobs:
           SMOKE_EXPECT_SESSIONS: "1"
         run: scripts/smoke_deploy.sh http://localhost:8000
 
-      # The entrypoint starts as root to own the session directory and then
-      # execs the server as `deno`, so the container's first process is the
-      # server, and it must not be root.
-      - name: The server does not run as root
+      # The entrypoint starts as root to own the session directory, then
+      # execs tini, which runs the server as `deno`: the first process is tini
+      # (root, as in the base image), and the server, its child, must not be
+      # root. The entrypoint itself must be root's and writable by root alone,
+      # or the user it drops to could change what root runs next start.
+      - name: The server does not run as root, and only root can change its entrypoint
         run: |
-          uid=$(docker exec configured sh -c 'grep "^Uid:" /proc/1/status' | awk '{ print $2 }')
-          echo "the server's uid: $uid"
-          if [ -z "$uid" ] || [ "$uid" = 0 ]; then
-            echo "::error::the server process runs as root (uid ${uid:-unknown})"
+          init=$(docker exec configured cat /proc/1/comm)
+          echo "the first process: $init"
+          if [ "$init" != tini ]; then
+            echo "::error::the first process is $init, want tini"
+            exit 1
+          fi
+          uids=$(docker exec configured sh -c '
+            for p in /proc/[0-9]*; do
+              [ "$(cat "$p/comm" 2>/dev/null)" = deno ] && grep "^Uid:" "$p/status"
+            done; true' | awk '{ print $2 }' | sort -u)
+          echo "the server's uids: $uids"
+          if [ -z "$uids" ] || printf '%s\n' "$uids" | grep -qx 0; then
+            echo "::error::the server process runs as root, or was not found (uids: ${uids:-none})"
+            exit 1
+          fi
+          owner=$(docker exec configured stat -c '%U %a' /usr/local/bin/docker-entrypoint.sh)
+          echo "the entrypoint: $owner"
+          if [ "$owner" != "root 755" ]; then
+            echo "::error::the entrypoint is $owner, want root 755"
             exit 1
           fi
 
@@ -587,7 +604,7 @@ jobs:
             if [ -n "$SMOKE_PASSPHRASE" ]; then
               export SMOKE_EXPECT_SESSIONS=1
             else
-              echo "::notice::fly.toml keeps adapt sessions, but SMOKE_PASSPHRASE is not set in this repository, so the deploy's smoke test did not save one."
+              echo "::notice::Not checked: that the live site can save and resume an adapt session (its volume is present and writable). To check it on every deploy, add the live passphrase as the repository secret SMOKE_PASSPHRASE."
             fi
           fi
           scripts/smoke_deploy.sh "https://$app.fly.dev"
