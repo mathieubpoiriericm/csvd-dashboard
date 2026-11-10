@@ -8,7 +8,10 @@ import {
 } from "./server/adapt_session_limiter.ts";
 import { compression } from "./server/compression.ts";
 import { frameProtection } from "./server/frame_protection.ts";
-import { loginPostLimiter } from "./server/login_post_limiter.ts";
+import {
+  CLIENT_IP_HEADER_VAR,
+  loginPostLimiter,
+} from "./server/login_post_limiter.ts";
 import { protectDataAssets } from "./server/protected_data_assets.ts";
 import { sameSiteCsrf } from "./server/same_site_origin.ts";
 import { svgPolicy } from "./server/svg_policy.ts";
@@ -44,7 +47,7 @@ app.use(staticFiles());
 // own, keyed on the same client header, counts wrong resume codes and new
 // session files per client (server/adapt_session_limiter.ts). Both limiters
 // run before file routing, so before the login gate as well.
-const trustedClientIpHeader = Deno.env.get("LOGIN_CLIENT_IP_HEADER");
+const trustedClientIpHeader = Deno.env.get(CLIENT_IP_HEADER_VAR);
 app.use(sameSiteCsrf());
 app.use(loginPostLimiter({ trustedClientIpHeader }));
 app.use(adaptSessionLimiter({

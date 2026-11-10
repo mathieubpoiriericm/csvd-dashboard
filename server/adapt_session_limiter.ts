@@ -2,6 +2,12 @@
  * The per-client limit on the adaptation guide's session routes: wrong
  * resume codes and new session files, counted the way the login limiter
  * counts wrong passphrases, on a ledger of its own.
+ *
+ * This module owns only the session routes' configuration: which paths are
+ * counted, its default of SESSION_PER_CLIENT_LIMIT, and what each response
+ * means for the count. The middleware itself, the ledger and how a client is
+ * identified are server/login_post_limiter.ts's postLimiter() and
+ * clientKeyOf(), shared with the login.
  */
 
 import type { Middleware } from "fresh";
@@ -9,9 +15,8 @@ import type { Middleware } from "fresh";
 import { CREATED_HEADER } from "./adapt_session_api.ts";
 import { REPLAY_HEADER } from "./adapt_session_holder.ts";
 import {
-  AttemptLedger,
   type LoginPostLimiterOptions,
-  remoteClientKey,
+  postLimiter,
   resolveOptions,
 } from "./login_post_limiter.ts";
 
@@ -106,41 +111,22 @@ export function adaptSessionLimiter<State>(
     ...options,
     perClientLimit: options.perClientLimit ?? SESSION_PER_CLIENT_LIMIT,
   });
-  const header = resolved.trustedClientIpHeader;
-  const ledger = new AttemptLedger(resolved);
 
-  return async function adaptSessionLimiter(ctx) {
-    const operation = ctx.req.method === "POST"
-      ? isAdaptSessionPath(ctx.url.pathname, ctx.config.basePath)
-      : null;
-    if (operation === null) return await ctx.next();
-
-    const forwarded = header ? ctx.req.headers.get(header) : null;
-    const reservation = ledger.reserve(
-      forwarded ? `header:${forwarded}` : remoteClientKey(ctx.info.remoteAddr),
-    );
-    if (!reservation.allowed) return limited(reservation.retryAfterSeconds);
-
-    let response: Response;
-    try {
-      response = await ctx.next();
-    } catch (error) {
-      reservation.settle("other");
-      throw error;
-    }
-
-    // A request handed over to the machine holding the sessions is counted
-    // there, when the proxy replays it; counting it here as well would spend
-    // the client's budget twice.
-    const handedOver = response.headers.has(REPLAY_HEADER);
-    reservation.settle(
-      !handedOver && (
+  return postLimiter<State, Operation>(
+    resolved,
+    isAdaptSessionPath,
+    (response, operation) => {
+      // A request handed over to the machine holding the sessions is counted
+      // there, when the proxy replays it; counting it here as well would
+      // spend the client's budget twice.
+      const handedOver = response.headers.has(REPLAY_HEADER);
+      return !handedOver && (
           response.headers.get(CREATED_HEADER) === "created" ||
           (operation === "resume" && response.status === 404)
         )
         ? "auth-failure"
-        : "other",
-    );
-    return response;
-  };
+        : "other";
+    },
+    limited,
+  );
 }

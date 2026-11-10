@@ -2,10 +2,13 @@ import { assertEquals, assertThrows } from "@std/assert";
 
 import { SESSION_COOKIE } from "../lib/auth.ts";
 import {
+  clientKeyOf,
   isLoginPostPath,
   LOGIN_PER_CLIENT_LIMIT,
   loginPostLimiter,
+  postLimiter,
   remoteClientKey,
+  resolveOptions,
 } from "../server/login_post_limiter.ts";
 
 type Limiter = ReturnType<typeof loginPostLimiter>;
@@ -359,4 +362,54 @@ Deno.test("non-login methods bypass the limiter and thrown handlers release", as
   }
   assertEquals(threw, true);
   assertEquals((await invoke(limiter)).status, 401);
+});
+
+Deno.test("the client key is the trusted header's value, else the socket peer", () => {
+  const ctx = (headers: Record<string, string>) => ({
+    req: new Request("http://localhost/login", { headers }),
+    info: info(PROXY, 4321),
+  });
+  assertEquals(
+    clientKeyOf(ctx({ "Fly-Client-IP": "198.51.100.7" }), "Fly-Client-IP"),
+    "header:198.51.100.7",
+  );
+  // The name as main.ts reads it from the environment, untrimmed.
+  assertEquals(
+    clientKeyOf(ctx({ "Fly-Client-IP": "198.51.100.7" }), " Fly-Client-IP "),
+    "header:198.51.100.7",
+  );
+  const peer = remoteClientKey(info(PROXY).remoteAddr);
+  assertEquals(clientKeyOf(ctx({}), "Fly-Client-IP"), peer);
+  assertEquals(clientKeyOf(ctx({ "Fly-Client-IP": "198.51.100.7" }), ""), peer);
+  assertEquals(
+    clientKeyOf(ctx({ "Fly-Client-IP": "198.51.100.7" }), undefined),
+    peer,
+  );
+});
+
+Deno.test("one limiter factory takes the matcher, the outcome and the refusal", async () => {
+  const outcomes: string[] = [];
+  const limiter = postLimiter<unknown, "x">(
+    resolveOptions({ perClientLimit: 1 }),
+    (pathname) => pathname === "/x" ? "x" : null,
+    (response, match) => {
+      outcomes.push(`${match}:${response.status}`);
+      return response.status === 418 ? "auth-failure" : "other";
+    },
+    (retryAfterSeconds) =>
+      new Response(`wait ${retryAfterSeconds}`, { status: 429 }),
+  );
+  const teapot = () => new Response(null, { status: 418 });
+  assertEquals(
+    (await invoke(limiter, { pathname: "/y", next: teapot })).status,
+    418,
+  );
+  assertEquals(
+    (await invoke(limiter, { pathname: "/x", next: teapot })).status,
+    418,
+  );
+  const refused = await invoke(limiter, { pathname: "/x", next: teapot });
+  assertEquals(refused.status, 429);
+  assertEquals(await refused.text(), "wait 60");
+  assertEquals(outcomes, ["x:418"]);
 });

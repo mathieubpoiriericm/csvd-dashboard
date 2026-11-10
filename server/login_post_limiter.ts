@@ -1,4 +1,16 @@
-/** In-process protection for the public POST /login password check. */
+/**
+ * In-process protection for the public POST /login password check, and the
+ * machinery every POST limiter shares.
+ *
+ * This module owns how a client is identified (clientKeyOf), the bounded
+ * attempt ledger, and the middleware body (postLimiter): match the path,
+ * reserve, refuse, and settle the reservation from the response, or as
+ * "other" when the route throws. A limiter supplies only what differs: which
+ * paths it counts, what a response means for the count, and how a refusal
+ * reads. loginPostLimiter is the login's configuration; the adapt guide's
+ * session routes have theirs in server/adapt_session_limiter.ts, on a ledger
+ * of their own.
+ */
 
 import type { Middleware } from "fresh";
 
@@ -9,8 +21,15 @@ export const LOGIN_PER_CLIENT_LIMIT = 5;
 export const LOGIN_GLOBAL_LIMIT = 64;
 export const LOGIN_MAX_TRACKED_CLIENTS = 64;
 
+/**
+ * Names the header a proxying host's ingress sets with the visitor's address
+ * (fly.toml sets Fly-Client-IP). main.ts hands it to both limiters, and the
+ * adapt session routes read it to key a client's sessions the same way.
+ */
+export const CLIENT_IP_HEADER_VAR = "LOGIN_CLIENT_IP_HEADER";
+
 type AttemptState = "pending" | "failed";
-type AttemptOutcome = "auth-failure" | "success" | "other";
+export type AttemptOutcome = "auth-failure" | "success" | "other";
 
 interface Attempt {
   id: number;
@@ -40,7 +59,7 @@ export interface LoginPostLimiterOptions {
   trustedClientIpHeader?: string;
 }
 
-interface ResolvedOptions {
+export interface ResolvedOptions {
   perClientLimit: number;
   globalLimit: number;
   windowMs: number;
@@ -105,6 +124,25 @@ export function remoteClientKey(
   if ("hostname" in address) return `${address.transport}:${address.hostname}`;
   if ("path" in address) return `${address.transport}:${address.path}`;
   return address.transport;
+}
+
+/**
+ * The key one client is counted under: the value of the trusted client-IP
+ * header when `header` names one and the request carries it, the socket peer
+ * otherwise. Every limiter and the adapt session routes derive the key here,
+ * so they can never disagree about who a client is. `header` may be the
+ * environment's raw value; resolveOptions() has already refused a bad one at
+ * start-up.
+ */
+export function clientKeyOf(
+  ctx: { req: Request; info: Deno.ServeHandlerInfo },
+  header: string | undefined,
+): string {
+  const name = header?.trim();
+  const forwarded = name ? ctx.req.headers.get(name) : null;
+  return forwarded
+    ? `header:${forwarded}`
+    : remoteClientKey(ctx.info.remoteAddr);
 }
 
 /**
@@ -297,25 +335,43 @@ function issuedSession(response: Response): boolean {
 export function loginPostLimiter<State>(
   options: LoginPostLimiterOptions = {},
 ): Middleware<State> {
-  const resolved = resolveOptions(options);
+  return postLimiter<State, true>(
+    resolveOptions(options),
+    (pathname, basePath) => isLoginPostPath(pathname, basePath) || null,
+    (response) =>
+      response.status === 401
+        ? "auth-failure"
+        : issuedSession(response)
+        ? "success"
+        : "other",
+    tooManyRequests,
+  );
+}
+
+/**
+ * The middleware every POST limiter runs, on a ledger of its own. `match`
+ * says which counted route a POST's path names, or null to pass it through
+ * uncounted; `outcomeOf` turns the route's response into what the ledger
+ * records; `refuse` is the answer once the client or the process is over its
+ * limit. A route that throws releases its reservation as "other".
+ */
+export function postLimiter<State, Match>(
+  resolved: ResolvedOptions,
+  match: (pathname: string, basePath: string) => Match | null,
+  outcomeOf: (response: Response, match: Match) => AttemptOutcome,
+  refuse: (retryAfterSeconds: number) => Response,
+): Middleware<State> {
   const header = resolved.trustedClientIpHeader;
   const ledger = new AttemptLedger(resolved);
 
-  return async function loginPostLimiter(ctx) {
-    if (
-      ctx.req.method !== "POST" ||
-      !isLoginPostPath(ctx.url.pathname, ctx.config.basePath)
-    ) {
-      return await ctx.next();
-    }
+  return async function postLimiter(ctx) {
+    const matched = ctx.req.method === "POST"
+      ? match(ctx.url.pathname, ctx.config.basePath)
+      : null;
+    if (matched === null) return await ctx.next();
 
-    const forwarded = header ? ctx.req.headers.get(header) : null;
-    const reservation = ledger.reserve(
-      forwarded ? `header:${forwarded}` : remoteClientKey(ctx.info.remoteAddr),
-    );
-    if (!reservation.allowed) {
-      return tooManyRequests(reservation.retryAfterSeconds);
-    }
+    const reservation = ledger.reserve(clientKeyOf(ctx, header));
+    if (!reservation.allowed) return refuse(reservation.retryAfterSeconds);
 
     let response: Response;
     try {
@@ -325,13 +381,7 @@ export function loginPostLimiter<State>(
       throw error;
     }
 
-    reservation.settle(
-      response.status === 401
-        ? "auth-failure"
-        : issuedSession(response)
-        ? "success"
-        : "other",
-    );
+    reservation.settle(outcomeOf(response, matched));
     return response;
   };
 }
