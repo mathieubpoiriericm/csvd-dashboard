@@ -1,4 +1,4 @@
-import type { PhenogramLayout } from "./phenogram.ts";
+import type { GeneBlock, PhenogramLayout } from "./phenogram.ts";
 
 /**
  * The phenogram's SVG export: colours the live figure takes from CSS tokens,
@@ -310,4 +310,29 @@ export function phenogramFileName(
   }-${date.getFullYear()}`;
   const kind = withKey ? "-key" : "";
   return `${diseaseKey}-dashboard-phenogram${kind}_${stamp}.svg`;
+}
+
+/**
+ * Widths of every gene symbol and pill label, keyed as the figure's `Block`
+ * reads them: `symbol-N` and `pill-N-M`. The symbol is set as `KEY_FONTS.family`
+ * and the pills as `KEY_FONTS.pill`, the figure's own sizes.
+ */
+export function figureTextWidths(
+  blocks: readonly GeneBlock[],
+  measure: MeasureText,
+): Map<string, number> {
+  const widths = new Map<string, number>();
+  for (const block of blocks) {
+    widths.set(
+      `symbol-${block.index}`,
+      measure(block.symbol, KEY_FONTS.family),
+    );
+    block.pills.forEach((pill, i) => {
+      widths.set(
+        `pill-${block.index}-${i}`,
+        measure(pill.label, KEY_FONTS.pill),
+      );
+    });
+  }
+  return widths;
 }

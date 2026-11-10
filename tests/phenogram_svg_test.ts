@@ -1,8 +1,19 @@
 /** The export palette must track the light tokens in assets/app.css. */
 import { assert, assertEquals } from "@std/assert";
 
-import { encoding, type PhenogramLayout } from "../lib/phenogram.ts";
 import {
+  PILL_FONT_SIZE,
+  SYMBOL_FONT_SIZE,
+} from "../components/PhenogramShapes.tsx";
+import { sampleGene } from "./fixtures/rows.ts";
+
+import {
+  computePhenogramLayout,
+  encoding,
+  type PhenogramLayout,
+} from "../lib/phenogram.ts";
+import {
+  figureTextWidths,
   KEY_FONTS,
   type KeyLayout,
   type KeyPill,
@@ -292,4 +303,28 @@ Deno.test("phenogramFileName uses the local date, day first", () => {
     phenogramFileName(true, date, "x"),
     "x-dashboard-phenogram-key_09-11-2026.svg",
   );
+});
+
+Deno.test("figureTextWidths keys every symbol and pill as Block reads them", () => {
+  const { blocks } = computePhenogramLayout([
+    sampleGene({
+      gene: "GENE1",
+      chromosomalLocation: "1p36.32",
+      gwasTrait: [encoding.traits[0].key, encoding.traits[1].key],
+    }),
+  ]);
+  const seen: [string, number][] = [];
+  const widths = figureTextWidths(blocks, (text, font) => {
+    seen.push([text, font.size]);
+    return text.length;
+  });
+  const block = blocks[0];
+  assertEquals(widths.get(`symbol-${block.index}`), "GENE1".length);
+  assert(block.pills.length > 0);
+  block.pills.forEach((pill, i) =>
+    assertEquals(widths.get(`pill-${block.index}-${i}`), pill.label.length)
+  );
+  assertEquals(widths.size, 1 + block.pills.length);
+  assertEquals(seen[0], ["GENE1", SYMBOL_FONT_SIZE]);
+  assertEquals(seen[1][1], PILL_FONT_SIZE);
 });
