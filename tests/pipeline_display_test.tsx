@@ -39,10 +39,8 @@ import {
   runModeLabel,
   runStatusBadge,
   runWhen,
-  stepIcon,
   stepStatusBadge,
   syncModeLabel,
-  warningIcon,
 } from "../lib/pipeline_display.ts";
 import type { ApiService } from "../lib/types.ts";
 
@@ -326,8 +324,6 @@ Deno.test("every fallback glyph actually renders", () => {
   // threw — taking the whole About page's render with it. Rendering is
   // the only assertion that catches a name that does not resolve.
   const unknown = [
-    warningIcon("invented later"),
-    stepIcon("invented later"),
     field("invented later").icon,
     runStatusBadge("invented later").icon,
     stepStatusBadge("invented later").icon,

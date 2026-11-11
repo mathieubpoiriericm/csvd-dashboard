@@ -95,7 +95,17 @@ the `leaflet` module, so it type-checks without one.
 the card is the fallback, because the report is `null` until a run records one
 and a database that has not taken migration 009 keeps it that way. Exactly one
 of the two renders — two accounts of the same run would invite them to disagree,
-which is what this replaces.
+which is what this replaces. **Neither renders while `GOLD_ONLY` is on**
+(`lib/gold_only.ts`): the About page shows the notice instead, the widget's e2e
+specs skip, and looking at the widget in a browser means flipping the switch
+locally and not committing it.
+
+It has two readers. A visiting researcher wants to know whether the data is
+fresh and can be trusted; the maintainer wants to know how the run went. So the
+card is a **verdict over a ledger**: when the run was and whether it completed,
+three figures (papers read, genes written, source quotes verified), then one row
+per step saying what came out of it. Everything else the run recorded is behind
+**Run details**, a dialog.
 
 The pipeline half is in `.claude/rules/pipeline/run-reporting.md`. On this side:
 
@@ -105,124 +115,138 @@ The pipeline half is in `.claude/rules/pipeline/run-reporting.md`. On this side:
   source — `RunStatus`, `StepStatus`, `ErrorKind`, `WarningKind`,
   `PIPELINE_STEPS`, the documented `run_mode` values — and fails when one has no
   entry here, or when a glyph it names does not resolve in
-  `components/Icon.tsx`. Add the entry; do not widen the test. Restating a
-  vocabulary is how `PVWMH` ended up with no filter choice and no phenogram
-  entry; the same failure was available here, silently, as a fallback glyph with
-  no hint.
-- **`lib/pipeline_display.ts` is the only formatter.** A failure, a paper count,
-  a service name and a byte count all read as one system because they all go
-  through it. Two rules are load-bearing: `formatDuration` prints milliseconds
-  under a second, because a step that took 40 ms and one that took 0.9 s are
-  different facts; and it never emits `"2m 60s"`, which is what rounding 179.6
-  the obvious way produces.
+  `components/Icon.tsx`. Add the entry; do not widen the test. The words of a
+  step's row (`outcomes`), of the verdict, and of each tab of the dialog
+  (`findings`, `papers`, `services`, `setup`) live there too.
+- **`lib/pipeline_display.ts` is the only formatter.** Two rules are
+  load-bearing: `formatDuration` prints milliseconds under a second, because a
+  step that took 40 ms and one that took 0.9 s are different facts; and it never
+  emits `"2m 60s"`, which is what rounding 179.6 the obvious way produces.
+- **Every decision is a function in `lib/`, and the components render what it
+  returns.** `lib/pipeline_ledger.ts` decides the card (what a step's row says,
+  which warnings need a look, the verdict figures, the failed-run note) and
+  `lib/pipeline_details.ts` the dialog (its tabs and counts, how rejections
+  group, a paper's row, the services table's columns, Setup's rows).
+  `jsx: "precompile"` leaves a component's branches out of a test's reach, and
+  `lib/` is where the 100 % floor is. A new branch belongs there.
 - **The island takes no props.** Fresh serialises island props for hydration and
   a run report does not survive that trip — the widget renders server-side and
   then never becomes interactive, with **nothing in the console to say so**.
   Every island here reads its own data; this one reads `pipelineRun`. The `run`
   prop exists only for `tests/pipeline_widget_test.tsx`, which is why the
   widget's contents are tested there rather than through the route.
-- **`aria-expanded` is passed as a string, and must be.** Preact 10.29.8's
-  client renderer keeps an `aria-*` attribute whose value is boolean `false`
-  (`props.js`'s guard admits it via `name[4] == '-'`), but
+- **`aria-expanded` and `aria-selected` are passed as strings, and must be.**
+  Preact 10.29.8's client renderer keeps an `aria-*` attribute whose value is
+  boolean `false` (`props.js`'s guard admits it via `name[4] == '-'`), but
   `preact-render-to-string` drops it, and hydration does not add it back — so
-  `aria-expanded={expanded}` leaves a server-rendered trigger with no collapsed
+  `aria-expanded={expanded}` leaves a server-rendered control with no collapsed
   state until its first toggle. Write `aria-expanded={x ? "true" : "false"}`.
-- Status is never colour alone: every badge pairs its tint with a glyph _and_ a
-  word, and every drawer field is named in words beside its value. The four
-  status tints resolve through semantic tokens the dark blocks already override,
-  so the block adds no dark counterpart. A fifth tint, `highlight`, is
-  deliberately not a status: it is the amber wash under a "Low confidence"
-  rejection, drawn with the page's own ink, because a score under the floor is
-  the routine outcome of a run and in ember it read as an alarm on every card.
-  (`.pipeline-tint-ember` keeps its name and no longer resolves the accent: on a
-  mono steel palette that would make "Passed with warnings" the same colour as
-  every link on the page, so it reads `--svd-color-warn`.) "Quote not in paper"
-  carries it for the same reason — the verbatim gate dropping a gene is a filter
-  doing its job, not a failure.
-- **A step with nothing to expand is a disabled button, not a dimmed one.** It
-  is a real step that had nothing to report; greying it would read as "did not
-  run", which is what `skipped` means.
+- **Two nouns, and every string uses the one it counts.** A _finding_ is one
+  paper's proposal of a gene; a _gene_ is a row of the database. `genes.*`, the
+  accepted and rejected lists and a paper's two counts are findings;
+  `database.inserted` and `database.updated` are genes. The widget said "gene"
+  for both, so ten accepted beside five written read as a contradiction where it
+  is two facts. `nouns` in the encoding holds both, and the Findings tab opens
+  on the line that says why its count is not the genes written.
+- **Status is never colour alone.** A pill pairs its tint with a glyph and
+  words; a note that needs a look carries a glyph before its title and the same
+  words for a screen reader (`Note`'s `mark`); the confidence track has its
+  number beside it. The four status tints resolve through semantic tokens the
+  dark blocks already override. (`.pipeline-tint-ember` keeps its name and reads
+  `--svd-color-warn`: on a mono steel palette the accent would make a warning
+  the colour of every link on the page.) A fifth tint, `highlight`, is not a
+  status: it marks a rejection reason that is a filter doing its job.
+- **A warning either needs a look or is routine, and the encoding says which**
+  (`warningKinds.*.review`). The fallback model serving a paper, a finding under
+  a floor, a retried request that succeeded and a quote the verbatim gate
+  dropped are the run working as designed: neutral notes, no flag, not counted.
+  Everything else is amber and counted under "N to review" — by _notes_, not by
+  what they name, which is how a healthy run once read "49". A kind the encoding
+  has never seen needs a look. `tests/pipeline_encoding_test.ts` pins the
+  routine set whole, so a new kind fails until someone decides.
+- **"Completed with warnings" is not said.** The status pill reads "Completed"
+  and the review count stands beside it; a run whose notes are all routine has
+  nothing to add. A step's row carries a flag only when it has something to
+  review ("1 paper declined"; "2 to review" for several) or failed. There is no
+  "Passed" pill: it said the default on every row.
+- **A step's row reads out the run's counts, once** (`stepOutcome`). The report
+  holds one set of counts, each belonging to the step that produced it —
+  per-finding validation happens inside `processing_papers`, and
+  `batch_validation` is the cross-check after it. A step that recurs, a step the
+  card does not know and a step whose counts the run never recorded (an offline
+  run searched nothing) fall back to their own sentences, so no total is printed
+  twice. The sentences themselves are in the dialog's step log.
+- **A row opens only on a note or an error**, and a failed step starts open. A
+  row with neither is a disabled button at full contrast, not a dimmed one: it
+  is a real step with nothing more to say, and greying it would read as "did not
+  run", which is what `skipped` means. Rows open independently.
+- **A note is a rail and a wash, never a frame**
+  (`components/pipeline/Note.tsx`). An opened step used to be a framed box
+  holding framed notes inside the card's frame: three sets of registration marks
+  round a sentence. A warning's explanation is prose in the page's face; its
+  subjects are links when they are PMIDs, and past the eighth they sit behind a
+  native disclosure rather than becoming "and 26 more".
+- **Nothing on the card is separated by a glyph.** A character drawn between
+  wrapping flex items stays at the end of the line it wrapped from. The when
+  line uses the gap alone; the parts of a step's outcome use a rule that every
+  part draws on its own left edge, with the line pulled left by that edge so the
+  rule of whichever part starts a line is clipped.
+  `tests/styles_contract_test.ts` fails on a `·` in any `.pipeline-` rule but
+  the refresh rows'.
+- **Every step row is its own grid**, so no column is shared down the list. The
+  fixed tracks do the aligning, with `justify-self: end` on the flag and **the
+  caret rendered on every row** — hidden with `visibility` when the row does not
+  open, never dropped. Below 900px a row is three lines (name, duration and
+  caret; outcome; flag): beside the label column and a flag the outcome had
+  170px at 768. The duration is shown at every width.
+- **Run details is a native `<dialog>`**, opened with `showModal()` through
+  `useModal` (`components/useModal.ts`, shared with the adapt guide's session
+  windows). The browser supplies the top layer, the focus trap, the inert page
+  and the return of focus to the trigger; Escape is reported, not obeyed, so the
+  state closes it. It replaces a drawer at `inset: 0` inside the card, which
+  made the card's height the window onto the whole record. `.pipeline-details`
+  sets `display` only on `[open]`: on the bare selector it would outrank the
+  user agent's `display: none` and draw the closed dialog into the page.
+- **The dialog's content mounts on first opening and stays** (`RunDetails`), and
+  so does each tab's panel once shown. `e2e/tests/performance-behavior.spec.ts`
+  holds the first record's identity across a close, a reopen and a change of
+  tab. The trigger is always there: every run has a method, so Setup is never
+  empty, and a tab with nothing in it is not offered (`detailTabs`).
+- **The tabs are a real tablist**: one tab stop, the arrows, Home and End move
+  the selection (`nextTab`), and each panel is its own scroller. One scroller
+  for all of them carried a tab's scroll position into the next. At 480px and
+  below the tabs step down in size so the four fit a 320px screen.
+- **Findings** are the accepted ones as full records, then the rest grouped by
+  why (`rejectionGroups`) under a heading that says it once. A group's count is
+  absent when the report's list is capped: the groups are cut from the items it
+  holds, and a count of those would read as a total. One "Showing 200 of N" line
+  covers the set. "Accepted" is `acceptedGenes.total`, exact even when the list
+  is capped; with `database: null` the heading is "Validated, not written", and
+  the Papers column "Validated". A citation-only finding says "Written as:
+  Citation only".
+- **Confidence is a number in words beside a track** marked at the floors the
+  run recorded (`confidenceMarks`), so a held finding reads as just short or
+  nowhere near. The track is `aria-hidden`; the number is the value.
+- **Papers and Services are tables**, with their roles spelled out because the
+  phone layout changes their `display`. The run's own notes about its fallback
+  model and its unread papers stand above the Papers table, once (`paperNotes`);
+  a row says "Primary", "Fallback" or "Not read", and who declined it as plain
+  text. Nothing in a table is a pill. A cell is never addressed by
+  `:first-child` (see `.col-identity`); the first cell carries `is-lead`.
+  `paperSources` in the encoding is where `PaperResult.source` becomes words,
+  and `tests/pipeline_encoding_test.ts` reads the literals out of
+  `pipeline/pdf_retrieval.py` and `pipeline/main.py`.
+- **Setup holds the method and the usage**: mode, model and effort (and "Batch
+  API" when `config.batch === true`), fallback model, prompt version with the
+  disease and the whole hash, the two floors; duration, tokens, the two quote
+  numbers. The estimated cost is published and not shown.
 - Detail lists are capped at 200 by the exporter and the UI states the
-  truncation (`Showing 200 of 1,412`). `lib/data/pipeline_run.ts` recomputes
-  `shown` from the items actually present rather than trusting the file, so a
-  count that disagrees with its own list cannot make the UI lie.
-- **"Accepted" is `acceptedGenes.total`, not `validated` less the holds.**
-  `validated` counts one per paper, and in a report stored before a hold became
-  one record per paper a hold counts one per merged gene, so COL4A1 and COL4A2
-  validated from two papers and held once as COL4A1/2 came out as one gene
-  accepted when none was. The list's total is exact even when the list itself is
-  capped, and it is the number the drawer's heading shows, so the two cannot
-  disagree.
-- **A run that wrote nothing says "Validated", not "Accepted".** Accepted means
-  what reached the database. A run that failed before its merge has
-  `database: null` and still lists the genes its papers validated, so the card's
-  stat, the drawer's heading ("Genes validated, not written") and each paper's
-  row (`describePaper(paper, false)`) take the `genesValidated` label there.
-- **A citation-only gene says "Written as: Citation only".** Its record carries
-  no trait or omics pill, because the merge withheld them (`gene.citationOnly`);
-  without the word the gene reads as one the model found nothing about.
-- **The header names the Batch API only when it extracted the run**
-  (`config.batch === true`). Null on an older report is not "streamed".
-- **The drawer exists only when there is something in it.** A run that failed
-  before it processed a paper records no papers, no genes and no API calls; the
-  trigger and the `<aside>` are not rendered at all rather than opening on an
-  empty panel. The services count towards that because they are _in_ the drawer:
-  **External services lives there, not on the card.** Endpoint paths and HTTP
-  verbs (`GET /entrez/eutils/efetch.fcgi`, `POST /v1/messages`) are a
-  maintainer's register, and the card sits a few hundred pixels above a Data
-  Sources panel that names the same class of thing — external sources the run
-  consulted — in prose. Two registers for one concept on one page; the drawer is
-  where the maintainer-facing record already was.
-- **The drawer is deliberately not a member of the surface recipe.** It sits at
-  `inset: 0` inside `.pipeline-card`'s own padding box, so a frame of its own
-  drew a second hairline directly on the card's — and now would draw a second
-  set of registration marks 6px inside the card's, which is the same doubled
-  contour. It takes the card's radius with `border-radius: inherit`, paints
-  `--svd-surface`, and nothing else. Its padding is `--svd-space-5` to match
-  `.card-body`, or the heading jumps 4px as it opens.
-- **Inside the drawer, each kind of thing has one look.** When everything was
-  the same boxed chip — field names, values, numbers, links — nothing said which
-  was which. Now:
-  - A field's name is a `<dt>` in an 11rem label column, beside its `<dd>`.
-  - A value from a fixed vocabulary (trait, omics method, paper source) is a
-    neutral pill (`ValuePill`).
-  - A verdict (a rejection reason) is a tinted pill with a glyph.
-  - A number or identifier is plain text that says what it is: "Confidence 0.90
-    · PMID 41001161", "11 s · 2 accepted · 1 rejected" (`describePaper`).
-
-  Records are rows ruled by hairlines, not framed surfaces, and a rejected
-  record is not painted danger; its verdict pill carries the colour. The 11rem
-  column is `.pipeline-api-name`'s measure too, so gene names, field names,
-  PMIDs and service names all share one left edge. Below 600px each name sits
-  above its value.
-- **Every step header is its own grid**, so no column is shared down the list.
-  Three things do the aligning and all three are load-bearing: a `min-width` on
-  `.pipeline-step-time`, `justify-self: end` on the badge, and **the caret
-  rendered on every step** — hidden with `visibility` when there is nothing to
-  expand, never dropped. Dropping the element drops its column with it, which
-  left the last row's badge and duration hanging 16px past the five above.
+  truncation. `lib/data/pipeline_run.ts` recomputes `shown` from the items
+  actually present rather than trusting the file, so a count that disagrees with
+  its own list cannot make the UI lie.
 - Lists are keyed by position, not by text. A re-entered step merges its visits'
-  actions, so two visits that did the same thing produce the same sentence, and
-  two services with the same label and count produce the same warning title; a
+  actions, so two visits that did the same thing produce the same sentence; a
   text-keyed list collapsed them.
-- `paperSources` in the encoding is where `PaperResult.source` becomes words.
-  `none` and `unknown` are the pipeline's sentinels for "retrieved nothing" and
-  "never got that far", and a chip reading "Source: none" put the sentinel in
-  front of the reader. `tests/pipeline_encoding_test.ts` reads the literals out
-  of `pipeline/pdf_retrieval.py` and `pipeline/main.py`, so a new source fails
-  the test rather than rendering raw.
-- **A paper row names a model only when it is not the run's.** The header
-  carries the run's model and, when one was requested, its fallback
-  (`config.fallbackModel`); a paper Claude Opus 4.8 extracted after Opus 5.5
-  declined it adds an "Extracted by" pill, and the requested model is never
-  repeated on every row. A refusal is a verdict pill under "Declined by" --
-  "Biology safety classifier" -- whether the paper then failed or the fallback
-  served it, labelled from `refusalCategories` in the encoding, which
-  `tests/pipeline_encoding_test.ts` reconciles with `RefusalCategory` in
-  `pipeline/run_errors.py`. It takes the `highlight` tint, as the quote gate's
-  verdict does: a classifier declining a paper is a filter, not a failure of the
-  run. A category the encoding has never seen reads as "Safety classifier",
-  never as a blank chip.
 
 ## Reference data refreshes
 
@@ -241,10 +265,10 @@ The pipeline half is in `.claude/rules/pipeline/run-reporting.md`. On this side:
   props-serialisation trap above, and its `runs` prop is a real prop rather than
   a test-only one. Promote it if a per-refresh drawer is ever wanted.
 - **It reuses the widget's parts rather than restating them**: `.pipeline-head`,
-  `.pipeline-badge`, and the same `.pipeline-apis > ul > .pipeline-api` shape
-  the drawer uses, through the same `describeApi`. That is what keeps one
-  service row reading identically in both places. Only the refresh rows
-  themselves are new CSS.
+  `.pipeline-badge`, and `ApiList` (`components/ApiList.tsx`), the services
+  table the run details' Services tab draws. That is what keeps one service row
+  reading identically in both places; the `.pipeline-api` row lives in that file
+  alone. Only the refresh rows themselves are new CSS.
 - **`syncModes` is its own encoding vocabulary**, reconciled against
   `SYNC_MODES` in `pipeline/steps.py` by `tests/pipeline_encoding_test.ts`,
   which also fails if a key appears in both `runModes` and `syncModes`. The

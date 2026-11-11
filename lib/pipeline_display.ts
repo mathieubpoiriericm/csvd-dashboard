@@ -23,17 +23,12 @@ interface Badge {
 
 const RUN_STATUS = encoding.runStatus as Record<string, Badge>;
 const STEP_STATUS = encoding.stepStatus as Record<string, Badge>;
-const STEPS = encoding.steps as Record<string, { icon: IconName }>;
 const RUN_MODES = encoding.runModes as Record<string, string>;
 const SYNC_MODES = encoding.syncModes as Record<string, string>;
 const PAPER_SOURCES = encoding.paperSources as Record<string, string>;
 const ERROR_KINDS = encoding.errorKinds as Record<
   string,
   { icon: IconName; hint: string }
->;
-const WARNING_KINDS = encoding.warningKinds as Record<
-  string,
-  { icon: IconName }
 >;
 const FIELDS = encoding.fields as Record<
   string,
@@ -82,11 +77,6 @@ export function runStatusBadge(status: string): Badge {
 /** The badge for one step. */
 export function stepStatusBadge(status: string): Badge {
   return STEP_STATUS[status] ?? UNKNOWN_BADGE;
-}
-
-/** The glyph beside a step's name. */
-export function stepIcon(key: string): IconName {
-  return STEPS[key]?.icon ?? FALLBACK_ICON;
 }
 
 /** How the run was started, in words rather than an enum value. */
@@ -191,11 +181,6 @@ export function describeError(
     hint: kind.hint,
     detail: error.detail,
   };
-}
-
-/** A warning's glyph; its title is already a sentence from the pipeline. */
-export function warningIcon(kind: string): IconName {
-  return WARNING_KINDS[kind]?.icon ?? FALLBACK_ICON;
 }
 
 /**

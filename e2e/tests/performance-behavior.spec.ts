@@ -51,11 +51,9 @@ test("pipeline details mount on first opening and survive close and step changes
   test.skip(EXPECTED.goldOnly, "gold-only: the About page shows no run");
   await page.goto("/");
   await page.waitForSelector('.pipeline-card[data-hydrated="true"]');
-  const drawer = page.locator("#pipeline-run-drawer");
-  await expect(drawer.locator(".pipeline-record")).toHaveCount(0);
-  const trigger = page.getByRole("button", {
-    name: "View everything this run recorded",
-  });
+  const drawer = page.getByRole("dialog", { name: "Run details" });
+  await expect(page.locator(".pipeline-record")).toHaveCount(0);
+  const trigger = page.getByRole("button", { name: "Run details" });
   await trigger.click();
   await expect(drawer.locator(".pipeline-record").first()).toBeVisible();
   // Identity establishes that reopening retains the memoized body.
@@ -72,8 +70,17 @@ test("pipeline details mount on first opening and survive close and step changes
         (globalThis as unknown as { retainedRecord: Element }).retainedRecord
     ),
   ).toBe(true);
-  await expect(drawer.getByRole("heading", { name: "External services" }))
-    .toBeVisible();
+  // A tab mounts its panel when first selected and keeps it: going to the
+  // services and back does not rebuild the findings.
+  await drawer.getByRole("tab", { name: /Services/ }).click();
+  await expect(drawer.locator(".pipeline-api").first()).toBeVisible();
+  await drawer.getByRole("tab").first().click();
+  expect(
+    await drawer.locator(".pipeline-record").first().evaluate((el) =>
+      el ===
+        (globalThis as unknown as { retainedRecord: Element }).retainedRecord
+    ),
+  ).toBe(true);
 });
 
 for (

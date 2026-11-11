@@ -319,20 +319,25 @@ export const INTERACTION_SCENARIOS = [
     }
   }),
   interaction("about/toggle-step", aboutReady, async (page) => {
+    // A step that failed starts open, so the click may close it: what is
+    // measured is the toggle, whichever way it goes.
     const button = page.locator(".pipeline-step-head:not([disabled])").first();
+    const before = await button.getAttribute("aria-expanded");
     await button.click();
-    await expect(button).toHaveAttribute("aria-expanded", "true");
+    await expect(button).toHaveAttribute(
+      "aria-expanded",
+      before === "true" ? "false" : "true",
+    );
   }, RUN_WIDGET),
   interaction("about/drawer", aboutReady, async (page) => {
-    await page.getByRole("button", {
-      name: "View everything this run recorded",
-    }).click();
-    await expect(page.locator("#pipeline-run-drawer")).toBeVisible();
+    await page.getByRole("button", { name: "Run details" }).click();
+    const details = page.getByRole("dialog", { name: "Run details" });
+    await expect(details).toBeVisible();
     await expect(page.locator(".pipeline-record").first()).toBeVisible();
     await expect(page.getByRole("button", { name: "Close run details" }))
       .toBeFocused();
     await page.keyboard.press("Escape");
-    await expect(page.locator("#pipeline-run-drawer")).toBeHidden();
+    await expect(details).toBeHidden();
   }, RUN_WIDGET),
   interaction("map/zoom", mapReady, async (page) => {
     const before = await page.locator(".leaflet-marker-icon").first()

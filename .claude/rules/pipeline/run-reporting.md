@@ -131,8 +131,8 @@ make it.** A run that failed before its merge publishes `database: null` and
 still lists the genes its papers validated under `acceptedGenes`, because they
 are what it has to show;
 `test_a_run_killed_inside_step_3_still_lists_its_papers` pins that. The widget
-reads the null and says "Validated" on the card, in the drawer's heading and on
-each paper's row.
+reads the null and says "Validated" in the run details: the Findings heading
+and the Papers table's column.
 
 **The export brings an older stored report up to date** (`published_run_report`
 in `pipeline/export/lookups.py`): re-validation fills what the report lacks,
@@ -175,12 +175,12 @@ the class name.
   caps at `DETAIL_CAP`, holds are always few and validation rejections are many,
   so appending them last truncated the whole category away on a large run while
   still publishing its count.
-- **A paper's `geneCount` is what the accepted list holds for it.** The drawer
-  prints it as "N accepted", and a held gene passes validation, so the paper's
+- **A paper's `geneCount` is what the accepted list holds for it.** The run
+  details print it under "Accepted", and a held gene passes validation, so the paper's
   own count included it: PMID 42957517 read "2 accepted" on 2026-11-03 with
   neither gene in `acceptedGenes`, and the rows summed to 19 under a headline of
   10. `_paper_records` moves a paper's held genes to its `rejectedCount`, the
-  side of the drawer they are listed on. **A hold is one record per paper that
+  side of the run details they are listed on. **A hold is one record per paper that
   proposed the gene** (`_hold_records`), under the paper's spelling and the
   score that mention carried, and `rejectedAtInsertFloor` counts those records.
   The merge returns one hold per gene, and counting those left the funnel one
@@ -194,7 +194,7 @@ the class name.
   (`_citation_only`). `MergeResult.citation_only` returns those keys, and the
   gene's accepted record carries `citationOnly: true` with its trait, omics and
   Mendelian fields empty, as the row's contribution is; it used to carry what
-  the model extracted, so the drawer showed claims the table never took. Step 5
+  the model extracted, so the run details showed claims the table never took. Step 5
   names the count as an action, not a warning: the floor is doing its job.
 - **The report says how it was run and what it cached.** `config.batch` and
   `tokens.cacheCreationInputTokens` were in `PipelineRunData` all along and

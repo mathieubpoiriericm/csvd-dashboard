@@ -34,24 +34,25 @@ Those parameters are a **fourth tier**, above the three below: unlike tiers 1-3
 they are not names a rule reaches for globally, and they are absent from the
 dark blocks on purpose — each resolves through a tier-2 token the dark blocks
 already override. Custom properties inherit, so a tint set on an element reaches
-every descendant that reads one; that is what lets the `.pipeline-badge-count`
-inside a warning badge pick up the amber without being told — the badge's tint
-class declares `--svd-tint` once and the count reads it back as its own wash.
-Ink does not follow: `--svd-tint-ink` (`app.css` ~285) is a `color-mix()`
-resolved once on `:root` from `--svd-tint`, and a custom property containing
-`var()` is substituted at computed-value time on the element that declares it —
-a descendant re-declaring `--svd-tint` does not make `:root`'s already-resolved
+every descendant that reads one; that is what lets the glyph in a run note's
+title pick up the amber without being told — the note's tint class declares
+`--svd-tint` once and the rail, the wash and the glyph read it back. Ink does
+not follow: `--svd-tint-ink` (`app.css` ~285) is a `color-mix()` resolved once
+on `:root` from `--svd-tint`, and a custom property containing `var()` is
+substituted at computed-value time on the element that declares it — a
+descendant re-declaring `--svd-tint` does not make `:root`'s already-resolved
 `--svd-tint-ink` re-run. A component that wants the ink re-tinted too has to
 re-declare `--svd-tint-ink` itself, the way `.pipeline-tint-danger` (`app.css`
 ~4350) does.
 
 Not everything boxed is a panel, and `tests/styles_contract_test.ts` pins each
-exception. A **note** (`.tip-box`, `.notice`) is a rail and a wash with no
-registration marks: four crosses round a one-line hint read as the frame of a
-second figure. A **record in the run drawer** is a row of its list, not a framed
-surface. **Chips, badges and counts** are pills, through `--svd-radius-full`,
-and they are the one rounded family. The figure keys' toggle is **filled**, like
-the login button, which is the only other filled control.
+exception. A **note** (`.tip-box`, `.notice`, `.pipeline-note`) is a rail and a
+wash with no registration marks: four crosses round a one-line hint read as the
+frame of a second figure. A **record in the run details** is a row of its list,
+not a framed surface, and **nothing inside the run card is framed**. **Chips,
+badges and counts** are pills, through `--svd-radius-full`, and they are the one
+rounded family. The figure keys' toggle is **filled**, like the login button,
+which is the only other filled control.
 
 Six things are load-bearing:
 
@@ -161,9 +162,10 @@ file's own character map, so replace a font through it, not by file name.
 **No mono face ships.** Nine rules read `--svd-font-mono` and they were two
 different intentions: seven wanted tabular figures, which the design draws in
 the condensed face with `font-variant-numeric`, and four wanted real monospacing
-— the HTTP method, the API path, the note subjects and the endpoint box in the
-run widget, all of which are code. The first group reads `--svd-font-heading`;
-`--svd-font-mono` survives for the second as the platform's own stack.
+— the HTTP method and the API path in the services table, the prompt's hash in
+the run details and a failed step's exception text, all of which are code. The
+first group reads `--svd-font-heading`; `--svd-font-mono` survives for the
+second as the platform's own stack.
 
 Both figures keep their data colours out of the theme: wedge, band, marker,
 ring, pill and label colours are SVG attributes or inline styles from the two

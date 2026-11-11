@@ -125,7 +125,8 @@ test("reports the last run exactly once", async ({ page }) => {
   test.skip(!recorded, "no pipeline run recorded");
 
   if (hasWidget) {
-    await expect(widget.locator(".pipeline-step")).toHaveCount(6);
+    // One row a step, however many the run recorded: a step can recur.
+    expect(await widget.locator(".pipeline-step").count()).toBeGreaterThan(0);
     await expect(widget.locator(".pipeline-badge").first()).not.toBeEmpty();
   } else {
     await expect(card).not.toBeEmpty();
@@ -144,27 +145,70 @@ test("reports the last run exactly once", async ({ page }) => {
  * as a bare `null` until a run records one, so these skip rather than
  * assert against a block that may not be on the page.
  */
-test("the run drawer opens, takes focus, and closes on Escape", async ({ page }) => {
+test("the run details open as a dialog, walk their tabs, and close on Escape", async ({ page }) => {
   const widget = page.locator(".pipeline-card");
   test.skip(
     await widget.count() === 0,
     "no run report recorded (data/pipeline_run.json is null)",
   );
+  await page.waitForSelector('.pipeline-card[data-hydrated="true"]');
 
-  const drawer = page.locator("#pipeline-run-drawer");
-  await expect(drawer).toBeHidden();
+  const trigger = page.getByRole("button", { name: "Run details" });
+  const dialog = page.getByRole("dialog", { name: "Run details" });
+  await expect(dialog).toBeHidden();
 
-  await page.getByRole("button", { name: "View everything this run recorded" })
-    .click();
-  await expect(drawer).toBeVisible();
+  await trigger.click();
+  await expect(dialog).toBeVisible();
+  // A native modal: focus is inside it, and the page behind cannot take it.
   await expect(page.getByRole("button", { name: "Close run details" }))
     .toBeFocused();
 
+  // One tab is selected, and the arrows move the selection.
+  const tabs = dialog.getByRole("tab");
+  await expect(tabs.first()).toHaveAttribute("aria-selected", "true");
+  await expect(dialog.getByRole("tabpanel")).toHaveCount(1);
+  if (await tabs.count() > 1) {
+    await tabs.first().focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(tabs.nth(1)).toHaveAttribute("aria-selected", "true");
+    await expect(tabs.nth(1)).toBeFocused();
+    await expect(tabs.first()).toHaveAttribute("aria-selected", "false");
+  }
+
   await page.keyboard.press("Escape");
-  await expect(drawer).toBeHidden();
-  await expect(
-    page.getByRole("button", { name: "View everything this run recorded" }),
-  ).toBeFocused();
+  await expect(dialog).toBeHidden();
+  await expect(trigger).toBeFocused();
+});
+
+/**
+ * Inside the open dialog nothing may scroll sideways either: a prompt hash
+ * is 64 characters with no space, and a publisher's host name or an
+ * endpoint path has none to wrap at.
+ */
+test("the open run details never scroll sideways, down to 320px", async ({ page }) => {
+  test.skip(
+    await page.locator(".pipeline-card").count() === 0,
+    "no run report recorded (data/pipeline_run.json is null)",
+  );
+  for (const width of [390, 320]) {
+    await page.setViewportSize({ width, height: 700 });
+    await page.goto("/");
+    await page.waitForSelector('.pipeline-card[data-hydrated="true"]');
+    await page.getByRole("button", { name: "Run details" }).click();
+    const dialog = page.getByRole("dialog", { name: "Run details" });
+    const row = dialog.getByRole("tablist");
+    expect(await row.evaluate((el) => el.scrollWidth - el.clientWidth))
+      .toBeLessThanOrEqual(0);
+    for (const tab of await dialog.getByRole("tab").all()) {
+      await tab.click();
+      const panel = dialog.getByRole("tabpanel");
+      await expect(panel).toHaveCount(1);
+      expect(await panel.evaluate((el) => el.scrollWidth - el.clientWidth))
+        .toBeLessThanOrEqual(0);
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth))
+      .toBeLessThanOrEqual(width);
+  }
 });
 
 test("a step expands by keyboard as well as by click", async ({ page }) => {
@@ -174,8 +218,17 @@ test("a step expands by keyboard as well as by click", async ({ page }) => {
     "no run report recorded (data/pipeline_run.json is null)",
   );
 
-  const head = widget.locator(".pipeline-step-head:not([disabled])").first();
-  await expect(head).toHaveAttribute("aria-expanded", "false");
+  await page.waitForSelector('.pipeline-card[data-hydrated="true"]');
+  // A row is a control only when it holds a note or an error, and one that
+  // failed starts open; a closed one is what this needs. Found by position:
+  // a locator that asks for a closed row moves to the next one the moment
+  // this one opens.
+  const controls = widget.locator(".pipeline-step-head:not([disabled])");
+  const states = await controls.evaluateAll((rows) =>
+    rows.map((row) => row.getAttribute("aria-expanded"))
+  );
+  test.skip(!states.includes("false"), "no step of this run has a note");
+  const head = controls.nth(states.indexOf("false"));
 
   await head.click();
   await expect(head).toHaveAttribute("aria-expanded", "true");
@@ -195,7 +248,9 @@ test("a step expands by keyboard as well as by click", async ({ page }) => {
  * badge is `white-space: nowrap`, so "Passed with warnings" held a 190px grid
  * track that could not shrink and pushed the caret past the viewport edge.
  * Only the rows carrying that badge overflowed, which is why it survived --
- * a run whose steps all passed looks fine.
+ * a run whose steps all passed looks fine. A row's flag sits on a line of its
+ * own below 900px now, and this still watches for the next thing that
+ * cannot shrink.
  */
 test("no page scrolls sideways, down to the narrowest phone", async ({ page }) => {
   for (const width of [1440, 1100, 900, 600, 480, 420, 380, 320]) {
