@@ -24,6 +24,7 @@ from pipeline.main import (
     run_pipeline,
 )
 from pipeline.quality_metrics import PipelineMetrics, TokenUsage
+from pipeline.run_errors import NoPaperProcessedError
 from pipeline.validation import ValidationResult
 
 # ---------------------------------------------------------------------------
@@ -425,7 +426,9 @@ class TestRunPipeline:
             new_callable=AsyncMock,
             return_value=0,
         )
-        mocker.patch("pipeline.main.record_pipeline_run", new_callable=AsyncMock)
+        recorded = mocker.patch(
+            "pipeline.main.record_pipeline_run", new_callable=AsyncMock
+        )
         mocker.patch("pipeline.main.write_comprehensive_report")
         mocker.patch("pipeline.main.print_rich_summary")
         mocker.patch("pipeline.main._record_and_notify", new_callable=AsyncMock)
@@ -436,13 +439,17 @@ class TestRunPipeline:
         mocker.patch("pipeline.main.Database.close", new_callable=AsyncMock)
         mocker.patch("pipeline.main.clear_gene_cache")
 
-        metrics, run_data = await run_pipeline(days_back=7)
+        # The only new paper errored, so the run has nothing to merge and
+        # fails rather than completing over nothing.
+        with pytest.raises(NoPaperProcessedError):
+            await run_pipeline(days_back=7)
 
-        assert metrics.papers_processed == 0
-        assert metrics.token_usage.total_tokens == 15
-        assert run_data is not None
-        assert run_data["papers"]["failed"] == 1
-        mock_record_pmids.assert_awaited_once_with([])
+        kwargs = recorded.await_args.kwargs
+        assert kwargs["papers_processed"] == 0
+        assert kwargs["status"] == "failed"
+        assert kwargs["report"]["tokens"]["totalTokens"] == 15
+        assert kwargs["report"]["papers"]["failed"] == 1
+        mock_record_pmids.assert_not_awaited()
 
     async def test_a_database_error_during_deduplication_propagates(self, mocker):
         # Only a missing pubmed_refs table is treated as "first run"; any

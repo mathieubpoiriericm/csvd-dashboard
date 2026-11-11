@@ -344,15 +344,21 @@ export function describeApi(api: ApiService): string {
  * The same register as `describeApi`, so a paper row and a service row read
  * alike: accepted is always stated, because a paper that yielded nothing is
  * a fact, and rejected only when something was.
+ *
+ * `written` is whether the run reached its merge. Accepted means what
+ * reached the database, so a run that failed before it has genes that
+ * passed validation and no more, and says "validated".
  */
-export function describePaper(paper: RunPaper): string {
+export function describePaper(paper: RunPaper, written = true): string {
   const parts: string[] = [];
   if (paper.processingSeconds !== null) {
     parts.push(formatDuration(paper.processingSeconds));
   }
   const counted = (count: number, key: string) =>
     `${formatCount(count)} ${field(key).label.toLowerCase()}`;
-  parts.push(counted(paper.geneCount, "genesAccepted"));
+  parts.push(
+    counted(paper.geneCount, written ? "genesAccepted" : "genesValidated"),
+  );
   if (paper.rejectedCount > 0) {
     parts.push(counted(paper.rejectedCount, "genesRejected"));
   }

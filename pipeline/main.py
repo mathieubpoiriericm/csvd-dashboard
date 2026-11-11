@@ -286,7 +286,12 @@ from pipeline.report import (
     print_rich_summary,
     write_comprehensive_report,
 )
-from pipeline.run_errors import RunWarning, classifier_phrase, classify
+from pipeline.run_errors import (
+    NoPaperProcessedError,
+    RunWarning,
+    classifier_phrase,
+    classify,
+)
 from pipeline.run_report import build_run_report
 from pipeline.steps import (
     STEP_KEYS,
@@ -1469,6 +1474,31 @@ def _record_processing_actions(
             )
 
 
+def _fail_if_no_paper_was_processed(results: list[PaperResult]) -> None:
+    """Stop a run in which every paper errored. See `NoPaperProcessedError`.
+
+    Raised inside step 3, after its warnings are recorded, so the failure
+    lands on that step with what it found still under it, and steps 4 to 6
+    read as not reached rather than as clean passes over nothing.
+
+    A paper a safety classifier declined is not an error: the classifier
+    is a filter doing its job, and a day whose one new paper is declined
+    is not a broken run. So this needs a paper that errored and none that
+    succeeded; a run of refusals alone completes with its warnings.
+    """
+    errored = [r for r in results if not r.succeeded and r.refusal is None]
+    if not errored or any(r.succeeded for r in results):
+        return
+    total = len(results)
+    first = errored[0]
+    raise NoPaperProcessedError(
+        "The one new paper could not be processed"
+        if total == 1
+        else f"None of the {total} new papers could be processed",
+        detail=f"PMID {first.pmid}: {first.error}",
+    )
+
+
 def _finalize_processed_batch(
     results: list[PaperResult],
     metrics: PipelineMetrics,
@@ -1481,6 +1511,7 @@ def _finalize_processed_batch(
     logger.info(f"  Processed {metrics.papers_processed} papers")
     logger.info(f"  Validated: {metrics.genes_validated} genes")
     _record_processing_actions(progress, results, metrics, primary_model=primary_model)
+    _fail_if_no_paper_was_processed(results)
 
     progress.report(3)
     warnings = _run_batch_validation(genes)

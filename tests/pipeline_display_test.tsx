@@ -287,6 +287,12 @@ Deno.test("describePaper says a paper's time and genes in words", () => {
     }),
     "40 ms · 1,234 accepted",
   );
+  // A run that never merged wrote nothing, so its papers' genes passed
+  // validation and no more.
+  assertEquals(
+    describePaper(PAPER, false),
+    "11 s · 2 validated · 1 rejected",
+  );
 });
 
 Deno.test("ApiList writes a request as one line of code, method first", () => {

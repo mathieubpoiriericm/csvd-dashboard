@@ -196,10 +196,11 @@ async def read_pubmed_refs(pmids: Sequence[str]) -> list[dict[str, Any]]:
 # in its own transaction, and --export ships those rows). What the failed
 # run wrote is read from its report's `database` block, not from here.
 #
-# Nor does a run that processed no paper. One in which every paper failed --
-# no API key, an NCBI outage -- or was declined is recorded as completed with
-# warnings, not failed, and it changed nothing: a run that finds no new paper
-# writes no row at all, and this one must not date the data either.
+# Nor does a run that processed no paper. One in which every paper errored is
+# failed already (`NoPaperProcessedError`), but one whose papers were all
+# declined by a safety classifier is recorded as completed with warnings, and
+# it changed nothing: a run that finds no new paper writes no row at all, and
+# this one must not date the data either.
 _STATUS_QUERY: Final[str] = """
     SELECT run_timestamp, papers_processed, fulltext_retrieved,
            genes_extracted, genes_validated

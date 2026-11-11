@@ -147,11 +147,17 @@ The pipeline half is in `.claude/rules/pipeline/run-reporting.md`. On this side:
   `shown` from the items actually present rather than trusting the file, so a
   count that disagrees with its own list cannot make the UI lie.
 - **"Accepted" is `acceptedGenes.total`, not `validated` less the holds.**
-  `validated` counts one per paper and a hold counts one per merged gene, so
-  COL4A1 and COL4A2 validated from two papers and held once as COL4A1/2 came out
-  as one gene accepted when none was. The list's total is exact even when the
-  list itself is capped, and it is the number the drawer's heading shows, so the
-  two cannot disagree.
+  `validated` counts one per paper, and in a report stored before a hold became
+  one record per paper a hold counts one per merged gene, so COL4A1 and COL4A2
+  validated from two papers and held once as COL4A1/2 came out as one gene
+  accepted when none was. The list's total is exact even when the list itself is
+  capped, and it is the number the drawer's heading shows, so the two cannot
+  disagree.
+- **A run that wrote nothing says "Validated", not "Accepted".** Accepted means
+  what reached the database. A run that failed before its merge has
+  `database: null` and still lists the genes its papers validated, so the card's
+  stat, the drawer's heading ("Genes validated, not written") and each paper's
+  row (`describePaper(paper, false)`) take the `genesValidated` label there.
 - **The drawer exists only when there is something in it.** A run that failed
   before it processed a paper records no papers, no genes and no API calls; the
   trigger and the `<aside>` are not rendered at all rather than opening on an

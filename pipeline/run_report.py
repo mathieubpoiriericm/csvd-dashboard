@@ -110,7 +110,8 @@ class GeneCounts(WireModel):
     different decision from validation: a gene can clear the update floor,
     reach the merge, and still be refused as a *new* row. Before this it
     was logged by symbol and counted nowhere, so the acceptance rate
-    overstated.
+    overstated. It counts a paper's mention, as `validated` does, so
+    `validated` is the accepted list's total plus this.
     """
 
     extracted: int = 0
@@ -293,7 +294,12 @@ def derive_status(steps: list[StepRecord]) -> RunStatus:
 def _gene_records(
     papers_detail: list[dict[str, Any]], held: set[str]
 ) -> list[GeneRecord]:
-    """Every gene the run actually wrote, in paper order.
+    """Every gene the run accepted, in paper order.
+
+    Accepted means what reached the database, which holds for a run that
+    merged. One that failed before its merge has no `database` block and
+    still lists the genes its papers validated here, because they are what
+    it has to show; the widget reads that block and calls them validated.
 
     Genes the insert floor refused are excluded. They pass validation and
     so appear in `papers_detail[*].genes`, but they never reach the
@@ -347,30 +353,64 @@ def _is_held(gene: dict[str, Any], held: set[str]) -> bool:
     return _merge_key(gene) in held
 
 
-def _held_pmids(papers_detail: list[dict[str, Any]], held: set[str]) -> dict[str, str]:
-    """The paper behind each held key, where exactly one proposed it.
-
-    The merge groups by gene, so its hold names no paper and the record
-    used to publish `pmid: null` for every one. A gene two papers proposed
-    still has no single PMID to name, and keeps the null.
-    """
-    proposers: dict[str, set[str]] = {}
-    for paper in papers_detail:
-        pmid = paper.get("pmid")
-        if not pmid:
-            continue
-        for gene in paper.get("genes", []):
-            if _is_held(gene, held):
-                proposers.setdefault(_merge_key(gene), set()).add(pmid)
-    return {
-        key: next(iter(pmids)) for key, pmids in proposers.items() if len(pmids) == 1
-    }
-
-
-def _rejected_records(
+def _hold_records(
     papers_detail: list[dict[str, Any]],
     held: list[dict[str, Any]],
     insert_floor: float | None,
+) -> list[RejectedGeneRecord]:
+    """The insert floor's holds, one per paper that proposed the gene.
+
+    The merge groups by gene, so it returns one hold per gene and names no
+    paper. Everything this is published beside counts a paper's mention --
+    `validated`, the accepted list, the validation rejections -- so one
+    gene held from two papers left the funnel one short and its record
+    without a PMID: the 2026-11-03 run validated 19, accepted 10 and held
+    8. Each mention is its own record here, under the paper's spelling of
+    the gene and the score that mention carried, which is below the floor
+    whenever the gene's best one is.
+
+    A hold no paper in *papers_detail* proposed keeps the merge's own key
+    and score. Nothing produces one today, and dropping it would be the
+    wrong way to find out.
+    """
+    floor = f" < {insert_floor}" if insert_floor is not None else ""
+
+    def record(
+        symbol: str, pmid: str | None, confidence: object
+    ) -> RejectedGeneRecord:
+        numeric = isinstance(confidence, (int, float))
+        scored = f"{confidence:.2f}" if numeric else "?"
+        return RejectedGeneRecord(
+            symbol=symbol,
+            pmid=pmid,
+            confidence=confidence if numeric else None,
+            reasons=[f"Held below the insert floor: {scored}{floor} (new gene)"],
+        )
+
+    mentions: dict[str, list[RejectedGeneRecord]] = {}
+    keys = _held_keys(held)
+    for paper in papers_detail:
+        for gene in paper.get("genes", []):
+            if _is_held(gene, keys):
+                mentions.setdefault(_merge_key(gene), []).append(
+                    record(
+                        gene.get("gene_symbol", ""),
+                        paper.get("pmid") or gene.get("pmid"),
+                        gene.get("confidence"),
+                    )
+                )
+
+    records: list[RejectedGeneRecord] = []
+    for entry in held:
+        records.extend(
+            mentions.pop(_merge_key(entry), None)
+            or [record(entry.get("gene_symbol", ""), None, entry.get("confidence"))]
+        )
+    return records
+
+
+def _rejected_records(
+    papers_detail: list[dict[str, Any]], holds: list[RejectedGeneRecord]
 ) -> list[RejectedGeneRecord]:
     """Every gene the run did not accept, from both gates.
 
@@ -380,25 +420,12 @@ def _rejected_records(
     row -- which is why a gene can appear here having passed everything
     the per-paper gate asked of it.
     """
-    records: list[RejectedGeneRecord] = []
-    pmids = _held_pmids(papers_detail, _held_keys(held))
     # Insert-floor holds come first, and that ordering is load-bearing:
     # the list is capped at DETAIL_CAP, holds are always few (only a new
     # gene can be held) and validation rejections are many, so appending
     # them last meant a large run truncated the entire category away
     # while still publishing its count.
-    for entry in held:
-        confidence = entry.get("confidence")
-        floor = f" < {insert_floor}" if insert_floor is not None else ""
-        scored = f"{confidence:.2f}" if isinstance(confidence, (int, float)) else "?"
-        records.append(
-            RejectedGeneRecord(
-                symbol=entry.get("gene_symbol", ""),
-                pmid=pmids.get(_merge_key(entry)),
-                confidence=confidence,
-                reasons=[f"Held below the insert floor: {scored}{floor} (new gene)"],
-            )
-        )
+    records = list(holds)
     for paper in papers_detail:
         for rejection in paper.get("rejected_genes", []):
             gene = rejection.get("gene", {})
@@ -488,6 +515,7 @@ def build_run_report(
     )
     insert_floor = config.get("confidence_threshold_insert")
     held_keys = _held_keys(held)
+    holds = _hold_records(papers_detail, held, insert_floor)
     provenance = provenance or ProvenanceTally()
 
     return PipelineRunReport(
@@ -509,7 +537,9 @@ def build_run_report(
         genes=GeneCounts.model_validate(
             {
                 **genes,
-                "rejected_at_insert_floor": len(held),
+                # Mentions, not genes, like every count beside it: see
+                # `_hold_records`.
+                "rejected_at_insert_floor": len(holds),
                 "quotes_checked": provenance.genes,
                 "quotes_verbatim": provenance.verbatim,
                 "quotes_cited": provenance.cited,
@@ -530,6 +560,6 @@ def build_run_report(
             _gene_records(papers_detail, held_keys)
         ),
         rejected_genes=CappedList[RejectedGeneRecord].of(
-            _rejected_records(papers_detail, held, insert_floor)
+            _rejected_records(papers_detail, holds)
         ),
     )

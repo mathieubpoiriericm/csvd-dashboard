@@ -19,9 +19,15 @@ from pipeline.api_telemetry import reset_recorder
 from pipeline.citations import current_tally, reset_tally
 from pipeline.config import PipelineConfig
 from pipeline.database import DatabaseConfigError
-from pipeline.extraction_models import ExtractionFailedError, GeneEntry, ServedBy
+from pipeline.extraction_models import (
+    ExtractionFailedError,
+    ExtractionRefusedError,
+    GeneEntry,
+    ServedBy,
+)
 from pipeline.main import PaperResult, _ProcessedBatch, _ProgressReporter
 from pipeline.quality_metrics import PipelineMetrics, TokenUsage
+from pipeline.run_errors import NoPaperProcessedError
 from pipeline.validation import NcbiUnavailableError
 
 
@@ -534,6 +540,95 @@ class TestAFailedRunPublishesWhatItProcessed:
         assert report["papers"]["alreadySeen"] is None
 
 
+class TestARunThatProcessedNothing:
+    """Every paper erroring is a failed run; every paper declined is not."""
+
+    async def _run(self, mocker, tmp_path, extract):
+        reset_recorder()
+        reset_tally()
+        _mock_lifecycle(mocker)
+        pmids = ["111", "222", "333"]
+        mocker.patch(
+            "pipeline.main._discover_new_pmids",
+            new=AsyncMock(return_value=(pmids, pmids)),
+        )
+        _fulltext(mocker)
+        mocker.patch("pipeline.main._extract_and_validate", new=extract)
+        mocker.patch("pipeline.main.reset_gene_sequence", new=AsyncMock())
+        mocker.patch("pipeline.main.merge_window")
+        merge = mocker.patch(
+            "pipeline.main.merge_gene_entries",
+            new=AsyncMock(
+                return_value={
+                    "inserted": 0,
+                    "updated": 0,
+                    "held_below_insert_floor": [],
+                }
+            ),
+        )
+        mocker.patch(
+            "pipeline.main.record_processed_pmids_batch",
+            new=AsyncMock(return_value=0),
+        )
+        recorded = mocker.patch(
+            "pipeline.main.record_pipeline_run", new=AsyncMock(return_value=1)
+        )
+        return _config(tmp_path), recorded, merge
+
+    async def test_every_paper_erroring_fails_the_run(self, tmp_path, mocker):
+        # No API key, exhausted credit, an NCBI outage: each paper failed
+        # on its own, nothing raised, and the run was recorded as completed
+        # with warnings and exited 0 having processed nothing.
+        config, recorded, merge = await self._run(
+            mocker,
+            tmp_path,
+            AsyncMock(
+                side_effect=ExtractionFailedError("ANTHROPIC_API_KEY is required")
+            ),
+        )
+
+        with pytest.raises(NoPaperProcessedError):
+            await pipeline_main.run_pipeline(config=config, manage_lifecycle=False)
+
+        kwargs = recorded.await_args.kwargs
+        report = kwargs["report"]
+        assert kwargs["status"] == "failed"
+        assert [step["status"] for step in report["steps"]][2:] == [
+            "failed",
+            "skipped",
+            "skipped",
+            "skipped",
+        ]
+        error = report["steps"][2]["error"]
+        assert error["kind"] == "no_paper_processed"
+        assert error["title"] == "None of the 3 new papers could be processed"
+        assert "ANTHROPIC_API_KEY is required" in error["detail"]
+        # What the step found is still under it, and the papers are listed.
+        assert [w["count"] for w in report["steps"][2]["warnings"]] == [3]
+        assert report["papers"]["failed"] == 3
+        assert len(report["papersDetail"]["items"]) == 3
+        merge.assert_not_awaited()
+
+    async def test_every_paper_declined_is_not_a_failure(self, tmp_path, mocker):
+        # A classifier declining a paper is a filter doing its job, and a
+        # day whose one new paper is declined is not a broken run.
+        config, recorded, _ = await self._run(
+            mocker,
+            tmp_path,
+            AsyncMock(
+                side_effect=ExtractionRefusedError(
+                    "Refused by safety classifier", category="bio"
+                )
+            ),
+        )
+
+        await pipeline_main.run_pipeline(config=config, manage_lifecycle=False)
+
+        kwargs = recorded.await_args.kwargs
+        assert kwargs["status"] == "completed_with_warnings"
+        assert kwargs["report"]["papers"]["failed"] == 3
+
+
 class TestTheCheckpointOutlivesANarrowerRun:
     """Only the papers a run merged leave the checkpoint."""
 
@@ -1008,16 +1103,19 @@ class TestAFailedPapersQuotesAreNotCounted:
         )
 
         # `paper_scope` is what attributes the counts, and the batch enters
-        # it inside `results_by_custom_id`; stand in for it here.
-        with pipeline_main.paper_scope("333"):
-            batch = await pipeline_main._process_new_pmids_via_batch(
+        # it inside `results_by_custom_id`; stand in for it here. The one
+        # paper failing is the whole batch failing, which ends the step.
+        collected: list[PaperResult] = []
+        with pipeline_main.paper_scope("333"), pytest.raises(NoPaperProcessedError):
+            await pipeline_main._process_new_pmids_via_batch(
                 ["333"],
                 PipelineMetrics(),
                 config,
                 _ProgressReporter(config),
+                collected=collected,
             )
 
-        assert [result.succeeded for result in batch.results] == [False]
+        assert [result.succeeded for result in collected] == [False]
         assert current_tally().genes == 0
 
 
