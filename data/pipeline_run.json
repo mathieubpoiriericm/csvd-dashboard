@@ -16,7 +16,8 @@
     "dryRun": false,
     "confidenceThresholdUpdate": 0.45,
     "confidenceThresholdInsert": 0.65,
-    "batch": null
+    "batch": null,
+    "daysBack": 730
   },
   "papers": {
     "found": 1571,
@@ -88,7 +89,7 @@
       "durationSeconds": 483.717,
       "actions": [
         "Retrieved full text for 27, abstract only for 10",
-        "Extracted 33 genes, of which 19 passed validation"
+        "Extracted 33 findings, of which 19 passed validation"
       ],
       "warnings": [
         {
@@ -144,7 +145,7 @@
         },
         {
           "kind": "genes_rejected",
-          "title": "14 genes did not clear the validation floor",
+          "title": "14 findings did not clear the validation floor",
           "count": 14,
           "detail": null,
           "subjects": []
@@ -160,7 +161,7 @@
       "startedAt": "2026-11-03T18:45:49.913653+00:00",
       "durationSeconds": 0.037,
       "actions": [
-        "Cross-checked 19 genes against the rest of the batch"
+        "Cross-checked 19 findings against the rest of the batch"
       ],
       "warnings": [
         {

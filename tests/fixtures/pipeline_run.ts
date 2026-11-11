@@ -30,6 +30,7 @@ export const RUN: PipelineRun = {
     confidenceThresholdUpdate: 0.45,
     confidenceThresholdInsert: 0.65,
     batch: null,
+    daysBack: 7,
   },
   papers: {
     found: 40,
@@ -96,7 +97,7 @@ export const RUN: PipelineRun = {
       warnings: [
         {
           kind: "genes_rejected",
-          title: "24 genes did not clear the validation floor",
+          title: "24 findings did not clear the validation floor",
           count: 24,
           detail: null,
           subjects: [],

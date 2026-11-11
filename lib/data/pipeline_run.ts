@@ -76,6 +76,8 @@ function normalizeConfig(value: unknown): RunConfig {
       1,
     ),
     batch: nullableBool(source.batch),
+    // Unknown, not zero, when the run searched nothing or never said.
+    daysBack: nonnegativeInteger(source.daysBack),
   };
 }
 

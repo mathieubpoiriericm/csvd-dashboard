@@ -175,7 +175,10 @@ The pipeline half is in `.claude/rules/pipeline/run-reporting.md`. On this side:
   `batch_validation` is the cross-check after it. A step that recurs, a step the
   card does not know and a step whose counts the run never recorded (an offline
   run searched nothing) fall back to their own sentences, so no total is printed
-  twice. The sentences themselves are in the dialog's step log.
+  twice. The sentences themselves are in the dialog's step log. The Search row
+  also says over what window it searched ("last 730 days") when the report holds
+  `config.daysBack`; the export reads it back out of an older report's own
+  sentence (`.claude/rules/pipeline/run-reporting.md`).
 - **A row opens only on a note or an error**, and a failed step starts open. A
   row with neither is a disabled button at full contrast, not a dimmed one: it
   is a real step with nothing more to say, and greying it would read as "did not
@@ -198,7 +201,16 @@ The pipeline half is in `.claude/rules/pipeline/run-reporting.md`. On this side:
   caret rendered on every row** — hidden with `visibility` when the row does not
   open, never dropped. Below 900px a row is three lines (name, duration and
   caret; outcome; flag): beside the label column and a flag the outcome had
-  170px at 768. The duration is shown at every width.
+  170px at 768. The duration is shown at every width. A rejected finding's row
+  in the dialog stacks at the same width: its four columns needed 534px of the
+  529 the dialog gave them at 601px.
+- **The verdict is one block** (`.pipeline-verdict`) that holds the figures, or
+  on a failed run the note that stands in for them, and the space under it is
+  the block's. The figures are a named list, `<ul aria-label>` of three `<li>`:
+  as bare spans they reached a screen reader as one sentence. Their grid is
+  `grid-auto-columns: minmax(0, 1fr)`, a column a figure;
+  `repeat(auto-fit, minmax(0, 1fr))` has no minimum to fit to and made a track a
+  pixel.
 - **Run details is a native `<dialog>`**, opened with `showModal()` through
   `useModal` (`components/useModal.ts`, shared with the adapt guide's session
   windows). The browser supplies the top layer, the focus trap, the inert page
@@ -215,7 +227,10 @@ The pipeline half is in `.claude/rules/pipeline/run-reporting.md`. On this side:
 - **The tabs are a real tablist**: one tab stop, the arrows, Home and End move
   the selection (`nextTab`), and each panel is its own scroller. One scroller
   for all of them carried a tab's scroll position into the next. At 480px and
-  below the tabs step down in size so the four fit a 320px screen.
+  below the tabs step down in size so the four fit a 320px screen. A tab names
+  its panel in `aria-controls` only once that panel is in the page, since a
+  panel mounts when its tab is first selected. The dialog's width is a
+  percentage, never `vw`, which counts a classic scrollbar's width.
 - **Findings** are the accepted ones as full records, then the rest grouped by
   why (`rejectionGroups`) under a heading that says it once. A group's count is
   absent when the report's list is capped: the groups are cut from the items it
@@ -223,7 +238,11 @@ The pipeline half is in `.claude/rules/pipeline/run-reporting.md`. On this side:
   covers the set. "Accepted" is `acceptedGenes.total`, exact even when the list
   is capped; with `database: null` the heading is "Validated, not written", and
   the Papers column "Validated". A citation-only finding says "Written as:
-  Citation only".
+  Citation only". **A pill in a record wraps**
+  (`.pipeline-pills >
+  .pipeline-chip`): a status pill is a few words and never
+  does, but a record's values are whatever the run extracted, and an omics entry
+  can run to hundreds of characters.
 - **Confidence is a number in words beside a track** marked at the floors the
   run recorded (`confidenceMarks`), so a held finding reads as just short or
   nowhere near. The track is `aria-hidden`; the number is the value.

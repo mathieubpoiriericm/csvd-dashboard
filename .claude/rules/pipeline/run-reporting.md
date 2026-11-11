@@ -63,7 +63,7 @@ still failed raises two, `api_retried` and `api_errored`; one warning chosen by
 
 | Step                | Warns on                                                                                                                                                                                                                                                                                                                                                                                         |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `processing_papers` | papers with no retrievable text, papers that failed outright, papers a safety classifier declined (`paper_refused`, one warning per classifier), papers the fallback model extracted (`model_fallback`), papers cut short at `max_paper_text_chars`, genes below the validation floor, genes dropped for an unverifiable quote, truncated model responses, services that errored or were retried |
+| `processing_papers` | papers with no retrievable text, papers that failed outright, papers a safety classifier declined (`paper_refused`, one warning per classifier), papers the fallback model extracted (`model_fallback`), papers cut short at `max_paper_text_chars`, findings below the validation floor, findings dropped for an unverifiable quote, truncated model responses, services that errored or were retried |
 | `batch_validation`  | anything `batch_validate` flagged (over-extraction, say)                                                                                                                                                                                                                                                                                                                                         |
 | `merging_database`  | new genes the insert floor refused                                                                                                                                                                                                                                                                                                                                                               |
 
@@ -136,8 +136,10 @@ and the Papers table's column.
 
 **The export brings an older stored report up to date** (`published_run_report`
 in `pipeline/export/lookups.py`): re-validation fills what the report lacks,
-`bring_up_to_date` corrects what a default cannot, and `relabel_api_rows`
-re-derives labels and folds an endpoint an older normalisation split. A paper's
+`bring_up_to_date` corrects what a default cannot, `recover_search_window` and
+`reword_findings` read back and reword what the report's own sentences say (both
+below), and `relabel_api_rows` re-derives labels and folds an endpoint an older
+normalisation split. A paper's
 `geneCount` and a gene's `citationOnly` are both read back from the accepted
 list, so both need it complete; a capped list, or a gene with no PMID, leaves
 the report as stored. An older report's holds stay one record per gene with no
@@ -145,6 +147,28 @@ paper named, because which papers proposed a gene held from two is not in the
 document. `test_the_committed_run_report_is_what_the_export_writes` holds
 `data/pipeline_run.json` to that pass: a committed file it would change is one
 the next export rewrites.
+
+**The search window is a field, `config.daysBack`.** It was in
+`PipelineRunData` all along and dropped by the model, so the run card's Search
+row could say "1,571 papers matched" and not over what; the number lived only in
+the step's sentence. It is null on an offline run, which searched nothing.
+`recover_search_window` gives a report stored before it the number back from
+that sentence ("Searched PubMed over the last 730 days: ..."), which this
+pipeline wrote, and leaves a report alone when it stored the window or its
+search step holds no such sentence.
+
+**A sentence that counts findings says "findings".** A finding is one paper's
+proposal of a gene and a gene is a row of the database, so a gene two papers
+proposed is two findings. The dashboard's rows use the two nouns, and four of
+the pipeline's sentences counted proposals as genes beside them: "Extracted N
+genes, of which M passed validation", "Cross-checked N genes against the rest of
+the batch", "N genes did not clear the validation floor" and "N genes were
+dropped because the quoted sentence was not found in the paper". They are
+written with `_count(n, "finding")` now, and `reword_findings` brings a stored
+report into line, whole sentence by whole sentence (`_FINDING_SENTENCES`), so
+anything it does not recognise is left as stored. **The merge's sentences keep
+"gene"**: it writes rows and holds genes, so "Inserted 1 gene and updated 4" and
+"8 new genes were held below the insert floor" are right as they stand.
 
 **A failed invocation's digest says why and how long.** A run that raises
 reaches the notifier as a summary, not as run data, and the digest read

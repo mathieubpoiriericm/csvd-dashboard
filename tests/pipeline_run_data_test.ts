@@ -44,6 +44,7 @@ Deno.test("a fully populated report keeps every value it was given", () => {
       skipValidation: true,
       dryRun: true,
       batch: true,
+      daysBack: 7,
       confidenceThresholdUpdate: 0.45,
       confidenceThresholdInsert: 0.65,
     },
@@ -84,7 +85,7 @@ Deno.test("a fully populated report keeps every value it was given", () => {
       actions: ["Retrieved full text for 10, abstract only for 5"],
       warnings: [{
         kind: "genes_rejected",
-        title: "24 genes did not clear the validation floor",
+        title: "24 findings did not clear the validation floor",
         count: 24,
         detail: "the update floor is 0.45",
         subjects: ["POLR2F", "WDR12"],
@@ -132,6 +133,7 @@ Deno.test("a fully populated report keeps every value it was given", () => {
   assertEquals(result.config.skipValidation, true);
   assertEquals(result.config.dryRun, true);
   assertEquals(result.config.batch, true);
+  assertEquals(result.config.daysBack, 7);
   assertEquals(result.config.confidenceThresholdInsert, 0.65);
   assertEquals(result.papers.found, 40);
   assertEquals(result.papers.alreadySeen, 31);
@@ -178,6 +180,8 @@ Deno.test("a report stored before a field existed reads unknown, not zero", () =
   }));
   assert(result !== null);
   assertEquals(result.config.batch, null);
+  // Nor how far back it searched: an offline run searched nothing.
+  assertEquals(result.config.daysBack, null);
   assertEquals(result.tokens.cacheCreationInputTokens, null);
   // A gene with no flag took its claims: that is every gene before it.
   assertEquals(result.acceptedGenes.items[0].citationOnly, false);

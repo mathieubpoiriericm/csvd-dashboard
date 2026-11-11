@@ -138,6 +138,7 @@ Deno.test("each step is one row: its outcome, a flag only if one is due, its tim
   );
   assertStringIncludes(markup, "Retrieve &amp; extract");
   assertStringIncludes(markup, "papers matched");
+  assertStringIncludes(markup, "last 7 days");
   assertStringIncludes(markup, "findings extracted");
   assertStringIncludes(markup, "1 paper failed");
   assertStringIncludes(markup, formatDuration(131.4));
@@ -167,7 +168,7 @@ Deno.test("a note is prose with linked papers, tinted by whether it needs a look
   const markup = html();
   assertMatch(
     markup,
-    /class="pipeline-note pipeline-tint-muted"[^>]*>.*?24 genes did not clear/s,
+    /class="pipeline-note pipeline-tint-muted"[^>]*>.*?24 findings did not clear/s,
   );
   assertMatch(
     markup,
