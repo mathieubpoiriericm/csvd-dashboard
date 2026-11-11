@@ -175,7 +175,10 @@
     "quotes": "Source quotes",
     "of": "of",
     "quotesFound": "found in their paper",
-    "quotesCited": "attested by the model's own citations"
+    "quotesCited": "attested by the model's own citations",
+    "method": "Method",
+    "usage": "Usage and checks",
+    "log": "Step log"
   },
   "warningKinds": {
     "search_truncated": {

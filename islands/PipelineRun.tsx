@@ -7,7 +7,7 @@ import { useHydratedRef } from "../components/useHydratedRef.ts";
  * visiting researcher reads first, then one row per step saying what came
  * out of it. A row carries a flag only when something needs a look, and
  * opens onto the note that says why. Everything else the run recorded is
- * in the drawer.
+ * behind "Run details", a dialog (`components/pipeline/RunDetails.tsx`).
  *
  * What a row says, which warnings need a look and what the verdict holds
  * are decided in `lib/pipeline_ledger.ts`, which is tested; this file
@@ -21,28 +21,18 @@ import { useHydratedRef } from "../components/useHydratedRef.ts";
  * rather than a second implementation of it.
  */
 
-import type { ComponentChildren } from "preact";
-import { memo } from "preact/compat";
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useRef, useState } from "preact/hooks";
 
-import { ApiList } from "../components/ApiList.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { Note } from "../components/pipeline/Note.tsx";
-import { useEscapeKey } from "../components/useEscapeKey.ts";
+import { RunDetails } from "../components/pipeline/RunDetails.tsx";
+import { useModal } from "../components/useModal.ts";
 import { pipelineRun } from "../lib/data/pipeline_run.ts";
-import { formatOmicsEntry, parseOmicsEntry } from "../lib/omics.ts";
 import {
   describeError,
-  describePaper,
-  describeRefusal,
-  describeRejection,
-  describeTruncation,
   field,
-  formatConfidence,
   formatCount,
   formatDuration,
-  isTruncated,
-  paperSourceLabel,
   runStatusBadge,
   runWhen,
   stepStatusBadge,
@@ -61,15 +51,9 @@ import {
   stoppedNote,
   verdictFigures,
 } from "../lib/pipeline_ledger.ts";
-import type {
-  PipelineRun,
-  RejectedGene,
-  RunGene,
-  RunPaper,
-  RunStep,
-} from "../lib/types.ts";
+import type { PipelineRun, RunStep } from "../lib/types.ts";
 
-const DRAWER_ID = "pipeline-run-drawer";
+const DETAILS_ID = "pipeline-run-details";
 
 interface PipelineRunViewProps {
   /**
@@ -81,92 +65,6 @@ interface PipelineRunViewProps {
    * Reading the module binding keeps the client bundle self-sufficient.
    */
   run?: PipelineRun | null;
-}
-
-/**
- * One field of a drawer record: its name in the label column, its value in
- * the `<dd>` beside it.
- *
- * The names used to be chips the same shape as the values next to them, so
- * a line read as a row of pills with nothing to say which was the label.
- * `pills` lays the value out as a wrapping row, for a list of pills or a
- * verdict pill and its detail.
- */
-function Field(
-  { name, pills = false, children }: {
-    name: string;
-    pills?: boolean;
-    children: ComponentChildren;
-  },
-) {
-  return (
-    <>
-      <FieldName name={name} />
-      <dd class={pills ? "pipeline-pills" : undefined}>{children}</dd>
-    </>
-  );
-}
-
-/** A field's name, glyph and word, as the term of a record's list. */
-function FieldName({ name }: { name: string }) {
-  const { label, icon } = field(name);
-  return (
-    <dt>
-      <Icon name={icon} />
-      {label}
-    </dt>
-  );
-}
-
-/** A neutral pill: a value from a fixed vocabulary, not a verdict. */
-function ValuePill({ children }: { children: ComponentChildren }) {
-  return <span class="pipeline-chip pipeline-tint-muted">{children}</span>;
-}
-
-/**
- * "PMID" and the number, linked to the paper -- the one way a PMID reads in
- * the drawer, in a gene's head and at the start of a paper's row alike.
- */
-function Pmid({ pmid }: { pmid: string }) {
-  return (
-    <span class="pipeline-fact">
-      {field("pmid").label}{" "}
-      <a
-        class="pipeline-pmid"
-        href={`https://pubmed.ncbi.nlm.nih.gov/${pmid}/`}
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        {pmid}
-      </a>
-    </span>
-  );
-}
-
-/**
- * The symbol in the label column, and what identifies the extraction
- * beside it: "Confidence 1.00 · PMID 20437615", in words. Both used to be
- * glyph chips whose names only a screen reader was told.
- */
-function GeneHead(
-  { gene }: { gene: Pick<RunGene, "symbol" | "pmid" | "confidence"> },
-) {
-  return (
-    <div class="pipeline-record-head">
-      <strong class="pipeline-record-name">{gene.symbol}</strong>
-      <span class="pipeline-facts">
-        {gene.confidence !== null && (
-          <span class="pipeline-fact">
-            {field("confidence").label}{" "}
-            <span class="pipeline-fact-value">
-              {formatConfidence(gene.confidence)}
-            </span>
-          </span>
-        )}
-        {gene.pmid && <Pmid pmid={gene.pmid} />}
-      </span>
-    </div>
-  );
 }
 
 /**
@@ -271,7 +169,7 @@ function Step(
   const step = run.steps[index];
   const flag = stepFlag(step);
   const openable = isOpenable(step);
-  const panelId = `${DRAWER_ID}-step-${index + 1}`;
+  const panelId = `pipeline-run-step-${index + 1}`;
 
   return (
     <li class="pipeline-step" data-status={step.status}>
@@ -359,181 +257,6 @@ function StepError({ error }: { error: NonNullable<RunStep["error"]> }) {
   );
 }
 
-function GeneCard({ gene }: { gene: RunGene }) {
-  return (
-    <>
-      <GeneHead gene={gene} />
-      <dl class="pipeline-fields">
-        {gene.proteinName && <Field name="protein">{gene.proteinName}</Field>}
-        {
-          /* An existing gene whose best score sat below the insert floor
-            took this paper as a reference and nothing else, so its record
-            carries no trait or omics pill. Said in words: without it the
-            gene reads as one the model found nothing about. */
-        }
-        {gene.citationOnly && (
-          <Field name="writtenAs" pills>
-            <ValuePill>Citation only</ValuePill>
-          </Field>
-        )}
-        {gene.gwasTraits.length > 0 && (
-          <Field name="gwasTrait" pills>
-            {gene.gwasTraits.map((trait, index) => (
-              <ValuePill key={index}>{trait}</ValuePill>
-            ))}
-          </Field>
-        )}
-        {gene.omicsEvidence.length > 0 && (
-          <Field name="omicsEvidence" pills>
-            {gene.omicsEvidence.map((method, index) => (
-              <ValuePill key={index}>
-                {formatOmicsEntry(parseOmicsEntry(method))}
-              </ValuePill>
-            ))}
-          </Field>
-        )}
-        {
-          /* Recorded on every gene and, until now, rendered on none: the
-            drawer's promise is everything the run recorded. Shown only
-            when it is the case -- "No" on every row would be noise, and
-            absence reads as absence. */
-        }
-        {gene.mendelianRandomization === true && (
-          <Field name="mendelian">Yes</Field>
-        )}
-        {gene.causalEvidenceSummary && (
-          <Field name="causalEvidence">{gene.causalEvidenceSummary}</Field>
-        )}
-        {gene.sourceQuote && (
-          <Field name="sourceQuote">
-            <blockquote class="pipeline-quote">{gene.sourceQuote}</blockquote>
-          </Field>
-        )}
-      </dl>
-    </>
-  );
-}
-
-/**
- * A rejected gene: the same head as an accepted one, then its verdicts.
- *
- * The verdict pill is the only colour in the record. The record itself used
- * to be painted danger -- rail, border and every chip -- which made a
- * low-confidence miss, the run's most routine outcome, read as an alarm;
- * the section heading already says these were rejected.
- */
-function RejectedCard({ gene }: { gene: RejectedGene }) {
-  return (
-    <>
-      <GeneHead gene={gene} />
-      {gene.reasons.length > 0 && (
-        <dl class="pipeline-fields">
-          <FieldName name="reason" />
-          {gene.reasons.map((reason, index) => {
-            const { label, icon, tint, detail } = describeRejection(reason);
-            return (
-              <dd key={index} class="pipeline-pills">
-                <span class={`pipeline-chip pipeline-tint-${tint}`}>
-                  <Icon name={icon} />
-                  {label}
-                </span>
-                {detail}
-              </dd>
-            );
-          })}
-        </dl>
-      )}
-    </>
-  );
-}
-
-/**
- * A paper, in the columns of the service rows below it: the PMID, where its
- * text came from, and on the right what became of it (`describePaper`).
- *
- * A paper another model extracted -- the Opus 4.8 fallback, after Opus 5.5
- * declined -- names that model beside its source. The run's own model is
- * left unsaid: it is in the header, and on every row it would be noise. A
- * refusal names its classifier as a verdict pill, whether the paper then
- * failed or the fallback served it.
- */
-function PaperRow(
-  { paper, primaryModel, written }: {
-    paper: RunPaper;
-    primaryModel: string | null;
-    written: boolean;
-  },
-) {
-  const otherModel = paper.extractionModel !== null &&
-      paper.extractionModel !== primaryModel
-    ? paper.extractionModel
-    : null;
-  const refusal = paper.refusal === null
-    ? null
-    : describeRefusal(paper.refusal);
-  return (
-    <>
-      <div class="pipeline-paper">
-        <Pmid pmid={paper.pmid} />
-        <ValuePill>{paperSourceLabel(paper.source)}</ValuePill>
-        <span class="pipeline-paper-detail">
-          {describePaper(paper, written)}
-        </span>
-      </div>
-      {(otherModel || refusal || paper.error) && (
-        <dl class="pipeline-fields">
-          {otherModel && (
-            <Field name="extractionModel" pills>
-              <ValuePill>{otherModel}</ValuePill>
-            </Field>
-          )}
-          {refusal && (
-            <Field name="refusal" pills>
-              <span class={`pipeline-chip pipeline-tint-${refusal.tint}`}>
-                <Icon name={refusal.icon} />
-                {refusal.label}
-              </span>
-            </Field>
-          )}
-          {paper.error && <Field name="reason">{paper.error}</Field>}
-        </dl>
-      )}
-    </>
-  );
-}
-
-/** A drawer section that says when it is showing less than it counted. */
-function DrawerSection<T>(
-  { title, list, render, keyOf }: {
-    title: string;
-    list: { shown: number; total: number; items: T[] };
-    render: (item: T) => ComponentChildren;
-    keyOf: (item: T, index: number) => string;
-  },
-) {
-  if (list.total === 0) return null;
-  return (
-    <section class="pipeline-drawer-section">
-      <h3>
-        {title}
-        <span class="pipeline-count">{formatCount(list.total)}</span>
-      </h3>
-      {isTruncated(list.shown, list.total) && (
-        <p class="pipeline-truncation">
-          {describeTruncation(list.shown, list.total)}
-        </p>
-      )}
-      <ul class="pipeline-records">
-        {list.items.map((item, index) => (
-          <li key={keyOf(item, index)} class="pipeline-record">
-            {render(item)}
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
 export default function PipelineRunView(
   { run = pipelineRun }: PipelineRunViewProps = {},
 ) {
@@ -542,26 +265,23 @@ export default function PipelineRunView(
 
 function PipelineRunContent({ run }: { run: PipelineRun }) {
   const hydratedRef = useHydratedRef<HTMLDivElement>();
-  const [drawer, setDrawer] = useState(false);
-  const closeRef = useRef<HTMLButtonElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  /** Whether the drawer has ever been opened, so mount does not move focus. */
+  const [details, setDetails] = useState(false);
+  /**
+   * Whether the dialog has ever been opened. Its content mounts then and
+   * stays: a closed dialog costs the page a heading and a button, not a
+   * thousand records, and reopening it does not build them again.
+   */
   const opened = useRef(false);
-
-  // Focus moves into the drawer only once it is actually rendered, and
-  // back to the trigger when it closes. The `opened` guard is what keeps
-  // the closing branch from firing on mount: without it, loading the
-  // About page would pull focus to a button halfway down it.
-  useEffect(() => {
-    if (drawer) {
-      opened.current = true;
-      closeRef.current?.focus();
-    } else if (opened.current) {
-      triggerRef.current?.focus();
-    }
-  }, [drawer]);
-
-  useEscapeKey(drawer, () => setDrawer(false));
+  const openDetails = () => {
+    opened.current = true;
+    setDetails(true);
+  };
+  const closeDetails = () => setDetails(false);
+  // A native modal dialog: the browser supplies the top layer, the focus
+  // trap, the inert page behind it, and returns focus to the trigger when
+  // it closes. The drawer this replaces sat inside the card and did each
+  // of those by hand.
+  const dialogRef = useModal(details, closeDetails);
 
   // A step that failed starts open: its error is the first thing anyone
   // looking at a failed run wants, and one click away it was a row that
@@ -590,38 +310,24 @@ function PipelineRunContent({ run }: { run: PipelineRun }) {
   const toReview = field("toReview");
   const when = runWhen(run.runTimestamp);
   const stopped = stoppedNote(run);
-  // Whether there is anything for the drawer to show. A run that failed
-  // before it processed a paper records no detail at all, and a trigger
-  // over an empty panel is a promise the drawer cannot keep. The services
-  // the run called count towards that: they are in the drawer, so a run
-  // that reached an API and nothing else still has a record worth opening.
-  const recorded = run.acceptedGenes.total + run.rejectedGenes.total +
-          run.papersDetail.total > 0 || run.apis.length > 0;
-
   return (
     <div ref={hydratedRef} class="card pipeline-card">
-      {
-        /* Inert while the drawer is open. The drawer is absolutely
-          positioned over this card, so without it Tab walks straight off
-          the drawer's last link into the step buttons and the trigger --
-          all painted over, focus ring invisible, Enter toggling panels
-          nobody can see. */
-      }
-      <div class="card-body" inert={drawer}>
+      <div class="card-body">
         <div class="pipeline-title-row">
           <h2 class="card-title">Last Pipeline Run</h2>
-          {recorded && (
-            <button
-              ref={triggerRef}
-              type="button"
-              class="pipeline-drawer-trigger"
-              aria-expanded={drawer ? "true" : "false"}
-              aria-controls={DRAWER_ID}
-              onClick={() => setDrawer(true)}
-            >
-              Run details
-            </button>
-          )}
+          {
+            /* Always there: every run has a method, so the dialog's Setup
+              tab is never empty. It names the dialog it opens; the browser
+              gives focus back to it on close. */
+          }
+          <button
+            type="button"
+            class="pipeline-drawer-trigger"
+            aria-haspopup="dialog"
+            onClick={openDetails}
+          >
+            Run details
+          </button>
         </div>
 
         {
@@ -694,80 +400,41 @@ function PipelineRunContent({ run }: { run: PipelineRun }) {
         )}
       </div>
 
-      {recorded && (
-        <aside
-          id={DRAWER_ID}
-          class="pipeline-drawer"
-          role="region"
-          aria-label="Everything this run recorded"
-          hidden={!drawer}
-          inert={!drawer}
-        >
-          <div class="pipeline-drawer-head">
-            <h2>Everything this run recorded</h2>
-            <button
-              ref={closeRef}
-              type="button"
-              class="pipeline-drawer-close"
-              aria-label="Close run details"
-              onClick={() => setDrawer(false)}
-            >
-              ×
-            </button>
+      <dialog
+        ref={dialogRef}
+        id={DETAILS_ID}
+        class="pipeline-details"
+        aria-labelledby={`${DETAILS_ID}-title`}
+        onCancel={(event) => {
+          // Escape is reported, not obeyed: the state closes the dialog,
+          // so the prop and the element cannot drift apart.
+          event.preventDefault();
+          closeDetails();
+        }}
+      >
+        <div class="pipeline-details-head">
+          <div>
+            <h2 id={`${DETAILS_ID}-title`}>Run details</h2>
+            <p class="pipeline-details-sub">
+              <span>
+                {when ? `${when.date} ${when.time}` : "Date unavailable"}
+              </span>
+              <span>{badge.label}</span>
+              <span>{formatDuration(run.durationSeconds)}</span>
+            </p>
           </div>
+          <button
+            type="button"
+            class="pipeline-drawer-close"
+            aria-label="Close run details"
+            onClick={closeDetails}
+          >
+            ×
+          </button>
+        </div>
 
-          {(drawer || opened.current) && <PipelineRunDetails run={run} />}
-        </aside>
-      )}
+        {(details || opened.current) && <RunDetails run={run} />}
+      </dialog>
     </div>
   );
 }
-
-export const PipelineRunDetails = memo(
-  function PipelineRunDetails({ run }: { run: PipelineRun }) {
-    // Whether the run reached its merge; see the Accepted stat on the card.
-    const written = run.database !== null;
-    return (
-      <>
-        <DrawerSection
-          title={written ? "Genes accepted" : "Genes validated, not written"}
-          list={run.acceptedGenes}
-          keyOf={(gene, index) => `${gene.symbol}-${gene.pmid}-${index}`}
-          render={(gene) => <GeneCard gene={gene} />}
-        />
-        <DrawerSection
-          title="Genes rejected"
-          list={run.rejectedGenes}
-          keyOf={(gene, index) => `${gene.symbol}-${gene.pmid}-${index}`}
-          render={(gene) => <RejectedCard gene={gene} />}
-        />
-        <DrawerSection
-          title="Papers"
-          list={run.papersDetail}
-          keyOf={(paper, index) => `${paper.pmid}-${index}`}
-          render={(paper) => (
-            <PaperRow
-              paper={paper}
-              primaryModel={run.config.model}
-              written={written}
-            />
-          )}
-        />
-
-        {
-          /* The request log lives here rather than on the card. Endpoint
-              paths and HTTP verbs are a maintainer's register, and the card
-              sits above a Data Sources panel that names the same class of
-              thing -- external sources the run consulted -- in prose. The
-              drawer is where the maintainer-facing record already is. */
-        }
-        {run.apis.length > 0 && (
-          <section class="pipeline-apis pipeline-drawer-section">
-            <h3>External services</h3>
-            <ApiList apis={run.apis} />
-          </section>
-        )}
-      </>
-    );
-  },
-);

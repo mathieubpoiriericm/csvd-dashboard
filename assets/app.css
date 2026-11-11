@@ -5263,7 +5263,7 @@ button.adapt-card-head:focus-visible {
    over the white plate. */
 .timeline-tooltip-title,
 .timeline-drawer-head h2,
-.pipeline-drawer-head h2 {
+.pipeline-details-head h2 {
   display: flex;
   align-items: center;
   gap: var(--svd-space-2);
@@ -6037,10 +6037,6 @@ button.adapt-card-head:focus-visible {
   box-shadow: none;
 }
 
-.pipeline-card {
-  position: relative;
-}
-
 /* Heading left, drawer trigger right -- the only row whose right side is
    free at 1440, 1024 and 390. `justify-content: space-between` does not
    depend on the trigger existing: with the button absent (a run with
@@ -6549,39 +6545,211 @@ button.adapt-card-head:focus-visible {
   border-color: var(--svd-ring-accent);
 }
 
-/* The drawer covers the card rather than pushing the page down: the
-   About page is a reading column, and a section that grows by a thousand
-   rows in place would move everything under it out of view.
+/* The run details: a native modal dialog, sized to the screen. The browser
+   supplies the top layer, the focus trap, Escape and the inert page behind,
+   so this is only the box and its three rows -- the heading, the tabs, and
+   the one row that scrolls.
 
-   It is deliberately NOT a member of the depth recipe. It sits at inset: 0
-   inside the card's own padding box, so a border and halo of its own drew a
-   second hairline directly on the card's and cast a shadow inward — the
-   doubled contour the recipe's "two shadow layers, not three" rules out. It
-   takes the card's radius and paints an opaque surface, nothing more. The
-   padding matches `.card-body`, or the heading shifted 4px when it opened. */
-.pipeline-drawer {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  overflow-y: auto;
-  padding: var(--svd-space-5);
+   It replaces a drawer that sat at `inset: 0` inside the card, which made
+   the card's height the window onto everything the run recorded: 686px over
+   9,469px of it, with the close button gone after the first screen.
+
+   `display` is set only while it is open. A closed `<dialog>` is hidden by
+   the user agent's own `display: none`, which a bare `display: grid` here
+   would outrank, drawing the dialog into the page. */
+.pipeline-details {
+  width: min(65rem, calc(100vw - 2 * var(--svd-space-4)));
+  max-width: none;
+  height: calc(100dvh - 2 * var(--svd-space-5));
+  max-height: none;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--svd-border);
+  border-radius: var(--svd-radius-sm);
   background: var(--svd-surface);
-  border-radius: inherit;
+  color: var(--svd-text);
+  box-shadow: var(--svd-shadow-md);
 }
 
-.pipeline-drawer-head {
+.pipeline-details[open] {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+
+.pipeline-details::backdrop {
+  background: color-mix(in oklab, var(--svd-ink) 45%, transparent);
+}
+
+.pipeline-details-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--svd-space-3);
-  margin-bottom: var(--svd-space-4);
+  padding: var(--svd-space-5) var(--svd-space-5) var(--svd-space-3);
 }
 
 /* Size, weight and colour come from the shared drawer-heading rule above;
    only the reset is local. */
-.pipeline-drawer-head h2 {
+.pipeline-details-head h2 {
   margin: 0;
   color: var(--svd-primary);
+}
+
+/* Which run this is, under the heading: its date, its status, its
+   duration, told apart by the gap. */
+.pipeline-details-sub {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--svd-space-3);
+  margin: var(--svd-space-1) 0 0;
+  color: var(--svd-text-muted);
+  font-size: var(--svd-text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The tabs stay in one row: a wrapped tablist reads as two lists. They are
+   sized to fit a 320px screen, so the row's own scroll is a floor under a
+   fork's longer labels, not something the committed ones need. */
+.pipeline-tabs {
+  display: flex;
+  gap: var(--svd-space-1);
+  padding: 0 var(--svd-space-5);
+  overflow-x: auto;
+  border-bottom: 1px solid var(--svd-border);
+}
+
+.pipeline-tab {
+  flex: none;
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--svd-space-2);
+  padding: var(--svd-space-2) var(--svd-space-3);
+  border: 0;
+  background: none;
+  color: var(--svd-text-muted);
+  font: inherit;
+  font-weight: var(--svd-weight-semibold);
+  cursor: pointer;
+  transition: background-color var(--svd-transition),
+    color var(--svd-transition);
+}
+
+.pipeline-tab:hover,
+.pipeline-tab:focus-visible {
+  background: var(--svd-bg-hover-accent);
+  color: var(--svd-text);
+}
+
+/* The selected tab is in ink over a rule drawn inside its own box, so it
+   is told from the others by weight of line as well as by colour, and the
+   rule needs no negative margin to sit on the row's border. */
+.pipeline-tab[aria-selected='true'] {
+  color: var(--svd-text);
+  box-shadow: inset 0 -2px 0 var(--svd-color-primary);
+}
+
+.pipeline-tab-count {
+  color: var(--svd-text-muted);
+  font-size: var(--svd-text-sm);
+  font-weight: var(--svd-weight-regular);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The dialog's third row holds the panels, and each panel scrolls for
+   itself. One scroller for all of them carried a tab's scroll position
+   into the next: Setup opened halfway down because Findings had been read
+   to its middle. `overscroll-behavior` keeps a scroll that reaches its end
+   from carrying on into the page behind the backdrop. */
+.pipeline-panels {
+  display: grid;
+  min-height: 0;
+}
+
+.pipeline-panel {
+  min-height: 0;
+  padding: var(--svd-space-5);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* The rule above sets no `display`, so the user agent's `[hidden]` still
+   takes a panel out; this says so where the next edit will look. */
+.pipeline-panel[hidden] {
+  display: none;
+}
+
+/* --- Setup --------------------------------------------------------- */
+
+/* Two lists side by side while there is room for both, one above the other
+   when there is not. */
+.pipeline-setup {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
+  column-gap: var(--svd-space-7);
+}
+
+/* A name and what it names, in the label column the records use. */
+.pipeline-setup-list,
+.pipeline-log-row {
+  display: grid;
+  grid-template-columns: 11rem minmax(0, 1fr);
+  column-gap: var(--svd-space-3);
+}
+
+.pipeline-setup-list {
+  margin: 0;
+  font-size: var(--svd-text-sm);
+}
+
+.pipeline-setup-list dt,
+.pipeline-setup-list dd {
+  margin: 0;
+  padding: var(--svd-space-2) 0;
+  border-top: 1px solid var(--svd-border);
+}
+
+.pipeline-setup-list dt {
+  color: var(--svd-text-muted);
+}
+
+.pipeline-setup-list dd {
+  font-variant-numeric: tabular-nums;
+}
+
+/* The line under a value. A hash has no spaces to wrap at, so it breaks
+   anywhere rather than push the dialog sideways. */
+.pipeline-setup-sub {
+  display: block;
+  color: var(--svd-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.pipeline-setup-sub code {
+  font-family: var(--svd-font-mono);
+  font-size: var(--svd-text-2xs);
+}
+
+.pipeline-log {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: var(--svd-text-sm);
+}
+
+.pipeline-log-row {
+  padding: var(--svd-space-2) 0;
+  border-top: 1px solid var(--svd-border);
+}
+
+.pipeline-log-step {
+  font-weight: var(--svd-weight-semibold);
+}
+
+.pipeline-log-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--svd-space-1);
+  color: var(--svd-text-muted);
 }
 
 .pipeline-drawer-section {
@@ -6898,6 +7066,34 @@ details.pipeline-apis:not([open]) > ul {
 }
 
 @media (max-width: 600px) {
+  .pipeline-details {
+    width: 100vw;
+    height: 100dvh;
+    border: 0;
+  }
+
+  .pipeline-details-head {
+    padding: var(--svd-space-4) var(--svd-space-4) var(--svd-space-2);
+  }
+
+  .pipeline-tabs {
+    gap: 0;
+    padding: 0 var(--svd-space-2);
+  }
+
+  .pipeline-tab {
+    padding: var(--svd-space-2);
+  }
+
+  .pipeline-panel {
+    padding: var(--svd-space-4);
+  }
+
+  .pipeline-setup-list,
+  .pipeline-log-row {
+    grid-template-columns: 8.5rem minmax(0, 1fr);
+  }
+
   .pipeline-figures {
     grid-auto-flow: row;
     grid-template-columns: minmax(0, 1fr);
@@ -6961,6 +7157,21 @@ details.pipeline-apis:not([open]) > ul {
 
   .pipeline-fields dt:not(:first-child) {
     margin-top: var(--svd-space-2);
+  }
+}
+
+/* The four tabs measured 361px at their 600px sizes, 41 more than the
+   narrowest phone gives them. A step down in size and in padding brings
+   the row to the screen, so it does not scroll for the committed labels. */
+@media (max-width: 480px) {
+  .pipeline-tabs {
+    padding: 0 var(--svd-space-1);
+  }
+
+  .pipeline-tab {
+    gap: var(--svd-space-1);
+    padding: var(--svd-space-2) var(--svd-space-1);
+    font-size: var(--svd-text-sm);
   }
 }
 

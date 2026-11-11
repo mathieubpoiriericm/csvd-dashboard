@@ -1376,7 +1376,8 @@ Deno.test("every border-radius is on the radius scale", () => {
   // The sweep found 49 border-radius declarations, 34 on a --svd-radius-*
   // token and 15 raw -- and every one of the 15 was 999px or 50%, the
   // pill/circle step the scale was specified with and never got. `inherit`
-  // is legitimate: .pipeline-drawer deliberately takes its card's radius.
+  // is legitimate: a surface that takes its parent's radius, as the run
+  // widget's in-card drawer did before it became a dialog.
   const offScale = radiusDeclarations().filter(({ value }) =>
     !/var\(--svd-radius-/.test(value) && value.trim() !== "inherit"
   );
@@ -1650,6 +1651,27 @@ Deno.test("the run card separates its items with space and rules, never a glyph"
   assertEquals(glyphs, []);
 });
 
+Deno.test("the run details draw only while they are open", () => {
+  // A closed <dialog> is hidden by the user agent's own `display: none`,
+  // which any `display` on the bare selector outranks: the dialog would
+  // draw into the page, under the card, without ever being opened. Its grid
+  // is set on `[open]` alone.
+  const displays = declarationsOf("display").filter((d) =>
+    d.selector.includes(".pipeline-details") &&
+    !d.selector.includes(".pipeline-details-")
+  );
+  assertEquals(displays.map((d) => [d.selector, d.value]), [
+    [".pipeline-details[open]", "grid"],
+  ]);
+  // The panel scrolls, not the dialog: the heading, the close button and
+  // the tabs stay where they are. And each panel for itself, so a tab does
+  // not open at the scroll position the last one was left at.
+  const scrollers = declarationsOf("overflow-y").filter((d) =>
+    d.selector.startsWith(".pipeline-") && d.value === "auto"
+  );
+  assertEquals(scrollers.map((d) => d.selector), [".pipeline-panel"]);
+});
+
 Deno.test("a drawer record is a row of its list, not a framed panel", () => {
   // Framed, every record drew its own box and four registration marks inside
   // the card's frame, and a stack of them piled crosses up between every
@@ -1852,6 +1874,7 @@ Deno.test("every control that lights on hover lights on focus-visible too", () =
     ".sidebar-toggle",
     ".filter-option",
     ".pipeline-apis summary",
+    ".pipeline-tab",
     ".figure-key > summary",
     ".phenogram-genes .tooltip-box",
     ".empty-state-clear",

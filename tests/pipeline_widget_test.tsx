@@ -16,15 +16,24 @@ import {
 } from "@std/assert";
 import { renderToString } from "preact-render-to-string";
 
-import PipelineRunView, {
-  PipelineRunDetails,
-} from "../islands/PipelineRun.tsx";
+import { RunDetails } from "../components/pipeline/RunDetails.tsx";
+import PipelineRunView from "../islands/PipelineRun.tsx";
 import { pipelineRun } from "../lib/data/pipeline_run.ts";
+import { detailTabs, type TabId } from "../lib/pipeline_details.ts";
 import { formatDuration } from "../lib/pipeline_display.ts";
 import { RUN, runWith, step, warning } from "./fixtures/pipeline_run.ts";
 import type { PipelineRun } from "../lib/types.ts";
 
-const details = () => renderToString(<PipelineRunDetails run={RUN} />);
+/**
+ * The run details of `run`: one tab's panel, or every tab's in turn. The
+ * dialog shows one panel at a time, so a test that asks what the details
+ * hold, without caring where, reads them all.
+ */
+const detailsOf = (run: PipelineRun, tab?: TabId) =>
+  (tab ? [tab] : detailTabs(run).map((entry) => entry.id))
+    .map((id) => renderToString(<RunDetails run={run} tab={id} />))
+    .join("");
+const details = (tab?: TabId) => detailsOf(RUN, tab);
 const html = () => renderToString(<PipelineRunView run={RUN} />);
 
 const render = (run: PipelineRun) =>
@@ -90,7 +99,7 @@ Deno.test("the verdict row carries three figures and no stat grid", () => {
 });
 
 Deno.test("the method and the cost are not on the card", () => {
-  const card = html().split("<aside")[0];
+  const card = html();
   assertNotMatch(card, /claude-opus-5|high effort|Prompt v6|PubMed search/);
   assertNotMatch(html(), /1\.38/);
 });
@@ -202,7 +211,7 @@ Deno.test("a run that wrote nothing calls its genes validated, not accepted", ()
   // validated -- they are what it has to show -- so "Accepted 24" over a
   // run that wrote no row was a claim the report itself contradicts.
   const unmerged = { ...RUN, status: "failed" as const, database: null };
-  const drawer = renderToString(<PipelineRunDetails run={unmerged} />);
+  const drawer = detailsOf(unmerged);
   assertStringIncludes(drawer, "Genes validated, not written");
   assert(!drawer.includes("Genes accepted"));
   assertStringIncludes(drawer, "2 validated");
@@ -224,12 +233,154 @@ Deno.test("the API inventory names the service, method and endpoint", () => {
   );
 });
 
-Deno.test("the drawer is present but hidden and inert until opened", () => {
+Deno.test("run details is a closed dialog that holds nothing until it opens", () => {
   const markup = html();
-  assertStringIncludes(markup, 'id="pipeline-run-drawer"');
-  assertMatch(markup, /<aside[^>]*hidden/);
-  assertStringIncludes(markup, "Everything this run recorded");
-  assertNotMatch(markup, /class="pipeline-record"/);
+  assertMatch(markup, /<dialog[^>]*aria-labelledby="[^"]+"/);
+  assertNotMatch(markup, /<dialog[^>]* open/);
+  // Its content mounts on first opening: a closed dialog costs the page a
+  // heading and a close button, not a thousand records.
+  assertNotMatch(markup, /pipeline-record|role="tab"/);
+  // The drawer it replaces sat inside the card and made the card inert.
+  assertNotMatch(markup, /<aside|class="pipeline-drawer"| inert/);
+});
+
+Deno.test("the title row holds the heading and the trigger, whatever the run recorded", () => {
+  // A run that failed before it read a paper has no findings, papers or
+  // services, and still has a method: Setup is always there, so the
+  // trigger is too.
+  const bare = runWith({
+    papersDetail: { shown: 0, total: 0, items: [] },
+    acceptedGenes: { shown: 0, total: 0, items: [] },
+    rejectedGenes: { shown: 0, total: 0, items: [] },
+    apis: [],
+  });
+  for (const markup of [html(), render(bare)]) {
+    const open = markup.indexOf('class="pipeline-title-row"');
+    assert(open > -1, "the title row renders");
+    const row = markup.slice(open, markup.indexOf("</div>", open));
+    assertStringIncludes(row, "Last Pipeline Run");
+    assertMatch(row, /<button[^>]*aria-haspopup="dialog"[^>]*>\s*Run details/);
+    assertNotMatch(row, /aria-expanded|aria-controls/);
+  }
+});
+
+Deno.test("the tabs are a tablist with one selected, and only its panel is in the page", () => {
+  const markup = details("findings");
+  assertEquals(markup.match(/role="tablist"/g)?.length, 1);
+  assertEquals(markup.match(/role="tab"/g)?.length, 4);
+  assertEquals(markup.match(/aria-selected="true"/g)?.length, 1);
+  assertEquals(markup.match(/aria-selected="false"/g)?.length, 3);
+  assertEquals(markup.match(/role="tabpanel"/g)?.length, 1);
+  assertMatch(markup, /role="tab"[^>]*aria-selected="true"[^>]*>.*?Findings/s);
+  // One tab stop: the arrows move between tabs.
+  assertEquals(markup.match(/role="tab"[^>]*tabindex="-1"/g)?.length, 3);
+  // Each tab says what it counts, by the list's total.
+  assertMatch(markup, />Papers.*?15</s);
+});
+
+Deno.test("a run with nothing listed has Setup alone", () => {
+  const empty = runWith({
+    acceptedGenes: { total: 0, shown: 0, items: [] },
+    rejectedGenes: { total: 0, shown: 0, items: [] },
+    papersDetail: { total: 0, shown: 0, items: [] },
+    apis: [],
+  });
+  const markup = detailsOf(empty);
+  assertEquals(markup.match(/role="tab"/g)?.length, 1);
+  assertStringIncludes(markup, "Setup");
+  assertNotMatch(markup, /pipeline-record|pipeline-api/);
+});
+
+Deno.test("the services are in the run details, not on the card", () => {
+  // Endpoint paths and HTTP verbs are a maintainer's register, and the
+  // card sits above a Data Sources panel that names the same class of
+  // thing in prose.
+  assertNotMatch(html(), /efetch\.fcgi|pipeline-api/);
+  const services = details("services");
+  assertStringIncludes(services, "E-utilities fetch");
+  assertStringIncludes(services, "/entrez/eutils/efetch.fcgi");
+  // A run that reached only an API still has that tab.
+  const apisOnly = runWith({
+    papersDetail: { shown: 0, total: 0, items: [] },
+    acceptedGenes: { shown: 0, total: 0, items: [] },
+    rejectedGenes: { shown: 0, total: 0, items: [] },
+  });
+  assertEquals(detailTabs(apisOnly).map((entry) => entry.id), [
+    "services",
+    "setup",
+  ]);
+});
+
+Deno.test("Setup holds what left the card: the method, the usage, the step log", () => {
+  const markup = details("setup");
+  for (
+    const text of [
+      "PubMed search",
+      "claude-opus-5",
+      "high effort",
+      "v6",
+      "0.45 to update, 0.65 to add",
+      "Searched PubMed over the last 7 days: 40 papers matched",
+      "Retrieved full text for 10, abstract only for 5",
+    ]
+  ) {
+    assertStringIncludes(markup, text);
+  }
+  // A step that recorded no sentence still has its line in the log.
+  assertStringIncludes(markup, "Nothing to report");
+});
+
+Deno.test("Setup names the fallback, the Batch API and the prompt's bytes only when the run recorded them", () => {
+  assertNotMatch(details("setup"), /Fallback|Batch API|<code/);
+  const full = runWith({
+    config: {
+      ...RUN.config,
+      fallbackModel: "claude-opus-4-8",
+      batch: true,
+      disease: "csvd",
+      promptSha256: "70908abc0302" + "0".repeat(52),
+    },
+  });
+  const markup = detailsOf(full, "setup");
+  assertStringIncludes(markup, "Fallback model");
+  assertStringIncludes(markup, "claude-opus-4-8");
+  assertStringIncludes(markup, "Batch API");
+  // The whole hash: the card showed its first twelve characters.
+  assertMatch(markup, /<code[^>]*>csvd 70908abc03020{52}<\/code>/);
+});
+
+Deno.test("the two quote numbers are reported as two numbers", () => {
+  // `verbatim` asks whether the sentence is in the paper, of every finding;
+  // `cited` asks whether the API attested to that span, which is bounded
+  // by how much prose the model wrote. One averaged rate would report a
+  // quality figure the second number cannot carry.
+  const markup = details("setup");
+  assertStringIncludes(markup, "25 of 26 found in their paper");
+  assertMatch(markup, /8 attested by the model(&#39;|')s own citations/);
+});
+
+Deno.test("token use is reported and the cost is not", () => {
+  const markup = details("setup");
+  assertStringIncludes(markup, "175,584");
+  // The rate is of the input, not of the count beside it: `totalTokens` is
+  // the uncached input plus the output, so "175,584 tokens, 47% served
+  // from cache" read as a share of a number that holds no cached token.
+  assertStringIncludes(markup, "47% of input served from cache");
+  assertNotMatch(details() + html(), /1\.38/);
+});
+
+Deno.test("a step that did the same thing twice lists it twice", () => {
+  // A re-entered step merges its visits' actions, and two visits that
+  // did the same thing produce the same sentence; a text-keyed list
+  // collapsed them.
+  const twice = runWith({
+    steps: [{
+      ...RUN.steps[0],
+      actions: ["Recorded 9 processed PMIDs", "Recorded 9 processed PMIDs"],
+    }],
+  });
+  const rows = detailsOf(twice, "setup").match(/Recorded 9 processed PMIDs/g);
+  assertEquals(rows?.length, 2);
 });
 
 Deno.test("the drawer carries a gene's evidence, not just its name", () => {
@@ -265,7 +416,7 @@ Deno.test("an unrecognised rejection reason is shown whole", () => {
       }],
     },
   };
-  const markup = renderToString(<PipelineRunDetails run={odd} />);
+  const markup = detailsOf(odd);
   assertStringIncludes(
     markup,
     "Error</span>Something the encoding has never seen",
@@ -291,7 +442,7 @@ Deno.test("a gene's Mendelian randomization support is shown when it has it", ()
       items: [{ ...RUN.acceptedGenes.items[0], mendelianRandomization: true }],
     },
   };
-  const markup = renderToString(<PipelineRunDetails run={supported} />);
+  const markup = detailsOf(supported);
   assertMatch(markup, shown);
 });
 
@@ -313,7 +464,7 @@ Deno.test("a citation-only gene says so in place of the claims it did not make",
       }],
     },
   };
-  const drawer = renderToString(<PipelineRunDetails run={cited} />);
+  const drawer = detailsOf(cited);
   assertStringIncludes(drawer, "Written as");
   assertStringIncludes(drawer, "Citation only");
   assert(!details().includes("Citation only"));
@@ -393,93 +544,9 @@ Deno.test("a paper with no retrievable text does not read as 'none'", () => {
       }],
     },
   };
-  const markup = renderToString(<PipelineRunDetails run={none} />);
+  const markup = detailsOf(none);
   assertStringIncludes(markup, "No text retrieved");
   assert(!markup.includes(">none<"));
-});
-
-Deno.test("a run that recorded no detail offers no drawer", () => {
-  // A run that failed before it processed a paper records nothing for
-  // the drawer to show; a trigger reading "Run details" over an empty
-  // panel is a promise it cannot keep. The
-  // services it called are part of that record now, so a run with
-  // nothing to show has none of those either.
-  const bare = {
-    ...RUN,
-    papersDetail: { shown: 0, total: 0, items: [] },
-    acceptedGenes: { shown: 0, total: 0, items: [] },
-    rejectedGenes: { shown: 0, total: 0, items: [] },
-    apis: [],
-  };
-  const markup = renderToString(<PipelineRunView run={bare} />);
-  assert(!markup.includes("Run details"));
-  assert(!markup.includes('id="pipeline-run-drawer"'));
-  // The rest of the widget is unaffected.
-  assertStringIncludes(markup, "Search PubMed");
-});
-
-Deno.test("the drawer trigger sits on the title row, and the row survives without it", () => {
-  // F26: the trigger used to sit at the foot of the card, ~600px from the
-  // drawer's close button at the top of the same box. It now shares
-  // .pipeline-title-row with the heading -- checked here as markup, since
-  // a CSS-only assertion (`.pipeline-title-row` is flex with
-  // space-between, see styles_contract_test.ts) would pass even if the
-  // trigger were rendered anywhere else in the document, or if the row
-  // wrapped nothing but itself.
-  const withTrigger = renderToString(<PipelineRunView run={RUN} />);
-  const rowOpen = withTrigger.indexOf('class="pipeline-title-row"');
-  const rowClose = withTrigger.indexOf("</div>", rowOpen);
-  assert(rowOpen > -1, "the title row renders");
-  const row = withTrigger.slice(rowOpen, rowClose);
-  assertStringIncludes(row, "Last Pipeline Run");
-  assertStringIncludes(row, "pipeline-drawer-trigger");
-
-  // The row's own layout must not depend on the trigger: a run with
-  // nothing for the drawer to show renders the heading alone, still
-  // inside .pipeline-title-row rather than the row disappearing with it.
-  const bare = {
-    ...RUN,
-    papersDetail: { shown: 0, total: 0, items: [] },
-    acceptedGenes: { shown: 0, total: 0, items: [] },
-    rejectedGenes: { shown: 0, total: 0, items: [] },
-    apis: [],
-  };
-  const withoutTrigger = renderToString(<PipelineRunView run={bare} />);
-  const bareRowOpen = withoutTrigger.indexOf('class="pipeline-title-row"');
-  assert(bareRowOpen > -1, "the title row still renders with no trigger");
-  const bareRowClose = withoutTrigger.indexOf("</div>", bareRowOpen);
-  const bareRow = withoutTrigger.slice(bareRowOpen, bareRowClose);
-  assertStringIncludes(bareRow, "Last Pipeline Run");
-  assert(!bareRow.includes("pipeline-drawer-trigger"));
-});
-
-Deno.test("the external services list is in the drawer, not on the card", () => {
-  // Endpoint paths and HTTP verbs are a maintainer's register, and the
-  // card sits above a Data Sources panel that names the same class of
-  // thing in prose.
-  const markup = html();
-  const drawerAt = markup.indexOf('id="pipeline-run-drawer"');
-  const servicesAt = markup.indexOf("External services");
-  assert(drawerAt > -1, "the drawer renders");
-  assertEquals(servicesAt, -1, "closed drawer defers its details");
-  assertStringIncludes(details(), "External services");
-});
-
-Deno.test("a run that reached only an API still has a drawer", () => {
-  // The services moved into the drawer, so they are on their own enough
-  // of a record to open it.
-  const apisOnly = {
-    ...RUN,
-    papersDetail: { shown: 0, total: 0, items: [] },
-    acceptedGenes: { shown: 0, total: 0, items: [] },
-    rejectedGenes: { shown: 0, total: 0, items: [] },
-  };
-  const markup = renderToString(<PipelineRunView run={apisOnly} />);
-  assertStringIncludes(markup, "Run details");
-  assertStringIncludes(
-    renderToString(<PipelineRunDetails run={apisOnly} />),
-    "External services",
-  );
 });
 
 Deno.test("one identifier reads one way: every PMID is named and linked alike", () => {
@@ -551,17 +618,6 @@ Deno.test("duplicate step ordinals still reference distinct detail panels", () =
   }
 });
 
-Deno.test("empty deferred details render no record sections or service inventory", () => {
-  const empty = {
-    ...RUN,
-    acceptedGenes: { total: 0, shown: 0, items: [] },
-    rejectedGenes: { total: 0, shown: 0, items: [] },
-    papersDetail: { total: 0, shown: 0, items: [] },
-    apis: [],
-  };
-  assertEquals(renderToString(<PipelineRunDetails run={empty} />), "");
-});
-
 Deno.test("deferred paper records preserve retrieval failures", () => {
   const failed = {
     ...RUN,
@@ -573,7 +629,7 @@ Deno.test("deferred paper records preserve retrieval failures", () => {
       }],
     },
   };
-  const markup = renderToString(<PipelineRunDetails run={failed} />);
+  const markup = detailsOf(failed);
   assertStringIncludes(markup, "Publisher request timed out");
   assertStringIncludes(markup, "Reason");
 });
@@ -589,26 +645,20 @@ const withPaper = (
 });
 
 Deno.test("a refused paper names the classifier that declined it", () => {
-  const markup = renderToString(
-    <PipelineRunDetails
-      run={withPaper({
-        error: "Refused by safety classifier for PMID 32517579 (category: bio)",
-        refusal: "bio",
-        extractionModel: null,
-        geneCount: 0,
-        rejectedCount: 0,
-      })}
-    />,
-  );
+  const markup = detailsOf(withPaper({
+    error: "Refused by safety classifier for PMID 32517579 (category: bio)",
+    refusal: "bio",
+    extractionModel: null,
+    geneCount: 0,
+    rejectedCount: 0,
+  }));
   assertStringIncludes(markup, "Biology safety classifier");
   assertStringIncludes(markup, "Declined by");
 });
 
 Deno.test("a paper the fallback served names its model, and only that one", () => {
-  const served = renderToString(
-    <PipelineRunDetails
-      run={withPaper({ extractionModel: "claude-opus-4-8", refusal: "bio" })}
-    />,
+  const served = detailsOf(
+    withPaper({ extractionModel: "claude-opus-4-8", refusal: "bio" }),
   );
   assertStringIncludes(served, "claude-opus-4-8");
   assertStringIncludes(served, "Biology safety classifier");
@@ -619,17 +669,13 @@ Deno.test("a paper the fallback served names its model, and only that one", () =
 
 Deno.test("a gene's omics evidence reads as the table prints it, without the wire form", () => {
   const [gene] = RUN.acceptedGenes.items;
-  const markup = renderToString(
-    <PipelineRunDetails
-      run={{
-        ...RUN,
-        acceptedGenes: {
-          ...RUN.acceptedGenes,
-          items: [{ ...gene, omicsEvidence: ["TWAS;Q: a*, b", "MAGMA"] }],
-        },
-      }}
-    />,
-  );
+  const markup = detailsOf({
+    ...RUN,
+    acceptedGenes: {
+      ...RUN.acceptedGenes,
+      items: [{ ...gene, omicsEvidence: ["TWAS;Q: a*, b", "MAGMA"] }],
+    },
+  });
   assertStringIncludes(markup, "TWAS (Q: a, b)");
   assertStringIncludes(markup, "MAGMA");
   assert(!markup.includes("TWAS;Q"));
