@@ -5,7 +5,7 @@ Jinja2-rendered Markdown body.
 """
 
 import logging
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 from types import MappingProxyType
@@ -69,9 +69,32 @@ _MODE_LABELS: Final[Mapping[str | None, str]] = MappingProxyType(
 )
 
 
-def _mode_label(cfg: dict[str, Any]) -> str:
+# What one mode of a multi-mode invocation is called when it ran alone. The
+# dispatcher wraps a failed --pubmed run in the combined shape, and
+# "Combined" over a single mode named nothing.
+_PIPELINE_LABELS: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        "pubmed": "PubMed",
+        "clinical_trials": "Clinical Trials",
+        "external_sync": "External Sync",
+        "annotation_sync": "Annotation Sync",
+    }
+)
+
+# The one mode that runs a model; a digest without it names none.
+_EXTRACTING_PIPELINE: Final[str] = "pubmed"
+
+
+def _pipeline_names(run_data: Mapping[str, Any]) -> list[str]:
+    """The modes a combined digest covers, in the order they ran."""
+    return [str(p.get("name", "")) for p in run_data.get("pipelines") or []]
+
+
+def _mode_label(cfg: dict[str, Any], pipelines: Sequence[str] = ()) -> str:
     """Human-readable label for a pipeline run mode."""
     label = _MODE_LABELS.get(cfg.get("mode"), "Standard")
+    if cfg.get("mode") == "combined" and len(pipelines) == 1:
+        label = _PIPELINE_LABELS.get(pipelines[0], label)
     if cfg.get("dry_run"):
         label += " (Dry Run)"
     return label
@@ -81,7 +104,8 @@ def _build_template_context(run_data: PipelineRunData) -> dict[str, Any]:
     """Extract template variables from PipelineRunData."""
     cfg = run_data.get("pipeline_config", {})
     is_standard = cfg.get("mode") is None
-    mode_label = _mode_label(cfg)
+    names = _pipeline_names(run_data)
+    mode_label = _mode_label(cfg, names)
 
     # Combined / multi-pipeline invocations carry a ``pipelines`` list.
     # Cost / papers / genes aren't always applicable in that shape, so we
@@ -117,6 +141,8 @@ def _build_template_context(run_data: PipelineRunData) -> dict[str, Any]:
         "database": run_data.get("database") or {},
         "batch_warnings": run_data.get("batch_validation_warnings", []),
         "pipelines": pipelines,
+        # A refresh runs no model, so a digest of refreshes alone names none.
+        "show_model": not pipelines or _EXTRACTING_PIPELINE in names,
     }
 
 
@@ -128,7 +154,7 @@ def _render_markdown(run_data: PipelineRunData) -> str:
 
 def _make_send_notification(
     config: PipelineConfig,
-) -> Callable[[str, str], None]:
+) -> Callable[[str, str, NotifyType], None]:
     """Return a Tenacity-wrapped sender function bound to *config*."""
     ap = apprise.Apprise()
     for url in map(str.strip, config.notify_urls.split(",")):
@@ -143,7 +169,7 @@ def _make_send_notification(
         ),
         reraise=True,
     )
-    def _send(title: str, body_text: str) -> None:
+    def _send(title: str, body_text: str, notify_type: NotifyType) -> None:
         # Apprise reports failure through its return value, not an
         # exception: False when any service failed, None when no service
         # could be loaded from the URLs. Tenacity retries on exceptions
@@ -153,7 +179,7 @@ def _make_send_notification(
             title=title,
             body=body_text,
             body_format=NotifyFormat.MARKDOWN,
-            notify_type=NotifyType.INFO,
+            notify_type=notify_type,
         )
         if delivered is not True:
             raise RuntimeError("Apprise reported a delivery failure")
@@ -184,7 +210,14 @@ def send_pipeline_notification(
         )
         return
 
-    mode_label = _mode_label(run_data.get("pipeline_config", {}))
+    mode_label = _mode_label(
+        run_data.get("pipeline_config", {}), _pipeline_names(run_data)
+    )
+    # Apprise colours and routes on the type, and a failed invocation sent
+    # as INFO is the digest nobody opens.
+    failed = any(
+        p.get("status") == "failed" for p in run_data.get("pipelines") or []
+    )
     # UTC matches the report body's `timestamp` field \u2014 otherwise the
     # notification title can show a different date than the run's own log.
     date_str = datetime.now(UTC).strftime("%Y-%m-%d")
@@ -199,7 +232,7 @@ def send_pipeline_notification(
     try:
         body_md = _render_markdown(run_data)
         sender = _make_send_notification(config)
-        sender(title, body_md)
+        sender(title, body_md, NotifyType.FAILURE if failed else NotifyType.INFO)
         logger.info("Pipeline notification sent successfully")
     except Exception as exc:
         logger.error(f"Failed to send pipeline notification: {exc}")

@@ -260,7 +260,12 @@ def build_sync_report(
     """
     metrics = summary.get("metrics") or {}
     errors = [str(error) for error in summary.get("errors") or []]
-    sources = build_sources(mode, metrics)
+    # No counts at all is a refresh that stopped before it could report --
+    # an exception or the timeout, through `_failure_summary` -- and a
+    # source built from nothing is 0/0/0, which the page words as "nothing
+    # to do". A source never reached, or one that wrote rows before the
+    # failure, is not that; the list is left empty and the errors say why.
+    sources = build_sources(mode, metrics) if metrics else []
     return SyncRunReport(
         run_timestamp=run_timestamp,
         mode=mode,

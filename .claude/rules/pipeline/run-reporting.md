@@ -146,6 +146,14 @@ document. `test_the_committed_run_report_is_what_the_export_writes` holds
 `data/pipeline_run.json` to that pass: a committed file it would change is one
 the next export rewrites.
 
+**A failed invocation's digest says why and how long.** A run that raises
+reaches the notifier as a summary, not as run data, and the digest read
+"Combined (0.0s)" over "pubmed: failed (1 error)". `_run_selected_pipelines`
+times the invocation, `_failure_summary` keeps an error's `detail` in its one
+string, the template prints a failed mode's first error, a single mode is
+labelled by its name rather than "Combined", a digest of refreshes alone names
+no model, and Apprise is sent `FAILURE` when any mode failed.
+
 ## Failures are classified, not dumped
 
 `pipeline/run_errors.py`'s `classify()` is the one place an exception becomes a

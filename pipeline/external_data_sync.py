@@ -169,17 +169,6 @@ async def get_all_pmids() -> list[str]:
     return sorted(all_pmids)
 
 
-_MAX_ERRORS_PER_SOURCE: int = 10
-
-
-def _append_errors_truncated(target: list[str], source: list[str], label: str) -> None:
-    """Append errors from source to target, truncating with a message."""
-    target.extend(source[:_MAX_ERRORS_PER_SOURCE])
-    if len(source) > _MAX_ERRORS_PER_SOURCE:
-        suppressed = len(source) - _MAX_ERRORS_PER_SOURCE
-        target.append(f"... and {suppressed} more {label} errors suppressed")
-
-
 async def _sync_lookup_caches(
     result: ExternalDataSyncResult,
     *,
@@ -208,7 +197,7 @@ async def _sync_lookup_caches(
     result.ncbi_fetched = ncbi_result.fetched
     result.ncbi_cached = ncbi_result.cached
     result.ncbi_failed = ncbi_result.failed
-    _append_errors_truncated(result.errors, ncbi_result.errors, "NCBI")
+    result.errors.extend(ncbi_result.errors)
 
     # A gene a run inserted has no chromosomal band -- extraction is not asked
     # for one -- so it published as "(unknown)" and reached no chromosome of
@@ -225,7 +214,7 @@ async def _sync_lookup_caches(
     result.uniprot_fetched = uniprot_result.fetched
     result.uniprot_cached = uniprot_result.cached
     result.uniprot_failed = uniprot_result.failed
-    _append_errors_truncated(result.errors, uniprot_result.errors, "UniProt")
+    result.errors.extend(uniprot_result.errors)
 
     if pmids:
         logger.info("Syncing PubMed citations...")
@@ -233,7 +222,7 @@ async def _sync_lookup_caches(
         result.pubmed_fetched = pubmed_result.fetched
         result.pubmed_cached = pubmed_result.cached
         result.pubmed_failed = pubmed_result.failed
-        _append_errors_truncated(result.errors, pubmed_result.errors, "PubMed")
+        result.errors.extend(pubmed_result.errors)
     else:
         logger.info("No PMIDs to sync")
 
@@ -416,7 +405,7 @@ async def sync_all_annotations(
             result.clinvar_fetched = clinvar.fetched
             result.clinvar_cached = clinvar.cached
             result.clinvar_failed = clinvar.failed
-            _append_errors_truncated(result.errors, clinvar.errors, "ClinVar")
+            result.errors.extend(clinvar.errors)
 
             # Must follow ClinVar: Orphadata is keyed by ORPHAcode and the
             # gene->disease direction is a 404.
@@ -425,22 +414,20 @@ async def sync_all_annotations(
             result.orphadata_fetched = orphadata.fetched
             result.orphadata_cached = orphadata.cached
             result.orphadata_failed = orphadata.failed
-            _append_errors_truncated(result.errors, orphadata.errors, "Orphadata")
+            result.errors.extend(orphadata.errors)
 
             logger.info("Syncing Open Targets annotations...")
             opentargets = await sync_opentargets_annotations(genes, config=config)
             result.opentargets_fetched = opentargets.fetched
             result.opentargets_cached = opentargets.cached
             result.opentargets_failed = opentargets.failed
-            _append_errors_truncated(
-                result.errors, opentargets.errors, "Open Targets"
-            )
+            result.errors.extend(opentargets.errors)
 
             logger.info("Verifying trial drug mechanisms...")
             drugs = await sync_trial_drug_annotations(config=config)
             result.drugs_written = drugs.fetched
             result.drugs_failed = drugs.failed
-            _append_errors_truncated(result.errors, drugs.errors, "drug")
+            result.errors.extend(drugs.errors)
 
             logger.info("Annotation sync complete")
             logger.info(result.summary())

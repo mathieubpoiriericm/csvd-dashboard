@@ -3088,11 +3088,20 @@ async def run_clinical_trials_pipeline(
 
 
 def _failure_summary(name: str, error: BaseException) -> dict[str, Any]:
+    """The summary of a mode that raised.
+
+    An error that carries a `detail` -- `NoPaperProcessedError`'s is the
+    first paper's own error -- keeps it in the one string, since the
+    message alone ("None of the 3 new papers could be processed") names
+    the outcome and not the cause.
+    """
+    message = str(error)
+    detail = getattr(error, "detail", None)
     return {
         "name": name,
         "status": "failed",
         "metrics": {},
-        "errors": [str(error)],
+        "errors": [f"{message} ({detail})" if detail else message],
     }
 
 
@@ -3294,6 +3303,7 @@ async def _run_selected_pipelines(
     summaries: list[dict[str, Any]] = []
     pubmed_run_data: PipelineRunData | None = None
     pubmed_early_exit = False
+    invocation_started = time.monotonic()
 
     try:
         if args.pubmed:
@@ -3373,6 +3383,9 @@ async def _run_selected_pipelines(
         elif summaries and not (pubmed_only and pubmed_early_exit):
             combined: dict[str, Any] = {
                 "timestamp": datetime.now(tz=UTC).isoformat(),
+                # The digest prints it; without the key every combined
+                # digest read "(0.0s)", a failed run's included.
+                "total_processing_time": time.monotonic() - invocation_started,
                 "pipelines": summaries,
                 "pipeline_config": {
                     "mode": "combined",

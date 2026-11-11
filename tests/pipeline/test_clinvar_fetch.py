@@ -864,6 +864,35 @@ class TestRatePacing:
 
         assert result.status_code == 200
 
+    async def test_a_retried_429_is_recorded_as_a_retry(self, mocker) -> None:
+        # A retry is another call to the transport, so the response hook
+        # cannot see one: without the note the refresh published "10
+        # failed" and no retry over a source that had fetched every gene.
+        from pipeline.api_telemetry import current_recorder, reset_recorder
+        from pipeline.config import PipelineConfig
+
+        reset_recorder()
+        mocker.patch.object(clinvar, "_RATE_LIMIT_BACKOFF", 0.0)
+        request = httpx.Request(
+            "GET", "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
+        )
+        responses = [
+            httpx.Response(429, request=request),
+            httpx.Response(200, text="{}", request=request),
+        ]
+
+        async def send() -> httpx.Response:
+            return responses.pop(0)
+
+        await clinvar._send_throttled(send, PipelineConfig(), "esearch")
+
+        (row,) = current_recorder().records()
+        assert (row.endpoint, row.method, row.retries) == (
+            "/entrez/eutils/esearch.fcgi",
+            "GET",
+            1,
+        )
+
     async def test_a_persistent_429_is_returned_rather_than_retried_forever(
         self, mocker
     ) -> None:

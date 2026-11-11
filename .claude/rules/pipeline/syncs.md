@@ -77,6 +77,23 @@ are what publish it.
   best-effort and swallowed on failure, as `_record_failed_run` is — the
   database is often the thing that just failed, and raising there would replace
   the refresh's real error on its way up.
+- **A refresh that reported no counts lists no sources.** An exception or the
+  3600 s timeout reaches the record through `_failure_summary`, whose metrics
+  are empty, and a source built from nothing is 0/0/0, which the page words as
+  "nothing to do": a source never reached, or one that wrote 87 rows before the
+  failure, read as having had no work. `build_sync_report` leaves the list empty
+  then and the errors say why.
+- **The error list is every error, and the record's own cap is the only cap.**
+  Each sync used to cut a source's errors to ten and a "... and N more
+  suppressed" line, so 50 failed genes published `failed: 50` beside `errors:
+  {shown: 11, total: 11}` and the 200 cap that states what it left out was
+  unreachable.
+- **A retry is noted where it is made.** The response hook counts each attempt
+  as a call and cannot tell a retry from a new one, and only `ncbi_http` and the
+  Anthropic client called `note_retry`: the 2026-11-03 trials refresh published
+  "41 calls, 14 failed" and no retry over a search that lost no page.
+  `_fetch_page_with_retry` and ClinVar's `_send_throttled` note theirs now. A
+  retried 429 is still an error on its row, as it is for E-utilities.
 
 ## Machine-fetched annotations
 

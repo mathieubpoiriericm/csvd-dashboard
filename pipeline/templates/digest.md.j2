@@ -1,5 +1,7 @@
 **{{ run_label }} {{ mode_label }}** ({{ duration }})
+{% if show_model %}
 Model: {{ model }} | Effort: {{ effort }}
+{% endif %}
 {% if pipelines %}
 {% for p in pipelines -%}
 - **{{ p.name }}**: {{ p.status }}
@@ -7,6 +9,9 @@ Model: {{ model }} | Effort: {{ effort }}
 {{ k }}={{ v }}{% if not loop.last %}, {% endif %}
 {%- endfor %}{% endif %}
 {%- if p.errors %} ({{ p.errors | length }} error{{ 's' if p.errors | length != 1 else '' }}){% endif %}
+{%- if p.status == 'failed' and p.errors %}
+
+  {{ p.errors[0] }}{% endif %}
 
 {% endfor %}
 {% else %}
