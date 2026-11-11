@@ -102,9 +102,8 @@ the Opus 5.5 cassettes cover:
 n=46 cannot separate the two -- the difference is two genes, one of them a
 prompt-named one -- so read it as "no worse", which is all a fallback needs: a
 paper it serves is otherwise not extracted at all. It is a record, not a gate.
-Those cassettes were prompt v7's; the v8 re-record (2026-11-08) measures
-Opus 5.5 at 40/46 pooled and 21/26 clean, and Opus 4.8 has not been measured
-on v8.
+Those cassettes were prompt v7's; the v8 re-record (2026-11-11) measures Opus
+5.5 at 40/46 pooled and 22/26 clean, and Opus 4.8 has not been measured on v8.
 **One of its seven answers double-encoded the tool input** -- the gene-densest
 paper, PMID 37069360, came back as `{"genes": "<JSON of the whole object>"}` --
 which validation refused into a paid retry until `_decoded_input` in

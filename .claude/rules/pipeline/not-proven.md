@@ -22,14 +22,16 @@ MeSH-branch figures are pinned so widening a term list in the belief that it
 helps recall fails loudly). `tests/pipeline/csvd/test_extraction_golden.py`
 replays ten cassettes and asserts recall over the gold genes a paper's retrieved
 text actually names, reported apart for the 13 gold genes the prompt itself
-names -- **quote the clean 81%, not the pooled 85%** (prompt v8 as tightened
-on 2026-11-09, re-recorded that day; the v8 recordings before it measured the
-same 81% and a pooled 87%, and v7 81% and 85%). Its `_RECALL_BASELINE` is
-raised when the prompt is widened, never to turn a red run green; three floors
-came down with the move to Opus 5.5, to what that re-record measured, and the
-module records the genes they lost. Every one of those was a gene Opus 5
-reported below the update floor, bar one: scored after the floor, Opus 5 and
-Opus 5.5 recover 38/46 and 39/46. What neither proves:
+names -- **quote the clean 85%, not the pooled 87%** (prompt v8, re-recorded
+2026-11-11; the three v8 recordings before it measured a clean 81% and a pooled
+85% to 87%, and v7 81% and 85% -- one or two genes the prompt never names come
+and go between recordings with nothing changed, so the clean figure is 81% to
+85%, not a point). Its `_RECALL_BASELINE` is raised when the prompt is widened,
+never to turn a red run green; three floors came down with the move to Opus 5.5,
+to what that re-record measured, and the module records the genes they lost.
+Every one of those was a gene Opus 5 reported below the update floor, bar one:
+scored after the floor, Opus 5 and Opus 5.5 recover 38/46 and 39/46. What
+neither proves:
 
 - **Precision, anywhere.** The gold standard is a curated table, not a per-paper
   answer key, so a gene absent from it is unreviewed rather than wrong (the

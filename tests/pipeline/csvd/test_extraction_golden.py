@@ -440,6 +440,20 @@ _RECALL_BASELINE: Final[dict[str, float]] = {
 # (15/16, its floor), the run-to-run swing recorded above. Items: 59, none
 # longer than 60 characters; the Experimental ones are model names such as
 # "Col4a1+/SVC (G1064D) mice" where the last recording had a sentence.
+#
+# Re-recorded on 2026-11-11, and not because anything about extraction moved:
+# the recording above was made in a git worktree and never copied back, so it
+# was lost when the worktree was removed and the checkout was left replaying
+# the one before it against a prompt it had not been sent. Same model, prompt
+# and effort, the same fixture text (every manifest hash matched), under
+# anthropic 2.8.0 with the tool schema's enum types stated again (see
+# `_with_enum_types` in pipeline/config.py). Pooled 40/46, clean 22/26,
+# prompt-named 18/20, every paper at or above its floor: 35511193 recovered
+# PLEKHG1 (4/4) and 37069360 is at its floor without FOXF2 (15/16), the two
+# genes that come and go between recordings. Scored after the update floor,
+# 39/46. The floors stay where they are, for the reason they did on
+# 2026-11-08. Items: 51, one longer than 60 characters; every one of the 133
+# quotes is verbatim in its paper. Eight calls, $2.58.
 
 
 def test_every_selected_paper_has_a_recall_baseline() -> None:
