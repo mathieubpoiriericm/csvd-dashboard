@@ -120,16 +120,16 @@ about the request, its `ServedBy` or its accounting changed.
 `claude-opus-4-8` as a direct streaming request (`model=`, `declined=` above)
 once the batch is collected -- never a second Opus 5.5 attempt, which has just
 declined it. The rescues run beside the batch's own validation, under a
-semaphore of `max_concurrent_papers` and no rate limiter, and the batch's state
-file is cleared only after them, so a crash during one still retrieves the
-batch. A rescued paper goes through `_validate_batch_paper` with its `ServedBy`,
-so it is validated, checkpointed and counted like any batch paper and carries
-`extraction_model` and `refusal` as a streaming fallback does, which is what
-raises the `model_fallback` warning. Its tokens are billed at the streaming
-rate, not the batch's half, so they are counted in `streamed_token_usage` too,
-kept or not. A paper Opus 4.8 declines as well fails with the streaming
-sentence plus the fallback's own category ("... (category: bio;
-claude-opus-4-8 also declined: cyber)"), its `refusal` still the batch's
+semaphore of `max_concurrent_papers` and no rate limiter, and the run's papers
+come off the batch's state file only after them, so a crash during one still
+retrieves the batch. A rescued paper goes through `_validate_batch_paper` with
+its `ServedBy`, so it is validated, checkpointed and counted like any batch
+paper and carries `extraction_model` and `refusal` as a streaming fallback does,
+which is what raises the `model_fallback` warning. Its tokens are billed at the
+streaming rate, not the batch's half, so they are counted in
+`streamed_token_usage` too, kept or not. A paper Opus 4.8 declines as well fails
+with the streaming sentence plus the fallback's own category ("... (category:
+bio; claude-opus-4-8 also declined: cyber)"), its `refusal` still the batch's
 category; any other rescue failure fails that paper alone with its own message.
 Either way the next run whose window still covers it retries it.
 

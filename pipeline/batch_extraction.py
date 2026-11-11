@@ -239,7 +239,8 @@ def _claim_pending(
     changed (a PDF that now parses, a new truncation limit), and collecting
     the old answer would then check its quotes against a document it never
     saw. The first batch holding a paper claims it, and a batch that claims
-    nothing is dropped, so it is never even looked up.
+    nothing is left out here, so it is never even looked up; it stays on
+    record for the run whose papers it holds.
     """
     claimed: set[str] = set()
     out: list[tuple[PendingBatch, set[str]]] = []
@@ -303,7 +304,7 @@ async def _fetch_recorded_entries(
     The API keeps results for 29 days. Past that an ended batch has no
     ``results_url``, and its papers have to be paid for again.
     """
-    if getattr(batch, "results_url", None) is None:
+    if batch.results_url is None:
         logger.warning(
             "Recorded batch %s has ended but its results are no longer "
             "available; its papers will be submitted again.",
@@ -345,9 +346,12 @@ async def submit_and_collect(
     for the papers it was sent the same text for, instead of paying for
     them again; only the rest are submitted. A recorded batch the API no
     longer knows, or whose results have expired, is logged and its papers
-    submitted again. When nothing new is submitted the file is left as it
-    was, and this function never clears it: the caller does, once the
-    results are safely stored. With ``state_path`` None nothing is read or
+    submitted again. When a new batch is recorded, every other recorded
+    batch is written back beside it, claimed by this call or not: one
+    window's run must not erase a batch paid for by another's. When nothing
+    new is submitted the file is left as it was. This function never takes
+    a paper off the record: the caller does (``batch_state.forget``), once
+    its result is safely stored. With ``state_path`` None nothing is read or
     written and the API calls are exactly those of a plain submission.
     """
     # Shared with the streaming path so the key precheck and the
@@ -365,19 +369,22 @@ async def submit_and_collect(
         run_fingerprint = (
             checkpoint.fingerprint(config) if state_path is not None else {}
         )
-        claimed = (
-            _claim_pending(batch_state.load(state_path, run_fingerprint), documents)
+        recorded = (
+            batch_state.load(state_path, run_fingerprint)
             if state_path is not None
             else []
         )
+        claimed = _claim_pending(recorded, documents)
 
         # Entries already in hand, and batches still to be polled, each
         # with the papers it is collected for (None: all of them).
         entries: list[Any] = []
         to_poll: list[tuple[str, set[str] | None]] = []
-        # The recorded batches that will answer for some of this run's
-        # papers; they are written back beside any new batch.
-        kept: list[PendingBatch] = []
+        # Recorded batches with nothing left to retrieve: the API no longer
+        # knows them, or their results have expired. Only these are left
+        # out when the file is written back; every other record, claimed by
+        # this run or not, is still paid for and stays.
+        gone: set[str] = set()
         covered: set[str] = set()
         for pending, pmids in claimed:
             try:
@@ -388,10 +395,12 @@ async def submit_and_collect(
                     "will be submitted again.",
                     pending.batch_id,
                 )
+                gone.add(pending.batch_id)
                 continue
             if current.processing_status == "ended":
                 collected = await _fetch_recorded_entries(client, current, pmids)
                 if collected is None:
+                    gone.add(pending.batch_id)
                     continue
                 entries.extend(collected)
             else:
@@ -402,7 +411,6 @@ async def submit_and_collect(
                 len(pmids),
                 pending.batch_id,
             )
-            kept.append(pending)
             covered |= pmids
 
         remainder = [r for r in requests if r["custom_id"] not in covered]
@@ -421,7 +429,20 @@ async def submit_and_collect(
                         for r in remainder
                     },
                 )
-                batch_state.save(state_path, run_fingerprint, [*kept, submitted])
+                kept = [p for p in recorded if p.batch_id not in gone]
+                try:
+                    batch_state.save(state_path, run_fingerprint, [*kept, submitted])
+                except OSError:
+                    # The batch is already paid for; ending the run here
+                    # would lose it as surely as the crash this guards
+                    # against, so it is polled unrecorded, as the
+                    # checkpoint hook carries on past an unwritable file.
+                    logger.warning(
+                        "Could not record batch %s; a crash before its "
+                        "results are collected will lose it",
+                        batch.id,
+                        exc_info=True,
+                    )
             to_poll.append((batch.id, None))
 
         for batch_id, pmids in to_poll:

@@ -7,6 +7,7 @@ import json
 import logging
 import signal
 from pathlib import Path
+from types import SimpleNamespace
 from typing import cast
 from unittest.mock import AsyncMock, MagicMock
 
@@ -15,7 +16,8 @@ import httpx
 import pytest
 
 import pipeline.main as pipeline_main
-from pipeline import checkpoint
+from pipeline import batch_state, checkpoint
+from pipeline.batch_state import PendingBatch
 from pipeline.citations import current_tally, report_provenance, reset_tally
 from pipeline.config import PipelineConfig
 from pipeline.database import DatabaseConfigError
@@ -1000,19 +1002,127 @@ class TestCheckpointResume:
 
         assert not Path(config.checkpoint_file).exists()
 
-    async def test_a_batch_run_clears_its_state_once_every_paper_is_validated(
+    @staticmethod
+    def _record_batch(config: PipelineConfig, *pmids: str) -> None:
+        """Put one recorded batch on file, holding *pmids*."""
+        batch_state.save(
+            config.batch_state_file,
+            checkpoint.fingerprint(config),
+            [PendingBatch("msgbatch_old", {pmid: "ab" for pmid in pmids})],
+        )
+
+    @staticmethod
+    def _on_record(config: PipelineConfig) -> dict[str, set[str]]:
+        return {
+            p.batch_id: set(p.document_sha256)
+            for p in batch_state.load(
+                config.batch_state_file, checkpoint.fingerprint(config)
+            )
+        }
+
+    async def test_a_batch_run_forgets_its_papers_once_every_one_is_validated(
         self, mocker, tmp_path: Path
     ) -> None:
         config = self._config(tmp_path)
         self._batch_fakes(mocker, {"111": [self._gene()]})
-        Path(config.batch_state_file).parent.mkdir(parents=True, exist_ok=True)
-        Path(config.batch_state_file).write_text("[]")
+        self._record_batch(config, "111")
 
         await pipeline_main._process_new_pmids_via_batch(
             ["111"], PipelineMetrics(), config, MagicMock()
         )
 
         assert not Path(config.batch_state_file).exists()
+
+    async def test_a_batch_run_keeps_the_papers_it_did_not_claim_on_record(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        # A narrower window's run over a batch a wider one paid for: 222 is
+        # still that batch's to answer.
+        config = self._config(tmp_path)
+        self._batch_fakes(mocker, {"111": [self._gene()]})
+        self._record_batch(config, "111", "222")
+
+        await pipeline_main._process_new_pmids_via_batch(
+            ["111"], PipelineMetrics(), config, MagicMock()
+        )
+
+        assert self._on_record(config) == {"msgbatch_old": {"222"}}
+
+    async def test_a_disjoint_batch_run_leaves_another_window_s_record_intact(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        config = self._config(tmp_path)
+        self._batch_fakes(mocker, {"333": [self._gene()]})
+        self._record_batch(config, "111", "222")
+
+        await pipeline_main._process_new_pmids_via_batch(
+            ["333"], PipelineMetrics(), config, MagicMock()
+        )
+
+        assert self._on_record(config) == {"msgbatch_old": {"111", "222"}}
+
+    async def test_a_paper_whose_validation_failed_stays_on_record(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        # Its batch answer is good and paid for; NCBI being down is no
+        # reason to pay for it again on the next run.
+        from pipeline.validation import NcbiUnavailableError
+
+        config = self._config(tmp_path)
+        self._batch_fakes(
+            mocker, {"111": [self._gene()], "222": [self._gene("HTRA1")]}
+        )
+        self._record_batch(config, "111", "222")
+
+        async def _validate(genes, metrics, config):
+            if genes[0].gene_symbol == "NOTCH3":
+                raise NcbiUnavailableError("NCBI down")
+            return genes, []
+
+        mocker.patch("pipeline.main._validate_genes", new=_validate)
+
+        await pipeline_main._process_new_pmids_via_batch(
+            ["111", "222"], PipelineMetrics(), config, MagicMock()
+        )
+
+        assert self._on_record(config) == {"msgbatch_old": {"111"}}
+
+    async def test_an_entry_with_no_usable_result_is_forgotten(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        # Absent from the result map: errored, expired, unparseable. Kept on
+        # record it would be replayed as the same failure for 29 days.
+        config = self._config(tmp_path)
+        self._batch_fakes(mocker, {"111": [self._gene()]})
+        self._record_batch(config, "111", "222")
+
+        batch = await pipeline_main._process_new_pmids_via_batch(
+            ["111", "222"], PipelineMetrics(), config, MagicMock()
+        )
+
+        assert not Path(config.batch_state_file).exists()
+        failed = next(r for r in batch.results if r.pmid == "222")
+        assert failed.error == "no result returned by the batch"
+
+    async def test_a_paper_whose_fetch_failed_stays_on_record(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        config = self._config(tmp_path)
+        self._batch_fakes(mocker, {"111": [self._gene()]})
+        self._record_batch(config, "111", "222")
+
+        async def fetch(pmid, semaphore):
+            if pmid == "222":
+                raise httpx.ConnectError("down")
+            return ("text", True, "europepmc")
+
+        mocker.patch("pipeline.main._fetch_paper_text_for_batch", new=fetch)
+
+        await pipeline_main._process_new_pmids_via_batch(
+            ["111", "222"], PipelineMetrics(), config, MagicMock()
+        )
+
+        assert self._on_record(config) == {"msgbatch_old": {"222"}}
 
     async def test_a_batch_run_keeps_its_state_when_validation_crashes(
         self, mocker, tmp_path: Path
@@ -1021,8 +1131,7 @@ class TestCheckpointResume:
         # crash in validation must leave the batch retrievable.
         config = self._config(tmp_path)
         self._batch_fakes(mocker, {"111": [self._gene()]})
-        Path(config.batch_state_file).parent.mkdir(parents=True, exist_ok=True)
-        Path(config.batch_state_file).write_text("[]")
+        self._record_batch(config, "111")
         mocker.patch(
             "pipeline.main._validate_batch_paper",
             new=AsyncMock(side_effect=RuntimeError("boom")),
@@ -1033,7 +1142,141 @@ class TestCheckpointResume:
                 ["111"], PipelineMetrics(), config, MagicMock()
             )
 
-        assert Path(config.batch_state_file).exists()
+        assert self._on_record(config) == {"msgbatch_old": {"111"}}
+
+    async def test_a_dry_run_batch_leaves_a_real_run_s_record_untouched(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        config = self._config(tmp_path)
+        self._batch_fakes(mocker, {"111": [self._gene()]})
+        self._record_batch(config, "111")
+        before = Path(config.batch_state_file).read_bytes()
+
+        await pipeline_main._process_new_pmids_via_batch(
+            ["111"], PipelineMetrics(), config, MagicMock(), use_checkpoint=False
+        )
+
+        assert Path(config.batch_state_file).read_bytes() == before
+
+    @staticmethod
+    def _batch_entry(pmid: str, symbol: str) -> SimpleNamespace:
+        """One succeeded batch entry reporting *symbol*, as the SDK yields it."""
+        tool_call = SimpleNamespace(
+            type="tool_use",
+            name="report_genes",
+            input={
+                "genes": [
+                    {
+                        "gene_symbol": symbol,
+                        "confidence": 0.9,
+                        "source_quote": f"{symbol} variants were associated.",
+                    }
+                ]
+            },
+        )
+        usage = SimpleNamespace(
+            input_tokens=100,
+            output_tokens=10,
+            cache_creation_input_tokens=0,
+            cache_read_input_tokens=0,
+            output_tokens_details=None,
+        )
+        message = SimpleNamespace(
+            content=[tool_call], stop_reason="end_turn", usage=usage, model=None
+        )
+        return SimpleNamespace(
+            custom_id=pmid,
+            result=SimpleNamespace(type="succeeded", message=message),
+        )
+
+    def _sdk_client(self, mocker, monkeypatch) -> MagicMock:
+        """A Batches API holding one ended batch for 111 and 222."""
+        entries = [self._batch_entry("111", "GENE1"), self._batch_entry("222", "GENE2")]
+
+        async def results(batch_id):
+            async def stream():
+                for entry in entries:
+                    yield entry
+
+            return stream()
+
+        client = MagicMock()
+        client.messages.batches.create = AsyncMock(
+            return_value=MagicMock(id="msgbatch_1")
+        )
+        client.messages.batches.retrieve = AsyncMock(
+            return_value=MagicMock(id="msgbatch_1", processing_status="ended")
+        )
+        client.messages.batches.results = AsyncMock(side_effect=results)
+        client.close = AsyncMock()
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+        mocker.patch(
+            "pipeline.batch_extraction.build_async_client", return_value=client
+        )
+        return client
+
+    async def test_a_crash_in_validation_resumes_from_the_checkpoint_and_the_batch(
+        self, mocker, monkeypatch, tmp_path: Path
+    ) -> None:
+        """The whole resume, with the real collector and a real state file.
+
+        The first run collects the batch, validates 111 and is killed while
+        validating 222. The second checkpoint-restores 111, claims 222 from
+        the recorded batch without submitting anything, and takes both off
+        the record once they are stored.
+        """
+        config = self._config(tmp_path)
+        mocker.patch(
+            "pipeline.main._fetch_paper_text_for_batch",
+            new=AsyncMock(return_value=("paper text", True, "europepmc")),
+        )
+
+        async def _validate(genes, metrics, config):
+            metrics.genes_validated += len(genes)
+            return genes, []
+
+        mocker.patch("pipeline.main._validate_genes", new=_validate)
+        first = self._sdk_client(mocker, monkeypatch)
+        real_validate = pipeline_main._validate_batch_paper
+
+        async def killed_on_222(pmid, *args, **kwargs):
+            if pmid == "222":
+                raise RuntimeError("killed")
+            return await real_validate(pmid, *args, **kwargs)
+
+        mocker.patch("pipeline.main._validate_batch_paper", new=killed_on_222)
+
+        with pytest.raises(RuntimeError, match="killed"):
+            await pipeline_main._process_new_pmids_via_batch(
+                ["111", "222"], PipelineMetrics(), config, MagicMock()
+            )
+
+        first.messages.batches.create.assert_awaited_once()
+        assert self._on_record(config) == {"msgbatch_1": {"111", "222"}}
+
+        mocker.patch("pipeline.main._validate_batch_paper", new=real_validate)
+        second = self._sdk_client(mocker, monkeypatch)
+        progress = MagicMock()
+        metrics = PipelineMetrics()
+
+        batch = await pipeline_main._process_new_pmids_via_batch(
+            ["111", "222"], metrics, config, progress
+        )
+
+        second.messages.batches.create.assert_not_awaited()
+        assert {r.pmid: r.succeeded for r in batch.results} == {
+            "111": True,
+            "222": True,
+        }
+        resumed = next(r for r in batch.results if r.pmid == "222")
+        assert [g.gene_symbol for g in resumed.genes] == ["GENE2"]
+        # The checkpoint narrowed the run: only 222's entry was collected
+        # and counted (a restored batch paper's record carries no tokens).
+        assert metrics.token_usage.input_tokens == 100
+        assert any(
+            "Restored 1" in call.args[0] for call in progress.action.call_args_list
+        )
+        assert not Path(config.batch_state_file).exists()
 
     async def test_a_batch_run_passes_the_state_path_when_checkpointing(
         self, mocker, tmp_path: Path
@@ -3238,7 +3481,11 @@ class TestTheServingModelAndTheRefusal:
 
         extract = AsyncMock(side_effect=answer)
         config = self._refused_batch(mocker, tmp_path, extract)
-        Path(config.batch_state_file).write_text("[]")
+        batch_state.save(
+            config.batch_state_file,
+            checkpoint.fingerprint(config),
+            [PendingBatch("msgbatch_old", {"111": "ab", "222": "cd"})],
+        )
 
         await pipeline_main._process_new_pmids_via_batch(
             ["111", "222"],

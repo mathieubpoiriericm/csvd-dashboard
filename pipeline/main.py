@@ -2128,6 +2128,9 @@ async def _process_new_pmids_via_batch(
 
     papers: dict[str, str] = {}
     text_meta: dict[str, tuple[bool, str, bool]] = {}
+    # Papers a recorded batch may still hold a usable answer for and this
+    # run did not store: they stay on the batch record for the next run.
+    still_owed: set[str] = set()
     for pmid, outcome in zip(pending, fetched, strict=True):
         if isinstance(outcome, BaseException):
             # One paper's fetch failure must not abort the whole batch —
@@ -2136,6 +2139,7 @@ async def _process_new_pmids_via_batch(
             # run's list directly rather than through the checkpoint hook.
             logger.error(f"  Error fetching text for PMID {pmid}: {outcome}")
             collected.append(PaperResult(pmid=pmid, error=str(outcome)))
+            still_owed.add(pmid)
             continue
         text, fulltext, source = outcome
         if not text:
@@ -2198,9 +2202,12 @@ async def _process_new_pmids_via_batch(
             # As on the streaming path: the paper is retried, so its
             # quotes are the retrying run's to count, not this one's --
             # and never checkpointed, but still the run's to report, as
-            # the fetch failures above are.
+            # the fetch failures above are. Its batch answer is still good
+            # (an NCBI outage, say, failed it), so the next run collects
+            # that answer again rather than paying for a new one.
             current_tally().discard(pmid)
             collected.append(result)
+            still_owed.add(pmid)
 
     # A batch entry cannot fall back, so a paper the batch's model declined
     # is sent to the fallback model here, in the same run, rather than
@@ -2240,12 +2247,22 @@ async def _process_new_pmids_via_batch(
         *(rescue_one(pmid) for pmid in rescued_pmids),
     )
     # Every collected paper is validated and every refused one rescued or
-    # failed, so the batch record has done its job. Clearing it any earlier
-    # would lose the results a crash in validation or in a rescue could
-    # otherwise retrieve again. A dry run leaves a real run's record alone,
-    # as it leaves its checkpoint.
+    # failed, so this run's papers come off the batch record now and not
+    # before: earlier would lose the results a crash in validation or in a
+    # rescue could otherwise retrieve again. Taken off: what is stored
+    # (validated, restored from the checkpoint, no text), what was rescued
+    # or declined twice, and every entry with no usable answer (errored,
+    # expired, unparseable, truncated) -- replaying one of those would fail
+    # it again for 29 days instead of resubmitting it. Kept: the papers in
+    # `still_owed`, and every paper of another window's batch, which is
+    # still paid for. A dry run leaves a real run's record alone, as it
+    # leaves its checkpoint.
     if use_checkpoint:
-        batch_state.clear(config.batch_state_file)
+        batch_state.forget(
+            config.batch_state_file,
+            checkpoint.fingerprint(config),
+            [pmid for pmid in pmids if pmid not in still_owed],
+        )
     for pmid in papers:
         if pmid in genes_by_pmid or pmid in refusals:
             continue

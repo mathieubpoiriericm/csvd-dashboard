@@ -876,9 +876,115 @@ class TestAPendingBatchIsResumed:
         # A batch with nothing reusable is not even looked up.
         retrieved = [c.args[0] for c in client.messages.batches.retrieve.call_args_list]
         assert retrieved == ["msgbatch_new"]
+        # Still on record: the caller forgets 111 once it is stored, not
+        # this function on the strength of a changed hash.
         assert self._loaded(path) == [
-            PendingBatch("msgbatch_new", {"111": self._sha("111", "new text")})
+            PendingBatch("msgbatch_old", {"111": self._sha("111", "old text")}),
+            PendingBatch("msgbatch_new", {"111": self._sha("111", "new text")}),
         ]
+
+    async def test_a_disjoint_window_keeps_the_old_record_intact(
+        self, tmp_path, mocker, monkeypatch
+    ) -> None:
+        """`backfill_pubmed --batch` re-runs from its first window after a
+        crash in a later one; the later window's batch must survive that."""
+        path = str(tmp_path / "pending.json")
+        wide = PendingBatch(
+            "msgbatch_wide",
+            {"111": self._sha("111", "t1"), "222": self._sha("222", "t2")},
+        )
+        self._record(path, wide)
+        client = self._client(mocker, monkeypatch, results={})
+
+        await submit_and_collect({"333": "t3"}, self._CONFIG, state_path=path)
+
+        assert self._submitted(client) == ["333"]
+        assert self._loaded(path) == [
+            wide,
+            PendingBatch("msgbatch_new", {"333": self._sha("333", "t3")}),
+        ]
+
+    async def test_a_subset_window_writes_the_reused_record_back_whole(
+        self, tmp_path, mocker, monkeypatch
+    ) -> None:
+        path = str(tmp_path / "pending.json")
+        wide = PendingBatch(
+            "msgbatch_wide",
+            {"111": self._sha("111", "t1"), "222": self._sha("222", "t2")},
+        )
+        self._record(path, wide)
+        client = self._client(
+            mocker,
+            monkeypatch,
+            results={"msgbatch_wide": [_fake_batch_entry("111", _NOTCH3_GENES)]},
+        )
+
+        genes = await submit_and_collect(
+            {"111": "t1", "333": "t3"}, self._CONFIG, state_path=path
+        )
+
+        assert self._submitted(client) == ["333"]
+        assert set(genes) == {"111"}
+        # 222 was not this run's to collect, so it is still on record.
+        assert self._loaded(path) == [
+            wide,
+            PendingBatch("msgbatch_new", {"333": self._sha("333", "t3")}),
+        ]
+
+    async def test_a_recorded_batch_still_running_is_polled_and_collected(
+        self, tmp_path, mocker, monkeypatch
+    ) -> None:
+        """The headline resume: the crashed run's batch has not ended yet."""
+        path = str(tmp_path / "pending.json")
+        self._record(
+            path, PendingBatch("msgbatch_old", {"111": self._sha("111", "text")})
+        )
+        client = self._client(
+            mocker,
+            monkeypatch,
+            results={"msgbatch_old": [_fake_batch_entry("111", _NOTCH3_GENES)]},
+        )
+        client.messages.batches.retrieve.side_effect = [
+            MagicMock(id="msgbatch_old", processing_status="in_progress"),
+            MagicMock(id="msgbatch_old", processing_status="in_progress"),
+            MagicMock(id="msgbatch_old", processing_status="ended"),
+        ]
+
+        genes = await submit_and_collect(
+            {"111": "text"}, self._CONFIG, state_path=path
+        )
+
+        assert client.messages.batches.create.call_count == 0
+        assert client.messages.batches.retrieve.call_count == 3
+        assert [g.gene_symbol for g in genes["111"]] == ["NOTCH3"]
+        assert [p.batch_id for p in self._loaded(path)] == ["msgbatch_old"]
+
+    async def test_a_record_that_cannot_be_written_does_not_end_the_run(
+        self, tmp_path, mocker, monkeypatch, caplog
+    ) -> None:
+        """The batch is paid for the moment it is created; ending the run
+        then would lose it as surely as the crash the file guards against."""
+        path = str(tmp_path / "pending.json")
+        self._client(
+            mocker,
+            monkeypatch,
+            results={"msgbatch_new": [_fake_batch_entry("111", _NOTCH3_GENES)]},
+        )
+        mocker.patch(
+            "pipeline.batch_extraction.batch_state.save",
+            side_effect=PermissionError("read-only"),
+        )
+
+        with caplog.at_level(logging.WARNING):
+            genes = await submit_and_collect(
+                {"111": "text"}, self._CONFIG, state_path=path
+            )
+
+        assert set(genes) == {"111"}
+        assert (
+            "Could not record batch msgbatch_new; a crash before its results "
+            "are collected will lose it"
+        ) in caplog.text
 
     async def test_an_unknown_pending_batch_is_resubmitted_with_a_warning(
         self, tmp_path, mocker, monkeypatch, caplog

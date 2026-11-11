@@ -171,11 +171,19 @@ the API no longer knows the batch, the papers are resubmitted with a warning. A
 resumed batch's tokens are counted in the report of the run that collects them,
 not the crashed one. An entry of a recorded batch that expired or was canceled
 comes back as a failed paper on the resuming run and is retried by the run after
-it. The file is cleared once every batch paper has been validated, so a crash in
-validation can still retrieve the results; a dry run or `--test-mode` writes
-none. `--test-mode` counts what a window would process before
-paying for it, and `scripts.backfill_pubmed` walks it in committed chunks so the
-database is updated as it goes; both are described in
+it. A run takes its own papers off the record (`batch_state.forget`) only once
+every batch paper has been validated and every refused one rescued, so a crash
+in validation can still retrieve the results. It takes off what it stored, what
+was rescued or declined twice, and every entry with no usable result (so that
+one is resubmitted rather than replayed as a failure); a paper whose validation
+failed stays on record for the next run to collect. Every other batch on record
+is kept untouched, because `scripts.backfill_pubmed --batch` re-runs from its
+first window after a crash in a later one, and a later window's record erased by
+the first would be paid for twice. A record goes only when all its papers are
+forgotten or the API no longer has its results. A dry run or `--test-mode`
+neither writes nor forgets. `--test-mode` counts what a window would process
+before paying for it, and `scripts.backfill_pubmed` walks it in committed chunks
+so the database is updated as it goes; both are described in
 `.claude/rules/pipeline/long-windows.md`.
 
 ```bash

@@ -1,6 +1,9 @@
+import logging
 from pathlib import Path
 
-from pipeline.batch_state import PendingBatch, clear, load, save
+import pytest
+
+from pipeline.batch_state import PendingBatch, forget, load, save
 
 FP = {"model": "m", "effort": "high"}
 
@@ -54,12 +57,82 @@ def test_a_missing_file_loads_as_nothing(tmp_path) -> None:
     assert load(str(tmp_path / "absent.json"), FP) == []
 
 
-def test_clear_is_silent_when_nothing_is_there(tmp_path) -> None:
-    clear(str(tmp_path / "absent.json"))
+def test_a_discarded_file_names_the_batches_it_held(tmp_path, caplog) -> None:
+    """The papers of a discarded batch will be paid for again; the log has
+    to say which batch that was, or nobody can retrieve it by hand."""
+    path = str(tmp_path / "b.json")
+    save(path, FP, [PendingBatch("msgbatch_1", {"111": "ab"})])
+    with caplog.at_level(logging.WARNING):
+        assert load(path, {**FP, "effort": "medium"}) == []
+    assert "msgbatch_1" in caplog.text
 
 
-def test_clear_removes_a_saved_file(tmp_path) -> None:
+def test_a_file_that_cannot_be_deleted_still_loads_as_nothing(
+    tmp_path, monkeypatch
+) -> None:
     path = tmp_path / "b.json"
-    save(str(path), FP, [PendingBatch("msgbatch_1", {})])
-    clear(str(path))
+    path.write_text("{not json")
+
+    def refuse(self, missing_ok=False):
+        raise PermissionError("read-only")
+
+    monkeypatch.setattr(Path, "unlink", refuse)
+    assert load(str(path), FP) == []
+
+
+def test_forget_removes_the_papers_from_every_record(tmp_path) -> None:
+    path = str(tmp_path / "b.json")
+    save(
+        path,
+        FP,
+        [
+            PendingBatch("msgbatch_1", {"111": "ab", "222": "cd"}),
+            PendingBatch("msgbatch_2", {"111": "ef", "333": "gh"}),
+        ],
+    )
+    forget(path, FP, ["111", "333"])
+    assert load(path, FP) == [PendingBatch("msgbatch_1", {"222": "cd"})]
+
+
+def test_forget_deletes_the_file_when_no_record_remains(tmp_path) -> None:
+    path = tmp_path / "b.json"
+    save(str(path), FP, [PendingBatch("msgbatch_1", {"111": "ab"})])
+    forget(str(path), FP, {"111"})
     assert not path.exists()
+
+
+def test_forget_leaves_a_record_it_has_nothing_to_take_from(tmp_path) -> None:
+    path = str(tmp_path / "b.json")
+    kept = PendingBatch("msgbatch_1", {"111": "ab"})
+    save(path, FP, [kept])
+    forget(path, FP, ["999"])
+    assert load(path, FP) == [kept]
+
+
+def test_forget_is_silent_when_nothing_is_there(tmp_path) -> None:
+    forget(str(tmp_path / "absent.json"), FP, ["111"])
+
+
+def test_forget_is_silent_over_a_corrupt_file(tmp_path) -> None:
+    path = tmp_path / "b.json"
+    path.write_text("{not json")
+    forget(str(path), FP, ["111"])
+    assert not path.exists()
+
+
+@pytest.mark.parametrize("operation", ["unlink", "replace"])
+def test_forget_never_raises_when_it_cannot_write(
+    tmp_path, monkeypatch, operation
+) -> None:
+    path = str(tmp_path / "b.json")
+    save(path, FP, [PendingBatch("msgbatch_1", {"111": "ab", "222": "cd"})])
+
+    def refuse(*args, **kwargs):
+        raise PermissionError("read-only")
+
+    if operation == "unlink":
+        monkeypatch.setattr(Path, "unlink", refuse)
+        forget(path, FP, ["111", "222"])
+    else:
+        monkeypatch.setattr("pipeline.batch_state.os.replace", refuse)
+        forget(path, FP, ["111"])

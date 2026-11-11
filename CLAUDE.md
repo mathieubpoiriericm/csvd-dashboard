@@ -28,8 +28,8 @@ human.
 A long `--days-back` run resumes from `logs/pipeline_checkpoint.jsonl` — re-run
 the same command after a crash, `--batch` included: its batch id is written to
 `logs/pipeline_batch.json` before the first poll, so a re-run retrieves what it
-already paid for. The `run-long-window` skill has the rest,
-`scripts.backfill_pubmed` included.
+already paid for, and a run over another window keeps that record. The
+`run-long-window` skill has the rest, `scripts.backfill_pubmed` included.
 
 Regenerating `data/*.json` needs PostgreSQL reachable and `.env` populated; the
 commands, the database setup and the print-figure and cytoband tasks are in the

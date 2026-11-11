@@ -18,16 +18,28 @@ Three properties matter:
   dataset, so a fingerprint mismatch discards the file, as `checkpoint` does.
 - **Never fatal to read.** A missing, corrupt or wrong-shaped file is an empty
   list and is deleted, so a stale file is not resumed by some later run whose
-  settings happen to match it again.
+  settings happen to match it again. A file that cannot be deleted is still an
+  empty list; `forget` holds to the same contract.
 
-There is no locking: one run writes it, once per submitted batch. Each batch
-records the sha256 of the document text sent per PMID, so the collector can
-tell whether a paper's text has changed since the submission.
+**A paid batch stays on record until each of its papers is merged or has no
+usable result.** A run over one window must not erase a batch submitted for
+another: `scripts.backfill_pubmed --batch` walks cumulative windows, so after
+a crash in window k's poll the re-run starts at window 1, and a record of
+window k that window 1 overwrote or cleared would be paid for twice. So the
+collector writes back every recorded batch it did not find gone, beside a new
+one, and the caller removes papers one by one with `forget` once they are
+safely stored; only an emptied record is dropped.
+
+There is no locking: one run writes it, once per submitted batch and once at
+the end. Each batch records the sha256 of the document text sent per PMID, so
+the collector can tell whether a paper's text has changed since the
+submission.
 """
 
 import json
 import logging
 import os
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -82,19 +94,42 @@ def load(path: str, run_fingerprint: dict[str, Any]) -> list[PendingBatch]:
         raw = json.loads(target.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         logger.warning("Discarding an unreadable pending-batch file", exc_info=True)
-        target.unlink(missing_ok=True)
+        _discard(target)
         return []
 
     pending = _parse(raw, run_fingerprint)
     if pending is None:
+        # Named, because their papers are about to be paid for again and an
+        # operator who wants the old results can still fetch them by id.
         logger.warning(
             "Discarding a pending-batch file written by a different run "
-            "configuration or in an unknown shape; its papers will be "
-            "submitted again."
+            "configuration or in an unknown shape (batches: %s); its papers "
+            "will be submitted again.",
+            ", ".join(_batch_ids(raw)) or "none readable",
         )
-        target.unlink(missing_ok=True)
+        _discard(target)
         return []
     return pending
+
+
+def _discard(target: Path) -> None:
+    """Delete a file `load` will not use, or say why it could not."""
+    try:
+        target.unlink(missing_ok=True)
+    except OSError:
+        logger.warning("Could not delete %s", target, exc_info=True)
+
+
+def _batch_ids(raw: Any) -> list[str]:
+    """Whatever batch ids a file names, however wrong the rest of it is."""
+    entries = raw.get(_PENDING_KEY) if isinstance(raw, dict) else None
+    if not isinstance(entries, list):
+        return []
+    return [
+        entry["batch_id"]
+        for entry in entries
+        if isinstance(entry, dict) and isinstance(entry.get("batch_id"), str)
+    ]
 
 
 def _parse(raw: Any, run_fingerprint: dict[str, Any]) -> list[PendingBatch] | None:
@@ -120,6 +155,42 @@ def _parse(raw: Any, run_fingerprint: dict[str, Any]) -> list[PendingBatch] | No
     return batches
 
 
-def clear(path: str) -> None:
-    """Remove the file once every batch in it has been collected."""
-    Path(path).unlink(missing_ok=True)
+def forget(path: str, run_fingerprint: dict[str, Any], pmids: Iterable[str]) -> None:
+    """Take *pmids* off every record, once their results are safely stored.
+
+    A record left with no paper is dropped, and the file goes with the last
+    one. Records holding none of *pmids* are written back untouched: they
+    belong to some other window's run and are still paid for. Never raises,
+    as `load` does not: the papers are already checkpointed, so a record that
+    cannot be rewritten costs at most a later run replaying them.
+    """
+    done = set(pmids)
+    pending = load(path, run_fingerprint)
+    if not pending:
+        return
+    remaining = [
+        PendingBatch(
+            batch_id=batch.batch_id,
+            document_sha256={
+                pmid: digest
+                for pmid, digest in batch.document_sha256.items()
+                if pmid not in done
+            },
+        )
+        for batch in pending
+    ]
+    remaining = [batch for batch in remaining if batch.document_sha256]
+    if remaining == pending:
+        return
+    try:
+        if remaining:
+            save(path, run_fingerprint, remaining)
+        else:
+            Path(path).unlink(missing_ok=True)
+    except OSError:
+        logger.warning(
+            "Could not update the pending-batch file %s; a later run may "
+            "collect papers this one already stored",
+            path,
+            exc_info=True,
+        )
