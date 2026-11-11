@@ -110,42 +110,69 @@
       "hint": "The failure matched no known category. The detail below is the exception the run raised."
     }
   },
+  "nouns": {
+    "finding": ["finding", "findings"],
+    "gene": ["gene", "genes"],
+    "paper": ["paper", "papers"]
+  },
   "warningKinds": {
     "search_truncated": {
-      "icon": "magnifyingGlass"
+      "icon": "magnifyingGlass",
+      "review": true,
+      "flag": ["search truncated", "searches truncated"]
     },
     "paper_retrieval_failed": {
-      "icon": "documentMinus"
+      "icon": "documentMinus",
+      "review": true,
+      "flag": ["paper failed", "papers failed"]
     },
     "genes_rejected": {
-      "icon": "funnel"
+      "icon": "funnel",
+      "review": false
     },
     "api_retried": {
-      "icon": "arrowPath"
+      "icon": "arrowPath",
+      "review": false
     },
     "api_errored": {
-      "icon": "exclamationTriangle"
+      "icon": "exclamationTriangle",
+      "review": true,
+      "flag": ["service error", "service errors"]
     },
     "model_truncated": {
-      "icon": "exclamationTriangle"
+      "icon": "exclamationTriangle",
+      "review": true,
+      "flag": ["response cut short", "responses cut short"]
     },
     "quote_unverified": {
-      "icon": "chatQuote"
+      "icon": "chatQuote",
+      "review": false
     },
     "batch_validation": {
-      "icon": "exclamationTriangle"
+      "icon": "exclamationTriangle",
+      "review": true,
+      "flag": ["check flagged", "checks flagged"]
     },
     "paper_truncated": {
-      "icon": "documentMinus"
+      "icon": "documentMinus",
+      "review": true,
+      "flag": ["paper truncated", "papers truncated"]
     },
     "paper_refused": {
-      "icon": "minusCircle"
+      "icon": "minusCircle",
+      "review": true,
+      "flag": ["paper declined", "papers declined"]
     },
     "model_fallback": {
-      "icon": "arrowsRightLeft"
+      "icon": "arrowsRightLeft",
+      "review": false
     }
   },
   "fields": {
+    "toReview": {
+      "label": "to review",
+      "icon": "exclamationTriangle"
+    },
     "runDate": {
       "label": "Run date",
       "icon": "calendar"

@@ -327,3 +327,27 @@ Deno.test("every refusal category the pipeline can name has a label", async () =
     "pipeline_encoding.json has a refusal category outside the Python vocabulary",
   );
 });
+
+Deno.test("every warning kind says whether it needs a look", () => {
+  // The card paints a review warning amber and counts it under "to review";
+  // a routine one is a neutral note. Which is which is a judgement about the
+  // run, so it is stated per kind and the routine set is pinned whole: a
+  // kind added to the pipeline carries neither answer, and this fails until
+  // someone decides.
+  const kinds = encoding.warningKinds as Record<
+    string,
+    { review?: boolean; flag?: string[] }
+  >;
+  const routine: string[] = [];
+  for (const [kind, entry] of Object.entries(kinds)) {
+    assertEquals(typeof entry.review, "boolean", kind);
+    if (entry.review) assertEquals(entry.flag?.length, 2, kind);
+    else routine.push(kind);
+  }
+  assertEquals(routine.sort(), [
+    "api_retried",
+    "genes_rejected",
+    "model_fallback",
+    "quote_unverified",
+  ]);
+});
