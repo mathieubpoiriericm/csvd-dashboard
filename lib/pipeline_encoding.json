@@ -163,6 +163,7 @@
     "bridge": "Each entry is one paper's finding. A gene found in several papers is listed once per paper, so this list can be longer than the number of genes written.",
     "accepted": "Accepted findings",
     "validated": "Validated, not written",
+    "notAccepted": "findings not accepted",
     "legend": "Marked at the floors:",
     "toUpdate": "to update a known gene",
     "toAdd": "to add a new one"

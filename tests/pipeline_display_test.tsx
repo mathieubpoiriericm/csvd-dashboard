@@ -398,9 +398,8 @@ Deno.test("truncation is stated rather than hidden", () => {
   // a terminal period -- while this function's callers had neither. The
   // noun is optional so PipelineRun's noun-less callers keep reading the
   // same way; the period is never added, so a caller that does supply a
-  // noun still reads like every other one-line caption on this page
-  // (`.pipeline-provenance`, `.pipeline-tokens`), neither of which ends in
-  // one either.
+  // noun still reads like every other one-line caption on this page,
+  // none of which ends in one either.
   assertEquals(
     describeTruncation(3, 12, "errors"),
     "Showing 3 of 12 errors",

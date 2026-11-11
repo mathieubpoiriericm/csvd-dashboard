@@ -71,13 +71,22 @@ function Paper(
           <Pmid pmid={paper.pmid} />
         </td>
         <td role="cell">{paperSourceLabel(paper.source)}</td>
-        <td role="cell">
+        <td role="cell" data-lead={PAPERS.readBy}>
           <ReadBy
             row={row}
             fallbackModel={paper.extractionModel ?? PAPERS.fallback}
           />
         </td>
-        {declinedColumn && <td role="cell">{row.declinedBy}</td>}
+        {declinedColumn && (
+          <td
+            role="cell"
+            data-lead={row.declinedBy === null
+              ? undefined
+              : field("refusal").label}
+          >
+            {row.declinedBy}
+          </td>
+        )}
         <td role="cell" class="is-numeric is-time">{row.time}</td>
         <CountCell value={paper.geneCount} label={accepted} />
         <CountCell

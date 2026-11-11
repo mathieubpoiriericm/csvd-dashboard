@@ -1641,11 +1641,10 @@ Deno.test("a step's duration is shown at every width", () => {
 Deno.test("the run card separates its items with space and rules, never a glyph", () => {
   // A character drawn between wrapping flex items stays at the end of the
   // line it wrapped from, which is how every wrapped line of the old header
-  // strip came to end in a dot. The refresh rows' strip keeps its own: one
-  // meta item a row, so it has nothing to separate and never draws it.
+  // strip came to end in a dot. No rule of the widget, or of the refresh
+  // rows that share its classes, draws one.
   const glyphs = declarationsOf("content").filter((d) =>
-    d.value.includes("\u00b7") && d.selector.includes(".pipeline-") &&
-    !d.selector.includes(".pipeline-head-meta")
+    d.value.includes("\u00b7") && d.selector.includes(".pipeline-")
   );
   assertEquals(glyphs, []);
 });
@@ -1669,6 +1668,64 @@ Deno.test("the run details draw only while they are open", () => {
     d.selector.startsWith(".pipeline-") && d.value === "auto"
   );
   assertEquals(scrollers.map((d) => d.selector), [".pipeline-panel"]);
+});
+
+Deno.test("the run details draw their focus rings inside the box that would clip them", () => {
+  // The global ring sits outside its element. A tab's row scrolls sideways,
+  // which clips it top and bottom; a panel fills a dialog that hides its
+  // overflow, which left one 2px line of the ring over the tabs' rule. Both
+  // draw the ring inset instead, in the same tokens.
+  const widths = declarationsOf("outline");
+  const offsets = declarationsOf("outline-offset");
+  for (
+    const selector of [
+      ".pipeline-tab:focus-visible",
+      ".pipeline-panel:focus-visible",
+    ]
+  ) {
+    const ring = widths.find((d) =>
+      d.selector.split(",").map((part) => part.trim()).includes(selector)
+    );
+    assert(
+      ring?.value.includes("var(--svd-focus-width)") &&
+        ring.value.includes("var(--svd-focus-color)"),
+      `${selector} draws the ring in the focus tokens`,
+    );
+    const offset = offsets.find((d) =>
+      d.selector.split(",").map((part) => part.trim()).includes(selector)
+    );
+    assertEquals(
+      offset?.value,
+      "calc(var(--svd-focus-width) * -1)",
+      `${selector} draws it inside the box`,
+    );
+  }
+});
+
+Deno.test("what the pipeline writes cannot push the run widget sideways", () => {
+  // A warning names an endpoint ("GET /europepmc/webservices/rest/:id/...")
+  // and a step's sentence can hold a token as long. Neither has a space to
+  // wrap at, and a note that did not break one scrolled the page sideways
+  // at 320px; an outcome that did not had it cut by the outcome's clip.
+  const wraps = declarationsOf("overflow-wrap");
+  for (const selector of [".pipeline-note", ".pipeline-outcome-part"]) {
+    assertEquals(
+      wraps.find((d) => d.selector === selector)?.value,
+      "anywhere",
+      selector,
+    );
+  }
+});
+
+Deno.test("a folded table row names the cells its head no longer sits over", () => {
+  // Below 600px a table's head is clipped and its rows fold into lines. A
+  // count carries its name after it ("3 rejected"); a cell of words carries
+  // its column's name before it, or "Biology safety classifier" stands in a
+  // row with nothing to say it declined the paper.
+  const leads = declarationsOf("content").find((d) =>
+    d.selector === ".pipeline-table td[data-lead]::before"
+  );
+  assert(leads?.value.includes("attr(data-lead)"), "a cell's lead is drawn");
 });
 
 Deno.test("a drawer record is a row of its list, not a framed panel", () => {

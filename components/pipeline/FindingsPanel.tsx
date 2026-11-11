@@ -222,11 +222,17 @@ export function FindingsPanel({ run }: { run: PipelineRun }) {
       {
         /* One line for the whole set: the groups below are cut from the
           findings the report holds, so past its cap none of them can say
-          how many it is short. */
+          how many it is short. It names what it counts: bare, directly over
+          the first group's uncounted heading, it read as that group's
+          total. */
       }
       {isTruncated(rejected.shown, rejected.total) && (
         <p class="pipeline-truncation">
-          {describeTruncation(rejected.shown, rejected.total)}
+          {describeTruncation(
+            rejected.shown,
+            rejected.total,
+            FINDINGS.notAccepted,
+          )}
         </p>
       )}
       {rejectionGroups(run).map((group) => (

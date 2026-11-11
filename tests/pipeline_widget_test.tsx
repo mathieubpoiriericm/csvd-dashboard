@@ -47,6 +47,8 @@ Deno.test("the committed report renders", () => {
   const markup = renderToString(<PipelineRunView />);
   assertStringIncludes(markup, "pipeline-card");
   assertNotMatch(markup, /NaN|undefined|\[object/);
+  // And every tab of its details, which the closed dialog does not hold.
+  assertNotMatch(detailsOf(pipelineRun), /NaN|undefined|\[object|>null</);
 });
 
 Deno.test("the card says when the run was and how long it took", () => {
@@ -92,6 +94,9 @@ Deno.test("the verdict row carries three figures and no stat grid", () => {
     assertStringIncludes(markup, label);
   }
   assertEquals(markup.match(/class="pipeline-figure"/g)?.length, 3);
+  // As text -- to a screen reader, or copied -- a figure and its
+  // denominator are words apart: "15 of 16", not "15of 16".
+  assertStringIncludes(markup.replace(/<[^>]+>/g, ""), "15 of 16");
   assertNotMatch(
     markup,
     /pipeline-stats|pipeline-provenance|pipeline-tokens|pipeline-head-meta/,
@@ -474,6 +479,9 @@ Deno.test("a capped list of rejections says so once, and counts no group", () =>
   const markup = detailsOf(rejecting([heldGene("GENE1")], 1412), "findings");
   assertEquals(markup.match(/Showing 1 of 1,412/g)?.length, 1);
   assertMatch(markup, /Held for more evidence<\/h3>/);
+  // The line says what it counts. Bare, directly over the first group's
+  // uncounted heading, it read as that group's total.
+  assertStringIncludes(markup, "Showing 1 of 1,412 findings not accepted");
 });
 
 Deno.test("an unrecognised rejection reason is shown whole", () => {
@@ -721,6 +729,9 @@ Deno.test("who declined a paper is plain text, once per row, and never a pill", 
   assertNotMatch(markup, /pipeline-chip/);
   // "Fallback" names its model for anyone who asks.
   assertMatch(markup, /title="fallback-model"[^>]*>Fallback/);
+  // Folded on a phone, the two cells of words keep their columns' names.
+  assertMatch(markup, /<td[^>]*data-lead="Read by"/);
+  assertMatch(markup, /<td[^>]*data-lead="Declined by"/);
 });
 
 Deno.test("a run nothing was declined in has no column for it", () => {

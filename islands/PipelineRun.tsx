@@ -13,12 +13,11 @@ import { useHydratedRef } from "../components/useHydratedRef.ts";
  * are decided in `lib/pipeline_ledger.ts`, which is tested; this file
  * renders what it returns.
  *
- * Every label, glyph and tint comes from `lib/pipeline_encoding.json`
- * through `lib/pipeline_display.ts`; nothing is restated here. The
- * drawer follows `islands/TrialsTimeline.tsx`'s pattern exactly --
- * `aria-expanded`/`aria-controls`, the close button takes focus, Escape
- * closes and returns it -- so this adds an instance of that behaviour
- * rather than a second implementation of it.
+ * Every word, glyph and tint comes from `lib/pipeline_encoding.json`
+ * through `lib/`; no vocabulary is restated here. The dialog is a native
+ * `<dialog>` opened through `useModal`, the hook the adapt guide's session
+ * windows use, so the browser supplies the focus trap and the return of
+ * focus rather than this file.
  */
 
 import { useRef, useState } from "preact/hooks";
@@ -307,6 +306,11 @@ function PipelineRunContent({ run }: { run: PipelineRun }) {
                 <div key={figure.key} class="pipeline-figure">
                   <span class="pipeline-figure-value">
                     {figure.value}
+                    {
+                      /* The space is text, not a margin: read aloud or
+                        copied, the figure is "37 of 38", not "37of 38". */
+                    }
+                    {figure.of !== null && " "}
                     {figure.of !== null && <small>{OF} {figure.of}</small>}
                   </span>
                   <span class="pipeline-figure-label">{figure.label}</span>

@@ -233,7 +233,8 @@
 
   /* Elevation, retuned onto the design system's own three steps and tinted
      with the neutral ramp rather than a hard-coded indigo. Only the surfaces
-     that genuinely float read these: the two drawers and the tooltip panel.
+     that genuinely float read these: the timeline's drawer, the run details
+     dialog and the tooltip panel.
      Every other panel is a line drawing with no shadow at all. */
   --svd-shadow-xs: 0 1px 2px
     color-mix(in oklab, var(--svd-slate-900) 10%, transparent);
@@ -5380,7 +5381,7 @@ button.adapt-card-head:focus-visible {
   box-shadow: inset 0 0 0 1px var(--svd-line);
 }
 
-/* One close button for both drawers. */
+/* One close button, for the timeline's drawer and the run details. */
 .timeline-drawer-close,
 .pipeline-drawer-close {
   flex: none;
@@ -5975,16 +5976,17 @@ button.adapt-card-head:focus-visible {
 
 /* === PIPELINE RUN WIDGET ===
 
-   The About page's run report. Every surface here joins the shared depth
-   recipe above and says what it is by re-declaring --svd-tint; the four
-   status tints are the only thing this block introduces, and each
+   The About page's run report: a card that is a verdict over a ledger of
+   steps, and the dialog behind "Run details". The card is the one framed
+   surface here; nothing inside it is. A pill, a note and a track say what
+   they are by re-declaring --svd-tint, and each of the four status tints
    resolves through a semantic token the dark blocks already override, so
    none of it needs a dark counterpart.
 
-   Status is never carried by colour alone: every badge pairs its tint
-   with a glyph and a word ("Passed", "Passed with warnings", "Failed"),
-   which is what makes the widget survive a colour-vision check and read
-   correctly to a screen reader. */
+   Status is never carried by colour alone: a pill pairs its tint with a
+   glyph and words ("Completed", "2 to review", "Failed"), a note that
+   needs a look carries a glyph and the same words for a screen reader, and
+   a drawn track has its number beside it. */
 
 /* Each tint re-declares the ink with its own step, never the fill: a chip's
    wash is its own hue, so the fill step sits on a ground it has already
@@ -6037,15 +6039,10 @@ button.adapt-card-head:focus-visible {
   box-shadow: none;
 }
 
-/* Heading left, drawer trigger right -- the only row whose right side is
-   free at 1440, 1024 and 390. `justify-content: space-between` does not
-   depend on the trigger existing: with the button absent (a run with
-   nothing for the drawer to show) the heading alone still reads as a plain
-   title row. `flex-wrap` is what handles 390 -- the title ink there ends
-   around x=180 of 390, too little room beside a "View everything this run
-   recorded" label, so the button drops to its own line and starts at the
-   row's left edge (the single-item case of `space-between`) rather than the
-   label being shortened or the accessible name changing. */
+/* Heading left, "Run details" right -- the only row whose right side is
+   free at every width. `flex-wrap` is a floor: the two share a line down to
+   about 340px, and below that the button drops to its own line and starts
+   at the row's left edge rather than the heading being squeezed. */
 .pipeline-title-row {
   display: flex;
   flex-wrap: wrap;
@@ -6148,7 +6145,6 @@ button.adapt-card-head:focus-visible {
 /* "of 38": the denominator, a step smaller and muted, on the numeral's
    baseline. */
 .pipeline-figure-value small {
-  margin-left: var(--svd-space-1);
   color: var(--svd-text-muted);
   font-size: var(--svd-text-md);
 }
@@ -6162,20 +6158,6 @@ button.adapt-card-head:focus-visible {
   color: var(--svd-text-muted);
   font-size: var(--svd-text-sm);
   font-variant-numeric: tabular-nums;
-}
-
-/* The head is a metadata strip like `.pipeline-provenance` further down, so
-   it joins its items the same way — but drawn rather than marked up, and
-   only between meta items: the date and the status badge are not part of
-   the run.
-
-   The separator trails its own item rather than leading the next one. The
-   strip wraps, and as a `::before` the dot led the wrapped line — a bullet
-   hanging under the date with nothing before it. */
-.pipeline-head-meta:not(:last-child)::after {
-  content: '·';
-  margin-left: var(--svd-space-2);
-  color: var(--svd-border);
 }
 
 /* A pill's own baseline is its word's, not its glyph's. With the glyph as the
@@ -6317,6 +6299,10 @@ button.adapt-card-head:focus-visible {
 }
 
 .pipeline-outcome-part {
+  /* A step's own sentence can hold a token longer than the row. It breaks
+     rather than be cut by the clip that hides the leading rule. */
+  min-width: 0;
+  overflow-wrap: anywhere;
   margin-right: var(--svd-space-3);
   padding-left: var(--svd-space-3);
   border-left: 1px solid var(--svd-border);
@@ -6376,6 +6362,10 @@ button.adapt-card-head:focus-visible {
 .pipeline-note {
   max-width: 78ch;
   margin: var(--svd-space-2) 0 0;
+  /* A warning can name an endpoint, "GET /europepmc/webservices/rest/...",
+     which has no space to wrap at: unbroken, it ran past the note and
+     scrolled the page sideways at 320px. */
+  overflow-wrap: anywhere;
   padding: var(--svd-space-2) var(--svd-space-3);
   border-left: 3px solid var(--svd-tint);
   background: color-mix(in oklab, var(--svd-tint) 7%, transparent);
@@ -6448,7 +6438,6 @@ button.adapt-card-head:focus-visible {
 /* Every panel heading inside the widget is an eyebrow: condensed, small,
    tracked out, uppercase, muted. It is a label over a readout, not a
    heading competing with the section title above it. */
-.pipeline-apis h3,
 .pipeline-drawer-section h3 {
   display: flex;
   align-items: center;
@@ -6462,8 +6451,8 @@ button.adapt-card-head:focus-visible {
   color: var(--svd-text-muted);
 }
 
-/* A refresh's upstream: its name holding the 11rem label column, and on
-   the right what came of it. */
+/* A refresh's upstream: its name in an 11rem column, and on the right
+   what came of it. */
 .pipeline-source {
   display: flex;
   flex-wrap: wrap;
@@ -6617,6 +6606,17 @@ button.adapt-card-head:focus-visible {
 .pipeline-tab:focus-visible {
   background: var(--svd-bg-hover-accent);
   color: var(--svd-text);
+}
+
+/* The global ring sits outside its element, and both of these are inside
+   something that clips: the tabs' row scrolls sideways, which cuts a ring
+   top and bottom, and a panel fills a dialog that hides its overflow, which
+   left one 2px line of the panel's ring over the row's rule. Drawn inset,
+   in the same tokens, the whole ring is on screen. */
+.pipeline-tab:focus-visible,
+.pipeline-panel:focus-visible {
+  outline: var(--svd-focus-width) solid var(--svd-focus-color);
+  outline-offset: calc(var(--svd-focus-width) * -1);
 }
 
 /* The selected tab is in ink over a rule drawn inside its own box, so it
@@ -6902,8 +6902,8 @@ button.adapt-card-head:focus-visible {
 
 /* A sibling block to the run widget, not a section of it, so it reuses
    the widget's own parts -- `.pipeline-head`, `.pipeline-badge`, the
-   `.pipeline-apis > ul > .pipeline-api` list -- rather than restating
-   them. Only the rows themselves are new. */
+   services table `ApiList` draws -- rather than restating them. Only the
+   rows themselves are new. */
 
 .pipeline-syncs-lead {
   margin: 0 0 var(--svd-space-4);
@@ -7023,8 +7023,8 @@ details.pipeline-apis:not([open]) > table {
   gap: var(--svd-space-2);
 }
 
-/* The same measure as `.pipeline-api-name`, so the upstream names and the
-   service names below them share one left edge. */
+/* The measure a record's label column holds, so a refresh's upstream names
+   line up with one another whatever their length. */
 .pipeline-source-name {
   font-weight: var(--svd-weight-semibold);
   min-width: 11rem;
@@ -7080,9 +7080,8 @@ details.pipeline-apis:not([open]) > table {
 }
 
 /* A record's name and its fields share one grid: the name and the field
-   names in an 11rem label column -- the measure `.pipeline-api-name` holds
-   the service names to -- and what they name beside it, so a symbol, the
-   words under it and a paper's PMID all stand on one left edge. */
+   names in an 11rem label column, and what they name beside it, so a
+   symbol and the words under it stand on one left edge. */
 .pipeline-record-head,
 .pipeline-fields {
   display: grid;
@@ -7124,8 +7123,8 @@ details.pipeline-apis:not([open]) > table {
   font-size: var(--svd-text-sm);
 }
 
-/* A field's name, in the register the funnel's stat names use -- small,
-   uppercase, muted -- so a name never reads as a value. */
+/* A field's name: small, uppercase, muted, so a name never reads as a
+   value. */
 .pipeline-fields dt {
   grid-column: 1;
   color: var(--svd-text-muted);
@@ -7279,6 +7278,14 @@ details.pipeline-apis:not([open]) > table {
     content: ' ' attr(data-label);
     color: var(--svd-text-muted);
     text-transform: lowercase;
+  }
+
+  /* A cell of words carries its column's name before it: "Declined by
+     Biology safety classifier". Without it the classifier stood in the row
+     with nothing to say what it had done. */
+  .pipeline-table td[data-lead]::before {
+    content: attr(data-lead) ' ';
+    color: var(--svd-text-muted);
   }
 
   .pipeline-table tr:has(+ .pipeline-table-note) {

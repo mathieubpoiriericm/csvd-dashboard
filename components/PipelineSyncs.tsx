@@ -80,9 +80,9 @@ function Refresh({ run }: { run: SyncRun }) {
       )}
 
       {
-        /* `ApiList` is the same `.pipeline-apis > ul > .pipeline-api` shape
-          the run widget's drawer uses, so the two lists are one component
-          with one set of styles rather than a copy that drifts.
+        /* `ApiList` is the services table the run details draw, so the two
+          are one component with one set of styles rather than a copy that
+          drifts.
 
           Endpoint paths and HTTP verbs are a maintainer's register (see
           `islands/CLAUDE.md`), and the Data Sources panel a few hundred

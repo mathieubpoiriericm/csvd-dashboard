@@ -81,9 +81,9 @@ Six things are load-bearing:
 - **`--svd-tint-base` is `transparent`, and a surface that overrides it owes a
   reason.** A line drawing that painted a fill would hide the ground its own
   marks are drawn on. The legitimate exceptions are surfaces that float over the
-  page (the two drawers, the tooltip panel) and cells that scroll under their
-  own rows (the sticky table head and identity column, which a separate contract
-  test already pins as opaque).
+  page (the timeline's drawer, the run details dialog, the tooltip panel) and
+  cells that scroll under their own rows (the sticky table head and identity
+  column, which a separate contract test already pins as opaque).
 - **Nothing lifts.** The frame has no elevation to animate, so the hover
   transforms are gone rather than neutralised under `prefers-reduced-motion`.
   Hover is a border-colour and wash change now. A blanket

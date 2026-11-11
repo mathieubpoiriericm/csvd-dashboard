@@ -334,8 +334,7 @@ export function isTruncated(shown: number, total: number): boolean {
  * errors" when the caller names what is being counted. Every caption on
  * this page that states a truncation goes through this one function, so
  * the punctuation reads the same whether or not a noun is given: no
- * terminal period, matching the widget's other one-line captions
- * (`.pipeline-provenance`, `.pipeline-tokens`).
+ * terminal period, as a one-line caption has none.
  */
 export function describeTruncation(
   shown: number,

@@ -42,7 +42,7 @@ export function Field(
   );
 }
 
-/** A field's name, glyph and word, as the term of a record's list. */
+/** A field's name, in words, as the term of a record's list. */
 export function FieldName({ name }: { name: string }) {
   return <dt>{field(name).label}</dt>;
 }
