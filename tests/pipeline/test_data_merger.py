@@ -274,6 +274,7 @@ class TestMergeGeneEntries:
             "inserted": 0,
             "updated": 0,
             "held_below_insert_floor": [],
+            "citation_only": [],
         }
 
     async def test_new_genes_inserted(self, sample_gene_entries, mocker):
@@ -345,8 +346,12 @@ class TestMergeGeneEntries:
             omics_evidence=[TWAS],
         )
 
-        await merge_gene_entries([entry])
+        result = await merge_gene_entries([entry])
 
+        # Returned, not merely logged: the run report lists this gene as
+        # accepted, and without the key it showed the trait and the omics
+        # evidence the row below never took.
+        assert result.get("citation_only") == ["NOTCH3"]
         (_, to_update) = transactional.call_args[0]
         (row,) = to_update
         assert row["mendelian_randomization"] is False
@@ -377,8 +382,9 @@ class TestMergeGeneEntries:
             omics_evidence=[TWAS],
         )
 
-        await merge_gene_entries([entry])
+        result = await merge_gene_entries([entry])
 
+        assert result.get("citation_only") == []
         (_, to_update) = transactional.call_args[0]
         (row,) = to_update
         assert row["mendelian_randomization"] is True
@@ -416,7 +422,33 @@ class TestMergeGeneEntries:
         # so the run's acceptance rate overstated by exactly these genes
         # until the merge started reporting them.
         assert result.get("held_below_insert_floor") == [
-            {"gene_symbol": "BTN3A2", "confidence": 0.50}
+            {"gene_symbol": "BTN3A2", "confidence": 0.50, "mentions": 1}
+        ]
+
+    async def test_a_hold_counts_the_papers_that_proposed_it(
+        self, make_gene_entry, mocker
+    ):
+        """One hold per gene, and how many extractions it stands for.
+
+        The run report counts a paper's mention everywhere else, so the
+        step that raises the hold has to be able to say the same number.
+        """
+        mocker.patch(
+            "pipeline.data_merger.get_existing_genes", return_value=set()
+        )
+        mocker.patch(
+            "pipeline.data_merger.merge_genes_transactional",
+            return_value=(0, 0),
+        )
+        entries = [
+            make_gene_entry(gene_symbol="BTN3A2", confidence=0.50, pmid="1"),
+            make_gene_entry(gene_symbol="BTN3A2", confidence=0.55, pmid="2"),
+        ]
+
+        result = await merge_gene_entries(entries)
+
+        assert result.get("held_below_insert_floor") == [
+            {"gene_symbol": "BTN3A2", "confidence": 0.55, "mentions": 2}
         ]
 
     async def test_a_confident_new_gene_is_still_inserted(

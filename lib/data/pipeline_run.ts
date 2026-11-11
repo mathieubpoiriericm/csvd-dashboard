@@ -75,6 +75,7 @@ function normalizeConfig(value: unknown): RunConfig {
       0,
       1,
     ),
+    batch: nullableBool(source.batch),
   };
 }
 
@@ -116,6 +117,10 @@ function normalizeTokens(value: unknown): TokenCounts {
     cacheHitRate: numberInRange(source.cacheHitRate, 0, 1) ?? 0,
     truncatedResponses: count(source.truncatedResponses),
     estimatedCostUsd: nonnegativeNumber(source.estimatedCostUsd) ?? 0,
+    // Unknown, not zero, when an older report never recorded it.
+    cacheCreationInputTokens: nonnegativeInteger(
+      source.cacheCreationInputTokens,
+    ),
   };
 }
 
@@ -202,6 +207,7 @@ function normalizeGene(value: unknown): RunGene {
     omicsEvidence: textArray(source.omicsEvidence),
     causalEvidenceSummary: nullableText(source.causalEvidenceSummary),
     sourceQuote: nullableText(source.sourceQuote),
+    citationOnly: source.citationOnly === true,
   };
 }
 

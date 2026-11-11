@@ -43,7 +43,7 @@ from pipeline.database import (
     record_processed_pmids_batch,
     upsert_pubmed_citations_batch,
 )
-from pipeline.export.lookups import read_pipeline_run
+from pipeline.export.lookups import read_pipeline_run, read_pipeline_status
 from pipeline.pubmed_citations import PubMedCitation
 from pipeline.run_errors import RunError
 from pipeline.run_report import build_run_report
@@ -161,6 +161,43 @@ async def test_a_run_report_round_trips_through_the_json_column() -> None:
     assert published["steps"][0]["actions"] == [
         "Searched PubMed for the last 7 days"
     ]
+
+
+async def test_the_data_is_dated_from_the_newest_run_that_processed_a_paper() -> None:
+    """The status query's two filters, as PostgreSQL applies them.
+
+    `test_lookups.py` asserts the two predicates as substrings of the
+    statement, which proves their spelling. This proves what they select:
+    of three runs, the newest is failed and the one before it processed no
+    paper, so the date stays on the third.
+    """
+    rows = [
+        # Far in the future, so they are the newest whatever the other
+        # tests in this module left behind; removed again below.
+        (datetime(2099, 1, 1, tzinfo=UTC), 3, "completed"),
+        (datetime(2099, 1, 2, tzinfo=UTC), 0, "completed_with_warnings"),
+        (datetime(2099, 1, 3, tzinfo=UTC), 5, "failed"),
+    ]
+    ids = [
+        await record_pipeline_run(
+            run_timestamp=moment,
+            papers_processed=papers,
+            fulltext_retrieved=papers,
+            genes_extracted=0,
+            genes_validated=0,
+            status=status,
+        )
+        for moment, papers, status in rows
+    ]
+    try:
+        published = await read_pipeline_status()
+    finally:
+        async with Database.connection() as conn:
+            await conn.execute("DELETE FROM pipeline_runs WHERE id = ANY($1)", ids)
+
+    assert published is not None
+    assert published["runTimestamp"] == "2099-01-01T00:00:00Z"
+    assert published["papersProcessed"] == 3
 
 
 async def test_an_iso_timestamp_reaches_a_timestamp_column() -> None:

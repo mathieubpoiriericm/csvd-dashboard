@@ -78,6 +78,10 @@ class HeldGene(TypedDict, closed=True):
 
     gene_symbol: str
     confidence: float
+    # How many extractions the hold stands for: the gene is one row that
+    # was not created, and every paper that proposed it is a mention the
+    # run report counts.
+    mentions: NotRequired[int]
 
 
 class MergeResult(TypedDict, closed=True):
@@ -93,6 +97,11 @@ class MergeResult(TypedDict, closed=True):
     inserted: int
     updated: int
     held_below_insert_floor: NotRequired[list[HeldGene]]
+    # The existing genes updated with a citation only (`_citation_only`),
+    # by the key the merge grouped them on. Returned for the reason the
+    # holds are: the run report lists these genes as accepted, and would
+    # otherwise show claims the row never took.
+    citation_only: NotRequired[list[str]]
 
 
 def dedupe_list[T](items: Iterable[T]) -> list[T]:
@@ -263,7 +272,12 @@ async def merge_gene_entries(
         Dictionary with counts of inserted and updated entries.
     """
     if not new_entries:
-        return {"inserted": 0, "updated": 0, "held_below_insert_floor": []}
+        return {
+            "inserted": 0,
+            "updated": 0,
+            "held_below_insert_floor": [],
+            "citation_only": [],
+        }
 
     config = config or PipelineConfig()
     existing_genes = await get_existing_genes()
@@ -303,7 +317,13 @@ async def merge_gene_entries(
         # this entry through on purpose: it may still be a correct reference
         # for a gene that already exists, which is cheap and reversible.
         if best < config.confidence_threshold_insert:
-            below_insert_floor.append({"gene_symbol": gene_upper, "confidence": best})
+            below_insert_floor.append(
+                {
+                    "gene_symbol": gene_upper,
+                    "confidence": best,
+                    "mentions": len(entries_for_gene),
+                }
+            )
             continue
         to_insert.append(gene_data)
 
@@ -332,4 +352,5 @@ async def merge_gene_entries(
         "inserted": inserted,
         "updated": updated,
         "held_below_insert_floor": below_insert_floor,
+        "citation_only": claims_withheld,
     }

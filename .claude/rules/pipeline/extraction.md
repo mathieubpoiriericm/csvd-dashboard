@@ -78,6 +78,16 @@ before the tracked filter, so the spelling is stored as `CMB` rather than
 dropped as untracked. `tests/pipeline/test_prompt_vocabulary.py` reconciles the
 prompt against the enum as well as against the vocabulary.
 
+**The schema's shape is pinned against the SDK that renders it.**
+`transform_schema` is the SDK's, and somewhere after anthropic 2.4 it began
+dropping `"type"` from any node that carries an `enum`, so the lockfile bump of
+2026-11-09 changed the tool definition every extraction is sent under with no
+test failing: the only tests comparing it to what was recorded need the
+gitignored cassettes and never run in CI. `_with_enum_types` in
+`pipeline/config.py` states the type again, the shape every recall and
+provenance figure here was measured under, and
+`test_every_enum_in_the_tool_schema_states_its_type` runs in CI.
+
 **The enum is part of the method, and it is the half that constrains the
 model.** The frozen canonical sentence in `prompts.py` is what the model is
 _asked_ for; the tool schema's `gwas_trait` enum is what it is _allowed_ to say,

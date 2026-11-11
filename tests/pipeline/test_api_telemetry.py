@@ -171,6 +171,43 @@ class TestDisplayLabel:
         ]
 
 
+    def test_a_stored_doi_endpoint_is_folded_into_one_row(self) -> None:
+        # A report stored before `normalize_path` knew a DOI is one
+        # identifier holds Unpaywall's one endpoint as a row per DOI shape.
+        # The prefix that marked the DOI is gone from the stored path, so
+        # only a service whose endpoint is known to end in one is folded.
+        def row(endpoint: str, calls: int, ms: float, service: str = "unpaywall"):
+            return {
+                "service": service, "label": "stale", "endpoint": endpoint,
+                "method": "GET", "calls": calls, "ok": calls, "notFound": 0,
+                "errors": 0, "retries": 1, "totalMs": ms, "bytes": 100,
+            }
+
+        rows = relabel_api_rows([
+            row("/v2/:id/:id", 10, 1354.9),
+            row("/retrieve/pii/:id", 7, 10.0, service="elsevier"),
+            row("/v2/:id/brain/:id", 1, 116.3),
+            row("/v2/:id/clinexprheumatol/:id", 1, 128.6),
+        ])
+
+        assert [(r["service"], r["endpoint"], r["calls"]) for r in rows] == [
+            ("unpaywall", "/v2/:id", 12),
+            ("elsevier", "/retrieve/pii/:id", 7),
+        ]
+        merged = rows[0]
+        assert merged["label"] == "Unpaywall"
+        assert (merged["ok"], merged["retries"], merged["bytes"]) == (12, 3, 300)
+        assert merged["totalMs"] == 1599.8
+
+    def test_relabelling_twice_changes_nothing_more(self) -> None:
+        rows = relabel_api_rows([
+            {"service": "unpaywall", "label": "Unpaywall", "endpoint": "/v2/:id",
+             "method": "GET", "calls": 2, "ok": 2, "notFound": 0, "errors": 0,
+             "retries": 0, "totalMs": 5.0, "bytes": 1},
+        ])
+        assert relabel_api_rows(rows) == rows
+
+
 class TestApiRecorder:
     def test_calls_to_one_endpoint_aggregate(self) -> None:
         recorder = ApiRecorder()

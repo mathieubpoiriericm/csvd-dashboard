@@ -182,6 +182,10 @@ class PipelineMetrics:
         genes_validated: Genes passing NCBI validation.
         genes_rejected: Genes failing confidence or NCBI checks.
         token_usage: Accumulated LLM token usage.
+        streamed_token_usage: The share of ``token_usage`` a ``--batch``
+            run restored from a checkpoint. A batch entry's record carries
+            no tokens, so all of it was paid for by a streaming run at the
+            full rate, and the cost estimate must not halve it.
     """
 
     papers_processed: int = 0
@@ -191,6 +195,7 @@ class PipelineMetrics:
     genes_validated: int = 0
     genes_rejected: int = 0
     token_usage: TokenUsage = field(default_factory=TokenUsage)
+    streamed_token_usage: TokenUsage = field(default_factory=TokenUsage)
 
     def fold(self, other: PipelineMetrics) -> None:
         """Add one paper's own metrics into this accumulator, in place.
@@ -213,6 +218,7 @@ class PipelineMetrics:
         self.genes_validated += other.genes_validated
         self.genes_rejected += other.genes_rejected
         self.token_usage += other.token_usage
+        self.streamed_token_usage += other.streamed_token_usage
 
     def __iadd__(self, other: PipelineMetrics) -> PipelineMetrics:
         self.fold(other)

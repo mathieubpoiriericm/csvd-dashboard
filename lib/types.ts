@@ -227,6 +227,8 @@ export interface RunConfig {
   dryRun: boolean;
   confidenceThresholdUpdate: number | null;
   confidenceThresholdInsert: number | null;
+  /** Whether the Batch API extracted the run; null on an older report. */
+  batch: boolean | null;
 }
 
 /** One trial population of the radar and the population filter. */
@@ -340,6 +342,11 @@ export interface TokenCounts {
   cacheHitRate: number;
   truncatedResponses: number;
   estimatedCostUsd: number;
+  /**
+   * Tokens written to the cache, counted in neither `inputTokens` nor
+   * `totalTokens`; null on a report stored before they were published.
+   */
+  cacheCreationInputTokens: number | null;
 }
 
 export interface DatabaseCounts {
@@ -443,6 +450,11 @@ export interface RunGene {
   omicsEvidence: string[];
   causalEvidenceSummary: string | null;
   sourceQuote: string | null;
+  /**
+   * The merge wrote this gene's PMID, quote and score and withheld its
+   * claims, so the trait, omics and Mendelian fields above are empty.
+   */
+  citationOnly: boolean;
 }
 
 export interface RejectedGene {

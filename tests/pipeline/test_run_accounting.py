@@ -15,6 +15,7 @@ import pytest
 
 import pipeline.main as pipeline_main
 from pipeline import checkpoint
+from pipeline.anthropic_client import AnthropicClient
 from pipeline.api_telemetry import reset_recorder
 from pipeline.citations import current_tally, reset_tally
 from pipeline.config import PipelineConfig
@@ -27,6 +28,7 @@ from pipeline.extraction_models import (
 )
 from pipeline.main import PaperResult, _ProcessedBatch, _ProgressReporter
 from pipeline.quality_metrics import PipelineMetrics, TokenUsage
+from pipeline.report import build_run_data
 from pipeline.run_errors import NoPaperProcessedError
 from pipeline.validation import NcbiUnavailableError
 
@@ -727,6 +729,39 @@ class TestTheCheckpointOutlivesANarrowerRun:
         assert [r.pmid for r in batch.results] == ["111", "222"]
         assert [g.gene_symbol for g in batch.genes] == ["NOTCH3"]
         assert metrics.token_usage.input_tokens == 1000
+
+    async def test_a_batch_run_prices_restored_papers_as_they_were_paid(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        # A batch entry's record carries no tokens -- the batch is one
+        # figure -- so every token a --batch run restores was paid for by a
+        # streaming run, at the full rate. `estimate_cost(batched=True)`
+        # halved them with the rest.
+        config = _config(tmp_path)
+        _checkpoint_paper(config, "111")
+        mocker.patch(
+            "pipeline.main._fetch_paper_text_for_batch",
+            new=AsyncMock(return_value=("t", True, "pmc")),
+        )
+        mocker.patch(
+            "pipeline.main.submit_and_collect", new=AsyncMock(return_value={"222": []})
+        )
+        metrics = PipelineMetrics()
+
+        batch = await pipeline_main._process_new_pmids_via_batch(
+            ["111", "222"], metrics, config, _ProgressReporter(config)
+        )
+
+        assert metrics.streamed_token_usage.input_tokens == 1000
+        streamed = TokenUsage(input_tokens=1000, output_tokens=100)
+        run_data = build_run_data(
+            metrics, batch.results, None, [], config,
+            days_back=7, dry_run=False, total_pmids_found=2, new_pmids_count=2,
+            use_batch_api=True,
+        )
+        # $0.006 at the streaming rate rounds to a cent; halved, to none.
+        assert AnthropicClient().estimate_cost(streamed) == pytest.approx(0.006)
+        assert run_data["token_usage"]["estimated_cost_usd"] == 0.01
 
     async def test_a_dry_batch_run_does_not_restore(self, mocker, tmp_path: Path):
         config = _config(tmp_path)

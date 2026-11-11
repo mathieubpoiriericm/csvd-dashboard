@@ -23,7 +23,7 @@ from pipeline.annotations import lookup_symbols
 from pipeline.api_telemetry import relabel_api_rows
 from pipeline.database import Database
 from pipeline.export.text import is_doi
-from pipeline.run_report import PipelineRunReport
+from pipeline.run_report import PipelineRunReport, bring_up_to_date
 from pipeline.sync_report import SyncRunReport
 from pipeline.xrefs import is_omim_series, xref_prefix
 
@@ -253,6 +253,23 @@ async def read_pipeline_status() -> dict[str, Any] | None:
     }
 
 
+def published_run_report(stored: dict[str, Any]) -> dict[str, Any]:
+    """A stored run report, as the export publishes it.
+
+    Three passes, each of which a report written by the current pipeline
+    passes through unchanged: re-validation through ``PipelineRunReport``,
+    which fills what an older report lacks or refuses it;
+    ``bring_up_to_date``, for a count whose meaning moved; and
+    ``relabel_api_rows``, for the api rows' labels and endpoints.
+
+    One function so the committed ``data/pipeline_run.json`` can be held to
+    it: a file this would change is one the next export rewrites.
+    """
+    wire = bring_up_to_date(PipelineRunReport.model_validate(stored)).to_wire()
+    wire["apis"] = relabel_api_rows(wire["apis"])
+    return wire
+
+
 async def read_pipeline_run() -> dict[str, Any] | None:
     """The newest run's full report, or None when there is not one.
 
@@ -294,10 +311,7 @@ async def read_pipeline_run() -> dict[str, Any] | None:
     if row is None or row["report"] is None:
         return None
     try:
-        stored = json.loads(row["report"])
-        wire = PipelineRunReport.model_validate(stored).to_wire()
-        wire["apis"] = relabel_api_rows(wire["apis"])
-        return wire
+        return published_run_report(json.loads(row["report"]))
     except (ValueError, ValidationError) as exc:
         raise ValueError(
             f"Stored run report is not readable: {exc}. The export cannot "

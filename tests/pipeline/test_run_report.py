@@ -565,6 +565,52 @@ class TestDetail:
         assert held.pmid is None
         assert report.genes.rejected_at_insert_floor == 1
 
+    def test_a_citation_only_gene_shows_what_was_written(self) -> None:
+        # An existing gene below the insert floor takes the PMID, the quote
+        # and the score, and nothing else (`_citation_only`). The drawer's
+        # record still carried the extracted trait, omics evidence and
+        # Mendelian randomization, with nothing saying the row took none.
+        report = _report(
+            database={
+                "inserted": 0,
+                "updated": 2,
+                "held_below_insert_floor": [],
+                "citation_only": ["COL4A1"],
+            },
+        )
+        cited, claimed = (
+            next(g for g in report.accepted_genes.items if g.symbol == symbol)
+            for symbol in ("COL4A1", "HTRA1")
+        )
+        assert cited.citation_only is True
+        assert cited.gwas_traits == []
+        assert cited.omics_evidence == []
+        assert cited.mendelian_randomization is None
+        # What the citation is made of stays.
+        assert cited.source_quote == "A sentence naming COL4A1."
+        assert cited.confidence == 0.8
+        assert claimed.citation_only is False
+        assert claimed.gwas_traits == ["PVWMH"]
+
+    def test_the_report_says_how_it_was_run_and_what_it_cached(self) -> None:
+        # `--batch` halves the cost and cache writes are billed above
+        # input, so without these two the published cost could not be
+        # reconciled from the published document.
+        report = _report(
+            pipeline_config={"model": "claude-opus-5", "batch": True},
+            token_usage={"input_tokens": 10, "cache_creation_input_tokens": 7},
+        )
+        assert report.config.batch is True
+        assert report.tokens.cache_creation_input_tokens == 7
+        wire = report.to_wire()
+        assert list(wire["config"])[-1] == "batch"
+        assert list(wire["tokens"])[-1] == "cacheCreationInputTokens"
+
+    def test_a_report_stored_before_them_reads_unknown_not_zero(self) -> None:
+        report = _report()
+        assert report.config.batch is None
+        assert report.tokens.cache_creation_input_tokens is None
+
     def test_a_paper_nobody_timed_publishes_no_duration(self) -> None:
         # A --batch entry is never timed (`PaperResult.processing_time`
         # stays 0.0), and "0 ms" on every row of a day-long batch is a

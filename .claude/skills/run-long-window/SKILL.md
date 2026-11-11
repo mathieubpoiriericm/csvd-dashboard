@@ -26,15 +26,19 @@ crash at hour two used to discard all of it and record nothing.
 **An exhausted credit balance fails every remaining paper, and the run still
 exits 0.** That run ran out of API credit with 210 papers to go: each answered
 `400 invalid_request_error` "Your credit balance is too low", was counted as a
-failed paper, and the merge, the export and the widget went ahead over the
-1,358 that had finished. Nothing is lost -- a failed paper is never written to
+failed paper, and the merge, the export and the widget went ahead over the 1,358
+that had finished. Nothing is lost -- a failed paper is never written to
 `pubmed_refs`, so the same command retries exactly those once the balance is
 topped up, which is how that window was finished (249 papers, $18.40) -- but
 until then the exported data is a partial window. Fund the run with room to
 spare, and read `papers.failed` in the report before committing an export. The
-window starts at `datetime.now(UTC) - days_back`, so a retry on a later UTC
-date needs `--days-back` raised by the days since to start where the first run
-did.
+window starts at `datetime.now(UTC) - days_back`, so a retry on a later UTC date
+needs `--days-back` raised by the days since to start where the first run did.
+**Only a run in which no paper succeeds fails outright**: once every paper has
+errored, step 3 raises `NoPaperProcessedError`, the run is recorded as failed
+and the process exits 1 -- so a balance that is already empty when the run
+starts, or a missing API key, no longer reads as a completed run. One finished
+paper is enough for the behaviour above.
 
 **About 2.4% of papers were refused by the bio safety classifier** (37 of
 1,570 on 2026-11-03, before the fallback existed). The classifier is not

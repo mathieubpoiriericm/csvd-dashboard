@@ -134,6 +134,18 @@ are what it has to show;
 reads the null and says "Validated" on the card, in the drawer's heading and on
 each paper's row.
 
+**The export brings an older stored report up to date** (`published_run_report`
+in `pipeline/export/lookups.py`): re-validation fills what the report lacks,
+`bring_up_to_date` corrects what a default cannot, and `relabel_api_rows`
+re-derives labels and folds an endpoint an older normalisation split. A paper's
+`geneCount` and a gene's `citationOnly` are both read back from the accepted
+list, so both need it complete; a capped list, or a gene with no PMID, leaves
+the report as stored. An older report's holds stay one record per gene with no
+paper named, because which papers proposed a gene held from two is not in the
+document. `test_the_committed_run_report_is_what_the_export_writes` holds
+`data/pipeline_run.json` to that pass: a committed file it would change is one
+the next export rewrites.
+
 ## Failures are classified, not dumped
 
 `pipeline/run_errors.py`'s `classify()` is the one place an exception becomes a
@@ -166,8 +178,28 @@ the class name.
   The merge returns one hold per gene, and counting those left the funnel one
   short whenever two papers proposed a held gene: that run validated 19,
   accepted 10 and held 8. Now `validated` is the accepted list's total plus the
-  holds. The step-5 warning still counts genes ("8 new genes were held"), which
-  is what it says.
+  holds. The step-5 warning counts the same mentions, and says so when they
+  differ from the genes ("8 new genes, extracted 9 times, were held"):
+  `HeldGene.mentions` carries the number out of the merge.
+- **A citation-only update says so.** An existing gene whose best score sat
+  below the insert floor takes its PMID, quote and score and no claim
+  (`_citation_only`). `MergeResult.citation_only` returns those keys, and the
+  gene's accepted record carries `citationOnly: true` with its trait, omics and
+  Mendelian fields empty, as the row's contribution is; it used to carry what
+  the model extracted, so the drawer showed claims the table never took. Step 5
+  names the count as an action, not a warning: the floor is doing its job.
+- **The report says how it was run and what it cached.** `config.batch` and
+  `tokens.cacheCreationInputTokens` were in `PipelineRunData` all along and
+  dropped by the model, so a halved `--batch` cost and the cache writes, billed
+  above the input rate and counted in neither `inputTokens` nor `totalTokens`,
+  could not be reconciled from the published document. Both are null, not false
+  or 0, on a report stored before them.
+- **A `--batch` run prices the papers it restored at the rate they were paid.**
+  A batch entry's checkpoint record carries no tokens, so every token a batch
+  run restores came from a streaming run at the full rate.
+  `_restore_checkpoint(batched=True)` counts them in
+  `PipelineMetrics.streamed_token_usage` as well, and `_build_common_run_data`
+  takes the batch discount back off that share.
 - **`processingSeconds` is null for a paper nobody timed.** A `--batch` entry
   keeps `PaperResult.processing_time`'s default of 0.0, which published "0 ms"
   on every row of a day-long poll.

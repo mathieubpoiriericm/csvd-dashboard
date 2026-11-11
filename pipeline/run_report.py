@@ -74,6 +74,10 @@ class RunConfigRecord(WireModel):
     dry_run: bool = False
     confidence_threshold_update: float | None = None
     confidence_threshold_insert: float | None = None
+    # Appended last: field order is wire order. Whether the Message Batches
+    # API extracted the run, which halves its cost; None on a report
+    # written before this was published.
+    batch: bool | None = None
 
 
 class PaperCounts(WireModel):
@@ -139,6 +143,12 @@ class TokenRecord(WireModel):
     cache_hit_rate: float = 0.0
     truncated_responses: int = 0
     estimated_cost_usd: float = 0.0
+    # Appended last: field order is wire order. Cache writes are billed
+    # above the input rate and counted in neither `input_tokens` nor
+    # `total_tokens`, so without them the cost above cannot be reconciled
+    # from this block. None on a report written before it was published:
+    # the run wrote some, and 0 would say it did not.
+    cache_creation_input_tokens: int | None = None
 
 
 class DatabaseRecord(WireModel):
@@ -168,6 +178,11 @@ class GeneRecord(WireModel):
     omics_evidence: list[str] = Field(default_factory=list)
     causal_evidence_summary: str | None = None
     source_quote: str | None = None
+    # Appended last: field order is wire order. True when the merge wrote
+    # this gene's PMID, quote and score and withheld its claims
+    # (`_citation_only` in pipeline/data_merger.py); the three claim fields
+    # above are then empty, as the row is.
+    citation_only: bool = False
 
 
 class RejectedGeneRecord(WireModel):
@@ -236,6 +251,93 @@ class PipelineRunReport(WireModel):
         return self.model_dump(mode="json", by_alias=True)
 
 
+def bring_up_to_date(report: PipelineRunReport) -> PipelineRunReport:
+    """Tell an older stored report what can still be told about it.
+
+    The export re-validates a stored report rather than passing it
+    through, and this is the half of that which a default cannot do: a
+    count whose *meaning* moved, and a fact the run knew and did not
+    store. Both are read back from the accepted list, so both need it
+    complete -- a capped list cannot say what a paper had accepted -- and
+    a run that never merged has nothing to correct. A report built by the
+    current pipeline already agrees, so this is a no-op on it.
+
+    **A paper's `gene_count`** is what the drawer prints as "N accepted".
+    A report stored before `_paper_records` took the holds out of it
+    counts the genes the insert floor held, so a paper read "2 accepted"
+    with neither in the accepted list. The difference moves to the paper's
+    rejected count, where the drawer lists a hold.
+
+    **`citation_only`.** An accepted gene is an existing one, since a new
+    gene below the insert floor is held; so one whose best score in the
+    run sat below that floor took its PMID, quote and score and no claim
+    (`_citation_only` in pipeline/data_merger.py), and its record is
+    emptied of the claims the way `_gene_records` empties one now.
+
+    What cannot be recovered is left alone: an older report's holds are
+    one record per gene, with no paper named, and which papers proposed a
+    gene held from two is not in the document.
+    """
+    accepted = report.accepted_genes
+    if (
+        report.database is None
+        or accepted.truncated
+        or any(gene.pmid is None for gene in accepted.items)
+    ):
+        return report
+
+    per_paper: dict[str, int] = {}
+    best: dict[str, float | None] = {}
+    for gene in accepted.items:
+        if gene.pmid is not None:
+            per_paper[gene.pmid] = per_paper.get(gene.pmid, 0) + 1
+        key = canonical_gene_symbol(gene.symbol).upper()
+        known = best.get(key, 0.0)
+        # One unscored mention and the gene's best score is unknown.
+        best[key] = (
+            None
+            if known is None or gene.confidence is None
+            else max(known, gene.confidence)
+        )
+
+    papers = [
+        paper.model_copy(
+            update={
+                "gene_count": accepted_here,
+                "rejected_count": paper.rejected_count
+                + paper.gene_count
+                - accepted_here,
+            }
+        )
+        if (accepted_here := per_paper.get(paper.pmid, 0)) < paper.gene_count
+        else paper
+        for paper in report.papers_detail.items
+    ]
+
+    floor = report.config.confidence_threshold_insert
+    genes = [
+        gene.model_copy(
+            update={
+                "gwas_traits": [],
+                "mendelian_randomization": None,
+                "omics_evidence": [],
+                "citation_only": True,
+            }
+        )
+        if floor is not None
+        and (score := best[canonical_gene_symbol(gene.symbol).upper()]) is not None
+        and score < floor
+        else gene
+        for gene in accepted.items
+    ]
+    return report.model_copy(
+        update={
+            "papers_detail": report.papers_detail.model_copy(update={"items": papers}),
+            "accepted_genes": accepted.model_copy(update={"items": genes}),
+        }
+    )
+
+
 def _no_text_count(papers_detail: list[dict[str, Any]]) -> int:
     """Papers the run could retrieve no text for, however each path said so.
 
@@ -292,7 +394,9 @@ def derive_status(steps: list[StepRecord]) -> RunStatus:
 
 
 def _gene_records(
-    papers_detail: list[dict[str, Any]], held: set[str]
+    papers_detail: list[dict[str, Any]],
+    held: set[str],
+    citation_only: set[str],
 ) -> list[GeneRecord]:
     """Every gene the run accepted, in paper order.
 
@@ -305,23 +409,41 @@ def _gene_records(
     so appear in `papers_detail[*].genes`, but they never reach the
     database -- listing them under "Genes accepted" while the section
     below called them rejected was two answers to the same question.
+
+    A gene in *citation_only* is an existing row the merge gave its PMID,
+    quote and score and nothing else, because its best score sat below the
+    insert floor. The record carries what was written: its trait, omics
+    and Mendelian randomization fields are empty, as the row's
+    contribution is, and the flag says why. They used to carry what the
+    model extracted, so the drawer showed claims the table never took.
     """
-    return [
-        GeneRecord(
-            symbol=gene.get("gene_symbol", ""),
-            pmid=gene.get("pmid"),
-            confidence=gene.get("confidence"),
-            gwas_traits=list(gene.get("gwas_trait") or []),
-            protein_name=gene.get("protein_name"),
-            mendelian_randomization=gene.get("mendelian_randomization"),
-            omics_evidence=wire_strings(gene.get("omics_evidence") or []),
-            causal_evidence_summary=gene.get("causal_evidence_summary"),
-            source_quote=gene.get("source_quote"),
-        )
-        for paper in papers_detail
-        for gene in paper.get("genes", [])
-        if not _is_held(gene, held)
-    ]
+    records: list[GeneRecord] = []
+    for paper in papers_detail:
+        for gene in paper.get("genes", []):
+            if _is_held(gene, held):
+                continue
+            cited = _merge_key(gene) in citation_only
+            records.append(
+                GeneRecord(
+                    symbol=gene.get("gene_symbol", ""),
+                    pmid=gene.get("pmid"),
+                    confidence=gene.get("confidence"),
+                    gwas_traits=[] if cited else list(gene.get("gwas_trait") or []),
+                    protein_name=gene.get("protein_name"),
+                    mendelian_randomization=(
+                        None if cited else gene.get("mendelian_randomization")
+                    ),
+                    omics_evidence=(
+                        []
+                        if cited
+                        else wire_strings(gene.get("omics_evidence") or [])
+                    ),
+                    causal_evidence_summary=gene.get("causal_evidence_summary"),
+                    source_quote=gene.get("source_quote"),
+                    citation_only=cited,
+                )
+            )
+    return records
 
 
 def _held_keys(held: list[dict[str, Any]]) -> set[str]:
@@ -516,6 +638,11 @@ def build_run_report(
     insert_floor = config.get("confidence_threshold_insert")
     held_keys = _held_keys(held)
     holds = _hold_records(papers_detail, held, insert_floor)
+    cited = database.get("citation_only") if isinstance(database, dict) else None
+    citation_only = {
+        canonical_gene_symbol(str(key)).upper()
+        for key in (cited if isinstance(cited, list) else [])
+    }
     provenance = provenance or ProvenanceTally()
 
     return PipelineRunReport(
@@ -557,7 +684,7 @@ def build_run_report(
             _paper_records(papers_detail, held_keys)
         ),
         accepted_genes=CappedList[GeneRecord].of(
-            _gene_records(papers_detail, held_keys)
+            _gene_records(papers_detail, held_keys, citation_only)
         ),
         rejected_genes=CappedList[RejectedGeneRecord].of(
             _rejected_records(papers_detail, holds)

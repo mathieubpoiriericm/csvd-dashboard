@@ -1249,22 +1249,39 @@ def _record_merge_actions(
         f"Inserted {_count(result['inserted'], 'gene')} and updated "
         f"{result['updated']}"
     )
-    progress.action(f"Recorded {_count(recorded, 'processed PMID')}")
     # isinstance-guarded for the same reason build_run_report is: a bare
     # AsyncMock in a test makes .get() return a coroutine, and len() on
     # one raises inside the reporting path rather than in the test's
     # subject.
-    raw = result.get("held_below_insert_floor") if isinstance(result, dict) else None
+    merged = result if isinstance(result, dict) else {}
+    cited = merged.get("citation_only")
+    if isinstance(cited, list) and cited:
+        # An action, not a warning: withholding the claims of a sub-floor
+        # update is the floor doing what it is for, and the drawer marks
+        # each such gene.
+        progress.action(
+            f"{_count(len(cited), 'existing gene')} took a citation only, "
+            "below the insert floor for a claim"
+        )
+    progress.action(f"Recorded {_count(recorded, 'processed PMID')}")
+    raw = merged.get("held_below_insert_floor")
     held = raw if isinstance(raw, list) else []
     if held:
+        # Counted as the card counts them. A hold is one gene, and the
+        # report's "Held" is one per paper that proposed it, so a gene two
+        # papers proposed read 8 on this step's badge under a 9 on the card.
+        mentions = sum(int(entry.get("mentions", 1)) for entry in held)
+        genes = _count(len(held), "new gene")
         progress.warn(
             RunWarning(
                 kind="genes_rejected",
                 title=(
-                    f"{_count(len(held), 'new gene')} {_were(len(held))} held "
+                    f"{genes} {_were(len(held))} held below the insert floor"
+                    if mentions == len(held)
+                    else f"{genes}, extracted {mentions} times, were held "
                     "below the insert floor"
                 ),
-                count=len(held),
+                count=mentions,
                 subjects=[str(entry["gene_symbol"]) for entry in held],
             )
         )
@@ -1698,6 +1715,9 @@ def _restored_paper(
     )
     stored_metrics = dict(record.get("metrics") or {})
     usage = TokenUsage(**(stored_metrics.pop("token_usage", None) or {}))
+    # A per-paper record never holds a restored share of its own; the run
+    # that restores it decides (see `_restore_checkpoint`).
+    stored_metrics.pop("streamed_token_usage", None)
     # A checkpointed paper is a processed paper by definition. Files written
     # before `papers_processed` was counted per paper carry 0 here, because
     # the run added the total after the hook had already seen the paper.
@@ -1715,12 +1735,20 @@ def _restore_checkpoint(
     metrics: PipelineMetrics,
     config: PipelineConfig,
     progress: _ProgressReporter,
+    *,
+    batched: bool = False,
 ) -> tuple[list[PaperResult], list[str]]:
     """Split *pmids* into papers a previous run finished and papers still to do.
 
     Only papers in this run's window are restored, and only their metrics are
     folded in: a checkpoint written by a wider window can hold papers this run
     is not publishing, and counting those would inflate the report.
+
+    *batched* says the restoring run is a ``--batch`` one. A batch entry's
+    record carries no tokens, so every token such a run restores was paid
+    for by a streaming run at the full rate; they are counted in
+    ``streamed_token_usage`` as well, which is what keeps the cost estimate
+    from halving them with the batch's own.
     """
     records = checkpoint.load(config.checkpoint_file, checkpoint.fingerprint(config))
     if not records:
@@ -1744,6 +1772,8 @@ def _restore_checkpoint(
             pending.append(pmid)
             continue
         result, paper_metrics, provenance = available[pmid]
+        if batched:
+            paper_metrics.streamed_token_usage += paper_metrics.token_usage
         metrics.fold(paper_metrics)
         if provenance:
             # Replayed under the paper's scope, so a run that restores and
@@ -1973,7 +2003,9 @@ async def _process_new_pmids_via_batch(
     restored: list[PaperResult] = []
     pending = list(pmids)
     if use_checkpoint:
-        restored, pending = _restore_checkpoint(pmids, metrics, config, progress)
+        restored, pending = _restore_checkpoint(
+            pmids, metrics, config, progress, batched=True
+        )
     collected.extend(restored)
     on_complete = _paper_finished_hook(config, collected, checkpointing=use_checkpoint)
 

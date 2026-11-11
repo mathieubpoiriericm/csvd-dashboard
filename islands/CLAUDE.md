@@ -158,6 +158,11 @@ The pipeline half is in `.claude/rules/pipeline/run-reporting.md`. On this side:
   `database: null` and still lists the genes its papers validated, so the card's
   stat, the drawer's heading ("Genes validated, not written") and each paper's
   row (`describePaper(paper, false)`) take the `genesValidated` label there.
+- **A citation-only gene says "Written as: Citation only".** Its record carries
+  no trait or omics pill, because the merge withheld them (`gene.citationOnly`);
+  without the word the gene reads as one the model found nothing about.
+- **The header names the Batch API only when it extracted the run**
+  (`config.batch === true`). Null on an older report is not "streamed".
 - **The drawer exists only when there is something in it.** A run that failed
   before it processed a paper records no papers, no genes and no API calls; the
   trigger and the `<aside>` are not rendered at all rather than opening on an

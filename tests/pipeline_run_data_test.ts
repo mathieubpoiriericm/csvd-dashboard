@@ -43,6 +43,7 @@ Deno.test("a fully populated report keeps every value it was given", () => {
       mode: "pmid_list",
       skipValidation: true,
       dryRun: true,
+      batch: true,
       confidenceThresholdUpdate: 0.45,
       confidenceThresholdInsert: 0.65,
     },
@@ -71,6 +72,7 @@ Deno.test("a fully populated report keeps every value it was given", () => {
       cacheHitRate: 0.4676,
       truncatedResponses: 1,
       estimatedCostUsd: 1.38,
+      cacheCreationInputTokens: 18211,
     },
     steps: [{
       key: "processing_papers",
@@ -117,6 +119,7 @@ Deno.test("a fully populated report keeps every value it was given", () => {
         omicsEvidence: ["MAGMA"],
         causalEvidenceSummary: "Validated monogenic cause.",
         sourceQuote: "The diagnosis is established by molecular testing.",
+        citationOnly: true,
       }],
     },
   }));
@@ -128,6 +131,7 @@ Deno.test("a fully populated report keeps every value it was given", () => {
   assertEquals(result.config.promptSha256, "70908abc0302" + "0".repeat(52));
   assertEquals(result.config.skipValidation, true);
   assertEquals(result.config.dryRun, true);
+  assertEquals(result.config.batch, true);
   assertEquals(result.config.confidenceThresholdInsert, 0.65);
   assertEquals(result.papers.found, 40);
   assertEquals(result.papers.alreadySeen, 31);
@@ -135,6 +139,7 @@ Deno.test("a fully populated report keeps every value it was given", () => {
   assertEquals(result.genes.rejectedAtInsertFloor, 2);
   assertEquals(result.tokens.cacheHitRate, 0.4676);
   assertEquals(result.tokens.estimatedCostUsd, 1.38);
+  assertEquals(result.tokens.cacheCreationInputTokens, 18211);
 
   const step = result.steps[0];
   assertEquals(step.status, "warning");
@@ -160,6 +165,22 @@ Deno.test("a fully populated report keeps every value it was given", () => {
     gene.sourceQuote,
     "The diagnosis is established by molecular testing.",
   );
+  assertEquals(gene.citationOnly, true);
+});
+
+Deno.test("a report stored before a field existed reads unknown, not zero", () => {
+  // Whether the run was batched and what it wrote to the cache are facts
+  // an older report never recorded: `false` and `0` would be answers.
+  const result = normalizePipelineRun(run({
+    config: { model: "claude-opus-5" },
+    tokens: { inputTokens: 10 },
+    acceptedGenes: { items: [{ symbol: "HTRA1" }] },
+  }));
+  assert(result !== null);
+  assertEquals(result.config.batch, null);
+  assertEquals(result.tokens.cacheCreationInputTokens, null);
+  // A gene with no flag took its claims: that is every gene before it.
+  assertEquals(result.acceptedGenes.items[0].citationOnly, false);
 });
 
 Deno.test("a list field that is not a list becomes an empty one", () => {
