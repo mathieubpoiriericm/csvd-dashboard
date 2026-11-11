@@ -277,9 +277,11 @@ class PipelineMetrics:
         genes_rejected: Genes failing confidence or NCBI checks.
         token_usage: Accumulated LLM token usage.
         streamed_token_usage: The share of ``token_usage`` a ``--batch``
-            run restored from a checkpoint. A batch entry's record carries
-            no tokens, so all of it was paid for by a streaming run at the
-            full rate, and the cost estimate must not halve it.
+            run paid for at the full rate: what it restored from a
+            checkpoint (a batch entry's record carries no tokens, so all of
+            it was a streaming run's) and the direct requests that sent a
+            refused entry to the fallback model. The cost estimate must not
+            halve it.
     """
 
     papers_processed: int = 0

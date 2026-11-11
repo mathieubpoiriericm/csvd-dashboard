@@ -1938,12 +1938,18 @@ async def _validate_batch_paper(
     text_meta: tuple[bool, str, bool],
     metrics: PipelineMetrics,
     config: PipelineConfig,
+    *,
+    served: ServedBy | None = None,
 ) -> PaperResult:
     """Validate one batch paper's genes with the streaming path's isolation.
 
     An NCBI outage during validation raises rather than rejecting genes
     (see ``_validate_genes``); caught here per paper so it fails that
     paper alone instead of the whole run after the batch was paid for.
+
+    *served* is set for a paper the fallback model rescued after the batch
+    declined it (``_rescue_refused_batch_paper``), and names the model and
+    the classifier exactly as ``process_paper`` does from its outcome.
     """
     fulltext, source, truncated = text_meta
     try:
@@ -1966,10 +1972,77 @@ async def _validate_batch_paper(
         fulltext=fulltext,
         source=source,
         text_truncated=truncated,
-        # A batch cannot fall back (the Batches API rejects `fallbacks`), so
-        # the model it was sent to is the model that answered.
-        extraction_model=config.llm_model,
+        # A batch entry cannot fall back (the Batches API rejects
+        # `fallbacks`), so without *served* the model it was sent to is the
+        # model that answered.
+        extraction_model=served.model if served is not None else config.llm_model,
+        refusal=served.declined if served is not None else None,
     )
+
+
+async def _rescue_refused_batch_paper(
+    pmid: str,
+    text: str,
+    category: str,
+    text_meta: tuple[bool, str, bool],
+    paper_metrics: PipelineMetrics,
+    config: PipelineConfig,
+) -> PaperResult:
+    """Send a paper the batch's model declined straight to the fallback model.
+
+    The Batches API rejects `fallbacks`, so the server-side hand-over the
+    streaming path gets is done here instead: one direct streaming request
+    to ``config.fallback_model``, after the batch is collected. No second
+    attempt on the primary model -- it has just declined this paper. The
+    request is billed at the streaming rate, so its tokens are counted in
+    ``streamed_token_usage`` as well, which keeps the batch discount off
+    them; the caller folds them into the run whether or not the paper is
+    kept, since the spend is real either way. No exception escapes: one
+    paper's rescue must not cost the rest of a batch already paid for.
+    """
+    try:
+        genes, token_usage, served = await extract_from_paper(
+            text,
+            pmid,
+            config=config,
+            # The batch path has no limiter; the rescues are few and the
+            # caller bounds how many run at once.
+            rate_limiter=None,
+            model=config.fallback_model,
+            declined=category,
+        )
+    except ExtractionRefusedError as exc:
+        _count_streamed(paper_metrics, exc.token_usage)
+        # The paper's refusal stays the requested model's classifier, as on
+        # the streaming path; the message names the fallback's own as well.
+        return PaperResult(
+            pmid=pmid,
+            error=(
+                f"Refused by safety classifier for PMID {pmid} "
+                f"(category: {category}; {config.fallback_model} also "
+                f"declined: {exc.category})"
+            ),
+            refusal=category,
+        )
+    except Exception as exc:
+        logger.exception(f"Error extracting refused PMID {pmid} on the fallback")
+        if isinstance(exc, ExtractionFailedError):
+            _count_streamed(paper_metrics, exc.token_usage)
+        return PaperResult(pmid=pmid, error=str(exc))
+
+    _count_streamed(paper_metrics, token_usage)
+    for gene in genes:
+        gene.pmid = pmid
+    return await _validate_batch_paper(
+        pmid, genes, text_meta, paper_metrics, config, served=served
+    )
+
+
+def _count_streamed(metrics: PipelineMetrics, usage: TokenUsage | None) -> None:
+    """Add a streamed request's tokens to a ``--batch`` run's metrics."""
+    if usage is not None:
+        metrics.token_usage += usage
+        metrics.streamed_token_usage += usage
 
 
 async def _process_new_pmids_via_batch(
@@ -2095,30 +2168,52 @@ async def _process_new_pmids_via_batch(
             current_tally().discard(pmid)
             collected.append(result)
 
-    await asyncio.gather(*(validate_one(pmid) for pmid in extracted_pmids))
-    # Every collected paper is validated, so the batch record has done its
-    # job. Clearing it any earlier would lose the results a crash in
-    # validation could otherwise retrieve again. A dry run leaves a real
-    # run's record alone, as it leaves its checkpoint.
+    # A batch entry cannot fall back, so a paper the batch's model declined
+    # is sent to the fallback model here, in the same run, rather than
+    # failed and left for a later one. Bounded like the fetches above.
+    rescue_slots = asyncio.Semaphore(config.max_concurrent_papers)
+
+    async def rescue_one(pmid: str) -> None:
+        paper_metrics = PipelineMetrics()
+        # Its quotes are tallied under its own PMID, as every paper's are.
+        with paper_scope(pmid):
+            async with rescue_slots:
+                result = await _rescue_refused_batch_paper(
+                    pmid,
+                    papers[pmid],
+                    refusals[pmid],
+                    text_meta[pmid],
+                    paper_metrics,
+                    config,
+                )
+        if result.succeeded:
+            metrics.fold(paper_metrics)
+            on_complete(result, paper_metrics)
+        else:
+            # As `validate_one` does for a failed paper, except that this
+            # one's spend is the rescue's own and is counted now, as the
+            # streaming path counts a failed paper's.
+            metrics.token_usage += paper_metrics.token_usage
+            metrics.streamed_token_usage += paper_metrics.streamed_token_usage
+            current_tally().discard(pmid)
+            collected.append(result)
+
+    rescued_pmids = [
+        pmid for pmid in papers if pmid not in genes_by_pmid and pmid in refusals
+    ]
+    await asyncio.gather(
+        *(validate_one(pmid) for pmid in extracted_pmids),
+        *(rescue_one(pmid) for pmid in rescued_pmids),
+    )
+    # Every collected paper is validated and every refused one rescued or
+    # failed, so the batch record has done its job. Clearing it any earlier
+    # would lose the results a crash in validation or in a rescue could
+    # otherwise retrieve again. A dry run leaves a real run's record alone,
+    # as it leaves its checkpoint.
     if use_checkpoint:
         batch_state.clear(config.batch_state_file)
     for pmid in papers:
-        if pmid in genes_by_pmid:
-            continue
-        if pmid in refusals:
-            # The same sentence the streaming path raises, so a refusal
-            # reads alike whichever path declined it.
-            category = refusals[pmid]
-            collected.append(
-                PaperResult(
-                    pmid=pmid,
-                    error=(
-                        f"Refused by safety classifier for PMID {pmid} "
-                        f"(category: {category})"
-                    ),
-                    refusal=category,
-                )
-            )
+        if pmid in genes_by_pmid or pmid in refusals:
             continue
         logger.warning(f"  No batch result for PMID {pmid}, marking as failed")
         collected.append(

@@ -55,9 +55,10 @@ Opus 5.5 attempt is billed (a `bio` refusal is, even before any output; a
 writes more than Opus 5.5 does. Measured on 2026-11-03, the retry of the 37
 refused papers (plus one new one) cost $8.38 for 38 papers, about $0.22 each
 against the window's $0.074: Opus 4.8 extracted 34, Opus 5.5 took 3 itself this
-time, and both models declined 1. `--batch`
-cannot fall back -- the Batches API rejects `fallbacks` -- so under it every
-refusal fails the paper as before.
+time, and both models declined 1. A `--batch` entry cannot fall back -- the
+Batches API rejects `fallbacks` -- so the run sends each refused entry straight
+to Opus 4.8 as a streaming request once the batch is collected: the same
+`model_fallback` warning, at the streaming rate rather than the batch's half.
 
 **`pipeline/checkpoint.py` is what makes that survivable.** Each paper is
 appended to `logs/pipeline_checkpoint.jsonl` as it finishes, through the

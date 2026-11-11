@@ -114,10 +114,24 @@ fallback declines a direct request it is an ordinary refusal: the category is
 its own, from `stop_details`. With `model=None`, every existing caller, nothing
 about the request, its `ServedBy` or its accounting changed.
 
-`--batch` has no fallback: the Batches API rejects `fallbacks`. A refused batch
-entry is handed back through `results_by_custom_id`'s `refusals` and fails with
-the same sentence and category as a streaming refusal, and the next run whose
-window still covers it retries it.
+**`--batch` rescues a refused entry in the same run.** The Batches API rejects
+`fallbacks`, so a declined entry comes back through `results_by_custom_id`'s
+`refusals`, and `_rescue_refused_batch_paper` in `main.py` sends that paper to
+`claude-opus-4-8` as a direct streaming request (`model=`, `declined=` above)
+once the batch is collected -- never a second Opus 5.5 attempt, which has just
+declined it. The rescues run beside the batch's own validation, under a
+semaphore of `max_concurrent_papers` and no rate limiter, and the batch's state
+file is cleared only after them, so a crash during one still retrieves the
+batch. A rescued paper goes through `_validate_batch_paper` with its `ServedBy`,
+so it is validated, checkpointed and counted like any batch paper and carries
+`extraction_model` and `refusal` as a streaming fallback does, which is what
+raises the `model_fallback` warning. Its tokens are billed at the streaming
+rate, not the batch's half, so they are counted in `streamed_token_usage` too,
+kept or not. A paper Opus 4.8 declines as well fails with the streaming
+sentence plus the fallback's own category ("... (category: bio;
+claude-opus-4-8 also declined: cyber)"), its `refusal` still the batch's
+category; any other rescue failure fails that paper alone with its own message.
+Either way the next run whose window still covers it retries it.
 
 **Opus 4.8 was measured on the golden fixtures before it served a paper**
 (2026-11-03, one call per scorable paper, the pipeline's own request with only

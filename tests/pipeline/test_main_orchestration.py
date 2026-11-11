@@ -3000,9 +3000,14 @@ class TestTheServingModelAndTheRefusal:
         assert result["extraction_model"] is None
         assert result["refusal"] is None
 
-    async def test_a_refused_batch_entry_fails_with_its_category(
-        self, mocker, tmp_path
-    ) -> None:
+    @staticmethod
+    def _refused_batch(mocker, tmp_path: Path, extract: AsyncMock) -> PipelineConfig:
+        """A batch of 111 and 222 whose entry for 222 the classifier declined.
+
+        111 comes back with one gene and validation passes everything, so
+        whatever happens to 222 is the rescue's doing alone.
+        """
+        reset_tally()
         mocker.patch(
             "pipeline.main._fetch_paper_text_for_batch",
             new=AsyncMock(return_value=("paper text", False, "abstract")),
@@ -3012,17 +3017,169 @@ class TestTheServingModelAndTheRefusal:
             papers, config, *, usage=None, refusals=None, state_path=None
         ):
             assert refusals is not None
-            refusals["777"] = "bio"
-            return {}
+            refusals["222"] = "bio"
+            return {
+                "111": [
+                    GeneEntry(
+                        gene_symbol="GENE1",
+                        confidence=0.9,
+                        source_quote="GENE1 is mentioned.",
+                        pmid="111",
+                    )
+                ]
+            }
+
+        async def validate(genes, metrics, config):
+            metrics.genes_validated += len(genes)
+            return genes, []
 
         mocker.patch("pipeline.main.submit_and_collect", new=fake_submit)
-        config = PipelineConfig(progress_file=str(tmp_path / "progress.json"))
+        mocker.patch("pipeline.main._validate_genes", new=validate)
+        mocker.patch("pipeline.main.extract_from_paper", new=extract)
+        return PipelineConfig(
+            checkpoint_file=str(tmp_path / "checkpoint.jsonl"),
+            batch_state_file=str(tmp_path / "batch_state.json"),
+            progress_file=str(tmp_path / "progress.json"),
+        )
+
+    async def test_a_refused_batch_paper_is_extracted_by_the_fallback_in_the_same_run(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        usage = TokenUsage(input_tokens=1000, output_tokens=200)
+
+        async def answer(text, pmid, *, config, rate_limiter, model, declined):
+            # Its quotes are the paper's own, as on the streaming path.
+            current_tally().record(genes=1, verbatim=1, cited=1)
+            return (
+                [
+                    GeneEntry(
+                        gene_symbol="GENE2",
+                        confidence=0.9,
+                        source_quote="GENE2 is mentioned.",
+                    )
+                ],
+                usage,
+                ServedBy(model="claude-opus-4-8", declined=declined),
+            )
+
+        extract = AsyncMock(side_effect=answer)
+        config = self._refused_batch(mocker, tmp_path, extract)
+        metrics = PipelineMetrics()
         reporter = pipeline_main._ProgressReporter(config)
+
         batch = await pipeline_main._process_new_pmids_via_batch(
-            ["777"], PipelineMetrics(), config, reporter, use_checkpoint=False
+            ["111", "222"], metrics, config, reporter
         )
-        (result,) = batch.results
-        assert result.refusal == "bio"
-        assert result.error == (
-            "Refused by safety classifier for PMID 777 (category: bio)"
+
+        extract.assert_awaited_once()
+        assert extract.call_args.kwargs["model"] == config.fallback_model
+        assert extract.call_args.kwargs["declined"] == "bio"
+        assert extract.call_args.kwargs["rate_limiter"] is None
+        rescued = next(r for r in batch.results if r.pmid == "222")
+        assert rescued.succeeded and rescued.extraction_model == "claude-opus-4-8"
+        assert rescued.refusal == "bio"
+        assert [g.gene_symbol for g in rescued.genes] == ["GENE2"]
+        assert rescued.genes[0].pmid == "222"
+        # Validated, counted and checkpointed like every other batch paper.
+        assert metrics.papers_processed == 2
+        assert metrics.genes_validated == 2
+        records = {
+            r["result"]["pmid"]: r
+            for r in checkpoint.load(
+                config.checkpoint_file, checkpoint.fingerprint(config)
+            )
+        }
+        assert records["222"]["result"]["extraction_model"] == "claude-opus-4-8"
+        assert records["222"]["provenance"]["genes"] == 1
+        # Streamed, so the batch discount must not be taken off it.
+        assert metrics.token_usage.input_tokens == 1000
+        assert metrics.streamed_token_usage.input_tokens == 1000
+        assert any(
+            w.kind == "model_fallback" and w.subjects == ["222"]
+            for step in reporter.steps()
+            for w in step.warnings
         )
+
+    async def test_a_paper_both_models_decline_fails_alone_and_names_both(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        extract = AsyncMock(
+            side_effect=ExtractionRefusedError(
+                "x",
+                TokenUsage(input_tokens=500),
+                category="cyber",
+            )
+        )
+        config = self._refused_batch(mocker, tmp_path, extract)
+        metrics = PipelineMetrics()
+        reporter = pipeline_main._ProgressReporter(config)
+
+        batch = await pipeline_main._process_new_pmids_via_batch(
+            ["111", "222"], metrics, config, reporter
+        )
+
+        failed = next(r for r in batch.results if r.pmid == "222")
+        other = next(r for r in batch.results if r.pmid == "111")
+        assert not failed.succeeded and failed.error is not None
+        assert "bio" in failed.error and "cyber" in failed.error
+        assert failed.error == (
+            "Refused by safety classifier for PMID 222 (category: bio; "
+            "claude-opus-4-8 also declined: cyber)"
+        )
+        # As on the streaming path, the paper's refusal is the requested
+        # model's classifier.
+        assert failed.refusal == "bio"
+        assert other.succeeded
+        # A declined attempt is still spent.
+        assert metrics.token_usage.input_tokens == 500
+        assert metrics.streamed_token_usage.input_tokens == 500
+
+    async def test_a_rescue_that_errors_does_not_lose_the_batch(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        extract = AsyncMock(
+            side_effect=ExtractionFailedError("boom", TokenUsage(output_tokens=40))
+        )
+        config = self._refused_batch(mocker, tmp_path, extract)
+        metrics = PipelineMetrics()
+
+        batch = await pipeline_main._process_new_pmids_via_batch(
+            ["111", "222"],
+            metrics,
+            config,
+            pipeline_main._ProgressReporter(config),
+        )
+
+        failed = next(r for r in batch.results if r.pmid == "222")
+        other = next(r for r in batch.results if r.pmid == "111")
+        assert other.succeeded and not failed.succeeded
+        assert failed.error == "boom"
+        assert metrics.token_usage.output_tokens == 40
+        records = checkpoint.load(
+            config.checkpoint_file, checkpoint.fingerprint(config)
+        )
+        assert [r["result"]["pmid"] for r in records] == ["111"]
+
+    async def test_a_batch_keeps_its_state_until_the_rescues_finish(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        # A crash during a rescue must still be able to retrieve the batch.
+        seen: list[bool] = []
+
+        async def answer(text, pmid, *, config, rate_limiter, model, declined):
+            seen.append(Path(config.batch_state_file).exists())
+            raise ExtractionFailedError("boom")
+
+        extract = AsyncMock(side_effect=answer)
+        config = self._refused_batch(mocker, tmp_path, extract)
+        Path(config.batch_state_file).write_text("[]")
+
+        await pipeline_main._process_new_pmids_via_batch(
+            ["111", "222"],
+            PipelineMetrics(),
+            config,
+            pipeline_main._ProgressReporter(config),
+        )
+
+        assert seen == [True]
+        assert not Path(config.batch_state_file).exists()
