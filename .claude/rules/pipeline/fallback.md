@@ -131,7 +131,11 @@ streaming rate, not the batch's half, so they are counted in
 with the streaming sentence plus the fallback's own category ("... (category:
 bio; claude-opus-4-8 also declined: cyber)"), its `refusal` still the batch's
 category; any other rescue failure fails that paper alone with its own message.
-Either way the next run whose window still covers it retries it.
+Either way the next run whose window still covers it retries it. The run's
+`config.fallbackModel` names Opus 4.8 on a `--batch` run too
+(`report_metadata`): it used to be null there, as if no batch run could use a
+fallback, beside papers the fallback had extracted. The `model_fallback`
+warning's detail names both ways a paper reaches it.
 
 **Opus 4.8 was measured on the golden fixtures before it served a paper**
 (2026-11-03, one call per scorable paper, the pipeline's own request with only

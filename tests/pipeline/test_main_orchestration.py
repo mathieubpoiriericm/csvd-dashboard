@@ -3469,6 +3469,58 @@ class TestTheServingModelAndTheRefusal:
         )
         assert [r["result"]["pmid"] for r in records] == ["111"]
 
+    async def test_a_rescued_paper_that_fails_validation_is_paid_for_not_kept(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        # The fallback answered, so its tokens are spent at the streaming
+        # rate; NCBI then failed the paper, so the retrying run counts its
+        # quotes and nothing restores it.
+        from pipeline.validation import NcbiUnavailableError
+
+        async def answer(text, pmid, *, config, rate_limiter, model, declined):
+            current_tally().record(genes=1, verbatim=1, cited=1)
+            return (
+                [
+                    GeneEntry(
+                        gene_symbol="GENE2",
+                        confidence=0.9,
+                        source_quote="GENE2 is mentioned.",
+                    )
+                ],
+                TokenUsage(input_tokens=700, output_tokens=70),
+                ServedBy(model="claude-opus-4-8", declined=declined),
+            )
+
+        config = self._refused_batch(mocker, tmp_path, AsyncMock(side_effect=answer))
+
+        async def validate(genes, metrics, config):
+            if genes[0].gene_symbol == "GENE2":
+                raise NcbiUnavailableError("NCBI down")
+            metrics.genes_validated += len(genes)
+            return genes, []
+
+        mocker.patch("pipeline.main._validate_genes", new=validate)
+        metrics = PipelineMetrics()
+
+        batch = await pipeline_main._process_new_pmids_via_batch(
+            ["111", "222"],
+            metrics,
+            config,
+            pipeline_main._ProgressReporter(config),
+        )
+
+        failed = next(r for r in batch.results if r.pmid == "222")
+        assert not failed.succeeded and failed.error == "NCBI down"
+        assert metrics.token_usage.input_tokens == 700
+        assert metrics.token_usage.output_tokens == 70
+        assert metrics.streamed_token_usage.input_tokens == 700
+        # 111 recorded no quotes, so the run's tally is 222's alone.
+        assert current_tally().genes == 0
+        records = checkpoint.load(
+            config.checkpoint_file, checkpoint.fingerprint(config)
+        )
+        assert [r["result"]["pmid"] for r in records] == ["111"]
+
     async def test_a_batch_keeps_its_state_until_the_rescues_finish(
         self, mocker, tmp_path: Path
     ) -> None:

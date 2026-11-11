@@ -216,7 +216,10 @@ export interface CappedList<T> {
 
 export interface RunConfig {
   model: string | null;
-  /** The server-side fallback the run requested; null under --batch. */
+  /**
+   * The fallback model a declined paper could be sent to (on a --batch run,
+   * directly after the batch declined it); null on an older report.
+   */
   fallbackModel: string | null;
   effort: string | null;
   promptVersion: string | null;

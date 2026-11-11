@@ -228,12 +228,13 @@ the class name.
   or 0, on a report stored before them.
 - **A `--batch` run prices the papers it restored at the rate they were paid.**
   A batch entry's checkpoint record carries no tokens, so every token a batch
-  run restores came from a streaming run at the full rate.
+  run restores came from a streaming request at the full rate: a streaming run's
+  paper, or a batch paper the fallback model rescued.
   `_restore_checkpoint(batched=True)` counts them in
   `PipelineMetrics.streamed_token_usage` as well, and `_build_common_run_data`
-  takes the batch discount back off that share. A refused entry the run sends
-  to the fallback model (`_rescue_refused_batch_paper`) is a streaming request
-  too, so its tokens join the same share, whether or not the paper is kept.
+  takes the batch discount back off that share. A refused entry the run sends to
+  the fallback model (`_rescue_refused_batch_paper`) is a streaming request too,
+  so its tokens join the same share, whether or not the paper is kept.
 - **`processingSeconds` is null for a paper nobody timed.** A `--batch` entry
   keeps `PaperResult.processing_time`'s default of 0.0, which published "0 ms"
   on every row of a day-long poll.

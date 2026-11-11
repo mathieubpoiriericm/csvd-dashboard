@@ -155,9 +155,12 @@ paper is written as its validation finishes, from its own `PipelineMetrics`,
 with its share of the quote tally (`results_by_custom_id` runs
 `report_provenance` under `paper_scope`). One difference from the streaming path
 is deliberate: the batch's tokens are one figure for the whole batch, not per
-paper, so a restored batch paper carries none -- the crashed run's own failed
-report holds the spend. The batch path used to write nothing and also reached
-the unconditional clear without restoring a streaming run's papers.
+paper, so a restored batch paper carries none of them -- the crashed run's own
+failed report holds the spend. A paper the fallback model rescued after the
+batch declined it is the exception: its record carries that streamed request's
+tokens, and the restoring run counts them at the full rate. The batch path used
+to write nothing and also reached the unconditional clear without restoring a
+streaming run's papers.
 
 **The poll window of a `--batch` run is covered by a state file.**
 `submit_and_collect` writes the batch id to `logs/pipeline_batch.json`

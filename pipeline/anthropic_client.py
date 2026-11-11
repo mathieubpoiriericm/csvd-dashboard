@@ -964,13 +964,14 @@ class AnthropicClient:
             await self._client.close()
             self._client = None
 
-    def report_metadata(
-        self, config: PipelineConfig, *, batched: bool = False
-    ) -> dict[str, Any]:
+    def report_metadata(self, config: PipelineConfig) -> dict[str, Any]:
         return {
             "model": config.llm_model,
-            # A batch run requested none: the Batches API rejects `fallbacks`.
-            "fallback_model": None if batched else config.fallback_model,
+            # Named on both paths. A batch *entry* cannot fall back (the
+            # Batches API rejects `fallbacks`), but a batch *run* sends each
+            # paper the batch declined straight to this model, so a --batch
+            # report that said null could carry papers it extracted.
+            "fallback_model": config.fallback_model,
             "model_version": config.model_version,
             "thinking_mode": config.thinking_mode,
             "effort": config.llm_effort,
@@ -1010,7 +1011,8 @@ class AnthropicClient:
             - usage.unbilled_cache_read_input_tokens,
         )
         # The totals hold both models; the fallback_* counts are Opus 4.8's
-        # share, billed at its own rates. A batch never falls back.
+        # share, billed at its own rates. A batch entry never falls back, but
+        # a batch run's papers rescued after a refusal are in this share.
         fallback = _priced(
             FALLBACK_MODEL_PRICING,
             _FALLBACK_CACHE_READ_MULTIPLIER,

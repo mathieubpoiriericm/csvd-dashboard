@@ -1393,17 +1393,23 @@ def _record_processing_actions(
                     f"{'it' if count == 1 else 'them'}"
                 ),
                 count=count,
-                # The title is true of the paper, not of every request: a
-                # retry of a paper that fell back goes straight to the
-                # fallback (sticky routing), and a paper that fell back
-                # before this run reaches it with no decline this run saw.
+                # The title is true of the paper, not of every request. A
+                # paper gets there two ways: the server-side fallback on a
+                # streaming request, or a direct request once its --batch
+                # entry was refused. On the streaming road a retry of a
+                # paper that fell back goes straight to the fallback (sticky
+                # routing), and a paper that fell back before this run
+                # reaches it with no decline this run saw.
                 detail=(
-                    f"A paper that falls back stays on {fallback} for about "
-                    "an hour (sticky routing), so a retry of it is served "
-                    f"without {primary_model} running again. Each paper "
-                    "names the classifier that declined it in this run, or a "
-                    "safety classifier when it was declined before the run "
-                    "began."
+                    f"A paper reaches {fallback} through the server-side "
+                    "fallback on a streaming request, or through a direct "
+                    f"request after {primary_model} declined its --batch "
+                    f"entry. A streaming paper that falls back stays on "
+                    f"{fallback} for about an hour (sticky routing), so a "
+                    f"retry of it is served without {primary_model} running "
+                    "again. Each paper names the classifier that declined it "
+                    "in this run, or a safety classifier when it was declined "
+                    "before the run began."
                 ),
                 subjects=served_by_fallback,
             )
@@ -1784,7 +1790,8 @@ def _restore_checkpoint(
 
     *batched* says the restoring run is a ``--batch`` one. A batch entry's
     record carries no tokens, so every token such a run restores was paid
-    for by a streaming run at the full rate; they are counted in
+    for by a streaming request at the full rate -- a streaming run's paper,
+    or a paper a batch run sent to the fallback model; they are counted in
     ``streamed_token_usage`` as well, which is what keeps the cost estimate
     from halving them with the batch's own.
     """
@@ -2107,9 +2114,11 @@ async def _process_new_pmids_via_batch(
     # they do, and validation and the merge still lie between them and
     # `pubmed_refs`. Each paper is checkpointed as its validation finishes,
     # exactly as the streaming path does, so a crash at either step restores
-    # the batch rather than resubmitting it. The run's tokens are one batch
-    # figure, not per paper, so a restored batch paper carries none; the
-    # crashed run's own failed report holds the spend.
+    # the batch rather than resubmitting it. The batch's tokens are one
+    # figure, not per paper, so a restored batch paper carries none of them;
+    # the crashed run's own failed report holds that spend. A paper rescued
+    # by the fallback model is the exception: its record carries the
+    # streamed request's tokens, which were paid at the full rate.
     collected = [] if collected is None else collected
     restored: list[PaperResult] = []
     pending = list(pmids)

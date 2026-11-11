@@ -31,7 +31,9 @@ class TokenUsage:
     # that declined as well (see `accumulate_usage`). The totals stay
     # totals across both models, so every panel reading them is unchanged;
     # these exist so `estimate_cost` can price each model's share at its own
-    # rates. A batch never falls back, so they stay 0 there.
+    # rates. A batch entry never falls back, so its own usage leaves them at
+    # 0; a --batch run still fills them from the papers it sends straight to
+    # the fallback model after the batch declined them.
     fallback_input_tokens: int = 0
     fallback_output_tokens: int = 0
     fallback_cache_creation_input_tokens: int = 0

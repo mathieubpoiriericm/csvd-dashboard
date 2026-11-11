@@ -209,7 +209,7 @@ def build_run_data(
         total_duration,
         pipeline_config={
             "llm_provider": "anthropic",
-            **client.report_metadata(config, batched=use_batch_api),
+            **client.report_metadata(config),
             "days_back": days_back,
             "dry_run": dry_run,
             "batch": use_batch_api,

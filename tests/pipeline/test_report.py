@@ -120,12 +120,10 @@ class TestAnthropicClientReportMetadata:
         assert fields["thinking_mode"] != "none"
         assert fields["effort"] is not None
 
-    def test_report_metadata_names_the_fallback_except_under_batch(self):
+    def test_report_metadata_names_the_fallback(self):
         config = PipelineConfig()
-        client = AnthropicClient()
-        assert client.report_metadata(config)["fallback_model"] == "claude-opus-4-8"
-        # The Batches API rejects `fallbacks`, so a batch run had none.
-        assert client.report_metadata(config, batched=True)["fallback_model"] is None
+        fields = AnthropicClient().report_metadata(config)
+        assert fields["fallback_model"] == "claude-opus-4-8"
 
     def test_report_metadata_carries_disease_and_prompt_hash(self):
         config = PipelineConfig()
@@ -261,6 +259,12 @@ class TestBuildRunData:
         assert "genes" in data
         assert "token_usage" in data
         assert "database" in data
+
+    def test_a_batch_run_names_the_fallback_model(self):
+        # A batch entry cannot fall back, but a batch run sends the papers
+        # the batch declined to the fallback model directly.
+        data = self._build(use_batch_api=True)
+        assert data["pipeline_config"]["fallback_model"] == "claude-opus-4-8"
 
     def test_search_counts(self):
         data = self._build()
