@@ -703,7 +703,13 @@ function PipelineRunContent({ run }: { run: PipelineRun }) {
             <Icon name="cube" />
             {formatCount(run.tokens.totalTokens)} tokens
             <span class="pipeline-dot" aria-hidden="true">·</span>
-            {formatPercent(run.tokens.cacheHitRate)} served from cache
+            {
+              /* "of input", because that is what the rate is of. The count
+                beside it is the uncached input plus the output, so a bare
+                "32% served from cache" read as a share of a number that
+                holds no cached token at all. */
+            }
+            {formatPercent(run.tokens.cacheHitRate)} of input served from cache
           </p>
         )}
       </div>

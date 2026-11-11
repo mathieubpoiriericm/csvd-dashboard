@@ -195,11 +195,16 @@ async def read_pubmed_refs(pmids: Sequence[str]) -> list[dict[str, Any]]:
 # while a failed run may well have merged before it died (the merge commits
 # in its own transaction, and --export ships those rows). What the failed
 # run wrote is read from its report's `database` block, not from here.
+#
+# Nor does a run that processed no paper. One in which every paper failed --
+# no API key, an NCBI outage -- or was declined is recorded as completed with
+# warnings, not failed, and it changed nothing: a run that finds no new paper
+# writes no row at all, and this one must not date the data either.
 _STATUS_QUERY: Final[str] = """
     SELECT run_timestamp, papers_processed, fulltext_retrieved,
            genes_extracted, genes_validated
     FROM pipeline_runs
-    {where}
+    WHERE papers_processed > 0{and_where}
     ORDER BY run_timestamp DESC
     LIMIT 1
 """
@@ -217,7 +222,8 @@ async def read_pipeline_status() -> dict[str, Any] | None:
     ``pipeline_status.json`` and exiting 0, which reads on the site as "no
     run has ever happened".
 
-    Failed runs are skipped. A database that has not taken migration 009
+    Failed runs are skipped, and so is a run that processed no paper (see
+    ``_STATUS_QUERY``). A database that has not taken migration 009
     has no ``status`` column to filter on -- and no failed rows either,
     since only the report-writing pipeline records those -- so that one
     case falls back to the unfiltered query rather than to no date.
@@ -227,11 +233,11 @@ async def read_pipeline_status() -> dict[str, Any] | None:
             try:
                 row = await conn.fetchrow(
                     _STATUS_QUERY.format(
-                        where="WHERE status IS DISTINCT FROM 'failed'"
+                        and_where=" AND status IS DISTINCT FROM 'failed'"
                     )
                 )
             except asyncpg.UndefinedColumnError:
-                row = await conn.fetchrow(_STATUS_QUERY.format(where=""))
+                row = await conn.fetchrow(_STATUS_QUERY.format(and_where=""))
     except asyncpg.UndefinedTableError as exc:
         logger.warning("Could not read pipeline_runs: %s", exc)
         return None

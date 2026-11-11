@@ -43,6 +43,22 @@ class TestNormalizePath:
         assert normalize_path(path) == expected
 
     @pytest.mark.parametrize(
+        "path",
+        [
+            "/v2/10.1093/brain/awab123",
+            "/v2/10.1161/STROKEAHA.120.031313",
+            "/v2/10.55563/clinexprheumatol/abc12d",
+            "/v2/10.1002/(SICI)1096-8628(19960102)61:1<10::AID-AJMG2>3.0.CO;2-9",
+        ],
+    )
+    def test_a_doi_is_one_identifier_however_many_segments(self, path: str) -> None:
+        # A DOI's suffix may hold slashes, and a suffix segment with no
+        # digit survived: the 2026-11-03 run published Unpaywall's one
+        # endpoint as /v2/:id/:id, /v2/:id/brain/:id and
+        # /v2/:id/clinexprheumatol/:id, each with its own retry warning.
+        assert normalize_path(path) == "/v2/:id"
+
+    @pytest.mark.parametrize(
         "path", ["/api/v2/studies", "/tools/idconv/api/v1/articles"]
     )
     def test_version_segments_survive(self, path: str) -> None:

@@ -33,6 +33,8 @@ from pipeline.wire_model import WireModel
 # PMID: /uniprotkb/P12345 and /uniprotkb/Q67890 are the same endpoint.
 _VERSION_SEGMENT: Final[re.Pattern[str]] = re.compile(r"^v\d+(?:\.\d+)*$")
 _HAS_DIGIT: Final[re.Pattern[str]] = re.compile(r"\d")
+# A DOI's registrant prefix, which opens it: "10." and four to nine digits.
+_DOI_PREFIX: Final[re.Pattern[str]] = re.compile(r"^10\.\d{4,9}$")
 
 _START_EXTENSION: Final[str] = "_svd_started_monotonic"
 
@@ -178,11 +180,22 @@ def normalize_path(path: str) -> str:
     version marker: ``/uniprotkb/P12345`` becomes ``/uniprotkb/:id`` while
     ``/api/v2/studies`` and ``/tools/idconv/api/v1/articles`` keep their
     shape. Without this the API panel would grow a row per PMID.
+
+    A DOI is one identifier however many segments it has: its registrant
+    prefix (``10.1093``) opens it and it runs to the end of the path. Its
+    suffix may hold slashes and segments with no digit, each of which
+    survived, so Unpaywall's one endpoint was published as
+    ``/v2/:id/:id``, ``/v2/:id/brain/:id`` and
+    ``/v2/:id/clinexprheumatol/:id`` -- three rows, each raising its own
+    retry and error warnings.
     """
     segments = []
     for segment in path.split("/"):
         if not segment:
             continue
+        if _DOI_PREFIX.fullmatch(segment):
+            segments.append(":id")
+            break
         if _HAS_DIGIT.search(segment) and not _VERSION_SEGMENT.fullmatch(segment):
             segments.append(":id")
         else:
