@@ -39,7 +39,16 @@ opened, so it is in the tuple beside `OSError` and `PostgresError`.
 `--test-mode` is the free way to count what a window would actually process
 before paying for it.
 
-**`estimated_tokens_per_call` is a reservation, not a measurement**, and it is
-the throughput ceiling: raise it and `tpm_limit` together, or neither. The field
-comment in `config.py` records the measurement behind the figure, and
-`tests/pipeline/test_config.py` pins the product against the limit.
+**`estimated_tokens_per_call` is a reservation, not a measurement**, and with
+`tpm_limit` it caps the calls in flight at the limit divided by the estimate: 20
+by default, against five papers at once. The field comment in `config.py`
+records the measurement behind the figure, and `tests/pipeline/test_config.py`
+pins the product against the limit.
+
+**`rpm_limit` and `tpm_limit` default to the Start tier's limits for Claude Opus
+5.5** (4,000 requests a minute, and 400,000 tokens: the output limit, the
+tighter of the API's two, since the limiter's one window holds input and
+output). They were 50 and 100,000, which matched no published tier. An
+organisation still in the Evaluation tier has lower, unpublished limits: set
+`PIPELINE_RPM_LIMIT` and `PIPELINE_TPM_LIMIT` to what the Console's Rate limits
+page shows. A 429 the limiter did not prevent is backed off and retried.

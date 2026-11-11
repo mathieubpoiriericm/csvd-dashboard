@@ -222,12 +222,15 @@ class TestPipelineConfigDefaults:
         )
 
     def test_default_rpm_limit(self):
+        # The Start tier's requests a minute for Claude Opus 5.5.
         cfg = PipelineConfig()
-        assert cfg.rpm_limit == 50
+        assert cfg.rpm_limit == 4_000
 
     def test_default_tpm_limit(self):
+        # The Start tier's output tokens a minute, the tighter of the API's
+        # two token limits: the limiter's one window holds input and output.
         cfg = PipelineConfig()
-        assert cfg.tpm_limit == 100_000
+        assert cfg.tpm_limit == 400_000
 
     def test_default_db_pool_sizes(self):
         cfg = PipelineConfig()
@@ -647,6 +650,7 @@ class TestExtractionConfigGuards:
         # reservation was 40_000 against a 100_000 TPM limit, only two of the
         # five configured papers could be in flight at once: the pre-call
         # estimate, not max_concurrent_papers, was the throughput ceiling.
+        # The limit is 400_000 now, which admits 20.
         config = PipelineConfig()
         assert (
             config.estimated_tokens_per_call * config.max_concurrent_papers
@@ -766,5 +770,5 @@ def test_the_fallback_model_is_pinned_to_opus_4_8(
     """
     monkeypatch.setenv("PIPELINE_FALLBACK_MODEL", "claude-opus-5")
     assert EXTRACTION_FALLBACK_MODEL == "claude-opus-4-8"
-    assert FALLBACK_BETA == "server-side-fallback-2026-06-01"
+    assert FALLBACK_BETA == "server-side-fallback-2026-07-01"
     assert PipelineConfig().fallback_model == "claude-opus-4-8"

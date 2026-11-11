@@ -1,7 +1,9 @@
 """Anthropic Claude backend for gene extraction.
 
-Uses the Anthropic streaming API with adaptive thinking, structured
-outputs (JSON Schema constrained decoding), and prompt caching.
+Uses the Anthropic streaming API with adaptive thinking, a tool that
+carries the extraction schema (advisory, not `strict`: validated here and
+retried, see `PipelineConfig.extraction_tool`), citations and prompt
+caching.
 """
 
 import asyncio
@@ -45,7 +47,9 @@ from pipeline.run_errors import refusal_category
 # Anthropic changes published rates.
 MODEL_PRICING: Final[tuple[float, float]] = (4.0, 20.0)
 # The same for EXTRACTION_FALLBACK_MODEL, Claude Opus 4.8. A fallback attempt
-# is billed at the fallback model's rates (usage.iterations is per attempt).
+# is billed at the fallback model's rates (usage.iterations is per attempt);
+# the declined attempt before it is billed too, unless it was refused before
+# any output in a category the API does not bill (BILLED_REFUSAL_CATEGORIES).
 FALLBACK_MODEL_PRICING: Final[tuple[float, float]] = (5.0, 25.0)
 
 # Where the SDK's calls land in the run report's External services panel.
@@ -794,9 +798,11 @@ def build_async_client() -> anthropic.AsyncAnthropic:
     every request with a 400 -- "anthropic-workspace-id is required" --
     until one is named. The SDK reads ANTHROPIC_WORKSPACE_ID only on its
     Workload-Identity path: with ANTHROPIC_API_KEY set, the credential
-    chain short-circuits before reaching it (see step 2a in the SDK's
-    lib/credentials/_chain.py, "API keys are not Bearer tokens, so they
-    can't flow through this chain"). So the workspace has to travel as a
+    chain short-circuits before reaching it (step 2a in the SDK's
+    lib/credentials/_chain.py: the client sends the key itself, so it
+    "doesn't flow through this chain"), and the client takes no workspace
+    argument. That holds on anthropic 2.x, where the key itself now goes
+    out as `Authorization: Bearer`. So the workspace has to travel as a
     request header instead.
 
     Unset is the normal case -- a workspace-scoped key carries its own
@@ -898,14 +904,23 @@ class AnthropicClient:
         is the whole reason ``--batch`` exists and which the report could
         not show while the cost model did not know which path had run.
         """
+        # Less the attempts the API reported and did not bill -- a refusal
+        # before any output, outside the billed categories. Those are in
+        # the totals and never in `fallback_*`, so they come off here
+        # whichever model declined (see accumulate_usage).
         primary = _priced(
             MODEL_PRICING,
             _CACHE_READ_MULTIPLIER,
-            usage.input_tokens - usage.fallback_input_tokens,
+            usage.input_tokens
+            - usage.fallback_input_tokens
+            - usage.unbilled_input_tokens,
             usage.output_tokens - usage.fallback_output_tokens,
             usage.cache_creation_input_tokens
-            - usage.fallback_cache_creation_input_tokens,
-            usage.cache_read_input_tokens - usage.fallback_cache_read_input_tokens,
+            - usage.fallback_cache_creation_input_tokens
+            - usage.unbilled_cache_creation_input_tokens,
+            usage.cache_read_input_tokens
+            - usage.fallback_cache_read_input_tokens
+            - usage.unbilled_cache_read_input_tokens,
         )
         # The totals hold both models; the fallback_* counts are Opus 4.8's
         # share, billed at its own rates. A batch never falls back.
@@ -930,8 +945,9 @@ class AnthropicClient:
         """Extract genes using Claude API with streaming and Pydantic validation.
 
         Uses the Anthropic streaming API (required for adaptive thinking
-        when requests may exceed 10 minutes) with a strict tool schema and
-        Pydantic validation.
+        when requests may exceed 10 minutes) with the extraction tool's
+        schema, which is not `strict`, enforced by Pydantic validation and
+        the validation retry.
 
         Args:
             text: Full text content of the paper.

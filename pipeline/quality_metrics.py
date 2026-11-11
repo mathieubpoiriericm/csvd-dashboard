@@ -36,6 +36,15 @@ class TokenUsage:
     fallback_output_tokens: int = 0
     fallback_cache_creation_input_tokens: int = 0
     fallback_cache_read_input_tokens: int = 0
+    # The subset of the input counts the API reported and did not bill: an
+    # attempt refused before any output, in a category outside
+    # BILLED_REFUSAL_CATEGORIES. They stay in the totals, which say what the
+    # API counted (and what the rate limit was charged), and out of
+    # `fallback_*`, so `estimate_cost` takes them off the requested model's
+    # share whichever model declined. No output count: there was none.
+    unbilled_input_tokens: int = 0
+    unbilled_cache_creation_input_tokens: int = 0
+    unbilled_cache_read_input_tokens: int = 0
 
     @property
     def text_output_tokens(self) -> int:
@@ -79,7 +88,22 @@ class TokenUsage:
             other.fallback_cache_creation_input_tokens
         )
         self.fallback_cache_read_input_tokens += other.fallback_cache_read_input_tokens
+        self.unbilled_input_tokens += other.unbilled_input_tokens
+        self.unbilled_cache_creation_input_tokens += (
+            other.unbilled_cache_creation_input_tokens
+        )
+        self.unbilled_cache_read_input_tokens += other.unbilled_cache_read_input_tokens
         return self
+
+
+# The refusal categories the API bills even when the refusal arrives before
+# any output ("How refusals are billed" in Anthropic's refusals-and-fallback
+# guide, as of September 2026, which says the set may change). A pre-output
+# refusal in any other category, or with none, is reported in `usage` and
+# not billed; one that arrives mid-stream is billed whatever its category.
+BILLED_REFUSAL_CATEGORIES: frozenset[str] = frozenset(
+    {"bio", "frontier_llm", "reasoning_extraction"}
+)
 
 
 def reported_thinking_tokens(response_usage: Any) -> int | None:
@@ -111,16 +135,54 @@ def _counts(entry: Any) -> tuple[int, int, int, int]:
 def _is_fallback_attempt(entry: Any, fallback_model: str | None) -> bool:
     """Whether one `usage.iterations` entry is the fallback model's attempt.
 
-    A `fallback_message` entry always is: it is the fallback attempt that
-    served the message. An attempt that *declined* is a plain `message`
-    entry whatever model ran it, so the fallback's declined attempt -- both
-    models declining -- is told apart only by the `model` it names, which
-    the API marks optional. An entry naming no model is the requested one's.
+    A `fallback_message` entry always is. Anthropic's guide gives the last
+    hop that type even when it declined too; this was written against a
+    declined fallback attempt arriving as a plain `message` entry, told
+    apart only by the `model` it names, which the API marks optional. Both
+    shapes are counted. An entry naming no model is the requested one's.
     """
     if getattr(entry, "type", None) == "fallback_message":
         return True
     model = getattr(entry, "model", None)
     return fallback_model is not None and model == fallback_model
+
+
+def _unbilled_attempts(
+    response: Any, entries: list[Any], *, per_attempt: bool
+) -> set[int]:
+    """Indices of the usage entries the API reported and did not bill.
+
+    An attempt declined before any output is billed only in a category of
+    BILLED_REFUSAL_CATEGORIES; its tokens are in `usage` either way. Which
+    attempts declined, and why: each `fallback` block marks one hand-over,
+    in attempt order, with the category in its `trigger`; and a response
+    that is itself a refusal has its last attempt declined under
+    `stop_details.category`. "Before any output" is the entry's own
+    `output_tokens` being zero -- a mid-stream decline has already written
+    some, and is billed whatever its category.
+
+    *per_attempt* is whether *entries* came from `usage.iterations`: the
+    blocks index attempts, and the top-level usage is one attempt only.
+    """
+    declined: dict[int, Any] = {}
+    if per_attempt:
+        handovers = [
+            block
+            for block in getattr(response, "content", None) or []
+            if getattr(block, "type", None) == "fallback"
+        ]
+        for index, block in enumerate(handovers):
+            declined[index] = getattr(getattr(block, "trigger", None), "category", None)
+    if getattr(response, "stop_reason", None) == "refusal":
+        details = getattr(response, "stop_details", None)
+        declined[len(entries) - 1] = getattr(details, "category", None)
+    return {
+        index
+        for index, category in declined.items()
+        if index < len(entries)
+        and not (getattr(entries[index], "output_tokens", 0) or 0)
+        and category not in BILLED_REFUSAL_CATEGORIES
+    }
 
 
 def accumulate_usage(
@@ -144,6 +206,11 @@ def accumulate_usage(
     which is a `message` entry naming that model (see
     `_is_fallback_attempt`). Thinking stays top-level: only the served
     attempt reports it.
+
+    **Not every reported attempt is billed.** One refused before any output
+    is billed only in some categories (see `_unbilled_attempts`); its
+    tokens still join the totals, and are kept in `unbilled_*` so that
+    `estimate_cost` does not charge for them.
     """
     response_usage = getattr(response, "usage", None)
     if response_usage is None:
@@ -151,13 +218,19 @@ def accumulate_usage(
     iterations = getattr(response_usage, "iterations", None)
     delta = TokenUsage(thinking_tokens=reported_thinking_tokens(response_usage) or 0)
     entries = iterations if isinstance(iterations, list) and iterations else None
-    for entry in entries or [response_usage]:
+    attempts = entries or [response_usage]
+    unbilled = _unbilled_attempts(response, attempts, per_attempt=entries is not None)
+    for index, entry in enumerate(attempts):
         inp, out, write, read = _counts(entry)
         delta.input_tokens += inp
         delta.output_tokens += out
         delta.cache_creation_input_tokens += write
         delta.cache_read_input_tokens += read
-        if entries is not None and _is_fallback_attempt(entry, fallback_model):
+        if index in unbilled:
+            delta.unbilled_input_tokens += inp
+            delta.unbilled_cache_creation_input_tokens += write
+            delta.unbilled_cache_read_input_tokens += read
+        elif entries is not None and _is_fallback_attempt(entry, fallback_model):
             delta.fallback_input_tokens += inp
             delta.fallback_output_tokens += out
             delta.fallback_cache_creation_input_tokens += write

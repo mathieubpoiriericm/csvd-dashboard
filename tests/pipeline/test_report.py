@@ -69,6 +69,21 @@ class TestEstimateCost:
         # 1M reads at 0.1x = $0.50 -> 40.5.
         assert AnthropicClient().estimate_cost(usage) == pytest.approx(52.7)
 
+    def test_estimate_cost_leaves_out_what_the_api_did_not_bill(self):
+        """A refusal before any output, outside the billed categories, is
+        reported in `usage` and not charged."""
+        usage = TokenUsage(
+            input_tokens=2_000_000,
+            cache_creation_input_tokens=2_000_000,
+            cache_read_input_tokens=2_000_000,
+            unbilled_input_tokens=1_000_000,
+            unbilled_cache_creation_input_tokens=1_000_000,
+            unbilled_cache_read_input_tokens=1_000_000,
+        )
+        # Opus 5.5 on the billed half: 1M in $4 + 1M 1h writes $8 + 1M
+        # reads $0.20.
+        assert AnthropicClient().estimate_cost(usage) == pytest.approx(12.2)
+
 
 # ---------------------------------------------------------------------------
 # Mock PaperResult for testing

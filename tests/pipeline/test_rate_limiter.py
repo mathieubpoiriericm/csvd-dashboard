@@ -5,6 +5,7 @@ from collections import deque
 
 import pytest
 
+from pipeline.config import PipelineConfig
 from pipeline.rate_limiter import (
     BACKOFF_CAP_SECONDS,
     AsyncRateLimiter,
@@ -39,9 +40,10 @@ class TestBackoffHelpers:
 
 class TestRateLimiterInit:
     def test_default_limits(self):
+        # The same pair PipelineConfig defaults to.
         rl = AsyncRateLimiter()
-        assert rl._rpm == 50
-        assert rl._tpm == 100_000
+        config = PipelineConfig()
+        assert (rl._rpm, rl._tpm) == (config.rpm_limit, config.tpm_limit)
 
     def test_custom_limits(self):
         rl = AsyncRateLimiter(rpm=10, tpm=50_000)

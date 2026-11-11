@@ -770,6 +770,7 @@ are the web app's too and unset in production, and the rest are the pipeline's.
 | `NCBI_API_KEY`                                                         | optional: ten NCBI requests a second rather than three                                            |
 | `UNPAYWALL_EMAIL`                                                      | open-access PDF lookup                                                                            |
 | `PIPELINE_LLM_EFFORT`                                                  | cost lever; defaults to `high`                                                                    |
+| `PIPELINE_RPM_LIMIT`, `PIPELINE_TPM_LIMIT`                             | self-imposed pacing; default to the Start tier's limits for the pinned model                      |
 | `PIPELINE_CONFIDENCE_*`                                                | the two confidence floors (update / insert)                                                       |
 | `PIPELINE_REQUIRE_VERIFIED_QUOTES`                                     | reject a gene whose quote is not verbatim in the paper; off by default                            |
 | `PIPELINE_MAX_PAPER_TEXT_CHARS`                                        | truncation cap on retrieved full text                                                             |
