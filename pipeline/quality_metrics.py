@@ -48,8 +48,20 @@ class TokenUsage:
 
     @property
     def cache_hit_rate(self) -> float:
-        """Fraction of input tokens served from cache."""
-        total_input = self.input_tokens + self.cache_read_input_tokens
+        """Fraction of input tokens served from cache.
+
+        The API's ``input_tokens`` excludes both cache counts (which is how
+        ``_priced`` bills the three), so a prefix written to the cache is
+        input that was *not* served from it and belongs in the
+        denominator. Without it two abstract-only papers -- one writing an
+        18k-token prefix, one reading it -- published 90% where 18k of
+        38k input tokens were cached.
+        """
+        total_input = (
+            self.input_tokens
+            + self.cache_creation_input_tokens
+            + self.cache_read_input_tokens
+        )
         if total_input == 0:
             return 0.0
         return self.cache_read_input_tokens / total_input

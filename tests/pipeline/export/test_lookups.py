@@ -557,6 +557,24 @@ class TestReadPipelineStatus:
         assert "status IS DISTINCT FROM 'failed'" in sql
         assert "ORDER BY run_timestamp DESC" in sql
 
+    async def test_a_run_that_processed_nothing_does_not_date_the_data(
+        self, mocker
+    ) -> None:
+        """Every paper failing -- no API key, an NCBI outage -- is recorded
+        as completed with warnings, not failed, so the status filter alone
+        dated the data from a run that processed nothing. A run with no new
+        paper writes no row at all, and this one changed no more."""
+        mock_conn = AsyncMock()
+        mock_conn.fetchrow = AsyncMock(
+            side_effect=[asyncpg.UndefinedColumnError("status"), None]
+        )
+        _mock_connection(mocker, mock_conn)
+
+        await read_pipeline_status()
+
+        for call in mock_conn.fetchrow.await_args_list:
+            assert "papers_processed > 0" in call.args[0]
+
     async def test_a_database_without_migration_009_still_dates_the_data(
         self, mocker
     ) -> None:

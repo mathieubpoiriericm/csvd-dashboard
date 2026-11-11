@@ -457,6 +457,95 @@ class TestDetail:
         assert paper.rejected_count == 1
         assert paper.fulltext is True
 
+    def test_a_paper_counts_a_held_gene_as_rejected_not_accepted(self) -> None:
+        # `gene_count` is what the drawer prints as "N accepted" on a
+        # paper's row. A gene the insert floor held passed validation, so
+        # the paper's own count included it: PMID 42957517 read "2
+        # accepted" on 2026-11-03 with neither gene in the accepted list,
+        # and the rows summed to 19 under a headline of 10.
+        report = _report(
+            database={
+                "inserted": 0,
+                "updated": 0,
+                "held_below_insert_floor": [
+                    {"gene_symbol": "COL4A1", "confidence": 0.6}
+                ],
+            },
+            papers_detail=[
+                {
+                    "pmid": "1",
+                    "source": "europepmc",
+                    "fulltext": True,
+                    "gene_count": 2,
+                    "genes": [_gene("HTRA1"), _gene("COL4A1", 0.6)],
+                    "rejected_genes": [
+                        {
+                            "gene": _gene("POLR2F", 0.3),
+                            "reasons": ["Low confidence: 0.30 < 0.45"],
+                        }
+                    ],
+                    "processing_time": 1.0,
+                }
+            ],
+        )
+        paper = report.papers_detail.items[0]
+        assert paper.gene_count == 1
+        assert paper.rejected_count == 2
+        assert paper.gene_count == sum(
+            gene.pmid == "32517579" for gene in report.accepted_genes.items
+        )
+
+    def test_a_held_gene_names_the_one_paper_that_proposed_it(self) -> None:
+        # The merge groups by gene, so its hold carries no PMID; the paper
+        # is known all the same whenever only one proposed the gene.
+        papers = [
+            {
+                "pmid": pmid,
+                "source": "europepmc",
+                "fulltext": True,
+                "gene_count": len(genes),
+                "genes": genes,
+                "rejected_genes": [],
+                "processing_time": 1.0,
+            }
+            for pmid, genes in (
+                ("1", [_gene("WDR12", 0.6), _gene("CALCRL", 0.55)]),
+                ("2", [_gene("CALCRL", 0.5)]),
+            )
+        ]
+        report = _report(
+            database={
+                "inserted": 0,
+                "updated": 0,
+                "held_below_insert_floor": [
+                    {"gene_symbol": "WDR12", "confidence": 0.6},
+                    {"gene_symbol": "CALCRL", "confidence": 0.55},
+                ],
+            },
+            papers_detail=papers,
+        )
+        held = {gene.symbol: gene.pmid for gene in report.rejected_genes.items}
+        assert held == {"WDR12": "1", "CALCRL": None}
+
+    def test_a_paper_nobody_timed_publishes_no_duration(self) -> None:
+        # A --batch entry is never timed (`PaperResult.processing_time`
+        # stays 0.0), and "0 ms" on every row of a day-long batch is a
+        # measurement nobody took.
+        report = _report(
+            papers_detail=[
+                {
+                    "pmid": "1",
+                    "source": "europepmc",
+                    "fulltext": True,
+                    "gene_count": 0,
+                    "genes": [],
+                    "rejected_genes": [],
+                    "processing_time": 0.0,
+                }
+            ]
+        )
+        assert report.papers_detail.items[0].processing_seconds is None
+
     def test_paper_records_carry_the_serving_model_and_refusal(self) -> None:
         papers = [
             {**_run_data()["papers_detail"][0], "extraction_model": "claude-opus-4-8",

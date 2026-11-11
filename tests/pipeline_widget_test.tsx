@@ -353,7 +353,10 @@ Deno.test("a run that checked no quotes says nothing about them", () => {
 Deno.test("token use is reported and the cost is not", () => {
   const markup = html();
   assertStringIncludes(markup, "175,584 tokens");
-  assertStringIncludes(markup, "47% served from cache");
+  // The rate is of the input, not of the count beside it: `totalTokens` is
+  // the uncached input plus the output, so "175,584 tokens · 47% served
+  // from cache" read as a share of a number that holds no cached token.
+  assertStringIncludes(markup, "47% of input served from cache");
   assert(!markup.includes("$1.38"));
 });
 

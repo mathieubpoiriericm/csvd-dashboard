@@ -89,9 +89,8 @@ class PaperCounts(WireModel):
     stops the pipeline retrying that paper on every future run. Folding
     it into `failed` would either misreport those runs or invite someone
     to "fix" the pipeline into retrying forever. The offline PMID mode
-    records the same situation as an error because it never writes
-    processed PMIDs, so nothing there retries either way; counting the
-    condition itself is what makes the two comparable.
+    records it the same way now, so `failed` means one thing whichever
+    mode ran.
     """
 
     found: int | None = None
@@ -185,7 +184,13 @@ class RejectedGeneRecord(WireModel):
 
 
 class PaperRecord(WireModel):
-    """One paper, and what came out of it."""
+    """One paper, and what came out of it.
+
+    `gene_count` is what the drawer prints as "N accepted", so it counts
+    what `accepted_genes` lists for the paper: a gene the insert floor
+    held is in `rejected_count` instead, as it is in `rejected_genes`.
+    `processing_seconds` is null for a paper nobody timed.
+    """
 
     pmid: str
     source: str
@@ -309,12 +314,7 @@ def _gene_records(
         )
         for paper in papers_detail
         for gene in paper.get("genes", [])
-        # Through the same mapping the merge grouped on: `held` says the
-        # shared alias key, the paper says one pair member's own symbol,
-        # and without it the gene was listed as accepted *and* rejected --
-        # the double count this exclusion exists to remove.
-        if canonical_gene_symbol(str(gene.get("gene_symbol", ""))).upper()
-        not in held
+        if not _is_held(gene, held)
     ]
 
 
@@ -328,10 +328,42 @@ def _held_keys(held: list[dict[str, Any]]) -> set[str]:
     already canonical -- so the comparison is in one key space whichever shape
     arrives.
     """
+    return {_merge_key(entry) for entry in held if entry.get("gene_symbol")}
+
+
+def _merge_key(entry: dict[str, Any]) -> str:
+    """The key `merge_gene_entries` groups a gene or a hold under."""
+    return canonical_gene_symbol(str(entry.get("gene_symbol", ""))).upper()
+
+
+def _is_held(gene: dict[str, Any], held: set[str]) -> bool:
+    """Whether one paper's gene is a key the insert floor refused.
+
+    Through the same mapping the merge grouped on: `held` says the shared
+    alias key, the paper says one pair member's own symbol, and without it
+    the gene was listed as accepted *and* rejected -- the double count
+    this exclusion exists to remove.
+    """
+    return _merge_key(gene) in held
+
+
+def _held_pmids(papers_detail: list[dict[str, Any]], held: set[str]) -> dict[str, str]:
+    """The paper behind each held key, where exactly one proposed it.
+
+    The merge groups by gene, so its hold names no paper and the record
+    used to publish `pmid: null` for every one. A gene two papers proposed
+    still has no single PMID to name, and keeps the null.
+    """
+    proposers: dict[str, set[str]] = {}
+    for paper in papers_detail:
+        pmid = paper.get("pmid")
+        if not pmid:
+            continue
+        for gene in paper.get("genes", []):
+            if _is_held(gene, held):
+                proposers.setdefault(_merge_key(gene), set()).add(pmid)
     return {
-        canonical_gene_symbol(str(entry.get("gene_symbol", ""))).upper()
-        for entry in held
-        if entry.get("gene_symbol")
+        key: next(iter(pmids)) for key, pmids in proposers.items() if len(pmids) == 1
     }
 
 
@@ -349,6 +381,7 @@ def _rejected_records(
     the per-paper gate asked of it.
     """
     records: list[RejectedGeneRecord] = []
+    pmids = _held_pmids(papers_detail, _held_keys(held))
     # Insert-floor holds come first, and that ordering is load-bearing:
     # the list is capped at DETAIL_CAP, holds are always few (only a new
     # gene can be held) and validation rejections are many, so appending
@@ -361,6 +394,7 @@ def _rejected_records(
         records.append(
             RejectedGeneRecord(
                 symbol=entry.get("gene_symbol", ""),
+                pmid=pmids.get(_merge_key(entry)),
                 confidence=confidence,
                 reasons=[f"Held below the insert floor: {scored}{floor} (new gene)"],
             )
@@ -379,22 +413,41 @@ def _rejected_records(
     return records
 
 
-def _paper_records(papers_detail: list[dict[str, Any]]) -> list[PaperRecord]:
-    """One record per paper the run touched."""
-    return [
-        PaperRecord(
-            pmid=paper.get("pmid", ""),
-            source=paper.get("source", "unknown"),
-            fulltext=bool(paper.get("fulltext")),
-            gene_count=paper.get("gene_count", 0),
-            rejected_count=len(paper.get("rejected_genes", [])),
-            processing_seconds=_optional_seconds(paper.get("processing_time")),
-            error=paper.get("error"),
-            extraction_model=paper.get("extraction_model"),
-            refusal=paper.get("refusal"),
+def _paper_records(
+    papers_detail: list[dict[str, Any]], held: set[str]
+) -> list[PaperRecord]:
+    """One record per paper the run touched.
+
+    A paper's genes the insert floor held move from its accepted count to
+    its rejected one, the side of the drawer they are listed on. They pass
+    validation, so `gene_count` included them: PMID 42957517 read "2
+    accepted" on 2026-11-03 with neither gene in `acceptedGenes`, and the
+    paper rows summed to 19 under a headline of 10.
+    """
+    records: list[PaperRecord] = []
+    for paper in papers_detail:
+        held_here = sum(_is_held(gene, held) for gene in paper.get("genes", []))
+        records.append(
+            PaperRecord(
+                pmid=paper.get("pmid", ""),
+                source=paper.get("source", "unknown"),
+                fulltext=bool(paper.get("fulltext")),
+                gene_count=max(0, paper.get("gene_count", 0) - held_here),
+                rejected_count=len(paper.get("rejected_genes", [])) + held_here,
+                # 0.0 is `PaperResult.processing_time`'s default, which is
+                # what a --batch entry keeps: the batch is never timed per
+                # paper, and "0 ms" on every row of a day-long poll is a
+                # measurement nobody took. A paper that ran has a positive
+                # monotonic delta.
+                processing_seconds=_optional_seconds(
+                    paper.get("processing_time") or None
+                ),
+                error=paper.get("error"),
+                extraction_model=paper.get("extraction_model"),
+                refusal=paper.get("refusal"),
+            )
         )
-        for paper in papers_detail
-    ]
+    return records
 
 
 def build_run_report(
@@ -434,6 +487,7 @@ def build_run_report(
         else []
     )
     insert_floor = config.get("confidence_threshold_insert")
+    held_keys = _held_keys(held)
     provenance = provenance or ProvenanceTally()
 
     return PipelineRunReport(
@@ -469,9 +523,11 @@ def build_run_report(
         ),
         steps=steps,
         apis=apis,
-        papers_detail=CappedList[PaperRecord].of(_paper_records(papers_detail)),
+        papers_detail=CappedList[PaperRecord].of(
+            _paper_records(papers_detail, held_keys)
+        ),
         accepted_genes=CappedList[GeneRecord].of(
-            _gene_records(papers_detail, _held_keys(held))
+            _gene_records(papers_detail, held_keys)
         ),
         rejected_genes=CappedList[RejectedGeneRecord].of(
             _rejected_records(papers_detail, held, insert_floor)

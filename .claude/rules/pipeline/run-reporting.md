@@ -57,7 +57,9 @@ times them off the same `progress.report(n)` index.
 **A run is only `completed` when nothing warned.** The widget exists to make
 losses visible, and a green badge over 24 rejected genes would be the silence it
 replaces. Warnings are raised as one row carrying a count, never one row per
-occurrence, and from three steps rather than one:
+occurrence, and from three steps rather than one. A service that was retried and
+still failed raises two, `api_retried` and `api_errored`; one warning chosen by
+`retries or errors` said nothing about the calls that failed anyway.
 
 | Step                | Warns on                                                                                                                                                                                                                                                                                                                                                                                         |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -87,20 +89,30 @@ finished paper as `_paper_finished_hook` appends it to `processed_so_far`
 instant `merge_gene_entries` returns, before `record_processed_pmids_batch`
 opens its own transaction. So a cancellation inside step 3 or a failure after
 the merge publishes real papers, real counts and the genes the insert floor
-refused, and the funnel adds up. It is best-effort by construction -- the
-database is often the thing that just failed -- and so are `_record_and_notify`
-(the event-log write sits in its own `try`) and `_publish_export`, which catches
-`Exception` because asyncpg, `DB_*` and pydantic errors all escaped a narrower
-clause without the "behind the database" diagnostic.
+refused, and the funnel adds up. The hook is handed failed papers as well as
+finished ones and checkpoints only the successes: the streaming path used to
+call it for successes alone, so a paper that failed before a kill was in no list
+and not in `failed`, with only its token spend published. The search count
+leaves `_discover_new_pmids` through `on_searched` as step 1 answers, because
+steps 1 and 2 return together and a dedup read the database refused threw it
+away; `newlySeen` and `alreadySeen` stay null there, since step 2 never said. It
+is best-effort by construction -- the database is often the thing that just
+failed -- and so are `_record_and_notify` (the event-log write sits in its own
+`try`) and `_publish_export`, which catches `Exception` because asyncpg, `DB_*`
+and pydantic errors all escaped a narrower clause without the "behind the
+database" diagnostic.
 
 **A failed run does not date the data.** `read_pipeline_status`, behind
 `data/pipeline_status.json` and the About page's "up-to-date as of", skips
 `status = 'failed'` rows; `read_pipeline_run` still returns them, so the widget
 shows the failure while the date stays on the last run that finished as a whole.
-That is **not** the offline modes' reasoning: `--local-pdfs` and `--pmids` write
-no row because they publish nothing, whereas a failed run may well have changed
-the data -- the merge commits before the run is anywhere near done, and
-`--export` ships those rows.
+**Nor does a run that processed no paper** (`papers_processed > 0` in
+`_STATUS_QUERY`): one in which every paper failed or was declined is recorded as
+completed with warnings, not failed, and it changed no more than a run that
+found nothing new, which writes no row at all. That is **not** the offline
+modes' reasoning: `--local-pdfs` and `--pmids` write no row because they publish
+nothing, whereas a failed run may well have changed the data -- the merge
+commits before the run is anywhere near done, and `--export` ships those rows.
 
 ## Failures are classified, not dumped
 
@@ -123,6 +135,24 @@ the class name.
   caps at `DETAIL_CAP`, holds are always few and validation rejections are many,
   so appending them last truncated the whole category away on a large run while
   still publishing its count.
+- **A paper's `geneCount` is what the accepted list holds for it.** The drawer
+  prints it as "N accepted", and a held gene passes validation, so the paper's
+  own count included it: PMID 42957517 read "2 accepted" on 2026-11-03 with
+  neither gene in `acceptedGenes`, and the rows summed to 19 under a headline of
+  10. `_paper_records` moves a paper's held genes to its `rejectedCount`, the
+  side of the drawer they are listed on, and a hold names its paper when exactly
+  one proposed the gene (the merge groups by gene, so two proposers leave it
+  null). **`rejectedAtInsertFloor` still counts genes, not mentions**: a gene
+  two papers proposed is one hold, so `validated` can exceed accepted plus held
+  by the repeats (19 against 10 + 8 on that run).
+- **`processingSeconds` is null for a paper nobody timed.** A `--batch` entry
+  keeps `PaperResult.processing_time`'s default of 0.0, which published "0 ms"
+  on every row of a day-long poll.
+- **`cacheHitRate` is cache reads over all input**: uncached, cache writes and
+  cache reads, the three counts the API reports apart. It left the writes out,
+  so two abstract-only papers, one writing an 18k-token prefix and one reading
+  it, published 90% where 18k of 38k was cached. `totalTokens` is still the
+  uncached input plus the output, which is why the widget says "of input".
 - **`papers.noTextAvailable` is its own count, not part of `failed`.** A paper
   with no retrievable text is a stable fact rather than a transient failure, so
   all three paths now record it as _processed_ with `source: "none"` — which is

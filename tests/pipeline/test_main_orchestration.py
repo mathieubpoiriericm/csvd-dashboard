@@ -600,25 +600,34 @@ class TestConcurrentProcessing:
         assert all(extracted == 2 for _, extracted, _ in seen)
         assert all(tokens == 100 for _, _, tokens in seen)
 
-    async def test_a_failed_paper_is_not_handed_to_the_hook(self, mocker) -> None:
-        # Failures are never written to pubmed_refs, so they are retried by
-        # the next run. Checkpointing one would instead make a resumed run
-        # restore the failure and never retry it.
+    async def test_a_failed_paper_reaches_the_hook_and_not_the_checkpoint(
+        self, mocker, tmp_path
+    ) -> None:
+        # The hook is what a run killed inside step 3 reports from, so it
+        # is handed failures too. Failures are never written to
+        # pubmed_refs, so they are retried by the next run -- and
+        # checkpointing one would instead make a resumed run restore the
+        # failure and never retry it, so the hook collects it and writes
+        # nothing.
         async def boom(pmid, metrics, *, config, rate_limiter=None):
             raise RuntimeError("retrieval died")
 
         mocker.patch("pipeline.main.process_paper", new=boom)
-        seen: list[str] = []
+        config = PipelineConfig(checkpoint_file=str(tmp_path / "checkpoint.jsonl"))
+        collected: list[PaperResult] = []
 
         results = await pipeline_main.process_papers_concurrently(
             ["1"],
             PipelineMetrics(),
-            PipelineConfig(),
-            on_complete=lambda result, paper_metrics: seen.append(result.pmid),
+            config,
+            on_complete=pipeline_main._paper_finished_hook(
+                config, collected, checkpointing=True
+            ),
         )
 
         assert results[0].error == "retrieval died"
-        assert seen == []
+        assert [result.pmid for result in collected] == ["1"]
+        assert not (tmp_path / "checkpoint.jsonl").exists()
 
 
 class TestCheckpointResume:

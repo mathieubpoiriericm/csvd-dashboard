@@ -33,6 +33,18 @@ class TestTokenUsage:
         tu = TokenUsage(input_tokens=80, cache_read_input_tokens=20)
         assert tu.cache_hit_rate == pytest.approx(0.2)
 
+    def test_cache_hit_rate_counts_cache_writes_as_input(self):
+        # The API's input_tokens excludes both cache counts, so a prefix
+        # written to the cache is input that was not served from it. Two
+        # abstract-only papers -- one writes the 18k prefix, one reads it
+        # -- published 90% where 18k of 38k input tokens were cached.
+        tu = TokenUsage(
+            input_tokens=2_000,
+            cache_creation_input_tokens=18_000,
+            cache_read_input_tokens=18_000,
+        )
+        assert tu.cache_hit_rate == pytest.approx(18_000 / 38_000)
+
     def test_cache_hit_rate_all_cached(self):
         tu = TokenUsage(input_tokens=0, cache_read_input_tokens=100)
         assert tu.cache_hit_rate == 1.0

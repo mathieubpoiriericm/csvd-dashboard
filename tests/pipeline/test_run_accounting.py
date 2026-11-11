@@ -439,6 +439,101 @@ class TestAFailedRunPublishesWhatItProcessed:
         assert report["genes"]["validated"] == 1
 
 
+    async def test_a_paper_that_failed_before_the_kill_is_still_reported(
+        self, tmp_path, mocker
+    ) -> None:
+        # The streaming path handed only *successful* papers to the hook
+        # that collects them, so a run killed inside step 3 published a
+        # failed paper's token spend and nothing else about it: not in
+        # `failed`, not in papersDetail, and step 3's warnings are raised
+        # only once the step returns.
+        reset_recorder()
+        reset_tally()
+        _mock_lifecycle(mocker)
+        config = _config(tmp_path)
+        pmids = ["111", "222", "333"]
+        mocker.patch(
+            "pipeline.main._discover_new_pmids",
+            new=AsyncMock(return_value=(pmids, pmids)),
+        )
+        _fulltext(mocker)
+        succeeded, failed = asyncio.Event(), asyncio.Event()
+
+        async def extract(text, pmid, metrics, config, rate_limiter, **kwargs):
+            if pmid == "222":
+                await succeeded.wait()
+                failed.set()
+                raise ExtractionFailedError("Claude API error for PMID 222: 500")
+            if pmid == "333":
+                await failed.wait()
+                # Two turns of the loop, so 222's failure is recorded first.
+                await asyncio.sleep(0)
+                await asyncio.sleep(0)
+                raise asyncio.CancelledError
+            metrics.genes_extracted += 1
+            metrics.genes_validated += 1
+            succeeded.set()
+            return pipeline_main.ExtractionOutcome(
+                genes=[_gene()], rejected_genes=[], extracted_count=1,
+                llm_time=0.0, validation_time=0.0,
+            )
+
+        mocker.patch("pipeline.main._extract_and_validate", new=extract)
+        recorded = mocker.patch(
+            "pipeline.main.record_pipeline_run", new=AsyncMock(return_value=1)
+        )
+
+        with pytest.raises(asyncio.CancelledError):
+            await pipeline_main.run_pipeline(config=config, manage_lifecycle=False)
+
+        report = recorded.await_args.kwargs["report"]
+        assert report["papers"]["processed"] == 1
+        assert report["papers"]["failed"] == 1
+        papers = {p["pmid"]: p for p in report["papersDetail"]["items"]}
+        assert set(papers) == {"111", "222"}
+        assert "500" in papers["222"]["error"]
+        # A failed paper is retried by the next run, so it is never
+        # checkpointed: restoring it would retire it unextracted.
+        restored = checkpoint.load(
+            config.checkpoint_file, checkpoint.fingerprint(config)
+        )
+        assert [record["result"]["pmid"] for record in restored] == ["111"]
+
+    async def test_a_failure_in_step_2_keeps_the_search_count(
+        self, tmp_path, mocker
+    ) -> None:
+        # Steps 1 and 2 return together, so a database that refused the
+        # dedup read threw away the count step 1 had already printed: the
+        # report read `found: null` under "3 papers matched".
+        reset_recorder()
+        reset_tally()
+        _mock_lifecycle(mocker)
+        mocker.patch(
+            "pipeline.main.search_recent_papers",
+            new=AsyncMock(return_value=["1", "2", "3"]),
+        )
+        mocker.patch(
+            "pipeline.main.get_existing_pmids",
+            new=AsyncMock(side_effect=ConnectionRefusedError("db gone")),
+        )
+        recorded = mocker.patch(
+            "pipeline.main.record_pipeline_run", new=AsyncMock(return_value=1)
+        )
+
+        with pytest.raises(ConnectionRefusedError):
+            await pipeline_main.run_pipeline(
+                config=_config(tmp_path), manage_lifecycle=False
+            )
+
+        report = recorded.await_args.kwargs["report"]
+        assert "3 papers matched" in report["steps"][0]["actions"][0]
+        assert report["steps"][1]["status"] == "failed"
+        assert report["papers"]["found"] == 3
+        # Which of them were new is what step 2 never answered.
+        assert report["papers"]["newlySeen"] is None
+        assert report["papers"]["alreadySeen"] is None
+
+
 class TestTheCheckpointOutlivesANarrowerRun:
     """Only the papers a run merged leave the checkpoint."""
 

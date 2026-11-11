@@ -224,6 +224,23 @@ class TestProcessingWarnings:
         assert "Unpaywall" in warning.title
         assert warning.count == 1
 
+    def test_a_service_that_was_retried_and_still_failed_says_both(
+        self, tmp_path
+    ) -> None:
+        # `count=row.retries or row.errors` under a title chosen the same
+        # way: a row with both published its retries and nothing about
+        # the calls that failed anyway.
+        recorder = current_recorder()
+        recorder.note_retry(host="api.unpaywall.org", path="/v2/x", method="GET")
+        recorder.record(
+            host="api.unpaywall.org", path="/v2/x", method="GET", status=503
+        )
+        reporter = _progress(tmp_path)
+        _record_processing_actions(reporter, [], PipelineMetrics())
+        kinds = [w.kind for w in _warnings(reporter)]
+        assert "api_retried" in kinds
+        assert "api_errored" in kinds
+
     def test_a_successful_api_call_raises_nothing(self, tmp_path) -> None:
         current_recorder().record(
             host="api.unpaywall.org", path="/v2/x", method="GET", status=200
@@ -327,7 +344,7 @@ class TestOtherStepsCanWarnToo:
         assert step.status == "warning"
         assert step.warnings[0].count == 2
         assert step.warnings[0].subjects == ["WDR12", "CALCRL"]
-        assert "Inserted 1 genes and updated 2" in step.actions
+        assert "Inserted 1 gene and updated 2" in step.actions
 
     def test_a_merge_that_refused_nothing_does_not_warn(self, tmp_path) -> None:
         reporter = _ProgressReporter(

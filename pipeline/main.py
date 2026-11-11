@@ -1113,7 +1113,7 @@ async def process_papers_concurrently(
         metrics: Metrics accumulator for the run.
         config: Pipeline configuration.
         rate_limiter: Optional rate limiter for LLM calls.
-        on_complete: Called with each *successful* paper and the metrics that
+        on_complete: Called with each finished paper and the metrics that
             paper alone produced, as soon as it finishes. This is the
             checkpoint's write hook: the run holds every result in memory
             until step 5, so without it a crash discards them all.
@@ -1151,10 +1151,11 @@ async def process_papers_concurrently(
             # validation runs, so without this the report published
             # "7 of 7 quotes found" over a funnel of 2 extracted genes.
             current_tally().discard(pmid)
-        # Only successes. A failed paper is never written to pubmed_refs, so
-        # the next run retries it; checkpointing one would instead restore the
-        # failure on resume and retire the paper without ever extracting it.
-        if on_complete is not None and result.succeeded:
+        # Failures too: the hook is what a run killed inside this step
+        # reports from, and a paper that had already failed was in no list
+        # and not in `failed`, with only its token spend published. Whether
+        # to checkpoint it is the hook's decision.
+        if on_complete is not None:
             on_complete(result, paper_metrics)
         # Per-paper time goes in the message, since a zone per paper is ruled
         # out (see process_paper_safe); `tracy-csvexport -m` lists them all.
@@ -1240,9 +1241,10 @@ def _record_merge_actions(
     refused new genes still showed this step as a clean pass.
     """
     progress.action(
-        f"Inserted {result['inserted']} genes and updated {result['updated']}"
+        f"Inserted {_count(result['inserted'], 'gene')} and updated "
+        f"{result['updated']}"
     )
-    progress.action(f"Recorded {recorded} processed PMIDs")
+    progress.action(f"Recorded {_count(recorded, 'processed PMID')}")
     # isinstance-guarded for the same reason build_run_report is: a bare
     # AsyncMock in a test makes .get() return a coroutine, and len() on
     # one raises inside the reporting path rather than in the test's
@@ -1439,18 +1441,32 @@ def _record_processing_actions(
             )
         )
     for row in current_recorder().trouble():
-        progress.warn(
-            RunWarning(
-                kind="api_retried" if row.retries else "api_errored",
-                title=(
-                    f"{row.label} needed {_count(row.retries, 'retry', 'retries')}"
-                    if row.retries
-                    else f"{row.label} returned {_count(row.errors, 'error')}"
-                ),
-                count=row.retries or row.errors,
-                subjects=[f"{row.method} {row.endpoint}"],
+        # Two warnings for a row with both. One warning chosen by
+        # `row.retries or row.errors` published the retries of a service
+        # that was retried and failed anyway, and nothing about the calls
+        # that failed.
+        subjects = [f"{row.method} {row.endpoint}"]
+        if row.retries:
+            progress.warn(
+                RunWarning(
+                    kind="api_retried",
+                    title=(
+                        f"{row.label} needed "
+                        f"{_count(row.retries, 'retry', 'retries')}"
+                    ),
+                    count=row.retries,
+                    subjects=subjects,
+                )
             )
-        )
+        if row.errors:
+            progress.warn(
+                RunWarning(
+                    kind="api_errored",
+                    title=f"{row.label} returned {_count(row.errors, 'error')}",
+                    count=row.errors,
+                    subjects=subjects,
+                )
+            )
 
 
 def _finalize_processed_batch(
@@ -1478,8 +1494,16 @@ async def _discover_new_pmids(
     dry_run: bool,
     test_mode: bool,
     progress: _ProgressReporter,
+    on_searched: Callable[[int], None] | None = None,
 ) -> tuple[list[str], list[str]]:
-    """Search PubMed and filter previously processed identifiers."""
+    """Search PubMed and filter previously processed identifiers.
+
+    *on_searched* is called with the search's count the moment step 1 has
+    answered. The two steps return together, so a failure in step 2 -- the
+    database refusing the dedup read -- used to throw the count away, and
+    the failed report read ``found: null`` under step 1's own "3 papers
+    matched".
+    """
     progress.report(0)
     logger.info(
         f"Step 1: Searching PubMed for recent {load_disease().short} genetic "
@@ -1517,6 +1541,8 @@ async def _discover_new_pmids(
         f"Searched PubMed over the last {days_back} days: "
         f"{len(all_pmids)} papers matched"
     )
+    if on_searched is not None:
+        on_searched(len(all_pmids))
     if not all_pmids:
         return [], []
 
@@ -1737,7 +1763,11 @@ def _paper_finished_hook(
 
     def on_complete(result: PaperResult, paper_metrics: PipelineMetrics) -> None:
         collected.append(result)
-        if not checkpointing:
+        # Only successes are checkpointed. A failed paper is never written
+        # to pubmed_refs, so the next run retries it; checkpointing one
+        # would instead restore the failure on resume and retire the paper
+        # without ever extracting it.
+        if not checkpointing or not result.succeeded:
             return
         # Best effort: a checkpoint that cannot be written leaves the run
         # exactly as exposed as it was before there was one, which is not
@@ -2100,6 +2130,7 @@ async def _record_failed_run(
     days_back: int = DEFAULT_DAYS_BACK,
     total_pmids_found: int | None = None,
     new_pmids_count: int = 0,
+    deduplicated: bool = True,
 ) -> None:
     """Persist a report for a run that did not finish.
 
@@ -2155,12 +2186,18 @@ async def _record_failed_run(
             total_duration=time.monotonic() - started_at,
             use_batch_api=use_batch_api,
         )
+        report_data = cast(dict[str, Any], run_data)
         if total_pmids_found is None:
             # The search never answered, so there is no count to publish;
             # zeros would read as an empty window.
-            del run_data["search"]
+            del report_data["search"]
+        elif not deduplicated:
+            # The search answered and the dedup read did not: how many
+            # matched is known, how many of them were new is not, and
+            # "0 new, all seen before" would be an answer nobody gave.
+            report_data["search"] = {"pmids_found": total_pmids_found}
         report = build_run_report(
-            cast(dict[str, Any], run_data),
+            report_data,
             steps=steps,
             apis=current_recorder().records(),
             run_mode="standard",
@@ -2518,9 +2555,15 @@ async def run_pipeline(
     processed_so_far: list[PaperResult] = []
     gene_result: MergeResult | None = None
 
+    found: int | None = None
+
     def _remember_merge(merged: MergeResult) -> None:
         nonlocal gene_result
         gene_result = merged
+
+    def _remember_search(count: int) -> None:
+        nonlocal found
+        found = count
 
     try:
         with profiling.zone("discover papers"):
@@ -2529,6 +2572,7 @@ async def run_pipeline(
                 dry_run=dry_run,
                 test_mode=test_mode,
                 progress=progress,
+                on_searched=_remember_search,
             )
         if not all_pmids:
             logger.info("No new papers found. Pipeline complete.")
@@ -2636,8 +2680,9 @@ async def run_pipeline(
             partial_results=processed_so_far,
             gene_result=gene_result,
             days_back=days_back,
-            total_pmids_found=None if all_pmids is None else len(all_pmids),
+            total_pmids_found=found if all_pmids is None else len(all_pmids),
             new_pmids_count=len(new_pmids),
+            deduplicated=all_pmids is not None,
         )
         raise
 
