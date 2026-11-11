@@ -665,6 +665,12 @@ async def _validate_genes(
 
 _QUOTE_NOT_FOUND_REASON: Final[str] = "Quote not found in the paper"
 
+# Below ten quotes there are too few to judge a rate from.
+_CITATION_RATE_MIN_QUOTES: Final[int] = 10
+# The measured citation rate has ranged 33-79%, so under 20% is outside
+# anything recorded.
+_CITATION_RATE_FLOOR: Final[float] = 0.2
+
 
 def _quote_rejections(pmid: str) -> list[RejectedGene]:
     """The genes `require_verified_quotes` removed from *pmid*, as rejections.
@@ -1437,6 +1443,25 @@ def _record_processing_actions(
                 ),
                 count=dropped,
                 subjects=dropped_symbols,
+            )
+        )
+    # The same tally the run report publishes as quotesChecked / quotesCited,
+    # so the warning and the report cannot disagree. The streaming and the
+    # --batch paths both fill it and both end in this function.
+    tally = current_tally()
+    if (
+        tally.genes >= _CITATION_RATE_MIN_QUOTES
+        and tally.cited / tally.genes < _CITATION_RATE_FLOOR
+    ):
+        progress.warn(
+            RunWarning(
+                kind="citations_missing",
+                title=(
+                    f"Only {tally.cited} of {tally.genes} quotes matched an API "
+                    "citation; the model may no longer be writing cited prose "
+                    "before the tool call."
+                ),
+                count=tally.genes - tally.cited,
             )
         )
     # The model read the first `max_paper_text_chars` of these papers and

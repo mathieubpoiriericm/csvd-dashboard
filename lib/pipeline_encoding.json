@@ -262,6 +262,11 @@
     "model_fallback": {
       "icon": "arrowsRightLeft",
       "review": false
+    },
+    "citations_missing": {
+      "icon": "chatQuote",
+      "review": true,
+      "flag": ["citation rate collapsed", "citation rates collapsed"]
     }
   },
   "fields": {

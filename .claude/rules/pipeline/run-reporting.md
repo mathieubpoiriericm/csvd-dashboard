@@ -290,6 +290,15 @@ model wrote rather than by quote quality, which is why it sits at 98/124 while
 verbatim sits at 122/124. One averaged rate would report a quality figure the
 second number cannot carry.
 
+**A collapsed citation rate is a warning.** `_record_processing_actions` raises
+`citations_missing` on `processing_papers` when the tally holds at least 10
+quotes (`_CITATION_RATE_MIN_QUOTES`) and fewer than 20% matched an API citation
+(`_CITATION_RATE_FLOOR`; the measured rate has ranged 33-79%). The model writes
+cited prose before its tool call and a model change could silently stop that;
+the warning reads the same tally as `quotesChecked` / `quotesCited`, and the
+streaming and `--batch` paths both end in that function. It is a review flag in
+`lib/pipeline_encoding.json`.
+
 **A failed paper's quotes are un-counted, by the rule its genes already
 follow.** `report_provenance` runs inside extraction, before NCBI validation, so
 the counts are in the tally by the time `_validate_genes` re-raises an

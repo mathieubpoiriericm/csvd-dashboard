@@ -153,6 +153,29 @@ class TestProcessingWarnings:
         _record_processing_actions(reporter, [], PipelineMetrics())
         assert _warnings(reporter) == []
 
+    def test_a_collapsed_citation_rate_is_a_warning(self, tmp_path) -> None:
+        current_tally().record(genes=10, verbatim=10, cited=1)
+        reporter = _progress(tmp_path)
+        _record_processing_actions(reporter, [], PipelineMetrics())
+        (warning,) = _warnings(reporter)
+        assert warning.kind == "citations_missing"
+        assert warning.title == (
+            "Only 1 of 10 quotes matched an API citation; the model may no "
+            "longer be writing cited prose before the tool call."
+        )
+
+    def test_a_normal_citation_rate_is_not(self, tmp_path) -> None:
+        current_tally().record(genes=10, verbatim=10, cited=7)
+        reporter = _progress(tmp_path)
+        _record_processing_actions(reporter, [], PipelineMetrics())
+        assert "citations_missing" not in [w.kind for w in _warnings(reporter)]
+
+    def test_too_few_quotes_to_judge_is_not(self, tmp_path) -> None:
+        current_tally().record(genes=9, verbatim=9, cited=0)
+        reporter = _progress(tmp_path)
+        _record_processing_actions(reporter, [], PipelineMetrics())
+        assert "citations_missing" not in [w.kind for w in _warnings(reporter)]
+
     def test_a_paper_cut_short_at_the_text_limit_warns(self, tmp_path) -> None:
         # The tail -- where the supplementary gene-level tables are -- was
         # never read, and the paper is retired as processed all the same, so
