@@ -115,6 +115,25 @@
     "gene": ["gene", "genes"],
     "paper": ["paper", "papers"]
   },
+  "outcomes": {
+    "$comment": "The words of a step's row on the run card, after the count they follow. A count that takes a noun reads it from `nouns`, so the row says findings where the report counts findings and genes where it counts rows.",
+    "matched": "matched",
+    "new": "new",
+    "seenBefore": "seen before",
+    "read": "read",
+    "fullText": "full text",
+    "abstractOnly": "abstract only",
+    "noText": "no text",
+    "failed": "failed",
+    "extracted": "extracted",
+    "passedValidation": "passed validation",
+    "rejected": "rejected",
+    "crossChecked": "cross-checked",
+    "added": "added",
+    "updated": "updated",
+    "held": "held for more evidence",
+    "nothing": "Nothing to report"
+  },
   "warningKinds": {
     "search_truncated": {
       "icon": "magnifyingGlass",

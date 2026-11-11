@@ -33,10 +33,20 @@ const WARNING_KINDS = encoding.warningKinds as Record<
   { review: boolean; flag?: string[] }
 >;
 
+const OUTCOMES = encoding.outcomes;
+
+/** What a step with nothing to say reads, on the card and in the step log. */
+export const NOTHING_TO_REPORT = OUTCOMES.nothing;
+
+/** The noun in the number `count` takes: "gene" for one, "genes" otherwise. */
+function nounFor(count: number, noun: Noun): string {
+  const [one, many] = NOUNS[noun];
+  return count === 1 ? one : many;
+}
+
 /** A count and the noun it counts, in that noun's number: "1 gene". */
 export function counted(count: number, noun: Noun): string {
-  const [one, many] = NOUNS[noun];
-  return `${formatCount(count)} ${count === 1 ? one : many}`;
+  return `${formatCount(count)} ${nounFor(count, noun)}`;
 }
 
 /**
@@ -100,4 +110,169 @@ export function stepFlag(step: RunStep): Flag | null {
     ? `${formatCount(only.count)} ${only.count === 1 ? named[0] : named[1]}`
     : `${formatCount(review.length)} ${toReview.label}`;
   return { tint: "ember", icon: toReview.icon, label };
+}
+
+/**
+ * One part of a step's row: a figure and the words after it.
+ *
+ * `value` is drawn as a numeral; a part with none is a muted clause that
+ * breaks the figure before it down ("10 full text, 5 abstract only").
+ */
+export interface Segment {
+  value: string | null;
+  text: string;
+}
+
+/**
+ * What came out of a step. `quiet` marks a sentence rather than a readout:
+ * the step's own words, "Not reached", or nothing to report.
+ */
+export interface StepOutcome {
+  lines: Segment[][];
+  quiet: boolean;
+}
+
+const figure = (count: number, text: string): Segment => ({
+  value: formatCount(count),
+  text,
+});
+
+const clause = (parts: Array<[number, string]>): Segment => ({
+  value: null,
+  text: parts.map(([count, text]) => `${formatCount(count)} ${text}`)
+    .join(", "),
+});
+
+const sentence = (text: string): StepOutcome => ({
+  lines: [[{ value: null, text }]],
+  quiet: true,
+});
+
+/** A count and a label, kept only when the count is above zero. */
+const present = (parts: Array<[number, string]>) =>
+  parts.filter(([count]) => count > 0);
+
+/**
+ * The readout for a step the card knows, from the run's own counts, or
+ * `null` when a count it would print was never recorded.
+ *
+ * The counts are the run's, not the step's: the report holds one set, and
+ * each belongs to the step that produced it. Per-finding validation happens
+ * inside `processing_papers`; `batch_validation` is the cross-check after
+ * it, so "passed" and "rejected" sit on the former.
+ */
+function readout(run: PipelineRun, key: string): Segment[][] | null {
+  const { papers, genes, database } = run;
+  switch (key) {
+    case "searching_pubmed":
+      if (papers.found === null) return null;
+      return [[
+        figure(
+          papers.found,
+          `${nounFor(papers.found, "paper")} ${OUTCOMES.matched}`,
+        ),
+      ]];
+    case "filtering_pmids":
+      if (papers.newlySeen === null || papers.alreadySeen === null) {
+        return null;
+      }
+      return [[
+        figure(papers.newlySeen, OUTCOMES.new),
+        figure(papers.alreadySeen, OUTCOMES.seenBefore),
+      ]];
+    case "processing_papers":
+      return [
+        [
+          figure(papers.processed, OUTCOMES.read),
+          clause([
+            [papers.fulltext, OUTCOMES.fullText],
+            [papers.abstractOnly, OUTCOMES.abstractOnly],
+            ...present([
+              [papers.noTextAvailable, OUTCOMES.noText],
+              [papers.failed, OUTCOMES.failed],
+            ]),
+          ]),
+        ],
+        [
+          figure(
+            genes.extracted,
+            `${nounFor(genes.extracted, "finding")} ${OUTCOMES.extracted}`,
+          ),
+          clause([
+            [genes.validated, OUTCOMES.passedValidation],
+            [genes.rejected, OUTCOMES.rejected],
+          ]),
+        ],
+      ];
+    case "batch_validation":
+      return [[
+        figure(
+          genes.validated,
+          `${nounFor(genes.validated, "finding")} ${OUTCOMES.crossChecked}`,
+        ),
+      ]];
+    case "merging_database": {
+      if (database === null) return null;
+      const held = genes.rejectedAtInsertFloor;
+      return [[
+        figure(
+          database.inserted,
+          `${nounFor(database.inserted, "gene")} ${OUTCOMES.added}`,
+        ),
+        figure(database.updated, OUTCOMES.updated),
+        ...(held > 0
+          ? [figure(held, `${nounFor(held, "finding")} ${OUTCOMES.held}`)]
+          : []),
+      ]];
+    }
+    default:
+      return null;
+  }
+}
+
+/**
+ * What the row for `run.steps[index]` says.
+ *
+ * A step that was not reached says so. A step the card knows reads out the
+ * run's counts, once: a step can recur, and the second visit printing the
+ * same totals would count them twice, so it falls back to its own sentences
+ * -- as does a step the card does not know, and one whose counts the run
+ * never recorded (an offline run searched nothing).
+ */
+export function stepOutcome(run: PipelineRun, index: number): StepOutcome {
+  const step = run.steps[index];
+  if (step.status === "skipped") {
+    return sentence(stepStatusBadge("skipped").label);
+  }
+  const first = run.steps.findIndex((other) => other.key === step.key);
+  const lines = first === index ? readout(run, step.key) : null;
+  if (lines !== null) return { lines, quiet: false };
+  return sentence(
+    step.actions.length > 0 ? step.actions.join(". ") : NOTHING_TO_REPORT,
+  );
+}
+
+/**
+ * Whether a step's row opens. Only on something the row does not already
+ * say: a note or an error. Its action sentences repeat the readout, and
+ * opening a row to read it again is a dud click.
+ */
+export function isOpenable(step: RunStep): boolean {
+  return step.warnings.length > 0 || step.error !== null;
+}
+
+/** Whether a warning's subject is a PubMed identifier, and so a link. */
+export function isPmid(subject: string): boolean {
+  return /^\d{1,9}$/.test(subject);
+}
+
+/**
+ * A note's subjects, cut at what a note shows before its disclosure. The
+ * rest stay in the page behind it rather than becoming "and 26 more".
+ */
+export function splitSubjects(
+  subjects: string[],
+  limit = 8,
+): { shown: string[]; rest: string[] } {
+  return { shown: subjects.slice(0, limit), rest: subjects.slice(limit) };
 }
