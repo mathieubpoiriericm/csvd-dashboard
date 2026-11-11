@@ -167,6 +167,16 @@
     "toUpdate": "to update a known gene",
     "toAdd": "to add a new one"
   },
+  "papers": {
+    "$comment": "The words of the run details' Papers table that no field already carries: three of its column heads, and who read a paper.",
+    "paper": "Paper",
+    "text": "Text",
+    "readBy": "Read by",
+    "time": "Time",
+    "primary": "Primary",
+    "fallback": "Fallback",
+    "unread": "Not read"
+  },
   "setup": {
     "$comment": "The words of the run details' Setup tab that no field already carries: the confidence floors, the two flags, and what stands beside the duration, the tokens and the quote check.",
     "floors": "Confidence floors",

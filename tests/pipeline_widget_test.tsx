@@ -624,7 +624,139 @@ Deno.test("the drawer says what each number is, in words", () => {
   const text = markup.replace(/<[^>]+>/g, "");
   assertStringIncludes(text, "Confidence 1.00");
   assertStringIncludes(text, "PMID 20437615");
-  assertStringIncludes(text, "11 s · 2 accepted · 1 rejected");
+  // A paper's time and its two counts are cells under the columns that
+  // name them.
+  assertMatch(
+    details("papers"),
+    />Time<\/th>[\s\S]*>Accepted<\/th>[\s\S]*>Rejected<\/th>[\s\S]*>11 s<\/td>[\s\S]*>2<\/td>[\s\S]*>1<\/td>/,
+  );
+});
+
+const papersOf = (patch: Partial<PipelineRun> = {}) =>
+  detailsOf(
+    runWith({
+      config: { ...RUN.config, fallbackModel: "fallback-model" },
+      papersDetail: {
+        shown: 2,
+        total: 2,
+        items: [
+          {
+            ...RUN.papersDetail.items[0],
+            pmid: "1",
+            source: "abstract",
+            geneCount: 2,
+            rejectedCount: 0,
+            processingSeconds: 28,
+            extractionModel: "fallback-model",
+            refusal: "bio",
+          },
+          {
+            ...RUN.papersDetail.items[0],
+            pmid: "2",
+            source: "unknown",
+            geneCount: 0,
+            rejectedCount: 0,
+            processingSeconds: null,
+            error: "Refused by safety classifier",
+            extractionModel: null,
+            refusal: "bio",
+          },
+        ],
+      },
+      ...patch,
+    }),
+    "papers",
+  );
+
+Deno.test("papers are a table whose errored row leads and keeps its reason", () => {
+  const markup = papersOf();
+  // The roles are spelled out: the phone layout changes the table's
+  // `display`, and some engines drop the implicit ones when it does.
+  assertMatch(markup, /<table[^>]*role="table"/);
+  for (
+    const head of [
+      "Paper",
+      "Text",
+      "Read by",
+      "Declined by",
+      "Time",
+      "Accepted",
+      "Rejected",
+    ]
+  ) {
+    assertMatch(
+      markup,
+      new RegExp(`<th[^>]*role="columnheader"[^>]*scope="col"[^>]*>${head}<`),
+    );
+  }
+  assert(
+    markup.indexOf("pubmed.ncbi.nlm.nih.gov/2/") <
+      markup.indexOf("pubmed.ncbi.nlm.nih.gov/1/"),
+    "the paper nobody read comes first",
+  );
+  assertStringIncludes(markup, "Refused by safety classifier");
+  assertMatch(markup, /<svg[\s\S]*?<\/svg>Not read/);
+});
+
+Deno.test("who declined a paper is plain text, once per row, and never a pill", () => {
+  // Thirty-four of thirty-eight rows carried the same yellow pill on the
+  // run this was drawn for.
+  const markup = papersOf();
+  assertEquals(markup.match(/Biology safety classifier/g)?.length, 2);
+  assertNotMatch(markup, /pipeline-chip/);
+  // "Fallback" names its model for anyone who asks.
+  assertMatch(markup, /title="fallback-model"[^>]*>Fallback/);
+});
+
+Deno.test("a run nothing was declined in has no column for it", () => {
+  assertNotMatch(details("papers"), /Declined by/);
+  assertStringIncludes(details("papers"), "Primary");
+});
+
+Deno.test("a run that wrote nothing heads the column Validated", () => {
+  const markup = papersOf({ database: null });
+  assertMatch(markup, /<th[^>]*>Validated</);
+  assertNotMatch(markup, /<th[^>]*>Accepted</);
+});
+
+Deno.test("a count of none is muted, and an untimed paper has no time", () => {
+  const markup = papersOf();
+  assertMatch(markup, /<td[^>]*class="[^"]*is-zero[^"]*"[^>]*>0<\/td>/);
+  assertNotMatch(markup, /0 ms/);
+});
+
+Deno.test("the fallback story heads the Papers tab once, in the run's own words", () => {
+  const many = Array.from({ length: 34 }, (_, i) => String(42000000 + i));
+  const run = runWith({
+    steps: [
+      step({
+        status: "warning",
+        warnings: [
+          {
+            ...warning("model_fallback", 34, many),
+            title: "34 papers were extracted by the fallback model",
+          },
+          { ...warning("paper_refused"), title: "1 paper was declined" },
+        ],
+      }),
+    ],
+  });
+  const markup = detailsOf(run, "papers");
+  assert(
+    markup.indexOf("34 papers were extracted by the fallback model") <
+      markup.indexOf("<table"),
+    "the notes stand above the table",
+  );
+  assertMatch(
+    markup,
+    /class="pipeline-note pipeline-tint-muted"[^>]*>[\s\S]*?34 papers were extracted/,
+  );
+  assertMatch(
+    markup,
+    /class="pipeline-note pipeline-tint-ember"[^>]*>[\s\S]*?1 paper was declined/,
+  );
+  // A run with neither has no note.
+  assertNotMatch(details("papers"), /pipeline-note/);
 });
 
 Deno.test("a paper's source reads as words, and its time is shown", () => {
@@ -764,9 +896,9 @@ Deno.test("a paper the fallback served names its model, and only that one", () =
   );
   assertStringIncludes(served, "claude-opus-4-8");
   assertStringIncludes(served, "Biology safety classifier");
-  // A paper the requested model extracted carries no pill: it would repeat
-  // the header on every row.
-  assert(!details().includes("Extracted by"));
+  // A paper the requested model extracted says "Primary" and names no
+  // model: Setup has it, and on every row it would be noise.
+  assertNotMatch(details("papers"), /claude-opus-5|Extracted by/);
 });
 
 Deno.test("a gene's omics evidence reads as the table prints it, without the wire form", () => {

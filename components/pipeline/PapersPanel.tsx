@@ -1,86 +1,173 @@
 /**
  * The run details' Papers tab: every paper the run took up, and what became
- * of it.
+ * of it, as a table.
+ *
+ * It was a list of records, and on the run this was drawn for thirty-four
+ * of its thirty-eight carried the same two pills: "Extracted by" the
+ * fallback model and "Declined by" the same classifier. The run's own notes
+ * about its fallback and its unread papers now stand above the table, once,
+ * and a row says only who read it. Nothing in the table is a pill.
+ *
+ * The table's roles are spelled out. Below 600px its rows fold into lines,
+ * which changes its `display`, and some engines drop a table's implicit
+ * roles when that happens.
  */
 
+import encoding from "../../lib/pipeline_encoding.json" with { type: "json" };
 import { Icon } from "../Icon.tsx";
 import {
-  describePaper,
-  describeRefusal,
+  paperNotes,
+  type PaperRow,
+  paperRows,
+} from "../../lib/pipeline_details.ts";
+import {
+  describeTruncation,
+  field,
+  formatCount,
+  isTruncated,
   paperSourceLabel,
 } from "../../lib/pipeline_display.ts";
-import type { PipelineRun, RunPaper } from "../../lib/types.ts";
-import { DrawerSection, Field, Pmid, ValuePill } from "./records.tsx";
+import type { PipelineRun } from "../../lib/types.ts";
+import { WarningNote } from "./Note.tsx";
+import { Pmid } from "./records.tsx";
+
+const PAPERS = encoding.papers;
+
+function Head(
+  { label, numeric = false }: { label: string; numeric?: boolean },
+) {
+  return (
+    <th
+      role="columnheader"
+      scope="col"
+      class={numeric ? "is-numeric" : undefined}
+    >
+      {label}
+    </th>
+  );
+}
+
+/** A count, muted when it is none: a column of zeros is not what to read. */
+function Count({ value, label }: { value: number; label: string }) {
+  return (
+    <td
+      role="cell"
+      class={`is-numeric${value === 0 ? " is-zero" : ""}`}
+      data-label={label}
+    >
+      {formatCount(value)}
+    </td>
+  );
+}
 
 /**
- * A paper, in the columns of the service rows below it: the PMID, where its
- * text came from, and on the right what became of it (`describePaper`).
- *
- * A paper another model extracted -- the Opus 4.8 fallback, after Opus 5.5
- * declined -- names that model beside its source. The run's own model is
- * left unsaid: it is in the header, and on every row it would be noise. A
- * refusal names its classifier as a verdict pill, whether the paper then
- * failed or the fallback served it.
+ * Who read the paper. The fallback names its model for a pointer and for a
+ * screen reader; in the column it would be the same word on most rows. A
+ * paper nobody read says so with a glyph as well as in words, since it is
+ * the row that needs a look.
  */
-function PaperRow(
-  { paper, primaryModel, written }: {
-    paper: RunPaper;
-    primaryModel: string | null;
-    written: boolean;
+function ReadBy(
+  { row, fallbackModel }: { row: PaperRow; fallbackModel: string },
+) {
+  if (row.readBy === "unread") {
+    return (
+      <span class="pipeline-table-flag">
+        <Icon name={field("toReview").icon} />
+        {PAPERS.unread}
+      </span>
+    );
+  }
+  if (row.readBy === "fallback") {
+    return <span title={fallbackModel}>{PAPERS.fallback}</span>;
+  }
+  return <>{PAPERS.primary}</>;
+}
+
+function Paper(
+  { row, declinedColumn, columns, accepted }: {
+    row: PaperRow;
+    declinedColumn: boolean;
+    columns: number;
+    accepted: string;
   },
 ) {
-  const otherModel = paper.extractionModel !== null &&
-      paper.extractionModel !== primaryModel
-    ? paper.extractionModel
-    : null;
-  const refusal = paper.refusal === null
-    ? null
-    : describeRefusal(paper.refusal);
+  const { paper } = row;
   return (
     <>
-      <div class="pipeline-paper">
-        <Pmid pmid={paper.pmid} />
-        <ValuePill>{paperSourceLabel(paper.source)}</ValuePill>
-        <span class="pipeline-paper-detail">
-          {describePaper(paper, written)}
-        </span>
-      </div>
-      {(otherModel || refusal || paper.error) && (
-        <dl class="pipeline-fields">
-          {otherModel && (
-            <Field name="extractionModel" pills>
-              <ValuePill>{otherModel}</ValuePill>
-            </Field>
-          )}
-          {refusal && (
-            <Field name="refusal" pills>
-              <span class={`pipeline-chip pipeline-tint-${refusal.tint}`}>
-                <Icon name={refusal.icon} />
-                {refusal.label}
-              </span>
-            </Field>
-          )}
-          {paper.error && <Field name="reason">{paper.error}</Field>}
-        </dl>
+      <tr role="row">
+        <td role="cell" class="is-lead">
+          <Pmid pmid={paper.pmid} />
+        </td>
+        <td role="cell">{paperSourceLabel(paper.source)}</td>
+        <td role="cell">
+          <ReadBy
+            row={row}
+            fallbackModel={paper.extractionModel ?? PAPERS.fallback}
+          />
+        </td>
+        {declinedColumn && <td role="cell">{row.declinedBy}</td>}
+        <td role="cell" class="is-numeric is-time">{row.time}</td>
+        <Count value={paper.geneCount} label={accepted} />
+        <Count
+          value={paper.rejectedCount}
+          label={field("genesRejected").label}
+        />
+      </tr>
+      {paper.error !== null && (
+        <tr role="row" class="pipeline-table-note">
+          <td role="cell" colSpan={columns}>
+            <span class="pipeline-table-note-label">
+              {field("reason").label}
+            </span>{" "}
+            {paper.error}
+          </td>
+        </tr>
       )}
     </>
   );
 }
 
 export function PapersPanel({ run }: { run: PipelineRun }) {
-  const written = run.database !== null;
+  const { rows, declinedColumn, written } = paperRows(run);
+  const list = run.papersDetail;
+  // Accepted means what reached the database, so a run that failed before
+  // its merge heads the column with what its findings are: validated.
+  const accepted = field(written ? "genesAccepted" : "genesValidated").label;
+  const columns = declinedColumn ? 7 : 6;
   return (
-    <DrawerSection
-      title="Papers"
-      list={run.papersDetail}
-      keyOf={(paper, index) => `${paper.pmid}-${index}`}
-      render={(paper) => (
-        <PaperRow
-          paper={paper}
-          primaryModel={run.config.model}
-          written={written}
-        />
+    <>
+      {paperNotes(run).map((warning, index) => (
+        <WarningNote key={index} warning={warning} />
+      ))}
+      {isTruncated(list.shown, list.total) && (
+        <p class="pipeline-truncation">
+          {describeTruncation(list.shown, list.total)}
+        </p>
       )}
-    />
+      <table class="pipeline-table" role="table">
+        <thead role="rowgroup">
+          <tr role="row">
+            <Head label={PAPERS.paper} />
+            <Head label={PAPERS.text} />
+            <Head label={PAPERS.readBy} />
+            {declinedColumn && <Head label={field("refusal").label} />}
+            <Head label={PAPERS.time} numeric />
+            <Head label={accepted} numeric />
+            <Head label={field("genesRejected").label} numeric />
+          </tr>
+        </thead>
+        <tbody role="rowgroup">
+          {rows.map((row, index) => (
+            <Paper
+              key={index}
+              row={row}
+              declinedColumn={declinedColumn}
+              columns={columns}
+              accepted={accepted}
+            />
+          ))}
+        </tbody>
+      </table>
+    </>
   );
 }

@@ -24,7 +24,7 @@ import { useHydratedRef } from "../components/useHydratedRef.ts";
 import { useRef, useState } from "preact/hooks";
 
 import { Icon } from "../components/Icon.tsx";
-import { Note } from "../components/pipeline/Note.tsx";
+import { Note, WarningNote } from "../components/pipeline/Note.tsx";
 import { RunDetails } from "../components/pipeline/RunDetails.tsx";
 import { useModal } from "../components/useModal.ts";
 import { pipelineRun } from "../lib/data/pipeline_run.ts";
@@ -39,12 +39,8 @@ import {
 } from "../lib/pipeline_display.ts";
 import {
   isOpenable,
-  isPmid,
-  isReview,
   OF,
   reviewCount,
-  SHOW_ALL,
-  splitSubjects,
   stepFlag,
   type StepOutcome,
   stepOutcome,
@@ -92,61 +88,6 @@ function Outcome({ outcome }: { outcome: StepOutcome }) {
         </span>
       ))}
     </span>
-  );
-}
-
-/**
- * A warning's subject, after the comma that separates it from the one
- * before: a paper is a link to it, anything else its name.
- */
-function Subject({ subject, first }: { subject: string; first: boolean }) {
-  return (
-    <>
-      {!first && ", "}
-      {isPmid(subject)
-        ? (
-          <a
-            class="pipeline-pmid"
-            href={`https://pubmed.ncbi.nlm.nih.gov/${subject}/`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            {subject}
-          </a>
-        )
-        : subject}
-    </>
-  );
-}
-
-function SubjectList({ subjects }: { subjects: string[] }) {
-  return (
-    <>
-      {subjects.map((subject, index) => (
-        <Subject key={index} subject={subject} first={index === 0} />
-      ))}
-    </>
-  );
-}
-
-/**
- * What a warning names. The first few are in the note; the rest wait
- * behind a native disclosure, in the page, rather than becoming "and 26
- * more" -- a count of things the reader was then given no way to see.
- */
-function Subjects({ subjects }: { subjects: string[] }) {
-  if (subjects.length === 0) return null;
-  const { shown, rest } = splitSubjects(subjects);
-  return (
-    <div class="pipeline-note-subjects">
-      <SubjectList subjects={shown} />
-      {rest.length > 0 && (
-        <details class="pipeline-note-more">
-          <summary>{SHOW_ALL} {formatCount(subjects.length)}</summary>
-          <SubjectList subjects={rest} />
-        </details>
-      )}
-    </div>
   );
 }
 
@@ -213,17 +154,7 @@ function Step(
       {openable && (
         <div id={panelId} class="pipeline-step-body" hidden={!expanded}>
           {step.warnings.map((warning, index) => (
-            <Note
-              key={index}
-              tint={isReview(warning.kind) ? "ember" : "muted"}
-              mark={isReview(warning.kind) ? field("toReview") : undefined}
-              title={warning.title}
-            >
-              {warning.detail && (
-                <p class="pipeline-note-detail">{warning.detail}</p>
-              )}
-              <Subjects subjects={warning.subjects} />
-            </Note>
+            <WarningNote key={index} warning={warning} />
           ))}
 
           {step.error && <StepError error={step.error} />}

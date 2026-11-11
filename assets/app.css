@@ -6763,6 +6763,79 @@ button.adapt-card-head:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
+/* --- Tables -------------------------------------------------------- */
+
+/* The run details' tables: the papers, and the services a run called. One
+   row a thing, ruled by hairlines, with its figures set right in tabular
+   numerals so a column of them can be read down. */
+.pipeline-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--svd-text-sm);
+}
+
+.pipeline-table th {
+  padding: 0 var(--svd-space-3) var(--svd-space-2) 0;
+  border-bottom: 1px solid var(--svd-line-control);
+  color: var(--svd-text-muted);
+  font-family: var(--svd-font-heading);
+  font-size: var(--svd-text-2xs);
+  font-weight: var(--svd-weight-semibold);
+  letter-spacing: var(--svd-tracking-caps);
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.pipeline-table td {
+  padding: var(--svd-space-2) var(--svd-space-3) var(--svd-space-2) 0;
+  border-bottom: 1px solid var(--svd-border);
+  vertical-align: baseline;
+}
+
+.pipeline-table .is-numeric {
+  padding-right: 0;
+  padding-left: var(--svd-space-3);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.pipeline-table td.is-time,
+.pipeline-table td.is-zero {
+  color: var(--svd-text-muted);
+}
+
+/* The one cell that needs a look: a glyph and words, in the warning ink. */
+.pipeline-table-flag {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--svd-space-2);
+  color: var(--svd-color-warn-ink);
+  font-weight: var(--svd-weight-semibold);
+}
+
+.pipeline-table-flag > .icon {
+  align-self: center;
+}
+
+/* What the pipeline recorded about a paper that errored, under its row and
+   belonging to it: the rule between the two is dropped. */
+.pipeline-table tr:has(+ .pipeline-table-note) > td {
+  border-bottom: 0;
+}
+
+.pipeline-table-note > td {
+  padding-top: 0;
+  color: var(--svd-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.pipeline-table-note-label {
+  font-size: var(--svd-text-2xs);
+  letter-spacing: var(--svd-tracking-normal);
+  text-transform: uppercase;
+}
+
 /* --- Setup --------------------------------------------------------- */
 
 /* Two lists side by side while there is room for both, one above the other
@@ -7162,6 +7235,68 @@ details.pipeline-apis:not([open]) > ul {
   .pipeline-setup-list,
   .pipeline-log-row {
     grid-template-columns: 8.5rem minmax(0, 1fr);
+  }
+
+  /* A table's rows fold into lines: the first cell and the duration on
+     one, the rest under them, and a count shown only when there is one,
+     with the name its column gave it. The head is clipped, not removed, so
+     the cells keep the headers they are read with. */
+  .pipeline-table,
+  .pipeline-table tbody {
+    display: block;
+  }
+
+  .pipeline-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .pipeline-table tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--svd-space-1) var(--svd-space-3);
+    padding: var(--svd-space-2) 0;
+    border-bottom: 1px solid var(--svd-border);
+  }
+
+  .pipeline-table td,
+  .pipeline-table .is-numeric {
+    padding: 0;
+    border: 0;
+    text-align: left;
+  }
+
+  /* The row's first cell, by class: this stylesheet never addresses a
+     cell by `:first-child` (see `.col-identity`). */
+  .pipeline-table td.is-lead {
+    flex: 1 1 calc(100% - 6rem);
+    order: -2;
+  }
+
+  .pipeline-table td.is-time {
+    order: -1;
+    margin-left: auto;
+  }
+
+  .pipeline-table td.is-zero,
+  .pipeline-table td:empty {
+    display: none;
+  }
+
+  .pipeline-table td[data-label]::after {
+    content: ' ' attr(data-label);
+    color: var(--svd-text-muted);
+    text-transform: lowercase;
+  }
+
+  .pipeline-table tr:has(+ .pipeline-table-note) {
+    border-bottom: 0;
+    padding-bottom: 0;
   }
 
   /* The symbol and its paper on one line, then the score, then why. */

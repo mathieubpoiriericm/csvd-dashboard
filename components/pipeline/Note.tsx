@@ -19,6 +19,14 @@
 import type { ComponentChildren } from "preact";
 
 import { Icon, type IconName } from "../Icon.tsx";
+import { field, formatCount } from "../../lib/pipeline_display.ts";
+import {
+  isPmid,
+  isReview,
+  SHOW_ALL,
+  splitSubjects,
+} from "../../lib/pipeline_ledger.ts";
+import type { RunWarning } from "../../lib/types.ts";
 
 export type NoteTint = "ember" | "muted" | "danger";
 
@@ -41,5 +49,80 @@ export function Note(
       </strong>
       {children}
     </div>
+  );
+}
+
+/**
+ * A warning's subject, after the comma that separates it from the one
+ * before: a paper is a link to it, anything else its name.
+ */
+function Subject({ subject, first }: { subject: string; first: boolean }) {
+  return (
+    <>
+      {!first && ", "}
+      {isPmid(subject)
+        ? (
+          <a
+            class="pipeline-pmid"
+            href={`https://pubmed.ncbi.nlm.nih.gov/${subject}/`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {subject}
+          </a>
+        )
+        : subject}
+    </>
+  );
+}
+
+function SubjectList({ subjects }: { subjects: string[] }) {
+  return (
+    <>
+      {subjects.map((subject, index) => (
+        <Subject key={index} subject={subject} first={index === 0} />
+      ))}
+    </>
+  );
+}
+
+/**
+ * What a warning names. The first few are in the note; the rest wait
+ * behind a native disclosure, in the page, rather than becoming "and 26
+ * more" -- a count of things the reader was then given no way to see.
+ */
+function Subjects({ subjects }: { subjects: string[] }) {
+  if (subjects.length === 0) return null;
+  const { shown, rest } = splitSubjects(subjects);
+  return (
+    <div class="pipeline-note-subjects">
+      <SubjectList subjects={shown} />
+      {rest.length > 0 && (
+        <details class="pipeline-note-more">
+          <summary>{SHOW_ALL} {formatCount(subjects.length)}</summary>
+          <SubjectList subjects={rest} />
+        </details>
+      )}
+    </div>
+  );
+}
+
+/**
+ * One of the run's warnings, as a note: its sentence, what explains it, and
+ * what it names. It reads the same on a step's row of the card and at the
+ * head of the Papers tab, which repeats the two warnings that are about
+ * papers.
+ */
+export function WarningNote({ warning }: { warning: RunWarning }) {
+  const review = isReview(warning.kind);
+  return (
+    <Note
+      tint={review ? "ember" : "muted"}
+      mark={review ? field("toReview") : undefined}
+      title={warning.title}
+    >
+      {warning.detail && <p class="pipeline-note-detail">{warning.detail}</p>}
+      <Subjects subjects={warning.subjects} />
+    </Note>
   );
 }
