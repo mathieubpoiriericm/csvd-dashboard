@@ -10,13 +10,7 @@
 import encoding from "./pipeline_encoding.json" with { type: "json" };
 
 import type { IconName } from "../components/Icon.tsx";
-import type {
-  ApiService,
-  RunError,
-  RunPaper,
-  RunStep,
-  SyncSource,
-} from "./types.ts";
+import type { RunError, SyncSource } from "./types.ts";
 import { formatCount } from "./format.ts";
 
 export { formatConfidence, formatCount } from "./format.ts";
@@ -204,11 +198,6 @@ export function warningIcon(kind: string): IconName {
   return WARNING_KINDS[kind]?.icon ?? FALLBACK_ICON;
 }
 
-/** Everything a step warned about, counted as things rather than rows. */
-export function warningCount(step: RunStep): number {
-  return step.warnings.reduce((total, warning) => total + warning.count, 0);
-}
-
 /**
  * A duration, at the precision a reader can act on.
  *
@@ -348,52 +337,6 @@ export function runWhen(
     date: text(parts.slice(0, joint)),
     time: `${text(parts.slice(joint)).trim()} UTC`,
   };
-}
-
-/**
- * One line summarising a service's traffic.
- *
- * Retries and errors are named only when they happened, so a clean row
- * stays short and a troubled one is visibly different at a glance.
- */
-export function describeApi(api: ApiService): string {
-  const parts = [`${formatCount(api.calls)} call${api.calls === 1 ? "" : "s"}`];
-  if (api.retries > 0) parts.push(`${formatCount(api.retries)} retried`);
-  // "not found" reads separately from "failed" because it is the normal
-  // answer for the two open-access lookups, not a fault.
-  if (api.notFound > 0) parts.push(`${formatCount(api.notFound)} not found`);
-  if (api.errors > 0) parts.push(`${formatCount(api.errors)} failed`);
-  if (api.totalMs > 0) parts.push(formatMilliseconds(api.totalMs));
-  if (api.bytes > 0) parts.push(formatBytes(api.bytes));
-  return parts.join(" · ");
-}
-
-/**
- * One line summarising what became of a paper: how long it took and how
- * many genes it gave.
- *
- * The same register as `describeApi`, so a paper row and a service row read
- * alike: accepted is always stated, because a paper that yielded nothing is
- * a fact, and rejected only when something was.
- *
- * `written` is whether the run reached its merge. Accepted means what
- * reached the database, so a run that failed before it has genes that
- * passed validation and no more, and says "validated".
- */
-export function describePaper(paper: RunPaper, written = true): string {
-  const parts: string[] = [];
-  if (paper.processingSeconds !== null) {
-    parts.push(formatDuration(paper.processingSeconds));
-  }
-  const counted = (count: number, key: string) =>
-    `${formatCount(count)} ${field(key).label.toLowerCase()}`;
-  parts.push(
-    counted(paper.geneCount, written ? "genesAccepted" : "genesValidated"),
-  );
-  if (paper.rejectedCount > 0) {
-    parts.push(counted(paper.rejectedCount, "genesRejected"));
-  }
-  return parts.join(" · ");
 }
 
 /** Whether a capped list left anything out. */

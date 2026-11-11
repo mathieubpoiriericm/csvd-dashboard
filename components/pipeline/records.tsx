@@ -103,3 +103,35 @@ export function DrawerSection<T>(
     </section>
   );
 }
+
+/** A column's head. A column of figures is set right, as its cells are. */
+export function TableHead(
+  { label, numeric = false }: { label: string; numeric?: boolean },
+) {
+  return (
+    <th
+      role="columnheader"
+      scope="col"
+      class={numeric ? "is-numeric" : undefined}
+    >
+      {label}
+    </th>
+  );
+}
+
+/**
+ * A count in a table. Muted when it is none: a column of zeros is not what
+ * to read. `label` is what the count is, for the phone layout, where a row
+ * folds into lines and a cell no longer sits under its column's head.
+ */
+export function CountCell({ value, label }: { value: number; label: string }) {
+  return (
+    <td
+      role="cell"
+      class={`is-numeric${value === 0 ? " is-zero" : ""}`}
+      data-label={label}
+    >
+      {formatCount(value)}
+    </td>
+  );
+}

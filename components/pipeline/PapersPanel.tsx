@@ -23,42 +23,14 @@ import {
 import {
   describeTruncation,
   field,
-  formatCount,
   isTruncated,
   paperSourceLabel,
 } from "../../lib/pipeline_display.ts";
 import type { PipelineRun } from "../../lib/types.ts";
 import { WarningNote } from "./Note.tsx";
-import { Pmid } from "./records.tsx";
+import { CountCell, Pmid, TableHead } from "./records.tsx";
 
 const PAPERS = encoding.papers;
-
-function Head(
-  { label, numeric = false }: { label: string; numeric?: boolean },
-) {
-  return (
-    <th
-      role="columnheader"
-      scope="col"
-      class={numeric ? "is-numeric" : undefined}
-    >
-      {label}
-    </th>
-  );
-}
-
-/** A count, muted when it is none: a column of zeros is not what to read. */
-function Count({ value, label }: { value: number; label: string }) {
-  return (
-    <td
-      role="cell"
-      class={`is-numeric${value === 0 ? " is-zero" : ""}`}
-      data-label={label}
-    >
-      {formatCount(value)}
-    </td>
-  );
-}
 
 /**
  * Who read the paper. The fallback names its model for a pointer and for a
@@ -107,8 +79,8 @@ function Paper(
         </td>
         {declinedColumn && <td role="cell">{row.declinedBy}</td>}
         <td role="cell" class="is-numeric is-time">{row.time}</td>
-        <Count value={paper.geneCount} label={accepted} />
-        <Count
+        <CountCell value={paper.geneCount} label={accepted} />
+        <CountCell
           value={paper.rejectedCount}
           label={field("genesRejected").label}
         />
@@ -134,11 +106,16 @@ export function PapersPanel({ run }: { run: PipelineRun }) {
   // its merge heads the column with what its findings are: validated.
   const accepted = field(written ? "genesAccepted" : "genesValidated").label;
   const columns = declinedColumn ? 7 : 6;
+  const notes = paperNotes(run);
   return (
     <>
-      {paperNotes(run).map((warning, index) => (
-        <WarningNote key={index} warning={warning} />
-      ))}
+      {notes.length > 0 && (
+        <div class="pipeline-panel-notes">
+          {notes.map((warning, index) => (
+            <WarningNote key={index} warning={warning} />
+          ))}
+        </div>
+      )}
       {isTruncated(list.shown, list.total) && (
         <p class="pipeline-truncation">
           {describeTruncation(list.shown, list.total)}
@@ -147,13 +124,13 @@ export function PapersPanel({ run }: { run: PipelineRun }) {
       <table class="pipeline-table" role="table">
         <thead role="rowgroup">
           <tr role="row">
-            <Head label={PAPERS.paper} />
-            <Head label={PAPERS.text} />
-            <Head label={PAPERS.readBy} />
-            {declinedColumn && <Head label={field("refusal").label} />}
-            <Head label={PAPERS.time} numeric />
-            <Head label={accepted} numeric />
-            <Head label={field("genesRejected").label} numeric />
+            <TableHead label={PAPERS.paper} />
+            <TableHead label={PAPERS.text} />
+            <TableHead label={PAPERS.readBy} />
+            {declinedColumn && <TableHead label={field("refusal").label} />}
+            <TableHead label={PAPERS.time} numeric />
+            <TableHead label={accepted} numeric />
+            <TableHead label={field("genesRejected").label} numeric />
           </tr>
         </thead>
         <tbody role="rowgroup">

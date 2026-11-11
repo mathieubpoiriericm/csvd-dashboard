@@ -210,9 +210,11 @@ Deno.test("the API inventory names the service, method and endpoint", () => {
   assertStringIncludes(markup, "E-utilities fetch");
   assertStringIncludes(markup, "GET");
   assertStringIncludes(markup, "/entrez/eutils/efetch.fcgi");
-  assertStringIncludes(
+  // Its figures are cells under the columns that name them: 32 calls, 1
+  // retried, 1 failed, 4.1 s, 51.2 kB.
+  assertMatch(
     markup,
-    "32 calls · 1 retried · 1 failed · 4.1 s · 51.2 kB",
+    />32<\/td><td[^>]*>1<\/td><td[^>]*>1<\/td><td[^>]*>4\.1 s<\/td><td[^>]*>51\.2 kB<\/td>/,
   );
 });
 
@@ -292,6 +294,19 @@ Deno.test("the services are in the run details, not on the card", () => {
     "services",
     "setup",
   ]);
+});
+
+Deno.test("the services tab is the shared table, with the run's own trouble columns", () => {
+  // RUN's one service retried once and failed once.
+  const services = details("services");
+  for (const head of ["Service", "Request", "Calls", "Retries", "Failed"]) {
+    assertMatch(services, new RegExp(`<th[^>]*>${head}<`));
+  }
+  assertNotMatch(services, /<th[^>]*>Not found</);
+  assertMatch(
+    services,
+    /<code[^>]*><span class="pipeline-method">GET<\/span> \/entrez\/eutils\/efetch\.fcgi/,
+  );
 });
 
 Deno.test("Setup holds what left the card: the method, the usage, the step log", () => {

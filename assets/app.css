@@ -6219,16 +6219,6 @@ button.adapt-card-head:focus-visible {
 
 /* --- Steps --------------------------------------------------------- */
 
-/* The drawer's services, a stacked list. */
-.pipeline-apis ul {
-  list-style: none;
-  margin: 0 0 var(--svd-space-4);
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--svd-space-2);
-}
-
 /* The ledger: one row per step, ruled from the next by a hairline the way
    the Data Sources panel's rows are. It is the card's last block and
    carries no margin under it, so the card's own padding is all that
@@ -6472,11 +6462,8 @@ button.adapt-card-head:focus-visible {
   color: var(--svd-text-muted);
 }
 
-/* A service, a refresh's upstream and a paper are all one row shape: a name
-   holding the 11rem label column, what it is, and on the right what came of
-   it. */
-.pipeline-api,
-.pipeline-paper,
+/* A refresh's upstream: its name holding the 11rem label column, and on
+   the right what came of it. */
 .pipeline-source {
   display: flex;
   flex-wrap: wrap;
@@ -6485,21 +6472,15 @@ button.adapt-card-head:focus-visible {
   font-size: var(--svd-text-sm);
 }
 
+/* A service's name, in its cell of the services table. A host name has no
+   spaces to wrap at, so it breaks anywhere rather than widen its column. */
 .pipeline-api-name {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--svd-space-2);
   font-weight: var(--svd-weight-semibold);
-  min-width: 11rem;
+  overflow-wrap: anywhere;
 }
 
-.pipeline-paper > .pipeline-fact {
-  min-width: 11rem;
-  color: var(--svd-text-muted);
-}
-
-/* A path has no spaces to wrap at, and the longest ran past the drawer's
-   edge at 320px; it breaks anywhere rather than overflow. */
+/* A path has no spaces to wrap at either, and the longest ran past the
+   edge at 320px. */
 .pipeline-api-endpoint {
   color: var(--svd-text-muted);
   font-family: var(--svd-font-mono);
@@ -6507,8 +6488,6 @@ button.adapt-card-head:focus-visible {
   overflow-wrap: anywhere;
 }
 
-.pipeline-api-detail,
-.pipeline-paper-detail,
 .pipeline-source-detail {
   margin-left: auto;
   color: var(--svd-text-muted);
@@ -6686,6 +6665,11 @@ button.adapt-card-head:focus-visible {
   margin: 0 0 var(--svd-space-3);
   color: var(--svd-text-muted);
   font-size: var(--svd-text-sm);
+}
+
+/* The notes a panel opens on, clear of the list under them. */
+.pipeline-panel-notes {
+  margin-bottom: var(--svd-space-4);
 }
 
 /* A confidence: its number in words, then the track that draws it. */
@@ -7012,9 +6996,8 @@ button.adapt-card-head:focus-visible {
 }
 
 /* A closed `<details>` keeps its body out of the page's layout regardless
-   of the body's own `display`, so `.pipeline-apis ul` below (`display:
-   flex`, needed for the run widget's `<section class="pipeline-apis">`,
-   which is never closed) costs no page height here. But the size
+   of the body's own `display`, so the services table costs no page
+   height here. But the size
    containment that gives a closed `<details>` that free pass is invisible
    from CSS: each row still measures its normal, non-zero
    `getBoundingClientRect()` while collapsed, rather than the 0x0 a plain
@@ -7026,7 +7009,7 @@ button.adapt-card-head:focus-visible {
    depend on one engine's internal collapse behaviour holding through a
    future rewrite of this block. `details.` keeps it off the run widget's
    `<section>`, which carries the same class but is never closed. */
-details.pipeline-apis:not([open]) > ul {
+details.pipeline-apis:not([open]) > table {
   display: none;
 }
 
@@ -7283,6 +7266,10 @@ details.pipeline-apis:not([open]) > ul {
     margin-left: auto;
   }
 
+  .pipeline-table td.is-wide {
+    flex-basis: 100%;
+  }
+
   .pipeline-table td.is-zero,
   .pipeline-table td:empty {
     display: none;
@@ -7344,21 +7331,8 @@ details.pipeline-apis:not([open]) > ul {
     margin-left: calc(1.5rem + var(--svd-space-1) + var(--svd-space-3) + 1px);
   }
 
-  .pipeline-paper-detail,
-  .pipeline-api-detail,
   .pipeline-source-detail {
     margin-left: 0;
-    width: 100%;
-  }
-
-  .pipeline-paper > .pipeline-fact {
-    min-width: 0;
-  }
-
-  /* The service's name on its own line, so every request starts the second
-     one rather than the short ones fitting beside the name and the long
-     ones not. */
-  .pipeline-api-name {
     width: 100%;
   }
 

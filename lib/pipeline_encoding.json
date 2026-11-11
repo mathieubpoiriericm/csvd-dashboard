@@ -177,6 +177,14 @@
     "fallback": "Fallback",
     "unread": "Not read"
   },
+  "services": {
+    "$comment": "The column heads of the services table that no field already carries.",
+    "request": "Request",
+    "notFound": "Not found",
+    "failed": "Failed",
+    "time": "Time",
+    "data": "Data"
+  },
   "setup": {
     "$comment": "The words of the run details' Setup tab that no field already carries: the confidence floors, the two flags, and what stands beside the duration, the tokens and the quote check.",
     "floors": "Confidence floors",

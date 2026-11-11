@@ -1478,14 +1478,14 @@ Deno.test("F24's collapsed endpoint disclosure reports as hidden, not just as sm
   // this rule removed -- rather than the 0x0 a plain `display: none`
   // produces. The contrast probe's clipped-content check walks an
   // element's ancestors testing exactly that box, with no separate case for
-  // a collapsed disclosure, so an unhidden `<ul>` here is text the reader
+  // a collapsed disclosure, so an unhidden `<table>` here is text the reader
   // cannot see but the probe can still measure.
   const collapse = declarationsOf("display").find((d) =>
-    /^details\.pipeline-apis:not\(\[open\]\)\s*>\s*ul$/.test(d.selector)
+    /^details\.pipeline-apis:not\(\[open\]\)\s*>\s*table$/.test(d.selector)
   );
   assert(
     collapse !== undefined && collapse.value === "none",
-    "expected `details.pipeline-apis:not([open]) > ul { display: none; }` " +
+    "expected `details.pipeline-apis:not([open]) > table { display: none; }` " +
       "so a closed disclosure's rows measure 0x0 -- without it the contrast " +
       "probe's clipped-content check cannot tell them from visible text",
   );
@@ -1859,7 +1859,7 @@ Deno.test("F27's source-detail row wraps below 600px the same way the api-detail
     ".pipeline-figures {\n    grid-auto-flow: row;",
   );
   assert(
-    /\.pipeline-api-detail,\s*\.pipeline-source-detail\s*\{\s*margin-left:\s*0;\s*width:\s*100%;\s*\}/
+    /\.pipeline-source-detail\s*\{\s*margin-left:\s*0;\s*width:\s*100%;\s*\}/
       .test(block),
     `expected \`.pipeline-api-detail,\\n  .pipeline-source-detail { ` +
       `margin-left: 0; width: 100%; }\` inside the 600px block: ${block}`,
