@@ -158,6 +158,15 @@
     "services": "Services",
     "setup": "Setup"
   },
+  "findings": {
+    "$comment": "The words of the run details' Findings tab. A finding is one paper's proposal of a gene; `bridge` is the line that says why the tab's count is not the number of genes written.",
+    "bridge": "Each entry is one paper's finding. A gene found in several papers is listed once per paper, so this list can be longer than the number of genes written.",
+    "accepted": "Accepted findings",
+    "validated": "Validated, not written",
+    "legend": "Marked at the floors:",
+    "toUpdate": "to update a known gene",
+    "toAdd": "to add a new one"
+  },
   "setup": {
     "$comment": "The words of the run details' Setup tab that no field already carries: the confidence floors, the two flags, and what stands beside the duration, the tokens and the quote check.",
     "floors": "Confidence floors",

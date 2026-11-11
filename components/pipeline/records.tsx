@@ -11,7 +11,6 @@
 
 import type { ComponentChildren } from "preact";
 
-import { Icon } from "../Icon.tsx";
 import {
   describeTruncation,
   field,
@@ -45,13 +44,7 @@ export function Field(
 
 /** A field's name, glyph and word, as the term of a record's list. */
 export function FieldName({ name }: { name: string }) {
-  const { label, icon } = field(name);
-  return (
-    <dt>
-      <Icon name={icon} />
-      {label}
-    </dt>
-  );
+  return <dt>{field(name).label}</dt>;
 }
 
 /** A neutral pill: a value from a fixed vocabulary, not a verdict. */

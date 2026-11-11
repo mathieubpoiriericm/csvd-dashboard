@@ -6678,6 +6678,91 @@ button.adapt-card-head:focus-visible {
   display: none;
 }
 
+/* --- Findings ------------------------------------------------------ */
+
+/* The line a panel opens on: what its list is, before the list. */
+.pipeline-panel-lead {
+  max-width: 78ch;
+  margin: 0 0 var(--svd-space-3);
+  color: var(--svd-text-muted);
+  font-size: var(--svd-text-sm);
+}
+
+/* A confidence: its number in words, then the track that draws it. */
+.pipeline-conf {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--svd-space-2);
+}
+
+/* The track runs from 0 to 1 and is filled to the finding's score, which
+   arrives as `--pipeline-conf`. A finding the run kept fills in the
+   primary; one it did not, in the muted ink, so the fill never reads as
+   "passed" on a row that did not. */
+.pipeline-conf-track {
+  position: relative;
+  flex: none;
+  width: 6rem;
+  height: 6px;
+  background: linear-gradient(
+    to right,
+    var(--svd-text-muted) var(--pipeline-conf, 0%),
+    var(--svd-border) var(--pipeline-conf, 0%)
+  );
+}
+
+.pipeline-conf-track.is-kept {
+  background: linear-gradient(
+    to right,
+    var(--svd-color-primary) var(--pipeline-conf, 0%),
+    var(--svd-border) var(--pipeline-conf, 0%)
+  );
+}
+
+/* A floor: a tick across the track, in the ink, standing a little proud of
+   it so it reads against the fill and against the empty track alike. */
+.pipeline-conf-mark {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 1px;
+  background: var(--svd-text);
+}
+
+.pipeline-conf-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--svd-space-1) var(--svd-space-2);
+  margin: 0 0 var(--svd-space-5);
+  color: var(--svd-text-muted);
+  font-size: var(--svd-text-sm);
+}
+
+/* A finding that was not accepted is one line: its symbol in the label
+   column the records share, its score, what was recorded about why, and
+   its paper at the end. */
+.pipeline-record-row {
+  display: grid;
+  grid-template-columns: 11rem auto minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--svd-space-1) var(--svd-space-4);
+  font-size: var(--svd-text-sm);
+}
+
+.pipeline-record-row:first-child {
+  padding-top: var(--svd-space-3);
+}
+
+.pipeline-record-why {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--svd-space-1) var(--svd-space-3);
+  color: var(--svd-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
 /* --- Setup --------------------------------------------------------- */
 
 /* Two lists side by side while there is room for both, one above the other
@@ -6956,26 +7041,16 @@ details.pipeline-apis:not([open]) > ul {
   font-weight: var(--svd-weight-semibold);
 }
 
-/* "Confidence 1.00 · PMID 20437615": what identifies the extraction, in
-   words, with each name muted and its value in ink. */
+/* "Confidence 1.00", its track, "PMID 20437615": what identifies the
+   finding, in words, with each name muted and its value in ink. The two are
+   told apart by the gap; a dot between them ended the line it wrapped on. */
 .pipeline-facts {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  column-gap: var(--svd-space-2);
+  gap: var(--svd-space-1) var(--svd-space-4);
   color: var(--svd-text-muted);
   font-size: var(--svd-text-sm);
-}
-
-/* Trailing, like the head strip's, so a wrapped line never starts with a
-   dot. The second `content` gives the dot an empty alternative, which keeps
-   it out of what a screen reader says; an engine without the syntax drops
-   that declaration and keeps the first. */
-.pipeline-facts > .pipeline-fact:not(:last-child)::after {
-  content: '·';
-  content: '·' / '';
-  margin-left: var(--svd-space-2);
-  color: var(--svd-border);
 }
 
 .pipeline-fact-value,
@@ -7002,11 +7077,6 @@ details.pipeline-apis:not([open]) > ul {
   line-height: var(--svd-leading-snug);
   letter-spacing: var(--svd-tracking-normal);
   text-transform: uppercase;
-}
-
-.pipeline-fields dt > .icon {
-  margin-right: var(--svd-space-2);
-  vertical-align: -0.125em;
 }
 
 .pipeline-fields dd {
@@ -7092,6 +7162,20 @@ details.pipeline-apis:not([open]) > ul {
   .pipeline-setup-list,
   .pipeline-log-row {
     grid-template-columns: 8.5rem minmax(0, 1fr);
+  }
+
+  /* The symbol and its paper on one line, then the score, then why. */
+  .pipeline-record-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .pipeline-record-row > .pipeline-conf,
+  .pipeline-record-row > .pipeline-record-why {
+    grid-column: 1 / -1;
+  }
+
+  .pipeline-record-row > .pipeline-fact {
+    grid-area: 1 / 2;
   }
 
   .pipeline-figures {

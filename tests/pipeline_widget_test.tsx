@@ -22,7 +22,7 @@ import { pipelineRun } from "../lib/data/pipeline_run.ts";
 import { detailTabs, type TabId } from "../lib/pipeline_details.ts";
 import { formatDuration } from "../lib/pipeline_display.ts";
 import { RUN, runWith, step, warning } from "./fixtures/pipeline_run.ts";
-import type { PipelineRun } from "../lib/types.ts";
+import type { PipelineRun, RejectedGene } from "../lib/types.ts";
 
 /**
  * The run details of `run`: one tab's panel, or every tab's in turn. The
@@ -205,23 +205,6 @@ Deno.test("a failure reads as a sentence, a meaning, then the raw detail", () =>
   assertMatch(markup, /pipeline-error-detail/);
 });
 
-Deno.test("a run that wrote nothing calls its genes validated, not accepted", () => {
-  // Accepted means what reached the database. A run that failed before
-  // its merge has `database: null` and still lists the genes its papers
-  // validated -- they are what it has to show -- so "Accepted 24" over a
-  // run that wrote no row was a claim the report itself contradicts.
-  const unmerged = { ...RUN, status: "failed" as const, database: null };
-  const drawer = detailsOf(unmerged);
-  assertStringIncludes(drawer, "Genes validated, not written");
-  assert(!drawer.includes("Genes accepted"));
-  assertStringIncludes(drawer, "2 validated");
-  assert(!drawer.includes("2 accepted"));
-
-  // A run that merged keeps the word it earned.
-  assertStringIncludes(details(), "Genes accepted");
-  assertStringIncludes(details(), "2 accepted");
-});
-
 Deno.test("the API inventory names the service, method and endpoint", () => {
   const markup = details();
   assertStringIncludes(markup, "E-utilities fetch");
@@ -396,31 +379,170 @@ Deno.test("the drawer carries a gene's evidence, not just its name", () => {
   );
 });
 
-Deno.test("a rejection is badged by kind and keeps its own numbers", () => {
-  // The badge says the category, so the detail must not repeat it -- and
-  // the comparison the pipeline recorded has to survive the split.
-  const markup = details();
-  assertStringIncludes(markup, "Low confidence</span>0.60 &lt; 0.65");
-  assert(!markup.includes("Low confidence: 0.60"));
+const lowGene = (symbol: string, patch: Partial<RejectedGene> = {}) => ({
+  symbol,
+  pmid: "32517579",
+  confidence: 0.3,
+  reasons: ["Low confidence: 0.30 < 0.45"],
+  ...patch,
+});
+const heldGene = (symbol: string) => ({
+  symbol,
+  pmid: null,
+  confidence: 0.5,
+  reasons: ["Held below the insert floor: 0.50 < 0.65 (new gene)"],
+});
+const rejecting = (items: RejectedGene[], total = items.length) =>
+  runWith({ rejectedGenes: { shown: items.length, total, items } });
+
+Deno.test("the Findings tab says why its count is not the genes written", () => {
+  // Ten accepted findings beside five genes written are two facts: a gene
+  // found in two papers is two findings and one row of the database.
+  assertStringIncludes(details("findings"), "listed once per paper");
+});
+
+Deno.test("accepted findings are headed by the list's total", () => {
+  // `validated` less the holds is not this number on every report: before
+  // a hold became one record per paper, two genes sharing an alias,
+  // validated from two papers and held once, came out as one accepted when
+  // none was. The list's total is exact even when the list is capped.
+  assertMatch(
+    details("findings"),
+    /Accepted findings<span class="pipeline-count">24<\/span>/,
+  );
+  const merged = runWith({
+    genes: { ...RUN.genes, validated: 2, rejectedAtInsertFloor: 1 },
+    acceptedGenes: { shown: 0, total: 0, items: [] },
+  });
+  assertNotMatch(detailsOf(merged, "findings"), /Accepted findings/);
+});
+
+Deno.test("a run that wrote nothing calls its findings validated, not accepted", () => {
+  // Accepted means what reached the database. A run that failed before
+  // its merge has `database: null` and still lists the findings its papers
+  // validated -- they are what it has to show -- so "Accepted 24" over a
+  // run that wrote no row was a claim the report itself contradicts.
+  const unmerged = { ...RUN, status: "failed" as const, database: null };
+  const findings = detailsOf(unmerged, "findings");
+  assertStringIncludes(findings, "Validated, not written");
+  assertNotMatch(findings, /Accepted findings/);
+  // A run that merged keeps the word it earned.
+  assertNotMatch(details("findings"), /Validated, not written/);
+});
+
+Deno.test("a rejection sits under its kind's heading and keeps its own numbers", () => {
+  // The heading says the category, so the row must not repeat it -- and the
+  // comparison the pipeline recorded has to survive the split.
+  const markup = details("findings");
+  assertStringIncludes(markup, "Under the confidence floor");
+  assertStringIncludes(markup, "0.60 &lt; 0.65");
+  assertNotMatch(markup, /Low confidence|Genes rejected/);
+});
+
+Deno.test("rejections are grouped by why, each group counted when the list is whole", () => {
+  const markup = detailsOf(
+    rejecting([heldGene("GENE1"), lowGene("GENE2"), heldGene("GENE3")]),
+    "findings",
+  );
+  assertMatch(
+    markup,
+    /Under the confidence floor<span class="pipeline-count">1<\/span>[\s\S]*Held for more evidence<span class="pipeline-count">2<\/span>/,
+  );
+  // Nothing about the rejected set is short, so nothing says it is.
+  assertNotMatch(markup.split("Under the confidence floor")[1], /Showing/);
+});
+
+Deno.test("a capped list of rejections says so once, and counts no group", () => {
+  // The kinds are cut from the findings the report holds. Past its cap a
+  // group's size is not its total, and a number in the heading would read
+  // as one.
+  const markup = detailsOf(rejecting([heldGene("GENE1")], 1412), "findings");
+  assertEquals(markup.match(/Showing 1 of 1,412/g)?.length, 1);
+  assertMatch(markup, /Held for more evidence<\/h3>/);
 });
 
 Deno.test("an unrecognised rejection reason is shown whole", () => {
-  // The fallback badge must not cut a sentence it does not understand.
-  const odd = {
-    ...RUN,
-    rejectedGenes: {
-      ...RUN.rejectedGenes,
-      items: [{
-        ...RUN.rejectedGenes.items[0],
-        reasons: ["Something the encoding has never seen"],
-      }],
-    },
-  };
-  const markup = detailsOf(odd);
+  // The fallback heading must not cut a sentence it does not understand.
+  const markup = detailsOf(
+    rejecting([
+      lowGene("GENE1", { reasons: ["Something the encoding has never seen"] }),
+    ]),
+    "findings",
+  );
+  assertMatch(markup, /Error<span class="pipeline-count">1<\/span>/);
+  assertStringIncludes(markup, "Something the encoding has never seen");
+});
+
+Deno.test("a finding rejected for several reasons names the others in its row", () => {
+  // It sits under its first reason's heading; a second reason is of another
+  // kind, which nothing above it says, so it carries its own verdict.
+  const markup = detailsOf(
+    rejecting([
+      lowGene("GENE1", {
+        reasons: [
+          "Low confidence: 0.30 < 0.45",
+          "Quote not found in the paper",
+        ],
+      }),
+    ]),
+    "findings",
+  );
+  assertMatch(
+    markup,
+    /<span class="pipeline-chip pipeline-tint-highlight"><svg[\s\S]*?<\/svg>Quote not in paper<\/span>/,
+  );
+  // And only that one: its first reason is the heading's.
+  assertEquals(
+    markup.split("Under the confidence floor")[1].match(/pipeline-chip/g)
+      ?.length,
+    1,
+  );
+});
+
+Deno.test("a value from a fixed vocabulary is a neutral pill", () => {
+  // A trait and an omics method: no tint, and no glyph to decode.
+  const markup = details("findings");
+  for (const value of ["extreme-cSVD", "MAGMA"]) {
+    assertStringIncludes(
+      markup,
+      `<span class="pipeline-chip pipeline-tint-muted">${value}</span>`,
+    );
+  }
+});
+
+Deno.test("confidence is a number in words beside a track marked at the two floors", () => {
+  const markup = details("findings");
+  // The track is a drawing of the number beside it and is told to no one
+  // who cannot see it; the number is the value.
+  assertMatch(
+    markup,
+    /class="pipeline-conf-track[^"]*"[^>]*aria-hidden="true"/,
+  );
+  assertMatch(markup, /left:\s*45%/);
+  assertMatch(markup, /left:\s*65%/);
   assertStringIncludes(
     markup,
-    "Error</span>Something the encoding has never seen",
+    "0.45 to update a known gene, 0.65 to add a new one",
   );
+  // The accepted finding's track is filled to its score, in the ink of a
+  // finding that was kept; the rejected one's is not.
+  assertMatch(
+    markup,
+    /pipeline-conf-track is-kept"[^>]*--pipeline-conf:\s*100%/,
+  );
+  assertMatch(markup, /pipeline-conf-track"[^>]*--pipeline-conf:\s*60%/);
+  // A finding with no score has no track, and no "Confidence".
+  const unscored = detailsOf(
+    rejecting([lowGene("GENE1", { confidence: null })]),
+    "findings",
+  );
+  assertEquals(unscored.match(/pipeline-conf-track/g)?.length, 2);
+});
+
+Deno.test("field names in a record carry no glyph", () => {
+  // Nine field names each had one, and a document glyph meant five things
+  // across the widget. The word is the name.
+  assertNotMatch(details(), /<dt[^>]*>\s*<svg/);
 });
 
 Deno.test("a rejected gene's PMID links to the paper like an accepted one's", () => {
@@ -483,12 +605,11 @@ Deno.test("a record names its fields in a column of labels, not in chips", () =>
       "Omics evidence",
       "Causal evidence",
       "Source quote",
-      "Reason",
     ]
   ) {
     assertMatch(
       markup,
-      new RegExp(`<dt>(?:<svg[\\s\\S]*?</svg>)?${name}</dt><dd`),
+      new RegExp(`<dt>${name}</dt><dd`),
       `"${name}" is a term beside its value`,
     );
   }
@@ -504,25 +625,6 @@ Deno.test("the drawer says what each number is, in words", () => {
   assertStringIncludes(text, "Confidence 1.00");
   assertStringIncludes(text, "PMID 20437615");
   assertStringIncludes(text, "11 s · 2 accepted · 1 rejected");
-});
-
-Deno.test("only a verdict carries a colour; a listed value is a neutral pill", () => {
-  const markup = details();
-  // The rejection reason is the verdict: glyph, word and its own tint.
-  assertMatch(
-    markup,
-    /<span class="pipeline-chip pipeline-tint-highlight"><svg[\s\S]*?<\/svg>Low confidence<\/span>/,
-  );
-  // A trait, an omics method and a paper's source are values from a fixed
-  // vocabulary: a neutral pill, and no glyph to decode.
-  for (
-    const value of ["extreme-cSVD", "MAGMA", "Full text from Europe PMC"]
-  ) {
-    assertStringIncludes(
-      markup,
-      `<span class="pipeline-chip pipeline-tint-muted">${value}</span>`,
-    );
-  }
 });
 
 Deno.test("a paper's source reads as words, and its time is shown", () => {

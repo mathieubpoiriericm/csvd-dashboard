@@ -19,6 +19,7 @@ import {
   apiColumns,
   confidenceMarks,
   detailTabs,
+  floorLegend,
   nextTab,
   paperNotes,
   paperRows,
@@ -324,4 +325,27 @@ Deno.test("Setup states the usage and the checks, and never the cost", () => {
     tokens: { ...RUN.tokens, totalTokens: 0 },
   });
   assertEquals(setupUsage(bare).map((r) => r.label), ["Duration"]);
+});
+
+Deno.test("the legend says what the track's marks are, for the floors the run recorded", () => {
+  assertEquals(
+    floorLegend(RUN.config),
+    "Marked at the floors: 0.45 to update a known gene, 0.65 to add a new one",
+  );
+  assertEquals(
+    floorLegend({ ...RUN.config, confidenceThresholdUpdate: null }),
+    "Marked at the floors: 0.65 to add a new one",
+  );
+  assertEquals(
+    floorLegend({ ...RUN.config, confidenceThresholdInsert: null }),
+    "Marked at the floors: 0.45 to update a known gene",
+  );
+  assertEquals(
+    floorLegend({
+      ...RUN.config,
+      confidenceThresholdUpdate: null,
+      confidenceThresholdInsert: null,
+    }),
+    null,
+  );
 });

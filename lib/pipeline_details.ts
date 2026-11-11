@@ -31,6 +31,7 @@ import type {
 } from "./types.ts";
 
 const TABS = encoding.tabs;
+const FINDINGS = encoding.findings;
 const SETUP = encoding.setup;
 
 /** The dialog's sections, in the order its tabs stand. */
@@ -202,6 +203,28 @@ export function confidenceMarks(config: RunConfig): number[] {
   return [config.confidenceThresholdUpdate, config.confidenceThresholdInsert]
     .filter((floor): floor is number => floor !== null)
     .sort((a, b) => a - b);
+}
+
+/**
+ * What the marks on the confidence track are, in words, for the floors the
+ * run recorded: "Marked at the floors: 0.45 to update a known gene, 0.65
+ * to add a new one". `null` when it recorded neither, and the track is
+ * unmarked.
+ */
+export function floorLegend(config: RunConfig): string | null {
+  const floors = [
+    config.confidenceThresholdUpdate === null
+      ? null
+      : `${
+        formatConfidence(config.confidenceThresholdUpdate)
+      } ${FINDINGS.toUpdate}`,
+    config.confidenceThresholdInsert === null
+      ? null
+      : `${
+        formatConfidence(config.confidenceThresholdInsert)
+      } ${FINDINGS.toAdd}`,
+  ].filter((part) => part !== null);
+  return floors.length > 0 ? `${FINDINGS.legend} ${floors.join(", ")}` : null;
 }
 
 /** One row of Setup: what it is, its value, and a line under it. */

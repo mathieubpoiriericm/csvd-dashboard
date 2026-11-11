@@ -1641,12 +1641,11 @@ Deno.test("a step's duration is shown at every width", () => {
 Deno.test("the run card separates its items with space and rules, never a glyph", () => {
   // A character drawn between wrapping flex items stays at the end of the
   // line it wrapped from, which is how every wrapped line of the old header
-  // strip came to end in a dot. The refresh rows' strip and the drawer's
-  // facts keep theirs for now.
+  // strip came to end in a dot. The refresh rows' strip keeps its own: one
+  // meta item a row, so it has nothing to separate and never draws it.
   const glyphs = declarationsOf("content").filter((d) =>
     d.value.includes("\u00b7") && d.selector.includes(".pipeline-") &&
-    !d.selector.includes(".pipeline-head-meta") &&
-    !d.selector.includes(".pipeline-facts")
+    !d.selector.includes(".pipeline-head-meta")
   );
   assertEquals(glyphs, []);
 });
