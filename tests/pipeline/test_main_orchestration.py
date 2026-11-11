@@ -630,6 +630,72 @@ class TestConcurrentProcessing:
         assert not (tmp_path / "checkpoint.jsonl").exists()
 
 
+class TestCacheWarmup:
+    """The streaming fan-out writes the shared prompt cache once, up front."""
+
+    @staticmethod
+    def _fakes(mocker, usage: TokenUsage | None = None):
+        async def fake(pmid, metrics, *, config, rate_limiter=None):
+            return {
+                "genes": [],
+                "rejected_genes": [],
+                "fulltext": True,
+                "source": "pmc",
+                "text_truncated": False,
+            }
+
+        mocker.patch("pipeline.main.process_paper", new=fake)
+        prewarm = AsyncMock(return_value=usage or TokenUsage())
+        mocker.patch("pipeline.main.prewarm_cache", new=prewarm)
+        return prewarm
+
+    async def test_one_paper_is_not_worth_a_warmup(self, mocker) -> None:
+        prewarm = self._fakes(mocker)
+
+        await pipeline_main.process_papers_concurrently(
+            ["111"], PipelineMetrics(), PipelineConfig()
+        )
+
+        prewarm.assert_not_awaited()
+
+    async def test_two_papers_are_warmed_once(self, mocker) -> None:
+        prewarm = self._fakes(mocker)
+
+        await pipeline_main.process_papers_concurrently(
+            ["111", "222"], PipelineMetrics(), PipelineConfig()
+        )
+
+        prewarm.assert_awaited_once()
+
+    async def test_the_warmup_is_paid_for_in_the_run_total(self, mocker) -> None:
+        self._fakes(mocker, TokenUsage(cache_creation_input_tokens=9000))
+        metrics = PipelineMetrics()
+
+        await pipeline_main.process_papers_concurrently(
+            ["111", "222"], metrics, PipelineConfig()
+        )
+
+        assert metrics.token_usage.cache_creation_input_tokens == 9000
+
+    async def test_the_batch_path_does_not_warm(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        # The Batches API rejects max_tokens 0, and a batch's cache hits are
+        # best-effort anyway.
+        prewarm = self._fakes(mocker)
+        mocker.patch(
+            "pipeline.main._fetch_paper_text_for_batch",
+            new=AsyncMock(return_value=("", False, "none")),
+        )
+        config = PipelineConfig(checkpoint_file=str(tmp_path / "checkpoint.jsonl"))
+
+        await pipeline_main._process_new_pmids_via_batch(
+            ["111", "222"], PipelineMetrics(), config, MagicMock()
+        )
+
+        prewarm.assert_not_awaited()
+
+
 class TestCheckpointResume:
     """A crash after hours of extraction must not discard the extraction."""
 

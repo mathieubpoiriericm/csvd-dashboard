@@ -21,10 +21,12 @@ from pipeline.anthropic_client import (
     _merge_tool_blocks,
     _record_thinking_trace,
     build_async_client,
+    prewarm_cache,
 )
 from pipeline.api_telemetry import current_recorder, reset_recorder
 from pipeline.config import (
     EXTRACTION_MODEL,
+    FALLBACK_BETA,
     MODEL_MAX_OUTPUT_TOKENS,
     PROJECT_ROOT,
     PipelineConfig,
@@ -34,6 +36,7 @@ from pipeline.extraction_models import (
     ExtractionRefusedError,
     ServedBy,
 )
+from pipeline.quality_metrics import TokenUsage
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -2228,3 +2231,94 @@ class TestADirectRequestToTheFallbackModel:
         assert kwargs["model"] == "claude-opus-5-5"
         assert kwargs["fallbacks"] == [{"model": "claude-opus-4-8"}]
         assert served == ServedBy(model="claude-opus-5-5", declined=None)
+
+
+class TestPrewarmCache:
+    """One cheap request that writes the shared prefix before the papers
+    fan out: a cache entry is readable only once the first response has
+    started, so papers launched together each paid to write it."""
+
+    @staticmethod
+    def _client_answering(mocker, *, response=None, error=None):
+        create = AsyncMock(return_value=response, side_effect=error)
+        fake = MagicMock()
+        fake.beta.messages.create = create
+        fake.close = AsyncMock()
+        mocker.patch("pipeline.anthropic_client.build_async_client", return_value=fake)
+        return fake, create
+
+    @staticmethod
+    def _warmup_response():
+        return SimpleNamespace(
+            model=EXTRACTION_MODEL,
+            usage=SimpleNamespace(
+                input_tokens=3,
+                output_tokens=0,
+                cache_creation_input_tokens=9000,
+                cache_read_input_tokens=0,
+            ),
+        )
+
+    async def test_the_warmup_shares_every_prefix_field_with_a_real_request(
+        self, mocker
+    ):
+        config = PipelineConfig()
+        _fake, create = self._client_answering(
+            mocker, response=self._warmup_response()
+        )
+
+        await prewarm_cache(config)
+
+        sent = create.call_args.kwargs
+        real = _build_message_params("paper", "1", config)
+        for key in (
+            "model",
+            "system",
+            "tools",
+            "tool_choice",
+            "thinking",
+            "output_config",
+        ):
+            assert sent[key] == real[key]
+        assert sent["max_tokens"] == 0
+        assert sent["betas"] == [FALLBACK_BETA]
+        assert sent["fallbacks"] == [{"model": config.fallback_model}]
+        assert sent["messages"][0]["content"][0]["citations"] == {"enabled": True}
+        assert "stream" not in sent
+
+    async def test_the_cache_write_is_priced_like_any_other_call(self, mocker):
+        fake, _create = self._client_answering(
+            mocker, response=self._warmup_response()
+        )
+
+        usage = await prewarm_cache(PipelineConfig())
+
+        assert usage.cache_creation_input_tokens == 9000
+        fake.close.assert_awaited_once()
+
+    async def test_a_failed_warmup_is_a_warning_not_a_failed_run(
+        self, mocker, caplog
+    ):
+        request = httpx2.Request("POST", "https://api.anthropic.com/v1/messages")
+        error = anthropic.BadRequestError(
+            "max_tokens must be positive",
+            response=httpx2.Response(400, request=request),
+            body=None,
+        )
+        fake, _create = self._client_answering(mocker, error=error)
+
+        with caplog.at_level(logging.WARNING):
+            assert await prewarm_cache(PipelineConfig()) == TokenUsage()
+
+        assert "warm" in caplog.text.lower()
+        fake.close.assert_awaited_once()
+
+    async def test_a_missing_api_key_is_a_warning_not_a_failed_run(
+        self, monkeypatch, caplog
+    ):
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
+        with caplog.at_level(logging.WARNING):
+            assert await prewarm_cache(PipelineConfig()) == TokenUsage()
+
+        assert "warm" in caplog.text.lower()

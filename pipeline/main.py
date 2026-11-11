@@ -231,6 +231,7 @@ def _configure_ca_bundle() -> None:
 _configure_ca_bundle()
 
 from pipeline import batch_state, checkpoint, europepmc, ncbi_http, profiling
+from pipeline.anthropic_client import prewarm_cache
 from pipeline.api_telemetry import current_recorder, reset_recorder
 from pipeline.batch_extraction import submit_and_collect
 from pipeline.batch_validation import batch_validate
@@ -1172,6 +1173,14 @@ async def process_papers_concurrently(
             else f"PMID {pmid}: failed after {result.processing_time:.1f} s"
         )
         return result
+
+    # The papers below start together, and a cache entry is readable only
+    # after the first response begins, so each would write the shared prefix
+    # itself. One request first writes it for all of them; a single paper has
+    # nobody to share it with. Streaming only: the batch path never comes
+    # through here, and the Batches API rejects the request's max_tokens of 0.
+    if len(pmids) >= 2:
+        metrics.token_usage += await prewarm_cache(config)
 
     async with asyncio.TaskGroup() as tg:
         tasks = [tg.create_task(run_one(pmid)) for pmid in pmids]

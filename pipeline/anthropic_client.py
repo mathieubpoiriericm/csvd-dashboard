@@ -869,6 +869,60 @@ def build_async_client() -> anthropic.AsyncAnthropic:
     )
 
 
+async def prewarm_cache(config: PipelineConfig) -> TokenUsage:
+    """Write the shared prompt prefix once, before the papers fan out.
+
+    A cache entry becomes readable only after the first response starts, so
+    the papers launched together at the start of a run each wrote the same
+    large prefix (tools and both system blocks) at the write rate. One
+    request with `max_tokens: 0` writes it and generates nothing, and every
+    paper after it reads.
+
+    The request is `_build_message_params`' own, with a placeholder document,
+    because two things besides the system blocks shape the cached prefix --
+    the citations toggle on the document block and the set of beta headers --
+    and a warm-up that differed in either would warm an entry no extraction
+    reads. It therefore sends the same `betas` and `fallbacks` the stream
+    call does. It is not streamed, because the API rejects `max_tokens: 0`
+    with `stream: true`.
+
+    Never raises for an API error: a warm-up that fails costs the saving, not
+    the run, so it logs one warning and returns an empty `TokenUsage`. A
+    successful one is accounted like any other call, so the cache write is
+    priced and reported rather than hidden.
+    """
+    params = _build_message_params("warmup", "warmup", config)
+    params["max_tokens"] = 0
+    usage = TokenUsage()
+    client: anthropic.AsyncAnthropic | None = None
+    start = time.monotonic()
+    try:
+        client = build_async_client()
+        response = await client.beta.messages.create(
+            **params,
+            betas=[FALLBACK_BETA],
+            fallbacks=[{"model": config.fallback_model}],
+        )
+    except (anthropic.APIError, ExtractionFailedError) as error:
+        logger.warning(
+            f"Cache warm-up failed ({type(error).__name__}: {error}); "
+            "the papers will each write the prompt cache themselves"
+        )
+        return TokenUsage()
+    finally:
+        if client is not None:
+            await client.close()
+    record_service_call(
+        _ANTHROPIC_SERVICE,
+        endpoint=_MESSAGES_ENDPOINT,
+        method="POST",
+        status=200,
+        elapsed_ms=(time.monotonic() - start) * 1000.0,
+    )
+    accumulate_usage(usage, response, fallback_model=config.fallback_model)
+    return usage
+
+
 def _priced(
     pricing: tuple[float, float],
     cache_read_multiplier: float,
