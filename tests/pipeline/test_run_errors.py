@@ -10,6 +10,7 @@ import pytest
 
 from pipeline.pubmed_search import PubMedSearchError
 from pipeline.run_errors import (
+    NoPaperProcessedError,
     RunError,
     RunWarning,
     classifier_phrase,
@@ -259,3 +260,18 @@ def test_classifier_phrase_names_each_category(category: str, phrase: str) -> No
 def test_refusal_category_reads_a_missing_one_as_unspecified() -> None:
     assert refusal_category(None) == refusal_category("") == "unspecified"
     assert refusal_category("bio") == "bio"
+
+
+def test_a_run_with_no_paper_processed_keeps_its_own_sentence() -> None:
+    # Its detail is one paper's error, and "timed out" in there is that
+    # paper's story: matched against the message it would have published
+    # the run's failure as a timeout.
+    error = classify(
+        NoPaperProcessedError(
+            "None of the 3 new papers could be processed",
+            detail="PMID 111: The request timed out",
+        )
+    )
+    assert error.kind == "no_paper_processed"
+    assert error.title == "None of the 3 new papers could be processed"
+    assert error.detail == "PMID 111: The request timed out"

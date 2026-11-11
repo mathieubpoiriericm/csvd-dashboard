@@ -257,7 +257,8 @@ class TestCounts:
         accepted = [gene.symbol for gene in report.accepted_genes.items]
         rejected = [gene.symbol for gene in report.rejected_genes.items]
         assert accepted == ["HTRA1"]
-        assert rejected == ["GENEA/B"]
+        # Under the paper's own spelling, as the accepted list names a gene.
+        assert rejected == ["GENEA"]
 
     def test_insert_floor_holds_survive_the_cap(self) -> None:
         # Holds are few and validation rejections are many, so appending
@@ -495,9 +496,13 @@ class TestDetail:
             gene.pmid == "32517579" for gene in report.accepted_genes.items
         )
 
-    def test_a_held_gene_names_the_one_paper_that_proposed_it(self) -> None:
-        # The merge groups by gene, so its hold carries no PMID; the paper
-        # is known all the same whenever only one proposed the gene.
+    def test_a_hold_is_listed_once_per_paper_that_proposed_it(self) -> None:
+        # The merge groups by gene, so it returns one hold per gene with no
+        # PMID. Every other number beside it counts a paper's mention, so
+        # one gene held from two papers left the funnel one short: the
+        # 2026-11-03 run validated 19, accepted 10 and held 8. A hold is
+        # now a record per mention, with the paper and the score that
+        # mention carried.
         papers = [
             {
                 "pmid": pmid,
@@ -509,14 +514,15 @@ class TestDetail:
                 "processing_time": 1.0,
             }
             for pmid, genes in (
-                ("1", [_gene("WDR12", 0.6), _gene("CALCRL", 0.55)]),
+                ("1", [_gene("HTRA1"), _gene("WDR12", 0.6), _gene("CALCRL", 0.55)]),
                 ("2", [_gene("CALCRL", 0.5)]),
             )
         ]
         report = _report(
+            genes={"extracted": 4, "validated": 4, "rejected": 0},
             database={
                 "inserted": 0,
-                "updated": 0,
+                "updated": 1,
                 "held_below_insert_floor": [
                     {"gene_symbol": "WDR12", "confidence": 0.6},
                     {"gene_symbol": "CALCRL", "confidence": 0.55},
@@ -524,8 +530,40 @@ class TestDetail:
             },
             papers_detail=papers,
         )
-        held = {gene.symbol: gene.pmid for gene in report.rejected_genes.items}
-        assert held == {"WDR12": "1", "CALCRL": None}
+        held = [
+            (gene.symbol, gene.pmid, gene.confidence)
+            for gene in report.rejected_genes.items
+        ]
+        assert held == [
+            ("WDR12", "1", 0.6),
+            ("CALCRL", "1", 0.55),
+            ("CALCRL", "2", 0.5),
+        ]
+        assert report.rejected_genes.items[2].reasons == [
+            "Held below the insert floor: 0.50 < 0.65 (new gene)"
+        ]
+        # The funnel closes, and each paper's row agrees with the lists.
+        assert report.genes.rejected_at_insert_floor == 3
+        assert report.genes.validated == (
+            report.accepted_genes.total + report.genes.rejected_at_insert_floor
+        )
+        assert [p.rejected_count for p in report.papers_detail.items] == [2, 1]
+
+    def test_a_hold_no_paper_proposed_is_still_listed(self) -> None:
+        # Nothing produces one today; dropping it would be the wrong way
+        # to find out, so it keeps the merge's own key and score.
+        report = _report(
+            database={
+                "inserted": 0,
+                "updated": 0,
+                "held_below_insert_floor": [
+                    {"gene_symbol": "WDR12", "confidence": 0.6}
+                ],
+            }
+        )
+        (held,) = [g for g in report.rejected_genes.items if g.symbol == "WDR12"]
+        assert held.pmid is None
+        assert report.genes.rejected_at_insert_floor == 1
 
     def test_a_paper_nobody_timed_publishes_no_duration(self) -> None:
         # A --batch entry is never timed (`PaperResult.processing_time`

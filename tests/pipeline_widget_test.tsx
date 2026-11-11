@@ -281,6 +281,30 @@ Deno.test("accepted is the accepted list's total, not validated less held", () =
   );
 });
 
+Deno.test("a run that wrote nothing calls its genes validated, not accepted", () => {
+  // Accepted means what reached the database. A run that failed before
+  // its merge has `database: null` and still lists the genes its papers
+  // validated -- they are what it has to show -- so "Accepted 24" over a
+  // run that wrote no row was a claim the report itself contradicts.
+  const unmerged = { ...RUN, status: "failed" as const, database: null };
+  const card = renderToString(<PipelineRunView run={unmerged} />);
+  assertMatch(
+    card,
+    /Validated<\/span><span class="pipeline-stat-value">24<\/span>/,
+  );
+  assert(!card.includes("Accepted</span>"));
+
+  const drawer = renderToString(<PipelineRunDetails run={unmerged} />);
+  assertStringIncludes(drawer, "Genes validated, not written");
+  assert(!drawer.includes("Genes accepted"));
+  assertStringIncludes(drawer, "2 validated");
+  assert(!drawer.includes("2 accepted"));
+
+  // A run that merged keeps the word it earned.
+  assertStringIncludes(details(), "Genes accepted");
+  assertStringIncludes(details(), "2 accepted");
+});
+
 Deno.test("papers that failed outright are a line in the funnel", () => {
   // Counted in the document and shown nowhere, so "Processed 9" over 12
   // papers had no line saying where the other three went.

@@ -107,12 +107,32 @@ database" diagnostic.
 `status = 'failed'` rows; `read_pipeline_run` still returns them, so the widget
 shows the failure while the date stays on the last run that finished as a whole.
 **Nor does a run that processed no paper** (`papers_processed > 0` in
-`_STATUS_QUERY`): one in which every paper failed or was declined is recorded as
-completed with warnings, not failed, and it changed no more than a run that
-found nothing new, which writes no row at all. That is **not** the offline
-modes' reasoning: `--local-pdfs` and `--pmids` write no row because they publish
-nothing, whereas a failed run may well have changed the data -- the merge
-commits before the run is anywhere near done, and `--export` ships those rows.
+`_STATUS_QUERY`): one whose papers were all declined is recorded as completed
+with warnings, not failed, and it changed no more than a run that found nothing
+new, which writes no row at all. That is **not** the offline modes' reasoning:
+`--local-pdfs` and `--pmids` write no row because they publish nothing, whereas
+a failed run may well have changed the data -- the merge commits before the run
+is anywhere near done, and `--export` ships those rows.
+
+**A run in which every paper errored is a failed run.** A paper that fails is
+caught on its own and the run carries on, which is right for one paper in forty
+and wrong for forty in forty: with no API key, exhausted credit or NCBI down,
+nothing raised, and the run was recorded as completed with warnings and exited 0
+having processed nothing. `_fail_if_no_paper_was_processed` raises
+`NoPaperProcessedError` inside step 3, after its warnings are recorded, so the
+failure lands on that step with what it found under it and steps 4 to 6 read as
+not reached. It needs a paper that errored and none that succeeded: a paper a
+classifier declined is a filter doing its job, so a run of refusals alone still
+completes with its warnings. `classify()` gives it its own kind,
+`no_paper_processed`, and the first paper's error as the detail.
+
+**"Accepted" is a claim about the database, and a run that never merged cannot
+make it.** A run that failed before its merge publishes `database: null` and
+still lists the genes its papers validated under `acceptedGenes`, because they
+are what it has to show;
+`test_a_run_killed_inside_step_3_still_lists_its_papers` pins that. The widget
+reads the null and says "Validated" on the card, in the drawer's heading and on
+each paper's row.
 
 ## Failures are classified, not dumped
 
@@ -140,11 +160,14 @@ the class name.
   own count included it: PMID 42957517 read "2 accepted" on 2026-11-03 with
   neither gene in `acceptedGenes`, and the rows summed to 19 under a headline of
   10. `_paper_records` moves a paper's held genes to its `rejectedCount`, the
-  side of the drawer they are listed on, and a hold names its paper when exactly
-  one proposed the gene (the merge groups by gene, so two proposers leave it
-  null). **`rejectedAtInsertFloor` still counts genes, not mentions**: a gene
-  two papers proposed is one hold, so `validated` can exceed accepted plus held
-  by the repeats (19 against 10 + 8 on that run).
+  side of the drawer they are listed on. **A hold is one record per paper that
+  proposed the gene** (`_hold_records`), under the paper's spelling and the
+  score that mention carried, and `rejectedAtInsertFloor` counts those records.
+  The merge returns one hold per gene, and counting those left the funnel one
+  short whenever two papers proposed a held gene: that run validated 19,
+  accepted 10 and held 8. Now `validated` is the accepted list's total plus the
+  holds. The step-5 warning still counts genes ("8 new genes were held"), which
+  is what it says.
 - **`processingSeconds` is null for a paper nobody timed.** A `--batch` entry
   keeps `PaperResult.processing_time`'s default of 0.0, which published "0 ms"
   on every row of a day-long poll.

@@ -560,10 +560,10 @@ class TestReadPipelineStatus:
     async def test_a_run_that_processed_nothing_does_not_date_the_data(
         self, mocker
     ) -> None:
-        """Every paper failing -- no API key, an NCBI outage -- is recorded
-        as completed with warnings, not failed, so the status filter alone
-        dated the data from a run that processed nothing. A run with no new
-        paper writes no row at all, and this one changed no more."""
+        """A run whose papers were all declined is recorded as completed
+        with warnings, not failed, so the status filter alone dated the data
+        from a run that processed nothing. A run with no new paper writes no
+        row at all, and this one changed no more."""
         mock_conn = AsyncMock()
         mock_conn.fetchrow = AsyncMock(
             side_effect=[asyncpg.UndefinedColumnError("status"), None]

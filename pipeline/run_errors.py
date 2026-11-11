@@ -25,6 +25,7 @@ ErrorKind = Literal[
     "rate_limited",
     "database_error",
     "interrupted",
+    "no_paper_processed",
     "unknown",
 ]
 
@@ -77,6 +78,24 @@ def refusal_category(raw: object) -> str:
 def classifier_phrase(category: str) -> str:
     """The classifier a category names, as the subject of a sentence."""
     return _CLASSIFIER_PHRASES.get(category, "a safety classifier")
+
+
+class NoPaperProcessedError(RuntimeError):
+    """Every new paper errored, so the run has nothing to merge.
+
+    A paper that fails is caught on its own and the run carries on, which
+    is right for one paper in forty and wrong for forty in forty: with no
+    API key, exhausted credit or NCBI down, nothing raised, and the run was
+    recorded as completed with warnings and exited 0 having processed
+    nothing. Raised by step 3 once it knows.
+
+    ``detail`` is the first paper's own error, since one cause is usually
+    behind all of them and the title cannot name it.
+    """
+
+    def __init__(self, message: str, *, detail: str | None = None) -> None:
+        super().__init__(message)
+        self.detail = detail
 
 
 class RunError(WireModel):
@@ -210,6 +229,17 @@ def classify(exc: BaseException, *, subject: str | None = None) -> RunError:
         return RunError(
             kind="interrupted",
             title=f"The run was interrupted ({type(exc).__name__})",
+            subject=subject,
+        )
+
+    # The pipeline's own verdict, already a sentence. Checked before the
+    # message is searched: its detail is another exception's text, and a
+    # "timed out" in there is that paper's story, not this failure's kind.
+    if isinstance(exc, NoPaperProcessedError):
+        return RunError(
+            kind="no_paper_processed",
+            title=str(exc),
+            detail=exc.detail,
             subject=subject,
         )
 

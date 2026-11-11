@@ -371,7 +371,11 @@ function RejectedCard({ gene }: { gene: RejectedGene }) {
  * failed or the fallback served it.
  */
 function PaperRow(
-  { paper, primaryModel }: { paper: RunPaper; primaryModel: string | null },
+  { paper, primaryModel, written }: {
+    paper: RunPaper;
+    primaryModel: string | null;
+    written: boolean;
+  },
 ) {
   const otherModel = paper.extractionModel !== null &&
       paper.extractionModel !== primaryModel
@@ -385,7 +389,9 @@ function PaperRow(
       <div class="pipeline-paper">
         <Pmid pmid={paper.pmid} />
         <ValuePill>{paperSourceLabel(paper.source)}</ValuePill>
-        <span class="pipeline-paper-detail">{describePaper(paper)}</span>
+        <span class="pipeline-paper-detail">
+          {describePaper(paper, written)}
+        </span>
       </div>
       {(otherModel || refusal || paper.error) && (
         <dl class="pipeline-fields">
@@ -648,14 +654,20 @@ function PipelineRunContent({ run }: { run: PipelineRun }) {
           {
             /* What reached the database, counted from the accepted list's
               own total -- exact even when the list itself is capped.
-              `validated - rejectedAtInsertFloor` was not the same number:
-              `validated` counts one per paper and a hold counts one per
-              merged gene, so two genes sharing an alias validated from
-              two papers and held once as that alias read as one gene
-              accepted when none was. */
+              `validated - rejectedAtInsertFloor` is the same number only
+              on a report written since a hold became one per paper: before
+              that it counted one per merged gene, so two genes sharing an
+              alias validated from two papers and held once as that alias
+              read as one gene accepted when none was. */
+          }
+          {
+            /* Named for what happened to them. A run that failed before
+              its merge has no `database` block and wrote no row, so the
+              genes its papers validated are validated and no more:
+              "Accepted 24" there was a claim the report contradicted. */
           }
           <Stat
-            name="genesAccepted"
+            name={wrote ? "genesAccepted" : "genesValidated"}
             value={run.acceptedGenes.total}
           />
           <Stat name="genesRejected" value={run.genes.rejected} />
@@ -745,10 +757,12 @@ function PipelineRunContent({ run }: { run: PipelineRun }) {
 
 export const PipelineRunDetails = memo(
   function PipelineRunDetails({ run }: { run: PipelineRun }) {
+    // Whether the run reached its merge; see the Accepted stat on the card.
+    const written = run.database !== null;
     return (
       <>
         <DrawerSection
-          title="Genes accepted"
+          title={written ? "Genes accepted" : "Genes validated, not written"}
           list={run.acceptedGenes}
           keyOf={(gene, index) => `${gene.symbol}-${gene.pmid}-${index}`}
           render={(gene) => <GeneCard gene={gene} />}
@@ -764,7 +778,11 @@ export const PipelineRunDetails = memo(
           list={run.papersDetail}
           keyOf={(paper, index) => `${paper.pmid}-${index}`}
           render={(paper) => (
-            <PaperRow paper={paper} primaryModel={run.config.model} />
+            <PaperRow
+              paper={paper}
+              primaryModel={run.config.model}
+              written={written}
+            />
           )}
         />
 

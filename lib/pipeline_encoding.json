@@ -101,6 +101,10 @@
       "icon": "minusCircle",
       "hint": "Someone stopped the run. Whatever had already been written stands."
     },
+    "no_paper_processed": {
+      "icon": "documentText",
+      "hint": "Every new paper errored, so the run had nothing to merge. None is recorded as processed, and the next run retries them all. The detail below is the first paper's error."
+    },
     "unknown": {
       "icon": "info",
       "hint": "The failure matched no known category. The detail below is the exception the run raised."
@@ -200,6 +204,10 @@
     },
     "genesAccepted": {
       "label": "Accepted",
+      "icon": "checkBadge"
+    },
+    "genesValidated": {
+      "label": "Validated",
       "icon": "checkBadge"
     },
     "genesRejected": {
