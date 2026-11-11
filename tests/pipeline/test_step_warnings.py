@@ -129,7 +129,7 @@ class TestProcessingWarnings:
         assert warning.kind == "quote_unverified"
         assert warning.count == 2
         assert warning.title == (
-            "2 genes were dropped because the quoted sentence was not found "
+            "2 findings were dropped because the quoted sentence was not found "
             "in the paper"
         )
         # The count alone could not say which gene the run threw away.
@@ -188,7 +188,7 @@ class TestProcessingWarnings:
         )
         titles = [w.title for w in _warnings(reporter)]
         assert "1 paper could not be processed" in titles
-        assert "1 gene did not clear the validation floor" in titles
+        assert "1 finding did not clear the validation floor" in titles
         assert "1 model response was cut short by the token ceiling" in titles
 
     def test_a_truncated_model_response_warns(self, tmp_path) -> None:
@@ -266,7 +266,7 @@ class TestProcessingWarnings:
         actions = reporter.steps()[2].actions
         assert actions == [
             "Retrieved full text for 10, abstract only for 5",
-            "Extracted 50 genes, of which 26 passed validation",
+            "Extracted 50 findings, of which 26 passed validation",
         ]
 
 
@@ -321,7 +321,9 @@ class TestOtherStepsCanWarnToo:
         pipeline_main._record_validation_actions(reporter, [], [])
         step = reporter.steps()[3]
         assert step.status == "ok"
-        assert step.actions == ["Cross-checked 0 genes against the rest of the batch"]
+        assert step.actions == [
+            "Cross-checked 0 findings against the rest of the batch"
+        ]
 
     def test_the_merge_warns_on_what_the_insert_floor_refused(self, tmp_path) -> None:
         reporter = _ProgressReporter(

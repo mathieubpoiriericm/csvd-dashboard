@@ -229,6 +229,11 @@ export interface RunConfig {
   confidenceThresholdInsert: number | null;
   /** Whether the Batch API extracted the run; null on an older report. */
   batch: boolean | null;
+  /**
+   * How many days back the run searched PubMed; null on an offline run,
+   * which searched nothing.
+   */
+  daysBack: number | null;
 }
 
 /** One trial population of the radar and the population filter. */

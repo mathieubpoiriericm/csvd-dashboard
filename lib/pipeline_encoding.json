@@ -118,6 +118,8 @@
   "outcomes": {
     "$comment": "The words of a step's row on the run card, after the count they follow. A count that takes a noun reads it from `nouns`, so the row says findings where the report counts findings and genes where it counts rows.",
     "matched": "matched",
+    "lastDay": "last day",
+    "lastDays": "last {days} days",
     "new": "new",
     "seenBefore": "seen before",
     "read": "read",
@@ -137,6 +139,7 @@
   },
   "verdict": {
     "$comment": "The run card's verdict row: three figures a visiting researcher reads first, and the sentences that stand in for them when the run failed. `{ordinal}`, `{label}` and `{genes}` are filled by lib/pipeline_ledger.ts.",
+    "label": "This run in figures",
     "of": "of",
     "new": "new",
     "read": "read",

@@ -1222,7 +1222,11 @@ def _record_validation_actions(
     over-extraction still badged this step a clean pass -- and the
     `batch_validation` warning kind was unreachable.
     """
-    progress.action(f"Cross-checked {len(genes)} genes against the rest of the batch")
+    # Findings, not genes: one paper's proposal each, so a gene two papers
+    # proposed is cross-checked twice (see `reword_findings`).
+    progress.action(
+        f"Cross-checked {_count(len(genes), 'finding')} against the rest of the batch"
+    )
     if warnings:
         progress.warn(
             RunWarning(
@@ -1323,7 +1327,7 @@ def _record_processing_actions(
         f"abstract only for {metrics.abstract_only}"
     )
     progress.action(
-        f"Extracted {metrics.genes_extracted} genes, "
+        f"Extracted {_count(metrics.genes_extracted, 'finding')}, "
         f"of which {metrics.genes_validated} passed validation"
     )
 
@@ -1394,7 +1398,7 @@ def _record_processing_actions(
             RunWarning(
                 kind="genes_rejected",
                 title=(
-                    f"{_count(metrics.genes_rejected, 'gene')} did not clear "
+                    f"{_count(metrics.genes_rejected, 'finding')} did not clear "
                     "the validation floor"
                 ),
                 count=metrics.genes_rejected,
@@ -1419,7 +1423,7 @@ def _record_processing_actions(
             RunWarning(
                 kind="quote_unverified",
                 title=(
-                    f"{_count(dropped, 'gene')} {_were(dropped)} dropped because "
+                    f"{_count(dropped, 'finding')} {_were(dropped)} dropped because "
                     "the quoted sentence was not found in the paper"
                 ),
                 count=dropped,

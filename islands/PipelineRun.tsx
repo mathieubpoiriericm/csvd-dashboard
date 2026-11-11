@@ -37,9 +37,12 @@ import {
   stepStatusBadge,
 } from "../lib/pipeline_display.ts";
 import {
+  type Figure,
+  FIGURES_LABEL,
   isOpenable,
   OF,
   reviewCount,
+  type Segment,
   stepFlag,
   type StepOutcome,
   stepOutcome,
@@ -76,17 +79,51 @@ function Outcome({ outcome }: { outcome: StepOutcome }) {
       class={`pipeline-step-outcome${outcome.quiet ? " is-quiet" : ""}`}
     >
       {outcome.lines.map((line, index) => (
-        <span key={index} class="pipeline-outcome-line">
-          {line.map((part, index) => (
-            <span key={index} class="pipeline-outcome-part">
-              {part.value !== null && <b>{part.value}</b>}
-              {part.value !== null && " "}
-              {part.text}
-            </span>
-          ))}
-        </span>
+        <OutcomeLine key={index} line={line} />
       ))}
     </span>
+  );
+}
+
+/*
+ * A line and a part are components because they are keyed: `jsx:
+ * "precompile"` drops the key of an intrinsic element it turns into a
+ * template (islands/CLAUDE.md, the adapt wizard's `ListRow`).
+ */
+function OutcomeLine({ line }: { line: Segment[] }) {
+  return (
+    <span class="pipeline-outcome-line">
+      {line.map((part, index) => <OutcomePart key={index} part={part} />)}
+    </span>
+  );
+}
+
+function OutcomePart({ part }: { part: Segment }) {
+  return (
+    <span class="pipeline-outcome-part">
+      {part.value !== null && <b>{part.value}</b>}
+      {part.value !== null && " "}
+      {part.text}
+    </span>
+  );
+}
+
+/** One figure of the verdict: a numeral, what it is, and its breakdown. */
+function FigureItem({ figure }: { figure: Figure }) {
+  return (
+    <li class="pipeline-figure">
+      <span class="pipeline-figure-value">
+        {figure.value}
+        {
+          /* The space is text, not a margin: read aloud or copied, the
+            figure is "37 of 38", not "37of 38". */
+        }
+        {figure.of !== null && " "}
+        {figure.of !== null && <small>{OF} {figure.of}</small>}
+      </span>
+      <span class="pipeline-figure-label">{figure.label}</span>
+      <span class="pipeline-figure-sub">{figure.sub}</span>
+    </li>
   );
 }
 
@@ -290,35 +327,27 @@ function PipelineRunContent({ run }: { run: PipelineRun }) {
           </span>
         </p>
 
-        {stopped
-          ? (
-            <Note
-              tint="danger"
-              mark={runStatusBadge("failed")}
-              title={stopped.title}
-            >
-              <p class="pipeline-note-detail">{stopped.consequence}</p>
-            </Note>
-          )
-          : (
-            <div class="pipeline-figures">
-              {verdictFigures(run).map((figure) => (
-                <div key={figure.key} class="pipeline-figure">
-                  <span class="pipeline-figure-value">
-                    {figure.value}
-                    {
-                      /* The space is text, not a margin: read aloud or
-                        copied, the figure is "37 of 38", not "37of 38". */
-                    }
-                    {figure.of !== null && " "}
-                    {figure.of !== null && <small>{OF} {figure.of}</small>}
-                  </span>
-                  <span class="pipeline-figure-label">{figure.label}</span>
-                  <span class="pipeline-figure-sub">{figure.sub}</span>
-                </div>
-              ))}
-            </div>
-          )}
+        <div class="pipeline-verdict">
+          {stopped
+            ? (
+              <Note
+                tint="danger"
+                mark={runStatusBadge("failed")}
+                title={stopped.title}
+              >
+                <p class="pipeline-note-detail">{stopped.consequence}</p>
+              </Note>
+            )
+            : (
+              /* A list, named: three bare runs of text reached a screen
+                reader as one sentence. */
+              <ul class="pipeline-figures" aria-label={FIGURES_LABEL}>
+                {verdictFigures(run).map((figure) => (
+                  <FigureItem key={figure.key} figure={figure} />
+                ))}
+              </ul>
+            )}
+        </div>
 
         {run.steps.length > 0 && (
           <ol class="pipeline-steps">

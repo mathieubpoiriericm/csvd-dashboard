@@ -167,14 +167,25 @@ const present = (parts: Array<[number, string]>) =>
 function readout(run: PipelineRun, key: string): Segment[][] | null {
   const { papers, genes, database } = run;
   switch (key) {
-    case "searching_pubmed":
+    case "searching_pubmed": {
       if (papers.found === null) return null;
+      // Of what the count is a count: the window the run searched, when it
+      // recorded one. Without it "1,571 papers matched" matched nothing in
+      // particular.
+      const days = run.config.daysBack;
       return [[
         figure(
           papers.found,
           `${nounFor(papers.found, "paper")} ${OUTCOMES.matched}`,
         ),
+        ...(days === null ? [] : [{
+          value: null,
+          text: days === 1
+            ? OUTCOMES.lastDay
+            : OUTCOMES.lastDays.replace("{days}", formatCount(days)),
+        }]),
       ]];
+    }
     case "filtering_pmids":
       if (papers.newlySeen === null || papers.alreadySeen === null) {
         return null;
@@ -281,6 +292,9 @@ export function splitSubjects(
 }
 
 const VERDICT = encoding.verdict;
+
+/** What the verdict's list of figures is, for a screen reader. */
+export const FIGURES_LABEL = VERDICT.label;
 
 /** The word between a figure and its denominator: "37 of 38". */
 export const OF = VERDICT.of;

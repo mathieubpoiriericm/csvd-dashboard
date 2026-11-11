@@ -12,6 +12,7 @@ plus the step and API records, which are new. Nothing here recomputes a
 metric that module already computed.
 """
 
+import re
 from typing import Any, Final, Literal
 
 from pydantic import Field
@@ -78,6 +79,11 @@ class RunConfigRecord(WireModel):
     # API extracted the run, which halves its cost; None on a report
     # written before this was published.
     batch: bool | None = None
+    # How many days back the run searched PubMed; None on an offline run,
+    # which was handed its identifiers, and on a report written before this
+    # was published (`recover_search_window` reads it back from the step's
+    # own sentence).
+    days_back: int | None = None
 
 
 class PaperCounts(WireModel):
@@ -336,6 +342,115 @@ def bring_up_to_date(report: PipelineRunReport) -> PipelineRunReport:
             "accepted_genes": accepted.model_copy(update={"items": genes}),
         }
     )
+
+
+_SEARCHED: Final = re.compile(r"^Searched PubMed over the last (\d+) days: ")
+
+
+def recover_search_window(report: PipelineRunReport) -> PipelineRunReport:
+    """Give an older stored report the search window it did not store.
+
+    `days_back` was in `PipelineRunData` all along and was not published,
+    so the run card could say "1,571 papers matched" and not of what. The
+    run's own first step says it in a sentence this pipeline wrote ("Searched
+    PubMed over the last 730 days: ..."), and that number is read back here.
+    A report that stored the window, or whose search step holds no such
+    sentence (an offline run searched nothing), is returned as it is.
+    """
+    if report.config.days_back is not None:
+        return report
+    for step in report.steps:
+        if step.key != "searching_pubmed":
+            continue
+        for action in step.actions:
+            if (found := _SEARCHED.match(action)) is not None:
+                return report.model_copy(
+                    update={
+                        "config": report.config.model_copy(
+                            update={"days_back": int(found.group(1))}
+                        )
+                    }
+                )
+    return report
+
+
+def _findings(count: str) -> str:
+    """ "1 finding", "33 findings": the noun in the number its count takes."""
+    return f"{count} finding" if count == "1" else f"{count} findings"
+
+
+# The sentences that count findings and used to say "genes", as this
+# pipeline wrote them before, and how each reads now. Whole sentences,
+# anchored at both ends: anything else in a stored report is left alone.
+_FINDING_SENTENCES: Final = (
+    (
+        re.compile(r"^Extracted (\d+) genes?, of which (\d+) passed validation$"),
+        lambda m: (
+            f"Extracted {_findings(m.group(1))}, "
+            f"of which {m.group(2)} passed validation"
+        ),
+    ),
+    (
+        re.compile(r"^Cross-checked (\d+) genes? against the rest of the batch$"),
+        lambda m: (
+            f"Cross-checked {_findings(m.group(1))} against the rest of the batch"
+        ),
+    ),
+    (
+        re.compile(r"^(\d+) genes? did not clear the validation floor$"),
+        lambda m: f"{_findings(m.group(1))} did not clear the validation floor",
+    ),
+    (
+        re.compile(
+            r"^(\d+) genes? (was|were) dropped because "
+            r"the quoted sentence was not found in the paper$"
+        ),
+        lambda m: (
+            f"{_findings(m.group(1))} {m.group(2)} dropped because "
+            "the quoted sentence was not found in the paper"
+        ),
+    ),
+)
+
+
+def _reworded(sentence: str) -> str:
+    for pattern, rewrite in _FINDING_SENTENCES:
+        if (found := pattern.match(sentence)) is not None:
+            return rewrite(found)
+    return sentence
+
+
+def reword_findings(report: PipelineRunReport) -> PipelineRunReport:
+    """Say "findings" where an older stored report counted them as genes.
+
+    A finding is one paper's proposal of a gene, and a gene is a row of
+    the database: a gene found in two papers is two findings. The step
+    sentences that count proposals said "genes" ("Extracted 33 genes, of
+    which 19 passed validation"), beside a card whose rows say "findings"
+    for the same numbers. The pipeline writes the word now; this brings a
+    report stored before that into line, sentence by whole sentence
+    (`_FINDING_SENTENCES`).
+
+    The merge's own sentences are not among them: it writes rows and holds
+    genes, so "Inserted 1 gene and updated 4" and "8 new genes were held
+    below the insert floor" are right as they stand. A report with nothing
+    to reword is returned as it is.
+    """
+    steps = [
+        step.model_copy(
+            update={
+                "actions": [_reworded(action) for action in step.actions],
+                "warnings": [
+                    warning.model_copy(update={"title": _reworded(warning.title)})
+                    for warning in step.warnings
+                ],
+            }
+        )
+        for step in report.steps
+    ]
+    if steps == report.steps:
+        return report
+    return report.model_copy(update={"steps": steps})
 
 
 def _no_text_count(papers_detail: list[dict[str, Any]]) -> int:

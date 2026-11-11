@@ -15,6 +15,8 @@ from pipeline.run_report import (
     RunConfigRecord,
     build_run_report,
     derive_status,
+    recover_search_window,
+    reword_findings,
 )
 from pipeline.steps import StepRecorder
 
@@ -603,7 +605,9 @@ class TestDetail:
         assert report.config.batch is True
         assert report.tokens.cache_creation_input_tokens == 7
         wire = report.to_wire()
-        assert list(wire["config"])[-1] == "batch"
+        # Each was appended after the last, so no earlier key moved: field
+        # order is wire order, and the search window came after these.
+        assert list(wire["config"])[-2:] == ["batch", "daysBack"]
         assert list(wire["tokens"])[-1] == "cacheCreationInputTokens"
 
     def test_a_report_stored_before_them_reads_unknown_not_zero(self) -> None:
@@ -794,3 +798,163 @@ class TestProvenanceCounts:
         assert wire["genes"]["quotesChecked"] == 10
         assert wire["genes"]["quotesVerbatim"] == 9
         assert wire["genes"]["quotesCited"] == 3
+
+
+class TestTheSearchWindow:
+    """How far back the run searched, as a field of its own.
+
+    The run card's Search row says "1,571 papers matched" and could not say
+    of what: the window was only inside the step's sentence.
+    """
+
+    def _searched(self, sentence: str | None, **config: Any) -> PipelineRunReport:
+        recorder = StepRecorder()
+        recorder.enter(0)
+        if sentence is not None:
+            recorder.action(sentence)
+        data = _run_data()
+        data["pipeline_config"] = {**data["pipeline_config"], **config}
+        return build_run_report(
+            data, steps=recorder.records(), apis=[], run_mode="standard"
+        )
+
+    def test_the_config_carries_it(self) -> None:
+        report = self._searched(None, days_back=730)
+        assert report.config.days_back == 730
+        assert report.to_wire()["config"]["daysBack"] == 730
+
+    def test_a_run_that_searched_nothing_has_none(self) -> None:
+        # An offline run was handed its identifiers.
+        assert _report().config.days_back is None
+        assert _report().to_wire()["config"]["daysBack"] is None
+
+    def test_an_older_report_gets_it_back_from_its_own_sentence(self) -> None:
+        # The pipeline wrote the sentence, so its number is the run's own.
+        stored = self._searched(
+            "Searched PubMed over the last 730 days: 1571 papers matched"
+        )
+        assert stored.config.days_back is None
+        assert recover_search_window(stored).config.days_back == 730
+
+    def test_one_day_is_recovered_too(self) -> None:
+        stored = self._searched(
+            "Searched PubMed over the last 1 days: 3 papers matched"
+        )
+        assert recover_search_window(stored).config.days_back == 1
+
+    def test_a_recorded_window_is_left_alone(self) -> None:
+        stored = self._searched(
+            "Searched PubMed over the last 730 days: 1571 papers matched",
+            days_back=30,
+        )
+        assert recover_search_window(stored) is stored
+
+    def test_a_sentence_that_names_none_recovers_nothing(self) -> None:
+        for sentence in (None, "Read 12 PMIDs from the list"):
+            stored = self._searched(sentence)
+            assert recover_search_window(stored) is stored
+
+
+class TestFindingsAreNotGenes:
+    """A finding is one paper's proposal of a gene; a gene is a row.
+
+    The sentences that count proposals said "genes", beside rows of the
+    card that say "findings" for the same numbers. An older stored report
+    is reworded on the way out, so the page does not say both.
+    """
+
+    def _stored(self) -> PipelineRunReport:
+        recorder = StepRecorder()
+        recorder.enter(2)
+        recorder.action("Retrieved full text for 27, abstract only for 10")
+        recorder.action("Extracted 33 genes, of which 19 passed validation")
+        recorder.warn(
+            RunWarning(
+                kind="genes_rejected",
+                title="14 genes did not clear the validation floor",
+                count=14,
+            )
+        )
+        recorder.warn(
+            RunWarning(
+                kind="quote_unverified",
+                title=(
+                    "1 gene was dropped because the quoted sentence was not "
+                    "found in the paper"
+                ),
+                count=1,
+                subjects=["GENE1"],
+            )
+        )
+        recorder.enter(3)
+        recorder.action("Cross-checked 19 genes against the rest of the batch")
+        recorder.enter(4)
+        recorder.action("Inserted 1 gene and updated 4")
+        recorder.warn(
+            RunWarning(
+                kind="genes_rejected",
+                title="8 new genes were held below the insert floor",
+                count=8,
+            )
+        )
+        return build_run_report(
+            _run_data(), steps=recorder.records(), apis=[], run_mode="standard"
+        )
+
+    def test_the_sentences_that_count_findings_say_so(self) -> None:
+        steps = {step.key: step for step in reword_findings(self._stored()).steps}
+        assert steps["processing_papers"].actions == [
+            "Retrieved full text for 27, abstract only for 10",
+            "Extracted 33 findings, of which 19 passed validation",
+        ]
+        assert [w.title for w in steps["processing_papers"].warnings] == [
+            "14 findings did not clear the validation floor",
+            "1 finding was dropped because the quoted sentence was not "
+            "found in the paper",
+        ]
+        assert steps["batch_validation"].actions == [
+            "Cross-checked 19 findings against the rest of the batch"
+        ]
+
+    def test_the_sentences_that_count_genes_keep_the_word(self) -> None:
+        # The merge writes rows and holds genes: those are genes.
+        merge = next(
+            step
+            for step in reword_findings(self._stored()).steps
+            if step.key == "merging_database"
+        )
+        assert merge.actions == ["Inserted 1 gene and updated 4"]
+        assert [w.title for w in merge.warnings] == [
+            "8 new genes were held below the insert floor"
+        ]
+
+    def test_a_single_finding_is_singular(self) -> None:
+        recorder = StepRecorder()
+        recorder.enter(2)
+        recorder.action("Extracted 1 genes, of which 1 passed validation")
+        recorder.warn(
+            RunWarning(
+                kind="genes_rejected",
+                title="1 gene did not clear the validation floor",
+                count=1,
+            )
+        )
+        recorder.enter(3)
+        recorder.action("Cross-checked 1 genes against the rest of the batch")
+        stored = build_run_report(
+            _run_data(), steps=recorder.records(), apis=[], run_mode="standard"
+        )
+        steps = {step.key: step for step in reword_findings(stored).steps}
+        assert steps["processing_papers"].actions == [
+            "Extracted 1 finding, of which 1 passed validation"
+        ]
+        assert steps["processing_papers"].warnings[0].title == (
+            "1 finding did not clear the validation floor"
+        )
+        assert steps["batch_validation"].actions == [
+            "Cross-checked 1 finding against the rest of the batch"
+        ]
+
+    def test_a_report_already_in_these_words_is_left_alone(self) -> None:
+        once = reword_findings(self._stored())
+        assert reword_findings(once) is once

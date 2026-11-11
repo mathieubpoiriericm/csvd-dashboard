@@ -77,7 +77,7 @@ Deno.test("a step's flag names one thing, counts several, and says Failed", () =
 
 Deno.test("each known step reads out the run's own counts", () => {
   assertEquals(stepOutcome(RUN, at("searching_pubmed")), {
-    lines: [[seg("40", "papers matched")]],
+    lines: [[seg("40", "papers matched"), seg(null, "last 7 days")]],
     quiet: false,
   });
   assertEquals(stepOutcome(RUN, at("filtering_pmids")).lines, [
@@ -112,6 +112,24 @@ Deno.test("failed papers are a part of the row, and zero parts are left out", ()
   assertEquals(stepOutcome(run, at("merging_database")).lines, [
     [seg("1", "gene added"), seg("0", "updated")],
   ]);
+});
+
+Deno.test("the search row says how far back it looked, when the run recorded it", () => {
+  // "1,571 papers matched" is a count of nothing in particular until the
+  // row says over what.
+  const search = (daysBack: number | null) =>
+    stepOutcome(
+      runWith({ config: { ...RUN.config, daysBack } }),
+      at("searching_pubmed"),
+    ).lines;
+  assertEquals(search(730), [
+    [seg("40", "papers matched"), seg(null, "last 730 days")],
+  ]);
+  assertEquals(search(1), [
+    [seg("40", "papers matched"), seg(null, "last day")],
+  ]);
+  // A report stored before the window was published says only what it has.
+  assertEquals(search(null), [[seg("40", "papers matched")]]);
 });
 
 Deno.test("the cross-check counts findings", () => {

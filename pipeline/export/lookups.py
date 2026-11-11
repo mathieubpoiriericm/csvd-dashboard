@@ -23,7 +23,12 @@ from pipeline.annotations import lookup_symbols
 from pipeline.api_telemetry import relabel_api_rows
 from pipeline.database import Database
 from pipeline.export.text import is_doi
-from pipeline.run_report import PipelineRunReport, bring_up_to_date
+from pipeline.run_report import (
+    PipelineRunReport,
+    bring_up_to_date,
+    recover_search_window,
+    reword_findings,
+)
 from pipeline.sync_report import SyncRunReport
 from pipeline.xrefs import is_omim_series, xref_prefix
 
@@ -256,16 +261,20 @@ async def read_pipeline_status() -> dict[str, Any] | None:
 def published_run_report(stored: dict[str, Any]) -> dict[str, Any]:
     """A stored run report, as the export publishes it.
 
-    Three passes, each of which a report written by the current pipeline
+    Five passes, each of which a report written by the current pipeline
     passes through unchanged: re-validation through ``PipelineRunReport``,
     which fills what an older report lacks or refuses it;
-    ``bring_up_to_date``, for a count whose meaning moved; and
-    ``relabel_api_rows``, for the api rows' labels and endpoints.
+    ``bring_up_to_date``, for a count whose meaning moved;
+    ``recover_search_window``, for the window an older report left in a
+    sentence; ``reword_findings``, for the sentences that counted findings
+    as genes; and ``relabel_api_rows``, for the api rows' labels and
+    endpoints.
 
     One function so the committed ``data/pipeline_run.json`` can be held to
     it: a file this would change is one the next export rewrites.
     """
-    wire = bring_up_to_date(PipelineRunReport.model_validate(stored)).to_wire()
+    report = bring_up_to_date(PipelineRunReport.model_validate(stored))
+    wire = reword_findings(recover_search_window(report)).to_wire()
     wire["apis"] = relabel_api_rows(wire["apis"])
     return wire
 

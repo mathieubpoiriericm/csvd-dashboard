@@ -50,6 +50,11 @@ function SetupList({ title, rows }: { title: string; rows: SetupRow[] }) {
   );
 }
 
+/** One sentence of a step's log: a component, because it is keyed. */
+function Action({ text }: { text: string }) {
+  return <span>{text}</span>;
+}
+
 /**
  * One step's line of the log. Its sentences are keyed by position: a
  * re-entered step merges its visits' actions, and two visits that did the
@@ -62,7 +67,7 @@ function LogRow({ step }: { step: RunStep }) {
       <span class="pipeline-log-actions">
         {step.actions.length > 0
           ? step.actions.map((action, index) => (
-            <span key={index}>{action}</span>
+            <Action key={index} text={action} />
           ))
           : NOTHING_TO_REPORT}
       </span>
