@@ -263,10 +263,11 @@ EXTRACTION_TOOL_NAME: Final[str] = "report_genes"
 # Opus 5.5 declined as `bio` on 2026-11-03.
 EXTRACTION_FALLBACK_MODEL: Final[str] = "claude-opus-4-8"
 
-# The array form of `fallbacks` requires exactly this header; the scalar
-# "default" form takes `-2026-07-01`, and either header with the other form
-# is a 400. The date is the series' earliest, not a stale one to bump.
-FALLBACK_BETA: Final[str] = "server-side-fallback-2026-06-01"
+# The header `fallbacks` is documented under. `-2026-07-01` takes both the
+# array form used here and the scalar "default"; the earlier `-2026-06-01`
+# takes the array form only, and any other `server-side-fallback-*` date is a
+# 400. The array form is what pins the target, not the header.
+FALLBACK_BETA: Final[str] = "server-side-fallback-2026-07-01"
 
 # Reported in the run metadata beside EXTRACTION_MODEL. A constant rather
 # than a regex over the model name, now that there is one name to parse.
@@ -379,17 +380,39 @@ class PipelineConfig:
     # 40_000 against a 100_000 TPM limit admitted two papers where five were
     # configured. Measured totals per call across the three runs in
     # logs/json/ are 9.6K, 11.7K and 14.5K, so 20_000 sits above every
-    # observed call while letting the configured concurrency through:
-    # 5 x 20_000 is exactly the TPM limit, and real usage lands well under
-    # it. Raise both together, or neither.
+    # observed call. The calls in flight are capped at tpm_limit divided by
+    # this: 20 under the default limit, four times the default concurrency.
+    # Past that, raise the limit rather than lower the estimate.
     estimated_tokens_per_call: int = field(
         default_factory=lambda: _env_int("PIPELINE_ESTIMATED_TOKENS_PER_CALL", 20_000)
     )
 
     # --- Rate limiter (RPM / TPM) ---
-    rpm_limit: int = field(default_factory=lambda: _env_int("PIPELINE_RPM_LIMIT", 50))
+    #
+    # The standard limits of the lowest published usage tier (Start) for
+    # EXTRACTION_MODEL: 4,000 requests, 2,000,000 input tokens and 400,000
+    # output tokens a minute (Anthropic's rate-limits page, read
+    # 2026-11-11). The limiter keeps one token window, holding each call's
+    # uncached input plus its output, so its limit is the tighter of the
+    # API's two token limits: a run under it is under both. Cache writes
+    # count as input to the API and are not in the window, which the
+    # 1,600,000 tokens between the two limits absorbs.
+    #
+    # The 50 and 100,000 these replace matched no tier the API publishes
+    # for this model, and sat a factor of 80 and of 4 under the lowest.
+    # Nothing was lost at five papers at once, which is what bounds a run;
+    # raising max_concurrent_papers met the token limit long before the
+    # API's.
+    #
+    # An organisation with a short history may be in the Evaluation tier,
+    # whose limits are lower and unpublished: read them on the Console's
+    # Rate limits page and set both variables to them. A 429 these did not
+    # prevent is still backed off and retried (max_rate_limit_retries).
+    rpm_limit: int = field(
+        default_factory=lambda: _env_int("PIPELINE_RPM_LIMIT", 4_000)
+    )
     tpm_limit: int = field(
-        default_factory=lambda: _env_int("PIPELINE_TPM_LIMIT", 100_000)
+        default_factory=lambda: _env_int("PIPELINE_TPM_LIMIT", 400_000)
     )
 
     # --- Validation ---

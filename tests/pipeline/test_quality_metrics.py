@@ -350,6 +350,133 @@ class TestFallbackIterations:
         assert usage.fallback_input_tokens == 0
         assert delta.output_tokens == 20
 
+    @pytest.mark.parametrize(
+        ("category", "declined_output", "unbilled"),
+        [
+            # Refused before any output: billed only in the billed categories.
+            ("cyber", 0, (1000, 5000, 200)),
+            ("general_harms", 0, (1000, 5000, 200)),
+            (None, 0, (1000, 5000, 200)),
+            ("bio", 0, (0, 0, 0)),
+            ("frontier_llm", 0, (0, 0, 0)),
+            ("reasoning_extraction", 0, (0, 0, 0)),
+            # Mid-stream: output was written, so it is billed whatever the
+            # category.
+            ("cyber", 40, (0, 0, 0)),
+        ],
+    )
+    def test_a_decline_before_any_output_is_billed_by_category(
+        self, category: str | None, declined_output: int, unbilled: tuple[int, ...]
+    ) -> None:
+        """The declined attempt stays in the totals either way; only the
+        categories the API bills before any output stay in the cost."""
+        response = SimpleNamespace(
+            stop_reason="tool_use",
+            stop_details=None,
+            content=[
+                SimpleNamespace(
+                    type="fallback", trigger=SimpleNamespace(category=category)
+                )
+            ],
+            usage=SimpleNamespace(
+                input_tokens=1200,
+                output_tokens=3000,
+                cache_creation_input_tokens=5000,
+                cache_read_input_tokens=0,
+                output_tokens_details=None,
+                iterations=[
+                    _iteration(
+                        "message", "claude-opus-5-5", 1000, declined_output, 5000, 200
+                    ),
+                    _iteration(
+                        "fallback_message", "claude-opus-4-8", 1200, 3000, 5000, 0
+                    ),
+                ],
+            ),
+        )
+        usage = TokenUsage()
+        accumulate_usage(usage, response, fallback_model="claude-opus-4-8")
+        assert (usage.input_tokens, usage.cache_creation_input_tokens) == (2200, 10000)
+        assert (
+            usage.unbilled_input_tokens,
+            usage.unbilled_cache_creation_input_tokens,
+            usage.unbilled_cache_read_input_tokens,
+        ) == unbilled
+        assert usage.fallback_input_tokens == 1200
+
+    def test_an_unbilled_refusal_with_no_fallback_is_kept_out_of_the_cost(
+        self,
+    ) -> None:
+        """The batch path, and a streaming refusal whose fallback could not
+        run: one attempt, top-level usage, `stop_details` naming the
+        category."""
+        response = SimpleNamespace(
+            stop_reason="refusal",
+            stop_details=SimpleNamespace(category="cyber"),
+            content=[],
+            usage=SimpleNamespace(
+                input_tokens=900,
+                output_tokens=0,
+                cache_creation_input_tokens=0,
+                cache_read_input_tokens=4000,
+                output_tokens_details=None,
+                iterations=None,
+            ),
+        )
+        usage = TokenUsage()
+        accumulate_usage(usage, response)
+        assert (usage.input_tokens, usage.cache_read_input_tokens) == (900, 4000)
+        assert (
+            usage.unbilled_input_tokens,
+            usage.unbilled_cache_read_input_tokens,
+        ) == (900, 4000)
+
+    def test_a_fallback_refusing_unbilled_is_not_priced_as_the_fallbacks(
+        self,
+    ) -> None:
+        """Both declined: Opus 5.5 as `bio`, billed, then Opus 4.8 as `cyber`
+        before any output, which is not. The second attempt joins neither
+        the fallback's share nor the cost."""
+        response = SimpleNamespace(
+            stop_reason="refusal",
+            stop_details=SimpleNamespace(category="cyber"),
+            content=[
+                SimpleNamespace(
+                    type="fallback", trigger=SimpleNamespace(category="bio")
+                )
+            ],
+            usage=SimpleNamespace(
+                input_tokens=1100,
+                output_tokens=0,
+                cache_creation_input_tokens=0,
+                cache_read_input_tokens=0,
+                output_tokens_details=None,
+                iterations=[
+                    _iteration("message", "claude-opus-5-5", 1000, 0, 5000, 0),
+                    _iteration("fallback_message", "claude-opus-4-8", 1100, 0, 0, 0),
+                ],
+            ),
+        )
+        usage = TokenUsage()
+        accumulate_usage(usage, response, fallback_model="claude-opus-4-8")
+        assert usage.input_tokens == 2100
+        assert usage.unbilled_input_tokens == 1100
+        assert usage.unbilled_cache_creation_input_tokens == 0
+        assert usage.fallback_input_tokens == 0
+
+    def test_unbilled_counts_add_up(self) -> None:
+        usage = TokenUsage(unbilled_input_tokens=1)
+        usage += TokenUsage(
+            unbilled_input_tokens=2,
+            unbilled_cache_creation_input_tokens=3,
+            unbilled_cache_read_input_tokens=4,
+        )
+        assert (
+            usage.unbilled_input_tokens,
+            usage.unbilled_cache_creation_input_tokens,
+            usage.unbilled_cache_read_input_tokens,
+        ) == (3, 3, 4)
+
     def test_fallback_counts_add_up(self) -> None:
         usage = TokenUsage(fallback_input_tokens=1, fallback_output_tokens=2)
         usage += TokenUsage(fallback_input_tokens=3, fallback_cache_read_input_tokens=4)

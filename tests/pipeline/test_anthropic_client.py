@@ -652,7 +652,7 @@ class TestAnthropicClientExtract:
         await client.extract("paper text", "12345678", config, None)
 
         kwargs = mock_client.beta.messages.stream.call_args.kwargs
-        assert kwargs["betas"] == ["server-side-fallback-2026-06-01"]
+        assert kwargs["betas"] == ["server-side-fallback-2026-07-01"]
         assert kwargs["fallbacks"] == [{"model": "claude-opus-4-8"}]
         shared = _build_message_params("paper text", "12345678", config)
         assert "fallbacks" not in shared

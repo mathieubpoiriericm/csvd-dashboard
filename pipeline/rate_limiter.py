@@ -59,7 +59,9 @@ class AsyncRateLimiter:
       calls pause when any single call receives a 429
     """
 
-    def __init__(self, rpm: int = 50, tpm: int = 100_000) -> None:
+    # The defaults are PipelineConfig's, which records where they come
+    # from; every pipeline caller passes the configured pair.
+    def __init__(self, rpm: int = 4_000, tpm: int = 400_000) -> None:
         self._rpm = rpm
         self._tpm = tpm
         # One entry per request. Its timestamp is both the RPM window and the

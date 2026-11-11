@@ -41,9 +41,9 @@ the final `stop_details.category`), so a paper Opus 4.8 declined under another
 classifier does not read as one classifier's verdict.
 
 `_stream_and_parse` requests `fallbacks=[{"model": EXTRACTION_FALLBACK_MODEL}]`
-under `FALLBACK_BETA` (`server-side-fallback-2026-06-01`, the array form's own
-header; the scalar form's `-2026-07-01` rejects it), so a paper Opus 5.5
-declines is re-run on `claude-opus-4-8` in the same round trip. The fallback
+under `FALLBACK_BETA` (`server-side-fallback-2026-07-01`, which takes both the
+array form and the scalar `"default"`; the earlier `-2026-06-01` takes the array
+form only), so a paper Opus 5.5 declines is re-run on `claude-opus-4-8` in the same round trip. The fallback
 rides on the stream call, not in `_build_message_params`, because the Batches
 API rejects the field and the golden cassettes' recorded bodies are compared
 against those params; the beta stream posts to the same `/v1/messages`, so the
@@ -75,13 +75,27 @@ paper's first fallback named into its retries; a paper that fell back before the
 run reads "unspecified", and the `model_fallback` warning's detail says why.
 Because top-level `usage` covers only the attempt that served the message,
 `accumulate_usage` sums `iterations` instead -- the declined Opus 5.5 attempt is
-billed too -- and keeps the fallback's share in `TokenUsage.fallback_*`, which
-`estimate_cost` prices at Opus 4.8's rates ($5 / $25 per MTok, cache reads
-0.1×). That share is counted by the entry's `model` as well as its type: only
-the attempt that served is a `fallback_message`, so when both models decline,
-Opus 4.8's attempt is a plain `message` entry naming it, and counting by type
-alone priced it at Opus 5.5's rates. The checkpoint fingerprint names the
-fallback model, since a refused paper's extraction depends on it.
+reported there too -- and keeps the fallback's share in `TokenUsage.fallback_*`,
+which `estimate_cost` prices at Opus 4.8's rates ($5 / $25 per MTok, cache reads
+0.1×). That share is counted by the entry's `model` as well as its type:
+Anthropic's guide gives the last hop a `fallback_message` entry even when it
+declined too, the code was written against that attempt arriving as a plain
+`message` entry naming Opus 4.8, and counting by type alone priced that shape at
+Opus 5.5's rates. The checkpoint fingerprint names the fallback model, since a
+refused paper's extraction depends on it.
+
+**A declined attempt is billed by category, not always.** A refusal that arrives
+before any output is billed only as `bio`, `frontier_llm` or
+`reasoning_extraction` (`BILLED_REFUSAL_CATEGORIES` in `quality_metrics.py`,
+from "How refusals are billed" in Anthropic's refusals-and-fallback guide, as of
+September 2026 and subject to change); as `cyber`, `general_harms` or with no
+category it is reported in `usage` and not charged, and a mid-stream refusal is
+billed whatever its category. `accumulate_usage` keeps an unbilled attempt in
+the totals, which say what the API counted and what the rate limit was charged,
+and in `TokenUsage.unbilled_*`, which `estimate_cost` takes off; it never joins
+`fallback_*`, so the subtraction is right whichever model declined. On this
+corpus the refusals are `bio`, so the declined attempt is paid for; the batch
+path, where a refused entry is one top-level `usage`, follows the same rule.
 
 `--batch` has no fallback: the Batches API rejects `fallbacks`. A refused batch
 entry is handed back through `results_by_custom_id`'s `refusals` and fails with
