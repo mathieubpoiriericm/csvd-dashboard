@@ -110,24 +110,27 @@ _retrieved text actually names_:
 
 | Subset                      | Recall          |
 | --------------------------- | --------------- |
-| genes named in the prompt   | 19/20 = **95%** |
-| genes the prompt never says | 21/26 = **81%** |
+| genes named in the prompt   | 18/20 = **90%** |
+| genes the prompt never says | 22/26 = **85%** |
 | pooled                      | 40/46 = **87%** |
 
-Measured on Claude Opus 5.5 with prompt v8 (re-recorded 2026-11-08 and, after
-its omics guidance was tightened, 2026-11-09, with the same figures); prompt v7
-measured 18/20, 21/26 and 39/46 on the 2026-11-02 recording. Opus 5 scored 88%
-clean and 93% pooled on the same text, but the genes it found and Opus 5.5 did
-not were ones it reported below the confidence floor a run applies; after that
-floor the two models recover 38/46 and 39/46 of the pooled genes.
+Measured on Claude Opus 5.5 with prompt v8, re-recorded 2026-11-11. The v8
+recordings of 2026-11-08 and 2026-11-09 measured 19/20, 21/26 and 40/46, a
+second one on 2026-11-09 18/20, 21/26 and 39/46, and prompt v7 18/20, 21/26 and
+39/46 on the 2026-11-02 recording: one or two genes come and go between
+recordings with the model, prompt and effort unchanged. Opus 5 scored 88% clean
+and 93% pooled on the same text, but the genes it found and Opus 5.5 did not
+were ones it reported below the confidence floor a run applies; after that floor
+the two models recover 38/46 and 39/46 of the pooled genes.
 
-**Quote the 81%** -- the clean subset is the one that measures extraction rather
-than recall of the prompt. 13 of the 36 gold genes are named verbatim in the
-rendered v8 prompt -- the `<example>` blocks that name them live in `prompt.md`,
-not the template in `pipeline/prompts.py` -- six of them with their expected
-trait and confidence, and `test_the_prompt_names_part_of_its_own_answer_key`
-pins that count so a prompt edit naming another gold gene fails instead of
-quietly inflating the figure.
+**Quote the 85%, and as 81% to 85%** -- the clean subset is the one that
+measures extraction rather than recall of the prompt, and it has landed on both
+figures across four v8 recordings. 13 of the 36 gold genes are named verbatim in
+the rendered v8 prompt -- the `<example>` blocks that name them live in
+`prompt.md`, not the template in `pipeline/prompts.py` -- six of them with their
+expected trait and confidence, and
+`test_the_prompt_names_part_of_its_own_answer_key` pins that count so a prompt
+edit naming another gold gene fails instead of quietly inflating the figure.
 
 The 2026-09-11 re-record, against fixtures refetched through the current Europe
 PMC parser, measured the same as the one before it on Opus 5; the recording
