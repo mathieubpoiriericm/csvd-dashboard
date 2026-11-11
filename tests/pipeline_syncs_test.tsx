@@ -8,7 +8,12 @@
  * were recorded by the pipeline and then discarded.
  */
 
-import { assert, assertEquals, assertStringIncludes } from "@std/assert";
+import {
+  assert,
+  assertEquals,
+  assertMatch,
+  assertStringIncludes,
+} from "@std/assert";
 import { renderToString } from "preact-render-to-string";
 
 import { PipelineSyncs } from "../components/PipelineSyncs.tsx";
@@ -207,4 +212,10 @@ Deno.test("F24: the endpoint register sits behind a native disclosure", () => {
   const html = render([ANNOTATIONS]);
   assertStringIncludes(html, '<details class="pipeline-apis">');
   assertStringIncludes(html, "External services consulted");
+  // The register behind it is the same table the run details draw, so a
+  // service reads identically in both places.
+  assertMatch(
+    html,
+    /<details class="pipeline-apis">[\s\S]*?<table class="pipeline-table"/,
+  );
 });

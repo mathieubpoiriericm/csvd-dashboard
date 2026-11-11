@@ -1323,8 +1323,7 @@ const SPACING_ALLOWLIST = new Map<string, string>([
     "the 0.15rem (2.4px) hairline rounds here, not to a token step -- " +
     "the density-readout bar gaps (`.readout-bars` and `.readout-bar`, " +
     "app.css:1418, 1430) and " +
-    ".pipeline-badge, .pipeline-chip, .about-row, .pipeline-note-subjects, " +
-    ".pipeline-stat",
+    ".pipeline-badge, .pipeline-chip, .about-row",
   ],
   ["-1px", "the visually-hidden clip trick's negative offset, not rhythm"],
   ["0.25em", "font-relative, not rhythm (.timeline-legend-dot)"],
@@ -1377,7 +1376,8 @@ Deno.test("every border-radius is on the radius scale", () => {
   // The sweep found 49 border-radius declarations, 34 on a --svd-radius-*
   // token and 15 raw -- and every one of the 15 was 999px or 50%, the
   // pill/circle step the scale was specified with and never got. `inherit`
-  // is legitimate: .pipeline-drawer deliberately takes its card's radius.
+  // is legitimate: a surface that takes its parent's radius, as the run
+  // widget's in-card drawer did before it became a dialog.
   const offScale = radiusDeclarations().filter(({ value }) =>
     !/var\(--svd-radius-/.test(value) && value.trim() !== "inherit"
   );
@@ -1478,22 +1478,23 @@ Deno.test("F24's collapsed endpoint disclosure reports as hidden, not just as sm
   // this rule removed -- rather than the 0x0 a plain `display: none`
   // produces. The contrast probe's clipped-content check walks an
   // element's ancestors testing exactly that box, with no separate case for
-  // a collapsed disclosure, so an unhidden `<ul>` here is text the reader
+  // a collapsed disclosure, so an unhidden `<table>` here is text the reader
   // cannot see but the probe can still measure.
   const collapse = declarationsOf("display").find((d) =>
-    /^details\.pipeline-apis:not\(\[open\]\)\s*>\s*ul$/.test(d.selector)
+    /^details\.pipeline-apis:not\(\[open\]\)\s*>\s*table$/.test(d.selector)
   );
   assert(
     collapse !== undefined && collapse.value === "none",
-    "expected `details.pipeline-apis:not([open]) > ul { display: none; }` " +
+    "expected `details.pipeline-apis:not([open]) > table { display: none; }` " +
       "so a closed disclosure's rows measure 0x0 -- without it the contrast " +
       "probe's clipped-content check cannot tell them from visible text",
   );
 });
 
-Deno.test("F25's funnel figures match the totals row, family and weight", () => {
-  // .pipeline-stat-value (the ten funnel numbers) and .value-box-value (the
-  // totals row a few hundred pixels above them) are the same idea told
+Deno.test("F25's verdict figures match the totals row, family and weight", () => {
+  // .pipeline-figure-value (the run card's verdict row, and the ten funnel
+  // numbers before it) and .value-box-value (the totals row a few hundred
+  // pixels above them) are the same idea told
   // twice on one page; before this they read two different ways -- one
   // mono at --svd-weight-bold, the other plain body ink at
   // --svd-weight-bold with no font-family at all. `.about-kpi-value` is
@@ -1523,7 +1524,7 @@ Deno.test("F25's funnel figures match the totals row, family and weight", () => 
 
   for (
     const selector of [
-      ".pipeline-stat-value",
+      ".pipeline-figure-value",
       ".value-box-value",
       ".about-kpi-value",
     ]
@@ -1612,6 +1613,121 @@ Deno.test("a tip box is a note, not a framed panel", () => {
   assertMatch(rail?.value ?? "", /^2px solid /, "the rail survives");
 });
 
+Deno.test("nothing inside the run card is a framed surface", () => {
+  // An opened step was a framed box with four registration marks, holding
+  // notes that were framed boxes with four each, inside the card's: three
+  // nested frames round a sentence, against this file's own rule that a
+  // note is a rail and a wash.
+  for (const selector of [".pipeline-step-body", ".pipeline-note"]) {
+    assert(!recipeSelectorList().includes(selector), selector);
+  }
+  const rail = declarationsOf("border-left").find((d) =>
+    d.selector === ".pipeline-note"
+  );
+  assert(rail?.value.includes("var(--svd-tint)"), "a note's rail is its tint");
+});
+
+Deno.test("a step's duration is shown at every width", () => {
+  // It was `display: none` below 600px: a fact taken off the page for the
+  // readers with the least room to find it anywhere else.
+  assertEquals(
+    declarationsOf("display").filter((d) =>
+      d.selector.includes(".pipeline-step-time") && d.value === "none"
+    ),
+    [],
+  );
+});
+
+Deno.test("the run card separates its items with space and rules, never a glyph", () => {
+  // A character drawn between wrapping flex items stays at the end of the
+  // line it wrapped from, which is how every wrapped line of the old header
+  // strip came to end in a dot. No rule of the widget, or of the refresh
+  // rows that share its classes, draws one.
+  const glyphs = declarationsOf("content").filter((d) =>
+    d.value.includes("\u00b7") && d.selector.includes(".pipeline-")
+  );
+  assertEquals(glyphs, []);
+});
+
+Deno.test("the run details draw only while they are open", () => {
+  // A closed <dialog> is hidden by the user agent's own `display: none`,
+  // which any `display` on the bare selector outranks: the dialog would
+  // draw into the page, under the card, without ever being opened. Its grid
+  // is set on `[open]` alone.
+  const displays = declarationsOf("display").filter((d) =>
+    d.selector.includes(".pipeline-details") &&
+    !d.selector.includes(".pipeline-details-")
+  );
+  assertEquals(displays.map((d) => [d.selector, d.value]), [
+    [".pipeline-details[open]", "grid"],
+  ]);
+  // The panel scrolls, not the dialog: the heading, the close button and
+  // the tabs stay where they are. And each panel for itself, so a tab does
+  // not open at the scroll position the last one was left at.
+  const scrollers = declarationsOf("overflow-y").filter((d) =>
+    d.selector.startsWith(".pipeline-") && d.value === "auto"
+  );
+  assertEquals(scrollers.map((d) => d.selector), [".pipeline-panel"]);
+});
+
+Deno.test("the run details draw their focus rings inside the box that would clip them", () => {
+  // The global ring sits outside its element. A tab's row scrolls sideways,
+  // which clips it top and bottom; a panel fills a dialog that hides its
+  // overflow, which left one 2px line of the ring over the tabs' rule. Both
+  // draw the ring inset instead, in the same tokens.
+  const widths = declarationsOf("outline");
+  const offsets = declarationsOf("outline-offset");
+  for (
+    const selector of [
+      ".pipeline-tab:focus-visible",
+      ".pipeline-panel:focus-visible",
+    ]
+  ) {
+    const ring = widths.find((d) =>
+      d.selector.split(",").map((part) => part.trim()).includes(selector)
+    );
+    assert(
+      ring?.value.includes("var(--svd-focus-width)") &&
+        ring.value.includes("var(--svd-focus-color)"),
+      `${selector} draws the ring in the focus tokens`,
+    );
+    const offset = offsets.find((d) =>
+      d.selector.split(",").map((part) => part.trim()).includes(selector)
+    );
+    assertEquals(
+      offset?.value,
+      "calc(var(--svd-focus-width) * -1)",
+      `${selector} draws it inside the box`,
+    );
+  }
+});
+
+Deno.test("what the pipeline writes cannot push the run widget sideways", () => {
+  // A warning names an endpoint ("GET /europepmc/webservices/rest/:id/...")
+  // and a step's sentence can hold a token as long. Neither has a space to
+  // wrap at, and a note that did not break one scrolled the page sideways
+  // at 320px; an outcome that did not had it cut by the outcome's clip.
+  const wraps = declarationsOf("overflow-wrap");
+  for (const selector of [".pipeline-note", ".pipeline-outcome-part"]) {
+    assertEquals(
+      wraps.find((d) => d.selector === selector)?.value,
+      "anywhere",
+      selector,
+    );
+  }
+});
+
+Deno.test("a folded table row names the cells its head no longer sits over", () => {
+  // Below 600px a table's head is clipped and its rows fold into lines. A
+  // count carries its name after it ("3 rejected"); a cell of words carries
+  // its column's name before it, or "Biology safety classifier" stands in a
+  // row with nothing to say it declined the paper.
+  const leads = declarationsOf("content").find((d) =>
+    d.selector === ".pipeline-table td[data-lead]::before"
+  );
+  assert(leads?.value.includes("attr(data-lead)"), "a cell's lead is drawn");
+});
+
 Deno.test("a drawer record is a row of its list, not a framed panel", () => {
   // Framed, every record drew its own box and four registration marks inside
   // the card's frame, and a stack of them piled crosses up between every
@@ -1639,7 +1755,6 @@ Deno.test("every chip and badge is a pill", () => {
       ".date-badge",
       ".about-chip",
       ".pipeline-badge",
-      ".pipeline-badge-count",
       ".pipeline-chip",
       ".pipeline-count",
       ".timeline-tooltip-tag",
@@ -1793,17 +1908,15 @@ Deno.test("F27's source-detail row wraps below 600px the same way the api-detail
   // the same way, in the same breakpoint -- not just somewhere, which is
   // why this reads the actual `@media` block rather than searching the
   // whole file for the property names.
-  // The joined selector pair, not the bare class name: `.pipeline-step-head`
-  // and `.pipeline-step-glyph` each have a *base* rule elsewhere in the
-  // file too, so a marker that matches either of those finds the wrong
-  // (earlier) `@media (max-width: 600px)` block -- this exact two-line
-  // selector list exists nowhere but inside the block this test means to
-  // read.
+  // A selector that exists nowhere but inside the block this test means
+  // to read: `.pipeline-step-head` and its parts each have a *base* rule
+  // elsewhere in the file too, so a marker that matches one of those finds
+  // the wrong (earlier) `@media (max-width: 600px)` block.
   const block = mediaBlockContaining(
-    ".pipeline-step-glyph,\n  .pipeline-step-time {",
+    ".pipeline-figures {\n    grid-auto-flow: row;",
   );
   assert(
-    /\.pipeline-api-detail,\s*\.pipeline-source-detail\s*\{\s*margin-left:\s*0;\s*width:\s*100%;\s*\}/
+    /\.pipeline-source-detail\s*\{\s*margin-left:\s*0;\s*width:\s*100%;\s*\}/
       .test(block),
     `expected \`.pipeline-api-detail,\\n  .pipeline-source-detail { ` +
       `margin-left: 0; width: 100%; }\` inside the 600px block: ${block}`,
@@ -1817,6 +1930,7 @@ Deno.test("every control that lights on hover lights on focus-visible too", () =
     ".sidebar-toggle",
     ".filter-option",
     ".pipeline-apis summary",
+    ".pipeline-tab",
     ".figure-key > summary",
     ".phenogram-genes .tooltip-box",
     ".empty-state-clear",

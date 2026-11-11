@@ -10,13 +10,7 @@
 import encoding from "./pipeline_encoding.json" with { type: "json" };
 
 import type { IconName } from "../components/Icon.tsx";
-import type {
-  ApiService,
-  RunError,
-  RunPaper,
-  RunStep,
-  SyncSource,
-} from "./types.ts";
+import type { RunError, SyncSource } from "./types.ts";
 import { formatCount } from "./format.ts";
 
 export { formatConfidence, formatCount } from "./format.ts";
@@ -29,17 +23,12 @@ interface Badge {
 
 const RUN_STATUS = encoding.runStatus as Record<string, Badge>;
 const STEP_STATUS = encoding.stepStatus as Record<string, Badge>;
-const STEPS = encoding.steps as Record<string, { icon: IconName }>;
 const RUN_MODES = encoding.runModes as Record<string, string>;
 const SYNC_MODES = encoding.syncModes as Record<string, string>;
 const PAPER_SOURCES = encoding.paperSources as Record<string, string>;
 const ERROR_KINDS = encoding.errorKinds as Record<
   string,
   { icon: IconName; hint: string }
->;
-const WARNING_KINDS = encoding.warningKinds as Record<
-  string,
-  { icon: IconName }
 >;
 const FIELDS = encoding.fields as Record<
   string,
@@ -50,6 +39,8 @@ interface RejectionKind extends Badge {
   kind: string;
   match: string;
   strip: boolean;
+  /** What a group of these is headed in the run details; the label if none. */
+  heading?: string;
 }
 
 const REJECTION_KINDS = encoding.rejectionReasons.kinds as RejectionKind[];
@@ -86,11 +77,6 @@ export function runStatusBadge(status: string): Badge {
 /** The badge for one step. */
 export function stepStatusBadge(status: string): Badge {
   return STEP_STATUS[status] ?? UNKNOWN_BADGE;
-}
-
-/** The glyph beside a step's name. */
-export function stepIcon(key: string): IconName {
-  return STEPS[key]?.icon ?? FALLBACK_ICON;
 }
 
 /** How the run was started, in words rather than an enum value. */
@@ -137,6 +123,7 @@ export function describeRejection(
 ): {
   kind: string;
   label: string;
+  heading: string;
   icon: IconName;
   tint: string;
   detail: string;
@@ -151,12 +138,17 @@ export function describeRejection(
     return {
       kind: entry.kind,
       label: entry.label,
+      heading: entry.heading ?? entry.label,
       icon: entry.icon,
       tint: entry.tint,
       detail,
     };
   }
-  return { ...REJECTION_FALLBACK, detail: text };
+  return {
+    ...REJECTION_FALLBACK,
+    heading: REJECTION_FALLBACK.label,
+    detail: text,
+  };
 }
 
 /**
@@ -189,16 +181,6 @@ export function describeError(
     hint: kind.hint,
     detail: error.detail,
   };
-}
-
-/** A warning's glyph; its title is already a sentence from the pipeline. */
-export function warningIcon(kind: string): IconName {
-  return WARNING_KINDS[kind]?.icon ?? FALLBACK_ICON;
-}
-
-/** Everything a step warned about, counted as things rather than rows. */
-export function warningCount(step: RunStep): number {
-  return step.warnings.reduce((total, warning) => total + warning.count, 0);
 }
 
 /**
@@ -320,49 +302,26 @@ export function formatRunTimestamp(value: string): string | null {
 }
 
 /**
- * One line summarising a service's traffic.
+ * The same timestamp in its two halves, for the card: the date, which is
+ * what a reader looks for, and the time beside it, which is set muted.
  *
- * Retries and errors are named only when they happened, so a clean row
- * stays short and a troubled one is visibly different at a glance.
+ * Cut from the formatter's own parts rather than from its string, so the
+ * two halves are one clock and no word of the format is matched by name.
  */
-export function describeApi(api: ApiService): string {
-  const parts = [`${formatCount(api.calls)} call${api.calls === 1 ? "" : "s"}`];
-  if (api.retries > 0) parts.push(`${formatCount(api.retries)} retried`);
-  // "not found" reads separately from "failed" because it is the normal
-  // answer for the two open-access lookups, not a fault.
-  if (api.notFound > 0) parts.push(`${formatCount(api.notFound)} not found`);
-  if (api.errors > 0) parts.push(`${formatCount(api.errors)} failed`);
-  if (api.totalMs > 0) parts.push(formatMilliseconds(api.totalMs));
-  if (api.bytes > 0) parts.push(formatBytes(api.bytes));
-  return parts.join(" · ");
-}
-
-/**
- * One line summarising what became of a paper: how long it took and how
- * many genes it gave.
- *
- * The same register as `describeApi`, so a paper row and a service row read
- * alike: accepted is always stated, because a paper that yielded nothing is
- * a fact, and rejected only when something was.
- *
- * `written` is whether the run reached its merge. Accepted means what
- * reached the database, so a run that failed before it has genes that
- * passed validation and no more, and says "validated".
- */
-export function describePaper(paper: RunPaper, written = true): string {
-  const parts: string[] = [];
-  if (paper.processingSeconds !== null) {
-    parts.push(formatDuration(paper.processingSeconds));
-  }
-  const counted = (count: number, key: string) =>
-    `${formatCount(count)} ${field(key).label.toLowerCase()}`;
-  parts.push(
-    counted(paper.geneCount, written ? "genesAccepted" : "genesValidated"),
-  );
-  if (paper.rejectedCount > 0) {
-    parts.push(counted(paper.rejectedCount, "genesRejected"));
-  }
-  return parts.join(" · ");
+export function runWhen(
+  value: string,
+): { date: string; time: string } | null {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  const parts = RUN_DATE_FORMAT.formatToParts(date);
+  // The literal before the hour is the joint (" at "); it leads the time.
+  const joint = parts.findIndex((part) => part.type === "hour") - 1;
+  const text = (slice: Intl.DateTimeFormatPart[]) =>
+    slice.map((part) => part.value).join("");
+  return {
+    date: text(parts.slice(0, joint)),
+    time: `${text(parts.slice(joint)).trim()} UTC`,
+  };
 }
 
 /** Whether a capped list left anything out. */
@@ -375,8 +334,7 @@ export function isTruncated(shown: number, total: number): boolean {
  * errors" when the caller names what is being counted. Every caption on
  * this page that states a truncation goes through this one function, so
  * the punctuation reads the same whether or not a noun is given: no
- * terminal period, matching the widget's other one-line captions
- * (`.pipeline-provenance`, `.pipeline-tokens`).
+ * terminal period, as a one-line caption has none.
  */
 export function describeTruncation(
   shown: number,

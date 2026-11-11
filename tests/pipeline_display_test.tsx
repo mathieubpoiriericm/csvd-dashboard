@@ -7,7 +7,13 @@
  * source happened to produce.
  */
 
-import { assert, assertEquals, assertStringIncludes } from "@std/assert";
+import {
+  assert,
+  assertEquals,
+  assertMatch,
+  assertNotMatch,
+  assertStringIncludes,
+} from "@std/assert";
 import { renderToString } from "preact-render-to-string";
 
 import encoding from "../lib/pipeline_encoding.json" with { type: "json" };
@@ -15,9 +21,7 @@ import { ApiList } from "../components/ApiList.tsx";
 import { Icon, type IconName } from "../components/Icon.tsx";
 
 import {
-  describeApi,
   describeError,
-  describePaper,
   describeRefusal,
   describeRejection,
   describeSourceCounts,
@@ -34,13 +38,11 @@ import {
   paperSourceLabel,
   runModeLabel,
   runStatusBadge,
-  stepIcon,
+  runWhen,
   stepStatusBadge,
   syncModeLabel,
-  warningCount,
-  warningIcon,
 } from "../lib/pipeline_display.ts";
-import type { ApiService, RunPaper, RunStep } from "../lib/types.ts";
+import type { ApiService } from "../lib/types.ts";
 
 const API: ApiService = {
   service: "uniprot",
@@ -54,30 +56,6 @@ const API: ApiService = {
   retries: 0,
   totalMs: 0,
   bytes: 0,
-};
-
-const STEP: RunStep = {
-  key: "processing_papers",
-  label: "Retrieve & extract",
-  ordinal: 3,
-  status: "warning",
-  startedAt: null,
-  durationSeconds: 1,
-  actions: [],
-  warnings: [],
-  error: null,
-};
-
-const PAPER: RunPaper = {
-  pmid: "32517579",
-  source: "europepmc",
-  fulltext: true,
-  geneCount: 2,
-  rejectedCount: 1,
-  processingSeconds: 10.664,
-  error: null,
-  extractionModel: "claude-opus-5-5",
-  refusal: null,
 };
 
 Deno.test("formatDuration keeps the precision a reader can act on", () => {
@@ -234,65 +212,61 @@ Deno.test("describeError falls back rather than rendering nothing", () => {
   assert(described.icon.length > 0);
 });
 
-Deno.test("describeApi names trouble only when there was some", () => {
-  assertEquals(describeApi(API), "12 calls");
-  assertEquals(
-    describeApi({ ...API, calls: 1 }),
-    "1 call",
-    "singular, so a one-call service does not read as a typo",
+const heads = (markup: string) =>
+  [...markup.matchAll(/<th[^>]*>([^<]*)<\/th>/g)].map((match) => match[1]);
+
+Deno.test("ApiList is a table whose trouble columns appear only when there was trouble", () => {
+  // A clean inventory stays narrow, and a troubled one is visibly wider.
+  const clean = renderToString(<ApiList apis={[API]} />);
+  assertMatch(clean, /<table[^>]*role="table"/);
+  assertEquals(heads(clean), ["Service", "Request", "Calls", "Time", "Data"]);
+  const troubled = renderToString(
+    <ApiList apis={[API, { ...API, retries: 2, errors: 1 }]} />,
   );
-  assertEquals(
-    describeApi({ ...API, retries: 2, errors: 1, totalMs: 4100, bytes: 2048 }),
-    "12 calls · 2 retried · 1 failed · 4.1 s · 2.0 kB",
-  );
+  assertEquals(heads(troubled), [
+    "Service",
+    "Request",
+    "Calls",
+    "Retries",
+    "Failed",
+    "Time",
+    "Data",
+  ]);
 });
 
-Deno.test("a 404 reads as not found, not as a failure", () => {
+Deno.test("a 404 has a column of its own, apart from a failure", () => {
   // Both lookups that can return one treat it as the normal "no
-  // open-access copy" answer, so counting it as an error made the green
-  // badge unreachable on any run with an abstract-only paper.
-  assertEquals(
-    describeApi({ ...API, calls: 9, ok: 1, notFound: 8 }),
-    "9 calls · 8 not found",
+  // open-access copy" answer, so counting it as an error made a clean
+  // inventory unreachable on any run with an abstract-only paper.
+  const markup = renderToString(
+    <ApiList apis={[{ ...API, calls: 9, ok: 1, notFound: 8 }]} />,
   );
-  assertEquals(
-    describeApi({ ...API, calls: 9, ok: 7, notFound: 1, errors: 1 }),
-    "9 calls · 1 not found · 1 failed",
-  );
+  assertEquals(heads(markup), [
+    "Service",
+    "Request",
+    "Calls",
+    "Not found",
+    "Time",
+    "Data",
+  ]);
+  assertMatch(markup, />9<\/td><td[^>]*>8<\/td>/);
 });
 
-Deno.test("describePaper says a paper's time and genes in words", () => {
-  // The paper row used to carry these as glyph chips with hidden names, so
-  // a sighted reader decoded a clock and a check mark to learn "11 s" and
-  // "2 accepted".
-  assertEquals(describePaper(PAPER), "11 s · 2 accepted · 1 rejected");
-  // Accepted is always stated -- a paper that yielded nothing is a fact --
-  // and rejected only when something was, the way describeApi names
-  // trouble only when there was some.
-  assertEquals(
-    describePaper({ ...PAPER, geneCount: 0, rejectedCount: 0 }),
-    "11 s · 0 accepted",
+Deno.test("ApiList gives a service's time and data their units, and nothing where there was none", () => {
+  const timed = renderToString(
+    <ApiList apis={[{ ...API, totalMs: 4100, bytes: 2048 }]} />,
   );
-  // No time recorded is left out rather than printed as a dash.
-  assertEquals(
-    describePaper({ ...PAPER, processingSeconds: null }),
-    "2 accepted · 1 rejected",
-  );
-  assertEquals(
-    describePaper({
-      ...PAPER,
-      geneCount: 1234,
-      rejectedCount: 0,
-      processingSeconds: 0.04,
-    }),
-    "40 ms · 1,234 accepted",
-  );
-  // A run that never merged wrote nothing, so its papers' genes passed
-  // validation and no more.
-  assertEquals(
-    describePaper(PAPER, false),
-    "11 s · 2 validated · 1 rejected",
-  );
+  assertMatch(timed, />4\.1 s<\/td><td[^>]*>2\.0 kB<\/td>/);
+  // No request was timed and nothing was counted: two empty cells, not
+  // "0 ms" and "0 B".
+  const bare = renderToString(<ApiList apis={[API]} />);
+  assertNotMatch(bare, /0 ms|0 B/);
+});
+
+Deno.test("a service row has no glyph: its name is the name", () => {
+  // Every row carried the same two-arrows icon, which told thirteen
+  // services apart from nothing.
+  assertNotMatch(renderToString(<ApiList apis={[API]} />), /<svg/);
 });
 
 Deno.test("ApiList writes a request as one line of code, method first", () => {
@@ -336,31 +310,6 @@ Deno.test("the .pipeline-api markup lives in exactly one file", () => {
   assertEquals(offenders, []);
 });
 
-Deno.test("warningCount totals things, not rows", () => {
-  assertEquals(
-    warningCount({
-      ...STEP,
-      warnings: [
-        {
-          kind: "genes_rejected",
-          title: "",
-          count: 24,
-          detail: null,
-          subjects: [],
-        },
-        {
-          kind: "paper_retrieval_failed",
-          title: "",
-          count: 1,
-          detail: null,
-          subjects: [],
-        },
-      ],
-    }),
-    25,
-  );
-});
-
 Deno.test("badges and labels fall back rather than crashing", () => {
   assertEquals(runStatusBadge("completed").label, "Completed");
   assertEquals(runStatusBadge("invented later").label, "Unknown");
@@ -375,8 +324,6 @@ Deno.test("every fallback glyph actually renders", () => {
   // threw — taking the whole About page's render with it. Rendering is
   // the only assertion that catches a name that does not resolve.
   const unknown = [
-    warningIcon("invented later"),
-    stepIcon("invented later"),
     field("invented later").icon,
     runStatusBadge("invented later").icon,
     stepStatusBadge("invented later").icon,
@@ -451,9 +398,8 @@ Deno.test("truncation is stated rather than hidden", () => {
   // a terminal period -- while this function's callers had neither. The
   // noun is optional so PipelineRun's noun-less callers keep reading the
   // same way; the period is never added, so a caller that does supply a
-  // noun still reads like every other one-line caption on this page
-  // (`.pipeline-provenance`, `.pipeline-tokens`), neither of which ends in
-  // one either.
+  // noun still reads like every other one-line caption on this page,
+  // none of which ends in one either.
   assertEquals(
     describeTruncation(3, 12, "errors"),
     "Showing 3 of 12 errors",
@@ -509,4 +455,29 @@ Deno.test("describeRefusal labels bio and falls back for an unseen category", ()
   // A category the API adds later is still a refusal, not a blank chip.
   assertEquals(describeRefusal("zzz").label, "Safety classifier");
   assertEquals(describeRefusal("zzz"), describeRefusal("unspecified"));
+});
+
+Deno.test("runWhen gives the card its date and its time apart", () => {
+  // The card sets the date in ink and the time muted beside it. Both come
+  // from the one formatter, so they cannot name two different clocks.
+  assertEquals(runWhen("2026-08-31T02:17:55Z"), {
+    date: "August 31, 2026",
+    time: "at 02:17 UTC",
+  });
+  assertEquals(runWhen("not a date"), null);
+});
+
+Deno.test("a rejection kind is headed for a group of them, by its label unless it says otherwise", () => {
+  // The run details list rejected findings under their kind. "Low
+  // confidence" is right on one finding's pill and wrong over fourteen of
+  // them, where the heading says what they have in common.
+  assertEquals(
+    describeRejection("Low confidence: 0.30 < 0.45").heading,
+    "Under the confidence floor",
+  );
+  assertEquals(
+    describeRejection("Quote not found in the paper").heading,
+    "Quote not in paper",
+  );
+  assertEquals(describeRejection("something unforeseen").heading, "Error");
 });

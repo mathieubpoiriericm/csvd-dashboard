@@ -110,42 +110,162 @@
       "hint": "The failure matched no known category. The detail below is the exception the run raised."
     }
   },
+  "nouns": {
+    "finding": ["finding", "findings"],
+    "gene": ["gene", "genes"],
+    "paper": ["paper", "papers"]
+  },
+  "outcomes": {
+    "$comment": "The words of a step's row on the run card, after the count they follow. A count that takes a noun reads it from `nouns`, so the row says findings where the report counts findings and genes where it counts rows.",
+    "matched": "matched",
+    "new": "new",
+    "seenBefore": "seen before",
+    "read": "read",
+    "fullText": "full text",
+    "abstractOnly": "abstract only",
+    "noText": "no text",
+    "failed": "failed",
+    "extracted": "extracted",
+    "passedValidation": "passed validation",
+    "rejected": "rejected",
+    "crossChecked": "cross-checked",
+    "added": "added",
+    "updated": "updated",
+    "held": "held for more evidence",
+    "nothing": "Nothing to report",
+    "showAll": "Show all"
+  },
+  "verdict": {
+    "$comment": "The run card's verdict row: three figures a visiting researcher reads first, and the sentences that stand in for them when the run failed. `{ordinal}`, `{label}` and `{genes}` are filled by lib/pipeline_ledger.ts.",
+    "of": "of",
+    "new": "new",
+    "read": "read",
+    "inFullText": "in full text",
+    "fromAbstract": "from the abstract",
+    "written": "written",
+    "added": "added",
+    "updated": "updated",
+    "quotes": "source quotes verified",
+    "quotesSub": "found word for word in their paper",
+    "stoppedAt": "The run stopped at step {ordinal}, {label}.",
+    "stopped": "The run stopped before it finished.",
+    "nothingWritten": "Nothing was written to the database, so the dashboard's data is unchanged by this run.",
+    "alreadyWritten": "{genes} had already been written to the database."
+  },
+  "tabs": {
+    "findings": "Findings",
+    "papers": "Papers",
+    "services": "Services",
+    "setup": "Setup"
+  },
+  "findings": {
+    "$comment": "The words of the run details' Findings tab. A finding is one paper's proposal of a gene; `bridge` is the line that says why the tab's count is not the number of genes written.",
+    "bridge": "Each entry is one paper's finding. A gene found in several papers is listed once per paper, so this list can be longer than the number of genes written.",
+    "accepted": "Accepted findings",
+    "validated": "Validated, not written",
+    "notAccepted": "findings not accepted",
+    "legend": "Marked at the floors:",
+    "toUpdate": "to update a known gene",
+    "toAdd": "to add a new one"
+  },
+  "papers": {
+    "$comment": "The words of the run details' Papers table that no field already carries: three of its column heads, and who read a paper.",
+    "paper": "Paper",
+    "text": "Text",
+    "readBy": "Read by",
+    "time": "Time",
+    "primary": "Primary",
+    "fallback": "Fallback",
+    "unread": "Not read"
+  },
+  "services": {
+    "$comment": "The column heads of the services table that no field already carries.",
+    "request": "Request",
+    "notFound": "Not found",
+    "failed": "Failed",
+    "time": "Time",
+    "data": "Data"
+  },
+  "setup": {
+    "$comment": "The words of the run details' Setup tab that no field already carries: the confidence floors, the two flags, and what stands beside the duration, the tokens and the quote check.",
+    "floors": "Confidence floors",
+    "toUpdate": "to update",
+    "toAdd": "to add",
+    "validation": "Validation",
+    "validationSkipped": "Skipped",
+    "dryRun": "Dry run",
+    "dryRunValue": "Nothing was written",
+    "work": "of work, run in parallel",
+    "tokensIn": "in",
+    "tokensOut": "out",
+    "cached": "of input served from cache",
+    "cacheWritten": "written to cache",
+    "quotes": "Source quotes",
+    "of": "of",
+    "quotesFound": "found in their paper",
+    "quotesCited": "attested by the model's own citations",
+    "method": "Method",
+    "usage": "Usage and checks",
+    "log": "Step log"
+  },
   "warningKinds": {
     "search_truncated": {
-      "icon": "magnifyingGlass"
+      "icon": "magnifyingGlass",
+      "review": true,
+      "flag": ["search truncated", "searches truncated"]
     },
     "paper_retrieval_failed": {
-      "icon": "documentMinus"
+      "icon": "documentMinus",
+      "review": true,
+      "flag": ["paper failed", "papers failed"]
     },
     "genes_rejected": {
-      "icon": "funnel"
+      "icon": "funnel",
+      "review": false
     },
     "api_retried": {
-      "icon": "arrowPath"
+      "icon": "arrowPath",
+      "review": false
     },
     "api_errored": {
-      "icon": "exclamationTriangle"
+      "icon": "exclamationTriangle",
+      "review": true,
+      "flag": ["service error", "service errors"]
     },
     "model_truncated": {
-      "icon": "exclamationTriangle"
+      "icon": "exclamationTriangle",
+      "review": true,
+      "flag": ["response cut short", "responses cut short"]
     },
     "quote_unverified": {
-      "icon": "chatQuote"
+      "icon": "chatQuote",
+      "review": false
     },
     "batch_validation": {
-      "icon": "exclamationTriangle"
+      "icon": "exclamationTriangle",
+      "review": true,
+      "flag": ["check flagged", "checks flagged"]
     },
     "paper_truncated": {
-      "icon": "documentMinus"
+      "icon": "documentMinus",
+      "review": true,
+      "flag": ["paper truncated", "papers truncated"]
     },
     "paper_refused": {
-      "icon": "minusCircle"
+      "icon": "minusCircle",
+      "review": true,
+      "flag": ["paper declined", "papers declined"]
     },
     "model_fallback": {
-      "icon": "arrowsRightLeft"
+      "icon": "arrowsRightLeft",
+      "review": false
     }
   },
   "fields": {
+    "toReview": {
+      "label": "to review",
+      "icon": "exclamationTriangle"
+    },
     "runDate": {
       "label": "Run date",
       "icon": "calendar"
@@ -354,6 +474,7 @@
         "match": "Low confidence:",
         "strip": true,
         "label": "Low confidence",
+        "heading": "Under the confidence floor",
         "icon": "chartBar",
         "tint": "highlight"
       },
@@ -378,6 +499,7 @@
         "match": "Held below the insert floor:",
         "strip": true,
         "label": "Below insert floor",
+        "heading": "Held for more evidence",
         "icon": "minusCircle",
         "tint": "muted"
       }

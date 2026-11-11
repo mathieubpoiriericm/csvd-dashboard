@@ -233,7 +233,8 @@
 
   /* Elevation, retuned onto the design system's own three steps and tinted
      with the neutral ramp rather than a hard-coded indigo. Only the surfaces
-     that genuinely float read these: the two drawers and the tooltip panel.
+     that genuinely float read these: the timeline's drawer, the run details
+     dialog and the tooltip panel.
      Every other panel is a line drawing with no shadow at all. */
   --svd-shadow-xs: 0 1px 2px
     color-mix(in oklab, var(--svd-slate-900) 10%, transparent);
@@ -1378,8 +1379,6 @@ svg {
 .timeline-legend-panel,
 .phenogram-legend-panel,
 .timeline-drawer,
-.pipeline-step-body,
-.pipeline-note,
 .adapt-card,
 .login-card,
 .map-error,
@@ -1414,8 +1413,6 @@ svg {
 .timeline-legend-panel::after,
 .phenogram-legend-panel::after,
 .timeline-drawer::after,
-.pipeline-step-body::after,
-.pipeline-note::after,
 .adapt-card::after,
 .login-card::after,
 .map-error::after,
@@ -5267,7 +5264,7 @@ button.adapt-card-head:focus-visible {
    over the white plate. */
 .timeline-tooltip-title,
 .timeline-drawer-head h2,
-.pipeline-drawer-head h2 {
+.pipeline-details-head h2 {
   display: flex;
   align-items: center;
   gap: var(--svd-space-2);
@@ -5384,7 +5381,7 @@ button.adapt-card-head:focus-visible {
   box-shadow: inset 0 0 0 1px var(--svd-line);
 }
 
-/* One close button for both drawers. */
+/* One close button, for the timeline's drawer and the run details. */
 .timeline-drawer-close,
 .pipeline-drawer-close {
   flex: none;
@@ -5979,16 +5976,17 @@ button.adapt-card-head:focus-visible {
 
 /* === PIPELINE RUN WIDGET ===
 
-   The About page's run report. Every surface here joins the shared depth
-   recipe above and says what it is by re-declaring --svd-tint; the four
-   status tints are the only thing this block introduces, and each
+   The About page's run report: a card that is a verdict over a ledger of
+   steps, and the dialog behind "Run details". The card is the one framed
+   surface here; nothing inside it is. A pill, a note and a track say what
+   they are by re-declaring --svd-tint, and each of the four status tints
    resolves through a semantic token the dark blocks already override, so
    none of it needs a dark counterpart.
 
-   Status is never carried by colour alone: every badge pairs its tint
-   with a glyph and a word ("Passed", "Passed with warnings", "Failed"),
-   which is what makes the widget survive a colour-vision check and read
-   correctly to a screen reader. */
+   Status is never carried by colour alone: a pill pairs its tint with a
+   glyph and words ("Completed", "2 to review", "Failed"), a note that
+   needs a look carries a glyph and the same words for a screen reader, and
+   a drawn track has its number beside it. */
 
 /* Each tint re-declares the ink with its own step, never the fill: a chip's
    wash is its own hue, so the fill step sits on a ground it has already
@@ -6041,19 +6039,10 @@ button.adapt-card-head:focus-visible {
   box-shadow: none;
 }
 
-.pipeline-card {
-  position: relative;
-}
-
-/* Heading left, drawer trigger right -- the only row whose right side is
-   free at 1440, 1024 and 390. `justify-content: space-between` does not
-   depend on the trigger existing: with the button absent (a run with
-   nothing for the drawer to show) the heading alone still reads as a plain
-   title row. `flex-wrap` is what handles 390 -- the title ink there ends
-   around x=180 of 390, too little room beside a "View everything this run
-   recorded" label, so the button drops to its own line and starts at the
-   row's left edge (the single-item case of `space-between`) rather than the
-   label being shortened or the accessible name changing. */
+/* Heading left, "Run details" right -- the only row whose right side is
+   free at every width. `flex-wrap` is a floor: the two share a line down to
+   about 340px, and below that the button drops to its own line and starts
+   at the row's left edge rather than the heading being squeezed. */
 .pipeline-title-row {
   display: flex;
   flex-wrap: wrap;
@@ -6082,10 +6071,8 @@ button.adapt-card-head:focus-visible {
   font-weight: var(--svd-weight-bold);
 }
 
-/* A muted glyph-and-word label: the head strip's meta items and the funnel's
-   stat names. */
-.pipeline-head-meta,
-.pipeline-stat-label {
+/* A muted glyph-and-word label: the refresh rows' meta items. */
+.pipeline-head-meta {
   display: inline-flex;
   align-items: center;
   gap: var(--svd-space-2);
@@ -6093,27 +6080,84 @@ button.adapt-card-head:focus-visible {
   font-size: var(--svd-text-sm);
 }
 
-/* The funnel's names are labels under a figure rather than values beside
-   one, so they take the eyebrow the widget's panel headings take. */
-.pipeline-stat-label {
-  font-size: var(--svd-text-2xs);
-  line-height: var(--svd-leading-snug);
-  letter-spacing: var(--svd-tracking-normal);
-  text-transform: uppercase;
+/* When the run was, whether it completed, what is left to look at and how
+   long it took. The row wraps, and its items are told apart by the gap
+   alone: a glyph drawn between flex items ends whichever line it wraps on,
+   which is how every wrapped line of the old strip came to end in a dot. */
+.pipeline-when {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--svd-space-2) var(--svd-space-3);
+  margin: 0 0 var(--svd-space-4);
 }
 
-/* The head is a metadata strip like `.pipeline-provenance` further down, so
-   it joins its items the same way — but drawn rather than marked up, and
-   only between meta items: the date and the status badge are not part of
-   the run.
+.pipeline-when-date {
+  font-size: var(--svd-text-md);
+  font-weight: var(--svd-weight-bold);
+}
 
-   The separator trails its own item rather than leading the next one. The
-   strip wraps, and as a `::before` the dot led the wrapped line — a bullet
-   hanging under the date with nothing before it. */
-.pipeline-head-meta:not(:last-child)::after {
-  content: '·';
-  margin-left: var(--svd-space-2);
-  color: var(--svd-border);
+.pipeline-when-time {
+  color: var(--svd-text-muted);
+  font-weight: var(--svd-weight-regular);
+}
+
+.pipeline-when-duration {
+  color: var(--svd-text-muted);
+  font-size: var(--svd-text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The verdict: what a visiting reader came for, in three figures. Cells of
+   one drawn grid, the device the hero's totals row uses, for the same
+   reason -- a `gap` would open the shared hairlines into double lines. */
+.pipeline-figures {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  grid-auto-flow: column;
+  margin: 0 0 var(--svd-space-5);
+  border-top: 1px solid var(--svd-border);
+  border-left: 1px solid var(--svd-border);
+}
+
+.pipeline-figure {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: var(--svd-space-3) var(--svd-space-4);
+  border-right: 1px solid var(--svd-border);
+  border-bottom: 1px solid var(--svd-border);
+}
+
+/* The condensed face and --svd-weight-medium are `.about-kpi-value`'s, so
+   the page's two rows of headline numbers agree, and the contract test
+   holds them to each other. The scale is a step under the hero's: these
+   are one run's figures, not the dashboard's totals. */
+.pipeline-figure-value {
+  font-family: var(--svd-font-heading);
+  font-size: var(--svd-text-2xl);
+  font-weight: var(--svd-weight-medium);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: var(--svd-text);
+}
+
+/* "of 38": the denominator, a step smaller and muted, on the numeral's
+   baseline. */
+.pipeline-figure-value small {
+  color: var(--svd-text-muted);
+  font-size: var(--svd-text-md);
+}
+
+.pipeline-figure-label {
+  margin-top: var(--svd-space-1);
+  font-weight: var(--svd-weight-semibold);
+}
+
+.pipeline-figure-sub {
+  color: var(--svd-text-muted);
+  font-size: var(--svd-text-sm);
+  font-variant-numeric: tabular-nums;
 }
 
 /* A pill's own baseline is its word's, not its glyph's. With the glyph as the
@@ -6155,44 +6199,35 @@ button.adapt-card-head:focus-visible {
   font-weight: var(--svd-weight-semibold);
 }
 
-/* A step's warning count, as a pill inside its badge: the badge's own wash
-   one step deeper, so it reads as the badge's number rather than as a
-   second badge. It reads the badge's tint by inheritance. The badge gives
-   up most of its end padding to it, so the two pills' ends stay concentric
-   instead of the inner one floating in a wide cap. */
-.pipeline-badge-count {
-  padding: 0 var(--svd-space-2);
-  border-radius: var(--svd-radius-full);
-  background: color-mix(in oklab, var(--svd-tint) 22%, transparent);
-  font-size: var(--svd-text-2xs);
-  font-weight: var(--svd-weight-bold);
-  font-variant-numeric: tabular-nums;
-}
-
-.pipeline-badge:has(> .pipeline-badge-count) {
-  padding-right: var(--svd-space-1);
-}
-
 /* --- Steps --------------------------------------------------------- */
 
-/* The widget's two stacked lists: the steps and the drawer's services. */
-.pipeline-steps,
-.pipeline-apis ul {
+/* The ledger: one row per step, ruled from the next by a hairline the way
+   the Data Sources panel's rows are. It is the card's last block and
+   carries no margin under it, so the card's own padding is all that
+   follows the last row. */
+.pipeline-steps {
   list-style: none;
-  margin: 0 0 var(--svd-space-4);
+  margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--svd-space-2);
 }
 
+.pipeline-step {
+  border-top: 1px solid var(--svd-border);
+}
+
+/* Each row is its own grid, so no column is shared down the list. The
+   fixed tracks are what align it: the ordinal, the label column, the
+   duration and the caret hold one width on every row, and the flag is
+   pinned to the end of its cell. */
 .pipeline-step-head {
   display: grid;
-  grid-template-columns: auto auto 1fr auto auto auto;
-  align-items: center;
-  gap: var(--svd-space-3);
+  grid-template-columns:
+    1.5rem 11.5rem minmax(0, 1fr)
+    auto 4.25rem 1rem;
+  align-items: baseline;
+  gap: var(--svd-space-1) var(--svd-space-3);
   width: 100%;
-  padding: var(--svd-space-2) var(--svd-space-3);
+  padding: var(--svd-space-3);
   border: 1px solid transparent;
   border-radius: var(--svd-radius-sm);
   background: none;
@@ -6213,55 +6248,98 @@ button.adapt-card-head:focus-visible {
   border-color: var(--svd-ring-accent);
 }
 
-/* A step with nothing to expand is not a control. It keeps full contrast
-   rather than dimming: it is a real step that simply had nothing to
-   report, and greying it would read as "did not run". */
+/* A row with nothing to open is not a control. It keeps full contrast
+   rather than dimming: it is a real step that simply had nothing more to
+   say, and greying it would read as "did not run". */
 .pipeline-step-head:disabled {
   cursor: default;
 }
 
 .pipeline-step-ordinal {
-  width: 1.5rem;
   color: var(--svd-text-muted);
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
 
-.pipeline-step-glyph {
-  display: inline-flex;
-  color: var(--svd-text-muted);
-}
-
 .pipeline-step-label {
+  font-size: var(--svd-text-md);
   font-weight: var(--svd-weight-semibold);
 }
 
-/* Each step header is its own grid — six buttons, six independent column
-   sets, so nothing lines up down the list by default. Two declarations do
-   the aligning: a fixed floor under the duration, and a badge pinned to the
-   end of its cell. Without them the badge column wandered 8px between rows
-   as the duration text changed width. */
+/* A step that was not reached is the one row that is dimmed: that is what
+   dimming says. */
+.pipeline-step[data-status='skipped'] .pipeline-step-label {
+  color: var(--svd-text-muted);
+  font-weight: var(--svd-weight-regular);
+}
+
+/* What came out of the step. `overflow: hidden` is half of how the parts
+   are separated; see `.pipeline-outcome-part`. */
+.pipeline-step-outcome {
+  display: flex;
+  flex-direction: column;
+  gap: var(--svd-space-1);
+  min-width: 0;
+  overflow: hidden;
+  color: var(--svd-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The parts of a line are separated by a rule, and a rule can neither end
+   a wrapped line nor lead one. Every part draws it on its own left edge;
+   the line is pulled left by exactly that edge, so the rule of whichever
+   part starts a line -- the first, or one that wrapped -- falls outside
+   the outcome's box and is clipped. A separator character between the
+   parts would stay behind at the end of the line it wrapped from. */
+.pipeline-outcome-line {
+  display: flex;
+  flex-wrap: wrap;
+  row-gap: var(--svd-space-1);
+  margin-left: calc(-1px - var(--svd-space-3));
+}
+
+.pipeline-outcome-part {
+  /* A step's own sentence can hold a token longer than the row. It breaks
+     rather than be cut by the clip that hides the leading rule. */
+  min-width: 0;
+  overflow-wrap: anywhere;
+  margin-right: var(--svd-space-3);
+  padding-left: var(--svd-space-3);
+  border-left: 1px solid var(--svd-border);
+}
+
+/* The figure of a part, in the face and ink of the verdict's numerals and
+   at the row's own size: a readout, not a second headline. */
+.pipeline-outcome-part b {
+  font-family: var(--svd-font-heading);
+  font-size: var(--svd-text-md);
+  font-weight: var(--svd-weight-semibold);
+  color: var(--svd-text);
+}
+
+.pipeline-step-flag {
+  justify-self: end;
+}
+
 .pipeline-step-time {
-  min-width: 4.25rem;
   color: var(--svd-text-muted);
   font-size: var(--svd-text-sm);
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
 
-.pipeline-step-head .pipeline-badge {
-  justify-self: end;
-}
-
+/* On the row's first baseline with the name and the duration, whatever the
+   outcome wraps to: centred in a three-line row it floated off on its own. */
 .pipeline-step-caret {
   display: inline-flex;
+  align-self: baseline;
   color: var(--svd-text-muted);
   transition: transform var(--svd-transition);
 }
 
-/* A step with nothing to expand keeps the caret's column rather than
-   dropping the element: rendering nothing let the last row's badge and
-   duration hang 16px past the five above it. */
+/* A row with nothing to open keeps the caret's column rather than dropping
+   the element: rendering nothing let that row's flag and duration hang 16px
+   past the others. */
 .pipeline-step-head:disabled .pipeline-step-caret {
   visibility: hidden;
 }
@@ -6270,62 +6348,77 @@ button.adapt-card-head:focus-visible {
   transform: rotate(180deg);
 }
 
+/* An opened row's notes, under its label column. Not a surface: it used to
+   be a framed box with its own registration marks, holding notes that were
+   framed boxes with theirs, inside the card's. */
 .pipeline-step-body {
-  --svd-tint: var(--svd-color-primary);
-  --svd-tint-base: var(--svd-surface);
-  margin: var(--svd-space-2) 0 0 var(--svd-space-7);
-  padding: var(--svd-space-3) var(--svd-space-4);
+  margin: 0 0 var(--svd-space-4)
+    calc(1.5rem + 2 * var(--svd-space-3) + 1px);
 }
 
-.pipeline-actions {
-  margin: 0;
-  max-width: 70ch;
-  padding-left: var(--svd-space-4);
-  color: var(--svd-text-muted);
-  font-size: var(--svd-text-sm);
-}
-
-.pipeline-actions li + li {
-  margin-top: var(--svd-space-1);
-}
-
-/* A note joins the depth recipe and says what it is with the three
-   parameters, the way `.map-error` does — it used to restate the
-   gradient at its own percentages, which is the drift the recipe exists to
-   prevent. */
+/* A note is a rail and a wash in its tint, the way `.notice` is, and a
+   member of that family: no frame, no marks. Its words are the page's ink;
+   the tint is the rail's. */
 .pipeline-note {
-  --svd-tint-base: transparent;
-  display: flex;
-  align-items: flex-start;
-  gap: var(--svd-space-2);
-  margin: var(--svd-space-3) 0 0;
+  max-width: 78ch;
+  margin: var(--svd-space-2) 0 0;
+  /* A warning can name an endpoint, "GET /europepmc/webservices/rest/...",
+     which has no space to wrap at: unbroken, it ran past the note and
+     scrolled the page sideways at 320px. */
+  overflow-wrap: anywhere;
   padding: var(--svd-space-2) var(--svd-space-3);
-  border-radius: var(--svd-radius-sm);
-  color: var(--svd-tint-ink);
+  border-left: 3px solid var(--svd-tint);
+  background: color-mix(in oklab, var(--svd-tint) 7%, transparent);
   font-size: var(--svd-text-sm);
+}
+
+.pipeline-note:first-child {
+  margin-top: 0;
+}
+
+.pipeline-note-title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--svd-space-2);
+  font-weight: var(--svd-weight-semibold);
+}
+
+/* The glyph of a note that needs a look, in the tint's ink. The words
+   beside it are what say so; the glyph and the rail agree with them. */
+.pipeline-note-title > .icon {
+  align-self: center;
+  color: var(--svd-tint-ink);
+}
+
+/* A warning's explanation is prose and is set as prose. It used to share
+   the subjects' monospace rule, which put a sentence in the platform's
+   Courier beside a page of Barlow. */
+.pipeline-note-detail {
+  margin: var(--svd-space-1) 0 0;
+  color: var(--svd-text-muted);
 }
 
 .pipeline-note-subjects {
-  display: block;
-  margin-top: 2px;
+  margin-top: var(--svd-space-1);
   color: var(--svd-text-muted);
-  font-family: var(--svd-font-mono);
-  font-size: var(--svd-text-2xs);
+  font-variant-numeric: tabular-nums;
 }
 
-.pipeline-error strong {
-  display: block;
+.pipeline-note-more {
+  margin-top: var(--svd-space-1);
 }
 
-.pipeline-error-hint {
-  margin: var(--svd-space-1) 0 0;
-  max-width: 70ch;
-  color: var(--svd-text-muted);
+.pipeline-note-more summary {
+  width: fit-content;
+  color: var(--svd-link);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+  cursor: pointer;
 }
 
 /* The exception text, kept because a maintainer wants it and demoted
-   because nobody else does. It is the only monospace block in the
-   widget, and it scrolls rather than stretching the panel. */
+   because nobody else does. It is the only monospace block on the card,
+   and it scrolls rather than stretching the note. */
 .pipeline-error-detail {
   margin: var(--svd-space-2) 0 0;
   padding: var(--svd-space-2) var(--svd-space-2);
@@ -6340,61 +6433,11 @@ button.adapt-card-head:focus-visible {
   word-break: break-word;
 }
 
-/* --- Counts -------------------------------------------------------- */
-
-/* Five columns at full width rather than six: the funnel runs to ten
-   entries on a complete run, so five fills two rows exactly where six left
-   a ragged four. The list is variable-length, so this is the count that is
-   right most often, not one that is always right. */
-.pipeline-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
-  margin-bottom: var(--svd-space-4);
-  border-top: 1px solid var(--svd-border);
-  border-left: 1px solid var(--svd-border);
-}
-
-/* Cells of one drawn grid, like the totals row above -- the same device for
-   the same reason: a `gap` would open the shared hairlines into a ladder of
-   double lines. */
-.pipeline-stat {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: var(--svd-space-3);
-  border-right: 1px solid var(--svd-border);
-  border-bottom: 1px solid var(--svd-border);
-}
-
-/* These are the page's other headline numbers and sit a few hundred pixels
-   from the totals row; reading as ordinary body ink made them a second,
-   unrelated treatment of the same idea. The condensed face and
-   --svd-weight-medium match `.about-kpi-value`, the totals row's own
-   figures, so the same page's two states of this number agree -- and the
-   contract test holds the three to each other rather than to a family name.
-   The scale stays smaller on purpose: the funnel is a dense readout, not
-   four hero figures.
-
-   The indent is the label's glyph plus its gap, so the figure starts under
-   the name rather than under the icon. The glyph is 1em of the label's
-   type, which is why the width is spelled out rather than written as 1em:
-   here 1em would resolve against the figure's larger size. */
-.pipeline-stat-value {
-  padding-left: calc(var(--svd-text-2xs) + var(--svd-space-2));
-  font-family: var(--svd-font-heading);
-  font-size: var(--svd-text-md);
-  font-weight: var(--svd-weight-medium);
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-  color: var(--svd-text);
-}
-
 /* --- External services --------------------------------------------- */
 
 /* Every panel heading inside the widget is an eyebrow: condensed, small,
    tracked out, uppercase, muted. It is a label over a readout, not a
    heading competing with the section title above it. */
-.pipeline-apis h3,
 .pipeline-drawer-section h3 {
   display: flex;
   align-items: center;
@@ -6408,11 +6451,8 @@ button.adapt-card-head:focus-visible {
   color: var(--svd-text-muted);
 }
 
-/* A service, a refresh's upstream and a paper are all one row shape: a name
-   holding the 11rem label column, what it is, and on the right what came of
-   it. */
-.pipeline-api,
-.pipeline-paper,
+/* A refresh's upstream: its name in an 11rem column, and on the right
+   what came of it. */
 .pipeline-source {
   display: flex;
   flex-wrap: wrap;
@@ -6421,21 +6461,15 @@ button.adapt-card-head:focus-visible {
   font-size: var(--svd-text-sm);
 }
 
+/* A service's name, in its cell of the services table. A host name has no
+   spaces to wrap at, so it breaks anywhere rather than widen its column. */
 .pipeline-api-name {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--svd-space-2);
   font-weight: var(--svd-weight-semibold);
-  min-width: 11rem;
+  overflow-wrap: anywhere;
 }
 
-.pipeline-paper > .pipeline-fact {
-  min-width: 11rem;
-  color: var(--svd-text-muted);
-}
-
-/* A path has no spaces to wrap at, and the longest ran past the drawer's
-   edge at 320px; it breaks anywhere rather than overflow. */
+/* A path has no spaces to wrap at either, and the longest ran past the
+   edge at 320px. */
 .pipeline-api-endpoint {
   color: var(--svd-text-muted);
   font-family: var(--svd-font-mono);
@@ -6443,27 +6477,10 @@ button.adapt-card-head:focus-visible {
   overflow-wrap: anywhere;
 }
 
-.pipeline-api-detail,
-.pipeline-paper-detail,
 .pipeline-source-detail {
   margin-left: auto;
   color: var(--svd-text-muted);
   font-variant-numeric: tabular-nums;
-}
-
-.pipeline-provenance,
-.pipeline-tokens {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--svd-space-2);
-  margin: 0 0 var(--svd-space-4);
-  color: var(--svd-text-muted);
-  font-size: var(--svd-text-sm);
-}
-
-.pipeline-dot {
-  color: var(--svd-border);
 }
 
 /* --- Drawer -------------------------------------------------------- */
@@ -6496,39 +6513,385 @@ button.adapt-card-head:focus-visible {
   border-color: var(--svd-ring-accent);
 }
 
-/* The drawer covers the card rather than pushing the page down: the
-   About page is a reading column, and a section that grows by a thousand
-   rows in place would move everything under it out of view.
+/* The run details: a native modal dialog, sized to the screen. The browser
+   supplies the top layer, the focus trap, Escape and the inert page behind,
+   so this is only the box and its three rows -- the heading, the tabs, and
+   the one row that scrolls.
 
-   It is deliberately NOT a member of the depth recipe. It sits at inset: 0
-   inside the card's own padding box, so a border and halo of its own drew a
-   second hairline directly on the card's and cast a shadow inward — the
-   doubled contour the recipe's "two shadow layers, not three" rules out. It
-   takes the card's radius and paints an opaque surface, nothing more. The
-   padding matches `.card-body`, or the heading shifted 4px when it opened. */
-.pipeline-drawer {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  overflow-y: auto;
-  padding: var(--svd-space-5);
+   It replaces a drawer that sat at `inset: 0` inside the card, which made
+   the card's height the window onto everything the run recorded: 686px over
+   9,469px of it, with the close button gone after the first screen.
+
+   `display` is set only while it is open. A closed `<dialog>` is hidden by
+   the user agent's own `display: none`, which a bare `display: grid` here
+   would outrank, drawing the dialog into the page. */
+.pipeline-details {
+  width: min(65rem, calc(100vw - 2 * var(--svd-space-4)));
+  max-width: none;
+  height: calc(100dvh - 2 * var(--svd-space-5));
+  max-height: none;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--svd-border);
+  border-radius: var(--svd-radius-sm);
   background: var(--svd-surface);
-  border-radius: inherit;
+  color: var(--svd-text);
+  box-shadow: var(--svd-shadow-md);
 }
 
-.pipeline-drawer-head {
+.pipeline-details[open] {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+
+.pipeline-details::backdrop {
+  background: color-mix(in oklab, var(--svd-ink) 45%, transparent);
+}
+
+.pipeline-details-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--svd-space-3);
-  margin-bottom: var(--svd-space-4);
+  padding: var(--svd-space-5) var(--svd-space-5) var(--svd-space-3);
 }
 
 /* Size, weight and colour come from the shared drawer-heading rule above;
    only the reset is local. */
-.pipeline-drawer-head h2 {
+.pipeline-details-head h2 {
   margin: 0;
   color: var(--svd-primary);
+}
+
+/* Which run this is, under the heading: its date, its status, its
+   duration, told apart by the gap. */
+.pipeline-details-sub {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--svd-space-3);
+  margin: var(--svd-space-1) 0 0;
+  color: var(--svd-text-muted);
+  font-size: var(--svd-text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The tabs stay in one row: a wrapped tablist reads as two lists. They are
+   sized to fit a 320px screen, so the row's own scroll is a floor under a
+   fork's longer labels, not something the committed ones need. */
+.pipeline-tabs {
+  display: flex;
+  gap: var(--svd-space-1);
+  padding: 0 var(--svd-space-5);
+  overflow-x: auto;
+  border-bottom: 1px solid var(--svd-border);
+}
+
+.pipeline-tab {
+  flex: none;
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--svd-space-2);
+  padding: var(--svd-space-2) var(--svd-space-3);
+  border: 0;
+  background: none;
+  color: var(--svd-text-muted);
+  font: inherit;
+  font-weight: var(--svd-weight-semibold);
+  cursor: pointer;
+  transition: background-color var(--svd-transition),
+    color var(--svd-transition);
+}
+
+.pipeline-tab:hover,
+.pipeline-tab:focus-visible {
+  background: var(--svd-bg-hover-accent);
+  color: var(--svd-text);
+}
+
+/* The global ring sits outside its element, and both of these are inside
+   something that clips: the tabs' row scrolls sideways, which cuts a ring
+   top and bottom, and a panel fills a dialog that hides its overflow, which
+   left one 2px line of the panel's ring over the row's rule. Drawn inset,
+   in the same tokens, the whole ring is on screen. */
+.pipeline-tab:focus-visible,
+.pipeline-panel:focus-visible {
+  outline: var(--svd-focus-width) solid var(--svd-focus-color);
+  outline-offset: calc(var(--svd-focus-width) * -1);
+}
+
+/* The selected tab is in ink over a rule drawn inside its own box, so it
+   is told from the others by weight of line as well as by colour, and the
+   rule needs no negative margin to sit on the row's border. */
+.pipeline-tab[aria-selected='true'] {
+  color: var(--svd-text);
+  box-shadow: inset 0 -2px 0 var(--svd-color-primary);
+}
+
+.pipeline-tab-count {
+  color: var(--svd-text-muted);
+  font-size: var(--svd-text-sm);
+  font-weight: var(--svd-weight-regular);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The dialog's third row holds the panels, and each panel scrolls for
+   itself. One scroller for all of them carried a tab's scroll position
+   into the next: Setup opened halfway down because Findings had been read
+   to its middle. `overscroll-behavior` keeps a scroll that reaches its end
+   from carrying on into the page behind the backdrop. */
+.pipeline-panels {
+  display: grid;
+  min-height: 0;
+}
+
+.pipeline-panel {
+  min-height: 0;
+  padding: var(--svd-space-5);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* The rule above sets no `display`, so the user agent's `[hidden]` still
+   takes a panel out; this says so where the next edit will look. */
+.pipeline-panel[hidden] {
+  display: none;
+}
+
+/* --- Findings ------------------------------------------------------ */
+
+/* The line a panel opens on: what its list is, before the list. */
+.pipeline-panel-lead {
+  max-width: 78ch;
+  margin: 0 0 var(--svd-space-3);
+  color: var(--svd-text-muted);
+  font-size: var(--svd-text-sm);
+}
+
+/* The notes a panel opens on, clear of the list under them. */
+.pipeline-panel-notes {
+  margin-bottom: var(--svd-space-4);
+}
+
+/* A confidence: its number in words, then the track that draws it. */
+.pipeline-conf {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--svd-space-2);
+}
+
+/* The track runs from 0 to 1 and is filled to the finding's score, which
+   arrives as `--pipeline-conf`. A finding the run kept fills in the
+   primary; one it did not, in the muted ink, so the fill never reads as
+   "passed" on a row that did not. */
+.pipeline-conf-track {
+  position: relative;
+  flex: none;
+  width: 6rem;
+  height: 6px;
+  background: linear-gradient(
+    to right,
+    var(--svd-text-muted) var(--pipeline-conf, 0%),
+    var(--svd-border) var(--pipeline-conf, 0%)
+  );
+}
+
+.pipeline-conf-track.is-kept {
+  background: linear-gradient(
+    to right,
+    var(--svd-color-primary) var(--pipeline-conf, 0%),
+    var(--svd-border) var(--pipeline-conf, 0%)
+  );
+}
+
+/* A floor: a tick across the track, in the ink, standing a little proud of
+   it so it reads against the fill and against the empty track alike. */
+.pipeline-conf-mark {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 1px;
+  background: var(--svd-text);
+}
+
+.pipeline-conf-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--svd-space-1) var(--svd-space-2);
+  margin: 0 0 var(--svd-space-5);
+  color: var(--svd-text-muted);
+  font-size: var(--svd-text-sm);
+}
+
+/* A finding that was not accepted is one line: its symbol in the label
+   column the records share, its score, what was recorded about why, and
+   its paper at the end. */
+.pipeline-record-row {
+  display: grid;
+  grid-template-columns: 11rem auto minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--svd-space-1) var(--svd-space-4);
+  font-size: var(--svd-text-sm);
+}
+
+.pipeline-record-row:first-child {
+  padding-top: var(--svd-space-3);
+}
+
+.pipeline-record-why {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--svd-space-1) var(--svd-space-3);
+  color: var(--svd-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Tables -------------------------------------------------------- */
+
+/* The run details' tables: the papers, and the services a run called. One
+   row a thing, ruled by hairlines, with its figures set right in tabular
+   numerals so a column of them can be read down. */
+.pipeline-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--svd-text-sm);
+}
+
+.pipeline-table th {
+  padding: 0 var(--svd-space-3) var(--svd-space-2) 0;
+  border-bottom: 1px solid var(--svd-line-control);
+  color: var(--svd-text-muted);
+  font-family: var(--svd-font-heading);
+  font-size: var(--svd-text-2xs);
+  font-weight: var(--svd-weight-semibold);
+  letter-spacing: var(--svd-tracking-caps);
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.pipeline-table td {
+  padding: var(--svd-space-2) var(--svd-space-3) var(--svd-space-2) 0;
+  border-bottom: 1px solid var(--svd-border);
+  vertical-align: baseline;
+}
+
+.pipeline-table .is-numeric {
+  padding-right: 0;
+  padding-left: var(--svd-space-3);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.pipeline-table td.is-time,
+.pipeline-table td.is-zero {
+  color: var(--svd-text-muted);
+}
+
+/* The one cell that needs a look: a glyph and words, in the warning ink. */
+.pipeline-table-flag {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--svd-space-2);
+  color: var(--svd-color-warn-ink);
+  font-weight: var(--svd-weight-semibold);
+}
+
+.pipeline-table-flag > .icon {
+  align-self: center;
+}
+
+/* What the pipeline recorded about a paper that errored, under its row and
+   belonging to it: the rule between the two is dropped. */
+.pipeline-table tr:has(+ .pipeline-table-note) > td {
+  border-bottom: 0;
+}
+
+.pipeline-table-note > td {
+  padding-top: 0;
+  color: var(--svd-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.pipeline-table-note-label {
+  font-size: var(--svd-text-2xs);
+  letter-spacing: var(--svd-tracking-normal);
+  text-transform: uppercase;
+}
+
+/* --- Setup --------------------------------------------------------- */
+
+/* Two lists side by side while there is room for both, one above the other
+   when there is not. */
+.pipeline-setup {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
+  column-gap: var(--svd-space-7);
+}
+
+/* A name and what it names, in the label column the records use. */
+.pipeline-setup-list,
+.pipeline-log-row {
+  display: grid;
+  grid-template-columns: 11rem minmax(0, 1fr);
+  column-gap: var(--svd-space-3);
+}
+
+.pipeline-setup-list {
+  margin: 0;
+  font-size: var(--svd-text-sm);
+}
+
+.pipeline-setup-list dt,
+.pipeline-setup-list dd {
+  margin: 0;
+  padding: var(--svd-space-2) 0;
+  border-top: 1px solid var(--svd-border);
+}
+
+.pipeline-setup-list dt {
+  color: var(--svd-text-muted);
+}
+
+.pipeline-setup-list dd {
+  font-variant-numeric: tabular-nums;
+}
+
+/* The line under a value. A hash has no spaces to wrap at, so it breaks
+   anywhere rather than push the dialog sideways. */
+.pipeline-setup-sub {
+  display: block;
+  color: var(--svd-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.pipeline-setup-sub code {
+  font-family: var(--svd-font-mono);
+  font-size: var(--svd-text-2xs);
+}
+
+.pipeline-log {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: var(--svd-text-sm);
+}
+
+.pipeline-log-row {
+  padding: var(--svd-space-2) 0;
+  border-top: 1px solid var(--svd-border);
+}
+
+.pipeline-log-step {
+  font-weight: var(--svd-weight-semibold);
+}
+
+.pipeline-log-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--svd-space-1);
+  color: var(--svd-text-muted);
 }
 
 .pipeline-drawer-section {
@@ -6539,8 +6902,8 @@ button.adapt-card-head:focus-visible {
 
 /* A sibling block to the run widget, not a section of it, so it reuses
    the widget's own parts -- `.pipeline-head`, `.pipeline-badge`, the
-   `.pipeline-apis > ul > .pipeline-api` list -- rather than restating
-   them. Only the rows themselves are new. */
+   services table `ApiList` draws -- rather than restating them. Only the
+   rows themselves are new. */
 
 .pipeline-syncs-lead {
   margin: 0 0 var(--svd-space-4);
@@ -6633,9 +6996,8 @@ button.adapt-card-head:focus-visible {
 }
 
 /* A closed `<details>` keeps its body out of the page's layout regardless
-   of the body's own `display`, so `.pipeline-apis ul` below (`display:
-   flex`, needed for the run widget's `<section class="pipeline-apis">`,
-   which is never closed) costs no page height here. But the size
+   of the body's own `display`, so the services table costs no page
+   height here. But the size
    containment that gives a closed `<details>` that free pass is invisible
    from CSS: each row still measures its normal, non-zero
    `getBoundingClientRect()` while collapsed, rather than the 0x0 a plain
@@ -6647,7 +7009,7 @@ button.adapt-card-head:focus-visible {
    depend on one engine's internal collapse behaviour holding through a
    future rewrite of this block. `details.` keeps it off the run widget's
    `<section>`, which carries the same class but is never closed. */
-details.pipeline-apis:not([open]) > ul {
+details.pipeline-apis:not([open]) > table {
   display: none;
 }
 
@@ -6661,8 +7023,8 @@ details.pipeline-apis:not([open]) > ul {
   gap: var(--svd-space-2);
 }
 
-/* The same measure as `.pipeline-api-name`, so the upstream names and the
-   service names below them share one left edge. */
+/* The measure a record's label column holds, so a refresh's upstream names
+   line up with one another whatever their length. */
 .pipeline-source-name {
   font-weight: var(--svd-weight-semibold);
   min-width: 11rem;
@@ -6718,9 +7080,8 @@ details.pipeline-apis:not([open]) > ul {
 }
 
 /* A record's name and its fields share one grid: the name and the field
-   names in an 11rem label column -- the measure `.pipeline-api-name` holds
-   the service names to -- and what they name beside it, so a symbol, the
-   words under it and a paper's PMID all stand on one left edge. */
+   names in an 11rem label column, and what they name beside it, so a
+   symbol and the words under it stand on one left edge. */
 .pipeline-record-head,
 .pipeline-fields {
   display: grid;
@@ -6735,26 +7096,16 @@ details.pipeline-apis:not([open]) > ul {
   font-weight: var(--svd-weight-semibold);
 }
 
-/* "Confidence 1.00 · PMID 20437615": what identifies the extraction, in
-   words, with each name muted and its value in ink. */
+/* "Confidence 1.00", its track, "PMID 20437615": what identifies the
+   finding, in words, with each name muted and its value in ink. The two are
+   told apart by the gap; a dot between them ended the line it wrapped on. */
 .pipeline-facts {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  column-gap: var(--svd-space-2);
+  gap: var(--svd-space-1) var(--svd-space-4);
   color: var(--svd-text-muted);
   font-size: var(--svd-text-sm);
-}
-
-/* Trailing, like the head strip's, so a wrapped line never starts with a
-   dot. The second `content` gives the dot an empty alternative, which keeps
-   it out of what a screen reader says; an engine without the syntax drops
-   that declaration and keeps the first. */
-.pipeline-facts > .pipeline-fact:not(:last-child)::after {
-  content: '·';
-  content: '·' / '';
-  margin-left: var(--svd-space-2);
-  color: var(--svd-border);
 }
 
 .pipeline-fact-value,
@@ -6772,8 +7123,8 @@ details.pipeline-apis:not([open]) > ul {
   font-size: var(--svd-text-sm);
 }
 
-/* A field's name, in the register the funnel's stat names use -- small,
-   uppercase, muted -- so a name never reads as a value. */
+/* A field's name: small, uppercase, muted, so a name never reads as a
+   value. */
 .pipeline-fields dt {
   grid-column: 1;
   color: var(--svd-text-muted);
@@ -6781,11 +7132,6 @@ details.pipeline-apis:not([open]) > ul {
   line-height: var(--svd-leading-snug);
   letter-spacing: var(--svd-tracking-normal);
   text-transform: uppercase;
-}
-
-.pipeline-fields dt > .icon {
-  margin-right: var(--svd-space-2);
-  vertical-align: -0.125em;
 }
 
 .pipeline-fields dd {
@@ -6811,35 +7157,189 @@ details.pipeline-apis:not([open]) > ul {
   font-style: italic;
 }
 
-/* Four columns, not three: the glyph and the time are hidden below, but
-   the ordinal, label, badge and caret still lay out on one row, and a
-   three-column grid wrapped the caret onto a line of its own. */
-@media (max-width: 600px) {
+/* Below 900px a row is three lines: its name with its duration and caret,
+   then what came of it, then its flag when it has one. Beside an 11.5rem
+   label and a flag, the outcome had 170px at 768 and wrapped to five lines.
+   The duration stays at every width: it was hidden below 600px once, which
+   took a fact off the page for the readers with the least room to find it
+   elsewhere. */
+@media (max-width: 900px) {
   .pipeline-step-head {
-    grid-template-columns: auto 1fr auto auto;
-    row-gap: var(--svd-space-1);
+    grid-template-columns: 1.5rem minmax(0, 1fr) auto 1rem;
   }
 
-  .pipeline-step-glyph,
   .pipeline-step-time {
+    grid-area: 1 / 3;
+  }
+
+  .pipeline-step-caret {
+    grid-area: 1 / 4;
+  }
+
+  .pipeline-step-outcome {
+    grid-area: 2 / 2 / 3 / 5;
+  }
+
+  .pipeline-step-flag {
+    grid-area: 3 / 2 / 4 / 5;
+    justify-self: start;
+  }
+
+  .pipeline-step-flag:empty {
+    display: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .pipeline-details {
+    width: 100vw;
+    height: 100dvh;
+    border: 0;
+  }
+
+  .pipeline-details-head {
+    padding: var(--svd-space-4) var(--svd-space-4) var(--svd-space-2);
+  }
+
+  .pipeline-tabs {
+    gap: 0;
+    padding: 0 var(--svd-space-2);
+  }
+
+  .pipeline-tab {
+    padding: var(--svd-space-2);
+  }
+
+  .pipeline-panel {
+    padding: var(--svd-space-4);
+  }
+
+  .pipeline-setup-list,
+  .pipeline-log-row {
+    grid-template-columns: 8.5rem minmax(0, 1fr);
+  }
+
+  /* A table's rows fold into lines: the first cell and the duration on
+     one, the rest under them, and a count shown only when there is one,
+     with the name its column gave it. The head is clipped, not removed, so
+     the cells keep the headers they are read with. */
+  .pipeline-table,
+  .pipeline-table tbody {
+    display: block;
+  }
+
+  .pipeline-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .pipeline-table tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--svd-space-1) var(--svd-space-3);
+    padding: var(--svd-space-2) 0;
+    border-bottom: 1px solid var(--svd-border);
+  }
+
+  .pipeline-table td,
+  .pipeline-table .is-numeric {
+    padding: 0;
+    border: 0;
+    text-align: left;
+  }
+
+  /* The row's first cell, by class: this stylesheet never addresses a
+     cell by `:first-child` (see `.col-identity`). */
+  .pipeline-table td.is-lead {
+    flex: 1 1 calc(100% - 6rem);
+    order: -2;
+  }
+
+  .pipeline-table td.is-time {
+    order: -1;
+    margin-left: auto;
+  }
+
+  .pipeline-table td.is-wide {
+    flex-basis: 100%;
+  }
+
+  .pipeline-table td.is-zero,
+  .pipeline-table td:empty {
     display: none;
   }
 
-  .pipeline-paper-detail,
-  .pipeline-api-detail,
+  .pipeline-table td[data-label]::after {
+    content: ' ' attr(data-label);
+    color: var(--svd-text-muted);
+    text-transform: lowercase;
+  }
+
+  /* A cell of words carries its column's name before it: "Declined by
+     Biology safety classifier". Without it the classifier stood in the row
+     with nothing to say what it had done. */
+  .pipeline-table td[data-lead]::before {
+    content: attr(data-lead) ' ';
+    color: var(--svd-text-muted);
+  }
+
+  .pipeline-table tr:has(+ .pipeline-table-note) {
+    border-bottom: 0;
+    padding-bottom: 0;
+  }
+
+  /* The symbol and its paper on one line, then the score, then why. */
+  .pipeline-record-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .pipeline-record-row > .pipeline-conf,
+  .pipeline-record-row > .pipeline-record-why {
+    grid-column: 1 / -1;
+  }
+
+  .pipeline-record-row > .pipeline-fact {
+    grid-area: 1 / 2;
+  }
+
+  .pipeline-figures {
+    grid-auto-flow: row;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Stacked, each figure is a row of its own: the numeral in a column the
+     three share, its words beside it. */
+  .pipeline-figure {
+    display: grid;
+    grid-template-columns: 5.5rem minmax(0, 1fr);
+    column-gap: var(--svd-space-3);
+    align-items: baseline;
+    padding: var(--svd-space-3);
+  }
+
+  .pipeline-figure-value {
+    grid-row: 1 / 3;
+  }
+
+  .pipeline-figure-label {
+    margin-top: 0;
+  }
+
+  .pipeline-step-head {
+    padding: var(--svd-space-3) var(--svd-space-1);
+  }
+
+  .pipeline-step-body {
+    margin-left: calc(1.5rem + var(--svd-space-1) + var(--svd-space-3) + 1px);
+  }
+
   .pipeline-source-detail {
     margin-left: 0;
-    width: 100%;
-  }
-
-  .pipeline-paper > .pipeline-fact {
-    min-width: 0;
-  }
-
-  /* The service's name on its own line, so every request starts the second
-     one rather than the short ones fitting beside the name and the long
-     ones not. */
-  .pipeline-api-name {
     width: 100%;
   }
 
@@ -6860,40 +7360,18 @@ details.pipeline-apis:not([open]) > ul {
   }
 }
 
-/*
- * Below ~413px the status badge stops fitting beside the label. It is
- * `white-space: nowrap` on purpose -- a wrapped pill is a box with round ends
- * -- so "Passed with warnings" holds a 190px `auto` track that cannot shrink,
- * and the two warning rows pushed their caret past the viewport edge while the
- * four "Passed" rows sat comfortably inside it. Give the badge its own row
- * under the label rather than truncating a status word, and place all four
- * children explicitly: auto-placement would put the badge on row 1 and drop
- * the caret to row 2 on its own.
- */
+/* The four tabs measured 361px at their 600px sizes, 41 more than the
+   narrowest phone gives them. A step down in size and in padding brings
+   the row to the screen, so it does not scroll for the committed labels. */
 @media (max-width: 480px) {
-  .pipeline-step-head {
-    grid-template-columns: auto minmax(0, 1fr) auto;
+  .pipeline-tabs {
+    padding: 0 var(--svd-space-1);
   }
 
-  .pipeline-step-ordinal {
-    grid-area: 1 / 1;
-  }
-
-  .pipeline-step-label {
-    grid-area: 1 / 2;
-  }
-
-  .pipeline-step-caret {
-    grid-area: 1 / 3;
-  }
-
-  /* Spanning from column 1, not from the label's column: at 320px the row
-     is 218px wide inside its padding and the badge needs 190px, so the
-     ordinal's 24px track plus its gap is the difference between fitting
-     and not. */
-  .pipeline-step-head .pipeline-badge {
-    grid-area: 2 / 1 / 3 / 4;
-    justify-self: start;
+  .pipeline-tab {
+    gap: var(--svd-space-1);
+    padding: var(--svd-space-2) var(--svd-space-1);
+    font-size: var(--svd-text-sm);
   }
 }
 
