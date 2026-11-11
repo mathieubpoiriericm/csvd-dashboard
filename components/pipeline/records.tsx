@@ -95,13 +95,16 @@ export function DrawerSection<T>(
       )}
       <ul class="pipeline-records">
         {list.items.map((item, index) => (
-          <li key={keyOf(item, index)} class="pipeline-record">
-            {render(item)}
-          </li>
+          <RecordItem key={keyOf(item, index)}>{render(item)}</RecordItem>
         ))}
       </ul>
     </section>
   );
+}
+
+/** A record of a section's list: a component, because it is keyed. */
+function RecordItem({ children }: { children: ComponentChildren }) {
+  return <li class="pipeline-record">{children}</li>;
 }
 
 /** A column's head. A column of figures is set right, as its cells are. */

@@ -6113,11 +6113,24 @@ button.adapt-card-head:focus-visible {
    reason -- a `gap` would open the shared hairlines into double lines. */
 .pipeline-figures {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  /* A column a figure, however many the run has: one whose source it never
+     recorded is left out. `repeat(auto-fit, minmax(0, 1fr))` did the same
+     by accident -- with no minimum to fit to, it made a track a pixel. */
   grid-auto-flow: column;
-  margin: 0 0 var(--svd-space-5);
+  grid-auto-columns: minmax(0, 1fr);
+  margin: 0;
+  padding: 0;
+  list-style: none;
   border-top: 1px solid var(--svd-border);
   border-left: 1px solid var(--svd-border);
+}
+
+/* The verdict's block: the figures, or on a failed run the note that stands
+   in for them. The space under it is the block's, so either stands equally
+   clear of the ledger; when it was the figures' own, the note sat on the
+   ledger's first rule. */
+.pipeline-verdict {
+  margin-bottom: var(--svd-space-5);
 }
 
 .pipeline-figure {
@@ -6526,7 +6539,7 @@ button.adapt-card-head:focus-visible {
    the user agent's own `display: none`, which a bare `display: grid` here
    would outrank, drawing the dialog into the page. */
 .pipeline-details {
-  width: min(65rem, calc(100vw - 2 * var(--svd-space-4)));
+  width: min(65rem, calc(100% - 2 * var(--svd-space-4)));
   max-width: none;
   height: calc(100dvh - 2 * var(--svd-space-5));
   max-height: none;
@@ -7149,6 +7162,16 @@ details.pipeline-apis:not([open]) > table {
   gap: var(--svd-space-1) var(--svd-space-2);
 }
 
+/* A status pill is a few words and never wraps. A record's values are
+   whatever the run extracted, and an omics entry can run to hundreds of
+   characters: it wraps inside its record rather than push the dialog
+   sideways, and breaks anywhere when it holds no space to break at. */
+.pipeline-pills > .pipeline-chip {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .pipeline-quote {
   margin: 0;
   padding-left: var(--svd-space-2);
@@ -7188,11 +7211,32 @@ details.pipeline-apis:not([open]) > table {
   .pipeline-step-flag:empty {
     display: none;
   }
+
+  /* A rejected finding's row stacks at the same width: the symbol and its
+     paper on one line, then the score, then why. Side by side its four
+     columns needed 534px of the 529 the dialog gave them at 601px, and a
+     second reason's pill pushed the panel sideways. */
+  .pipeline-record-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .pipeline-record-row > .pipeline-conf,
+  .pipeline-record-row > .pipeline-record-why {
+    grid-column: 1 / -1;
+  }
+
+  .pipeline-record-row > .pipeline-fact {
+    grid-area: 1 / 2;
+  }
 }
 
 @media (max-width: 600px) {
+  /* The whole page, as the page measures itself: a modal dialog's
+     percentages are of the viewport less its scrollbar, where `100vw`
+     counts a classic scrollbar's width and put the dialog's edge under
+     it. */
   .pipeline-details {
-    width: 100vw;
+    width: 100%;
     height: 100dvh;
     border: 0;
   }
@@ -7293,23 +7337,8 @@ details.pipeline-apis:not([open]) > table {
     padding-bottom: 0;
   }
 
-  /* The symbol and its paper on one line, then the score, then why. */
-  .pipeline-record-row {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-
-  .pipeline-record-row > .pipeline-conf,
-  .pipeline-record-row > .pipeline-record-why {
-    grid-column: 1 / -1;
-  }
-
-  .pipeline-record-row > .pipeline-fact {
-    grid-area: 1 / 2;
-  }
-
   .pipeline-figures {
     grid-auto-flow: row;
-    grid-template-columns: minmax(0, 1fr);
   }
 
   /* Stacked, each figure is a row of its own: the numeral in a column the

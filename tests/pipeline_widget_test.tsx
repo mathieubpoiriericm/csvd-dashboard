@@ -103,6 +103,27 @@ Deno.test("the verdict row carries three figures and no stat grid", () => {
   );
 });
 
+Deno.test("the verdict's figures are a named list of three", () => {
+  // Three bare runs of text reached a screen reader as one sentence. A list
+  // says there are three and where each ends; its name says what they are.
+  const markup = html();
+  assertMatch(
+    markup,
+    /<ul[^>]*class="pipeline-figures"[^>]*aria-label="This run in figures"/,
+  );
+  assertEquals(markup.match(/<li[^>]*class="pipeline-figure"/g)?.length, 3);
+});
+
+Deno.test("the verdict is one block, whether it holds figures or what stopped", () => {
+  // The figures carried the space under them; the note that stands in for
+  // them on a failed run carried none, and sat on the ledger's first rule.
+  assertMatch(html(), /class="pipeline-verdict">\s*<ul[^>]*pipeline-figures/);
+  assertMatch(
+    render(runWith({ status: "failed", database: null })),
+    /class="pipeline-verdict">\s*<div class="pipeline-note pipeline-tint-danger"/,
+  );
+});
+
 Deno.test("the method and the cost are not on the card", () => {
   const card = html();
   assertNotMatch(card, /claude-opus-5|high effort|Prompt v6|PubMed search/);
@@ -266,6 +287,13 @@ Deno.test("the tabs are a tablist with one selected, and only its panel is in th
   assertEquals(markup.match(/role="tab"[^>]*tabindex="-1"/g)?.length, 3);
   // Each tab says what it counts, by the list's total.
   assertMatch(markup, />Papers.*?15</s);
+  // A tab names the panel it controls once that panel is in the page: a
+  // panel mounts when its tab is first selected, and until then the id
+  // would point at nothing.
+  assertEquals(markup.match(/aria-controls="/g)?.length, 1);
+  // The tablist is named for what it lists, not a second time for the
+  // dialog it sits in.
+  assertMatch(markup, /role="tablist"[^>]*aria-label="Sections"/);
 });
 
 Deno.test("a run with nothing listed has Setup alone", () => {

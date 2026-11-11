@@ -29,11 +29,13 @@ const tabId = (id: TabId) => `pipeline-run-tab-${id}`;
 const panelId = (id: TabId) => `pipeline-run-panel-${id}`;
 
 function Tab(
-  { id, label, count, selected, onSelect, register }: {
+  { id, label, count, selected, mounted, onSelect, register }: {
     id: TabId;
     label: string;
     count: number | null;
     selected: boolean;
+    /** Whether this tab's panel is in the page yet. */
+    mounted: boolean;
     onSelect: () => void;
     register: (element: HTMLButtonElement | null) => void;
   },
@@ -46,7 +48,9 @@ function Tab(
       id={tabId(id)}
       class="pipeline-tab"
       aria-selected={selected ? "true" : "false"}
-      aria-controls={panelId(id)}
+      // A panel mounts when its tab is first selected. Until then the id
+      // would name nothing, so the tab does not claim to control it.
+      aria-controls={mounted ? panelId(id) : undefined}
       tabIndex={selected ? 0 : -1}
       onClick={onSelect}
     >
@@ -120,7 +124,9 @@ export const RunDetails = memo(
         <div
           class="pipeline-tabs"
           role="tablist"
-          aria-label="Run details"
+          // Named for what it lists: the dialog round it is already
+          // "Run details".
+          aria-label="Sections"
           onKeyDown={(event) => {
             const next = nextTab(ids, selected, event.key);
             if (next === selected) return;
@@ -136,6 +142,7 @@ export const RunDetails = memo(
               label={entry.label}
               count={entry.count}
               selected={entry.id === selected}
+              mounted={shown.has(entry.id)}
               onSelect={() => select(entry.id)}
               register={(element) => buttons.current.set(entry.id, element)}
             />

@@ -185,12 +185,44 @@ test("the run details open as a dialog, walk their tabs, and close on Escape", a
  * is 64 characters with no space, and a publisher's host name or an
  * endpoint path has none to wrap at.
  */
-test("the open run details never scroll sideways, down to 320px", async ({ page }) => {
+/**
+ * A step's notes are in the page from the start and hidden until its row is
+ * opened, so a note too wide for a phone widens nothing until someone looks.
+ * A warning names endpoints and papers, neither of which has a space to
+ * wrap at.
+ */
+test("an opened step never scrolls the page sideways, down to 320px", async ({ page }) => {
   test.skip(
     await page.locator(".pipeline-card").count() === 0,
     "no run report recorded (data/pipeline_run.json is null)",
   );
   for (const width of [390, 320]) {
+    await page.setViewportSize({ width, height: 700 });
+    await page.goto("/");
+    await page.waitForSelector('.pipeline-card[data-hydrated="true"]');
+    const closed = page.locator('.pipeline-step-head[aria-expanded="false"]');
+    // Each click opens the first closed row, so the locator's first match
+    // is the next one.
+    for (let left = await closed.count(); left > 0; left--) {
+      await closed.first().click();
+    }
+    await expect(closed).toHaveCount(0);
+    for (const more of await page.locator(".pipeline-note-more").all()) {
+      await more.locator("summary").click();
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth))
+      .toBeLessThanOrEqual(width);
+  }
+});
+
+test("the open run details never scroll sideways, down to 320px", async ({ page }) => {
+  test.skip(
+    await page.locator(".pipeline-card").count() === 0,
+    "no run report recorded (data/pipeline_run.json is null)",
+  );
+  // 601 is the first width past the phone layout, where a row has the
+  // least room for the columns it still sets side by side.
+  for (const width of [601, 390, 320]) {
     await page.setViewportSize({ width, height: 700 });
     await page.goto("/");
     await page.waitForSelector('.pipeline-card[data-hydrated="true"]');

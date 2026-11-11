@@ -282,6 +282,9 @@ export function splitSubjects(
 
 const VERDICT = encoding.verdict;
 
+/** What the verdict's list of figures is, for a screen reader. */
+export const FIGURES_LABEL = VERDICT.label;
+
 /** The word between a figure and its denominator: "37 of 38". */
 export const OF = VERDICT.of;
 

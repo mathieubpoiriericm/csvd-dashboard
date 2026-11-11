@@ -1728,6 +1728,66 @@ Deno.test("a folded table row names the cells its head no longer sits over", () 
   assert(leads?.value.includes("attr(data-lead)"), "a cell's lead is drawn");
 });
 
+Deno.test("the verdict's grid makes a column a figure, and no more", () => {
+  // `repeat(auto-fit, minmax(0, 1fr))` has no minimum to fit to, so it made
+  // as many tracks as the row has pixels -- about 1,100 at 1440 -- to hold
+  // three figures.
+  const columns = declarationsOf("grid-template-columns").filter((d) =>
+    d.selector === ".pipeline-figures"
+  );
+  for (const d of columns) assert(!d.value.includes("auto-fit"), d.value);
+  assertEquals(
+    declarationsOf("grid-auto-columns").find((d) =>
+      d.selector === ".pipeline-figures"
+    )?.value,
+    "minmax(0, 1fr)",
+  );
+  // The space under the verdict belongs to the block that holds it, so the
+  // figures and the failed-run note stand equally clear of the ledger.
+  assert(
+    declarationsOf("margin-bottom").find((d) =>
+      d.selector === ".pipeline-verdict"
+    )?.value.includes("var(--svd-space-5)"),
+  );
+});
+
+Deno.test("the phone dialog is as wide as the page, not as the window", () => {
+  // `100vw` counts a classic scrollbar's width, so on a narrow desktop
+  // window the dialog's edge and its own scrollbar sat under the page's.
+  const widths = declarationsOf("width").filter((d) =>
+    d.selector === ".pipeline-details"
+  );
+  assert(widths.length > 0);
+  for (const d of widths) assert(!d.value.includes("vw"), d.value);
+});
+
+Deno.test("a rejected finding's row stacks from 900px, with the step rows", () => {
+  // At 601px its four columns needed 534px of the 529 the dialog gave
+  // them, and a second reason's pill pushed the panel sideways.
+  const block = mediaBlockContaining(".pipeline-step-flag:empty {");
+  assertMatch(block, /@media \(max-width: 900px\)/);
+  assertMatch(
+    block,
+    /\.pipeline-record-row \{\s*grid-template-columns: minmax\(0, 1fr\) auto;/,
+  );
+});
+
+Deno.test("a pill in a record wraps before it pushes the dialog sideways", () => {
+  // A status pill is a few words and never wraps. A record's values are
+  // whatever the run extracted: an omics entry can run to hundreds of
+  // characters, and unbroken it is wider than any dialog.
+  const selector = ".pipeline-pills > .pipeline-chip";
+  assertEquals(
+    declarationsOf("white-space").find((d) => d.selector === selector)?.value,
+    "normal",
+  );
+  assertEquals(
+    declarationsOf("overflow-wrap").find((d) => d.selector === selector)
+      ?.value,
+    "anywhere",
+  );
+});
+
 Deno.test("a drawer record is a row of its list, not a framed panel", () => {
   // Framed, every record drew its own box and four registration marks inside
   // the card's frame, and a stack of them piled crosses up between every
