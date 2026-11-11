@@ -772,3 +772,15 @@ def test_the_fallback_model_is_pinned_to_opus_4_8(
     assert EXTRACTION_FALLBACK_MODEL == "claude-opus-4-8"
     assert FALLBACK_BETA == "server-side-fallback-2026-07-01"
     assert PipelineConfig().fallback_model == "claude-opus-4-8"
+
+
+def test_the_batch_state_file_defaults_beside_the_checkpoint(monkeypatch) -> None:
+    monkeypatch.delenv("PIPELINE_BATCH_STATE_FILE", raising=False)
+    assert PipelineConfig().batch_state_file == str(
+        PROJECT_ROOT / "logs" / "pipeline_batch.json"
+    )
+
+
+def test_the_batch_state_file_can_be_overridden(monkeypatch) -> None:
+    monkeypatch.setenv("PIPELINE_BATCH_STATE_FILE", "/tmp/x/batch.json")
+    assert PipelineConfig().batch_state_file == "/tmp/x/batch.json"
