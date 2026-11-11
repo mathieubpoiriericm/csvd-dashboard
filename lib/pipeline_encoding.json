@@ -134,6 +134,22 @@
     "held": "held for more evidence",
     "nothing": "Nothing to report"
   },
+  "verdict": {
+    "$comment": "The run card's verdict row: three figures a visiting researcher reads first, and the sentences that stand in for them when the run failed. `{ordinal}`, `{label}` and `{genes}` are filled by lib/pipeline_ledger.ts.",
+    "new": "new",
+    "read": "read",
+    "inFullText": "in full text",
+    "fromAbstract": "from the abstract",
+    "written": "written",
+    "added": "added",
+    "updated": "updated",
+    "quotes": "source quotes verified",
+    "quotesSub": "found word for word in their paper",
+    "stoppedAt": "The run stopped at step {ordinal}, {label}.",
+    "stopped": "The run stopped before it finished.",
+    "nothingWritten": "Nothing was written to the database, so the dashboard's data is unchanged by this run.",
+    "alreadyWritten": "{genes} had already been written to the database."
+  },
   "warningKinds": {
     "search_truncated": {
       "icon": "magnifyingGlass",

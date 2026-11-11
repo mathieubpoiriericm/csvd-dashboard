@@ -18,6 +18,8 @@ import {
   splitSubjects,
   stepFlag,
   stepOutcome,
+  stoppedNote,
+  verdictFigures,
 } from "../lib/pipeline_ledger.ts";
 import { RUN, runWith, step, warning } from "./fixtures/pipeline_run.ts";
 
@@ -178,4 +180,73 @@ Deno.test("subjects past the eighth wait behind a disclosure", () => {
   assertEquals(splitSubjects(["GENE1"]), { shown: ["GENE1"], rest: [] });
   assert(isPmid("42169653"));
   assert(!isPmid("GENE1"));
+});
+
+Deno.test("the verdict is how much was read, what changed, and what was checked", () => {
+  assertEquals(verdictFigures(RUN), [
+    {
+      key: "papers",
+      value: "15",
+      of: "16",
+      label: "new papers read",
+      sub: "10 in full text, 5 from the abstract",
+    },
+    {
+      key: "genes",
+      value: "24",
+      of: null,
+      label: "genes written",
+      sub: "3 added, 21 updated",
+    },
+    {
+      key: "quotes",
+      value: "25",
+      of: "26",
+      label: "source quotes verified",
+      sub: "found word for word in their paper",
+    },
+  ]);
+});
+
+Deno.test("a figure with no source is left out", () => {
+  const run = runWith({
+    papers: { ...RUN.papers, newlySeen: null },
+    database: null,
+    genes: { ...RUN.genes, quotesChecked: 0, quotesVerbatim: 0 },
+  });
+  assertEquals(verdictFigures(run).map((f) => [f.key, f.of, f.label]), [
+    ["papers", null, "papers read"],
+  ]);
+  assertEquals(
+    verdictFigures(runWith({ database: { inserted: 1, updated: 0 } }))[1]
+      .label,
+    "gene written",
+  );
+});
+
+Deno.test("a failed run says where it stopped and what that means for the data", () => {
+  assertEquals(stoppedNote(RUN), null);
+  assertEquals(stoppedNote(runWith({ status: "failed", database: null })), {
+    title: "The run stopped at step 5, Merge to database.",
+    consequence:
+      "Nothing was written to the database, so the dashboard's data is unchanged by this run.",
+  });
+  assertEquals(
+    stoppedNote(runWith({ status: "failed" }))?.consequence,
+    "24 genes had already been written to the database.",
+  );
+  assertEquals(
+    stoppedNote(
+      runWith({
+        status: "failed",
+        steps: [],
+        database: { inserted: 0, updated: 0 },
+      }),
+    ),
+    {
+      title: "The run stopped before it finished.",
+      consequence:
+        "Nothing was written to the database, so the dashboard's data is unchanged by this run.",
+    },
+  );
 });

@@ -276,3 +276,87 @@ export function splitSubjects(
 ): { shown: string[]; rest: string[] } {
   return { shown: subjects.slice(0, limit), rest: subjects.slice(limit) };
 }
+
+const VERDICT = encoding.verdict;
+
+/** One figure of the verdict row: a numeral, what it is, and its breakdown. */
+export interface Figure {
+  key: "papers" | "genes" | "quotes";
+  value: string;
+  /** The denominator of "37 of 38", or `null` when the run recorded none. */
+  of: string | null;
+  label: string;
+  sub: string;
+}
+
+/**
+ * The verdict row: how much the run read, what it changed, and whether its
+ * extractions were checked against their papers.
+ *
+ * A figure whose source the run never recorded is left out rather than
+ * printed as a zero: a run that failed before its merge wrote nothing and
+ * has no `database` block, and one that checked no quote has no rate.
+ */
+export function verdictFigures(run: PipelineRun): Figure[] {
+  const { papers, genes, database } = run;
+  const figures: Figure[] = [];
+  const read = `${nounFor(papers.processed, "paper")} ${VERDICT.read}`;
+  figures.push({
+    key: "papers",
+    value: formatCount(papers.processed),
+    of: papers.newlySeen === null ? null : formatCount(papers.newlySeen),
+    label: papers.newlySeen === null ? read : `${VERDICT.new} ${read}`,
+    sub: `${formatCount(papers.fulltext)} ${VERDICT.inFullText}, ${
+      formatCount(papers.abstractOnly)
+    } ${VERDICT.fromAbstract}`,
+  });
+  if (database !== null) {
+    const written = database.inserted + database.updated;
+    figures.push({
+      key: "genes",
+      value: formatCount(written),
+      of: null,
+      label: `${nounFor(written, "gene")} ${VERDICT.written}`,
+      sub: `${formatCount(database.inserted)} ${VERDICT.added}, ${
+        formatCount(database.updated)
+      } ${VERDICT.updated}`,
+    });
+  }
+  if (genes.quotesChecked > 0) {
+    figures.push({
+      key: "quotes",
+      value: formatCount(genes.quotesVerbatim),
+      of: formatCount(genes.quotesChecked),
+      label: VERDICT.quotes,
+      sub: VERDICT.quotesSub,
+    });
+  }
+  return figures;
+}
+
+/**
+ * What stands in for the verdict row on a failed run: where it stopped, and
+ * what that means for the data the dashboard shows. `null` on any other run.
+ *
+ * The second sentence is the one a visiting researcher needs. A run that
+ * stopped before its merge changed nothing they are looking at; one that
+ * stopped after it did.
+ */
+export function stoppedNote(
+  run: PipelineRun,
+): { title: string; consequence: string } | null {
+  if (run.status !== "failed") return null;
+  const failed = run.steps.find((step) => step.status === "failed");
+  const written = run.database === null
+    ? 0
+    : run.database.inserted + run.database.updated;
+  return {
+    title: failed
+      ? VERDICT.stoppedAt.replace("{ordinal}", String(failed.ordinal))
+        .replace("{label}", failed.label)
+      : VERDICT.stopped,
+    consequence: written === 0
+      ? VERDICT.nothingWritten
+      : VERDICT.alreadyWritten.replace("{genes}", counted(written, "gene")),
+  };
+}
