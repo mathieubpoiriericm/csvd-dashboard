@@ -152,6 +152,31 @@
     "nothingWritten": "Nothing was written to the database, so the dashboard's data is unchanged by this run.",
     "alreadyWritten": "{genes} had already been written to the database."
   },
+  "tabs": {
+    "findings": "Findings",
+    "papers": "Papers",
+    "services": "Services",
+    "setup": "Setup"
+  },
+  "setup": {
+    "$comment": "The words of the run details' Setup tab that no field already carries: the confidence floors, the two flags, and what stands beside the duration, the tokens and the quote check.",
+    "floors": "Confidence floors",
+    "toUpdate": "to update",
+    "toAdd": "to add",
+    "validation": "Validation",
+    "validationSkipped": "Skipped",
+    "dryRun": "Dry run",
+    "dryRunValue": "Nothing was written",
+    "work": "of work, run in parallel",
+    "tokensIn": "in",
+    "tokensOut": "out",
+    "cached": "of input served from cache",
+    "cacheWritten": "written to cache",
+    "quotes": "Source quotes",
+    "of": "of",
+    "quotesFound": "found in their paper",
+    "quotesCited": "attested by the model's own citations"
+  },
   "warningKinds": {
     "search_truncated": {
       "icon": "magnifyingGlass",
@@ -418,6 +443,7 @@
         "match": "Low confidence:",
         "strip": true,
         "label": "Low confidence",
+        "heading": "Under the confidence floor",
         "icon": "chartBar",
         "tint": "highlight"
       },
@@ -442,6 +468,7 @@
         "match": "Held below the insert floor:",
         "strip": true,
         "label": "Below insert floor",
+        "heading": "Held for more evidence",
         "icon": "minusCircle",
         "tint": "muted"
       }

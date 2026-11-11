@@ -50,6 +50,8 @@ interface RejectionKind extends Badge {
   kind: string;
   match: string;
   strip: boolean;
+  /** What a group of these is headed in the run details; the label if none. */
+  heading?: string;
 }
 
 const REJECTION_KINDS = encoding.rejectionReasons.kinds as RejectionKind[];
@@ -137,6 +139,7 @@ export function describeRejection(
 ): {
   kind: string;
   label: string;
+  heading: string;
   icon: IconName;
   tint: string;
   detail: string;
@@ -151,12 +154,17 @@ export function describeRejection(
     return {
       kind: entry.kind,
       label: entry.label,
+      heading: entry.heading ?? entry.label,
       icon: entry.icon,
       tint: entry.tint,
       detail,
     };
   }
-  return { ...REJECTION_FALLBACK, detail: text };
+  return {
+    ...REJECTION_FALLBACK,
+    heading: REJECTION_FALLBACK.label,
+    detail: text,
+  };
 }
 
 /**

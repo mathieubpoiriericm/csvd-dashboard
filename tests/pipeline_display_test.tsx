@@ -521,3 +521,18 @@ Deno.test("runWhen gives the card its date and its time apart", () => {
   });
   assertEquals(runWhen("not a date"), null);
 });
+
+Deno.test("a rejection kind is headed for a group of them, by its label unless it says otherwise", () => {
+  // The run details list rejected findings under their kind. "Low
+  // confidence" is right on one finding's pill and wrong over fourteen of
+  // them, where the heading says what they have in common.
+  assertEquals(
+    describeRejection("Low confidence: 0.30 < 0.45").heading,
+    "Under the confidence floor",
+  );
+  assertEquals(
+    describeRejection("Quote not found in the paper").heading,
+    "Quote not in paper",
+  );
+  assertEquals(describeRejection("something unforeseen").heading, "Error");
+});
