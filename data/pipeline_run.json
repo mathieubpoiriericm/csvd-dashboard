@@ -15,7 +15,8 @@
     "skipValidation": false,
     "dryRun": false,
     "confidenceThresholdUpdate": 0.45,
-    "confidenceThresholdInsert": 0.65
+    "confidenceThresholdInsert": 0.65,
+    "batch": null
   },
   "papers": {
     "found": 1571,
@@ -44,7 +45,8 @@
     "totalTokens": 1538267,
     "cacheHitRate": 0.3194,
     "truncatedResponses": 0,
-    "estimatedCostUsd": 8.38
+    "estimatedCostUsd": 8.38,
+    "cacheCreationInputTokens": null
   },
   "database": {
     "inserted": 1,
@@ -309,15 +311,15 @@
     {
       "service": "unpaywall",
       "label": "Unpaywall",
-      "endpoint": "/v2/:id/:id",
+      "endpoint": "/v2/:id",
       "method": "GET",
-      "calls": 10,
-      "ok": 10,
+      "calls": 12,
+      "ok": 12,
       "notFound": 0,
       "errors": 0,
       "retries": 0,
-      "totalMs": 1354.9,
-      "bytes": 9569
+      "totalMs": 1599.8,
+      "bytes": 11529
     },
     {
       "service": "elsevier",
@@ -331,32 +333,6 @@
       "retries": 0,
       "totalMs": 1140.6,
       "bytes": 19870
-    },
-    {
-      "service": "unpaywall",
-      "label": "Unpaywall",
-      "endpoint": "/v2/:id/brain/:id",
-      "method": "GET",
-      "calls": 1,
-      "ok": 1,
-      "notFound": 0,
-      "errors": 0,
-      "retries": 0,
-      "totalMs": 116.3,
-      "bytes": 1207
-    },
-    {
-      "service": "unpaywall",
-      "label": "Unpaywall",
-      "endpoint": "/v2/:id/clinexprheumatol/:id",
-      "method": "GET",
-      "calls": 1,
-      "ok": 1,
-      "notFound": 0,
-      "errors": 0,
-      "retries": 0,
-      "totalMs": 128.6,
-      "bytes": 753
     },
     {
       "service": "pmc.ncbi.nlm.nih.gov",
@@ -430,8 +406,8 @@
         "pmid": "42957517",
         "source": "abstract",
         "fulltext": false,
-        "geneCount": 2,
-        "rejectedCount": 0,
+        "geneCount": 0,
+        "rejectedCount": 2,
         "processingSeconds": 28.056,
         "error": null,
         "extractionModel": "claude-opus-4-8",
@@ -518,8 +494,8 @@
         "pmid": "42225261",
         "source": "abstract",
         "fulltext": false,
-        "geneCount": 2,
-        "rejectedCount": 0,
+        "geneCount": 1,
+        "rejectedCount": 1,
         "processingSeconds": 118.774,
         "error": null,
         "extractionModel": "claude-opus-4-8",
@@ -617,8 +593,8 @@
         "pmid": "41566527",
         "source": "europepmc",
         "fulltext": true,
-        "geneCount": 1,
-        "rejectedCount": 1,
+        "geneCount": 0,
+        "rejectedCount": 2,
         "processingSeconds": 66.641,
         "error": null,
         "extractionModel": "claude-opus-4-8",
@@ -650,8 +626,8 @@
         "pmid": "41433068",
         "source": "europepmc",
         "fulltext": true,
-        "geneCount": 1,
-        "rejectedCount": 1,
+        "geneCount": 0,
+        "rejectedCount": 2,
         "processingSeconds": 85.34,
         "error": null,
         "extractionModel": "claude-opus-4-8",
@@ -694,8 +670,8 @@
         "pmid": "40796891",
         "source": "europepmc",
         "fulltext": true,
-        "geneCount": 2,
-        "rejectedCount": 1,
+        "geneCount": 1,
+        "rejectedCount": 2,
         "processingSeconds": 96.743,
         "error": null,
         "extractionModel": "claude-opus-4-8",
@@ -782,8 +758,8 @@
         "pmid": "39853935",
         "source": "europepmc",
         "fulltext": true,
-        "geneCount": 4,
-        "rejectedCount": 0,
+        "geneCount": 1,
+        "rejectedCount": 3,
         "processingSeconds": 40.415,
         "error": null,
         "extractionModel": "claude-opus-4-8",
@@ -851,7 +827,8 @@
         "mendelianRandomization": false,
         "omicsEvidence": [],
         "causalEvidenceSummary": "Established monogenic cSVD gene (Gould syndrome). This paper presents new functional data: Col4a2+/G646D mice, which develop spontaneous ICH, show age-dependent loss of myogenic tone in pial arteries. The mechanism is PKA-dependent RyR2 cluster enlargement, which raises Ca2+ spark and BK channel activity; PKA inhibition rescues it. The human GWAS links to lacunar stroke and deep ICH are background citations.",
-        "sourceQuote": "These findings identify age-dependent, PKA-mediated nanoscale remodeling of RyR2 clusters as a central mechanism of cerebrovascular dysfunction in cSVDs associated with mutant COL4A2."
+        "sourceQuote": "These findings identify age-dependent, PKA-mediated nanoscale remodeling of RyR2 clusters as a central mechanism of cerebrovascular dysfunction in cSVDs associated with mutant COL4A2.",
+        "citationOnly": false
       },
       {
         "symbol": "COL4A1",
@@ -864,7 +841,8 @@
         "mendelianRandomization": false,
         "omicsEvidence": [],
         "causalEvidenceSummary": "Established monogenic cSVD gene. This paper adds new mouse data (Supplemental Figure 1): parenchymal arteriole myogenic tone is impaired in Col4a1 G394V and G1344D mutant mice, extending earlier TRPM4-related findings.",
-        "sourceQuote": "In Col4a1 mutant mice, myogenic tone is defective in both cerebral pial arteries ( 17 , 18 ) and parenchymal arterioles ( Supplemental Figure 1 , A to D )."
+        "sourceQuote": "In Col4a1 mutant mice, myogenic tone is defective in both cerebral pial arteries ( 17 , 18 ) and parenchymal arterioles ( Supplemental Figure 1 , A to D ).",
+        "citationOnly": false
       },
       {
         "symbol": "COL4A1",
@@ -877,7 +855,8 @@
         "mendelianRandomization": false,
         "omicsEvidence": [],
         "causalEvidenceSummary": "The paper presents new functional animal-model data: endothelium-specific CRISPR deletion of Col4a1 (human ortholog COL4A1) in adult mouse brain microvessels was sufficient to generate cerebral microbleeds with high penetrance and dose-dependent tunability, accompanied by basement-membrane thinning. This is functional validation of causality in a cSVD-relevant cell type (brain endothelium), independent of the gene's known monogenic status.",
-        "sourceQuote": "This work provides the first animal model demonstrating that selective disruption of collagen IV in adult brain microvessels is sufficient to generate CMBs with high penetrance and dose-dependent tunability."
+        "sourceQuote": "This work provides the first animal model demonstrating that selective disruption of collagen IV in adult brain microvessels is sufficient to generate CMBs with high penetrance and dose-dependent tunability.",
+        "citationOnly": false
       },
       {
         "symbol": "NOTCH3",
@@ -888,7 +867,8 @@
         "mendelianRandomization": false,
         "omicsEvidence": [],
         "causalEvidenceSummary": "This paper presents NEW functional data: a novel CRISPR/Cas9 mouse model harboring the NOTCH3 p.R545C mutation (orthologous to human R544C, the common East Asian CADASIL variant). The model recapitulates key CADASIL/cSVD features including age-dependent cognitive deficits, blood-brain barrier disruption, granular osmiophilic material deposition, and cerebrovascular degeneration, providing new mechanistic validation of NOTCH3 in small vessel disease.",
-        "sourceQuote": "Given the high prevalence of the NOTCH3 p.Arg544Cys (R544C) mutation in East Asian populations, we developed a novel CRISPR/Cas9-mediated mouse model harboring the NOTCH3 p.R545C point mutation (orthologous to human R544C) to dissect the underlying CADASIL pathogenesis."
+        "sourceQuote": "Given the high prevalence of the NOTCH3 p.Arg544Cys (R544C) mutation in East Asian populations, we developed a novel CRISPR/Cas9-mediated mouse model harboring the NOTCH3 p.R545C point mutation (orthologous to human R544C) to dissect the underlying CADASIL pathogenesis.",
+        "citationOnly": false
       },
       {
         "symbol": "NOTCH3",
@@ -902,7 +882,8 @@
         "mendelianRandomization": false,
         "omicsEvidence": [],
         "causalEvidenceSummary": "NOTCH3 is the established monogenic cause of CADASIL, the most common hereditary cSVD. This paper presents substantial NEW functional data: biochemical demonstration that CADASIL mutant NOTCH3 ECD aggregation is strictly dependent on interactions with wild-type NOTCH3 (independent of disulphide bonding), gain-of-function JAG1-dependent signaling for EGFr4 mutations, and proof-of-principle therapeutic peptide inhibitors. Patient neuroimaging with specific NOTCH3 variants shows cSVD-specific phenotypes (WMH, lacunes). Validated causal monogenic gene with new mechanistic/variant-level evidence.",
-        "sourceQuote": "(2–4) Neuroimaging of a 68‐year‐old female with a p.Cys162Trp NOTCH3 variant (2); a 67‐year‐old male with a p.Cys183Tyr NOTCH3 variant (3); and a 58‐year‐old female with a p.Cys1015Arg NOTCH3 variant (4) demonstrates extensive white matter hyperintensities, as well as lacunes resulting from ischaemic events (arrowheads)."
+        "sourceQuote": "(2–4) Neuroimaging of a 68‐year‐old female with a p.Cys162Trp NOTCH3 variant (2); a 67‐year‐old male with a p.Cys183Tyr NOTCH3 variant (3); and a 58‐year‐old female with a p.Cys1015Arg NOTCH3 variant (4) demonstrates extensive white matter hyperintensities, as well as lacunes resulting from ischaemic events (arrowheads).",
+        "citationOnly": false
       },
       {
         "symbol": "NOTCH3",
@@ -913,7 +894,8 @@
         "mendelianRandomization": false,
         "omicsEvidence": [],
         "causalEvidenceSummary": "NOTCH3 is the established monogenic cause of CADASIL, the most common monogenic form of cerebral small vessel disease. This paper presents NEW functional evidence: a newly generated NOTCH3-R545C CADASIL mouse model showing anxiety-like behavior, spatial memory deficits, and age-dependent loss of mural cell coverage, plus a novel mechanism whereby NOTCH3 mutations reduce SUMOylation of NOTCH3ICD, destabilizing it and impairing NOTCH3-RBPjk transcriptional complex formation, cell survival, and proliferation in cerebral VSMCs.",
-        "sourceQuote": "In this study, we have successfully established a CADASIL mouse model carrying the arginine-to-cysteine mutation at amino acid position 545 on a C57BL/6J background (referred to as NOTCH3-R545C)."
+        "sourceQuote": "In this study, we have successfully established a CADASIL mouse model carrying the arginine-to-cysteine mutation at amino acid position 545 on a C57BL/6J background (referred to as NOTCH3-R545C).",
+        "citationOnly": false
       },
       {
         "symbol": "CDKN2A",
@@ -926,7 +908,8 @@
           "scRNA-seq annotation"
         ],
         "causalEvidenceSummary": "Endothelial-specific AAV-BR1 overexpression of human CDKN2A/p16INK4A in adult mice induced core cSVD phenotypes (BBB breakdown, neurovascular uncoupling, reduced CBF, capillary stalling, cognitive impairment), providing direct functional/animal-model evidence of a causal role in cSVD pathogenesis. No human genetic association is presented in this paper.",
-        "sourceQuote": "Here, we demonstrate that a single intraperitoneal injection of modified adeno-associated virus (AAV) harboring CDKN2A/p16 INK4A leads to cSVD phenotypes accompanied by altered neurobehaviors and cerebrovascular transcriptomes in mice."
+        "sourceQuote": "Here, we demonstrate that a single intraperitoneal injection of modified adeno-associated virus (AAV) harboring CDKN2A/p16 INK4A leads to cSVD phenotypes accompanied by altered neurobehaviors and cerebrovascular transcriptomes in mice.",
+        "citationOnly": false
       },
       {
         "symbol": "TREX1",
@@ -941,7 +924,8 @@
           "WES/WGS"
         ],
         "causalEvidenceSummary": "TREX1 is the established monogenic cause of RVCL-S, a cerebral small vessel disease. This paper presents NEW data: population-level analysis of truncating variants in UK Biobank (469,229 participants) linking variant severity to exonuclease activity and phenotype, plus new functional validation showing that an RVCL-S TREX1 mutant allele (V235fs) causes DNA damage, chromatin bridges and cell-cycle defects in human brain endothelial cells, rescued by abolishing exonuclease activity. This is a cSVD-specific monogenic gene with new mechanistic and variant-level evidence.",
-        "sourceQuote": "In summary, the introduction of an RVCL-S-associated TREX1 mutated allele in human endothelial cells caused accumulation of DNA damage, chromatin bridge formation and cell cycle alterations."
+        "sourceQuote": "In summary, the introduction of an RVCL-S-associated TREX1 mutated allele in human endothelial cells caused accumulation of DNA damage, chromatin bridge formation and cell cycle alterations.",
+        "citationOnly": false
       },
       {
         "symbol": "NOTCH3",
@@ -956,7 +940,8 @@
           "scRNA-seq annotation"
         ],
         "causalEvidenceSummary": "This paper presents new functional data: in the CADASIL Notch3-R170C mouse model, NOTCH3 mutation causes reduced AQP4 expression and impaired glymphatic influx/efflux, and CADASIL patients show increased enlarged perivascular space (EPVS) burden associated with brain atrophy. This is functional/mechanistic evidence linking NOTCH3 to a cSVD phenotype (PVS enlargement/glymphatic dysfunction), not a GWAS/MR finding.",
-        "sourceQuote": "The current study demonstrates that NOTCH3 mutation leads to reduced AQP4 expression and impaired glymphatic functions."
+        "sourceQuote": "The current study demonstrates that NOTCH3 mutation leads to reduced AQP4 expression and impaired glymphatic functions.",
+        "citationOnly": false
       },
       {
         "symbol": "HTRA1",
@@ -964,10 +949,11 @@
         "confidence": 0.55,
         "gwasTraits": [],
         "proteinName": "High-temperature requirement serine peptidase A1",
-        "mendelianRandomization": false,
+        "mendelianRandomization": null,
         "omicsEvidence": [],
         "causalEvidenceSummary": "This paper presents NEW functional data for a known monogenic cSVD gene: an HTRA1 missense mutation (p.Arg302Gln) was overexpressed in mouse brain microvascular endothelial cells (bEnd.3), reducing HTRA1 expression and increasing ROS, TGF-β/Smads signaling, and caspase-3-mediated apoptosis via the oxidative stress pathway. This is cell-model functional evidence (no human genetic association or cSVD-phenotype GWAS in this paper), supporting a mechanistic causal link to cSVD.",
-        "sourceQuote": "Lentivirus-mediated missense mutation in HtrA1 leads to activation of the TGF-β/Smads pathway and to increased apoptosis of mouse brain microvascular endothelial cells via the oxidative stress pathway."
+        "sourceQuote": "Lentivirus-mediated missense mutation in HtrA1 leads to activation of the TGF-β/Smads pathway and to increased apoptosis of mouse brain microvascular endothelial cells via the oxidative stress pathway.",
+        "citationOnly": true
       }
     ]
   },

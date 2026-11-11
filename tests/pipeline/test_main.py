@@ -983,3 +983,24 @@ class TestSecretRedaction:
         _RedactSecrets().filter(record)
         assert record.args == (3,)
         assert record.getMessage() == "processed 3 papers"
+
+
+def test_a_failure_summary_keeps_the_cause_beside_the_outcome() -> None:
+    # `NoPaperProcessedError` says what happened and carries why in
+    # `detail`; the digest prints the summary's one string, so without the
+    # detail it named the outcome and no cause.
+    from pipeline.main import _failure_summary
+
+    summary = _failure_summary(
+        "pubmed",
+        NoPaperProcessedError(
+            "None of the 3 new papers could be processed",
+            detail="PMID 111: ANTHROPIC_API_KEY is required",
+        ),
+    )
+    assert summary["status"] == "failed"
+    assert summary["errors"] == [
+        "None of the 3 new papers could be processed "
+        "(PMID 111: ANTHROPIC_API_KEY is required)"
+    ]
+    assert _failure_summary("pubmed", RuntimeError("boom"))["errors"] == ["boom"]

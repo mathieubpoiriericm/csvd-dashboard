@@ -23,13 +23,16 @@ Anthropic row undercounts the SDK's own retries -- `build_async_client` keeps
 `anthropic.DEFAULT_MAX_RETRIES` -- and is left that way). An unregistered host
 records under its own hostname rather than being dropped.
 
-**A DOI in a path is one identifier.** `normalize_path` collapses a segment
-that holds a digit, and a DOI's suffix has slashes and digit-free segments, so
+**A DOI in a path is one identifier.** `normalize_path` collapses a segment that
+holds a digit, and a DOI's suffix has slashes and digit-free segments, so
 Unpaywall's one endpoint was published as three rows (`/v2/:id/:id`,
 `/v2/:id/brain/:id`, `/v2/:id/clinexprheumatol/:id`), each with its own retry
 and error warnings. The registrant prefix (`10.` and four to nine digits) now
 opens an identifier that runs to the end of the path. A report stored before
-that keeps its rows: the export re-derives labels, not endpoints.
+that lost the prefix with the rest of the path, so `relabel_api_rows` folds only
+an endpoint known to end in a DOI (`_DOI_ENDPOINTS`: Unpaywall's `/v2`), sums
+the rows that become one, and re-sorts as the recorder does; a publisher host's
+stored path is left alone.
 
 **What stays out of `SERVICES`, and why.** The fallback above exists for one
 real case, not as a waiting room: `download_and_parse_pdf` follows whatever

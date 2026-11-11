@@ -207,6 +207,18 @@ class TestBuildSyncReport:
         # in a file a human reviews in `git diff`.
         assert _build().duration_seconds == 91.235
 
+    def test_a_refresh_that_reported_no_counts_lists_no_sources(self) -> None:
+        # An exception or the timeout leaves `_failure_summary`'s empty
+        # metrics, and every source built from them is 0/0/0, which the
+        # page words as "nothing to do": a source never reached, or one
+        # that wrote 87 rows before the failure, read as having had no work.
+        failed = _build(status="failed", errors=["RuntimeError: boom"])
+        assert failed.status == "failed"
+        assert failed.sources == []
+        # A refresh that did report says so, zeros included.
+        reported = _build(metrics={"clinvar_fetched": 0})
+        assert [source.key for source in reported.sources][0] == "clinvar"
+
     def test_errors_are_capped_and_counted(self) -> None:
         report = _build(errors=[f"error {n}" for n in range(DETAIL_CAP + 5)])
         assert report.errors.total == DETAIL_CAP + 5

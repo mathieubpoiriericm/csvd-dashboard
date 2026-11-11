@@ -39,6 +39,7 @@ const RUN: PipelineRun = {
     dryRun: false,
     confidenceThresholdUpdate: 0.45,
     confidenceThresholdInsert: 0.65,
+    batch: null,
   },
   papers: {
     found: 40,
@@ -68,6 +69,7 @@ const RUN: PipelineRun = {
     cacheHitRate: 0.4676,
     truncatedResponses: 0,
     estimatedCostUsd: 1.38,
+    cacheCreationInputTokens: null,
   },
   database: { inserted: 3, updated: 21 },
   steps: [
@@ -184,6 +186,7 @@ const RUN: PipelineRun = {
         omicsEvidence: ["MAGMA"],
         causalEvidenceSummary: "Validated monogenic cause of cSVD.",
         sourceQuote: "The diagnosis is established by molecular testing.",
+        citationOnly: false,
       },
     ],
   },
@@ -453,6 +456,39 @@ Deno.test("a gene's Mendelian randomization support is shown when it has it", ()
   };
   const markup = renderToString(<PipelineRunDetails run={supported} />);
   assertMatch(markup, shown);
+});
+
+Deno.test("a citation-only gene says so in place of the claims it did not make", () => {
+  // The merge gave it a PMID, a quote and a score and withheld the rest,
+  // so the record carries no trait or omics pill; without a word for it
+  // the gene would read as one the model found nothing about.
+  const cited = {
+    ...RUN,
+    acceptedGenes: {
+      shown: 1,
+      total: 1,
+      items: [{
+        ...RUN.acceptedGenes.items[0],
+        gwasTraits: [],
+        omicsEvidence: [],
+        mendelianRandomization: null,
+        citationOnly: true,
+      }],
+    },
+  };
+  const drawer = renderToString(<PipelineRunDetails run={cited} />);
+  assertStringIncludes(drawer, "Written as");
+  assertStringIncludes(drawer, "Citation only");
+  assert(!details().includes("Citation only"));
+});
+
+Deno.test("the header says when the Batch API extracted the run", () => {
+  const batched = { ...RUN, config: { ...RUN.config, batch: true } };
+  assertStringIncludes(
+    renderToString(<PipelineRunView run={batched} />),
+    "Batch API",
+  );
+  assert(!html().includes("Batch API"));
 });
 
 Deno.test("a record names its fields in a column of labels, not in chips", () => {

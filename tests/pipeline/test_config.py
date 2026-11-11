@@ -161,6 +161,35 @@ class TestPipelineConfigDefaults:
         gene = schema["$defs"]["GeneEntry"]
         assert set(gene["properties"]["gwas_trait"]["items"]["enum"]) == expected
 
+    def test_every_enum_in_the_tool_schema_states_its_type(self):
+        """The schema is text the model reads, so its shape is pinned here.
+
+        `transform_schema` is the SDK's, and the SDK moved it: somewhere after
+        anthropic 2.4 it began dropping `"type"` from any node that carries an
+        `enum`, so the bump of 2026-11-09 changed the tool definition every
+        extraction is sent under with no test failing. The only tests that
+        compare it to what was recorded need the gitignored cassettes and
+        never run in CI. Every recall and provenance figure in the rules
+        was measured with the type stated, so the pipeline states it.
+        """
+
+        def enums(node: object):
+            if isinstance(node, dict):
+                if "enum" in node:
+                    yield node
+                for value in node.values():
+                    yield from enums(value)
+            elif isinstance(node, list):
+                for value in node:
+                    yield from enums(value)
+
+        nodes = list(enums(PipelineConfig().extraction_tool["input_schema"]))
+        # The trait list and the omics study type, at least.
+        assert len(nodes) >= 2
+        for node in nodes:
+            assert all(isinstance(member, str) for member in node["enum"])
+            assert node.get("type") == "string"
+
     def test_the_truncation_limit_is_sized_for_a_1m_context(self):
         """100,000 chars was a 200K-context limit; Opus 5.5 has 1M.
 

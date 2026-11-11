@@ -16,7 +16,12 @@ from unittest.mock import AsyncMock, MagicMock
 import asyncpg
 import pytest
 
-from pipeline.export.lookups import read_pipeline_run, read_sync_runs
+from pipeline.config import PROJECT_ROOT
+from pipeline.export.lookups import (
+    published_run_report,
+    read_pipeline_run,
+    read_sync_runs,
+)
 
 
 def _connection(mocker, row: Any) -> MagicMock:
@@ -56,6 +61,100 @@ class TestReadPipelineRun:
         # rather than missing -- the TypeScript side describes them.
         assert result["papers"]["processed"] == 0
         assert result["steps"] == []
+
+    async def test_an_older_reports_paper_counts_are_brought_up_to_date(
+        self, mocker
+    ) -> None:
+        # A report stored before a paper's `geneCount` meant "accepted"
+        # counts the genes the insert floor held, so the drawer read "2
+        # accepted" on a paper with none in the accepted list. The list is
+        # complete here, so the count can be told from it: the held ones
+        # move to the paper's rejected count, where the drawer lists them.
+        paper = {"pmid": "1", "source": "abstract", "geneCount": 2, "rejectedCount": 1}
+        stored = _stored(
+            database={"inserted": 0, "updated": 1},
+            papersDetail={
+                "shown": 2,
+                "total": 2,
+                "items": [paper, {**paper, "pmid": "2", "geneCount": 1}],
+            },
+            acceptedGenes={
+                "shown": 1,
+                "total": 1,
+                "items": [{"symbol": "NOTCH3", "pmid": "2"}],
+            },
+        )
+        _connection(mocker, {"report": json.dumps(stored)})
+
+        result = await read_pipeline_run()
+
+        assert result is not None
+        counts = [
+            (p["pmid"], p["geneCount"], p["rejectedCount"])
+            for p in result["papersDetail"]["items"]
+        ]
+        assert counts == [("1", 0, 3), ("2", 1, 1)]
+
+    async def test_an_older_report_learns_which_updates_were_citations_only(
+        self, mocker
+    ) -> None:
+        # An accepted gene is an existing one (a new one below the floor is
+        # held), so one whose best score in the run sat below the insert
+        # floor took a citation and no claim. A report stored before the
+        # merge said so still shows the trait the row never took.
+        def gene(symbol: str, pmid: str, confidence: float) -> dict[str, Any]:
+            return {
+                "symbol": symbol,
+                "pmid": pmid,
+                "confidence": confidence,
+                "gwasTraits": ["WMH"],
+                "mendelianRandomization": True,
+                "omicsEvidence": ["TWAS"],
+                "sourceQuote": "A sentence.",
+            }
+
+        genes = [
+            gene("HTRA1", "1", 0.55),
+            # Decided on its best score, which clears the floor.
+            gene("NOTCH3", "1", 0.5),
+            gene("NOTCH3", "2", 0.9),
+        ]
+        stored = _stored(
+            config={"confidenceThresholdInsert": 0.65},
+            database={"inserted": 0, "updated": 2},
+            acceptedGenes={"shown": 3, "total": 3, "items": genes},
+        )
+        _connection(mocker, {"report": json.dumps(stored)})
+
+        result = await read_pipeline_run()
+
+        assert result is not None
+        htra1, *notch3 = result["acceptedGenes"]["items"]
+        assert htra1["citationOnly"] is True
+        assert htra1["gwasTraits"] == []
+        assert htra1["omicsEvidence"] == []
+        assert htra1["mendelianRandomization"] is None
+        assert htra1["sourceQuote"] == "A sentence."
+        assert [g["citationOnly"] for g in notch3] == [False, False]
+        assert notch3[0]["gwasTraits"] == ["WMH"]
+
+    async def test_a_capped_accepted_list_leaves_the_counts_alone(
+        self, mocker
+    ) -> None:
+        # With genes left out of the list, a paper's share cannot be told
+        # from it, and a guess would publish zeros.
+        paper = {"pmid": "1", "source": "abstract", "geneCount": 2, "rejectedCount": 0}
+        stored = _stored(
+            database={"inserted": 0, "updated": 1},
+            papersDetail={"shown": 1, "total": 1, "items": [paper]},
+            acceptedGenes={"shown": 0, "total": 300, "items": []},
+        )
+        _connection(mocker, {"report": json.dumps(stored)})
+
+        result = await read_pipeline_run()
+
+        assert result is not None
+        assert result["papersDetail"]["items"][0]["geneCount"] == 2
 
     async def test_an_empty_table_is_none_not_an_error(self, mocker) -> None:
         _connection(mocker, None)
@@ -183,3 +282,19 @@ class TestReadPipelineRun:
 
         assert [row["label"] for row in result[0]["apis"]] == ["SAGE Journals"]
         assert result[0]["apis"][0]["service"] == "sage"
+
+
+def test_the_committed_run_report_is_what_the_export_writes() -> None:
+    """The committed file is a fixed point of the export's own pass.
+
+    The export re-validates the stored report and brings it up to date
+    (`published_run_report`). A committed file that pass would change is
+    one the next `deno task data` rewrites, which is how a correction to
+    the pass reaches the page without anyone regenerating the data.
+    """
+    committed = json.loads(
+        (PROJECT_ROOT / "data" / "pipeline_run.json").read_text(encoding="utf-8")
+    )
+    if committed is None:
+        pytest.skip("data/pipeline_run.json holds no report")
+    assert published_run_report(committed) == committed

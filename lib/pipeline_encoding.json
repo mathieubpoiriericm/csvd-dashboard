@@ -210,6 +210,14 @@
       "label": "Validated",
       "icon": "checkBadge"
     },
+    "writtenAs": {
+      "label": "Written as",
+      "icon": "circleStack"
+    },
+    "batch": {
+      "label": "Batch API",
+      "icon": "circleStack"
+    },
     "genesRejected": {
       "label": "Rejected",
       "icon": "xCircle"

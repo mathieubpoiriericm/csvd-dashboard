@@ -27,6 +27,7 @@ from typing import Any, Final
 
 import httpx
 
+from pipeline.api_telemetry import current_recorder
 from pipeline.cache_utils import SyncResult
 from pipeline.config import PROJECT_ROOT, PipelineConfig
 from pipeline.disease import load_disease
@@ -42,6 +43,7 @@ logger = logging.getLogger(__name__)
 
 CTG_BASE_URL: Final[str] = "https://clinicaltrials.gov/api/v2"
 CTG_STUDIES_URL: Final[str] = f"{CTG_BASE_URL}/studies"
+_CTG_STUDIES: Final[httpx.URL] = httpx.URL(CTG_STUDIES_URL)
 
 # CTG v2 intervention types that are a therapeutic agent. Behavioral,
 # device, procedure and the like are skipped. BIOLOGICAL and GENETIC are in
@@ -587,6 +589,12 @@ async def _fetch_page_with_retry(
             last_error = e
 
         if attempt < max_retries:
+            # Noted explicitly: a retry is another call at the transport, so
+            # the response hook cannot see one, and a search that lost no
+            # page was published as failed calls with no retry beside them.
+            current_recorder().note_retry(
+                host=_CTG_STUDIES.host, path=_CTG_STUDIES.path, method="GET"
+            )
             # 1s, 2s, 4s, ... with ±25% jitter, capped at the shared module
             # cap so raising max_retries can't stall fetches for minutes.
             # **CTG states no Retry-After**: across two live syncs every

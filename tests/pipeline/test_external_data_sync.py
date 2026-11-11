@@ -438,9 +438,12 @@ class TestSyncAllExternalData:
         _mock_cleanup(mocker)
 
         result = await sync_all_external_data()
-        # 10 errors + 1 suppression message
-        assert len(result.errors) == 11
-        assert "5 more NCBI errors suppressed" in result.errors[-1]
+        # Every one, so the count agrees with `ncbi_failed`. They used to be
+        # cut to ten and a "5 more suppressed" line, which the refresh's
+        # record then counted as 11 errors beside 15 failures; its own cap
+        # of 200 is the one that states what it left out.
+        assert result.errors == [f"err{i}" for i in range(15)]
+        assert len(result.errors) == result.ncbi_failed
 
     async def test_cleanup_called_on_exception(self, mocker):
         mocker.patch(

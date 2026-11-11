@@ -839,6 +839,36 @@ class TestFetchCSVDStudies:
         assert len(studies) == 1
         assert errors == []
 
+    async def test_a_retried_page_is_recorded_as_a_retry(self, mocker):
+        # The response hook counts each attempt as a call and cannot tell a
+        # retry from a new one, so the 2026-11-03 refresh published "41
+        # calls, 14 failed" and no retry over a search that lost no page.
+        from pipeline.api_telemetry import current_recorder, reset_recorder
+
+        reset_recorder()
+        fail_resp = AsyncMock()
+        fail_resp.status_code = 429
+        fail_resp.request = httpx.Request("GET", "https://x/y")
+        fail_resp.headers = {}
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(
+            side_effect=[
+                fail_resp,
+                httpx.ConnectError("reset"),
+                _mock_http_response({}),
+            ]
+        )
+        mocker.patch(
+            "pipeline.clinical_trials_fetch._client_manager.get",
+            return_value=mock_client,
+        )
+        mocker.patch("pipeline.clinical_trials_fetch.asyncio.sleep", new=AsyncMock())
+
+        await _fetch_page_with_retry({}, 3)
+
+        (row,) = current_recorder().records()
+        assert (row.service, row.method, row.retries) == ("clinicaltrials", "GET", 2)
+
     async def test_partial_term_failure_preserves_others(self, mocker):
         # One term returns studies, the other raises after retry exhaustion;
         # with gather, the successful term's results must survive.

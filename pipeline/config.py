@@ -277,6 +277,33 @@ EXTRACTION_MODEL_VERSION: Final[str] = "5.5"
 MODEL_MAX_OUTPUT_TOKENS: Final[int] = 128_000
 
 
+def _with_enum_types(node: Any) -> Any:
+    """State `"type": "string"` on every all-string `enum` in a schema.
+
+    The schema is text the model reads, and `transform_schema` belongs to
+    the SDK: somewhere after anthropic 2.4 it began dropping `type` from
+    any node carrying an `enum`, so a dependency bump changed the tool
+    definition every extraction is sent under with nothing failing. The
+    two forms validate
+    alike, but the recall and provenance figures were all measured with
+    the type stated, and the method does not get to move with a lockfile.
+    A node that already states a type is left as it is, so this is a
+    no-op under an SDK that keeps it.
+    """
+    if isinstance(node, list):
+        return [_with_enum_types(item) for item in node]
+    if not isinstance(node, dict):
+        return node
+    typed = {key: _with_enum_types(value) for key, value in node.items()}
+    members = typed.get("enum")
+    if (
+        isinstance(members, list)
+        and "type" not in typed
+        and all(isinstance(member, str) for member in members)
+    ):
+        typed["type"] = "string"
+    return typed
+
 @dataclass
 class PipelineConfig:
     """Centralised, immutable-ish configuration for the entire pipeline.
@@ -788,7 +815,7 @@ class PipelineConfig:
                 "Report every gene with a putative causal link to "
                 f"{load_disease().name} found in the document."
             ),
-            "input_schema": transform_schema(ExtractionResult),
+            "input_schema": _with_enum_types(transform_schema(ExtractionResult)),
             "strict": False,
         }
 

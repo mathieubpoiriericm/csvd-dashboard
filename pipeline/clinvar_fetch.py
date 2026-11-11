@@ -53,6 +53,7 @@ from pipeline.annotations import (
     expand_lookup_symbols,
     group_key_for,
 )
+from pipeline.api_telemetry import current_recorder
 from pipeline.cache_utils import (
     DB_CACHE_TTL_DAYS,
     SyncResult,
@@ -251,6 +252,24 @@ async def _throttle(config: PipelineConfig) -> None:
         await asyncio.sleep(wait)
 
 
+def _note_retry(response: httpx.Response) -> None:
+    """Record that the request behind *response* is about to be sent again.
+
+    A retry is another call at the transport, so the response hook cannot
+    see one: a refresh that fetched every gene after a burst of 429s was
+    published as failed calls with no retry beside them. The request is
+    read off the response because the caller's `send` is opaque; a
+    response built without one, as a test's is, has nothing to name.
+    """
+    try:
+        request = response.request
+    except RuntimeError:
+        return
+    current_recorder().note_retry(
+        host=request.url.host, path=request.url.path, method=request.method
+    )
+
+
 async def _send_throttled(
     send: Callable[[], Awaitable[httpx.Response]],
     config: PipelineConfig,
@@ -268,6 +287,7 @@ async def _send_throttled(
     for attempt in range(_RATE_LIMIT_RETRIES):
         if response.status_code != 429:
             return response
+        _note_retry(response)
         delay = _RATE_LIMIT_BACKOFF * (attempt + 1)
         logger.debug(f"ClinVar {label} rate-limited, retrying in {delay:.1f}s")
         await asyncio.sleep(delay)

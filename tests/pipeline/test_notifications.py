@@ -3,6 +3,7 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
+from apprise import NotifyType
 
 from pipeline.config import PipelineConfig
 from pipeline.data_merger import MergeResult
@@ -274,3 +275,75 @@ def test_template_context_dryrun():
 )
 def test_format_duration(seconds, expected):
     assert _format_duration(seconds) == expected
+
+
+# ---------------------------------------------------------------------------
+# Tests: the digest of an invocation that failed, or ran several modes
+# ---------------------------------------------------------------------------
+
+
+def _digest(*pipelines: dict[str, Any], seconds: float = 75.0) -> Any:
+    """The payload `_run_selected_pipelines` hands the notifier."""
+    return {
+        "timestamp": "2026-11-10T00:00:00+00:00",
+        "total_processing_time": seconds,
+        "pipelines": list(pipelines),
+        "pipeline_config": {
+            "mode": "combined",
+            "model": "claude-opus-5-5",
+            "effort": "high",
+        },
+    }
+
+
+def _summary(name: str, status: str = "ok", errors: list[str] | None = None) -> dict:
+    return {"name": name, "status": status, "metrics": {}, "errors": errors or []}
+
+
+def test_a_failed_runs_digest_says_why_and_how_long():
+    """The one channel meant to report a failure said neither.
+
+    A run in which every paper errored reaches the notifier as a summary,
+    not as run data, and the digest read "Combined (0.0s)" over "pubmed:
+    failed (1 error)": no duration, no reason, and "Combined" for a single
+    mode.
+    """
+    reason = "None of the 3 new papers could be processed"
+    md = _render_markdown(_digest(_summary("pubmed", "failed", [reason])))
+
+    assert "PubMed" in md
+    assert "Combined" not in md
+    assert "(1m 15s)" in md
+    assert reason in md
+
+
+def test_a_refresh_only_digest_names_no_model():
+    # No model ran, so "Model: claude-opus-5-5 | Effort: high" over a
+    # ClinicalTrials.gov refresh described an extraction that never was.
+    md = _render_markdown(_digest(_summary("clinical_trials")))
+    assert "Clinical Trials" in md
+    assert "Model:" not in md
+    assert "Model:" in _render_markdown(
+        _digest(_summary("pubmed"), _summary("clinical_trials"))
+    )
+
+
+def test_several_modes_are_still_a_combined_digest():
+    md = _render_markdown(_digest(_summary("pubmed"), _summary("external_sync")))
+    assert "Combined" in md
+
+
+@patch("pipeline.notifications.apprise.Apprise")
+def test_a_failed_invocation_is_sent_as_a_failure(mock_apprise_cls):
+    # Apprise colours and routes on the type; INFO for a failed run is the
+    # digest nobody opens.
+    mock_instance = MagicMock()
+    mock_instance.notify.return_value = True
+    mock_apprise_cls.return_value = mock_instance
+    config = _make_config()
+
+    send_pipeline_notification(_digest(_summary("pubmed", "failed", ["x"])), config)
+    send_pipeline_notification(_digest(_summary("pubmed")), config)
+
+    sent = [call.kwargs["notify_type"] for call in mock_instance.notify.call_args_list]
+    assert sent == [NotifyType.FAILURE, NotifyType.INFO]

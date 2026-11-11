@@ -130,18 +130,79 @@ def display_label(service_key: str, endpoint: str) -> str:
     return service.label
 
 
+# Services whose endpoint ends in a DOI, and the path that DOI follows. A
+# report stored before `normalize_path` treated a DOI as one identifier holds
+# such an endpoint as a row per DOI shape (`/v2/:id/:id`, `/v2/:id/brain/:id`),
+# and the registrant prefix that marked the DOI is gone from the stored path,
+# so only an endpoint known to end in one can be folded back.
+_DOI_ENDPOINTS: Final[dict[str, str]] = {"unpaywall": "/v2"}
+
+# The counts of a wire-form api row, summed when two rows become one.
+_ROW_COUNTS: Final[tuple[str, ...]] = (
+    "calls",
+    "ok",
+    "notFound",
+    "errors",
+    "retries",
+    "bytes",
+)
+
+
+def _current_endpoint(service: str, endpoint: str) -> str:
+    """A stored endpoint as `normalize_path` would write it today."""
+    prefix = _DOI_ENDPOINTS.get(service)
+    if prefix is not None and endpoint.startswith(f"{prefix}/:id/"):
+        return f"{prefix}/:id"
+    return endpoint
+
+
 def relabel_api_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Re-derive ``label`` on wire-form api rows from the registry.
+    """Bring stored wire-form api rows up to what a run would record now.
 
     The stored run and sync reports carry the label a service had when the
-    run happened. This is what lets a rename in ``SERVICES`` reach
-    ``data/pipeline_run.json`` and ``data/pipeline_syncs.json`` on the next
-    export rather than on the next run.
+    run happened, and the endpoint `normalize_path` gave it then. Labels
+    are re-derived from the registry, which is what lets a rename in
+    ``SERVICES`` reach ``data/pipeline_run.json`` and
+    ``data/pipeline_syncs.json`` on the next export rather than on the next
+    run. Endpoints are folded where an older normalisation split one (see
+    ``_DOI_ENDPOINTS``), and rows that become the same service, endpoint
+    and method are summed.
+
+    The order is left as stored unless rows were folded; then it is the
+    recorder's own (``ApiRecorder.records``), since a summed row no longer
+    belongs where its first part stood.
     """
-    return [
-        {**row, "label": display_label(str(row["service"]), str(row["endpoint"]))}
-        for row in rows
-    ]
+    merged: dict[tuple[str, str, str], dict[str, Any]] = {}
+    for row in rows:
+        service = str(row["service"])
+        endpoint = _current_endpoint(service, str(row["endpoint"]))
+        key = (service, endpoint, str(row.get("method", "")))
+        current = {
+            **row,
+            "endpoint": endpoint,
+            "label": display_label(service, endpoint),
+        }
+        existing = merged.get(key)
+        if existing is None:
+            merged[key] = current
+            continue
+        for count in _ROW_COUNTS:
+            existing[count] = existing.get(count, 0) + current.get(count, 0)
+        existing["totalMs"] = round(
+            existing.get("totalMs", 0.0) + current.get("totalMs", 0.0), 1
+        )
+    result = list(merged.values())
+    if len(result) == len(rows):
+        return result
+    return sorted(
+        result,
+        key=lambda row: (
+            -int(row.get("calls", 0)),
+            str(row["label"]),
+            str(row["endpoint"]),
+            str(row.get("method", "")),
+        ),
+    )
 
 
 class ApiServiceRecord(WireModel):

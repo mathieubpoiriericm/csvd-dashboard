@@ -151,6 +151,14 @@ def _build_common_run_data(
     """Assemble the fields shared by all three run-data builders."""
     tu = metrics.token_usage
     cost = client.estimate_cost(tu, batched=batched)
+    if batched:
+        # The batch discount belongs to what the batch extracted. Papers a
+        # --batch run restored from a checkpoint were paid for by a
+        # streaming run, so their share goes back to the full rate.
+        streamed = metrics.streamed_token_usage
+        cost += client.estimate_cost(streamed) - client.estimate_cost(
+            streamed, batched=True
+        )
 
     failed_count = sum(1 for r in results if not r.succeeded)
     total_compute_time = sum(getattr(r, "processing_time", 0.0) for r in results)

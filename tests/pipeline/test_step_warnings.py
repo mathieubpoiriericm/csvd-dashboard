@@ -346,6 +346,49 @@ class TestOtherStepsCanWarnToo:
         assert step.warnings[0].subjects == ["WDR12", "CALCRL"]
         assert "Inserted 1 gene and updated 2" in step.actions
 
+    def test_the_merge_warning_counts_what_the_card_counts(self, tmp_path) -> None:
+        # The card's "Held" is a paper's mention; the warning said genes,
+        # so one gene two papers proposed read 8 here under a 9 there.
+        reporter = _ProgressReporter(
+            PipelineConfig(progress_file=str(tmp_path / "progress.json"))
+        )
+        reporter.report(4)
+        pipeline_main._record_merge_actions(
+            reporter,
+            {
+                "inserted": 0,
+                "updated": 0,
+                "held_below_insert_floor": [
+                    {"gene_symbol": "WDR12", "confidence": 0.6, "mentions": 1},
+                    {"gene_symbol": "CALCRL", "confidence": 0.55, "mentions": 2},
+                ],
+            },
+            recorded=3,
+        )
+        (warning,) = reporter.steps()[4].warnings
+        assert warning.count == 3
+        assert warning.title == (
+            "2 new genes, extracted 3 times, were held below the insert floor"
+        )
+        assert warning.subjects == ["WDR12", "CALCRL"]
+
+    def test_the_merge_says_which_updates_were_citations_only(self, tmp_path) -> None:
+        reporter = _ProgressReporter(
+            PipelineConfig(progress_file=str(tmp_path / "progress.json"))
+        )
+        reporter.report(4)
+        pipeline_main._record_merge_actions(
+            reporter,
+            {"inserted": 0, "updated": 2, "citation_only": ["NOTCH3"]},
+            recorded=1,
+        )
+        step = reporter.steps()[4]
+        assert step.status == "ok"
+        assert step.actions[1] == (
+            "1 existing gene took a citation only, below the insert floor "
+            "for a claim"
+        )
+
     def test_a_merge_that_refused_nothing_does_not_warn(self, tmp_path) -> None:
         reporter = _ProgressReporter(
             PipelineConfig(progress_file=str(tmp_path / "progress.json"))

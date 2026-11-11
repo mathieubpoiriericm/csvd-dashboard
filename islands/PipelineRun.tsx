@@ -289,6 +289,17 @@ function GeneCard({ gene }: { gene: RunGene }) {
       <GeneHead gene={gene} />
       <dl class="pipeline-fields">
         {gene.proteinName && <Field name="protein">{gene.proteinName}</Field>}
+        {
+          /* An existing gene whose best score sat below the insert floor
+            took this paper as a reference and nothing else, so its record
+            carries no trait or omics pill. Said in words: without it the
+            gene reads as one the model found nothing about. */
+        }
+        {gene.citationOnly && (
+          <Field name="writtenAs" pills>
+            <ValuePill>Citation only</ValuePill>
+          </Field>
+        )}
         {gene.gwasTraits.length > 0 && (
           <Field name="gwasTrait" pills>
             {gene.gwasTraits.map((trait, index) => (
@@ -484,6 +495,7 @@ function PipelineRunContent({ run }: { run: PipelineRun }) {
   const fallback = field("fallbackModel");
   const prompt = field("promptVersion");
   const promptBytes = field("promptSha256");
+  const batch = field("batch");
   // Whether there is anything for the drawer to show. A run that failed
   // before it processed a paper records no detail at all, and a trigger
   // reading "View everything this run recorded" over an empty panel is
@@ -579,6 +591,17 @@ function PipelineRunContent({ run }: { run: PipelineRun }) {
             <span class="pipeline-head-meta">
               <Icon name={prompt.icon} />
               {prompt.label} {run.config.promptVersion}
+            </span>
+          )}
+          {
+            /* Named only when it was: a batched run costs half and takes
+              up to a day, so its duration and its cost read differently
+              from a streaming run's. */
+          }
+          {run.config.batch === true && (
+            <span class="pipeline-head-meta">
+              <Icon name={batch.icon} />
+              {batch.label}
             </span>
           )}
           {
