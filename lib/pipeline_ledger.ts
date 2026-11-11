@@ -35,6 +35,9 @@ const WARNING_KINDS = encoding.warningKinds as Record<
 
 const OUTCOMES = encoding.outcomes;
 
+/** The disclosure over a note's remaining subjects: "Show all 34". */
+export const SHOW_ALL = OUTCOMES.showAll;
+
 /** What a step with nothing to say reads, on the card and in the step log. */
 export const NOTHING_TO_REPORT = OUTCOMES.nothing;
 
@@ -278,6 +281,9 @@ export function splitSubjects(
 }
 
 const VERDICT = encoding.verdict;
+
+/** The word between a figure and its denominator: "37 of 38". */
+export const OF = VERDICT.of;
 
 /** One figure of the verdict row: a numeral, what it is, and its breakdown. */
 export interface Figure {

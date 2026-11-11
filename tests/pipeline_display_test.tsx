@@ -34,6 +34,7 @@ import {
   paperSourceLabel,
   runModeLabel,
   runStatusBadge,
+  runWhen,
   stepIcon,
   stepStatusBadge,
   syncModeLabel,
@@ -509,4 +510,14 @@ Deno.test("describeRefusal labels bio and falls back for an unseen category", ()
   // A category the API adds later is still a refusal, not a blank chip.
   assertEquals(describeRefusal("zzz").label, "Safety classifier");
   assertEquals(describeRefusal("zzz"), describeRefusal("unspecified"));
+});
+
+Deno.test("runWhen gives the card its date and its time apart", () => {
+  // The card sets the date in ink and the time muted beside it. Both come
+  // from the one formatter, so they cannot name two different clocks.
+  assertEquals(runWhen("2026-08-31T02:17:55Z"), {
+    date: "August 31, 2026",
+    time: "at 02:17 UTC",
+  });
+  assertEquals(runWhen("not a date"), null);
 });

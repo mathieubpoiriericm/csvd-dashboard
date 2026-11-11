@@ -19,38 +19,169 @@ import { renderToString } from "preact-render-to-string";
 import PipelineRunView, {
   PipelineRunDetails,
 } from "../islands/PipelineRun.tsx";
-import { RUN } from "./fixtures/pipeline_run.ts";
+import { pipelineRun } from "../lib/data/pipeline_run.ts";
+import { formatDuration } from "../lib/pipeline_display.ts";
+import { RUN, runWith, step, warning } from "./fixtures/pipeline_run.ts";
 import type { PipelineRun } from "../lib/types.ts";
 
 const details = () => renderToString(<PipelineRunDetails run={RUN} />);
 const html = () => renderToString(<PipelineRunView run={RUN} />);
 
-Deno.test("the headline reads as words, not as an enum", () => {
+const render = (run: PipelineRun) =>
+  renderToString(<PipelineRunView run={run} />);
+
+Deno.test("the committed report renders", () => {
+  // Whatever `data/pipeline_run.json` holds -- a report stored before the
+  // accounting was fixed, a fork's first run -- the card prints it as
+  // recorded. `null` in a repository generated for another disease.
+  if (pipelineRun === null) return;
+  const markup = renderToString(<PipelineRunView />);
+  assertStringIncludes(markup, "pipeline-card");
+  assertNotMatch(markup, /NaN|undefined|\[object/);
+});
+
+Deno.test("the card says when the run was and how long it took", () => {
   const markup = html();
-  assertStringIncludes(markup, "Completed with warnings");
   assertStringIncludes(markup, "August 31, 2026");
   assertStringIncludes(markup, "UTC");
-  assertStringIncludes(markup, "PubMed search");
-  assertStringIncludes(markup, "claude-opus-5");
   assertStringIncludes(markup, "2m 47s");
 });
 
-Deno.test("every step renders with its badge and its prose", () => {
+Deno.test("the card states its status once, and what is left to review", () => {
   const markup = html();
-  assertStringIncludes(markup, "Search PubMed");
-  assertStringIncludes(markup, "Retrieve &amp; extract");
-  assertStringIncludes(markup, "Merge to database");
-  assertStringIncludes(markup, "Searched PubMed over the last 7 days");
-  assertStringIncludes(
-    markup,
-    "Retrieved full text for 10, abstract only for 5",
-  );
-  assertStringIncludes(markup, "Passed with warnings");
+  assertStringIncludes(markup, "Completed");
+  assertNotMatch(markup, /Completed with warnings|Passed/);
+  // RUN: one routine note (24 genes under the floor) and one that needs a
+  // look (a paper with no text). Notes are counted, not what they name.
+  assertMatch(markup, /pipeline-tint-ember[^>]*>.*?1 to review/s);
 });
 
-Deno.test("a step's warning count totals things, not rows", () => {
-  // Two warnings, 24 + 1 things.
-  assertStringIncludes(html(), '<span class="pipeline-badge-count">25</span>');
+Deno.test("a run with only routine notes has nothing to review", () => {
+  const run = runWith({
+    steps: [
+      step({ status: "warning", warnings: [warning("model_fallback", 34)] }),
+    ],
+  });
+  assertNotMatch(render(run), /to review/);
+});
+
+Deno.test("a failed run's status is Failed, with nothing softer beside it", () => {
+  const markup = render(runWith({ status: "failed" }));
+  assertMatch(markup, /pipeline-when.*?pipeline-tint-danger[^>]*>.*?Failed/s);
+  assertNotMatch(markup, /Completed/);
+});
+
+Deno.test("the verdict row carries three figures and no stat grid", () => {
+  const markup = html();
+  for (
+    const label of [
+      "new papers read",
+      "genes written",
+      "source quotes verified",
+    ]
+  ) {
+    assertStringIncludes(markup, label);
+  }
+  assertEquals(markup.match(/class="pipeline-figure"/g)?.length, 3);
+  assertNotMatch(
+    markup,
+    /pipeline-stats|pipeline-provenance|pipeline-tokens|pipeline-head-meta/,
+  );
+});
+
+Deno.test("the method and the cost are not on the card", () => {
+  const card = html().split("<aside")[0];
+  assertNotMatch(card, /claude-opus-5|high effort|Prompt v6|PubMed search/);
+  assertNotMatch(html(), /1\.38/);
+});
+
+Deno.test("each step is one row: its outcome, a flag only if one is due, its time", () => {
+  const markup = html();
+  assertEquals(
+    markup.match(/class="pipeline-step"/g)?.length,
+    RUN.steps.length,
+  );
+  assertStringIncludes(markup, "Retrieve &amp; extract");
+  assertStringIncludes(markup, "papers matched");
+  assertStringIncludes(markup, "findings extracted");
+  assertStringIncludes(markup, "1 paper failed");
+  assertStringIncludes(markup, formatDuration(131.4));
+  assertNotMatch(markup, /pipeline-step-glyph|pipeline-badge-count/);
+});
+
+Deno.test("a row with a note is a button, a failed one starts open, and one without is not a control", () => {
+  // RUN: step 3 holds notes, the merge failed, steps 1 and 2 hold nothing.
+  const markup = html();
+  const heads = markup.match(/<button[^>]*class="pipeline-step-head"[^>]*>/g) ??
+    [];
+  assertEquals(heads.length, RUN.steps.length);
+  assertEquals(heads.filter((h) => /\sdisabled/.test(h)).length, 2);
+  assertEquals(
+    heads.filter((h) => h.includes('aria-expanded="false"')).length,
+    1,
+  );
+  assertEquals(
+    heads.filter((h) => h.includes('aria-expanded="true"')).length,
+    1,
+  );
+  // A row that does not open names no panel.
+  assertEquals(heads.filter((h) => h.includes("aria-controls")).length, 2);
+});
+
+Deno.test("a note is prose with linked papers, tinted by whether it needs a look", () => {
+  const markup = html();
+  assertMatch(
+    markup,
+    /class="pipeline-note pipeline-tint-muted"[^>]*>.*?24 genes did not clear/s,
+  );
+  assertMatch(
+    markup,
+    /class="pipeline-note pipeline-tint-ember"[^>]*>.*?1 paper had no retrievable text/s,
+  );
+  assertStringIncludes(
+    markup,
+    'href="https://pubmed.ncbi.nlm.nih.gov/19539236/"',
+  );
+  assertNotMatch(markup, /pipeline-actions|and \d+ more/);
+});
+
+Deno.test("subjects past the eighth sit behind a disclosure", () => {
+  const many = Array.from({ length: 34 }, (_, i) => String(42000000 + i));
+  const run = runWith({
+    steps: [
+      step({
+        status: "warning",
+        warnings: [warning("model_fallback", 34, many)],
+      }),
+    ],
+  });
+  const markup = render(run);
+  assertMatch(markup, /<details[^>]*>\s*<summary[^>]*>Show all 34<\/summary>/);
+  assertEquals(markup.match(/pubmed\.ncbi\.nlm\.nih\.gov/g)?.length, 34);
+});
+
+Deno.test("a subject that is not a paper is plain text", () => {
+  const run = runWith({
+    steps: [
+      step({
+        status: "warning",
+        warnings: [warning("genes_rejected", 2, ["GENE1", "GENE2"])],
+      }),
+    ],
+  });
+  const markup = render(run);
+  assertStringIncludes(markup, "GENE1, GENE2");
+  assertNotMatch(markup, /pubmed/);
+});
+
+Deno.test("a failed run trades its verdict for a statement of what stopped", () => {
+  const markup = render(runWith({ status: "failed", database: null }));
+  assertStringIncludes(
+    markup,
+    "The run stopped at step 5, Merge to database.",
+  );
+  assertStringIncludes(markup, "Nothing was written to the database");
+  assertNotMatch(markup, /pipeline-figure/);
 });
 
 Deno.test("a failure reads as a sentence, a meaning, then the raw detail", () => {
@@ -65,56 +196,12 @@ Deno.test("a failure reads as a sentence, a meaning, then the raw detail", () =>
   assertMatch(markup, /pipeline-error-detail/);
 });
 
-Deno.test("the funnel shows what was fetched before what was accepted", () => {
-  const markup = html();
-  assertStringIncludes(markup, "Found");
-  assertStringIncludes(markup, "Processed");
-  assertStringIncludes(markup, "Extracted");
-  assertStringIncludes(markup, "Accepted");
-  assertStringIncludes(markup, "Rejected");
-});
-
-Deno.test("the insert floor's holds are shown, not just published", () => {
-  // rejectedAtInsertFloor was in the document and rendered nowhere, so
-  // nothing on the page reconciled "Accepted" against the drawer's
-  // rejected list.
-  const markup = html();
-  assertStringIncludes(markup, "Held (new gene)");
-  // Accepted counts what reached the database: the accepted list's own
-  // total, 24 here.
-  assertStringIncludes(markup, ">24<");
-});
-
-Deno.test("accepted is the accepted list's total, not validated less held", () => {
-  // `validated` counts one per paper and a hold counts one per merged
-  // gene: COL4A1 and COL4A2 validated from two papers and held once as
-  // COL4A1/2 is two validated, one held, and *none* accepted. The
-  // subtraction said one.
-  const merged = {
-    ...RUN,
-    genes: { ...RUN.genes, validated: 2, rejectedAtInsertFloor: 1 },
-    acceptedGenes: { shown: 0, total: 0, items: [] },
-  };
-  const markup = renderToString(<PipelineRunView run={merged} />);
-  assertMatch(
-    markup,
-    /Accepted<\/span><span class="pipeline-stat-value">0<\/span>/,
-  );
-});
-
 Deno.test("a run that wrote nothing calls its genes validated, not accepted", () => {
   // Accepted means what reached the database. A run that failed before
   // its merge has `database: null` and still lists the genes its papers
   // validated -- they are what it has to show -- so "Accepted 24" over a
   // run that wrote no row was a claim the report itself contradicts.
   const unmerged = { ...RUN, status: "failed" as const, database: null };
-  const card = renderToString(<PipelineRunView run={unmerged} />);
-  assertMatch(
-    card,
-    /Validated<\/span><span class="pipeline-stat-value">24<\/span>/,
-  );
-  assert(!card.includes("Accepted</span>"));
-
   const drawer = renderToString(<PipelineRunDetails run={unmerged} />);
   assertStringIncludes(drawer, "Genes validated, not written");
   assert(!drawer.includes("Genes accepted"));
@@ -126,40 +213,6 @@ Deno.test("a run that wrote nothing calls its genes validated, not accepted", ()
   assertStringIncludes(details(), "2 accepted");
 });
 
-Deno.test("papers that failed outright are a line in the funnel", () => {
-  // Counted in the document and shown nowhere, so "Processed 9" over 12
-  // papers had no line saying where the other three went.
-  // Absent while zero: the stat, not the step badge that also says
-  // "Failed".
-  assertNotMatch(html(), /Failed<\/span><span class="pipeline-stat-value">/);
-  const failed = { ...RUN, papers: { ...RUN.papers, failed: 3 } };
-  const markup = renderToString(<PipelineRunView run={failed} />);
-  assertMatch(
-    markup,
-    /Failed<\/span><span class="pipeline-stat-value">3<\/span>/,
-  );
-});
-
-Deno.test("the header states the method, not only the model", () => {
-  const markup = html();
-  assertStringIncludes(markup, "high effort");
-  assertStringIncludes(markup, "Prompt v6");
-});
-
-Deno.test("the disease and prompt hash appear only once both are set", () => {
-  assertNotMatch(html(), /csvd/);
-  const withProvenance = {
-    ...RUN,
-    config: {
-      ...RUN.config,
-      disease: "csvd",
-      promptSha256: "70908abc0302" + "0".repeat(52),
-    },
-  };
-  const markup = renderToString(<PipelineRunView run={withProvenance} />);
-  assertStringIncludes(markup, "csvd 70908abc0302");
-});
-
 Deno.test("the API inventory names the service, method and endpoint", () => {
   const markup = details();
   assertStringIncludes(markup, "E-utilities fetch");
@@ -169,40 +222,6 @@ Deno.test("the API inventory names the service, method and endpoint", () => {
     markup,
     "32 calls · 1 retried · 1 failed · 4.1 s · 51.2 kB",
   );
-});
-
-Deno.test("the two quote numbers are reported as two numbers", () => {
-  // `verbatim` asks whether the sentence is in the paper, of every gene;
-  // `cited` asks whether the API attested to that span, which is bounded
-  // by how much prose the model wrote. One averaged rate would report a
-  // quality figure the second number cannot carry.
-  const markup = html();
-  assertStringIncludes(markup, "25 of 26 quotes found in the paper");
-  assertStringIncludes(markup, "8 attested by the model&#39;s own citations");
-});
-
-Deno.test("a run that checked no quotes says nothing about them", () => {
-  const none = {
-    ...RUN,
-    genes: {
-      ...RUN.genes,
-      quotesChecked: 0,
-      quotesVerbatim: 0,
-      quotesCited: 0,
-    },
-  };
-  const markup = renderToString(<PipelineRunView run={none} />);
-  assert(!markup.includes("quotes found in the paper"));
-});
-
-Deno.test("token use is reported and the cost is not", () => {
-  const markup = html();
-  assertStringIncludes(markup, "175,584 tokens");
-  // The rate is of the input, not of the count beside it: `totalTokens` is
-  // the uncached input plus the output, so "175,584 tokens · 47% served
-  // from cache" read as a share of a number that holds no cached token.
-  assertStringIncludes(markup, "47% of input served from cache");
-  assert(!markup.includes("$1.38"));
 });
 
 Deno.test("the drawer is present but hidden and inert until opened", () => {
@@ -300,15 +319,6 @@ Deno.test("a citation-only gene says so in place of the claims it did not make",
   assert(!details().includes("Citation only"));
 });
 
-Deno.test("the header says when the Batch API extracted the run", () => {
-  const batched = { ...RUN, config: { ...RUN.config, batch: true } };
-  assertStringIncludes(
-    renderToString(<PipelineRunView run={batched} />),
-    "Batch API",
-  );
-  assert(!html().includes("Batch API"));
-});
-
 Deno.test("a record names its fields in a column of labels, not in chips", () => {
   // Every field name used to be a chip of its own, the same shape as the
   // values beside it, so a line read as five pills with nothing to say
@@ -388,26 +398,10 @@ Deno.test("a paper with no retrievable text does not read as 'none'", () => {
   assert(!markup.includes(">none<"));
 });
 
-Deno.test("a step that did the same thing twice lists it twice", () => {
-  // A re-entered step merges its visits' actions, and two visits that
-  // did the same thing produce the same sentence; a text-keyed list
-  // collapsed them.
-  const twice = {
-    ...RUN,
-    steps: [{
-      ...RUN.steps[0],
-      actions: ["Recorded 9 processed PMIDs", "Recorded 9 processed PMIDs"],
-    }],
-  };
-  const markup = renderToString(<PipelineRunView run={twice} />);
-  const rows = markup.match(/Recorded 9 processed PMIDs/g) ?? [];
-  assertEquals(rows.length, 2);
-});
-
 Deno.test("a run that recorded no detail offers no drawer", () => {
   // A run that failed before it processed a paper records nothing for
-  // the drawer to show; a trigger reading "View everything this run
-  // recorded" over an empty panel is a promise it cannot keep. The
+  // the drawer to show; a trigger reading "Run details" over an empty
+  // panel is a promise it cannot keep. The
   // services it called are part of that record now, so a run with
   // nothing to show has none of those either.
   const bare = {
@@ -418,7 +412,7 @@ Deno.test("a run that recorded no detail offers no drawer", () => {
     apis: [],
   };
   const markup = renderToString(<PipelineRunView run={bare} />);
-  assert(!markup.includes("View everything this run recorded"));
+  assert(!markup.includes("Run details"));
   assert(!markup.includes('id="pipeline-run-drawer"'));
   // The rest of the widget is unaffected.
   assertStringIncludes(markup, "Search PubMed");
@@ -481,7 +475,7 @@ Deno.test("a run that reached only an API still has a drawer", () => {
     rejectedGenes: { shown: 0, total: 0, items: [] },
   };
   const markup = renderToString(<PipelineRunView run={apisOnly} />);
-  assertStringIncludes(markup, "View everything this run recorded");
+  assertStringIncludes(markup, "Run details");
   assertStringIncludes(
     renderToString(<PipelineRunDetails run={apisOnly} />),
     "External services",
@@ -511,33 +505,8 @@ Deno.test("a truncated list says so rather than reading as complete", () => {
   assertStringIncludes(markup, "Showing 1 of 15");
 });
 
-Deno.test("a step with nothing to expand is not a control", () => {
-  // "Filter new papers" recorded no actions, warnings or error.
-  assertMatch(html(), /pipeline-step-head"[^>]*disabled/);
-});
-
-Deno.test("every step header is an expandable control", () => {
-  const markup = html();
-  const heads = markup.match(/class="pipeline-step-head"/g) ?? [];
-  assertEquals(heads.length, RUN.steps.length);
-  assertStringIncludes(markup, 'aria-controls="pipeline-run-drawer-step-3"');
-  assertStringIncludes(markup, 'aria-expanded="false"');
-});
-
 Deno.test("no run renders nothing at all", () => {
   assertEquals(renderToString(<PipelineRunView run={null} />), "");
-});
-
-Deno.test("the offline case omits the search count it cannot claim", () => {
-  // An offline run was handed its identifiers and never searched, so
-  // there is no "found" denominator to report.
-  const offline = {
-    ...RUN,
-    papers: { ...RUN.papers, found: null, newlySeen: null, alreadySeen: null },
-  };
-  const markup = renderToString(<PipelineRunView run={offline} />);
-  assert(!markup.includes(">Found<"));
-  assertStringIncludes(markup, "Processed");
 });
 
 Deno.test("step warnings preserve the detail explaining the flagged record", () => {
@@ -563,7 +532,14 @@ Deno.test("step warnings preserve the detail explaining the flagged record", () 
 Deno.test("duplicate step ordinals still reference distinct detail panels", () => {
   const run = {
     ...RUN,
-    steps: [RUN.steps[0], { ...RUN.steps[0], label: "Second visit" }],
+    steps: [
+      { ...RUN.steps[0], warnings: [warning("api_retried")] },
+      {
+        ...RUN.steps[0],
+        label: "Second visit",
+        warnings: [warning("api_retried")],
+      },
+    ],
   };
   const markup = renderToString(<PipelineRunView run={run} />);
   const controls = [...markup.matchAll(/aria-controls="([^"]+-step-[^"]+)"/g)]
@@ -639,20 +615,6 @@ Deno.test("a paper the fallback served names its model, and only that one", () =
   // A paper the requested model extracted carries no pill: it would repeat
   // the header on every row.
   assert(!details().includes("Extracted by"));
-});
-
-Deno.test("the header names the fallback model when the run requested one", () => {
-  const markup = renderToString(
-    <PipelineRunView
-      run={{
-        ...RUN,
-        config: { ...RUN.config, fallbackModel: "claude-opus-4-8" },
-      }}
-    />,
-  );
-  assertStringIncludes(markup, "Fallback");
-  assertStringIncludes(markup, "claude-opus-4-8");
-  assert(!html().includes("Fallback"));
 });
 
 Deno.test("a gene's omics evidence reads as the table prints it, without the wire form", () => {

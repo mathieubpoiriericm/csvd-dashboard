@@ -320,6 +320,29 @@ export function formatRunTimestamp(value: string): string | null {
 }
 
 /**
+ * The same timestamp in its two halves, for the card: the date, which is
+ * what a reader looks for, and the time beside it, which is set muted.
+ *
+ * Cut from the formatter's own parts rather than from its string, so the
+ * two halves are one clock and no word of the format is matched by name.
+ */
+export function runWhen(
+  value: string,
+): { date: string; time: string } | null {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  const parts = RUN_DATE_FORMAT.formatToParts(date);
+  // The literal before the hour is the joint (" at "); it leads the time.
+  const joint = parts.findIndex((part) => part.type === "hour") - 1;
+  const text = (slice: Intl.DateTimeFormatPart[]) =>
+    slice.map((part) => part.value).join("");
+  return {
+    date: text(parts.slice(0, joint)),
+    time: `${text(parts.slice(joint)).trim()} UTC`,
+  };
+}
+
+/**
  * One line summarising a service's traffic.
  *
  * Retries and errors are named only when they happened, so a clean row

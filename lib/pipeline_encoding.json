@@ -132,10 +132,12 @@
     "added": "added",
     "updated": "updated",
     "held": "held for more evidence",
-    "nothing": "Nothing to report"
+    "nothing": "Nothing to report",
+    "showAll": "Show all"
   },
   "verdict": {
     "$comment": "The run card's verdict row: three figures a visiting researcher reads first, and the sentences that stand in for them when the run failed. `{ordinal}`, `{label}` and `{genes}` are filled by lib/pipeline_ledger.ts.",
+    "of": "of",
     "new": "new",
     "read": "read",
     "inFullText": "in full text",

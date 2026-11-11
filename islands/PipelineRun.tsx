@@ -2,10 +2,16 @@ import { useHydratedRef } from "../components/useHydratedRef.ts";
 /**
  * The About page's pipeline-run widget.
  *
- * Renders the last recorded run from `data/pipeline_run.json`: its six
- * steps with pass/warn/fail badges and expandable action lists, papers
- * and genes fetched against accepted, the external services it called,
- * the tokens it used, and a drawer holding everything it wrote.
+ * Renders the last recorded run from `data/pipeline_run.json` as a verdict
+ * over a ledger: when it ran and whether it completed, three figures a
+ * visiting researcher reads first, then one row per step saying what came
+ * out of it. A row carries a flag only when something needs a look, and
+ * opens onto the note that says why. Everything else the run recorded is
+ * in the drawer.
+ *
+ * What a row says, which warnings need a look and what the verdict holds
+ * are decided in `lib/pipeline_ledger.ts`, which is tested; this file
+ * renders what it returns.
  *
  * Every label, glyph and tint comes from `lib/pipeline_encoding.json`
  * through `lib/pipeline_display.ts`; nothing is restated here. The
@@ -21,6 +27,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 
 import { ApiList } from "../components/ApiList.tsx";
 import { Icon } from "../components/Icon.tsx";
+import { Note } from "../components/pipeline/Note.tsx";
 import { useEscapeKey } from "../components/useEscapeKey.ts";
 import { pipelineRun } from "../lib/data/pipeline_run.ts";
 import { formatOmicsEntry, parseOmicsEntry } from "../lib/omics.ts";
@@ -34,17 +41,26 @@ import {
   formatConfidence,
   formatCount,
   formatDuration,
-  formatPercent,
-  formatRunTimestamp,
   isTruncated,
   paperSourceLabel,
-  runModeLabel,
   runStatusBadge,
-  stepIcon,
+  runWhen,
   stepStatusBadge,
-  warningCount,
-  warningIcon,
 } from "../lib/pipeline_display.ts";
+import {
+  isOpenable,
+  isPmid,
+  isReview,
+  OF,
+  reviewCount,
+  SHOW_ALL,
+  splitSubjects,
+  stepFlag,
+  type StepOutcome,
+  stepOutcome,
+  stoppedNote,
+  verdictFigures,
+} from "../lib/pipeline_ledger.ts";
 import type {
   PipelineRun,
   RejectedGene,
@@ -153,71 +169,140 @@ function GeneHead(
   );
 }
 
-/** One number under its name, with the glyph that stands for it. */
-function Stat({ name, value }: { name: string; value: number }) {
-  const { label, icon } = field(name);
+/**
+ * What came out of a step: one line per thing it did, each a row of parts.
+ *
+ * A part is a numeral and its words, or a muted clause breaking the part
+ * before it down. The parts are separated by a rule the stylesheet draws on
+ * every part but a line's first, never by a glyph: a "·" between flex items
+ * ends the line it wraps on.
+ */
+function Outcome({ outcome }: { outcome: StepOutcome }) {
   return (
-    <div class="pipeline-stat">
-      <span class="pipeline-stat-label">
-        <Icon name={icon} />
-        {label}
-      </span>
-      <span class="pipeline-stat-value">{formatCount(value)}</span>
+    <span
+      class={`pipeline-step-outcome${outcome.quiet ? " is-quiet" : ""}`}
+    >
+      {outcome.lines.map((line, index) => (
+        <span key={index} class="pipeline-outcome-line">
+          {line.map((part, index) => (
+            <span key={index} class="pipeline-outcome-part">
+              {part.value !== null && <b>{part.value}</b>}
+              {part.value !== null && " "}
+              {part.text}
+            </span>
+          ))}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+/**
+ * A warning's subject, after the comma that separates it from the one
+ * before: a paper is a link to it, anything else its name.
+ */
+function Subject({ subject, first }: { subject: string; first: boolean }) {
+  return (
+    <>
+      {!first && ", "}
+      {isPmid(subject)
+        ? (
+          <a
+            class="pipeline-pmid"
+            href={`https://pubmed.ncbi.nlm.nih.gov/${subject}/`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {subject}
+          </a>
+        )
+        : subject}
+    </>
+  );
+}
+
+function SubjectList({ subjects }: { subjects: string[] }) {
+  return (
+    <>
+      {subjects.map((subject, index) => (
+        <Subject key={index} subject={subject} first={index === 0} />
+      ))}
+    </>
+  );
+}
+
+/**
+ * What a warning names. The first few are in the note; the rest wait
+ * behind a native disclosure, in the page, rather than becoming "and 26
+ * more" -- a count of things the reader was then given no way to see.
+ */
+function Subjects({ subjects }: { subjects: string[] }) {
+  if (subjects.length === 0) return null;
+  const { shown, rest } = splitSubjects(subjects);
+  return (
+    <div class="pipeline-note-subjects">
+      <SubjectList subjects={shown} />
+      {rest.length > 0 && (
+        <details class="pipeline-note-more">
+          <summary>{SHOW_ALL} {formatCount(subjects.length)}</summary>
+          <SubjectList subjects={rest} />
+        </details>
+      )}
     </div>
   );
 }
 
 /**
- * One step row.
+ * One step: a row of the ledger.
  *
- * The whole header is the control, not a separate chevron: a 3px target
- * beside a full-width row is the kind of hit area that reads as
- * decoration.
+ * The whole row is the control when it opens, and it opens only on what it
+ * does not already say -- a note or an error. A row with neither is a
+ * disabled button at full contrast: a real step with nothing more to tell,
+ * which dimmed would read as "did not run".
  */
 function Step(
-  { step, index, expanded, onToggle }: {
-    step: RunStep;
+  { run, index, expanded, onToggle }: {
+    run: PipelineRun;
     index: number;
     expanded: boolean;
     onToggle: () => void;
   },
 ) {
-  const badge = stepStatusBadge(step.status);
-  const warnings = warningCount(step);
+  const step = run.steps[index];
+  const flag = stepFlag(step);
+  const openable = isOpenable(step);
   const panelId = `${DRAWER_ID}-step-${index + 1}`;
-  const empty = step.actions.length === 0 && step.warnings.length === 0 &&
-    step.error === null;
 
   return (
-    <li class="pipeline-step">
+    <li class="pipeline-step" data-status={step.status}>
       <button
         type="button"
         class="pipeline-step-head"
-        aria-expanded={expanded ? "true" : "false"}
-        aria-controls={panelId}
-        disabled={empty}
+        aria-expanded={openable ? (expanded ? "true" : "false") : undefined}
+        aria-controls={openable ? panelId : undefined}
+        disabled={!openable}
         onClick={onToggle}
       >
         <span class="pipeline-step-ordinal">{step.ordinal}</span>
-        <span class="pipeline-step-glyph" aria-hidden="true">
-          <Icon name={stepIcon(step.key)} />
-        </span>
         <span class="pipeline-step-label">{step.label}</span>
-        <span class={`pipeline-badge pipeline-tint-${badge.tint}`}>
-          <Icon name={badge.icon} />
-          {badge.label}
-          {warnings > 0 && (
-            <span class="pipeline-badge-count">{formatCount(warnings)}</span>
+        <Outcome outcome={stepOutcome(run, index)} />
+        <span class="pipeline-step-flag">
+          {flag && (
+            <span class={`pipeline-badge pipeline-tint-${flag.tint}`}>
+              <Icon name={flag.icon} />
+              {flag.label}
+            </span>
           )}
         </span>
         <span class="pipeline-step-time">
-          {formatDuration(step.durationSeconds)}
+          {step.durationSeconds !== null &&
+            formatDuration(step.durationSeconds)}
         </span>
         {
-          /* Always rendered, hidden by CSS when the step has nothing to
-            expand. Each step header is its own grid, so dropping the
-            element dropped the column with it and let the last row's badge
-            and duration hang 16px past the five above. */
+          /* Always rendered, hidden by CSS when the row does not open. Each
+            row is its own grid, so dropping the element dropped the column
+            with it and let that row's flag and duration hang past the
+            others. */
         }
         <span
           class={`pipeline-step-caret${expanded ? " is-open" : ""}`}
@@ -227,34 +312,25 @@ function Step(
         </span>
       </button>
 
-      <div id={panelId} class="pipeline-step-body" hidden={!expanded}>
-        {step.actions.length > 0 && (
-          <ul class="pipeline-actions">
-            {step.actions.map((action, index) => <li key={index}>{action}</li>)}
-          </ul>
-        )}
-
-        {step.warnings.map((warning, index) => (
-          <p key={index} class="pipeline-note pipeline-tint-ember">
-            <Icon name={warningIcon(warning.kind)} />
-            <span>
-              {warning.title}
+      {openable && (
+        <div id={panelId} class="pipeline-step-body" hidden={!expanded}>
+          {step.warnings.map((warning, index) => (
+            <Note
+              key={index}
+              tint={isReview(warning.kind) ? "ember" : "muted"}
+              mark={isReview(warning.kind) ? field("toReview") : undefined}
+              title={warning.title}
+            >
               {warning.detail && (
-                <span class="pipeline-note-subjects">{warning.detail}</span>
+                <p class="pipeline-note-detail">{warning.detail}</p>
               )}
-              {warning.subjects.length > 0 && (
-                <span class="pipeline-note-subjects">
-                  {warning.subjects.slice(0, 8).join(", ")}
-                  {warning.subjects.length > 8 &&
-                    ` and ${formatCount(warning.subjects.length - 8)} more`}
-                </span>
-              )}
-            </span>
-          </p>
-        ))}
+              <Subjects subjects={warning.subjects} />
+            </Note>
+          ))}
 
-        {step.error && <StepError error={step.error} />}
-      </div>
+          {step.error && <StepError error={step.error} />}
+        </div>
+      )}
     </li>
   );
 }
@@ -270,16 +346,16 @@ function Step(
 function StepError({ error }: { error: NonNullable<RunStep["error"]> }) {
   const described = describeError(error);
   return (
-    <div class="pipeline-note pipeline-error pipeline-tint-danger">
-      <Icon name={described.icon} />
-      <div>
-        <strong>{described.title}</strong>
-        <p class="pipeline-error-hint">{described.hint}</p>
-        {described.detail && (
-          <pre class="pipeline-error-detail">{described.detail}</pre>
-        )}
-      </div>
-    </div>
+    <Note
+      tint="danger"
+      mark={stepStatusBadge("failed")}
+      title={described.title}
+    >
+      <p class="pipeline-note-detail">{described.hint}</p>
+      {described.detail && (
+        <pre class="pipeline-error-detail">{described.detail}</pre>
+      )}
+    </Note>
   );
 }
 
@@ -466,7 +542,6 @@ export default function PipelineRunView(
 
 function PipelineRunContent({ run }: { run: PipelineRun }) {
   const hydratedRef = useHydratedRef<HTMLDivElement>();
-  const [open, setOpen] = useState<number | null>(null);
   const [drawer, setDrawer] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -488,20 +563,38 @@ function PipelineRunContent({ run }: { run: PipelineRun }) {
 
   useEscapeKey(drawer, () => setDrawer(false));
 
-  const badge = runStatusBadge(run.status);
-  const when = formatRunTimestamp(run.runTimestamp);
-  const wrote = run.database;
-  const effort = field("effort");
-  const fallback = field("fallbackModel");
-  const prompt = field("promptVersion");
-  const promptBytes = field("promptSha256");
-  const batch = field("batch");
+  // A step that failed starts open: its error is the first thing anyone
+  // looking at a failed run wants, and one click away it was a row that
+  // said "Failed" and no more.
+  const [open, setOpen] = useState<ReadonlySet<number>>(() =>
+    new Set(
+      run.steps.flatMap((step, index) =>
+        step.status === "failed" && isOpenable(step) ? [index] : []
+      ),
+    )
+  );
+  const toggle = (index: number) =>
+    setOpen((current) => {
+      const next = new Set(current);
+      if (!next.delete(index)) next.add(index);
+      return next;
+    });
+
+  // "Completed with warnings" is not said: what there is to look at is
+  // counted beside the status, and a run whose notes are all routine has
+  // nothing to add to "Completed".
+  const badge = runStatusBadge(
+    run.status === "completed_with_warnings" ? "completed" : run.status,
+  );
+  const review = reviewCount(run);
+  const toReview = field("toReview");
+  const when = runWhen(run.runTimestamp);
+  const stopped = stoppedNote(run);
   // Whether there is anything for the drawer to show. A run that failed
   // before it processed a paper records no detail at all, and a trigger
-  // reading "View everything this run recorded" over an empty panel is
-  // a promise the drawer cannot keep. The services the run called count
-  // towards that now: they are in the drawer, so a run that reached an API
-  // and nothing else still has a record worth opening.
+  // over an empty panel is a promise the drawer cannot keep. The services
+  // the run called count towards that: they are in the drawer, so a run
+  // that reached an API and nothing else still has a record worth opening.
   const recorded = run.acceptedGenes.total + run.rejectedGenes.total +
           run.papersDetail.total > 0 || run.apis.length > 0;
 
@@ -510,21 +603,11 @@ function PipelineRunContent({ run }: { run: PipelineRun }) {
       {
         /* Inert while the drawer is open. The drawer is absolutely
           positioned over this card, so without it Tab walks straight off
-          the drawer's last link into six step buttons and the trigger --
+          the drawer's last link into the step buttons and the trigger --
           all painted over, focus ring invisible, Enter toggling panels
-          nobody can see. TrialsTimeline's drawer sits *beside* its plate
-          and so never needed this. */
+          nobody can see. */
       }
       <div class="card-body" inert={drawer}>
-        {
-          /* The trigger sits beside the heading rather than at the foot of
-            the card, so open (here) and close (top of the drawer overlay,
-            same box) land at the same point instead of ~600px apart. It is
-            conditional on `recorded`, but the row's own alignment is not --
-            `justify-content: space-between` with one child still reads as a
-            plain heading row when the trigger is absent, which is the real
-            case a run that failed before it recorded anything leaves. */
-        }
         <div class="pipeline-title-row">
           <h2 class="card-title">Last Pipeline Run</h2>
           {recorded && (
@@ -536,216 +619,78 @@ function PipelineRunContent({ run }: { run: PipelineRun }) {
               aria-controls={DRAWER_ID}
               onClick={() => setDrawer(true)}
             >
-              View everything this run recorded
-              <Icon name="chevronRight" />
+              Run details
             </button>
           )}
         </div>
 
-        <div class="pipeline-head">
-          <span class="pipeline-head-when">
-            <Icon name="calendar" />
-            {when ?? "Date unavailable"}
+        {
+          /* No separators between the items: the row wraps, and a glyph
+            between flex items ends whichever line it wraps on. */
+        }
+        <p class="pipeline-when">
+          <span class="pipeline-when-date">
+            {when
+              ? (
+                <>
+                  {when.date}{" "}
+                  <span class="pipeline-when-time">{when.time}</span>
+                </>
+              )
+              : "Date unavailable"}
           </span>
           <span class={`pipeline-badge pipeline-tint-${badge.tint}`}>
             <Icon name={badge.icon} />
             {badge.label}
           </span>
-          <span class="pipeline-head-meta">
-            <Icon name="clock" />
+          {review > 0 && (
+            <span class="pipeline-badge pipeline-tint-ember">
+              <Icon name={toReview.icon} />
+              {formatCount(review)} {toReview.label}
+            </span>
+          )}
+          <span class="pipeline-when-duration">
             {formatDuration(run.durationSeconds)}
           </span>
-          <span class="pipeline-head-meta">
-            <Icon name="beaker" />
-            {runModeLabel(run.runMode)}
-          </span>
-          {run.config.model && (
-            <span class="pipeline-head-meta">
-              <Icon name="cube" />
-              {run.config.model}
-            </span>
+        </p>
+
+        {stopped
+          ? (
+            <Note
+              tint="danger"
+              mark={runStatusBadge("failed")}
+              title={stopped.title}
+            >
+              <p class="pipeline-note-detail">{stopped.consequence}</p>
+            </Note>
+          )
+          : (
+            <div class="pipeline-figures">
+              {verdictFigures(run).map((figure) => (
+                <div key={figure.key} class="pipeline-figure">
+                  <span class="pipeline-figure-value">
+                    {figure.value}
+                    {figure.of !== null && <small>{OF} {figure.of}</small>}
+                  </span>
+                  <span class="pipeline-figure-label">{figure.label}</span>
+                  <span class="pipeline-figure-sub">{figure.sub}</span>
+                </div>
+              ))}
+            </div>
           )}
-          {
-            /* Named only when the run requested one: a --batch run cannot,
-              and a report written before the fallback has none. */
-          }
-          {run.config.fallbackModel && (
-            <span class="pipeline-head-meta">
-              <Icon name={fallback.icon} />
-              {fallback.label} {run.config.fallbackModel}
-            </span>
-          )}
-          {
-            /* The method is the model *and* how it was asked: effort and
-              prompt version are both pinned and measured (see
-              .claude/rules/pipeline/extraction.md), so a header naming
-              only the model stated half of it. */
-          }
-          {run.config.effort && (
-            <span class="pipeline-head-meta">
-              <Icon name={effort.icon} />
-              {run.config.effort} {effort.label.toLowerCase()}
-            </span>
-          )}
-          {run.config.promptVersion && (
-            <span class="pipeline-head-meta">
-              <Icon name={prompt.icon} />
-              {prompt.label} {run.config.promptVersion}
-            </span>
-          )}
-          {
-            /* Named only when it was: a batched run costs half and takes
-              up to a day, so its duration and its cost read differently
-              from a streaming run's. */
-          }
-          {run.config.batch === true && (
-            <span class="pipeline-head-meta">
-              <Icon name={batch.icon} />
-              {batch.label}
-            </span>
-          )}
-          {
-            /* The version names the method; the hash names the bytes, which
-              is the half that moved into a data file. Both are read out of
-              lib/pipeline_encoding.json so neither label lives in two
-              places, and both are chips for the same reason. */
-          }
-          {run.config.disease && run.config.promptSha256 && (
-            <span class="pipeline-head-meta">
-              <Icon name={promptBytes.icon} />
-              {promptBytes.label} {run.config.disease}{" "}
-              {run.config.promptSha256.slice(0, 12)}
-            </span>
-          )}
-        </div>
 
         {run.steps.length > 0 && (
           <ol class="pipeline-steps">
-            {run.steps.map((step, index) => (
+            {run.steps.map((_, index) => (
               <Step
                 key={index}
-                step={step}
+                run={run}
                 index={index}
-                expanded={open === index}
-                onToggle={() => setOpen(open === index ? null : index)}
+                expanded={open.has(index)}
+                onToggle={() => toggle(index)}
               />
             ))}
           </ol>
-        )}
-
-        <div class="pipeline-stats">
-          {
-            /* Fetched before accepted, in that order: the widget's job is
-              to show the funnel, and "40 found" is the denominator every
-              number after it is a fraction of. Absent on an offline run,
-              which was handed its identifiers and never searched. */
-          }
-          {run.papers.found !== null && (
-            <Stat name="papersFound" value={run.papers.found} />
-          )}
-          <Stat
-            name="papersProcessed"
-            value={run.papers.processed}
-          />
-          <Stat
-            name="papersFulltext"
-            value={run.papers.fulltext}
-          />
-          <Stat
-            name="papersAbstract"
-            value={run.papers.abstractOnly}
-          />
-          {run.papers.noTextAvailable > 0 && (
-            <Stat
-              name="papersNoText"
-              value={run.papers.noTextAvailable}
-            />
-          )}
-          {
-            /* Papers that failed outright are the other leak in the
-              funnel, and were counted in the document but shown nowhere:
-              "Processed 9" over 12 papers had no line saying where the
-              other three went. */
-          }
-          {run.papers.failed > 0 && (
-            <Stat name="papersFailed" value={run.papers.failed} />
-          )}
-          <Stat
-            name="genesExtracted"
-            value={run.genes.extracted}
-          />
-          {
-            /* What reached the database, counted from the accepted list's
-              own total -- exact even when the list itself is capped.
-              `validated - rejectedAtInsertFloor` is the same number only
-              on a report written since a hold became one per paper: before
-              that it counted one per merged gene, so two genes sharing an
-              alias validated from two papers and held once as that alias
-              read as one gene accepted when none was. */
-          }
-          {
-            /* Named for what happened to them. A run that failed before
-              its merge has no `database` block and wrote no row, so the
-              genes its papers validated are validated and no more:
-              "Accepted 24" there was a claim the report contradicted. */
-          }
-          <Stat
-            name={wrote ? "genesAccepted" : "genesValidated"}
-            value={run.acceptedGenes.total}
-          />
-          <Stat name="genesRejected" value={run.genes.rejected} />
-          {
-            /* The second gate, shown separately because it is a different
-              decision: these genes cleared validation and were still
-              refused as *new* rows at the merge. Published but rendered
-              nowhere until now, so nothing on the page reconciled
-              "Accepted" against the drawer's rejected list. */
-          }
-          {run.genes.rejectedAtInsertFloor > 0 && (
-            <Stat
-              name="genesHeld"
-              value={run.genes.rejectedAtInsertFloor}
-            />
-          )}
-          {wrote && (
-            <>
-              <Stat name="inserted" value={wrote.inserted} />
-              <Stat name="updated" value={wrote.updated} />
-            </>
-          )}
-        </div>
-
-        {
-          /* Two numbers, not one rate. `verbatim` asks whether the
-            sentence is in the paper, of every gene; `cited` asks whether
-            the API attested to that span, which is the stronger claim but
-            is bounded by how much prose the model wrote. Averaging them
-            would report a quality figure the second number cannot carry. */
-        }
-        {run.genes.quotesChecked > 0 && (
-          <p class="pipeline-provenance">
-            <Icon name="chatQuote" />
-            {formatCount(run.genes.quotesVerbatim)} of{" "}
-            {formatCount(run.genes.quotesChecked)} quotes found in the paper
-            <span class="pipeline-dot" aria-hidden="true">·</span>
-            {formatCount(run.genes.quotesCited)}{" "}
-            attested by the model's own citations
-          </p>
-        )}
-
-        {run.tokens.totalTokens > 0 && (
-          <p class="pipeline-tokens">
-            <Icon name="cube" />
-            {formatCount(run.tokens.totalTokens)} tokens
-            <span class="pipeline-dot" aria-hidden="true">·</span>
-            {
-              /* "of input", because that is what the rate is of. The count
-                beside it is the uncached input plus the output, so a bare
-                "32% served from cache" read as a share of a number that
-                holds no cached token at all. */
-            }
-            {formatPercent(run.tokens.cacheHitRate)} of input served from cache
-          </p>
         )}
       </div>
 
