@@ -14,10 +14,10 @@ paths:
 # Long windows
 
 The window's measured cost, the Opus 4.8 fallback's per-paper premium, the
-credit-balance check, the resume semantics, the `--batch` exception and the
+credit-balance check, the resume semantics, the `--batch` state file and the
 checkpoint's own invariants (the fingerprint, the `flock`, the request-order
 merge) are in the `run-long-window` skill
-(`.claude/skills/run-long-window/SKILL.md`); the `--batch` warning is also in
+(`.claude/skills/run-long-window/SKILL.md`); the `--batch` resume is also in
 "Commands" in the root `CLAUDE.md`.
 
 `scripts/backfill_pubmed.py` is the other half, optional rather than the

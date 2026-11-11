@@ -230,7 +230,7 @@ def _configure_ca_bundle() -> None:
 
 _configure_ca_bundle()
 
-from pipeline import checkpoint, europepmc, ncbi_http, profiling
+from pipeline import batch_state, checkpoint, europepmc, ncbi_http, profiling
 from pipeline.api_telemetry import current_recorder, reset_recorder
 from pipeline.batch_extraction import submit_and_collect
 from pipeline.batch_validation import batch_validate
@@ -2054,7 +2054,14 @@ async def _process_new_pmids_via_batch(
     refusals: dict[str, str] = {}
     genes_by_pmid = (
         await submit_and_collect(
-            papers, config, usage=batch_usage, refusals=refusals
+            papers,
+            config,
+            usage=batch_usage,
+            refusals=refusals,
+            # A dry run or test mode writes no checkpoint and so no batch
+            # record either: the record would outlive a run that was never
+            # meant to leave anything behind.
+            state_path=config.batch_state_file if use_checkpoint else None,
         )
         if papers
         else {}
@@ -2089,6 +2096,12 @@ async def _process_new_pmids_via_batch(
             collected.append(result)
 
     await asyncio.gather(*(validate_one(pmid) for pmid in extracted_pmids))
+    # Every collected paper is validated, so the batch record has done its
+    # job. Clearing it any earlier would lose the results a crash in
+    # validation could otherwise retrieve again. A dry run leaves a real
+    # run's record alone, as it leaves its checkpoint.
+    if use_checkpoint:
+        batch_state.clear(config.batch_state_file)
     for pmid in papers:
         if pmid in genes_by_pmid:
             continue

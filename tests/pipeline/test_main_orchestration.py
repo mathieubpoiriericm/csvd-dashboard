@@ -820,16 +820,15 @@ class TestCheckpointResume:
             "pipeline.main._fetch_paper_text_for_batch",
             new=AsyncMock(return_value=("text", True, "europepmc")),
         )
-        mocker.patch(
-            "pipeline.main.submit_and_collect",
-            new=AsyncMock(return_value=genes_by_pmid),
-        )
+        submit = AsyncMock(return_value=genes_by_pmid)
+        mocker.patch("pipeline.main.submit_and_collect", new=submit)
 
         async def _validate(genes, metrics, config):
             metrics.genes_validated += len(genes)
             return genes, []
 
         mocker.patch("pipeline.main._validate_genes", new=_validate)
+        return submit
 
     async def test_a_batch_run_checkpoints_each_validated_paper(
         self, mocker, tmp_path: Path
@@ -934,6 +933,68 @@ class TestCheckpointResume:
         )
 
         assert not Path(config.checkpoint_file).exists()
+
+    async def test_a_batch_run_clears_its_state_once_every_paper_is_validated(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        config = self._config(tmp_path)
+        self._batch_fakes(mocker, {"111": [self._gene()]})
+        Path(config.batch_state_file).parent.mkdir(parents=True, exist_ok=True)
+        Path(config.batch_state_file).write_text("[]")
+
+        await pipeline_main._process_new_pmids_via_batch(
+            ["111"], PipelineMetrics(), config, MagicMock()
+        )
+
+        assert not Path(config.batch_state_file).exists()
+
+    async def test_a_batch_run_keeps_its_state_when_validation_crashes(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        # The results are paid for until every paper is validated, so a
+        # crash in validation must leave the batch retrievable.
+        config = self._config(tmp_path)
+        self._batch_fakes(mocker, {"111": [self._gene()]})
+        Path(config.batch_state_file).parent.mkdir(parents=True, exist_ok=True)
+        Path(config.batch_state_file).write_text("[]")
+        mocker.patch(
+            "pipeline.main._validate_batch_paper",
+            new=AsyncMock(side_effect=RuntimeError("boom")),
+        )
+
+        with pytest.raises(RuntimeError):
+            await pipeline_main._process_new_pmids_via_batch(
+                ["111"], PipelineMetrics(), config, MagicMock()
+            )
+
+        assert Path(config.batch_state_file).exists()
+
+    async def test_a_batch_run_passes_the_state_path_when_checkpointing(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        config = self._config(tmp_path)
+        submit = self._batch_fakes(mocker, {"111": [self._gene()]})
+
+        await pipeline_main._process_new_pmids_via_batch(
+            ["111"], PipelineMetrics(), config, MagicMock()
+        )
+
+        assert (
+            submit.call_args.kwargs["state_path"]
+            == config.batch_state_file
+        )
+
+    async def test_a_dry_run_batch_writes_no_state(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        config = self._config(tmp_path)
+        submit = self._batch_fakes(mocker, {"111": [self._gene()]})
+
+        await pipeline_main._process_new_pmids_via_batch(
+            ["111"], PipelineMetrics(), config, MagicMock(), use_checkpoint=False
+        )
+
+        assert submit.call_args.kwargs["state_path"] is None
 
     async def test_a_batch_checkpoint_that_cannot_be_written_does_not_end_the_run(
         self, mocker, tmp_path: Path
@@ -2046,7 +2107,7 @@ class TestMetricsCountWhatHappened:
             new=AsyncMock(return_value=("text", True, "europepmc")),
         )
 
-        async def _collect(papers, config, *, usage, refusals=None):
+        async def _collect(papers, config, *, usage, refusals=None, state_path=None):
             usage.input_tokens += 1000
             usage.output_tokens += 200
             usage.truncated_responses += 1
@@ -2947,7 +3008,9 @@ class TestTheServingModelAndTheRefusal:
             new=AsyncMock(return_value=("paper text", False, "abstract")),
         )
 
-        async def fake_submit(papers, config, *, usage=None, refusals=None):
+        async def fake_submit(
+            papers, config, *, usage=None, refusals=None, state_path=None
+        ):
             assert refusals is not None
             refusals["777"] = "bio"
             return {}

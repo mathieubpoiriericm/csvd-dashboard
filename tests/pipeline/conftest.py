@@ -608,6 +608,12 @@ def _isolate_checkpoint(_isolate_credentials, monkeypatch, tmp_path):
     monkeypatch.setenv(
         "PIPELINE_CHECKPOINT_FILE", str(tmp_path / "pipeline_checkpoint.jsonl")
     )
+    # The batch path records a submitted batch beside the checkpoint and
+    # clears that record when it finishes, so a default config would read
+    # and delete the developer's real `logs/pipeline_batch.json`.
+    monkeypatch.setenv(
+        "PIPELINE_BATCH_STATE_FILE", str(tmp_path / "pipeline_batch.json")
+    )
 
 
 @pytest.fixture(autouse=True)

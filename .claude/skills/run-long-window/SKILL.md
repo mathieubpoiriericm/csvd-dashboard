@@ -1,6 +1,6 @@
 ---
 name: run-long-window
-description: "Use when running the pipeline over a long --days-back window: checkpoint and resume semantics, the --batch exception, backfill_pubmed, and cost estimation."
+description: "Use when running the pipeline over a long --days-back window: checkpoint and resume semantics, the --batch state file, backfill_pubmed, and cost estimation."
 ---
 
 # Running a long window
@@ -158,10 +158,21 @@ paper, so a restored batch paper carries none -- the crashed run's own failed
 report holds the spend. The batch path used to write nothing and also reached
 the unconditional clear without restoring a streaming run's papers.
 
-**The poll window of a `--batch` run is the one unprotected stretch**: the batch
-id lives only in the `Submitted batch %s` log line, so a crash inside the
-up-to-24h wait loses the submission and a re-run pays again -- see "Commands" in
-the root `CLAUDE.md`. `--test-mode` counts what a window would process before
+**The poll window of a `--batch` run is covered by a state file.**
+`submit_and_collect` writes the batch id to `logs/pipeline_batch.json`
+(`PIPELINE_BATCH_STATE_FILE`) right after `batches.create`, before the first
+poll, so a crash inside the up-to-24h wait costs nothing: a re-run with the same
+method fingerprint retrieves the recorded batch instead of submitting it again.
+Only papers whose text is unchanged are reused (the file keeps a hash of each
+document block); the rest go out as a new batch, and a changed fingerprint
+discards the file. Anthropic keeps batch results for 29 days; after that, or if
+the API no longer knows the batch, the papers are resubmitted with a warning. A
+resumed batch's tokens are counted in the report of the run that collects them,
+not the crashed one. An entry of a recorded batch that expired or was canceled
+comes back as a failed paper on the resuming run and is retried by the run after
+it. The file is cleared once every batch paper has been validated, so a crash in
+validation can still retrieve the results; a dry run or `--test-mode` writes
+none. `--test-mode` counts what a window would process before
 paying for it, and `scripts.backfill_pubmed` walks it in committed chunks so the
 database is updated as it goes; both are described in
 `.claude/rules/pipeline/long-windows.md`.

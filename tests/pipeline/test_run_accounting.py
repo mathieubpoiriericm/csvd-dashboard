@@ -1127,7 +1127,7 @@ class TestAFailedPapersQuotesAreNotCounted:
             new=AsyncMock(return_value=("paper text", True, "europepmc")),
         )
 
-        async def submit(papers, cfg, *, usage=None, refusals=None):
+        async def submit(papers, cfg, *, usage=None, refusals=None, state_path=None):
             current_tally().record(genes=4, verbatim=3, cited=1)
             return {"333": [_gene(pmid="333")]}
 
