@@ -6,12 +6,15 @@ manual so the latency costs nothing. Caching uses the 1-hour TTL: the
 """
 
 import asyncio
+import hashlib
 import logging
 import time
 from typing import Any, cast
 
+import anthropic
 from anthropic.types.messages import batch_create_params
 
+from pipeline import batch_state, checkpoint
 from pipeline.anthropic_client import (
     _account_reasoning,
     _build_message_params,
@@ -23,6 +26,7 @@ from pipeline.anthropic_client import (
     build_async_client,
 )
 from pipeline.api_telemetry import record_service_call
+from pipeline.batch_state import PendingBatch
 from pipeline.citations import collect_spans, paper_scope, report_provenance
 from pipeline.config import EXTRACTION_TOOL_NAME, PipelineConfig
 from pipeline.extraction_models import ExtractionFailedError, GeneEntry
@@ -220,12 +224,110 @@ def results_by_custom_id(
     return out
 
 
+def _document_sha256(text: str) -> str:
+    """The fingerprint of one paper's document block, as the state file keeps it."""
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _claim_pending(
+    pending: list[PendingBatch], documents: dict[str, str]
+) -> list[tuple[PendingBatch, set[str]]]:
+    """Each recorded batch paired with the papers of this run it can answer.
+
+    A paper is reusable only if the batch was sent exactly the text this run
+    would send: the window may have moved, and a paper's text may have
+    changed (a PDF that now parses, a new truncation limit), and collecting
+    the old answer would then check its quotes against a document it never
+    saw. The first batch holding a paper claims it, and a batch that claims
+    nothing is dropped, so it is never even looked up.
+    """
+    claimed: set[str] = set()
+    out: list[tuple[PendingBatch, set[str]]] = []
+    for batch in pending:
+        pmids = {
+            pmid
+            for pmid, digest in batch.document_sha256.items()
+            if pmid in documents
+            and pmid not in claimed
+            and _document_sha256(documents[pmid]) == digest
+        }
+        if pmids:
+            claimed |= pmids
+            out.append((batch, pmids))
+    return out
+
+
+async def _poll_until_ended(client: Any, batch_id: str) -> Any:
+    """Poll a batch until it ends, and return it as it ended.
+
+    Raises ExtractionFailedError if it is still running after
+    _MAX_WAIT_SECONDS -- the batch itself is not cancelled, so its id is in
+    the message and results stay retrievable.
+    """
+    deadline = time.monotonic() + _MAX_WAIT_SECONDS
+    while True:
+        current = await client.messages.batches.retrieve(batch_id)
+        if current.processing_status == "ended":
+            return current
+        if time.monotonic() >= deadline:
+            raise ExtractionFailedError(
+                f"Batch {batch_id} is still "
+                f"{current.processing_status} after "
+                f"{_MAX_WAIT_SECONDS // 3600}h. It was not cancelled; "
+                "retrieve its results directly if it finishes later."
+            )
+        logger.info("Batch %s: %s", batch_id, current.processing_status)
+        await asyncio.sleep(_POLL_SECONDS)
+
+
+async def _fetch_entries(
+    client: Any, batch_id: str, pmids: set[str] | None
+) -> list[Any]:
+    """The batch's result entries, narrowed to ``pmids`` when given.
+
+    A recorded batch can hold papers this run no longer wants; their
+    entries are dropped here, before ``results_by_custom_id`` would count
+    their tokens or check their quotes.
+    """
+    entries = [r async for r in await client.messages.batches.results(batch_id)]
+    if pmids is None:
+        return entries
+    return [entry for entry in entries if entry.custom_id in pmids]
+
+
+async def _fetch_recorded_entries(
+    client: Any, batch: Any, pmids: set[str]
+) -> list[Any] | None:
+    """A recorded batch's entries for ``pmids``, or None when they are gone.
+
+    The API keeps results for 29 days. Past that an ended batch has no
+    ``results_url``, and its papers have to be paid for again.
+    """
+    if getattr(batch, "results_url", None) is None:
+        logger.warning(
+            "Recorded batch %s has ended but its results are no longer "
+            "available; its papers will be submitted again.",
+            batch.id,
+        )
+        return None
+    try:
+        return await _fetch_entries(client, batch.id, pmids)
+    except anthropic.NotFoundError:
+        logger.warning(
+            "The results of recorded batch %s could not be fetched; its "
+            "papers will be submitted again.",
+            batch.id,
+        )
+        return None
+
+
 async def submit_and_collect(
     papers: dict[str, str],
     config: PipelineConfig,
     *,
     usage: TokenUsage | None = None,
     refusals: dict[str, str] | None = None,
+    state_path: str | None = None,
 ) -> dict[str, list[GeneEntry]]:
     """Submit every paper as one batch and poll until it ends.
 
@@ -233,8 +335,20 @@ async def submit_and_collect(
     still running after _MAX_WAIT_SECONDS -- the batch itself is not
     cancelled, so its id is in the message and results stay retrievable.
 
-    ``usage`` receives the whole batch's token usage and ``refusals`` the
-    category of every refused entry; see ``results_by_custom_id``.
+    ``usage`` receives the token usage of every entry collected and
+    ``refusals`` the category of every refused one; see
+    ``results_by_custom_id``.
+
+    ``state_path`` makes a submitted batch survive a crash. Every batch is
+    recorded there (``pipeline.batch_state``) the moment the API accepts
+    it, before the first poll, and a later call collects a recorded batch
+    for the papers it was sent the same text for, instead of paying for
+    them again; only the rest are submitted. A recorded batch the API no
+    longer knows, or whose results have expired, is logged and its papers
+    submitted again. When nothing new is submitted the file is left as it
+    was, and this function never clears it: the caller does, once the
+    results are safely stored. With ``state_path`` None nothing is read or
+    written and the API calls are exactly those of a plain submission.
     """
     # Shared with the streaming path so the key precheck and the
     # identity-linked-key workspace header cannot drift between the two.
@@ -243,30 +357,87 @@ async def submit_and_collect(
         requests = [build_batch_request(p, t, config) for p, t in papers.items()]
         # What each document block carried, for the provenance check: the
         # truncated text, so locate_quote's offsets mean what the API's do.
+        # The state file hashes the same text, for the same reason.
         documents = {
             request["custom_id"]: _document_text(request["params"])
             for request in requests
         }
-        batch = await client.messages.batches.create(
-            requests=cast(list[batch_create_params.Request], requests)
+        run_fingerprint = (
+            checkpoint.fingerprint(config) if state_path is not None else {}
         )
-        logger.info("Submitted batch %s (%d papers)", batch.id, len(papers))
-        deadline = time.monotonic() + _MAX_WAIT_SECONDS
-        while True:
-            current = await client.messages.batches.retrieve(batch.id)
-            if current.processing_status == "ended":
-                break
-            if time.monotonic() >= deadline:
-                raise ExtractionFailedError(
-                    f"Batch {batch.id} is still "
-                    f"{current.processing_status} after "
-                    f"{_MAX_WAIT_SECONDS // 3600}h. It was not cancelled; "
-                    "retrieve its results directly if it finishes later."
+        claimed = (
+            _claim_pending(batch_state.load(state_path, run_fingerprint), documents)
+            if state_path is not None
+            else []
+        )
+
+        # Entries already in hand, and batches still to be polled, each
+        # with the papers it is collected for (None: all of them).
+        entries: list[Any] = []
+        to_poll: list[tuple[str, set[str] | None]] = []
+        # The recorded batches that will answer for some of this run's
+        # papers; they are written back beside any new batch.
+        kept: list[PendingBatch] = []
+        covered: set[str] = set()
+        for pending, pmids in claimed:
+            try:
+                current = await client.messages.batches.retrieve(pending.batch_id)
+            except anthropic.NotFoundError:
+                logger.warning(
+                    "Recorded batch %s is unknown to the API; its papers "
+                    "will be submitted again.",
+                    pending.batch_id,
                 )
-            logger.info("Batch %s: %s", batch.id, current.processing_status)
-            await asyncio.sleep(_POLL_SECONDS)
+                continue
+            if current.processing_status == "ended":
+                collected = await _fetch_recorded_entries(client, current, pmids)
+                if collected is None:
+                    continue
+                entries.extend(collected)
+            else:
+                to_poll.append((pending.batch_id, pmids))
+            logger.info(
+                "Collecting %d papers from recorded batch %s instead of "
+                "submitting them again",
+                len(pmids),
+                pending.batch_id,
+            )
+            kept.append(pending)
+            covered |= pmids
+
+        remainder = [r for r in requests if r["custom_id"] not in covered]
+        if remainder:
+            batch = await client.messages.batches.create(
+                requests=cast(list[batch_create_params.Request], remainder)
+            )
+            logger.info("Submitted batch %s (%d papers)", batch.id, len(remainder))
+            if state_path is not None:
+                # Before the first poll: a crash from here on has paid for
+                # this batch, and the next run must find it.
+                submitted = PendingBatch(
+                    batch_id=batch.id,
+                    document_sha256={
+                        r["custom_id"]: _document_sha256(documents[r["custom_id"]])
+                        for r in remainder
+                    },
+                )
+                batch_state.save(state_path, run_fingerprint, [*kept, submitted])
+            to_poll.append((batch.id, None))
+
+        for batch_id, pmids in to_poll:
+            ended = await _poll_until_ended(client, batch_id)
+            if pmids is None:
+                entries.extend(await _fetch_entries(client, batch_id, None))
+                continue
+            # A recorded batch that was still running when this call found
+            # it. Its results expiring before it ended is not expected, but
+            # if they did, its papers are absent from the result and the
+            # caller fails them for a later run.
+            collected = await _fetch_recorded_entries(client, ended, pmids)
+            entries.extend(collected or [])
+
         return results_by_custom_id(
-            [r async for r in await client.messages.batches.results(batch.id)],
+            entries,
             usage=usage,
             documents=documents,
             config=config,
