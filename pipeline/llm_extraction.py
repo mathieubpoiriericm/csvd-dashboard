@@ -25,11 +25,16 @@ async def extract_from_paper(
     pmid: str,
     config: PipelineConfig | None = None,
     rate_limiter: AsyncRateLimiter | None = None,
+    *,
+    model: str | None = None,
+    declined: str | None = None,
 ) -> tuple[list[GeneEntry], TokenUsage, ServedBy | None]:
     """Extract genes from paper text. Caches one client for the process.
 
     The third value says which model served the extraction, and is None
-    when no call was made (empty text): no model ran.
+    when no call was made (empty text): no model ran. *model* and
+    *declined* send the paper straight to that model with no server-side
+    fallback; see `AnthropicClient.extract`.
     """
     global _client
     if not text or not text.strip():
@@ -39,7 +44,9 @@ async def extract_from_paper(
     config = config or PipelineConfig()
     if _client is None:
         _client = AnthropicClient()
-    return await _client.extract(text, pmid, config, rate_limiter)
+    return await _client.extract(
+        text, pmid, config, rate_limiter, model=model, declined=declined
+    )
 
 
 async def close_async_client() -> None:

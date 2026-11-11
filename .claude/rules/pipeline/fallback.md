@@ -97,6 +97,23 @@ and in `TokenUsage.unbilled_*`, which `estimate_cost` takes off; it never joins
 corpus the refusals are `bio`, so the declined attempt is paid for; the batch
 path, where a refused entry is one top-level `usage`, follows the same rule.
 
+**A paper can be sent straight to the fallback model.**
+`AnthropicClient.extract` (and `extract_from_paper`) take `model=` and
+`declined=`; with `model` set, `_build_message_params` changes the `model` field
+and nothing else, and the stream call sends no `fallbacks` and no beta header --
+the request already names the last model there is. `_PaperCalls.direct` keeps
+every validation, rate-limit and connection retry on that model. Its answer
+carries neither served-by signal (no `fallback` block, no `fallback_message`
+iteration), so `_served_by` reports `ServedBy(model=response.model,
+declined=declined or "unspecified")` from what the caller said. Its usage has no
+`iterations` either, so `accumulate_usage` counts a top-level usage whose
+response `model` is the fallback model's into `fallback_*` (`_is_direct_fallback`)
+and prices it at Opus 4.8's rates; an ordinary answer naming Opus 5.5, or any
+batch entry (whose caller passes no `fallback_model`), is untouched. If the
+fallback declines a direct request it is an ordinary refusal: the category is
+its own, from `stop_details`. With `model=None`, every existing caller, nothing
+about the request, its `ServedBy` or its accounting changed.
+
 `--batch` has no fallback: the Batches API rejects `fallbacks`. A refused batch
 entry is handed back through `results_by_custom_id`'s `refusals` and fails with
 the same sentence and category as a streaming refusal, and the next run whose

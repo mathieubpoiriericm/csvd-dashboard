@@ -485,3 +485,61 @@ class TestFallbackIterations:
             usage.fallback_output_tokens,
             usage.fallback_cache_read_input_tokens,
         ) == (4, 2, 4)
+
+
+class TestADirectFallbackResponse:
+    """A request sent straight to the fallback model carries no `fallbacks`,
+    so its answer has no `iterations`: the top-level usage is the fallback's
+    one attempt, named by the response's own `model`."""
+
+    @staticmethod
+    def _response(model: str) -> SimpleNamespace:
+        return SimpleNamespace(
+            model=model,
+            stop_reason="tool_use",
+            stop_details=None,
+            content=[],
+            usage=SimpleNamespace(
+                input_tokens=700,
+                output_tokens=300,
+                cache_creation_input_tokens=50,
+                cache_read_input_tokens=20,
+                output_tokens_details=None,
+                iterations=None,
+            ),
+        )
+
+    def test_its_top_level_usage_is_the_fallbacks_share(self) -> None:
+        usage = TokenUsage()
+        accumulate_usage(
+            usage, self._response("claude-opus-4-8"), fallback_model="claude-opus-4-8"
+        )
+        assert (
+            usage.fallback_input_tokens,
+            usage.fallback_output_tokens,
+            usage.fallback_cache_creation_input_tokens,
+            usage.fallback_cache_read_input_tokens,
+        ) == (700, 300, 50, 20)
+
+    def test_a_primary_response_without_iterations_is_not_the_fallbacks(
+        self,
+    ) -> None:
+        usage = TokenUsage()
+        accumulate_usage(
+            usage, self._response("claude-opus-5-5"), fallback_model="claude-opus-4-8"
+        )
+        assert usage.input_tokens == 700
+        assert usage.fallback_input_tokens == 0
+        assert usage.fallback_output_tokens == 0
+
+    def test_the_fallback_refusing_unbilled_is_kept_out_of_its_share(self) -> None:
+        """Declined before any output in a category the API does not bill:
+        unbilled, and so not the fallback's priced share either."""
+        response = self._response("claude-opus-4-8")
+        response.stop_reason = "refusal"
+        response.stop_details = SimpleNamespace(category="cyber")
+        response.usage.output_tokens = 0
+        usage = TokenUsage()
+        accumulate_usage(usage, response, fallback_model="claude-opus-4-8")
+        assert usage.unbilled_input_tokens == 700
+        assert usage.fallback_input_tokens == 0
