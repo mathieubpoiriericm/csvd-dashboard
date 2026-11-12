@@ -21,7 +21,8 @@ Four properties matter:
   and rewrites the file without it: a record for a window that is never
   re-run would otherwise stay for ever, since nothing looks it up to find it
   expired. A record with no `submitted_at` (written before the field) is
-  kept, and written back as it was.
+  dated on its first load from the file's last write, which is never earlier
+  than the batch, and ages from there like any other.
 - **Never fatal to read.** A missing, corrupt or wrong-shaped file is an empty
   list and is deleted, so a stale file is not resumed by some later run whose
   settings happen to match it again. A file that cannot be deleted is still an
@@ -37,9 +38,9 @@ one, and the caller removes papers one by one with `forget` once they are
 safely stored; only an emptied record is dropped.
 
 There is no locking: one run writes it, once per submitted batch and once at
-the end. Each batch records the sha256 of the document text sent per PMID, so
-the collector can tell whether a paper's text has changed since the
-submission.
+the end, and once more on a load that dates or prunes a record. Each batch
+records the sha256 of the document text sent per PMID, so the collector can
+tell whether a paper's text has changed since the submission.
 """
 
 import json
@@ -64,9 +65,11 @@ RESULTS_RETENTION_SECONDS = 29 * 24 * 60 * 60
 
 # Slack on top of the retention before a record is pruned. `submitted_at` is
 # the API's clock and the cutoff is this machine's, so a local clock running
-# ahead could otherwise drop a batch minutes before the API expires it. A late
-# prune costs nothing: the collector already drops a batch the API reports
-# gone.
+# ahead could otherwise drop a batch minutes before the API expires it. A
+# record dated from the file's last write is this machine's clock on both
+# sides, and the slack covers a clock that was behind when the file was
+# written and has been corrected since. A late prune costs nothing: the
+# collector already drops a batch the API reports gone.
 PRUNE_MARGIN_SECONDS = 24 * 60 * 60
 
 
@@ -77,9 +80,11 @@ class PendingBatch:
     batch_id: str
     # PMID -> sha256 hex of the document text sent for that paper.
     document_sha256: dict[str, str]
-    # When the API created the batch, in seconds since the epoch. None for a
-    # record written before this field existed: its age is unknown, so it is
-    # kept, and the collector already drops a batch the API reports gone.
+    # When the API created the batch, in seconds since the epoch. None only
+    # for a record not yet written, or read from a file written before this
+    # field existed: `load` dates that one from the file's last write, the
+    # latest the batch can have been created, so no record `load` returns is
+    # without a date.
     submitted_at: float | None = None
 
 
@@ -131,7 +136,8 @@ def load(
     `PRUNE_MARGIN_SECONDS` before *now* (the clock, injectable for tests) is
     left out, logged by id, and the file is rewritten without it, or deleted
     when it was the last: its results are gone from the API. A batch with no
-    `submitted_at` is kept.
+    `submitted_at` is given one first (`_dated`), and the file is rewritten
+    with it, so the date holds through later rewrites of the file.
     """
     target = Path(path)
     if not target.exists():
@@ -155,29 +161,58 @@ def load(
         )
         _discard(target)
         return []
-    return _prune_expired(target, run_fingerprint, pending, now)
+    return _prune_expired(
+        target, run_fingerprint, pending, time.time() if now is None else now
+    )
+
+
+def _dated(target: Path, pending: list[PendingBatch], now: float) -> list[PendingBatch]:
+    """*pending* with a date on every record that had none.
+
+    A record written before `submitted_at` existed says nothing of its age,
+    and kept as it was it would never be pruned. The file's last write is the
+    latest its batch can have been created: a record is written the moment
+    the API accepts the batch, and every rewrite since came later. Dating the
+    record from it can only prune late, never a batch the API still holds.
+    The clock stands in when the file cannot be read for its time or claims
+    one in the future.
+    """
+    if all(batch.submitted_at is not None for batch in pending):
+        return pending
+    try:
+        last_write = min(target.stat().st_mtime, now)
+    except OSError:
+        last_write = now
+    return [
+        batch
+        if batch.submitted_at is not None
+        else PendingBatch(batch.batch_id, batch.document_sha256, last_write)
+        for batch in pending
+    ]
 
 
 def _prune_expired(
     target: Path,
     run_fingerprint: dict[str, Any],
     pending: list[PendingBatch],
-    now: float | None,
+    now: float,
 ) -> list[PendingBatch]:
-    """*pending* without the batches the API no longer holds, and the file too.
+    """*pending*, dated, without the batches the API no longer holds.
 
-    Best-effort: a file that cannot be rewritten still loads without them, and
-    the next load drops them again.
+    The file is rewritten when either changed it. Best-effort: a file that
+    cannot be rewritten still loads dated and without them, and the next load
+    does the same again from the same last write.
     """
-    cutoff = (
-        (time.time() if now is None else now)
-        - RESULTS_RETENTION_SECONDS
-        - PRUNE_MARGIN_SECONDS
-    )
-    kept = [p for p in pending if p.submitted_at is None or p.submitted_at >= cutoff]
-    if len(kept) == len(pending):
+    dated = _dated(target, pending, now)
+    cutoff = now - RESULTS_RETENTION_SECONDS - PRUNE_MARGIN_SECONDS
+    kept = [
+        batch
+        for batch in dated
+        if batch.submitted_at is None or batch.submitted_at >= cutoff
+    ]
+    if kept == pending:
         return pending
-    for batch in pending:
+    for batch in dated:
         if batch not in kept:
             logger.info(
                 "Dropping recorded batch %s: it is older than the API keeps "
@@ -190,7 +225,9 @@ def _prune_expired(
         else:
             target.unlink(missing_ok=True)
     except OSError:
-        logger.warning("Could not drop expired batches from %s", target, exc_info=True)
+        logger.warning(
+            "Could not date or drop recorded batches in %s", target, exc_info=True
+        )
     return kept
 
 

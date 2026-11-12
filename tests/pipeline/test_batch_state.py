@@ -1,26 +1,32 @@
 import json
 import logging
+import os
 import time
 from pathlib import Path
 
 import pytest
 
-from pipeline.batch_state import PendingBatch, forget, load, save
+from pipeline.batch_state import PendingBatch, _dated, forget, load, save
 
 FP = {"model": "m", "effort": "high"}
+# A date for the records of tests that are not about age: `load` gives an
+# undated record one, so only a dated record comes back as it was saved.
+_RECENT = time.time()
 
 
 def test_a_saved_batch_loads_under_the_same_fingerprint(tmp_path) -> None:
     path = str(tmp_path / "b.json")
-    pending = PendingBatch(batch_id="msgbatch_1", document_sha256={"111": "ab"})
+    pending = PendingBatch(
+        batch_id="msgbatch_1", document_sha256={"111": "ab"}, submitted_at=_RECENT
+    )
     save(path, FP, [pending])
     assert load(path, FP) == [pending]
 
 
 def test_two_batches_round_trip_in_order(tmp_path) -> None:
     path = str(tmp_path / "b.json")
-    first = PendingBatch("msgbatch_1", {"111": "ab"})
-    second = PendingBatch("msgbatch_2", {"222": "cd", "333": "ef"})
+    first = PendingBatch("msgbatch_1", {"111": "ab"}, _RECENT)
+    second = PendingBatch("msgbatch_2", {"222": "cd", "333": "ef"}, _RECENT)
     save(path, FP, [first, second])
     assert load(path, FP) == [first, second]
 
@@ -28,7 +34,7 @@ def test_two_batches_round_trip_in_order(tmp_path) -> None:
 def test_save_replaces_the_whole_file_and_makes_the_directory(tmp_path) -> None:
     path = str(tmp_path / "logs" / "b.json")
     save(path, FP, [PendingBatch("msgbatch_1", {"111": "ab"})])
-    only = PendingBatch("msgbatch_2", {"222": "cd"})
+    only = PendingBatch("msgbatch_2", {"222": "cd"}, _RECENT)
     save(path, FP, [only])
     assert load(path, FP) == [only]
     assert [p.name for p in Path(path).parent.iterdir()] == ["b.json"]
@@ -88,12 +94,12 @@ def test_forget_removes_the_papers_from_every_record(tmp_path) -> None:
         path,
         FP,
         [
-            PendingBatch("msgbatch_1", {"111": "ab", "222": "cd"}),
-            PendingBatch("msgbatch_2", {"111": "ef", "333": "gh"}),
+            PendingBatch("msgbatch_1", {"111": "ab", "222": "cd"}, _RECENT),
+            PendingBatch("msgbatch_2", {"111": "ef", "333": "gh"}, _RECENT),
         ],
     )
     forget(path, FP, ["111", "333"])
-    assert load(path, FP) == [PendingBatch("msgbatch_1", {"222": "cd"})]
+    assert load(path, FP) == [PendingBatch("msgbatch_1", {"222": "cd"}, _RECENT)]
 
 
 def test_forget_deletes_the_file_when_no_record_remains(tmp_path) -> None:
@@ -105,7 +111,7 @@ def test_forget_deletes_the_file_when_no_record_remains(tmp_path) -> None:
 
 def test_forget_leaves_a_record_it_has_nothing_to_take_from(tmp_path) -> None:
     path = str(tmp_path / "b.json")
-    kept = PendingBatch("msgbatch_1", {"111": "ab"})
+    kept = PendingBatch("msgbatch_1", {"111": "ab"}, _RECENT)
     save(path, FP, [kept])
     forget(path, FP, ["999"])
     assert load(path, FP) == [kept]
@@ -155,13 +161,31 @@ def test_submitted_at_round_trips_through_save_and_load(tmp_path) -> None:
     assert load(path, FP, now=_NOW) == [batch]
 
 
-def test_a_file_written_before_submitted_at_still_loads(tmp_path) -> None:
-    path = tmp_path / "b.json"
+def _written(path: Path, days_before_now: float) -> float:
+    """Set *path*'s last write to that long before `_NOW`, and return it."""
+    stamp = _NOW - days_before_now * _DAY
+    os.utime(path, (stamp, stamp))
+    return stamp
+
+
+def _undated_file(path: Path, days_before_now: float) -> float:
+    """A file as it was written before `submitted_at` existed."""
     path.write_text(
         '{"fingerprint": {"model": "m", "effort": "high"}, '
         '"pending": [{"batch_id": "msgbatch_1", "document_sha256": {"111": "ab"}}]}'
     )
-    assert load(str(path), FP, now=_NOW) == [PendingBatch("msgbatch_1", {"111": "ab"})]
+    return _written(path, days_before_now)
+
+
+def test_a_file_written_before_submitted_at_is_dated_from_its_last_write(
+    tmp_path,
+) -> None:
+    path = tmp_path / "b.json"
+    last_write = _undated_file(path, 3)
+
+    dated = PendingBatch("msgbatch_1", {"111": "ab"}, submitted_at=last_write)
+    assert load(str(path), FP, now=_NOW) == [dated]
+    assert json.loads(path.read_text())["pending"][0]["submitted_at"] == last_write
 
 
 def test_a_batch_older_than_the_api_keeps_results_is_dropped_and_gone_from_the_file(
@@ -188,26 +212,80 @@ def test_a_batch_just_past_the_retention_is_kept_for_the_margin(
     assert load(path, FP, now=_NOW) == [batch]
 
 
-def test_a_batch_with_no_submitted_at_is_kept_however_old_the_clock_says(
+def test_an_undated_batch_keeps_its_date_through_later_rewrites(tmp_path) -> None:
+    # The rewrite that stores the date moves the file's last write to today,
+    # and so does every later one: read again from there, the record would
+    # never grow old.
+    path = tmp_path / "b.json"
+    last_write = _undated_file(path, 3)
+
+    save(str(path), FP, load(str(path), FP, now=_NOW))
+    _written(path, 0)
+
+    assert load(str(path), FP, now=_NOW) == [
+        PendingBatch("msgbatch_1", {"111": "ab"}, submitted_at=last_write)
+    ]
+    assert load(str(path), FP, now=_NOW + 40 * _DAY) == []
+    assert not path.exists()
+
+
+def test_an_undated_batch_in_a_file_last_written_past_the_retention_is_dropped(
+    tmp_path, caplog
+) -> None:
+    path = tmp_path / "b.json"
+    _undated_file(path, 31)
+
+    with caplog.at_level(logging.INFO):
+        assert load(str(path), FP, now=_NOW) == []
+
+    assert caplog.text.count("msgbatch_1") == 1
+    assert not path.exists()
+
+
+def test_an_undated_batch_is_dated_beside_a_dated_one_that_keeps_its_own(
     tmp_path,
 ) -> None:
-    path = str(tmp_path / "b.json")
-    batch = PendingBatch("msgbatch_1", {"111": "ab"})
-    save(path, FP, [batch])
-    assert load(path, FP, now=_NOW + 400 * _DAY) == [batch]
+    path = tmp_path / "b.json"
+    fresh = _aged("msgbatch_fresh", 1, "222")
+    save(str(path), FP, [PendingBatch("msgbatch_old", {"111": "ab"}), fresh])
+    last_write = _written(path, 5)
 
-
-def test_pruning_rewrites_an_unstamped_record_as_it_was(tmp_path) -> None:
-    path = Path(tmp_path / "b.json")
-    unstamped = PendingBatch("msgbatch_old", {"222": "cd"})
-    save(str(path), FP, [_aged("msgbatch_stale", 31), unstamped])
-
-    assert load(str(path), FP, now=_NOW) == [unstamped]
-
-    entries = json.loads(path.read_text())["pending"]
-    assert [(e["batch_id"], e["submitted_at"]) for e in entries] == [
-        ("msgbatch_old", None)
+    assert load(str(path), FP, now=_NOW) == [
+        PendingBatch("msgbatch_old", {"111": "ab"}, submitted_at=last_write),
+        fresh,
     ]
+
+
+def test_a_last_write_in_the_future_dates_the_batch_now(tmp_path) -> None:
+    path = tmp_path / "b.json"
+    _undated_file(path, -2)
+
+    assert load(str(path), FP, now=_NOW) == [
+        PendingBatch("msgbatch_1", {"111": "ab"}, submitted_at=_NOW)
+    ]
+
+
+def test_a_file_whose_last_write_cannot_be_read_dates_the_batch_now(tmp_path) -> None:
+    undated = PendingBatch("msgbatch_1", {"111": "ab"})
+    assert _dated(tmp_path / "gone.json", [undated], _NOW) == [
+        PendingBatch("msgbatch_1", {"111": "ab"}, submitted_at=_NOW)
+    ]
+
+
+def test_a_file_that_cannot_be_rewritten_dates_its_batch_the_same_every_load(
+    tmp_path, monkeypatch
+) -> None:
+    path = tmp_path / "b.json"
+    last_write = _undated_file(path, 3)
+
+    def refuse(*args, **kwargs):
+        raise PermissionError("read-only")
+
+    monkeypatch.setattr("pipeline.batch_state.os.replace", refuse)
+    dated = [PendingBatch("msgbatch_1", {"111": "ab"}, submitted_at=last_write)]
+    assert load(str(path), FP, now=_NOW) == dated
+    assert load(str(path), FP, now=_NOW + _DAY) == dated
+    assert list(tmp_path.iterdir()) == [path]
 
 
 def test_a_file_whose_every_batch_is_stale_is_deleted(tmp_path) -> None:
