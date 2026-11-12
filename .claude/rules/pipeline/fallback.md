@@ -113,7 +113,9 @@ redeem). Reading that as the guide's case is an inference: the guide says
 `ExtractionRefusedError` and, at the time, the paper counted as refused for the
 run. The same paper sent 16 minutes later under the next arm's prompt (same
 document, tool definition and task instruction, a different system prompt) was
-answered by Opus 5.5.
+answered by Opus 5.5. It was refused the same way once more that day, in a third
+arm's recording, again with its text and the tool call on the stream and no
+fallback attempt.
 
 `ExtractionRefusedError.fallback_declined` now says whether the fallback model
 itself declined: true when `_fallback_declined_too` names its hop, when the

@@ -247,26 +247,29 @@ into a data file.
 Three changes drawn from Anthropic's prompting and tool-use guides were built as
 a v9 and recorded with `--golden-label` on `claude-opus-5-5` at `high`, over the
 same fixtures as the v8 baseline of the same day. Neither recording met its bar,
-so none of it shipped: the prompt, the tool definition and the task instruction
-are v8's, byte for byte. The cassettes are kept (gitignored) under the labels
-below. Recall is of the reachable gold genes; "cited" is the share of quotes
-that match an API citation span.
+and the tool definition recorded alone afterwards did no better, so none of it
+shipped: the prompt, the tool definition and the task instruction are v8's, byte
+for byte. The cassettes are kept (gitignored) under the labels below. Recall is
+of the reachable gold genes; "cited" is the share of quotes that match an API
+citation span.
 
 | arm                                   | pooled | clean | genes | verbatim                        | cited        | output tokens |
 | ------------------------------------- | ------ | ----- | ----- | ------------------------------- | ------------ | ------------- |
 | **v8 baseline**                       | 40/46  | 22/26 | 133   | 133/133                         | 96/133 = 72% | 81,389        |
 | `-v9-threshold` (all three changes)   | 33/45  | 17/26 | 89    | 89/89                           | 84/89 = 94%  | 70,888        |
 | `-v9-cited-line` (the last two below) | 37/46  | 19/26 | 104   | 104/104 (103 before one repair) | 86/104 = 83% | 78,290        |
+| `-tool-definition` (the last, alone)  | 36/45  | 19/26 | 108   | 106/108                         | 96/108 = 89% | 82,158        |
 
-The first arm scored six papers: the seventh, PMID 39216230, was refused by the
-safety classifier after its whole answer had streamed (see "A refusal while the
-tool call is on the stream" in `fallback.md`). On the same six papers v8 is
-39/45, 22/26, 131 genes and 95/131 = 73% cited, and the arm's 70,888 tokens
-include the refused call's 1,725. The baseline is the top of v8's own range,
-which over four recordings is 39-40 pooled and 21-22 clean. The cassettes replay
-only on the code that recorded them (commits `fcd9e25` and `6682816` on the
-branch `prompt-v9`, which was not merged); on v8's code their
-request-comparison tests fail by design.
+The first and the last arm scored six papers: in both the seventh, PMID
+39216230, was refused by the safety classifier with its answer already on the
+stream (see "A refusal while the tool call is on the stream" in `fallback.md`).
+On the same six papers v8 is 39/45, 22/26, 131 genes and 95/131 = 73% cited, and
+the two arms' tokens include the refused calls' 1,725 and 2,744. The baseline is
+the top of v8's own range, which over four recordings is 39-40 pooled and 21-22
+clean. The cassettes replay only on the code that recorded them (commits
+`fcd9e25` and `6682816` on the branch `prompt-v9`, and `e23c0d6` on
+`tool-definition-arm`, neither merged); on v8's code their request-comparison
+tests fail by design.
 
 **The arm with the reporting threshold lost five gold genes of ten on one
 paper; three are the threshold's.** v8 contradicts itself: a positional
@@ -316,7 +319,9 @@ PPTC7 and NMT1, rest on position alone, so I'm leaving them out of the list"),
 and it is one of the two genes that come and go between identical recordings.
 The `medium` effort arm, with no text changed, is missing the same three, and
 PMID 33293549 measured 8/10 once before, without the same two genes and with
-nothing about extraction changed (2026-09-02, on Opus 5).
+nothing about extraction changed (2026-09-02, on Opus 5). The tool definition
+recorded alone (below) then lost the same two in the same words, under v8's task
+instruction, so dropping a table-only gene is not shown to be the line's doing.
 37/46 is two below the low end of v8's four recordings and three below the best,
 on one recording. **A line earned a citation only by carrying the sentence**, so
 it could not save output as well: on most papers the model wrote each sentence
@@ -324,20 +329,35 @@ on its line anyway (25,943 characters of prose before the tool call against
 v8's 25,329), and on PMID 35511193 it wrote the twelve lines as asked, symbol
 and trait only, and the API attached no citation to any of them.
 
-**The tool definition was never recorded alone.** Both arms also sent a
-description for every field of the tool's gene, study and item objects, a
-three-sentence tool description, two `input_examples`, no `pmid` property, and
-one added `- protein_name:` line in the prompt's field guidance. Nothing this
-harness measures could show it as an improvement, only as "no worse", and that
-costs a re-record of the baseline; it was not pursued.
+**The tool definition alone came out where the cited line did.** Both v9 arms
+also sent a description for every field of the tool's gene, study and item
+objects, a three-sentence tool description, two `input_examples`, no `pmid`
+property, and one added `- protein_name:` line in the prompt's field guidance.
+It was recorded afterwards on v8's prompt and task instruction with nothing else
+changed, under a rule fixed beforehand: adopted only at the baseline's recall
+(40/46, 22/26, no paper under its floor) with fewer output tokens. It came out
+at 36/45 and 19/26 over the six papers that recorded, 108 genes against v8's
+131, with no output saved (79,414 tokens on the seven completed calls against
+v8's 78,726), so it was not adopted. It is missing the same three gold genes as
+the cited-line arm, and on PMID 33293549 the model said the same thing: "I'm
+dropping the table-only genes, since the paper's support for them is just a
+table entry and I can't quote a single sentence backing it". That behaviour
+needs no cited line. What the two arms that showed it share is the rewritten
+tool definition, whose `source_quote` description repeats the Provenance
+section's single-sentence wording; `medium`, with no text changed, lost the same
+genes without saying why. Three recordings cannot tell a tool definition that
+tips the model toward that rule from a baseline that was the favourable draw.
+PMID 39216230 was refused in two of the three recordings that carried this tool
+definition and in none of v8's, which is two papers, not a rate; the rescue in
+`fallback.md` now covers that refusal.
 
-**In all four arms recorded on 2026-11-11, fewer genes reported came with lower
-recall.** `medium`, `low` and the two v9 arms reported 111, 96, 104 and 89 genes
-(the last over six papers, where v8 reported 131) against 133, and recovered 37,
-36 and 37 of 46 and 33 of 45. The v4 arms differed by six genes at the same
-42/46, so this is one day's pattern on one model, not a rule; a change that
-makes the model more selective should still be expected to cost recall on this
-gold standard until a recording says otherwise.
+**In all five arms recorded on 2026-11-11, fewer genes reported came with lower
+recall.** `medium`, `low` and the three prompt arms reported 111, 96, 104, 89
+and 108 genes (the last two over six papers, where v8 reported 131) against 133,
+and recovered 37, 36 and 37 of 46 and 33 and 36 of 45. The v4 arms differed by
+six genes at the same 42/46, so this is one day's pattern on one model, not a
+rule; a change that makes the model more selective should still be expected to
+cost recall on this gold standard until a recording says otherwise.
 
 `pipeline/prompts.py` holds one prompt; its module docstring records why v4's
 stricter exclusion guards were measured and ruled out rather than assumed, and

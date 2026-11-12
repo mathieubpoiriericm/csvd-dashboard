@@ -38,9 +38,9 @@ more genes, not fewer (144 against 138), and the genes it added were LOC
 identifiers and an antisense RNA. The guards are ruled out rather than
 assumed, so v4 is gone with them.
 
-Three more changes were built as a would-be v9 and recorded twice on
-2026-11-11 (Claude Opus 5.5, effort "high", the same fixtures), one of them
-never alone. Neither recording met the bar fixed before it, so v8 stands
+Three more changes were built as a would-be v9 and recorded on 2026-11-11
+(Claude Opus 5.5, effort "high", the same fixtures): twice together, then
+the third alone. No recording met the bar fixed before it, so v8 stands
 byte for byte. `.claude/rules/pipeline/extraction.md` has the figures, the
 genes and the model's own account of each.
 
@@ -70,9 +70,13 @@ show a sentence first. It saved no output either -- on most papers the model
 wrote each sentence on its line anyway, and where it wrote the bare line the
 API cited nothing.
 
-Both recordings also carried a rewritten tool definition (a description for
-every field, a longer tool description, two `input_examples`, no `pmid` in
-the schema), which was never recorded alone.
+A rewritten tool definition (a description for every field, a longer tool
+description, two `input_examples`, no `pmid` in the schema), carried by
+both recordings above and then recorded alone on v8's prompt. Alone it came
+out where the cited line had: the same gold genes missing, the model again
+leaving out table-only genes for want of a sentence to quote, no output
+saved. So that loss is not shown to be the cited line's, and it may be the
+tool definition's or the baseline's good draw; three recordings cannot say.
 
 v7 was v6 with every disease noun moved to `disease/prompt.md`, and v8 keeps
 that split; `tests/pipeline/csvd/test_csvd_prompt_assembly.py` pins this
