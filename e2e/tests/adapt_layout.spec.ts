@@ -9,7 +9,10 @@ import { openAdapt } from "../helpers.ts";
  * navbar. What the wizard does is adapt.spec.ts's.
  */
 
-/** Every step, as the stepper names it. */
+/**
+ * Every step, as the stepper names it. A step's button is looked up inside
+ * `main`: the navbar's Review control shares the last step's name.
+ */
 const STEPS = [
   "Identity",
   "Search terms",
@@ -76,7 +79,8 @@ test("the page never scrolls sideways on a phone, on any step", async ({ page })
   await page.locator('[data-field="rows[0].note"]').fill("A landmark paper.");
   await expect(page.locator(".adapt-stepper .is-progress")).toHaveCount(1);
   for (const name of STEPS) {
-    await page.getByRole("button", { name, exact: true }).click();
+    await page.getByRole("main").getByRole("button", { name, exact: true })
+      .click();
     const width = await page.evaluate(() => ({
       scroll: document.documentElement.scrollWidth,
       client: document.documentElement.clientWidth,
@@ -112,7 +116,8 @@ test("on a phone a press on a segment off the row's middle opens its step", asyn
   // is wholly in view and well off the middle, and after it each press is
   // on the current segment's neighbour, up the row and back down it.
   for (const name of [...STEPS.slice(2), ...STEPS.slice(1, 7).reverse()]) {
-    await page.getByRole("button", { name, exact: true }).click();
+    await page.getByRole("main").getByRole("button", { name, exact: true })
+      .click();
     await expect(row.locator('[aria-current="step"]'), name).toHaveText(name);
   }
 });
@@ -125,7 +130,10 @@ test("on a phone a focused segment's ring is drawn whole", async ({ page }) => {
   await page.getByRole("button", { name: "Identity", exact: true }).focus();
   for (const name of STEPS) {
     if (name !== "Identity") await page.keyboard.press("Tab");
-    const segment = page.getByRole("button", { name, exact: true });
+    const segment = page.getByRole("main").getByRole("button", {
+      name,
+      exact: true,
+    });
     await expect(segment).toBeFocused();
     const ring = await segment.evaluate((button) => {
       const style = getComputedStyle(button);
@@ -170,7 +178,10 @@ for (const viewport of [PHONE, DESKTOP]) {
           .toBeGreaterThanOrEqual(await navbarBottom(page));
       }
     }
-    await page.getByRole("button", { name: "Review", exact: true }).click();
+    await page.getByRole("main").getByRole("button", {
+      name: "Review",
+      exact: true,
+    }).click();
     page.once("dialog", (dialog) => dialog.accept());
     // Below 1100px Start over sits in the bar's popover, behind More.
     const more = page.getByRole("button", { name: "More" });

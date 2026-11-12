@@ -53,3 +53,9 @@ export const withStatusSummary = (summary: string): string =>
 
 /** Pages a table of `rows` needs at the default page size of ten. */
 export const pagesFor = (rows: number): number => Math.ceil(rows / 10);
+
+/**
+ * The review area's figures and copy, or null when there is no review round
+ * (none committed, or gold-only off): the area then does not exist at all.
+ */
+export const REVIEW: Expected["review"] = EXPECTED.review;
