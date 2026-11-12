@@ -361,12 +361,18 @@ def _gold_dir(
          "detail"),
         suspects or [],
     )
+    # A group for each registry the trials name, and for no other: a row no
+    # trial has is refused.
+    named = {
+        row["registry_id"] for row in ([_trial_row()] if trials is None else trials)
+    }
     _write_csv(
         directory / _POPULATIONS_FILE,
         ("registry_id", "population"),
         [
             {"registry_id": registry_id, "population": group}
             for registry_id, group in _GROUPS.items()
+            if registry_id in named
         ]
         if populations is None
         else populations,
@@ -494,7 +500,8 @@ def test_a_trial_the_export_cannot_read_is_refused_not_raised(
 
 
 def test_the_population_groups_are_read_by_registry_id(tmp_path: Path) -> None:
-    path = _gold_dir(tmp_path) / _POPULATIONS_FILE
+    both = [_trial_row(), _trial_row(registry_id="REG-0002")]
+    path = _gold_dir(tmp_path, trials=both) / _POPULATIONS_FILE
     assert read_population_groups(path) == (_GROUPS, [])
 
 
@@ -518,6 +525,39 @@ def test_a_trial_takes_the_group_its_registry_id_is_filed_under(
         _GROUPS["REG-0002"],
         _GROUPS["REG-0001"],
     ]
+
+
+def test_a_group_for_a_trial_the_gold_table_does_not_have_is_refused(
+    tmp_path: Path,
+) -> None:
+    """Named once, and by its ID alone: the trials that have a group are
+    not refused with it."""
+    with pytest.raises(GoldRefused) as refused:
+        _build(
+            _gold_dir(
+                tmp_path,
+                populations=[
+                    {"registry_id": registry_id, "population": group}
+                    for registry_id, group in {
+                        **_GROUPS,
+                        "REG-9999": _GROUPS["REG-0001"],
+                    }.items()
+                ],
+            )
+        )
+    assert str(refused.value).splitlines()[1:] == [
+        f"  {_POPULATIONS_FILE}: REG-0002 is not the registry ID of any gold trial",
+        f"  {_POPULATIONS_FILE}: REG-9999 is not the registry ID of any gold trial",
+    ]
+
+
+def test_a_group_is_used_by_a_trial_the_plan_refuses_for_another_reason(
+    tmp_path: Path,
+) -> None:
+    """The trial's row is refused; its group is not reported as unused."""
+    with pytest.raises(GoldRefused) as refused:
+        _build(_gold_dir(tmp_path, trials=[_trial_row(target_n="about 100")]))
+    assert "is not the registry ID" not in str(refused.value)
 
 
 def test_a_missing_populations_file_is_refused_by_name(tmp_path: Path) -> None:

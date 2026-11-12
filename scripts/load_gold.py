@@ -22,8 +22,9 @@ naming each row, for:
 - a trial whose registry ID has no group in
   disease/gold/trial_populations.csv, that file without its
   registry_id,population header, a row of it with a blank cell or a third
-  one, a registry ID it lists twice or a group the manifest's `populations`
-  do not list, or two trials with one (registry ID, drug);
+  one, a registry ID it lists twice or that no gold trial has, or a group
+  the manifest's `populations` do not list, or two trials with one
+  (registry ID, drug);
 - a value longer than its column, a completion date that is not YYYY-MM or a
   target size that is not a count;
 - a GWAS trait that is not a vocabulary key once the synonyms are folded;
@@ -469,7 +470,9 @@ def build_gold_plan(gold_dir: Path, populations_path: Path) -> GoldPlan:
 
     trials: list[dict[str, Any]] = []
     seen_trials: set[tuple[str, str | None]] = set()
+    registries: set[str] = set()
     for row in _read_csv(gold_dir / "st3_trials.csv"):
+        registries.add(row["registry_id"].strip())
         try:
             trial = trial_from_gold(row, groups)
         except GoldRefused as exc:
@@ -490,6 +493,14 @@ def build_gold_plan(gold_dir: Path, populations_path: Path) -> GoldPlan:
         except Exception as exc:  # any row the export cannot read is refused
             failures.append(f"{name}: the export cannot read it ({exc!r})")
         trials.append(trial)
+    # A group for a trial ST3 does not have is a mistyped registry ID, or a
+    # row left behind when the curators dropped the trial.
+    failures += [
+        f"{populations_path.name}: {registry_id} is not the registry ID of "
+        "any gold trial"
+        for registry_id in groups
+        if registry_id not in registries
+    ]
 
     if failures:
         raise GoldRefused(
