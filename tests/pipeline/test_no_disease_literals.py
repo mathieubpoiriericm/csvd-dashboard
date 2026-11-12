@@ -44,12 +44,12 @@ _DISEASE_TREES = ("tests/pipeline/csvd", "tests/scripts/csvd")
 # property never match either. An entry is for text that names a term for
 # another reason; a fork adds its own the same way.
 #
-# An entry excuses less than its file. `_prose` is for a comment or a
-# docstring that quotes a measurement: the same term in a line of code, or in
-# a string a statement uses, is still a hit. `_declared` is for a value the
-# code needs: the term is excused inside the module-level assignment it names
-# and nowhere else. Both read the file as Python, so an entry is for a .py
-# file.
+# An entry excuses less than its file, and less than a line. `_prose` is for
+# a comment or a docstring that quotes a measurement: the same term in code,
+# on that line or another, or in a string a statement uses, is still a hit.
+# `_declared` is for a value the code needs: the term is excused inside the
+# module-level assignment it names and nowhere else. Both read the file as
+# Python, so an entry is for a .py file.
 @dataclass(frozen=True)
 class _Excuse:
     reason: str
@@ -134,14 +134,36 @@ _ALLOWED: dict[tuple[str, str], _Excuse] = {
 }
 
 
+# A place in a source: its line, counted from 1, and its column in characters.
+_Point = tuple[int, int]
+_Span = tuple[_Point, _Point]
+
+
 class _Layout:
-    """Where a Python source keeps its prose, and where each name is assigned."""
+    """Where a Python source keeps its prose, and where each name is assigned.
+
+    Each is a span of the text, not a set of lines: a second statement on a
+    docstring's line, or after an assignment on its last, is outside it.
+    """
 
     def __init__(self, source: str) -> None:
         tree = ast.parse(source)
+        lines = source.split("\n")
+
+        def span(node: ast.stmt) -> _Span:
+            # ast counts a column in UTF-8 bytes, a match in characters.
+            def point(number: int, column: int) -> _Point:
+                line = lines[number - 1].encode("utf-8")
+                return number, len(line[:column].decode("utf-8"))
+
+            return (
+                point(node.lineno, node.col_offset),
+                point(node.end_lineno or node.lineno, node.end_col_offset or 0),
+            )
+
         # A string that is a statement of its own: a docstring.
         self._docstrings = [
-            (node.lineno, node.end_lineno or node.lineno)
+            span(node)
             for node in ast.walk(tree)
             if isinstance(node, ast.Expr)
             and isinstance(node.value, ast.Constant)
@@ -154,7 +176,7 @@ class _Layout:
             if token.type == tokenize.COMMENT
         }
         # Module level only: a local of the same name is another variable.
-        self._assignments: dict[str, list[tuple[int, int]]] = {}
+        self._assignments: dict[str, list[_Span]] = {}
         for node in tree.body:
             if isinstance(node, ast.Assign):
                 targets = node.targets
@@ -164,23 +186,26 @@ class _Layout:
                 continue
             for target in targets:
                 if isinstance(target, ast.Name):
-                    self._assignments.setdefault(target.id, []).append(
-                        (node.lineno, node.end_lineno or node.lineno)
-                    )
+                    self._assignments.setdefault(target.id, []).append(span(node))
 
-    def code(self, number: int, line: str) -> str:
-        """What line *number* holds besides a comment or a docstring."""
-        if any(first <= number <= last for first, last in self._docstrings):
-            return ""
-        if number in self._comments:
-            return line[: self._comments[number]]
-        return line
+    def prose(self, number: int, start: int, end: int) -> bool:
+        """Whether columns *start* to *end* of line *number* are in a comment
+        or a docstring."""
+        comment = self._comments.get(number)
+        if comment is not None and comment <= start:
+            return True
+        return _within(self._docstrings, number, start, end)
 
-    def assigns(self, name: str, number: int) -> bool:
-        """Whether line *number* is part of a module-level assignment to *name*."""
-        return any(
-            first <= number <= last for first, last in self._assignments.get(name, ())
-        )
+    def assigns(self, name: str, number: int, start: int, end: int) -> bool:
+        """Whether columns *start* to *end* of line *number* are in a
+        module-level assignment to *name*."""
+        return _within(self._assignments.get(name, ()), number, start, end)
+
+
+def _within(spans: Iterable[_Span], number: int, start: int, end: int) -> bool:
+    return any(
+        first <= (number, start) and (number, end) <= last for first, last in spans
+    )
 
 
 def _lines(path: Path) -> list[str]:
@@ -202,17 +227,15 @@ def _layout(rel: str) -> _Layout:
     return _Layout((_ROOT / rel).read_text(encoding="utf-8"))
 
 
-def _excused(
-    rel: str, number: int, line: str, term: str, find: Callable[[str], list[str]]
-) -> bool:
-    """Whether the allow-list excuses *term* on this line of *rel*."""
-    excuse = _ALLOWED.get((rel, term))
+def _excused(rel: str, number: int, match: re.Match[str]) -> bool:
+    """Whether the allow-list excuses the term *match* found on this line."""
+    excuse = _ALLOWED.get((rel, match.group(0)))
     if excuse is None:
         return False
     layout = _layout(rel)
     if excuse.declaration is not None:
-        return layout.assigns(excuse.declaration, number)
-    return term not in find(layout.code(number, line))
+        return layout.assigns(excuse.declaration, number, match.start(), match.end())
+    return layout.prose(number, match.start(), match.end())
 
 
 def _whole_words(terms: Iterable[str], flags: int = 0) -> re.Pattern[str] | None:
@@ -230,10 +253,10 @@ def _whole_words(terms: Iterable[str], flags: int = 0) -> re.Pattern[str] | None
     return re.compile(r"(?<!\w)(?:" + "|".join(alternatives) + r")(?!\w)", flags)
 
 
-def _term_finder(
+def _term_matcher(
     caseless: Iterable[str], exact: Iterable[str]
-) -> Callable[[str], list[str]]:
-    """The terms a line names, as written in it.
+) -> Callable[[str], list[re.Match[str]]]:
+    """Where a line names the terms, each match as written in it.
 
     A name is prose and matches in any case. An abbreviation, a short form or
     a gene symbol is an identifier whose case is its meaning -- "PD" is not
@@ -243,22 +266,29 @@ def _term_finder(
     names = _whole_words(caseless, re.IGNORECASE)
     identifiers = _whole_words(exact)
 
-    def find(line: str) -> list[str]:
-        named = list(names.finditer(line)) if names is not None else []
-        found = [match.group(0) for match in named]
+    def matches(line: str) -> list[re.Match[str]]:
+        found = list(names.finditer(line)) if names is not None else []
         if identifiers is None:
             return found
         # An identifier inside a name already found is part of that name: a
         # trait's spelled-out name can hold another trait's key.
-        spans = [match.span() for match in named]
+        spans = [match.span() for match in found]
         found.extend(
-            match.group(0)
+            match
             for match in identifiers.finditer(line)
             if not any(a <= match.start() and match.end() <= b for a, b in spans)
         )
         return found
 
-    return find
+    return matches
+
+
+def _term_finder(
+    caseless: Iterable[str], exact: Iterable[str]
+) -> Callable[[str], list[str]]:
+    """The terms a line names, as `_term_matcher` finds them."""
+    matches = _term_matcher(caseless, exact)
+    return lambda line: [match.group(0) for match in matches(line)]
 
 
 def test_the_term_finder_matches_names_in_any_case_and_identifiers_as_written() -> (
@@ -390,7 +420,7 @@ def _hits(
     # "csvd-dashboard" is tried before the shorter term it begins with, since
     # the alternation is ordered longest first: otherwise it would only ever
     # match as that term, never as the tool name the allow-list above names.
-    find = _term_finder(
+    matches = _term_matcher(
         [term for caseless, _ in terms for term in caseless],
         [term for _, exact in terms for term in exact],
     )
@@ -403,9 +433,10 @@ def _hits(
                 continue
             rel = path.relative_to(_ROOT).as_posix()
             for number, line in enumerate(_lines(path), 1):
-                for term in find(line):
-                    if _excused(rel, number, line, term, find):
+                for match in matches(line):
+                    if _excused(rel, number, match):
                         continue
+                    term = match.group(0)
                     hit = f"{rel}:{number}: {line.strip()}"
                     if (excuse := _ALLOWED.get((rel, term))) is not None:
                         hit += f"  [{term} is excused there only {excuse.where}]"
@@ -505,7 +536,14 @@ def test_an_allow_list_entry_excuses_its_term_only_where_it_says(
         '    KEPT = "KEYED1"\n'  # 20
         "# A form feed \x0c and a line separator \u2028 are not line ends.\n"  # 21
         'w = "QUOTED1"\n'  # 22
-        '"""A bare string after them, quoting QUOTED1."""\n',  # 23
+        '"""A bare string after them, quoting QUOTED1."""\n'  # 23
+        # A statement beside a docstring or an assignment is not part of it.
+        '"""QUOTED1"""; v = "QUOTED1"  # QUOTED1\n'  # 24
+        'def h(): u = "QUOTED1"; """QUOTED1"""\n'  # 25
+        'KEPT = {"KEYED1": 2}; t = "KEYED1"\n'  # 26
+        # ast counts a column in bytes: ten two-byte letters end the first
+        # statement six characters sooner than their bytes would.
+        f'KEPT = "{"\u00e9" * 10}";"KEYED1"\n',  # 27
         encoding="utf-8",
     )
     monkeypatch.setattr(f"{__name__}._ROOT", tmp_path)
@@ -528,8 +566,7 @@ def test_an_allow_list_entry_excuses_its_term_only_where_it_says(
     )
     assert hits == [
         f'src/module.py:4: y = "QUOTED1"  {prose_only}',
-        # Named twice, listed twice: the comment does not excuse the code.
-        f'src/module.py:5: z = "QUOTED1"  # and QUOTED1 again  {prose_only}',
+        # Once, for the code: the comment excuses its own QUOTED1 alone.
         f'src/module.py:5: z = "QUOTED1"  # and QUOTED1 again  {prose_only}',
         f'src/module.py:12: QUOTED1"""  {prose_only}',
         f'src/module.py:16: other = {{"KEYED1": 1}}  {declared_only}',
@@ -537,15 +574,24 @@ def test_an_allow_list_entry_excuses_its_term_only_where_it_says(
         f'src/module.py:18: KEPT["KEYED1"]  {declared_only}',
         f'src/module.py:20: KEPT = "KEYED1"  {declared_only}',
         f'src/module.py:22: w = "QUOTED1"  {prose_only}',
+        f'src/module.py:24: """QUOTED1"""; v = "QUOTED1"  # QUOTED1  {prose_only}',
+        f'src/module.py:25: def h(): u = "QUOTED1"; """QUOTED1"""  {prose_only}',
+        f'src/module.py:26: KEPT = {{"KEYED1": 2}}; t = "KEYED1"  {declared_only}',
+        f'src/module.py:27: KEPT = "{"\u00e9" * 10}";"KEYED1"  {declared_only}',
     ]
 
 
-def _excused_lines(rel: str, term: str, find: Callable[[str], list[str]]) -> list[int]:
-    """The lines of *rel* on which the allow-list excuses *term*."""
+def _excused_lines(rel: str, term: str) -> list[int]:
+    """The lines of *rel* on which the allow-list excuses *term*.
+
+    The term is looked for by itself, not with the scans' terms: an entry may
+    be for a term only a fork's manifest holds.
+    """
+    matches = _term_matcher([], [term])
     return [
         number
         for number, line in enumerate(_lines(_ROOT / rel), 1)
-        if term in find(line) and _excused(rel, number, line, term, find)
+        if any(_excused(rel, number, match) for match in matches(line))
     ]
 
 
@@ -555,8 +601,6 @@ def test_every_allow_list_entry_still_excuses_a_line() -> None:
             # The tests are not scanned here, so an entry for one excuses
             # nothing, and a fork has edited what it names.
             continue
-        # The term is looked for by itself, not with the scans' terms: an
-        # entry may be for a term only a fork's manifest holds.
         assert _excused_lines(
-            rel, term, _term_finder([], [term])
+            rel, term
         ), f"{rel} no longer names {term} {excuse.where}"
