@@ -45,6 +45,18 @@ controls, tooltips, drawers, map interactions, 30 viewport pairs, and seven
 blocks map tiles. Network scenarios use 1.6 Mbps download, 0.8 Mbps upload and
 150 ms latency.
 
+Three inputs are derived from the committed data, not written into the
+scenarios: the gene search query (the first five characters of a symbol one
+gene row alone holds), the trial search query (a drug name one shown trial
+alone holds) and the GWAS trait the genes filter-toggle ticks (the one most
+genes carry), all read from `e2e/fixtures/expected.deno.ts`. Each run records
+them under `derivedInputs` in its `report.json`. Regenerating the data can
+change them, so `genes/search` and `genes/search-100` numbers are comparable
+only between runs that typed the same query; runs before this change typed a
+fixed five-letter gene prefix and recorded none. A scenario whose input the
+data cannot supply (the empty export) is reported as skipped with the reason
+in its `unavailable` field, as one whose `needs` element is missing is.
+
 Island readiness is an explicit DOM marker set after a layout-effect commit;
 Leaflet readiness requires its initialized markers. Visual settlement waits for
 fonts, finite CSS animations, a 100 ms DOM-quiet window, and two animation

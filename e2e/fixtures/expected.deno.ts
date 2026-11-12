@@ -244,6 +244,32 @@ const busiestRadarStatus = STATUS_CHOICES
 const karyogram = computePhenogramLayout(genes);
 
 const firstGene = (rows: readonly Gene[]) => rows[0]?.gene ?? null;
+
+// The perf harness's search queries (e2e/perf/scenarios.mjs). A row's raw
+// values stand in for the tables' search text, which is wider: it also
+// searches what the cells print (short citations, cell types, formatted
+// omics entries), so the app can match more rows than `rowsHolding` counts,
+// never fewer -- the query is in the gene or drug column, which it searches.
+// The count is a lower bound, and that is enough: the scenario asserts only
+// that the banner names the query and that the first row kept holds it, and
+// every row the search keeps holds it in its rendered text.
+const rowText = (row: object) =>
+  JSON.stringify(Object.values(row)).toLowerCase();
+const rowsHolding = (rows: readonly object[], query: string) =>
+  rows.filter((row) => rowText(row).includes(query.toLowerCase())).length;
+/** A gene query typed as a prefix: a longer symbol's first five characters
+ * that one gene row alone holds, the first such in name order; or null. */
+const geneQuery = genesByName.map((g) => g.gene.trim())
+  .filter((symbol) => symbol.length > 5).map((symbol) => symbol.slice(0, 5))
+  .find((query) => rowsHolding(genes, query) === 1) ?? null;
+/** A trial query: a whole drug name that one shown trial row alone holds,
+ * one word if any is, the first such in name order; or null. */
+const trialQueries = [...new Set(shownTrials.map((t) => t.drug.trim()))]
+  .sort(textCompare)
+  .filter((drug) => drug !== "" && rowsHolding(shownTrials, drug) === 1);
+const trialQuery =
+  trialQueries.find((drug) => /^[\p{L}\p{N}-]+$/u.test(drug)) ??
+    trialQueries[0] ?? null;
 const distinct = <T>(values: readonly T[]) => new Set(values).size;
 
 const expected = {
@@ -314,6 +340,10 @@ const expected = {
     phasesPresent,
     completedOnly: countTrials({ statuses: ["COMPLETED"] }),
   },
+
+  /** The perf harness's search queries, each held by one row's raw values
+   * (the app may match more); or null. */
+  search: { genes: geneQuery, trials: trialQuery },
 
   firstGeneAsc: firstGene(genesByName),
   firstGeneDesc: firstGene([...genesByName].reverse()),
