@@ -71,7 +71,7 @@ Deno.test("the sentence a press changes is a live region", () => {
   );
   assertStringIncludes(
     html,
-    '<p class="about-preview-line" aria-live="polite">',
+    '<p class="about-preview-line" aria-live="polite" aria-busy="false">',
   );
 });
 

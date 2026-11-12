@@ -122,9 +122,11 @@ other, and no run report crosses island props in either path.
 `ON_DEMAND_ISLANDS` in `server/protected_data_build.ts` fails the build when the
 switch's chunk reaches a protected one through static imports, and the About
 spec watches the network: nothing of the report is requested until the first
-press. A fetch that fails (offline, or a deploy replacing the chunk under an
-open page) puts the switch and its cookie back off and says so in the notice's
-second line, which is a live region for that reason.
+press. A fetch that fails (offline, a deploy replacing the chunk under an open
+page, an expired session) puts the switch and its cookie back off and says so in
+the notice's second line, which is a live region for that reason. The sentence
+asks for a reload, not another press: the same press imports the same dead
+chunk, and a browser may keep a failed module for the life of the document.
 
 It has two readers. A visiting researcher wants to know whether the data is
 fresh and can be trusted; the maintainer wants to know how the run went. So the

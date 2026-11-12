@@ -47,9 +47,14 @@ export function previewCookie(on: boolean): string {
   return `${PREVIEW_COOKIE}=${value}; Path=/; Max-Age=${maxAge}; SameSite=Lax`;
 }
 
-/** What the switch's line says when the widget could not be fetched. */
+/**
+ * What the switch's line says when the widget could not be fetched. It asks
+ * for a reload, not another press: a deploy that replaced the chunk under an
+ * open page, or a session that expired, fails the same way on every press,
+ * and a browser may keep a failed module for the life of the document.
+ */
 export const PREVIEW_LOAD_FAILED =
-  "The preview could not be loaded. Switch it on to try again.";
+  "The preview could not be loaded. Reload the page to try again.";
 
 /** The event a press of the switch is announced as. */
 const PREVIEW_EVENT = "pipeline-preview";

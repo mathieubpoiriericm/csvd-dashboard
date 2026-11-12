@@ -26,7 +26,7 @@
  */
 
 import type { FunctionComponent } from "preact";
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 
 import { GOLD_ONLY_NOTICE } from "../lib/gold_only.ts";
 import {
@@ -58,6 +58,10 @@ export default function PipelinePreview(
   // handed instead of storing it.
   const [fetched, setFetched] = useState<{ Widget: Widget } | null>(null);
   const [failed, setFailed] = useState(false);
+  const [fetching, setFetching] = useState(false);
+  // What the visitor last asked for, read after an await: `on` in a
+  // handler's closure is the value from the render that created it.
+  const wanted = useRef(initialOn);
   // The server's HTML cannot act on a press, so the switch is disabled
   // until this island is live; enabled from the start, a press before
   // hydration would reach no state and do nothing.
@@ -65,6 +69,7 @@ export default function PipelinePreview(
   useEffect(() => setLive(true), []);
 
   const set = (next: boolean) => {
+    wanted.current = next;
     setOn(next);
     document.cookie = previewCookie(next);
     announcePreview(next);
@@ -77,15 +82,25 @@ export default function PipelinePreview(
     // Nothing to fetch when switching off, when the route drew the widget,
     // or when an earlier press already fetched it.
     if (!next || initialOn || fetched !== null) return;
+    setFetching(true);
     try {
       const module = await import("./PipelineRun.tsx");
       setFetched({ Widget: module.default });
-    } catch {
-      // Offline, or a deploy replaced the chunk under an open page. The
-      // switch goes back off, cookie included, so the page never claims a
-      // preview it is not showing, and the line says what happened.
-      set(false);
-      setFailed(true);
+    } catch (error) {
+      // Offline, a deploy that replaced the chunk under an open page, or a
+      // session that expired. Kept for whoever debugs it: the same catch
+      // takes an error thrown while the widget's module evaluates.
+      console.error(error);
+      // Switched off again while it was fetching: nothing is claimed, so
+      // there is nothing to take back or to say.
+      if (wanted.current) {
+        // The switch goes back off, cookie included, so the page never
+        // claims a preview it is not showing, and the line says why.
+        set(false);
+        setFailed(true);
+      }
+    } finally {
+      setFetching(false);
     }
   };
 
@@ -102,9 +117,17 @@ export default function PipelinePreview(
           <p>{GOLD_ONLY_NOTICE}</p>
           {
             /* A live region: the sentence is the only word of a press's
-              outcome when the widget could not be fetched. */
+              outcome when the widget could not be fetched. Busy while it
+              is being fetched, so the note is read out once the widget it
+              describes is there. */
           }
-          <p class="about-preview-line" aria-live="polite">{line}</p>
+          <p
+            class="about-preview-line"
+            aria-live="polite"
+            aria-busy={fetching ? "true" : "false"}
+          >
+            {line}
+          </p>
         </div>
         {
           /* `aria-checked` as a string: the server renderer drops an aria

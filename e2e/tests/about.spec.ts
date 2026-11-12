@@ -42,12 +42,7 @@ test("the dashboard totals report the committed dataset", async ({ page }) => {
  * "PUBLICATION / S"; half of one fits every label whole.
  */
 test("the totals keep one row above 480px, two rows at and below", async ({ page }) => {
-  for (
-    const [width, rows] of [[1440, 1], [900, 1], [600, 1], [481, 1], [480, 2], [
-      380,
-      2,
-    ], [320, 2]]
-  ) {
+  for (const [width, rows] of [[1440, 1], [900, 1], [600, 1], [481, 1], [480, 2], [380, 2], [320, 2]]) {
     await page.setViewportSize({ width, height: 900 });
 
     const tops = await page.locator(".about-kpi").evaluateAll((cells) =>
@@ -119,7 +114,7 @@ test.describe("the technical preview of a pipeline run", () => {
   );
 
   const notice = ".about-gold-notice";
-  const live = ".about-preview-switch:not([disabled])";
+  const live = '.about-preview-switch:not([disabled])';
   // The run report's chunk and the widget's: neither belongs on a page
   // whose preview is off.
   const report = /protected-data-pipeline_run|fresh-island__PipelineRun/;

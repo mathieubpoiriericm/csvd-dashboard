@@ -71,9 +71,11 @@ Deno.test("the switch is announced on the page itself by default", () => {
   assertEquals(heard, [true]);
 });
 
-Deno.test("a failed load says so and how to try again", () => {
+Deno.test("a failed load asks for a reload, the recovery that works", () => {
+  // Another press imports the same dead chunk after a deploy or an expired
+  // session, so the sentence must not offer one.
   assertEquals(
     PREVIEW_LOAD_FAILED,
-    "The preview could not be loaded. Switch it on to try again.",
+    "The preview could not be loaded. Reload the page to try again.",
   );
 });
