@@ -120,8 +120,9 @@ def golden_arm_from_options(
     directory and the summary line. A label names them instead. An effort
     level used as a label must come with that effort, so a directory called
     `-high` can never hold answers recorded at another level, and the
-    fallback flag needs a label, so its answers never land in a directory
-    named for an effort the primary model was measured at.
+    fallback flag needs a label that is not an effort level, so its answers
+    never land in a directory named for an effort the primary model was
+    measured at.
     """
     if label is None:
         if fallback:
@@ -142,6 +143,11 @@ def golden_arm_from_options(
             f"--golden-label {label} names an effort level, so it needs "
             f"--golden-effort={label}: the directory would otherwise misstate "
             "the effort its answers were recorded at"
+        )
+    if label in GOLDEN_EFFORT_LEVELS and fallback:
+        raise pytest.UsageError(
+            f"--golden-fallback cannot record under --golden-label {label}: "
+            "that directory is the primary model's arm at that effort"
         )
     return GoldenArm(name=label, effort=effort, fallback=fallback)
 

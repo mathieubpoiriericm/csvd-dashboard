@@ -86,16 +86,19 @@ effort otherwise. A label that is an effort level needs that level, so a
 directory's name never misstates the effort it holds:
 
     uv run pytest tests/pipeline/csvd/test_extraction_golden.py \
-        --golden-label=v9 --record-mode=once -q
+        --golden-label=draft --record-mode=once -q
 
-`--golden-fallback`, with a label only, sends every paper straight to the
-fallback model (the direct request a `--batch` rescue sends, with no
-`fallbacks`), checks the cassettes against that request, and scores only
-answers the fallback model gave; the line names it, as `golden arm
-v9-fallback (claude-opus-4-8): …`:
+`--golden-fallback`, with a label that is not an effort level, sends every
+paper straight to the fallback model (the direct request a `--batch` rescue
+sends, with no `fallbacks`), checks the cassettes against that request, and
+scores only answers the fallback model gave; the line names it, as `golden
+arm draft-fallback (claude-opus-4-8): …`:
 
     uv run pytest tests/pipeline/csvd/test_extraction_golden.py \
-        --golden-label=v9-fallback --golden-fallback --record-mode=once -q
+        --golden-label=draft-fallback --golden-fallback --record-mode=once -q
+
+An arm's cassettes replay only against the code that recorded them: the
+request checks fail once the prompt or the tool definition has moved on.
 
 The `live` pytest marker (see pyproject.toml) is reserved for a future test
 that calls the real API directly, outside VCR; nothing here uses it.
@@ -265,10 +268,10 @@ def test_normalize_symbol_folds_case_and_whitespace() -> None:
     assert normalize_symbol("  PSMD ") == normalize_symbol("psmd")
 
 
-def test_an_unset_golden_effort_changes_nothing(
+def test_no_golden_option_changes_nothing(
     request: pytest.FixtureRequest,
 ) -> None:
-    """Without `--golden-effort` the suite replays and scores the baseline.
+    """With no `--golden-*` option the suite replays and scores the baseline.
 
     The paths and the config are spelled out rather than read back from the
     module, so a change to either default fails here instead of moving both
@@ -404,6 +407,14 @@ def test_an_effort_level_is_a_label_only_at_that_effort(
         golden_arm_from_options(label=label, effort=effort, fallback=False)
     arm = golden_arm_from_options(label=label, effort=label, fallback=False)
     assert arm.name == label
+
+
+def test_the_fallback_model_is_never_recorded_under_an_effort_levels_name(
+    golden_arm_from_options: Callable[..., Any],
+) -> None:
+    """`-high` is the primary model's arm; the fallback's needs its own."""
+    with pytest.raises(pytest.UsageError, match="--golden-fallback"):
+        golden_arm_from_options(label="high", effort="high", fallback=True)
 
 
 @pytest.mark.parametrize("label", ["V9", "-v9", "v9/x", "../v9", ""])
