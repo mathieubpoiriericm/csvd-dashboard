@@ -5,10 +5,13 @@ import { asset } from "fresh/runtime";
 import { define } from "../utils.ts";
 import { Icon } from "../components/Icon.tsx";
 import { InstituteLogo } from "../components/InstituteLogo.tsx";
+import ReviewMenu from "../islands/ReviewMenu.tsx";
 import ThemeToggle from "../islands/ThemeToggle.tsx";
 import { LOGIN_PATH, LOGOUT_PATH } from "../lib/auth.ts";
 import { SITE_TITLE, TABS } from "../lib/constants.ts";
 import { HEADING, INSTITUTE, META_DESCRIPTION } from "../lib/disease/site.ts";
+import { observerEntered } from "../lib/review/access_request.ts";
+import { REVIEW } from "../lib/review/current.ts";
 import { THEME_STORAGE_KEY } from "../lib/theme.ts";
 
 // Vite resolves the same assets as CSS in both build environments. Plain Deno
@@ -56,10 +59,10 @@ function isActiveTab(pathname: string, href: string): boolean {
 const ADAPT_PATH = "/adapt";
 
 /** Pages that are not tabs but still deserve a title of their own. */
-const UNTABBED_TITLES: ReadonlyArray<[string, string]> = [[
-  ADAPT_PATH,
-  "Adapt",
-]];
+const UNTABBED_TITLES: ReadonlyArray<[string, string]> = [
+  [ADAPT_PATH, "Adapt"],
+  ["/review", "Review"],
+];
 
 /*
  * The adapt link's description: shown under it on hover and keyboard focus,
@@ -80,7 +83,19 @@ function pageTitle(pathname: string): string {
   return untabbed ? `${untabbed[1]} | ${SITE_TITLE}` : SITE_TITLE;
 }
 
-export default define.page(function App({ Component, url, state }) {
+/**
+ * The navbar's way into the review area, drawn only while a review exists.
+ * The shell calls it with `REVIEW !== null`; apart so that both branches are
+ * tested while the committed round is `null`. The island holds no data, only
+ * whether the visitor is in the area already.
+ */
+export function ReviewControl(
+  { available, entered }: { available: boolean; entered: boolean },
+) {
+  return available ? <ReviewMenu entered={entered} /> : null;
+}
+
+export default define.page(function App({ Component, url, state, req }) {
   const year = new Date().getFullYear();
   // The login page is a bare sheet: the tabs would only bounce back to it.
   const login = url.pathname === LOGIN_PATH;
@@ -247,6 +262,13 @@ export default define.page(function App({ Component, url, state }) {
                 />
 
                 <div class="navbar-actions">
+                  <ReviewControl
+                    available={REVIEW !== null}
+                    entered={observerEntered(
+                      req?.headers ?? new Headers(),
+                      url.pathname,
+                    )}
+                  />
                   <ThemeToggle />
                   {state?.authenticated && (
                     <form method="post" action={LOGOUT_PATH}>

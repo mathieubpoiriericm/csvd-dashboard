@@ -1987,6 +1987,8 @@ Deno.test("every control that lights on hover lights on focus-visible too", () =
   const selectors = [
     ".theme-toggle",
     ".navbar-signout",
+    ".review-button",
+    ".review-menu-item",
     ".sidebar-toggle",
     ".filter-option",
     ".pipeline-apis summary",

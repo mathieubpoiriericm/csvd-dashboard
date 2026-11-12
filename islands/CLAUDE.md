@@ -520,3 +520,43 @@ Eleven things are load-bearing:
   Every path `validate()` emits belongs to exactly one card
   (`tests/adapt/cards_test.ts`), which is what stands in for the step-level
   issue list this replaced.
+
+## Review control
+
+`islands/ReviewMenu.tsx` is the way into the scientific review area: a "Review"
+menu button first in `.navbar-actions`, before the theme toggle. It is not the
+site's Sign out beside it, which ends the passphrase session; this touches only
+its own cookie, and it carries a glyph and a caret so the two do not read alike.
+The shell draws it only while a review exists (`ReviewControl` in
+`routes/_app.tsx`, called with `REVIEW !== null`, so both branches are tested
+while the committed round is `null`), and never on the login page.
+
+**It holds no data and imports none.** It is in the navbar of every page while a
+review exists, so it imports `lib/review/copy.ts` and `lib/review/access.ts`
+(both import nothing), hooks and components, and never `lib/data/`,
+`lib/review/current.ts` or `lib/review/simulate.ts`. Its one prop is `entered`.
+`DATA_FREE_ISLANDS` in `server/protected_data_build.ts` fails the build if its
+chunk reaches a protected one.
+
+- **The cookie is `review_observer=1`** (one year, `Path=/`, `SameSite=Lax`,
+  `observerCookie`), with no identity in it: observing needs no account. The
+  shell reads it with `observerEntered` (`lib/review/access_request.ts`, kept
+  apart so no `@std` import reaches the island), which also counts any page
+  under `/review` as entered, so a deep link renders entered; the island then
+  writes the cookie if it is missing. "Leave review" clears it.
+- Signed out, the menu opens two native dialogs through `useModal`: the log-in
+  dialog, whose one action is "Enter as observer", and the account request. The
+  request form has no `action` and no `method`; its submit is stopped in script
+  once the browser's own validation passes, and the form gives way to the
+  notice. Nothing is stored and no request leaves the page. Closing the dialog
+  resets the form.
+- The button is disabled until the island is live, carries
+  `aria-haspopup="menu"` and `aria-expanded` as a string. The menu takes focus
+  on its first item, moves with the arrows, Home and End, and closes on Escape
+  (`useEscapeKey`, focus back to the button), on Tab and on a press outside. The
+  outside-press listener and both focus moves run in layout effects: a passive
+  one subscribed a frame late and missed a press that quick.
+- **Below 600px the button is its glyph alone**, named by `aria-label`. At 390px
+  the bar had 62px to spare beside the logo, the toggle and Sign out, and the
+  labelled button is 129px. At 320px the bar still overflows: the logo, the
+  toggle and Sign out leave no room for even the glyph.

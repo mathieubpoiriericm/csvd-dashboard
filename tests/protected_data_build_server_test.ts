@@ -19,6 +19,7 @@ const WIZARD = "assets/fresh-island__AdaptWizard-Public3.js";
 const TOGGLE = "assets/fresh-island__ThemeToggle-Public4.js";
 const PREVIEW = "assets/fresh-island__PipelinePreview-Public6.js";
 const WIDGET = "assets/fresh-island__PipelineRun-Public7.js";
+const REVIEW_MENU = "assets/fresh-island__ReviewMenu-Public8.js";
 
 /**
  * A chunk whose listed modules each render code; `typeOnly` modules render
@@ -79,6 +80,9 @@ function bundle(
     }),
     chunk(TOGGLE, "toggle", ["/repo/islands/ThemeToggle.tsx"], {
       name: "fresh-island__ThemeToggle",
+    }),
+    chunk(REVIEW_MENU, "review menu", ["/repo/islands/ReviewMenu.tsx"], {
+      name: "fresh-island__ReviewMenu",
     }),
     // The preview switch reaches the run report only through the widget it
     // loads when switched on.
@@ -212,6 +216,39 @@ Deno.test("build guard counts a data-free island's dynamic imports", () => {
       ),
     Error,
     `Data-free island ThemeToggle loads a protected data chunk: ${TOGGLE} -> ${PROTECTED}`,
+  );
+});
+
+Deno.test("build guard rejects a Review control that reaches the protected chunk", () => {
+  // The control is in the navbar of every page while a review exists, and
+  // holds nothing of the dataset or the round: the pages behind it do.
+  assertThrows(
+    () =>
+      assertProtectedDataBundle(
+        withImports(bundle(), REVIEW_MENU, { dynamicImports: [WIDGET] }),
+        ROOT,
+      ),
+    Error,
+    `Data-free island ReviewMenu loads a protected data chunk: ${REVIEW_MENU} -> ${WIDGET} -> ${PROTECTED}`,
+  );
+  assertThrows(
+    () =>
+      assertProtectedDataBundle(
+        withImports(bundle(), REVIEW_MENU, { imports: [PROTECTED] }),
+        ROOT,
+      ),
+    Error,
+    `Data-free island ReviewMenu loads a protected data chunk: ${REVIEW_MENU} -> ${PROTECTED}`,
+  );
+});
+
+Deno.test("build guard rejects a bundle without the Review control's chunk", () => {
+  const output = bundle();
+  delete output[REVIEW_MENU];
+  assertThrows(
+    () => assertProtectedDataBundle(output, ROOT),
+    Error,
+    "No client chunk for the data-free island ReviewMenu",
   );
 });
 

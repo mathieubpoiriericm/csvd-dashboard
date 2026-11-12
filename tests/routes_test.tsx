@@ -8,7 +8,7 @@ import {
 import { h } from "preact";
 import { renderToString } from "preact-render-to-string";
 
-import App from "../routes/_app.tsx";
+import App, { ReviewControl } from "../routes/_app.tsx";
 import AdaptPage, { AdaptTip } from "../routes/adapt.tsx";
 import Genes from "../routes/genes.tsx";
 import About, { AboutContent } from "../routes/index.tsx";
@@ -28,6 +28,12 @@ import { locationsWithTableStatus } from "../lib/trials.ts";
 import { GOLD_ONLY, GOLD_ONLY_NOTICE } from "../lib/gold_only.ts";
 import { filterLocationsByStatus, visibleTrials } from "../lib/filters.ts";
 import type { PipelineRun, SyncRun } from "../lib/types.ts";
+import { LOGIN_PATH } from "../lib/auth.ts";
+import { REVIEW } from "../lib/review/current.ts";
+import {
+  CONTROL as REVIEW_CONTROL,
+  CONTROL_ENTERED as REVIEW_CONTROL_ENTERED,
+} from "../lib/review/copy.ts";
 import { escapeHtml } from "./helpers/html.ts";
 
 const render = (component: unknown) =>
@@ -506,4 +512,61 @@ Deno.test("application shell puts the described adapt link before the tabs", () 
     m[0].match(/href="([^"]*)"/)?.[1]
   );
   assertEquals(hrefs.slice(0, 2), ["/adapt", "/"]);
+});
+
+Deno.test("the navbar's Review control renders exactly when a review is available", () => {
+  // The shell decides with `REVIEW !== null`, which is false in the
+  // committed state, so the decision is tested here both ways.
+  const none = renderToString(
+    <ReviewControl available={false} entered={false} />,
+  );
+  assertEquals(none, "");
+  const offered = renderToString(
+    <ReviewControl available entered={false} />,
+  );
+  assertStringIncludes(offered, 'class="review-control"');
+  assertStringIncludes(offered, `>${escapeHtml(REVIEW_CONTROL)}<`);
+  const entered = renderToString(<ReviewControl available entered />);
+  assertStringIncludes(entered, `>${escapeHtml(REVIEW_CONTROL_ENTERED)}<`);
+});
+
+Deno.test("the shell draws the Review control only while a review exists", () => {
+  const html = renderToString(
+    <Shell Component={() => <p>x</p>} url={new URL("http://localhost/")} />,
+  );
+  assertEquals(html.includes('class="review-control"'), REVIEW !== null);
+});
+
+Deno.test("the login page never draws the Review control", () => {
+  const html = renderToString(
+    <Shell
+      Component={() => <p>x</p>}
+      url={new URL(`http://localhost${LOGIN_PATH}`)}
+    />,
+  );
+  assert(!html.includes("review-control"), html);
+  assert(!html.includes('class="navbar"'), html);
+});
+
+Deno.test("application shell titles the review pages without a tab", () => {
+  for (const path of ["/review", "/review/gene", "/review/progress"]) {
+    const html = renderToString(
+      <Shell
+        Component={() => <p>x</p>}
+        url={new URL(`http://localhost${path}`)}
+      />,
+    );
+    assertStringIncludes(
+      html,
+      `<title>Review | ${escapeHtml(SITE_TITLE)}</title>`,
+    );
+  }
+  // A page whose name only starts with the word is not one of them.
+  const other = renderToString(
+    <Shell
+      Component={() => <p>x</p>}
+      url={new URL("http://localhost/reviewers")}
+    />,
+  );
+  assertStringIncludes(other, `<title>${escapeHtml(SITE_TITLE)}</title>`);
 });

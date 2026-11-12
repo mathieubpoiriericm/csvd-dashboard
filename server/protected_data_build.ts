@@ -25,10 +25,15 @@ export const PROTECTED_DATA_SENTINELS = [
 /**
  * Islands that render nothing of the dataset, so must hydrate without any
  * protected chunk: the login page renders the theme toggle before any
- * session exists, and the adapt wizard would otherwise wait on data,
- * uncacheable, before its form unlocks.
+ * session exists, the adapt wizard would otherwise wait on data,
+ * uncacheable, before its form unlocks, and the Review control is in the
+ * navbar of every page while a review exists.
  */
-export const DATA_FREE_ISLANDS = ["AdaptWizard", "ThemeToggle"] as const;
+export const DATA_FREE_ISLANDS = [
+  "AdaptWizard",
+  "ThemeToggle",
+  "ReviewMenu",
+] as const;
 
 /**
  * Islands that are on a page whether or not their dataset is wanted, so may
