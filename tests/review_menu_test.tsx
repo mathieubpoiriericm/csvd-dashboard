@@ -150,3 +150,33 @@ Deno.test("entered, the control says so and links the two pages", () => {
   assert(!html.includes(escapeHtml(MENU_REQUEST)), html);
   assert(!html.includes("<dialog"), html);
 });
+
+Deno.test("the request dialog is described by its demonstration notice", () => {
+  // showModal() focuses the first field, so a screen reader hears the
+  // dialog's name and description and then "Full name": the notice has to
+  // be the description, or it is skipped.
+  const html = signedOut();
+  const dialog = html.match(
+    /<dialog[^>]*aria-labelledby="review-request-title"[^>]*>/,
+  )?.[0] ?? "";
+  assertStringIncludes(dialog, 'aria-describedby="review-request-demo"');
+  assertStringIncludes(
+    html,
+    `<p id="review-request-demo" class="review-demo">${
+      escapeHtml(REQUEST_DEMO)
+    }</p>`,
+  );
+});
+
+Deno.test("the notice's live region is in the page before anything is sent", () => {
+  // A region that appears with its text is often not announced; it is drawn
+  // empty from the start, and focus moves onto it once the notice is in it,
+  // so "Nothing was sent" is what is read rather than the Close button.
+  const html = signedOut();
+  const region = html.match(/<p id="review-request-sent"([^>]*)>(.*?)<\/p>/s);
+  assert(region !== null, html);
+  assertStringIncludes(region[1], 'class="review-sent"');
+  assertStringIncludes(region[1], 'role="status"');
+  assertStringIncludes(region[1], 'tabindex="-1"');
+  assertEquals(region[2], "");
+});

@@ -3227,8 +3227,10 @@ svg {
   font-size: var(--svd-text-sm);
 }
 
+/* Kept in the page while empty, so it is a live region before the notice
+   arrives; empty, it has no height and no margin, so it draws no gap. */
 .review-dialog .review-sent:empty {
-  display: none;
+  margin: 0;
 }
 
 .adapt-dialog-error {

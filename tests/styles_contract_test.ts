@@ -2160,3 +2160,15 @@ Deno.test("the tooltip triggers draw no underline", () => {
     "a .tooltip-box rule draws a bottom border",
   );
 });
+
+Deno.test("the request notice's empty live region stays in the page without a gap", () => {
+  // Hidden while empty it would leave the accessibility tree, and a region
+  // that comes back with its text is often not announced. Empty, it has no
+  // height and no margin, so it draws nothing between the form and the
+  // buttons.
+  const rules = declarationsOf("display").filter((d) =>
+    d.selector.includes(".review-sent")
+  );
+  assertEquals(rules, []);
+  assertMatch(css, /\.review-dialog \.review-sent:empty \{\s*margin: 0;\s*\}/);
+});

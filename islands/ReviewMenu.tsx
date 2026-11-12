@@ -68,7 +68,7 @@ export default function ReviewMenu({ entered }: ReviewMenuProps) {
   const button = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLUListElement>(null);
   const form = useRef<HTMLFormElement>(null);
-  const requestClose = useRef<HTMLButtonElement>(null);
+  const notice = useRef<HTMLParagraphElement>(null);
 
   useEffect(() => {
     setLive(true);
@@ -102,9 +102,11 @@ export default function ReviewMenu({ entered }: ReviewMenuProps) {
     if (open) menuItems(menu.current)[0]?.focus();
   }, [open]);
 
-  // The form is replaced by the notice; focus would be left on nothing.
+  // The form is replaced by the notice, and focus goes onto the notice, so
+  // what a screen reader says next is that nothing was sent. On the Close
+  // button it said "Close", which is what a request that went sounds like.
   useLayoutEffect(() => {
-    if (sent) requestClose.current?.focus();
+    if (sent) notice.current?.focus();
   }, [sent]);
 
   const onMenuKey = (event: KeyboardEvent) => {
@@ -277,11 +279,13 @@ export default function ReviewMenu({ entered }: ReviewMenuProps) {
             ref={request}
             class="review-dialog"
             aria-labelledby="review-request-title"
+            aria-describedby="review-request-demo"
           >
             <h2 id="review-request-title" class="review-dialog-title">
               {REQUEST_TITLE}
             </h2>
-            <p class="review-demo">{REQUEST_DEMO}</p>
+            {/* The dialog's description: showModal() focuses the first field. */}
+            <p id="review-request-demo" class="review-demo">{REQUEST_DEMO}</p>
             {
               /* No action and no method: the form is never submitted
                 anywhere. `submit` stops it and shows the notice. */
@@ -331,14 +335,23 @@ export default function ReviewMenu({ entered }: ReviewMenuProps) {
               </label>
               <textarea id="review-request-note" name="note" rows={3} />
             </form>
-            <p class="review-sent" role="status">
+            {
+              /* Drawn empty from the start: a live region that arrives with
+                its text is often not announced. */
+            }
+            <p
+              id="review-request-sent"
+              class="review-sent"
+              role="status"
+              tabIndex={-1}
+              ref={notice}
+            >
               {sent ? REQUEST_NOTICE : ""}
             </p>
             <div class="review-dialog-actions">
               <button
                 type="button"
                 class="review-action"
-                ref={requestClose}
                 onClick={closeRequest}
               >
                 Close
