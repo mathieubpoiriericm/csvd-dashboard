@@ -263,6 +263,28 @@ the class name.
   than being recorded as processed with the gene missing; the batch path catches
   it per paper.
 
+  **A paid answer outlives an NCBI outage.** Retrying used to mean extracting
+  again: on the default path every paper is a full-rate request, the answer
+  lived only in memory, and an outage fails every validation that reaches it.
+  `_extract_and_validate` now re-raises the outage as `_AnswerNotValidatedError`,
+  a subclass with the same message that carries the genes and the `ServedBy`,
+  and `process_paper` appends them to the checkpoint as an `unvalidated` record
+  before the paper fails as it always did (reported, not checkpointed as
+  finished, its quotes un-counted, its tokens counted in this run). The next run
+  whose fetched text hashes the same makes no request for that paper: no
+  limiter reservation, zero tokens, the quote counts put back, the stored genes
+  validated, and the step says "Validated N papers that were
+  extracted in an earlier run whose validation NCBI did not answer; their
+  tokens are in that run's report". The stored answers reach `process_paper`
+  through a context variable (`_stored_answers`, set in `_process_new_pmids`)
+  rather than a parameter, as the quote tally does, so the three streaming
+  signatures and their forty-odd test fakes did not change; a dry run leaves it
+  unset and so neither writes nor reads. The cache warm-up counts only the
+  papers that will make a request. `_StoredAnswers` is shared with the `--batch`
+  path, whose rescues write the same record (`fallback.md`), and either path
+  replays the other's. The offline modes are untouched: they meet the subclass
+  where they met the plain outage.
+
 The offline `--pmids` and `--local-pdfs` modes write no `pipeline_runs` row, and
 that is correct rather than an oversight: they publish no data, so recording one
 would point the About page's "up-to-date as of" date at a run that changed
