@@ -88,8 +88,9 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         action="store_true",
         default=False,
         help=(
-            "with --golden-label only: send each paper straight to the "
-            "fallback model, and score only answers that model gave"
+            "with a --golden-label that is not an effort level: send each "
+            "paper straight to the fallback model, and score only answers "
+            "that model gave"
         ),
     )
 

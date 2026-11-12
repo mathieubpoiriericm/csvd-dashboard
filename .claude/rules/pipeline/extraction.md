@@ -262,8 +262,8 @@ tool call is on the stream" in `fallback.md`). On the same six papers v8 is
 include the refused call's 1,725. The baseline is the top of v8's own range,
 which over four recordings is 39-40 pooled and 21-22 clean. The cassettes replay
 only on the code that recorded them (commits `fcd9e25` and `6682816` on the
-local branch `prompt-v9`); on v8's code their request-comparison tests fail by
-design.
+branch `prompt-v9`, which was not merged); on v8's code their
+request-comparison tests fail by design.
 
 **The arm with the reporting threshold lost five gold genes of ten on one
 paper; three are the threshold's.** v8 contradicts itself: a positional
@@ -312,7 +312,8 @@ the model left PLEKHG1 out for position ("The other nearest-gene-only loci, like
 PPTC7 and NMT1, rest on position alone, so I'm leaving them out of the list"),
 and it is one of the two genes that come and go between identical recordings.
 The `medium` effort arm, with no text changed, is missing the same three, and
-PMID 33293549 has measured 8/10 before with nothing about extraction changed.
+PMID 33293549 measured 8/10 once before, without the same two genes and with
+nothing about extraction changed (2026-09-02, on Opus 5).
 37/46 is two below the low end of v8's four recordings and three below the best,
 on one recording. **A line earned a citation only by carrying the sentence**, so
 it could not save output as well: on most papers the model wrote each sentence
