@@ -46,7 +46,8 @@ _DISEASE_TREES = ("tests/pipeline/csvd", "tests/scripts/csvd")
 #
 # An entry excuses less than its file, and less than a line. `_prose` is for
 # a comment or a docstring that quotes a measurement: the same term in code,
-# on that line or another, or in a string a statement uses, is still a hit.
+# on that line or another, in a string a statement uses, or in a string that
+# is a statement of its own and opens nothing, is still a hit.
 # `_declared` is for a value the code needs: the term is excused inside the
 # module-level assignment it names and nowhere else. Both read the file as
 # Python, so an entry is for a .py file.
@@ -161,13 +162,20 @@ class _Layout:
                 point(node.end_lineno or node.lineno, node.end_col_offset or 0),
             )
 
-        # A string that is a statement of its own: a docstring.
+        # The string a module, a class or a function opens with, which is
+        # the one Python keeps as its __doc__. A string that is a statement
+        # of its own anywhere else is code, however much it reads like one.
         self._docstrings = [
-            span(node)
+            span(first)
             for node in ast.walk(tree)
-            if isinstance(node, ast.Expr)
-            and isinstance(node.value, ast.Constant)
-            and isinstance(node.value.value, str)
+            if isinstance(
+                node,
+                ast.Module | ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef,
+            )
+            and node.body
+            and isinstance(first := node.body[0], ast.Expr)
+            and isinstance(first.value, ast.Constant)
+            and isinstance(first.value.value, str)
         ]
         # The column each line's comment starts at.
         self._comments = {
@@ -534,20 +542,29 @@ def test_an_allow_list_entry_excuses_its_term_only_where_it_says(
         'KEPT["KEYED1"]\n'  # 18
         "def g():\n"  # 19
         '    KEPT = "KEYED1"\n'  # 20
-        "# A form feed \x0c and a line separator \u2028 are not line ends.\n"  # 21
+        "# A form feed \x0c and a line separator \u2028 end no line: QUOTED1\n"  # 21
         'w = "QUOTED1"\n'  # 22
-        '"""A bare string after them, quoting QUOTED1."""\n'  # 23
-        # A statement beside a docstring or an assignment is not part of it.
-        '"""QUOTED1"""; v = "QUOTED1"  # QUOTED1\n'  # 24
-        'def h(): u = "QUOTED1"; """QUOTED1"""\n'  # 25
-        'KEPT = {"KEYED1": 2}; t = "KEYED1"\n'  # 26
+        # A string that is a statement of its own and opens nothing is not a
+        # docstring, in quotes of any kind or in parentheses.
+        '"""A string that opens nothing, quoting QUOTED1."""\n'  # 23
+        '("QUOTED1")\n'  # 24
+        # A statement beside a docstring or an assignment is not part of it,
+        # and a string after a function's first statement is not its docstring.
+        'class C: """QUOTED1"""; v = "QUOTED1"  # QUOTED1\n'  # 25
+        'def h(): u = "QUOTED1"; """QUOTED1"""\n'  # 26
+        'KEPT = {"KEYED1": 2}; t = "KEYED1"\n'  # 27
         # ast counts a column in bytes: ten two-byte letters end the first
         # statement ten characters sooner than their bytes would, and four
         # start the docstring four characters sooner.
-        f'KEPT = "{"\u00e9" * 10}";"KEYED1"\n'  # 27
-        f'{"\u00e9" * 4} = 1; """QUOTED1"""\n'  # 28
+        f'KEPT = "{"\u00e9" * 10}";"KEYED1"\n'  # 28
+        f'def {"\u00e9" * 4}(): """QUOTED1"""\n'  # 29
         # An assignment starts at its target, not at its line.
-        's = "KEYED1"; KEPT = {"KEYED1": 3}\n',  # 29
+        's = "KEYED1"; KEPT = {"KEYED1": 3}\n'  # 30
+        # The docstring is the string Python keeps as __doc__: the first
+        # statement, parenthesised or not, and never the one after it.
+        "async def a():\n"  # 31
+        '    ("QUOTED1")\n'  # 32
+        '    "QUOTED1"\n',  # 33
         encoding="utf-8",
     )
     monkeypatch.setattr(f"{__name__}._ROOT", tmp_path)
@@ -578,11 +595,18 @@ def test_an_allow_list_entry_excuses_its_term_only_where_it_says(
         f'src/module.py:18: KEPT["KEYED1"]  {declared_only}',
         f'src/module.py:20: KEPT = "KEYED1"  {declared_only}',
         f'src/module.py:22: w = "QUOTED1"  {prose_only}',
-        f'src/module.py:24: """QUOTED1"""; v = "QUOTED1"  # QUOTED1  {prose_only}',
-        f'src/module.py:25: def h(): u = "QUOTED1"; """QUOTED1"""  {prose_only}',
-        f'src/module.py:26: KEPT = {{"KEYED1": 2}}; t = "KEYED1"  {declared_only}',
-        f'src/module.py:27: KEPT = "{"\u00e9" * 10}";"KEYED1"  {declared_only}',
-        f'src/module.py:29: s = "KEYED1"; KEPT = {{"KEYED1": 3}}  {declared_only}',
+        "src/module.py:23: "
+        f'"""A string that opens nothing, quoting QUOTED1."""  {prose_only}',
+        f'src/module.py:24: ("QUOTED1")  {prose_only}',
+        "src/module.py:25: "
+        f'class C: """QUOTED1"""; v = "QUOTED1"  # QUOTED1  {prose_only}',
+        # Twice: the assignment, and the string that follows it.
+        f'src/module.py:26: def h(): u = "QUOTED1"; """QUOTED1"""  {prose_only}',
+        f'src/module.py:26: def h(): u = "QUOTED1"; """QUOTED1"""  {prose_only}',
+        f'src/module.py:27: KEPT = {{"KEYED1": 2}}; t = "KEYED1"  {declared_only}',
+        f'src/module.py:28: KEPT = "{"\u00e9" * 10}";"KEYED1"  {declared_only}',
+        f'src/module.py:30: s = "KEYED1"; KEPT = {{"KEYED1": 3}}  {declared_only}',
+        f'src/module.py:33: "QUOTED1"  {prose_only}',
     ]
 
 
