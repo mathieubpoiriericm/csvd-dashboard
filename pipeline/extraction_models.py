@@ -179,10 +179,13 @@ class ExtractionRefusedError(ExtractionFailedError):
     one fails it on this; `category` is what the run report groups by.
 
     `fallback_declined` is whether the fallback model itself declined the
-    paper: it ran behind the requested model and declined too, or the
-    request was sent straight to it. False means only the requested model
-    has seen the paper -- the server-side fallback did not run -- which is
-    what `AnthropicClient.extract` sends on to the fallback model.
+    paper: it ran behind the requested model and declined too, the
+    request was sent straight to it, or the refusal is the fallback model's
+    own sticky-served answer (a retry of a paper the server-side fallback
+    had served, answered by the fallback model directly with no `fallback`
+    block). False means only the requested model has seen the paper -- the
+    server-side fallback did not run -- which is what
+    `AnthropicClient.extract` sends on to the fallback model.
     """
 
     def __init__(

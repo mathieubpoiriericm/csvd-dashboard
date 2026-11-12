@@ -529,18 +529,25 @@ async def _stream_and_parse(
         first = (
             (_declining_hop_category(response) or "unspecified") if also else category
         )
-        logger.error(
+        fallback_declined = (
+            bool(also)
+            or calls.direct
+            or _fallback_served(response, config.fallback_model)
+        )
+        # A refusal the fallback has not seen is not final: `extract` sends
+        # the paper on, so it is a warning here and the paper may well
+        # succeed. One the fallback declined, or could not decline, ends it.
+        logger.log(
+            logging.ERROR if fallback_declined else logging.WARNING,
             f"Request refused by safety classifier for PMID {pmid} "
-            f"(category: {first}){also}{skipped}"
+            f"(category: {first}){also}{skipped}",
         )
         raise ExtractionRefusedError(
             f"Refused by safety classifier for PMID {pmid} "
             f"(category: {first}){also}{skipped}",
             usage,
             category=category,
-            fallback_declined=bool(also)
-            or calls.direct
-            or _fallback_served(response, config.fallback_model),
+            fallback_declined=fallback_declined,
         )
 
     # Truncation is a deterministic token-budget problem, so retrying the

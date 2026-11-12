@@ -2446,6 +2446,70 @@ class TestARefusalNoFallbackAnsweredIsSentToTheFallback:
         assert stream.beta.messages.stream.call_count == 1
         assert raised.value.fallback_declined is True
 
+    async def test_a_refusal_after_a_fallback_serve_and_a_validation_retry_is_final(
+        self, mocker, mock_anthropic_response
+    ):
+        """The sequence the sticky-served predicate exists for: the server
+        fell back and served the paper, its answer failed validation, and the
+        retry -- answered by the fallback model directly, with no `fallback`
+        block -- is refused. The fallback has seen the paper, so it is not
+        sent again."""
+        served_without_a_tool_call = mock_anthropic_response(
+            text="", omit_tool_call=True
+        )
+        served_without_a_tool_call.model = "claude-opus-4-8"
+        served_without_a_tool_call.content.insert(
+            0,
+            SimpleNamespace(
+                type="fallback",
+                to=SimpleNamespace(model="claude-opus-4-8"),
+                trigger=SimpleNamespace(type="refusal", category="bio"),
+            ),
+        )
+        refused = mock_anthropic_response(text="")
+        refused.model = "claude-opus-4-8"
+        refused.stop_reason = "refusal"
+        refused.stop_details = SimpleNamespace(category="cyber")
+        refused.usage.iterations = [
+            SimpleNamespace(type="fallback_message", model="claude-opus-4-8",
+                            input_tokens=10, output_tokens=5,
+                            cache_creation_input_tokens=0, cache_read_input_tokens=0)
+        ]
+        stream = self._client_answering(served_without_a_tool_call, refused)
+        client = AnthropicClient()
+        mocker.patch.object(client, "_get_client", return_value=stream)
+
+        with pytest.raises(ExtractionRefusedError) as raised:
+            await client.extract("t", "1", PipelineConfig(max_retries=1), None)
+
+        assert stream.beta.messages.stream.call_count == 2
+        assert raised.value.fallback_declined is True
+        assert raised.value.category == "cyber"
+
+    async def test_a_refusal_about_to_be_sent_on_is_a_warning_and_a_final_one_an_error(
+        self, mocker, mock_anthropic_response, caplog
+    ):
+        config = PipelineConfig()
+        refused = self._refused_alone(mock_anthropic_response)
+        declined_too = self._served_directly(mock_anthropic_response, text="")
+        declined_too.stop_reason = "refusal"
+        declined_too.stop_details = SimpleNamespace(category="cyber")
+        stream = self._client_answering(refused, declined_too)
+        client = AnthropicClient()
+        mocker.patch.object(client, "_get_client", return_value=stream)
+
+        with caplog.at_level(logging.WARNING), pytest.raises(ExtractionRefusedError):
+            await client.extract("t", "1", config, None)
+
+        levels = [
+            record.levelno
+            for record in caplog.records
+            if record.getMessage().startswith("Request refused by safety classifier")
+        ]
+        # The first refusal is about to be sent to the fallback; the second
+        # is the fallback's own and ends the paper.
+        assert levels == [logging.WARNING, logging.ERROR]
+
     async def test_a_direct_request_that_is_refused_is_not_rescued(
         self, mocker, mock_anthropic_response
     ):
