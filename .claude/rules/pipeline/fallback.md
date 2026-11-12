@@ -102,20 +102,20 @@ so `extract` sends the paper to the fallback itself.** Anthropic's refusals
 guide names the one case the server-side fallback does not cover: "a streaming
 decline that fires while a tool-use block of any type ... is still open on the
 stream: that refusal is returned directly". Every answer here is a tool-use
-block, and it is more than half of the output. Seen once, 2026-11-11, on PMID
-39216230 while recording a prompt arm: Opus 5.5 wrote its text and the whole
-`report_genes` input (two genes; the block had closed), and the message then
-ended `stop_reason: "refusal"`, category `bio`, with no `fallback` block and no
+block, and it is more than half of the output. Seen twice, both on 2026-11-11 on
+PMID 39216230 while recording prompt arms: Opus 5.5 wrote its text and was
+part-way through the `report_genes` input (the first gene whole, the second cut
+off mid-sentence; the input arrives as `{"genes": "<an unterminated JSON array,
+as a string>"}` and the block is closed behind it), and the message ended
+`stop_reason: "refusal"`, category `bio`, with no `fallback` block and no
 `fallback_message` iteration (`stop_details` carried
 `fallback_has_prefill_claim: true` and a credit token this pipeline does not
-redeem). Reading that as the guide's case is an inference: the guide says
-"still open", and here the block had closed. `_stream_and_parse` raised
+redeem). Reading that as the guide's case is an inference, though an input cut
+short mid-string is what it would look like. `_stream_and_parse` raised
 `ExtractionRefusedError` and, at the time, the paper counted as refused for the
-run. The same paper sent 16 minutes later under the next arm's prompt (same
-document, tool definition and task instruction, a different system prompt) was
-answered by Opus 5.5. It was refused the same way once more that day, in a third
-arm's recording, again with its text and the tool call on the stream and no
-fallback attempt.
+run. Between the two, the same paper sent 16 minutes after the first under the
+next arm's prompt (same document, tool definition and task instruction, a
+different system prompt) was answered by Opus 5.5.
 
 `ExtractionRefusedError.fallback_declined` now says whether the fallback model
 itself declined: true when `_fallback_declined_too` names its hop, when the
@@ -143,9 +143,8 @@ that same model and takes the ordinary 429/529 backoff. The first refusal is
 logged at WARNING, since the paper is about to be sent on and may succeed. A
 refusal that is final is logged at ERROR: the fallback model itself declined,
 or the request was already the fallback model's (a direct or sticky-served
-request). If Opus 4.8
-declines too, the error
-keeps the first refusal's category, which the run report groups by, and names
+request). If Opus 4.8 declines too, the error keeps the first refusal's
+category, which the run report groups by, and names
 both as the batch rescue does: "Refused by safety classifier for PMID …
 (category: bio; claude-opus-4-8 also declined: cyber)"; the next run whose
 window covers it retries it.

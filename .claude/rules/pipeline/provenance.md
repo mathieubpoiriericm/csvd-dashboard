@@ -98,8 +98,9 @@ failure (CENPF on PMID 37069360, the reassembled table row again) was repaired
 from its cited line, which is also one of the 86. Recall was pooled 37/46
 against 40/46: on one paper the model dropped two gold genes it had scored,
 because their only support is a table row, which v8 quotes as a row (an arm
-without the line dropped the same two in the same words, so that is not shown to
-be the line's doing). It saved no output: on most papers the model wrote the
+without the line, and one with nothing changed but the effort, dropped the same
+two for the same stated reason, so that is not shown to be the line's doing). It
+saved no output: on most papers the model wrote the
 sentence on the line anyway, and on one it wrote the bare lines as asked and the
 API cited none of them, so a line earned a citation only by carrying the
 sentence. The figures and the model's own account are in `extraction.md` ("A v9

@@ -536,7 +536,8 @@ async def _stream_and_parse(
         )
         # A refusal the fallback has not seen is not final: `extract` sends
         # the paper on, so it is a warning here and the paper may well
-        # succeed. One the fallback declined, or could not decline, ends it.
+        # succeed. One the fallback declined, or that was already the
+        # fallback's own request, ends it.
         logger.log(
             logging.ERROR if fallback_declined else logging.WARNING,
             f"Request refused by safety classifier for PMID {pmid} "

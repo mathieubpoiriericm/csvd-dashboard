@@ -375,7 +375,8 @@ async def submit_and_collect(
     submitted again. When a new batch is recorded, every other recorded
     batch is written back beside it, claimed by this call or not: one
     window's run must not erase a batch paid for by another's. When nothing
-    new is submitted the file is left as it was. This function never takes
+    new is submitted the file is left as it was, apart from records
+    ``batch_state.load`` prunes by age. This function never takes
     a paper off the record: the caller does (``batch_state.forget``), once
     its result is safely stored. With ``state_path`` None nothing is read or
     written and the API calls are exactly those of a plain submission.

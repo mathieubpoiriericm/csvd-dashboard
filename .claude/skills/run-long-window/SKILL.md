@@ -198,8 +198,9 @@ expired). A paper whose fetch failed, or whose validation hit an NCBI outage,
 stays on record for the next run to collect. Every other batch on record is kept
 untouched, because `scripts.backfill_pubmed --batch` re-runs from its first
 window after a crash in a later one, and a later window's record erased by the
-first would be paid for twice. A record goes only when all its papers are forgotten or the API no longer
-has its results. A dry run or `--test-mode` neither writes nor forgets.
+first would be paid for twice. A record goes only when all its papers are
+forgotten or the API no longer has its results. A dry run or `--test-mode`
+neither writes nor forgets.
 `--test-mode` counts what a window would process before paying for it, and
 `scripts.backfill_pubmed` walks it in committed chunks so the database is
 updated as it goes; both are described in

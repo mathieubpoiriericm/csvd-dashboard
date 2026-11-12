@@ -261,8 +261,9 @@ citation span.
 | `-tool-definition` (the last, alone)  | 36/45  | 19/26 | 108   | 106/108                         | 96/108 = 89% | 82,158        |
 
 The first and the last arm scored six papers: in both the seventh, PMID
-39216230, was refused by the safety classifier with its answer already on the
-stream (see "A refusal while the tool call is on the stream" in `fallback.md`).
+39216230, was refused by the safety classifier with its text written and its
+tool call part-way onto the stream (see "A refusal while the tool call is on the
+stream" in `fallback.md`).
 On the same six papers v8 is 39/45, 22/26, 131 genes and 95/131 = 73% cited, and
 the two arms' tokens include the refused calls' 1,725 and 2,744. The baseline is
 the top of v8's own range, which over four recordings is 39-40 pooled and 21-22
@@ -312,16 +313,17 @@ genes (0.65 and 0.6) and then said why it dropped them: "I'm weighing which of
 the table-only genes to keep, since their only source is the big locus table and
 I can't quote that cleanly. I'm leaning toward dropping them". v8's Provenance
 section already says "If no single sentence supports the entry, do not report
-the gene", and the model, not asked to show the sentence first, quotes the table
-row for both. The third gene is not evidence about the line: on PMID 35511193
-the model left PLEKHG1 out for position ("The other nearest-gene-only loci, like
-PPTC7 and NMT1, rest on position alone, so I'm leaving them out of the list"),
-and it is one of the two genes that come and go between identical recordings.
-The `medium` effort arm, with no text changed, is missing the same three, and
-PMID 33293549 measured 8/10 once before, without the same two genes and with
-nothing about extraction changed (2026-09-02, on Opus 5). The tool definition
-recorded alone (below) then lost the same two in the same words, under v8's task
-instruction, so dropping a table-only gene is not shown to be the line's doing.
+the gene", and on the v8 recording the model quotes the table row for both. The
+third gene is not evidence about the line: on PMID 35511193 the model left
+PLEKHG1 out for position ("The other nearest-gene-only loci, like PPTC7 and
+NMT1, rest on position alone, so I'm leaving them out of the list"), and it is
+one of the two genes that come and go between identical recordings. The `medium`
+effort arm, with no text changed, is missing the same three, and gives the same
+reason for the two on PMID 33293549; that paper measured 8/10 once before,
+without the same two genes and with nothing about extraction changed
+(2026-09-02, on Opus 5). The tool definition recorded alone (below) then lost
+the same two for the same stated reason, under v8's task instruction, so
+dropping a table-only gene is not shown to be the line's doing.
 37/46 is two below the low end of v8's four recordings and three below the best,
 on one recording. **A line earned a citation only by carrying the sentence**, so
 it could not save output as well: on most papers the model wrote each sentence
@@ -335,21 +337,26 @@ objects, a three-sentence tool description, two `input_examples`, no `pmid`
 property, and one added `- protein_name:` line in the prompt's field guidance.
 It was recorded afterwards on v8's prompt and task instruction with nothing else
 changed, under a rule fixed beforehand: adopted only at the baseline's recall
-(40/46, 22/26, no paper under its floor) with fewer output tokens. It came out
-at 36/45 and 19/26 over the six papers that recorded, 108 genes against v8's
-131, with no output saved (79,414 tokens on the seven completed calls against
-v8's 78,726), so it was not adopted. It is missing the same three gold genes as
-the cited-line arm, and on PMID 33293549 the model said the same thing: "I'm
+(40/46, 22/26, no paper under its floor) with at least 98% of quotes verbatim
+and fewer output tokens. It came out at 36/45 and 19/26 over the six papers that
+recorded, 108 genes against v8's 131, with no output saved (79,414 tokens on the
+seven completed calls against v8's 78,726), so it was not adopted. It is missing
+the same three gold genes as the cited-line arm, and on PMID 33293549 the model
+gave the same reason: "I'm
 dropping the table-only genes, since the paper's support for them is just a
 table entry and I can't quote a single sentence backing it". That behaviour
-needs no cited line. What the two arms that showed it share is the rewritten
-tool definition, whose `source_quote` description repeats the Provenance
-section's single-sentence wording; `medium`, with no text changed, lost the same
-genes without saying why. Three recordings cannot tell a tool definition that
-tips the model toward that rule from a baseline that was the favourable draw.
-PMID 39216230 was refused in two of the three recordings that carried this tool
-definition and in none of v8's, which is two papers, not a rate; the rescue in
-`fallback.md` now covers that refusal.
+needs no cited line, and no rewritten tool definition either: `medium`, on v8's
+text and v8's tool definition, lost the same three and gave the same reason on
+the same paper ("Their only source is one very long table row, so I had no
+single sentence to quote as provenance"), and the baseline itself weighed
+dropping them before quoting the row. What these recordings share is v8's
+Provenance sentence, which the new `source_quote` description only repeats.
+Nothing here shows the tool definition tipping the model toward that rule; the
+likelier reading is that the baseline was the favourable draw, and one day's
+recordings of one paper cannot settle it. PMID 39216230 was refused in two of
+the three recordings that carried this tool definition and in none of the three
+recorded with v8's that day (`high`, `medium`, `low`), which is two refusals of
+one paper, not a rate; the rescue in `fallback.md` now covers that refusal.
 
 **In all five arms recorded on 2026-11-11, fewer genes reported came with lower
 recall.** `medium`, `low` and the three prompt arms reported 111, 96, 104, 89
