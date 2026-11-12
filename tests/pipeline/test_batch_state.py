@@ -1,3 +1,4 @@
+import json
 import logging
 import time
 from pathlib import Path
@@ -167,7 +168,7 @@ def test_a_batch_older_than_the_api_keeps_results_is_dropped_and_gone_from_the_f
     tmp_path, caplog
 ) -> None:
     path = str(tmp_path / "b.json")
-    stale, fresh = _aged("msgbatch_stale", 30), _aged("msgbatch_fresh", 1, "222")
+    stale, fresh = _aged("msgbatch_stale", 31), _aged("msgbatch_fresh", 1, "222")
     save(path, FP, [stale, fresh])
 
     with caplog.at_level(logging.INFO):
@@ -178,9 +179,11 @@ def test_a_batch_older_than_the_api_keeps_results_is_dropped_and_gone_from_the_f
     assert load(path, FP, now=_NOW) == [fresh]
 
 
-def test_a_batch_of_28_days_is_still_returned(tmp_path) -> None:
+def test_a_batch_just_past_the_retention_is_kept_for_the_margin(
+    tmp_path,
+) -> None:
     path = str(tmp_path / "b.json")
-    batch = _aged("msgbatch_1", 28)
+    batch = _aged("msgbatch_1", 29.5)
     save(path, FP, [batch])
     assert load(path, FP, now=_NOW) == [batch]
 
@@ -192,6 +195,19 @@ def test_a_batch_with_no_submitted_at_is_kept_however_old_the_clock_says(
     batch = PendingBatch("msgbatch_1", {"111": "ab"})
     save(path, FP, [batch])
     assert load(path, FP, now=_NOW + 400 * _DAY) == [batch]
+
+
+def test_pruning_rewrites_an_unstamped_record_as_it_was(tmp_path) -> None:
+    path = Path(tmp_path / "b.json")
+    unstamped = PendingBatch("msgbatch_old", {"222": "cd"})
+    save(str(path), FP, [_aged("msgbatch_stale", 31), unstamped])
+
+    assert load(str(path), FP, now=_NOW) == [unstamped]
+
+    entries = json.loads(path.read_text())["pending"]
+    assert [(e["batch_id"], e["submitted_at"]) for e in entries] == [
+        ("msgbatch_old", None)
+    ]
 
 
 def test_a_file_whose_every_batch_is_stale_is_deleted(tmp_path) -> None:
@@ -206,7 +222,7 @@ def test_a_file_that_cannot_be_rewritten_still_loads_without_the_stale_batch(
 ) -> None:
     path = str(tmp_path / "b.json")
     fresh = _aged("msgbatch_fresh", 1, "222")
-    save(path, FP, [_aged("msgbatch_stale", 30), fresh])
+    save(path, FP, [_aged("msgbatch_stale", 31), fresh])
 
     def refuse(*args, **kwargs):
         raise PermissionError("read-only")

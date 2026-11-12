@@ -17,10 +17,11 @@ Four properties matter:
   Collecting it into a run configured differently would mix methods inside one
   dataset, so a fingerprint mismatch discards the file, as `checkpoint` does.
 - **Pruned by age.** The API keeps a batch's results for 29 days, so `load`
-  drops a batch whose `submitted_at` is older than that and rewrites the file
-  without it: a record for a window that is never re-run would otherwise stay
-  for ever, since nothing looks it up to find it expired. A record with no
-  `submitted_at` (written before the field) is kept.
+  drops a batch whose `submitted_at` is older than that plus a day's margin
+  and rewrites the file without it: a record for a window that is never
+  re-run would otherwise stay for ever, since nothing looks it up to find it
+  expired. A record with no `submitted_at` (written before the field) is
+  kept, and written back as it was.
 - **Never fatal to read.** A missing, corrupt or wrong-shaped file is an empty
   list and is deleted, so a stale file is not resumed by some later run whose
   settings happen to match it again. A file that cannot be deleted is still an
@@ -60,6 +61,13 @@ _PENDING_KEY = "pending"
 # than that can only be found gone, and nothing looks up a record for a
 # window that is never re-run, so `load` drops it on age instead.
 RESULTS_RETENTION_SECONDS = 29 * 24 * 60 * 60
+
+# Slack on top of the retention before a record is pruned. `submitted_at` is
+# the API's clock and the cutoff is this machine's, so a local clock running
+# ahead could otherwise drop a batch minutes before the API expires it. A late
+# prune costs nothing: the collector already drops a batch the API reports
+# gone.
+PRUNE_MARGIN_SECONDS = 24 * 60 * 60
 
 
 @dataclass(frozen=True)
@@ -119,10 +127,11 @@ def load(
     Returns an empty list, and deletes the file, when there is nothing usable:
     no file, an unreadable or wrong-shaped one, or a different fingerprint.
 
-    A batch created more than `RESULTS_RETENTION_SECONDS` before *now* (the
-    clock, injectable for tests) is left out, logged by id, and the file is
-    rewritten without it, or deleted when it was the last: its results are
-    gone from the API. A batch with no `submitted_at` is kept.
+    A batch created more than `RESULTS_RETENTION_SECONDS` plus
+    `PRUNE_MARGIN_SECONDS` before *now* (the clock, injectable for tests) is
+    left out, logged by id, and the file is rewritten without it, or deleted
+    when it was the last: its results are gone from the API. A batch with no
+    `submitted_at` is kept.
     """
     target = Path(path)
     if not target.exists():
@@ -160,7 +169,11 @@ def _prune_expired(
     Best-effort: a file that cannot be rewritten still loads without them, and
     the next load drops them again.
     """
-    cutoff = (time.time() if now is None else now) - RESULTS_RETENTION_SECONDS
+    cutoff = (
+        (time.time() if now is None else now)
+        - RESULTS_RETENTION_SECONDS
+        - PRUNE_MARGIN_SECONDS
+    )
     kept = [p for p in pending if p.submitted_at is None or p.submitted_at >= cutoff]
     if len(kept) == len(pending):
         return pending
