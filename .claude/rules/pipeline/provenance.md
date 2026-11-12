@@ -88,6 +88,23 @@ Raising the _citation_ rate would mean asking for one supporting sentence per
 gene, which buys a signal already available for free from the document and costs
 output tokens on every run forever. Measured and not done.
 
+**A cited line per gene was measured too, on 2026-11-11, and ruled out.** The
+task instruction asked for one line `SYMBOL: traits` per gene, citing the
+sentence the model would give as its `source_quote`, and the API's cited
+sentence replaced a quote that was not verbatim. Quotes matched to a citation
+rose from 96/133 = 72% (the v8 baseline of that day) to 86/104 = 83%. The
+model's own quotes were 103/104 verbatim against v8's 133/133, and the one
+failure (CENPF on PMID 37069360, the reassembled table row again) was repaired
+from its cited line, which is also one of the 86. Recall was pooled 37/46
+against 40/46: on one paper the model dropped two gold genes it had scored,
+because their only support is a table row, which v8 quotes as a row. It saved no
+output: on most papers the model wrote the sentence on the line anyway, and on
+one it wrote the bare lines as asked and the API cited none of them, so a line
+earned a citation only by carrying the sentence. The figures and the model's own
+account are in `extraction.md` ("A v9 was recorded twice"). The citation match
+stays what it was: a stronger claim where it exists, with coverage this prompt
+change did not buy without losing genes.
+
 Whitespace is collapsed before comparing, and that is load-bearing rather than
 cosmetic; the docstring of `pipeline/citations.py` records why, what it
 recovered, and the containment option measured and not taken.

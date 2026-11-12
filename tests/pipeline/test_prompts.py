@@ -112,6 +112,17 @@ class TestExtractionInstructions:
         assert "maximum score is 0.30" in DEFAULT_EXTRACTION_INSTRUCTIONS
         assert "hard cap of 0.20" in DEFAULT_EXTRACTION_INSTRUCTIONS
 
+    def test_the_scoring_text_a_single_threshold_replaced_is_still_there(self):
+        """The cap above sits beside a floor that contradicts it, and a step
+        that scores a negative result 0. One reporting threshold in their
+        place was recorded on 2026-11-11 and ruled out; the record is the
+        module docstring of pipeline/prompts.py."""
+        assert "should score at LEAST 0.60" in DEFAULT_EXTRACTION_INSTRUCTIONS
+        assert "assign confidence 0" in DEFAULT_EXTRACTION_INSTRUCTIONS
+        assert "Report a gene only if you would score it" not in (
+            DEFAULT_EXTRACTION_INSTRUCTIONS
+        )
+
     def test_grounding_instruction(self):
         """Should instruct the model to verify evidence before extracting."""
         assert "Identify all passages" in DEFAULT_EXTRACTION_INSTRUCTIONS
@@ -150,6 +161,14 @@ class TestBuildExtractionPrompt:
         instruction = prompt.task_instruction
         assert "one sentence" in instruction
         assert instruction.index("first state") < instruction.index("report_genes")
+
+    def test_the_task_instruction_asks_for_no_cited_line_per_gene(self):
+        """A `SYMBOL: traits` line per gene, cited, was recorded in place of
+        the evidence sentence on 2026-11-11 and ruled out; the record is the
+        module docstring of pipeline/prompts.py."""
+        prompt = build_extraction_prompt(paper_text="Test", pmid="111", max_chars=50000)
+        assert "state the supporting evidence" in prompt.task_instruction
+        assert "SYMBOL:" not in prompt.task_instruction
 
     def test_paper_text_arrives_verbatim(self):
         prompt = build_extraction_prompt(

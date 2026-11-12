@@ -38,6 +38,42 @@ more genes, not fewer (144 against 138), and the genes it added were LOC
 identifiers and an antisense RNA. The guards are ruled out rather than
 assumed, so v4 is gone with them.
 
+Three more changes were built as a would-be v9 and recorded twice on
+2026-11-11 (Claude Opus 5.5, effort "high", the same fixtures), one of them
+never alone. Neither recording met the bar fixed before it, so v8 stands
+byte for byte. `.claude/rules/pipeline/extraction.md` has the figures, the
+genes and the model's own account of each.
+
+One reporting threshold, in a recording that also carried the two changes
+below. v8 contradicts itself: a positional candidate is capped at 0.20, yet
+a genome-wide significant GWAS gene scores at least 0.60 and the
+`include_gwas_alone` example scores a *nearest* gene 0.65. Stating one rule
+instead ("report a gene only if you would score it 0.30 or higher", with the
+cap, the confidence-0 step for negative results and that example rewritten
+to agree) left one paper at 5 of its 10 reachable gold genes, where v8 found
+10 and the recording without the rule 8, and pooled recall over the six
+papers that recorded at 33/45 against 39/45. Under v8's text the model
+resolves the contradiction toward reporting the nearest gene at a
+significant locus, which is what the curated table does; the single rule
+resolved it the other way. On that one recording the contradiction is
+load-bearing. Do not tidy it without a recording.
+
+One cited line per gene. The task instruction asked for a line "SYMBOL:
+traits" per gene, citing the sentence the model would give as that gene's
+`source_quote`, in place of the evidence sentence it asks for now; the API's
+cited sentence then repaired a quote that was not verbatim. Quotes matched
+to an API citation rose from 72% to 83%, and pooled recall was 37/46 against
+the same day's 40/46 (clean 19/26 against 22/26), two below the low end of
+v8's own recordings: on one paper the model dropped two gold genes it had
+scored, because their only support is a table row and it had been asked to
+show a sentence first. It saved no output either -- on most papers the model
+wrote each sentence on its line anyway, and where it wrote the bare line the
+API cited nothing.
+
+Both recordings also carried a rewritten tool definition (a description for
+every field, a longer tool description, two `input_examples`, no `pmid` in
+the schema), which was never recorded alone.
+
 v7 was v6 with every disease noun moved to `disease/prompt.md`, and v8 keeps
 that split; `tests/pipeline/csvd/test_csvd_prompt_assembly.py` pins this
 repository's rendering to the v6 bytes but for the omics lines it lists. What stays here
