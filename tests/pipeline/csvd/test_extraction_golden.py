@@ -72,8 +72,12 @@ tokens …, cost $…` -- scored by the code that scores the baseline, with the
 eight calls' usage priced by `estimate_cost`; a missing cassette fails its
 test and the line says the arm is incomplete instead of printing figures.
 The same rule about recorded failures applies: check the recording run
-passed. The request checks compare an arm's cassettes with the arm's
-config, so a directory recorded at another effort fails them.
+passed, and that its line carries figures. A line that says "no figures"
+names why: a test that produced none, or a paper the primary model declined
+and the fallback model answered -- its genes are not this effort's, and
+re-recording that cassette is the only remedy. The request checks compare
+an arm's cassettes with the arm's config, so a directory recorded at
+another effort fails them.
 
 The `live` pytest marker (see pyproject.toml) is reserved for a future test
 that calls the real API directly, outside VCR; nothing here uses it.
@@ -94,6 +98,7 @@ from pipeline.config import PipelineConfig
 from pipeline.data_merger import _CANONICAL_GENE_SYMBOLS, canonical_gene_symbol
 from pipeline.llm_extraction import extract_from_paper
 from pipeline.prompts import build_extraction_prompt
+from pipeline.quality_metrics import TokenUsage
 
 # Anchored to this file, not to the working directory: _expected_genes_by_pmid
 # reads GOLD at *import* time to build the parametrisation, so a CWD-relative
@@ -234,6 +239,66 @@ def test_an_unset_golden_effort_changes_nothing(
     config = request.getfixturevalue("golden_config")
     assert config == PipelineConfig()
     assert config.llm_effort == "high"
+
+
+def _arm_paper(pmid: str, model: str, declined: str | None = None) -> dict:
+    """One scored paper as `test_extraction_recovers_the_reachable_genes`
+    records it under an arm: two reachable genes, both found and quoted."""
+    return {
+        "pmid": pmid,
+        "reachable": 2,
+        "found": 2,
+        "named_reachable": 0,
+        "named_found": 0,
+        "genes": 2,
+        "verbatim": 2,
+        "usage": TokenUsage(output_tokens=100),
+        "model": model,
+        "declined": declined,
+    }
+
+
+def test_an_arm_served_by_its_own_model_prints_its_figures(
+    golden_arm_summary_line: Callable[..., str], tmp_path: Path
+) -> None:
+    (tmp_path / "recorded.yaml").write_text("", encoding="utf-8")
+    primary = PipelineConfig().llm_model
+    results = {"a": _arm_paper("111", primary), "b": _arm_paper("222", primary)}
+    line = golden_arm_summary_line("medium", tmp_path, ["a", "b"], results, primary)
+    assert line.startswith("golden arm medium: pooled 4/4, clean 4/4, genes 4,")
+
+
+def test_an_arm_with_a_fallback_served_paper_prints_no_recall(
+    golden_arm_summary_line: Callable[..., str], tmp_path: Path
+) -> None:
+    """A paper the primary model declined was answered by the fallback, and
+    its genes are not the arm's: summing them in would score another model
+    as this effort's result."""
+    (tmp_path / "recorded.yaml").write_text("", encoding="utf-8")
+    primary = PipelineConfig().llm_model
+    fallback = PipelineConfig().fallback_model
+    results = {
+        "a": _arm_paper("111", primary),
+        "b": _arm_paper("222", fallback, declined="bio"),
+    }
+    line = golden_arm_summary_line("medium", tmp_path, ["a", "b"], results, primary)
+    assert "pooled" not in line
+    assert "no figures" in line
+    assert f"222 served by {fallback} (declined: bio)" in line
+    assert "111" not in line
+
+
+def test_an_incomplete_arm_prints_no_recall(
+    golden_arm_summary_line: Callable[..., str], tmp_path: Path
+) -> None:
+    (tmp_path / "recorded.yaml").write_text("", encoding="utf-8")
+    primary = PipelineConfig().llm_model
+    results = {"a": _arm_paper("111", primary)}
+    line = golden_arm_summary_line(
+        "low", tmp_path, ["a", "tests/x.py::test_missing"], results, primary
+    )
+    assert "pooled" not in line
+    assert "incomplete" in line and "test_missing" in line
 
 
 def _gold_rows() -> list[dict[str, str]]:
@@ -903,7 +968,7 @@ async def test_extraction_recovers_the_reachable_genes(
         )
 
     text = (FIXTURES_DIR / f"{pmid}.txt").read_text(encoding="utf-8")
-    genes, usage, _served = await extract_from_paper(text, pmid, golden_config)
+    genes, usage, served = await extract_from_paper(text, pmid, golden_config)
     actual = {normalize_symbol(g.gene_symbol) for g in genes}
 
     found = reachable & actual
@@ -912,6 +977,12 @@ async def test_extraction_recovers_the_reachable_genes(
         # The same split `test_recall_is_reported_separately_for_contaminated_genes`
         # makes over the baseline, and the same check the verbatim gate runs.
         golden_arm_record(
+            pmid=pmid,
+            # Which model answered: a paper the primary model declined is
+            # served by the fallback, and the summary refuses to score it
+            # as this arm's.
+            model=served.model if served else None,
+            declined=served.declined if served else None,
             reachable=len(reachable),
             found=len(found),
             named_reachable=len(reachable & named),
@@ -956,8 +1027,13 @@ async def test_every_extracted_gene_carries_a_source_quote(
     """
     pmid = _GOLDEN_PMIDS[0]
     text = (FIXTURES_DIR / f"{pmid}.txt").read_text(encoding="utf-8")
-    genes, usage, _served = await extract_from_paper(text, pmid, golden_config)
+    genes, usage, served = await extract_from_paper(text, pmid, golden_config)
     assert genes, "expected at least one gene"
     for gene in genes:
         assert gene.source_quote.strip()
-    golden_arm_record(usage=usage)
+    golden_arm_record(
+        pmid=pmid,
+        model=served.model if served else None,
+        declined=served.declined if served else None,
+        usage=usage,
+    )

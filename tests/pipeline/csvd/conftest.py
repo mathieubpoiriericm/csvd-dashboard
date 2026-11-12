@@ -207,26 +207,70 @@ def pytest_terminal_summary(
 
 
 def _arm_summary(effort: str, config: pytest.Config) -> str:
+    from pipeline.config import PipelineConfig
+
+    return arm_summary_line(
+        effort,
+        golden_cassette_dir(config),
+        config.stash[_ARM_EXPECTED],
+        config.stash[_ARM_RESULTS],
+        PipelineConfig().llm_model,
+    )
+
+
+@pytest.fixture(scope="session")
+def golden_arm_summary_line() -> Callable[..., str]:
+    """`arm_summary_line` for the tests that drive it with made-up records."""
+    return arm_summary_line
+
+
+def arm_summary_line(
+    effort: str,
+    cassette_dir: Path,
+    expected: list[str],
+    results: dict[str, dict[str, Any]],
+    primary_model: str,
+) -> str:
+    """The arm's summary line from the figures its tests recorded.
+
+    Figures are printed only for an arm that is complete and that the
+    primary model answered throughout. Every extraction carries the
+    fallback model, so a paper the primary model declined comes back with
+    the fallback's genes and quotes; summed in, they would be scored as
+    this effort's result on the model the default is being chosen for.
+    """
     prefix = f"golden arm {effort}:"
-    cassette_dir = golden_cassette_dir(config)
     if not any(cassette_dir.glob("*.yaml")):
         return (
             f"{prefix} no result -- no cassettes in {cassette_dir}; record "
             "them with --record-mode=once (see test_extraction_golden.py)"
         )
-    expected = config.stash[_ARM_EXPECTED]
-    results = config.stash[_ARM_RESULTS]
     if not expected:
         return f"{prefix} no result -- no golden extraction test was run"
+    problems = []
     absent = [nodeid for nodeid in expected if nodeid not in results]
     if absent:
         names = ", ".join(nodeid.rpartition("::")[2] for nodeid in absent)
-        return (
-            f"{prefix} incomplete, no figures -- {len(absent)} of "
-            f"{len(expected)} golden extraction tests produced none "
-            f"(failed, skipped or not run; a missing cassette in "
-            f"{cassette_dir} fails its test): {names}"
+        problems.append(
+            f"incomplete: {len(absent)} of {len(expected)} golden extraction "
+            "tests produced none (failed, skipped or not run; a missing "
+            f"cassette in {cassette_dir} fails its test): {names}"
         )
+    elsewhere = [
+        f"{figures.get('pmid')} served by {figures['model']} "
+        f"(declined: {figures.get('declined') or 'unspecified'})"
+        for figures in results.values()
+        if "model" in figures
+        and (figures["model"] != primary_model or figures.get("declined"))
+    ]
+    if elsewhere:
+        problems.append(
+            f"not {primary_model}'s figures at this effort: {primary_model} "
+            f"did not answer {len(elsewhere)} extraction(s) -- "
+            + ", ".join(elsewhere)
+        )
+    if problems:
+        return f"{prefix} no figures -- " + "; ".join(problems)
 
     def total(key: str) -> int:
         return sum(figures.get(key, 0) for figures in results.values())
