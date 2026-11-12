@@ -1495,6 +1495,7 @@ svg {
 .login-card,
 .map-error,
 .map-container,
+.review-kpi,
 .blueprint-frame {
   position: relative;
   background: var(--svd-tint-base);
@@ -1529,6 +1530,7 @@ svg {
 .login-card::after,
 .map-error::after,
 .map-container::after,
+.review-kpi::after,
 .blueprint-frame::after {
   content: '';
   position: absolute;
@@ -3671,6 +3673,138 @@ svg {
   margin: var(--svd-space-1) 0 0;
   font-size: var(--svd-text-sm);
   color: var(--svd-text-muted);
+}
+
+/* === REVIEW: COMMITTEE PROGRESS === */
+
+/* The four headline figures. Each is a tile of the framed, striped recipe
+   `.value-box` wears, with room for a unit beside the figure and a line
+   under it; they wrap to two, then one, as the page narrows. */
+.review-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: var(--svd-space-4);
+}
+
+.review-kpi {
+  --svd-tint: var(--svd-color-accent);
+  --svd-stripe: inset 4px 0 0 var(--svd-tint);
+  display: flex;
+  flex-direction: column;
+  gap: var(--svd-space-1);
+  min-width: 0;
+  padding: var(--svd-space-4) var(--svd-space-5);
+}
+
+.review-kpi-label {
+  font-family: var(--svd-font-heading);
+  font-size: var(--svd-text-sm);
+  font-weight: var(--svd-weight-semibold);
+  letter-spacing: var(--svd-tracking-caps);
+  text-transform: uppercase;
+  color: var(--svd-text-muted);
+}
+
+.review-kpi-value {
+  font-family: var(--svd-font-heading);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--svd-text-3xl);
+  font-weight: var(--svd-weight-medium);
+  line-height: var(--svd-leading-tight);
+  color: var(--svd-primary);
+}
+
+.review-kpi-unit {
+  margin-left: var(--svd-space-2);
+  font-size: var(--svd-text-base);
+  color: var(--svd-text-muted);
+}
+
+.review-kpi-sub {
+  font-size: var(--svd-text-sm);
+  color: var(--svd-text-muted);
+}
+
+/* One row per kind: its label, its stacked bar, its total. The rows share
+   one grid, so the three bars start and end on the same lines whatever the
+   labels' widths. */
+.review-standing-bars {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr) max-content;
+  align-items: center;
+  gap: var(--svd-space-3) var(--svd-space-4);
+  margin-bottom: var(--svd-space-4);
+}
+
+.review-standing-row {
+  display: contents;
+}
+
+.review-standing-kind {
+  font-size: var(--svd-text-sm);
+}
+
+.review-standing-total {
+  font-family: var(--svd-font-heading);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* A segment per standing, each grown by its count (an inline `flex-grow`
+   from components/review/StandingBars.tsx) and filled with the standing's
+   own tint, the one its badge wears. Not started is hollow, as "not
+   answered yet" is in the tally bar, so it parts from no quorum's neutral
+   by more than the legend's words. */
+.review-standing-bar {
+  display: flex;
+  height: var(--svd-space-3);
+  border: 1px solid var(--svd-border);
+}
+
+.review-standing-bar > span {
+  flex-basis: 0;
+}
+
+.review-standing-bar > span,
+.review-standing-legend .review-tally-swatch {
+  background: var(--svd-tint);
+}
+
+.review-standing-bar > .review-standing-not_started,
+.review-standing-legend .review-tally-swatch.review-standing-not_started {
+  background: transparent;
+}
+
+/* The members: a member's share answered as a thin bar under "N of M", and
+   an observer's row one step back, reading "Read only". */
+.review-members .col-identity,
+.review-role-cell,
+.review-last-active {
+  white-space: nowrap;
+}
+
+.review-member-bar {
+  display: block;
+  width: 7rem;
+  height: var(--svd-space-2);
+  margin-top: var(--svd-space-1);
+  border: 1px solid var(--svd-border);
+}
+
+.review-member-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--svd-color-accent);
+}
+
+.review-read-only {
+  color: var(--svd-text-muted);
+  font-style: italic;
+}
+
+.review-last-active {
+  font-family: var(--svd-font-heading);
+  font-variant-numeric: tabular-nums;
 }
 
 /* The welcome-back screen: what is finished beside what is left. Each panel
