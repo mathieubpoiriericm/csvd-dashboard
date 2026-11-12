@@ -107,7 +107,7 @@ class TestReadPipelineRun:
                 "symbol": symbol,
                 "pmid": pmid,
                 "confidence": confidence,
-                "gwasTraits": ["WMH"],
+                "gwasTraits": ["TRAIT-A"],
                 "mendelianRandomization": True,
                 "omicsEvidence": ["TWAS"],
                 "sourceQuote": "A sentence.",
@@ -136,7 +136,7 @@ class TestReadPipelineRun:
         assert cited_only["mendelianRandomization"] is None
         assert cited_only["sourceQuote"] == "A sentence."
         assert [g["citationOnly"] for g in claimed] == [False, False]
-        assert claimed[0]["gwasTraits"] == ["WMH"]
+        assert claimed[0]["gwasTraits"] == ["TRAIT-A"]
 
     async def test_a_capped_accepted_list_leaves_the_counts_alone(
         self, mocker

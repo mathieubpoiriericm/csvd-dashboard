@@ -24,6 +24,6 @@ Deno.test("the absent set is exactly the five named sentinels", () => {
 Deno.test("isAbsent trims and matches whole values only", () => {
   assert(isAbsent("  (unknown) "));
   assert(!isAbsent("None"));
-  assert(!isAbsent("(none) SVS"));
+  assert(!isAbsent("(none) TRAIT-A"));
   assertEquals(isAbsent(""), false);
 });

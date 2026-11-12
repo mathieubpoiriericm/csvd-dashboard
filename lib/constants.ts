@@ -105,8 +105,9 @@ export const GWAS_TRAIT_CHOICES: readonly FilterChoice[] = [
   { label: "Show All", value: SHOW_ALL },
   { label: "None Found", value: NONE_FOUND },
   // Derived, never listed: `disease/vocabulary.json` is the one place a trait's
-  // key and label live. Listing them here too is what let "Lacunar Stroke"
-  // and the phenogram's "Lacunar stroke" drift apart unnoticed.
+  // key and label live. Listing them here too is what once let one trait's
+  // label here and the phenogram's drift apart, capitalised differently,
+  // unnoticed.
   ...vocabulary.traits.map((trait) => ({
     label: trait.label,
     value: trait.key,

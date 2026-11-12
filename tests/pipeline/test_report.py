@@ -187,7 +187,7 @@ class TestPaperResultsToSummaries:
         gene = GeneEntry(
             gene_symbol="GENE1",
             confidence=0.9,
-            source_quote="GENE1 variants were associated with WMH (p=1e-12).",
+            source_quote="GENE1 variants were associated with trait A (p=1e-12).",
         )
         result = MockPaperResult(pmid="222", genes=[gene])
         summaries = _paper_results_to_summaries([result])
@@ -403,7 +403,7 @@ class TestPrintRichSummary:
                                 "protein_name": "Protein 1",
                                 "pmid": "111",
                                 "confidence": 0.9,
-                                "gwas_trait": ["WMH"],
+                                "gwas_trait": ["TRAIT-A"],
                                 "mendelian_randomization": False,
                                 "omics_evidence": [],
                             }
@@ -664,7 +664,9 @@ class TestRejectedGeneSerialization:
             gene_symbol="FAKEGENE",
             confidence=0.3,
             pmid="999",
-            source_quote="FAKEGENE showed a weak, unreplicated association with WMH.",
+            source_quote=(
+                "FAKEGENE showed a weak, unreplicated association with trait A."
+            ),
         )
         rejected = MockRejectedGene(
             gene=gene, reasons=["Low confidence", "NCBI lookup failed"]

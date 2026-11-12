@@ -16,9 +16,9 @@ renamed changes what a run may report with no prompt edit and no re-recorded
 cassette. The reconciliation below therefore runs in both directions.
 
 The bug this exists for: the prompt asked for 23 abbreviations while the
-dashboard carried 14, and `PVWMH` -- the second most extracted trait across
-`logs/json/pipeline_report_*.json` -- had no filter choice, no phenogram entry
-and no synonym fold. It would have failed `tests/phenogram_encoding_test.ts` the
+dashboard carried 14, and the second most extracted trait across
+`logs/json/pipeline_report_*.json` had no filter choice, no phenogram entry and
+no synonym fold. It would have failed `tests/phenogram_encoding_test.ts` the
 moment it reached `data/table1.json`. Every term the model is told to emit now
 carries a recorded disposition: a tracked trait, a synonym fold, or an
 `untracked` entry with a reason.
@@ -59,24 +59,25 @@ _USABLE: Final[tuple[str, ...]] = tuple(
 # reason here rather than passing silently as a vocabulary edit.
 _ADMITTED_UNASKED: Final[dict[str, str]] = {
     "CMB": (
-        "The tracked key behind the prompt's `cerebral-microbleeds`. The fold "
+        "The tracked key behind one of the prompt's synonym spellings. The fold "
         "target has to be sayable too -- TRAIT_SYNONYMS maps one onto the "
         "other, and a model that writes the curated code rather than the "
         "prompt's spelling must not fail validation for it."
     ),
     "NODDI": (
         "A curated trait the dashboard carries (filter choice, phenogram "
-        "pill, one row in data/table1.json). The sentence asks for its three "
-        "derived measures -- ICVF, ISOVF, OD -- and not for the model name, "
-        "so a paper reporting NODDI itself would otherwise have no term."
+        "pill, one row in data/table1.json). The sentence asks for the three "
+        "measures derived from this diffusion model, and not for its own "
+        "name, so a paper reporting the model itself would otherwise have no "
+        "term."
     ),
     "lacunar stroke": (
-        "A curated trait the dashboard carries, distinct from `lacunes` (the "
-        "imaging marker) and from `SVS`. The model uses it: the recorded "
-        "cassette for PMID 33773637 emits it 14 times where the sentence "
-        "asks for `lacunes`, and both spellings are separate values in "
-        "data/table1.json. Reconciling them is a curation decision, not a "
-        "test change."
+        "A curated trait the dashboard carries, distinct from the imaging "
+        "marker the sentence asks for and from the stroke trait it names. "
+        "The model uses it: the recorded cassette for PMID 33773637 emits it "
+        "14 times where the sentence asks for the marker, and both spellings "
+        "are separate values in data/table1.json. Reconciling them is a "
+        "curation decision, not a test change."
     ),
     **{
         term: (
@@ -153,7 +154,7 @@ def test_every_prompt_term_has_a_recorded_disposition(version: str) -> None:
 def test_every_prompt_term_is_admitted_by_the_schema(version: str) -> None:
     """What the prompt asks for, the tool's enum must accept.
 
-    The vocabulary accounted for `cerebral-microbleeds` as a synonym while
+    The vocabulary accounted for one prompt spelling as a synonym while
     the enum was built from traits and untracked terms only, so the prompt
     told the model to say a word the schema then refused: one
     ValidationError, one retry, and the paper lost. Reconciling prompt
@@ -174,8 +175,9 @@ def test_the_schema_admits_nothing_the_prompt_does_not_ask_for(version: str) -> 
     The enum is generated from disease/vocabulary.json at import time and is
     what the API enforces, so a trait key added or renamed there changes
     what the model may emit with no prompt edit, no cassette re-record and
-    -- until this test -- no failure. `lacunar stroke` reached
-    data/table1.json that way, beside the `lacunes` the prompt asks for.
+    -- until this test -- no failure. A tracked key the sentence never names
+    reached data/table1.json that way, beside the prompt's own spelling of
+    the marker it overlaps.
 
     A term the schema should admit unasked belongs in _ADMITTED_UNASKED
     with its reason. Widening the test instead is how the drift the frozen

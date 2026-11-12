@@ -700,7 +700,7 @@ const PLACEMENT_STEP = 0.25;
 /**
  * How far up and down the pass will look. This one is a cliff rather than a
  * cost: at 12 and below the committed figure keeps one colliding pair in
- * Cognitive Impairment's phase IV ring, the densest cell on the plate, and 13
+ * one population's phase IV ring, the densest cell on the plate, and 13
  * is the first value that clears it. Fourteen is that plus a box-height of
  * headroom for the macOS/Linux metric spread.
  */
@@ -832,8 +832,9 @@ class ObstacleGrid {
 /**
  * Where each label box has to go to come clear of its neighbours, one shift
  * per `movable` box. The stagger keeps markers that share a cell apart, but
- * labels from neighbouring cells still meet — two Isosorbide trials in Stroke
- * III, THN391 against Tranexamic acid at another sector's outer rim — so
+ * labels from neighbouring cells still meet — two Isosorbide trials in one
+ * population's phase III cell, THN391 against Tranexamic acid at another
+ * sector's outer rim — so
  * renderers measure their boxes and run this over them.
  *
  * Two passes, and the second is why a shift has a `dx`. The first relaxes
@@ -1086,8 +1087,8 @@ function slideWithinSector(
  *
  * CANVAS is sized to the angles the committed rows produce, so a status
  * selection that reshapes the sectors can swing a label's angle past that
- * margin -- Stroke's sector straddling straight-down under the radar's
- * default selection is the one that found this.
+ * margin -- one population's sector straddling straight-down under the
+ * radar's default selection is the one that found this.
  *
  * Pulling such a label straight back in is not enough. The shortest way in
  * from an edge points at the figure's centre, and `POPULATION_LABEL_OFFSET`

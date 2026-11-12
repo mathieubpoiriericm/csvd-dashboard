@@ -88,13 +88,13 @@ Deno.test("a fully populated report keeps every value it was given", () => {
         title: "24 findings did not clear the validation floor",
         count: 24,
         detail: "the update floor is 0.45",
-        subjects: ["POLR2F", "WDR12"],
+        subjects: ["GENE3", "GENE4"],
       }],
       error: {
         kind: "timeout",
         title: "The request timed out",
         detail: "read timeout after 15s",
-        subject: "32517579",
+        subject: "11111111",
       },
     }],
     apis: [{
@@ -150,8 +150,8 @@ Deno.test("a fully populated report keeps every value it was given", () => {
   assertEquals(step.actions.length, 1);
   assertEquals(step.warnings[0].count, 24);
   assertEquals(step.warnings[0].detail, "the update floor is 0.45");
-  assertEquals(step.warnings[0].subjects, ["POLR2F", "WDR12"]);
-  assertEquals(step.error?.subject, "32517579");
+  assertEquals(step.warnings[0].subjects, ["GENE3", "GENE4"]);
+  assertEquals(step.error?.subject, "11111111");
   assertEquals(step.error?.detail, "read timeout after 15s");
 
   assertEquals(result.apis[0].label, "E-utilities fetch");
@@ -191,7 +191,7 @@ Deno.test("a list field that is not a list becomes an empty one", () => {
   const result = normalizePipelineRun(run({
     steps: "not a list",
     apis: { not: "a list" },
-    acceptedGenes: { items: [{ symbol: "A", gwasTraits: "PVWMH" }] },
+    acceptedGenes: { items: [{ symbol: "A", gwasTraits: "TRAIT-A" }] },
   }));
   assert(result !== null);
   assertEquals(result.steps, []);
@@ -548,12 +548,18 @@ Deno.test("non-string entries in a list are dropped, not stringified", () => {
   const result = normalizePipelineRun(
     run({
       acceptedGenes: {
-        items: [{ symbol: "A", gwasTraits: ["PVWMH", null, 7, "  WMH  "] }],
+        items: [{
+          symbol: "A",
+          gwasTraits: ["TRAIT-A", null, 7, "  TRAIT-B  "],
+        }],
       },
     }),
   );
   assert(result !== null);
-  assertEquals(result.acceptedGenes.items[0].gwasTraits, ["PVWMH", "WMH"]);
+  assertEquals(result.acceptedGenes.items[0].gwasTraits, [
+    "TRAIT-A",
+    "TRAIT-B",
+  ]);
 });
 
 Deno.test("database counts survive, and a missing block is null", () => {
@@ -578,7 +584,7 @@ Deno.test("paper records normalize, defaulting an unknown source", () => {
       papersDetail: {
         items: [
           {
-            pmid: "32517579",
+            pmid: "11111111",
             source: "europepmc",
             fulltext: true,
             geneCount: 2,
@@ -593,7 +599,7 @@ Deno.test("paper records normalize, defaulting an unknown source", () => {
   );
   assert(result !== null);
   const [full, bare] = result.papersDetail.items;
-  assertEquals(full.pmid, "32517579");
+  assertEquals(full.pmid, "11111111");
   assertEquals(full.fulltext, true);
   assertEquals(full.geneCount, 2);
   assertEquals(full.rejectedCount, 1);
@@ -612,12 +618,12 @@ Deno.test("a rejected gene keeps the pipeline's own reasons", () => {
       rejectedGenes: {
         items: [
           {
-            symbol: "POLR2F",
-            pmid: "32517579",
+            symbol: "GENE1",
+            pmid: "11111111",
             confidence: 0.6,
             reasons: ["Low confidence: 0.60 < 0.65"],
           },
-          { symbol: "WDR12" },
+          { symbol: "GENE2" },
         ],
       },
     }),

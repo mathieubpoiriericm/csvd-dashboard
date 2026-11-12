@@ -188,6 +188,7 @@ if __name__ == "__main__":
 
 import asyncio
 import contextlib
+import contextvars
 import json
 import logging
 import re
@@ -716,6 +717,28 @@ def _filter_genes_by_confidence(
     return validated, rejected
 
 
+class _AnswerNotValidatedError(NcbiUnavailableError):
+    """NCBI did not answer while validating an extraction that succeeded.
+
+    Raised by `_extract_and_validate` in place of the outage, with the same
+    message, so every caller that handled the outage handles this the same
+    way. It carries the answer, which was paid for and says nothing wrong
+    about itself, out to `process_paper`, the one caller that keeps it
+    (`_StoredAnswers.keep`); the signature stays as the offline modes and
+    the tests that stand in for it know it.
+    """
+
+    def __init__(
+        self,
+        cause: NcbiUnavailableError,
+        genes: list[GeneEntry],
+        served: ServedBy | None,
+    ) -> None:
+        super().__init__(*cause.args)
+        self.genes = genes
+        self.served = served
+
+
 async def _extract_and_validate(
     text: str,
     paper_id: str,
@@ -725,7 +748,11 @@ async def _extract_and_validate(
     *,
     skip_validation: bool = False,
 ) -> ExtractionOutcome:
-    """Run the LLM and the validation policy shared by all pipeline modes."""
+    """Run the LLM and the validation policy shared by all pipeline modes.
+
+    An NCBI outage in validation leaves as `_AnswerNotValidatedError`,
+    carrying the genes the model returned and the model that served them.
+    """
     llm_start = time.monotonic()
     try:
         genes, token_usage, served = await extract_from_paper(
@@ -744,6 +771,38 @@ async def _extract_and_validate(
     for gene in genes:
         gene.pmid = paper_id
 
+    try:
+        return await _validate_extraction(
+            text,
+            paper_id,
+            genes,
+            served,
+            metrics,
+            config,
+            llm_time=llm_time,
+            skip_validation=skip_validation,
+        )
+    except NcbiUnavailableError as exc:
+        raise _AnswerNotValidatedError(exc, genes, served) from exc
+
+
+async def _validate_extraction(
+    text: str,
+    paper_id: str,
+    genes: list[GeneEntry],
+    served: ServedBy | None,
+    metrics: PipelineMetrics,
+    config: PipelineConfig,
+    *,
+    llm_time: float,
+    skip_validation: bool = False,
+) -> ExtractionOutcome:
+    """Validate one paper's extracted genes into the outcome every mode reads.
+
+    The second half of `_extract_and_validate`, and the whole of a replay
+    of a stored answer (`_validate_stored_answer`), which made no request:
+    its *llm_time* is 0. An NCBI outage propagates as it is.
+    """
     validation_start = time.monotonic()
     if skip_validation:
         validated, rejected = _filter_genes_by_confidence(
@@ -1022,13 +1081,31 @@ async def process_paper(
     else:
         logger.info("  Using abstract only")
 
-    outcome = await _extract_and_validate(
-        text,
-        pmid,
-        metrics,
-        config,
-        rate_limiter,
-    )
+    # A checkpointing run sets the stored answers (`_process_new_pmids`);
+    # a paper whose text is the text one of them answered is validated from
+    # it, and makes no request.
+    stored = _stored_answers.get()
+    if stored is not None and (answer := stored.matching(pmid, text)) is not None:
+        outcome = await _validate_stored_answer(answer, text, metrics, config, stored)
+    else:
+        try:
+            outcome = await _extract_and_validate(
+                text,
+                pmid,
+                metrics,
+                config,
+                rate_limiter,
+            )
+        except _AnswerNotValidatedError as exc:
+            # Paid for and not wrong, so kept for the next run to validate;
+            # the paper still fails for this one. Without *stored* the run
+            # writes nothing. No *served* means no model ran, which only
+            # blank text produces: no genes, so no outage to reach here.
+            if stored is not None and exc.served is not None:
+                stored.keep(
+                    _UnvalidatedPaper.answered(pmid, text, exc.genes, exc.served)
+                )
+            raise
     logger.info(f"  Extracted {outcome.extracted_count} genes")
     # Counted once the paper was processed, not once its text arrived:
     # papers_processed counts successes, so counting retrieval first let
@@ -1185,7 +1262,11 @@ async def process_papers_concurrently(
     # itself. One request first writes it for all of them; a single paper has
     # nobody to share it with. Streaming only: the batch path never comes
     # through here, and the Batches API rejects the request's max_tokens of 0.
-    if len(pmids) >= 2:
+    # A paper with a stored answer is expected to make no request, so it is
+    # not counted (a changed text makes it one anyway, unwarmed).
+    stored = _stored_answers.get()
+    extracting = [p for p in pmids if stored is None or p not in stored.by_pmid]
+    if len(extracting) >= 2:
         metrics.token_usage += await prewarm_cache(config)
 
     async with asyncio.TaskGroup() as tg:
@@ -1778,20 +1859,23 @@ def _restored_paper(
 
 @dataclass
 class _UnvalidatedPaper:
-    """A rescued ``--batch`` paper's answer that NCBI did not validate.
+    """A paper's paid answer that NCBI did not validate.
 
-    The fallback model's answer to a paper the batch's model declined
-    exists nowhere but in memory, and the batch's own entry for the paper
-    is a refusal. When NCBI does not answer during its validation, this is
-    what the checkpoint keeps so the next ``--batch`` run validates the
-    same answer rather than paying for the rescue a second time.
+    Written by either path when a full-rate streaming request answered and
+    NCBI then did not: a streaming run's paper (`process_paper`), or a
+    paper the ``--batch`` path rescued with the fallback model after the
+    batch's model declined it (`_rescue_refused_batch_paper`), whose batch
+    entry is a refusal. The answer exists nowhere else, so the checkpoint
+    keeps it, and the next run on either path validates it rather than
+    paying for the extraction a second time (`_StoredAnswers`).
 
-    ``document_sha256`` is the paper text the rescue was sent: an answer
-    is only the paper's answer while the text is the same.
-    ``provenance`` and ``dropped`` are the paper's share of the quote
-    tally, read before the failure discarded it, so a replay counts the
-    quotes and publishes the gate's rejections as the rescue would have.
-    No token usage: the run that paid for the rescue counts it.
+    ``document_sha256`` is the paper text as fetched, before truncation:
+    an answer is only the paper's answer while the text is the same.
+    ``extraction_model`` and ``refusal`` are what the finished paper would
+    have carried. ``provenance`` and ``dropped`` are the paper's share of
+    the quote tally, read before the failure discarded it, so a replay
+    counts the quotes and publishes the gate's rejections as the first run
+    would have. No token usage: the run that paid for the answer counts it.
     """
 
     pmid: str
@@ -1817,6 +1901,24 @@ class _UnvalidatedPaper:
         }
 
     @classmethod
+    def answered(
+        cls, pmid: str, text: str, genes: list[GeneEntry], served: ServedBy
+    ) -> _UnvalidatedPaper:
+        """The answer *served* gave for *text*, with the paper's tally share.
+
+        Called before the failure is discarded from the tally.
+        """
+        return cls(
+            pmid=pmid,
+            document_sha256=_document_sha256(text),
+            genes=genes,
+            extraction_model=served.model,
+            refusal=served.declined,
+            provenance=current_tally().paper(pmid),
+            dropped=current_tally().dropped(pmid),
+        )
+
+    @classmethod
     def from_record(cls, record: dict[str, Any]) -> _UnvalidatedPaper:
         """Rebuild one stored answer, raising as `_restored_paper` does."""
         stored = record["unvalidated"]
@@ -1835,6 +1937,146 @@ class _UnvalidatedPaper:
             provenance={key: int(value) for key, value in provenance.items()},
             dropped=[GeneEntry.model_validate(gene) for gene in stored["dropped"]],
         )
+
+
+@dataclass(slots=True)
+class _StoredAnswers:
+    """One run's stored answers: which it holds, which it kept, how they ended.
+
+    Both paths use it the same way. `_restore_checkpoint` fills ``by_pmid``
+    for the papers still pending; a paper whose fetched text matches one
+    (`matching`) is validated from it with no request (`replay`), and
+    `settle` decides what becomes of the record: kept for a later run when
+    NCBI is still out, dropped when the answer itself failed, left for the
+    merge to remove when it held. `keep` writes a new one.
+    """
+
+    config: PipelineConfig
+    # PMID -> document_sha256 -> answer: a paper whose text changed between
+    # two outages has an answer for each text.
+    by_pmid: dict[str, dict[str, _UnvalidatedPaper]] = field(default_factory=dict)
+    # The replays whose validation held, which is what the report names.
+    validated: list[str] = field(default_factory=list)
+
+    def matching(self, pmid: str, text: str) -> _UnvalidatedPaper | None:
+        """The answer stored for this paper and this text, if any.
+
+        An answer for another text is not this text's answer; the paper is
+        extracted afresh, and the record leaves the checkpoint with the
+        paper's merge.
+        """
+        return self.by_pmid.get(pmid, {}).get(_document_sha256(text))
+
+    def keep(self, answer: _UnvalidatedPaper) -> None:
+        """Append *answer* for the next run, best effort as the hook's append is."""
+        try:
+            checkpoint.append(
+                self.config.checkpoint_file,
+                checkpoint.fingerprint(self.config),
+                answer.record(),
+            )
+        except OSError:
+            logger.warning(
+                "Could not checkpoint the unvalidated answer for PMID %s; the "
+                "next run extracts it again",
+                answer.pmid,
+                exc_info=True,
+            )
+
+    @staticmethod
+    def replay(answer: _UnvalidatedPaper) -> ServedBy:
+        """Count *answer*'s quotes again and name the model that gave it.
+
+        They were discarded with the failure in the run that paid for them,
+        and are counted here instead, inside the paper's scope, before
+        validation decides; a failure discards them again.
+        """
+        current_tally().record(
+            genes=answer.provenance.get("genes", 0),
+            verbatim=answer.provenance.get("verbatim", 0),
+            cited=answer.provenance.get("cited", 0),
+            dropped_unverified=answer.provenance.get("dropped_unverified", 0),
+        )
+        current_tally().record_dropped(answer.pmid, answer.dropped)
+        return ServedBy(model=answer.extraction_model, declined=answer.refusal)
+
+    def settle(self, pmid: str, *, held: bool, ncbi_outage: bool = False) -> None:
+        """What becomes of a replayed paper's record once validation decided."""
+        if held:
+            # Checkpointed as a finished paper now; the stored answer goes
+            # with the paper's merge.
+            self.validated.append(pmid)
+            return
+        if ncbi_outage:
+            # Still owed: the record already holds the answer for the run
+            # after this one, so it is not written twice.
+            return
+        # Any other failure is the stored answer's own and would recur on
+        # every run, so it is dropped and the next run extracts the paper
+        # afresh, as a batch answer that failed validation is resubmitted.
+        # The drop is by paper, so an answer stored for another text of the
+        # same paper goes with it; that takes two outages across a change of
+        # text and then a failure that is not an outage, and costs one more
+        # extraction.
+        checkpoint.remove(self.config.checkpoint_file, {pmid})
+
+    def report(self, progress: _ProgressReporter) -> None:
+        """Name the replays that held, as a restore and a collected batch are.
+
+        Their extraction was paid for by the earlier run, and is in its
+        report, not this one's. Only those kept: a replay that failed is
+        listed with the failed papers, not as validated.
+        """
+        if not self.validated:
+            return
+        n = len(self.validated)
+        progress.action(
+            f"Validated {_count(n, 'paper')} that {_were(n)} extracted in an "
+            "earlier run whose validation NCBI did not answer; their tokens are "
+            "in that run's report"
+        )
+
+
+# The streaming path's stored answers, set by `_process_new_pmids` for a
+# checkpointing run and read by `process_paper` and the cache warm-up. A
+# context variable, as the quote tally's paper is, rather than a parameter
+# threaded through `process_papers_concurrently`, `process_paper_safe` and
+# `process_paper`, whose signatures the run, the offline modes and the
+# tests that stand in for them all share.
+_stored_answers: contextvars.ContextVar[_StoredAnswers | None] = contextvars.ContextVar(
+    "stored_answers", default=None
+)
+
+
+async def _validate_stored_answer(
+    answer: _UnvalidatedPaper,
+    text: str,
+    metrics: PipelineMetrics,
+    config: PipelineConfig,
+    stored: _StoredAnswers,
+) -> ExtractionOutcome:
+    """Validate a streaming paper from its stored answer, with no request.
+
+    The streaming counterpart of the batch path's ``replay_one``: the same
+    `_StoredAnswers.replay` and `settle`, around `_validate_extraction`
+    rather than `_validate_batch_paper`. An outage here propagates as
+    itself, not as `_AnswerNotValidatedError`, so the record is not written
+    a second time.
+    """
+    served = stored.replay(answer)
+    try:
+        outcome = await _validate_extraction(
+            text, answer.pmid, answer.genes, served, metrics, config, llm_time=0.0
+        )
+    except Exception as exc:
+        stored.settle(
+            answer.pmid,
+            held=False,
+            ncbi_outage=isinstance(exc, NcbiUnavailableError),
+        )
+        raise
+    stored.settle(answer.pmid, held=True)
+    return outcome
 
 
 def _restore_checkpoint(
@@ -1859,13 +2101,13 @@ def _restore_checkpoint(
     ``streamed_token_usage`` as well, which is what keeps the cost estimate
     from halving them with the batch's own.
 
-    A record of the other kind, a rescued answer NCBI did not validate
+    A record of the other kind, a paid answer NCBI did not validate
     (`_UnvalidatedPaper`), is not a finished paper and not an unreadable
     one, so it is never restored and never warned about. When
-    *unvalidated* is given -- only the ``--batch`` path does -- it is
-    filled with those answers for the papers still pending, per PMID and
-    then per ``document_sha256``: a paper whose text changed between two
-    rescues has an answer for each text, and the run picks the one its
+    *unvalidated* is given -- both paths give it on a checkpointing run --
+    it is filled with those answers for the papers still pending, per PMID
+    and then per ``document_sha256``: a paper whose text changed between
+    two outages has an answer for each text, and the run picks the one its
     fetched text matches. A paper with a finished record is restored
     instead, whatever else the file holds.
     """
@@ -2023,26 +2265,43 @@ async def _process_new_pmids(
     use_checkpoint: bool = True,
     collected: list[PaperResult] | None = None,
 ) -> _ProcessedBatch:
-    """Process, flatten, and batch-validate a set of new papers."""
+    """Process, flatten, and batch-validate a set of new papers.
+
+    A checkpointing run also reads and writes the answers an NCBI outage
+    left unvalidated (`_StoredAnswers`): a pending paper whose text one of
+    them answered is validated from it with no request, and a paper whose
+    validation NCBI does not answer leaves its answer for the next run. A
+    dry run or test mode does neither.
+    """
     progress.report(2)
     logger.info("Step 3: Processing papers concurrently...")
 
     collected = [] if collected is None else collected
     restored: list[PaperResult] = []
     pending = list(pmids)
+    stored: _StoredAnswers | None = None
     if use_checkpoint:
-        restored, pending = _restore_checkpoint(pmids, metrics, config, progress)
+        stored = _StoredAnswers(config)
+        restored, pending = _restore_checkpoint(
+            pmids, metrics, config, progress, unvalidated=stored.by_pmid
+        )
     collected.extend(restored)
 
-    results = restored + await process_papers_concurrently(
-        pending,
-        metrics,
-        config=config,
-        rate_limiter=rate_limiter,
-        on_complete=_paper_finished_hook(
-            config, collected, checkpointing=use_checkpoint
-        ),
-    )
+    scope = _stored_answers.set(stored)
+    try:
+        results = restored + await process_papers_concurrently(
+            pending,
+            metrics,
+            config=config,
+            rate_limiter=rate_limiter,
+            on_complete=_paper_finished_hook(
+                config, collected, checkpointing=use_checkpoint
+            ),
+        )
+    finally:
+        _stored_answers.reset(scope)
+    if stored is not None:
+        stored.report(progress)
     return _finalize_processed_batch(
         _in_request_order(pmids, results),
         metrics,
@@ -2087,9 +2346,13 @@ async def _validate_batch_paper(
     beside the result because the result is what the report and the
     checkpoint publish, and neither has a use for it.
 
-    *served* is set for a paper the fallback model rescued after the batch
-    declined it (``_rescue_refused_batch_paper``), and names the model and
-    the classifier exactly as ``process_paper`` does from its outcome.
+    *served* is set for a paper the batch's model did not answer: one the
+    fallback model rescued after the batch declined it
+    (``_rescue_refused_batch_paper``), and one validated from a stored
+    answer (``replay_one``), whichever model gave it -- a primary-model
+    answer a streaming run stored carries ``declined=None``. It names the
+    model and the classifier exactly as ``process_paper`` does from its
+    outcome.
     """
     fulltext, source, truncated = text_meta
     try:
@@ -2195,15 +2458,7 @@ async def _rescue_refused_batch_paper(
     # keep if it did.
     if not ncbi_outage or served is None:
         return result, None
-    return result, _UnvalidatedPaper(
-        pmid=pmid,
-        document_sha256=_document_sha256(text),
-        genes=genes,
-        extraction_model=served.model,
-        refusal=served.declined,
-        provenance=current_tally().paper(pmid),
-        dropped=current_tally().dropped(pmid),
-    )
+    return result, _UnvalidatedPaper.answered(pmid, text, genes, served)
 
 
 def _count_streamed(metrics: PipelineMetrics, usage: TokenUsage | None) -> None:
@@ -2249,17 +2504,18 @@ async def _process_new_pmids_via_batch(
     #
     # A rescued paper NCBI did not validate leaves its answer in the
     # checkpoint instead (`_UnvalidatedPaper`), because nothing else holds
-    # it: the batch's entry for the paper is a refusal. Such a paper, still
-    # pending here, is validated again from that answer and neither
-    # submitted nor rescued, provided its text is the text the answer came
-    # from.
+    # it: the batch's entry for the paper is a refusal. So does a streaming
+    # run's paper. Such a paper, still pending here, is validated again from
+    # that answer and neither submitted nor rescued, provided its text is
+    # the text the answer came from (`_StoredAnswers`, which the streaming
+    # path shares).
     collected = [] if collected is None else collected
     restored: list[PaperResult] = []
     pending = list(pmids)
-    answers: dict[str, dict[str, _UnvalidatedPaper]] = {}
+    stored = _StoredAnswers(config)
     if use_checkpoint:
         restored, pending = _restore_checkpoint(
-            pmids, metrics, config, progress, batched=True, unvalidated=answers
+            pmids, metrics, config, progress, batched=True, unvalidated=stored.by_pmid
         )
     collected.extend(restored)
     on_complete = _paper_finished_hook(config, collected, checkpointing=use_checkpoint)
@@ -2274,8 +2530,6 @@ async def _process_new_pmids_via_batch(
     text_meta: dict[str, tuple[bool, str, bool]] = {}
     # Papers validated from a stored answer rather than submitted.
     replays: dict[str, _UnvalidatedPaper] = {}
-    # The replays whose validation held, which is what the report names.
-    replayed: list[str] = []
     # Papers whose batch answer is still good and which this run did not
     # store, because something outside the answer failed: a fetch, or NCBI
     # not answering during validation. They stay on the batch record for the
@@ -2311,13 +2565,10 @@ async def _process_new_pmids_via_batch(
             source,
             paper_text_truncated(text, config.max_paper_text_chars),
         )
-        answer = answers.get(pmid, {}).get(_document_sha256(text))
+        answer = stored.matching(pmid, text)
         if answer is not None:
             replays[pmid] = answer
             continue
-        # A stored answer for another text is not this text's answer; the
-        # paper is extracted afresh, and the record leaves the checkpoint
-        # with the paper's merge.
         papers[pmid] = text
 
     logger.info(f"  Submitting {len(papers)} papers to the Batch API...")
@@ -2420,66 +2671,33 @@ async def _process_new_pmids_via_batch(
         # the next run to validate: the batch's entry for this paper is a
         # refusal, and without the record the next run would pay for a new
         # entry the primary model declines again and then for this rescue a
-        # second time. Best effort, as the hook's own append is.
-        try:
-            checkpoint.append(
-                config.checkpoint_file,
-                checkpoint.fingerprint(config),
-                unvalidated.record(),
-            )
-        except OSError:
-            logger.warning(
-                "Could not checkpoint the rescued answer for PMID %s; the next "
-                "run extracts it again",
-                pmid,
-                exc_info=True,
-            )
+        # second time.
+        stored.keep(unvalidated)
 
     async def replay_one(pmid: str) -> None:
-        # A rescued answer an earlier run could not validate. Its tokens are
-        # that run's, so this paper costs nothing here; its quote counts
-        # were discarded there with the failure, and are counted here
-        # instead, under its own PMID, before validation decides.
+        # An answer an earlier run paid for and could not validate, on
+        # either path. Its tokens are that run's, so this paper costs
+        # nothing here; `_validate_stored_answer` is the streaming twin.
         answer = replays[pmid]
         paper_metrics = PipelineMetrics()
         with paper_scope(pmid):
-            current_tally().record(
-                genes=answer.provenance.get("genes", 0),
-                verbatim=answer.provenance.get("verbatim", 0),
-                cited=answer.provenance.get("cited", 0),
-                dropped_unverified=answer.provenance.get("dropped_unverified", 0),
-            )
-            current_tally().record_dropped(pmid, answer.dropped)
+            served = stored.replay(answer)
             result, ncbi_outage = await _validate_batch_paper(
                 pmid,
                 answer.genes,
                 text_meta[pmid],
                 paper_metrics,
                 config,
-                served=ServedBy(
-                    model=answer.extraction_model, declined=answer.refusal
-                ),
+                served=served,
             )
         if result.succeeded:
-            # Checkpointed as a finished paper now; the stored answer goes
-            # with the paper's merge.
             metrics.fold(paper_metrics)
             on_complete(result, paper_metrics)
-            replayed.append(pmid)
+            stored.settle(pmid, held=True)
             return
         current_tally().discard(pmid)
         collected.append(result)
-        if ncbi_outage:
-            # Still owed: the record already holds the answer for the run
-            # after this one, so it is not written twice.
-            return
-        # Any other failure is the stored answer's own and would recur on
-        # every run, so it is dropped and the next run extracts the paper
-        # afresh, as a batch answer that failed validation is resubmitted.
-        # The drop is by paper, so an answer stored for another text of the
-        # same paper goes with it; that takes two outages across a change of
-        # text and then a failure that is not an outage, and costs one rescue.
-        checkpoint.remove(config.checkpoint_file, {pmid})
+        stored.settle(pmid, held=False, ncbi_outage=ncbi_outage)
 
     rescued_pmids = [
         pmid for pmid in papers if pmid not in genes_by_pmid and pmid in refusals
@@ -2489,16 +2707,7 @@ async def _process_new_pmids_via_batch(
         *(rescue_one(pmid) for pmid in rescued_pmids),
         *(replay_one(pmid) for pmid in replays),
     )
-    if replayed:
-        # Named in the report, as a restore and a collected batch are: these
-        # papers' extraction was paid for by the earlier run, and is in its
-        # report, not this one's. Only those kept: a replay that failed is
-        # listed with the failed papers, not as validated.
-        progress.action(
-            f"Validated {_count(len(replayed), 'paper')} that {_were(len(replayed))} "
-            "extracted by the fallback model in an earlier run whose validation "
-            "NCBI did not answer; their tokens are in that run's report"
-        )
+    stored.report(progress)
     # Every collected paper is validated and every refused one rescued or
     # failed, so this run's papers come off the batch record now and not
     # before: earlier would lose the results a crash in validation or in a

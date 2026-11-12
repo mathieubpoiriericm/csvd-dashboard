@@ -9,10 +9,12 @@ in memory and nothing durable. A year's window is ~795 papers, ~3 hours and
 The file is JSON Lines: a header carrying the extraction fingerprint, then one
 record per paper, appended as it completes. A record is one of two kinds. A
 finished paper's (`result`) is restored as it stands. An answer still to
-validate (`unvalidated`) is a paper the fallback model extracted for a
-`--batch` run, after the batch's model declined it, whose validation NCBI did
-not answer: the next `--batch` run validates the stored genes instead of
-paying for the rescue again. Four properties matter:
+validate (`unvalidated`) is a paper a full-rate request answered and NCBI then
+did not validate. Both paths write it: the streaming path for any of its
+papers, and the `--batch` path for a paper the fallback model rescued after
+the batch's model declined it. Both read it: the next run on either path
+validates the stored genes instead of paying for the extraction again. Four
+properties matter:
 
 - **Append-only.** A record is one `write` of one line, so a process killed
   mid-append can corrupt only the final line, and `load` drops it. Rewriting
@@ -178,8 +180,8 @@ def remove(path: str, pmids: set[str]) -> None:
     """Drop the records for *pmids*.
 
     Two callers: the run's prune once those papers are in `pubmed_refs`,
-    and a ``--batch`` run whose stored rescue answer failed validation for
-    a reason other than an NCBI outage, so that the next run extracts that
+    and a run on either path whose stored answer failed validation for a
+    reason other than an NCBI outage, so that the next run extracts that
     paper afresh rather than replaying an answer that fails every time.
 
     The rest stay. A checkpoint written by a wider window holds papers this
@@ -202,7 +204,7 @@ def remove(path: str, pmids: set[str]) -> None:
     full disk or a read-only `logs/` here must not turn a run whose data
     reached the database into a recorded failure, and the records left
     behind are harmless: their PMIDs are in `pubmed_refs`, and the next run
-    filters them out before extraction. A rejected rescue answer left
+    filters them out before extraction. A rejected stored answer left
     behind costs one more failed validation on the next run, which tries
     to drop it again.
     """
@@ -216,7 +218,7 @@ def remove(path: str, pmids: set[str]) -> None:
         logger.warning(
             "Could not drop records from the extraction checkpoint; they stay "
             "in the file, which costs nothing for a merged paper and one more "
-            "failed validation for a rejected rescue answer",
+            "failed validation for a rejected stored answer",
             exc_info=True,
         )
 

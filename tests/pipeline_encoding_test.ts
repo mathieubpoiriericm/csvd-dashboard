@@ -7,9 +7,9 @@
  * resolve in `components/Icon.tsx`. Add the entry; do not widen the test.
  *
  * The vocabularies are read out of the Python source rather than
- * restated here. Restating them is exactly how `PVWMH` -- the second
- * most extracted GWAS trait -- ended up with no filter choice and no
- * phenogram entry, and the same failure is available here: a new error
+ * restated here. Restating them is exactly how the second most
+ * extracted GWAS trait ended up with no filter choice and no phenogram
+ * entry, and the same failure is available here: a new error
  * kind would render with a fallback glyph and no hint, and nothing would
  * say so.
  */

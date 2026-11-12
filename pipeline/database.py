@@ -1219,7 +1219,7 @@ async def upsert_clinical_trials_batch(trials: list[Any]) -> TrialUpsertResult:
     is filled in. The curated rows normalize both: the registry's brief title
     drops the trial acronym the curator keeps ("CERebrolysin In CADASIL"
     against "CERebrolysin In CADASIL (CERICA)"), and every curated outcome
-    reads "<what> at <when>" ("New lobar cerebral microbleeds on MRI at 24
+    reads "<what> at <when>" (a count of new lesions on MRI "at 24
     months") where CT.gov states its own, up to 200 characters of registry
     boilerplate. Refreshing them replaced curator prose with that text on
     five of the eight curated NCT trials the first time this sync ran. The

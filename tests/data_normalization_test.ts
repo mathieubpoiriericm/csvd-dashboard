@@ -16,7 +16,7 @@ Deno.test("normalizeGene trims text, preserves lists, and replaces invalid value
     gene: "  GENE1  ",
     protein: 42,
     chromosomalLocation: " ",
-    gwasTrait: [" WMH ", null, ""],
+    gwasTrait: [" TRAIT-A ", null, ""],
     mendelianRandomization: null,
     evidenceFromOtherOmicsStudies: " TWAS; brain ",
     linkToMonogenicDisease: [],
@@ -31,7 +31,7 @@ Deno.test("normalizeGene trims text, preserves lists, and replaces invalid value
     gene: "GENE1",
     protein: "(unknown)",
     chromosomalLocation: "(unknown)",
-    gwasTrait: ["WMH"],
+    gwasTrait: ["TRAIT-A"],
     mendelianRandomization: "(unknown)",
     evidenceFromOtherOmicsStudies: ["TWAS; brain"],
     linkToMonogenicDisease: ["(none found)"],
@@ -46,14 +46,14 @@ Deno.test("normalizeGene trims text, preserves lists, and replaces invalid value
 Deno.test("normalizeGene keeps a real quote and a bounded confidence score", () => {
   const raw = {
     gene: "GENE2",
-    sourceQuote: " GENE2 variants were associated with WMH (p=1e-12). ",
+    sourceQuote: " GENE2 variants were associated with trait A (p=1e-12). ",
     confidence: 0.87,
   } as unknown as Partial<Gene>;
 
   const normalized = normalizeGene(raw);
   assertEquals(
     normalized.sourceQuote,
-    "GENE2 variants were associated with WMH (p=1e-12).",
+    "GENE2 variants were associated with trait A (p=1e-12).",
   );
   assertEquals(normalized.confidence, 0.87);
 });
@@ -102,7 +102,7 @@ Deno.test("normalizeTrial enforces the complete string-only boundary", () => {
 
 Deno.test("trial normalization accepts malformed rows and top-level values", () => {
   assertEquals(normalizeTrial(null), normalizeTrial({}));
-  assertEquals(normalizeTrials({ drug: "Cilostazol" }), []);
+  assertEquals(normalizeTrials({ drug: "Examplumab" }), []);
   assertEquals(normalizeTrials([null]), [normalizeTrial({})]);
 });
 

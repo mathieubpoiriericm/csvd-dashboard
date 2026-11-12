@@ -15,10 +15,10 @@ class TestDoseAndForm:
             # packaging that has to go.
             ("Pentoxifylline sustained-release tablets", "Pentoxifylline"),
             ("Tadalafil 20 MG", "Tadalafil"),
-            ("Butylphthalide Soft Capsules", "Butylphthalide"),
+            ("Demozolid Soft Capsules", "Demozolid"),
             ("Naoxuekang Dropping Pills", "Naoxuekang"),
             ("Dapagliflozin 10mg Tab", "Dapagliflozin"),
-            ("Edaravone Dexborneol Sublingual Tablets", "Edaravone Dexborneol"),
+            ("Testostat Dexborneol Sublingual Tablets", "Testostat Dexborneol"),
         ],
     )
     def test_the_agent_survives_its_packaging(self, raw, expected):
@@ -34,7 +34,7 @@ class TestDoseAndForm:
 class TestCapitalisation:
     def test_a_lower_case_name_gains_its_capital(self):
         assert normalize_drug_name("aspirin") == "Aspirin"
-        assert normalize_drug_name("cilostazol") == "Cilostazol"
+        assert normalize_drug_name("samplinib") == "Samplinib"
 
     def test_a_name_carrying_its_own_capital_is_left_alone(self):
         """rt-PA is not Rt-PA, and SaiLuoTong is not Sailuotong."""
@@ -51,10 +51,10 @@ class TestParentheses:
     @pytest.mark.parametrize(
         ("raw", "expected"),
         [
-            ("Butylphthalide (NBP)", "Butylphthalide"),
-            ("Mivelsiran (ALN-APP)", "Mivelsiran"),
-            ("Palm tocotrienols complex (HOV-12020)", "Palm tocotrienols complex"),
-            ("Isosorbide Mononitrate XL (ISMN)", "Isosorbide Mononitrate"),
+            ("Demozolid (DZL)", "Demozolid"),
+            ("Exemplisiran (ABC-XYZ)", "Exemplisiran"),
+            ("Oak examplenols complex (QRS-12020)", "Oak examplenols complex"),
+            ("Placebide Mockonate XL (PDMN)", "Placebide Mockonate"),
             ("Calculus bovis sativus (CBS)", "Calculus bovis sativus"),
             ("acetylsalicyclic acid (ASA)", "Acetylsalicyclic acid"),
         ],
@@ -77,7 +77,7 @@ class TestParentheses:
         assert normalize_drug_name(raw) == raw
 
     def test_an_acronym_that_is_the_whole_name_survives(self):
-        assert normalize_drug_name("(ALN-APP)") == "(ALN-APP)"
+        assert normalize_drug_name("(ABC-XYZ)") == "(ABC-XYZ)"
 
 
 class TestSaltForms:
@@ -151,8 +151,8 @@ class TestCombinations:
 
     def test_an_abbreviated_agent_is_expanded_into_the_spelling_the_table_uses(self):
         assert (
-            normalize_drug_name("ISMN XL and Cilostazol")
-            == "Isosorbide mononitrate and cilostazol"
+            normalize_drug_name("ISMN XL and Samplinib")
+            == "Isosorbide mononitrate and samplinib"
         )
 
 
@@ -170,7 +170,7 @@ class TestBrandNames:
     ):
         assert normalize_drug_name(raw) == expected
 
-    @pytest.mark.parametrize("raw", ["XYWAV", "Mexidol", "Prospekta", "Cerebrolysin"])
+    @pytest.mark.parametrize("raw", ["XYWAV", "Mexidol", "Prospekta", "Brandolex"])
     def test_a_brand_with_no_generic_beside_it_is_left_alone(self, raw):
         """Supplying one would add information the registry never gave."""
         assert normalize_drug_name(raw) == raw
@@ -189,10 +189,10 @@ class TestEdges:
 
 class TestCaseFold:
     def test_the_most_frequent_spelling_wins(self):
-        names = ["Isosorbide mononitrate"] * 3 + ["Isosorbide Mononitrate"]
+        names = ["Placebide mockonate"] * 3 + ["Placebide Mockonate"]
         assert fold_case_variants(names) == {
-            "Isosorbide mononitrate": "Isosorbide mononitrate",
-            "Isosorbide Mononitrate": "Isosorbide mononitrate",
+            "Placebide mockonate": "Placebide mockonate",
+            "Placebide Mockonate": "Placebide mockonate",
         }
 
     def test_a_tie_is_broken_by_sort_order_rather_than_by_iteration_order(self):

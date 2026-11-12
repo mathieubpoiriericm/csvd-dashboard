@@ -357,7 +357,7 @@ class TestAnthropicClientExtract:
                         "confidence": 0.9,
                         "protein_name": "Protein 1",
                         "source_quote": (
-                            "GENE1 variants were associated with WMH (p=1e-12)."
+                            "GENE1 variants were associated with trait A (p=1e-12)."
                         ),
                     }
                 ]
@@ -806,7 +806,7 @@ class TestAnthropicClientExtract:
         citation would delete them; gating on the document does not.
         """
         monkeypatch.setenv("PIPELINE_REQUIRE_VERIFIED_QUOTES", "true")
-        quote = "GENE1 variants were associated with WMH (p=1e-12)."
+        quote = "GENE1 variants were associated with trait A (p=1e-12)."
         response = mock_anthropic_response(
             genes={
                 "genes": [
@@ -841,7 +841,7 @@ class TestAnthropicClientExtract:
         quote that is in fact verbatim -- and under the gate, delete it.
         """
         monkeypatch.setenv("PIPELINE_REQUIRE_VERIFIED_QUOTES", "true")
-        quote = "GENE1 variants were associated with WMH (p=1e-12)."
+        quote = "GENE1 variants were associated with trait A (p=1e-12)."
         response = mock_anthropic_response(
             genes={
                 "genes": [
@@ -881,7 +881,7 @@ class TestAnthropicClientExtract:
         from pipeline.config import PipelineConfig
 
         reset_tally()
-        quote = "GENE1 variants were associated with WMH (p=1e-12)."
+        quote = "GENE1 variants were associated with trait A (p=1e-12)."
         response = mock_anthropic_response(
             genes={
                 "genes": [
@@ -1293,7 +1293,7 @@ class TestAnthropicClientExtract:
                     {
                         "gene_symbol": "X",
                         "confidence": 1.5,
-                        "source_quote": "X was associated with WMH (p=1e-8).",
+                        "source_quote": "X was associated with trait A (p=1e-8).",
                     }
                 ]
             }
@@ -1759,7 +1759,7 @@ class TestTransportErrorsAndAccounting:
         bad = mock_anthropic_response(
             text="x" * 100,
             genes={"genes": [{"gene_symbol": "X", "confidence": 1.5,
-                              "source_quote": "X was associated with WMH."}]},
+                              "source_quote": "X was associated with trait A."}]},
             output_tokens=10_000,
         )
         good = mock_anthropic_response(
@@ -1796,12 +1796,14 @@ class TestTransportErrorsAndAccounting:
         # read; the second's genes vanished with no log line.
         response = mock_anthropic_response(
             genes={"genes": [{"gene_symbol": "GENE1", "confidence": 0.9,
-                              "source_quote": "GENE1 was associated with WMH."}]}
+                              "source_quote": "GENE1 was associated with trait A."}]}
         )
         response.content.append(
             MockToolUseBlock(
-                input={"genes": [{"gene_symbol": "GENE2", "confidence": 0.8,
-                                  "source_quote": "GENE2 was associated with WMH."}]}
+                input={"genes": [{
+                    "gene_symbol": "GENE2", "confidence": 0.8,
+                    "source_quote": "GENE2 was associated with trait A.",
+                }]}
             )
         )
         mock_client = _make_mock_client(response)

@@ -35,16 +35,20 @@ import {
 } from "./metrics.mjs";
 import { rankedZones, tracyAvailable, zonesFromTrace } from "./tracy.mjs";
 import {
+  DERIVED_INPUTS,
   INTERACTION_SCENARIOS,
   LOAD_SCENARIOS,
   ROUTES,
   settle,
   skipReason,
+  unavailableReason,
   VIEWPORTS,
 } from "./scenarios.mjs";
 
 /** Why `scenario` cannot run here (see `skipReason`), from one page load. */
 async function preflight(browser, storageState, scenario) {
+  const unavailable = unavailableReason(scenario);
+  if (unavailable) return unavailable;
   if (!scenario.needs) return null;
   const context = await browser.newContext({ storageState });
   try {
@@ -537,6 +541,8 @@ const metadata = {
   throttle,
   tracing: useTrace,
   only: only ?? null,
+  /** The queries and trait derived from the data; see e2e/perf/README.md. */
+  derivedInputs: DERIVED_INPUTS,
   buildSha256: createHash("sha256").update(
     await readFile(
       new URL("../../_fresh/server/server-entry.mjs", import.meta.url),

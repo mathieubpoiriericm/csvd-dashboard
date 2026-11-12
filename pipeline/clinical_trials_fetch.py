@@ -63,10 +63,11 @@ DRUG_INTERVENTION_TYPES: Final[frozenset[str]] = frozenset(
 # what put 594 rows in front of a curator.
 #
 # A study is kept only if one of the conditions it *states* names an entity
-# of the disease. The vocabulary is the scope the curated rows already
-# describe -- lacunar stroke, SVS, CMB, WMH, CAA, CADASIL and vascular
-# cognitive impairment -- and deliberately excludes the systemic diseases
-# that can cause the disease: a Fabry enzyme-replacement trial is a Fabry
+# of the disease. The vocabulary (`search.clinicalTrials.conditions` in
+# disease/pipeline.json) is the scope the curated rows already describe --
+# the disease's own lesions and syndromes -- and deliberately excludes the
+# systemic diseases that can cause the disease: a Fabry enzyme-replacement
+# trial is a Fabry
 # trial, and the curated table has never held one. Validated against the
 # eight curated NCT trials: the filter drops none of them, and 1,045 of the
 # 1,423 studies.
@@ -90,8 +91,8 @@ def _fold(text: str) -> str:
     An accent is dropped rather than split on: "Behçet's Disease" read as
     "beh et s disease", which no configured "behcet" could match -- and 39
     of the 137 studies a Behçet's search returned state only the accented
-    form. A run of spaces is one, so "Stroke, Lacunar" reads "stroke
-    lacunar". Applied to the configured terms too, so an accented one meets
+    form. A run of spaces is one, so "Dementia, Vascular" reads "dementia
+    vascular". Applied to the configured terms too, so an accented one meets
     the same form.
     """
     decomposed = unicodedata.normalize("NFKD", text)

@@ -25,7 +25,7 @@ def _gene(symbol: str, confidence: float = 0.9) -> dict[str, Any]:
     return {
         "gene_symbol": symbol,
         "protein_name": f"{symbol} protein",
-        "gwas_trait": ["PVWMH"],
+        "gwas_trait": ["TRAIT-A"],
         "mendelian_randomization": False,
         "omics_evidence": ["MAGMA"],
         "confidence": confidence,
@@ -592,7 +592,7 @@ class TestDetail:
         assert cited.source_quote == "A sentence naming GENE2."
         assert cited.confidence == 0.8
         assert claimed.citation_only is False
-        assert claimed.gwas_traits == ["PVWMH"]
+        assert claimed.gwas_traits == ["TRAIT-A"]
 
     def test_the_report_says_how_it_was_run_and_what_it_cached(self) -> None:
         # `--batch` halves the cost and cache writes are billed above

@@ -9,7 +9,7 @@ def _make_entry(
     confidence: float = 0.85,
     protein_name: str | None = "Protein 1",
     pmid: str = "12345678",
-    source_quote: str = "GENE1 variants were associated with WMH (p=1e-12).",
+    source_quote: str = "GENE1 variants were associated with trait A (p=1e-12).",
 ) -> GeneEntry:
     return GeneEntry(
         gene_symbol=gene_symbol,

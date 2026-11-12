@@ -126,16 +126,16 @@ class TestDrugInterventions:
     def test_biological_and_genetic_agents_count_as_drugs(self):
         # CT.gov types antibodies as BIOLOGICAL and siRNA/ASO agents as
         # GENETIC. Those are the class of agent the curated table already
-        # holds (ALN-APP), and a DRUG-only filter dropped their trials as
+        # holds (ABC-XYZ), and a DRUG-only filter dropped their trials as
         # "no drug".
         study = _make_study(
             interventions=[
                 {"type": "BIOLOGICAL", "name": "lecanemab"},
-                {"type": "GENETIC", "name": "ALN-APP"},
+                {"type": "GENETIC", "name": "ABC-XYZ"},
                 {"type": "PROCEDURE", "name": "thrombectomy"},
             ]
         )
-        assert _drug_interventions(study) == ["lecanemab", "ALN-APP"]
+        assert _drug_interventions(study) == ["lecanemab", "ABC-XYZ"]
 
     def test_deduplicates_by_name(self):
         study = _make_study(
@@ -193,7 +193,7 @@ class TestDrugInterventions:
         assert _drug_interventions(study) == ["aspirin"]
 
     def test_a_comparator_named_after_the_drug_is_still_a_comparator(self):
-        """Live CT.gov names on the curated trials, verbatim.
+        """Live CT.gov names on the curated trials, verbatim but for the drug.
 
         A prefix test read all four of these as trial drugs: NCT07026994's
         "Matching placebo" and NCT05755997's "0.9 % NaCl" were one sync
@@ -202,13 +202,13 @@ class TestDrugInterventions:
         study = _make_study(
             interventions=[
                 {"type": "DRUG", "name": "Matching placebo"},
-                {"type": "DRUG", "name": "Isosorbide Mononitrate Placebo"},
+                {"type": "DRUG", "name": "Placebide Mockonate Placebo"},
                 {"type": "DRUG", "name": "0.9 % NaCl"},
                 {"type": "DRUG", "name": "Normal Saline"},
-                {"type": "DRUG", "name": "Cilostazol"},
+                {"type": "DRUG", "name": "Samplinib"},
             ]
         )
-        assert _drug_interventions(study) == ["Cilostazol"]
+        assert _drug_interventions(study) == ["Samplinib"]
 
     def test_a_synonym_can_be_what_names_the_comparator(self):
         """NCT05755997 calls it "0.9 % NaCl", with "Sodium Chloride" only in
@@ -221,10 +221,10 @@ class TestDrugInterventions:
                     "name": "Control solution",
                     "otherNames": ["Sodium Chloride"],
                 },
-                {"type": "DRUG", "name": "Cerebrolysin", "otherNames": ["FPF 1070"]},
+                {"type": "DRUG", "name": "Examplumab", "otherNames": ["EXA 1070"]},
             ]
         )
-        assert _drug_interventions(study) == ["Cerebrolysin"]
+        assert _drug_interventions(study) == ["Examplumab"]
 
     def test_a_saline_therapy_is_not_read_as_a_control_arm(self):
         """Hypertonic saline is an agent under study, not a comparator.
@@ -430,11 +430,11 @@ class TestFirstPrimaryOutcome:
     def test_returns_first_measure(self):
         study = _make_study(
             primary_outcomes=[
-                {"measure": "Change in WMH volume"},
+                {"measure": "Change in trait A volume"},
                 {"measure": "Second outcome"},
             ]
         )
-        assert _first_primary_outcome(study) == "Change in WMH volume"
+        assert _first_primary_outcome(study) == "Change in trait A volume"
 
     def test_none_when_missing(self):
         study = _make_study(primary_outcomes=None)
@@ -461,7 +461,7 @@ class TestMapStudyToRecords:
     def test_single_drug_emits_one_record(self):
         study = _make_study(
             nct_id="NCT12345678",
-            brief_title="Aspirin for lacunar stroke",
+            brief_title="Aspirin for trait A",
             phases=["PHASE3"],
             interventions=[{"type": "DRUG", "name": "aspirin"}],
             enrollment_count=500,
@@ -476,7 +476,7 @@ class TestMapStudyToRecords:
         assert r.registry_id == "NCT12345678"
         # `_map_study_to_records` normalises on the way in.
         assert r.drug == "Aspirin"
-        assert r.trial_name == "Aspirin for lacunar stroke"
+        assert r.trial_name == "Aspirin for trait A"
         assert r.clinical_trial_phase == "III"
         assert r.target_sample_size == 500
         # CT.gov answers ISO dates; the curated rows and the dashboard's
@@ -696,13 +696,13 @@ class TestIsDiseaseStudy:
     def test_an_accented_condition_meets_its_unaccented_term(self, monkeypatch):
         # "Behçet's Disease" read as "beh et s disease", so a configured
         # "behcet" matched none of the registry's accented conditions; and a
-        # comma left two spaces, so "stroke lacunar" missed "Stroke, Lacunar".
+        # comma left two spaces, so a two-word term missed its "Word, Word" form.
         import pipeline.clinical_trials_fetch as fetch
 
-        monkeypatch.setattr(fetch, "_FOLDED_CONDITIONS", ("behcet", "stroke lacunar"))
+        monkeypatch.setattr(fetch, "_FOLDED_CONDITIONS", ("behcet", "syndrome example"))
         monkeypatch.setattr(fetch, "_FOLDED_PAIRS", ())
         assert is_disease_study(self._study("Behçet's Disease"))
-        assert is_disease_study(self._study("Stroke, Lacunar"))
+        assert is_disease_study(self._study("Syndrome, Example"))
         assert not is_disease_study(self._study("Common Cold"))
         assert fetch._fold("Behçet's  Disease") == "behcet s disease"
         assert fetch._fold("Sjögren") == "sjogren"
@@ -731,7 +731,7 @@ class TestFetchCSVDStudies:
         )
 
         studies, errors = await fetch_disease_studies(
-            search_terms=("lacunar stroke",),
+            search_terms=("example condition",),
             page_size=100,
             max_retries=0,
         )
@@ -762,7 +762,7 @@ class TestFetchCSVDStudies:
         )
 
         studies, errors = await fetch_disease_studies(
-            search_terms=("lacunar stroke",),
+            search_terms=("example condition",),
             page_size=100,
             max_retries=0,
         )

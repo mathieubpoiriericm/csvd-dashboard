@@ -1,4 +1,13 @@
 import { expect } from "@playwright/test";
+import {
+  availability,
+  DERIVED_INPUTS,
+  SCENARIO_INPUTS,
+  skipReason,
+  unavailableReason,
+} from "./inputs.mjs";
+
+export { DERIVED_INPUTS, skipReason, unavailableReason };
 
 const ROWS = "table.data-table tbody tr";
 const ready = (selector) => (page) => page.waitForSelector(selector);
@@ -15,17 +24,6 @@ const RUN_WIDGET = {
   missingBecause: "the About page shows no run while GOLD_ONLY is on",
 };
 
-/**
- * Why `scenario` cannot run on the page as loaded, or null. A scenario that
- * names an element it `needs` is skipped with this reason, rather than
- * failing on a timeout, when the page renders none.
- */
-export async function skipReason(page, scenario) {
-  if (!scenario.needs) return null;
-  return await page.locator(scenario.needs).count() === 0
-    ? `no ${scenario.needs}: ${scenario.missingBecause}`
-    : null;
-}
 const phenogramReady = ready('.phenogram-layout[data-hydrated="true"]');
 const mapReady = ready(".leaflet-container .leaflet-marker-icon");
 
@@ -112,6 +110,7 @@ export const LOAD_SCENARIOS = [
     ready: ready('input[name="passphrase"]'),
   },
 ];
+// A scenario that types or ticks a derived input is skipped without it.
 const interaction = (id, ready, act, extra = {}) => ({
   id,
   label: id,
@@ -120,14 +119,16 @@ const interaction = (id, ready, act, extra = {}) => ({
   ready,
   act,
   ...extra,
+  ...availability(id),
 });
 /**
  * An accessible name that starts with `text`, as e2e/helpers.ts's
  * startsWithName does (this file is plain Node, so it cannot import that
- * TypeScript). Filter checkboxes carry a hidden description ("WMH, White
- * matter hyperintensities …") and a group with an active filter gains a count
- * ("GWAS Traits, 1 selected"), so an exact name stops matching. The anchor
- * still keeps "WMH" from matching "PVWMH".
+ * TypeScript). Filter checkboxes carry a hidden description (a trait's
+ * label, then a comma and its spelled-out name) and a group with an active
+ * filter gains a count ("GWAS Traits, 1 selected"), so an exact name stops
+ * matching. The anchor still keeps a short trait key from matching a longer
+ * one that ends in it.
  */
 const startsWithName = (text) =>
   new RegExp(`^${text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(\\s*,|$)`);
@@ -147,14 +148,24 @@ const theme = async (page) => {
   await button.click();
   await expect(button).not.toHaveAttribute("aria-label", before);
 };
+/**
+ * Types a query that one row of the table holds, from expected.deno.ts: for
+ * genes, a symbol's first five characters (a prefix, as a reader types one);
+ * for trials, a whole drug name. With no such row (the empty export) the
+ * scenario is skipped, through `unavailable`.
+ */
 const search = (table) => async (page) => {
-  const text = table === "genes" ? "COL4A" : "Cerebrolysin";
+  const text = table === "genes"
+    ? DERIVED_INPUTS.geneSearch
+    : DERIVED_INPUTS.trialSearch;
   const field = page.getByPlaceholder(
     table === "genes" ? "Search genes" : "Search trials",
   );
   await field.pressSequentially(text, { delay: 80 });
   await expect(banner(page)).toContainText(`Search: “${text}”`);
-  await expect(rows(page).first()).toContainText(new RegExp(text, "i"));
+  await expect(rows(page).first()).toContainText(
+    new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"),
+  );
 };
 /**
  * Picks 100 rows by typing it into the focused select, not by selectOption.
@@ -252,7 +263,11 @@ export const INTERACTION_SCENARIOS = [
     await expect(page.locator("#timeline-drawer")).toBeHidden();
   }),
   ...["genes", "trials"].flatMap((table) => [
-    interaction(`${table}/search`, tableReady, search(table)),
+    interaction(
+      `${table}/search`,
+      tableReady,
+      search(table),
+    ),
     interaction(`${table}/search-100`, tableReady, search(table), {
       prepare: size100,
     }),
@@ -279,26 +294,32 @@ export const INTERACTION_SCENARIOS = [
       await button.click();
       await expect(cell).not.toHaveAttribute("aria-sort", before);
     }),
-    interaction(`${table}/filter-toggle`, tableReady, async (page) => {
-      const group = page.getByRole("group", {
-        name: startsWithName(
-          table === "genes" ? "GWAS Traits" : "Clinical Trial Phase",
-        ),
-      });
-      const box = group.getByRole("checkbox", {
-        name: startsWithName(table === "genes" ? "WMH" : "Phase II"),
-      });
-      // The group's own count badge, not the page-wide banner: the trials
-      // table starts with a default Study status filter, so its banner never
-      // reads "None" again.
-      const count = group.locator(".filter-count");
-      await box.click();
-      await expect(box).toBeChecked();
-      await expect(count).not.toHaveText("All");
-      await group.getByRole("checkbox", { name: "Show All", exact: true })
-        .click();
-      await expect(count).toHaveText("All");
-    }),
+    interaction(
+      `${table}/filter-toggle`,
+      tableReady,
+      async (page) => {
+        const group = page.getByRole("group", {
+          name: startsWithName(
+            table === "genes" ? "GWAS Traits" : "Clinical Trial Phase",
+          ),
+        });
+        const box = group.getByRole("checkbox", {
+          name: startsWithName(
+            table === "genes" ? DERIVED_INPUTS.toggledTrait : "Phase II",
+          ),
+        });
+        // The group's own count badge, not the page-wide banner: the trials
+        // table starts with a default Study status filter, so its banner never
+        // reads "None" again.
+        const count = group.locator(".filter-count");
+        await box.click();
+        await expect(box).toBeChecked();
+        await expect(count).not.toHaveText("All");
+        await group.getByRole("checkbox", { name: "Show All", exact: true })
+          .click();
+        await expect(count).toHaveText("All");
+      },
+    ),
   ]),
   interaction("genes/tooltip-hover", tableReady, tooltipHover),
   interaction("genes/keyboard-tooltip", tableReady, async (page) => {
@@ -369,6 +390,13 @@ export const INTERACTION_SCENARIOS = [
     await expect(pane).not.toHaveAttribute("style", before);
   }, { blockTiles: true }),
 ];
+// The derived inputs name their scenarios by id: a renamed scenario would
+// otherwise lose its skip silently.
+for (const id of Object.keys(SCENARIO_INPUTS)) {
+  if (!INTERACTION_SCENARIOS.some((scenario) => scenario.id === id)) {
+    throw new Error(`inputs.mjs names ${id}, which is no scenario`);
+  }
+}
 export const VIEWPORTS = [
   { name: "mobile", width: 390, height: 844 },
   { name: "tablet-portrait", width: 768, height: 1024 },

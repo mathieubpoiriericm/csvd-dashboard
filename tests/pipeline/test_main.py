@@ -175,7 +175,7 @@ class TestPaperResult:
         gene = GeneEntry(
             gene_symbol="GENE1",
             confidence=0.9,
-            source_quote="GENE1 variants were associated with WMH (p=1e-12).",
+            source_quote="GENE1 variants were associated with TRAIT-A (p=1e-12).",
         )
         r = PaperResult(pmid="111", genes=[gene])
         assert len(r.genes) == 1

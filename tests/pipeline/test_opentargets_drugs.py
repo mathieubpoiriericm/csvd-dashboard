@@ -13,24 +13,24 @@ from pipeline.opentargets_drugs import (
 
 class TestStripTradeSuffix:
     def test_removes_a_development_code(self) -> None:
-        assert strip_trade_suffix("Mivelsiran (ALN-APP)") == "Mivelsiran"
-        assert strip_trade_suffix("Butylphthalide (NBP)") == "Butylphthalide"
+        assert strip_trade_suffix("Exemplisiran (ABC-XYZ)") == "Exemplisiran"
+        assert strip_trade_suffix("Demozolid (DZL)") == "Demozolid"
         assert (
-            strip_trade_suffix("Palm tocotrienols complex (HOV-12020)")
-            == "Palm tocotrienols complex"
+            strip_trade_suffix("Oak examplenols complex (QRS-12020)")
+            == "Oak examplenols complex"
         )
 
     def test_leaves_a_bare_name_alone(self) -> None:
-        assert strip_trade_suffix("Cilostazol") == "Cilostazol"
-        assert strip_trade_suffix("Tranexamic acid") == "Tranexamic acid"
-        assert strip_trade_suffix("THN391") == "THN391"
+        assert strip_trade_suffix("Samplinib") == "Samplinib"
+        assert strip_trade_suffix("Mockamic acid") == "Mockamic acid"
+        assert strip_trade_suffix("XYZ391") == "XYZ391"
 
 
 class TestFetchDrugMechanism:
     def _hit(
         self,
         rows: list[dict[str, Any]],
-        name: str = "CILOSTAZOL",
+        name: str = "SAMPLINIB",
         chembl_id: str = "CHEMBL799",
     ) -> dict[str, Any]:
         return {
@@ -63,7 +63,7 @@ class TestFetchDrugMechanism:
             ),
         )
 
-        row = await fetch_drug_mechanism("Cilostazol", "26.06")
+        row = await fetch_drug_mechanism("Samplinib", "26.06")
 
         assert row is not None
         assert row.resolved is True
@@ -89,13 +89,13 @@ class TestFetchDrugMechanism:
                             ],
                         }
                     ],
-                    name="ISOSORBIDE MONONITRATE",
+                    name="PLACEBIDE MOCKONATE",
                     chembl_id="CHEMBL1311",
                 )
             ),
         )
 
-        row = await fetch_drug_mechanism("Isosorbide mononitrate", "26.06")
+        row = await fetch_drug_mechanism("Placebide mockonate", "26.06")
 
         assert row is not None
         assert row.target_symbols == "GUCY1A1, GUCY1B1"
@@ -103,17 +103,20 @@ class TestFetchDrugMechanism:
     async def test_a_resolved_drug_with_no_mechanism_is_still_resolved(
         self, mocker
     ) -> None:
-        """Edaravone resolves to CHEMBL290916 and carries no mechanism rows."""
+        """A drug can resolve to a ChEMBL id and carry no mechanism rows.
+
+        One of the curated trial drugs does.
+        """
         mocker.patch(
             "pipeline.opentargets_drugs.graphql",
             AsyncMock(
                 return_value=self._hit(
-                    [], name="EDARAVONE", chembl_id="CHEMBL290916"
+                    [], name="TESTOSTAT", chembl_id="CHEMBL290916"
                 )
             ),
         )
 
-        row = await fetch_drug_mechanism("Edaravone", "26.06")
+        row = await fetch_drug_mechanism("Testostat", "26.06")
 
         assert row is not None
         assert row.resolved is True
@@ -129,12 +132,12 @@ class TestFetchDrugMechanism:
             AsyncMock(return_value={"search": {"hits": []}}),
         )
 
-        row = await fetch_drug_mechanism("THN391", "26.06")
+        row = await fetch_drug_mechanism("XYZ391", "26.06")
 
         assert row is not None
         assert row.resolved is False
         assert row.chembl_id is None
-        assert row.drug == "THN391"
+        assert row.drug == "XYZ391"
 
     async def test_a_transport_failure_is_none_not_an_unresolved_row(
         self, mocker
@@ -144,7 +147,7 @@ class TestFetchDrugMechanism:
             "pipeline.opentargets_drugs.graphql", AsyncMock(return_value=None)
         )
 
-        assert await fetch_drug_mechanism("Cilostazol", "26.06") is None
+        assert await fetch_drug_mechanism("Samplinib", "26.06") is None
 
 
 class TestSyncTrialDrugAnnotations:
@@ -157,8 +160,8 @@ class TestSyncTrialDrugAnnotations:
             "pipeline.opentargets_drugs.get_trial_drugs",
             AsyncMock(
                 return_value=[
-                    ("Cilostazol", "Antiplatelet, vasodilator (PDE3 inhibitor)"),
-                    ("THN391", "Anti-fibrin (humanized monoclonal antibody)"),
+                    ("Samplinib", "Antiplatelet, vasodilator (PDE3 inhibitor)"),
+                    ("XYZ391", "Anti-fibrin (humanized monoclonal antibody)"),
                 ]
             ),
         )
@@ -173,11 +176,11 @@ class TestSyncTrialDrugAnnotations:
             AsyncMock(
                 side_effect=[
                     DrugAnnotationRow(
-                        "Cilostazol", "CHEMBL799", "INHIBITOR",
+                        "Samplinib", "CHEMBL799", "INHIBITOR",
                         "Phosphodiesterase 3A inhibitor", "PDE3A", "26.06", True,
                     ),
                     DrugAnnotationRow(
-                        "THN391", None, None, None, None, "26.06", False
+                        "XYZ391", None, None, None, None, "26.06", False
                     ),
                 ]
             ),
@@ -189,11 +192,11 @@ class TestSyncTrialDrugAnnotations:
         result = await sync_trial_drug_annotations()
 
         # Both drugs were answered for, so both are written and neither is a
-        # failure -- THN391 is simply not in ChEMBL.
+        # failure -- XYZ391 is simply not in ChEMBL.
         assert result.fetched == 2
         assert result.failed == 0
         assert result.errors == []
-        assert upsert.await_args.args[0][0].drug == "Cilostazol"
+        assert upsert.await_args.args[0][0].drug == "Samplinib"
 
     async def test_each_resolved_drug_puts_both_mechanisms_in_the_run_log(
         self, mocker, caplog
@@ -210,8 +213,8 @@ class TestSyncTrialDrugAnnotations:
             "pipeline.opentargets_drugs.get_trial_drugs",
             AsyncMock(
                 return_value=[
-                    ("Cilostazol", "Antiplatelet, vasodilator (PDE3 inhibitor)"),
-                    ("THN391", "Anti-fibrin (humanized monoclonal antibody)"),
+                    ("Samplinib", "Antiplatelet, vasodilator (PDE3 inhibitor)"),
+                    ("XYZ391", "Anti-fibrin (humanized monoclonal antibody)"),
                 ]
             ),
         )
@@ -224,11 +227,11 @@ class TestSyncTrialDrugAnnotations:
             AsyncMock(
                 side_effect=[
                     DrugAnnotationRow(
-                        "Cilostazol", "CHEMBL799", "INHIBITOR",
+                        "Samplinib", "CHEMBL799", "INHIBITOR",
                         "Phosphodiesterase 3A inhibitor", "PDE3A", "26.06", True,
                     ),
                     DrugAnnotationRow(
-                        "THN391", None, None, None, None, "26.06", False
+                        "XYZ391", None, None, None, None, "26.06", False
                     ),
                 ]
             ),
@@ -258,7 +261,7 @@ class TestSyncTrialDrugAnnotations:
 
         mocker.patch(
             "pipeline.opentargets_drugs.get_trial_drugs",
-            AsyncMock(return_value=[("THN391", "Anti-fibrin")]),
+            AsyncMock(return_value=[("XYZ391", "Anti-fibrin")]),
         )
         mocker.patch(
             "pipeline.opentargets_drugs.fetch_data_version",
@@ -268,7 +271,7 @@ class TestSyncTrialDrugAnnotations:
             "pipeline.opentargets_drugs.fetch_drug_mechanism",
             AsyncMock(
                 return_value=DrugAnnotationRow(
-                    "THN391", None, None, None, None, "26.06", False
+                    "XYZ391", None, None, None, None, "26.06", False
                 )
             ),
         )
@@ -286,7 +289,7 @@ class TestSyncTrialDrugAnnotations:
     ) -> None:
         mocker.patch(
             "pipeline.opentargets_drugs.get_trial_drugs",
-            AsyncMock(return_value=[("Cilostazol", "Antiplatelet, vasodilator")]),
+            AsyncMock(return_value=[("Samplinib", "Antiplatelet, vasodilator")]),
         )
         mocker.patch(
             "pipeline.opentargets_drugs.fetch_data_version",
@@ -322,8 +325,8 @@ class TestGetTrialDrugs:
 
         conn = AsyncMock()
         conn.fetch.return_value = [
-            {"drug": "Cilostazol", "mechanism_of_action": "Antiplatelet"},
-            {"drug": "Colchicine", "mechanism_of_action": None},
+            {"drug": "Samplinib", "mechanism_of_action": "Antiplatelet"},
+            {"drug": "Trialcine", "mechanism_of_action": None},
         ]
         mocker.patch.object(
             Database,
@@ -335,8 +338,8 @@ class TestGetTrialDrugs:
         )
 
         assert await get_trial_drugs() == [
-            ("Cilostazol", "Antiplatelet"),
-            ("Colchicine", None),
+            ("Samplinib", "Antiplatelet"),
+            ("Trialcine", None),
         ]
         assert "GROUP BY drug" in conn.fetch.await_args.args[0]
         assert "ORDER BY drug" in conn.fetch.await_args.args[0]
@@ -405,10 +408,10 @@ class TestTheHitMustNameTheDrug:
     async def test_the_match_is_case_and_space_insensitive(self, mocker) -> None:
         mocker.patch(
             "pipeline.opentargets_drugs.graphql",
-            AsyncMock(return_value=self._named("  cilostazol  ")),
+            AsyncMock(return_value=self._named("  samplinib  ")),
         )
 
-        row = await fetch_drug_mechanism("Cilostazol", "26.06")
+        row = await fetch_drug_mechanism("Samplinib", "26.06")
 
         assert row is not None
         assert row.resolved is True
@@ -420,7 +423,7 @@ class TestTheHitMustNameTheDrug:
             {
                 "object": {
                     "id": "CHEMBL799",
-                    "name": "CILOSTAZOL",
+                    "name": "SAMPLINIB",
                     "mechanismsOfAction": {"rows": []},
                 }
             }
@@ -429,7 +432,7 @@ class TestTheHitMustNameTheDrug:
             "pipeline.opentargets_drugs.graphql", AsyncMock(return_value=payload)
         )
 
-        row = await fetch_drug_mechanism("Cilostazol", "26.06")
+        row = await fetch_drug_mechanism("Samplinib", "26.06")
 
         assert row is not None
         assert row.chembl_id == "CHEMBL799"
@@ -437,10 +440,10 @@ class TestTheHitMustNameTheDrug:
     async def test_a_name_that_is_only_a_parenthetical_searches_nothing(
         self, mocker
     ) -> None:
-        """A global strip turned "(ALN-APP)" into a search for the empty string."""
+        """A global strip turned "(ABC-XYZ)" into a search for the empty string."""
         graphql = mocker.patch("pipeline.opentargets_drugs.graphql", AsyncMock())
 
-        row = await fetch_drug_mechanism("(ALN-APP)", "26.06")
+        row = await fetch_drug_mechanism("(ABC-XYZ)", "26.06")
 
         assert row is not None
         assert row.resolved is False
@@ -496,11 +499,11 @@ class TestEveryMechanismIsRecorded:
 
 class TestStripTradeSuffixIsAnchored:
     def test_only_a_trailing_parenthetical_is_dropped(self) -> None:
-        assert strip_trade_suffix("Mivelsiran (ALN-APP)") == "Mivelsiran"
+        assert strip_trade_suffix("Exemplisiran (ABC-XYZ)") == "Exemplisiran"
         assert strip_trade_suffix("Nimodipine (extended release)") == "Nimodipine"
 
     def test_a_bare_parenthetical_leaves_nothing(self) -> None:
-        assert strip_trade_suffix("(ALN-APP)") == ""
+        assert strip_trade_suffix("(ABC-XYZ)") == ""
 
     def test_an_interior_parenthetical_is_kept(self) -> None:
         # A global strip would have searched for "vitamin E" here.

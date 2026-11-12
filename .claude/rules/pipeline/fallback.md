@@ -204,17 +204,18 @@ tokens; the run that paid counts them. The next `--batch` run whose fetched text
 hashes the same neither submits nor rescues the paper: `replay_one` puts the
 tally share back under the paper's scope and validates the stored genes with the
 stored `ServedBy`, and when at least one such validation held the step says
-"Validated 1 paper that was extracted by the fallback model in an earlier run
-whose validation NCBI did not answer; their tokens are in that run's report".
-NCBI still out leaves the record for the next run. Any other validation failure
+"Validated 1 paper that was extracted in an earlier run whose validation NCBI
+did not answer; their tokens are in that run's report". NCBI still out leaves
+the record for the next run. Any other validation failure
 removes the paper's records, since the stored answer would fail the same way
 every time. A changed text ignores the record and the paper is submitted afresh;
 the answers are kept per text, so one stored for a text that comes back (a full
 text that fell through to its abstract for one run) is still found. The records
 leave the checkpoint with the paper's merge: `checkpoint._record_pmid` reads
 either shape, where a record with no `result.pmid` used to be dropped by any
-prune. A run without `--batch` skips these records and extracts the paper
-itself, and a dry run neither writes nor reads them.
+prune. A dry run neither writes nor reads them. The default path writes and
+replays the same record for any paper ("A paid answer outlives an NCBI outage"
+in `run-reporting.md`), and each path replays the other's.
 
 **Opus 4.8 was measured on the golden fixtures before it served a paper**
 (2026-11-03, one call per scorable paper, the pipeline's own request with only

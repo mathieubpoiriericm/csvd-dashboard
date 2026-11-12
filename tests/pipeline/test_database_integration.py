@@ -479,7 +479,7 @@ def _gene_row(**overrides: Any) -> dict[str, Any]:
         "protein": "Test protein",
         "gene": _MERGE_GENE,
         "chromosomal_location": "1p36.13",
-        "gwas_trait": ["WMH"],
+        "gwas_trait": ["TRAIT-A"],
         "mendelian_randomization": False,
         "evidence_from_other_omics_studies": "",
         "brain_cell_types": "",
@@ -551,12 +551,12 @@ async def test_a_second_merge_appends_only_new_values_and_continues_the_ordinals
     string_agg(val, ', ' ORDER BY first_ord) did on the old TEXT column.
     """
     await merge_genes_transactional(
-        [_gene_row(references=["1", "1 ", "2"], gwas_trait=["WMH"])], []
+        [_gene_row(references=["1", "1 ", "2"], gwas_trait=["TRAIT-A"])], []
     )
     assert await _list_values("gene_references", "pmid") == [(0, "1"), (1, "2")]
 
     await merge_genes_transactional(
-        [], [_gene_row(references=["2", "3"], gwas_trait=["WMH", "PVWMH"])]
+        [], [_gene_row(references=["2", "3"], gwas_trait=["TRAIT-A", "TRAIT-B"])]
     )
 
     # "2" is already stored, so only "3" is appended -- at ordinal 2, off
@@ -566,7 +566,10 @@ async def test_a_second_merge_appends_only_new_values_and_continues_the_ordinals
         (1, "2"),
         (2, "3"),
     ]
-    assert await _list_values("gene_gwas_traits", "trait") == [(0, "WMH"), (1, "PVWMH")]
+    assert await _list_values("gene_gwas_traits", "trait") == [
+        (0, "TRAIT-A"),
+        (1, "TRAIT-B"),
+    ]
 
 
 async def test_re_running_the_same_merge_writes_no_new_rows(scratch_gene) -> None:
@@ -576,7 +579,7 @@ async def test_re_running_the_same_merge_writes_no_new_rows(scratch_gene) -> Non
     it had appended before would double every PMID in `data/table1.json`
     on the first repeat of a `--days-back` window.
     """
-    batch = [_gene_row(references=["1", "2"], gwas_trait=["WMH"])]
+    batch = [_gene_row(references=["1", "2"], gwas_trait=["TRAIT-A"])]
     await merge_genes_transactional(batch, [])
     # Both branches land on the same row (ON CONFLICT and UPPER(gene)), so
     # the append runs for each of them.
@@ -584,7 +587,7 @@ async def test_re_running_the_same_merge_writes_no_new_rows(scratch_gene) -> Non
     await merge_genes_transactional([], batch)
 
     assert await _list_values("gene_references", "pmid") == [(0, "1"), (1, "2")]
-    assert await _list_values("gene_gwas_traits", "trait") == [(0, "WMH")]
+    assert await _list_values("gene_gwas_traits", "trait") == [(0, "TRAIT-A")]
 
 
 async def test_a_stored_quote_keeps_the_confidence_it_was_scored_with(
@@ -665,16 +668,16 @@ async def _insert_curated_trial(**overrides: Any) -> None:
     `pipeline/export/tables.py` expands it on the way out.
     """
     values: dict[str, Any] = {
-        "drug": "Mivelsiran (ALN-APP)",
+        "drug": "Exemplisiran (ABC-XYZ)",
         "trial_name": "Curated title",
         "registry_id": _CURATED_NCT,
         "clinical_trial_phase": "II",
         "target_sample_size": 15,
         "estimated_completion_date": "Completed unpublish",
         "primary_outcome": "Curated outcome",
-        "sponsor_type": "Industry (Alnylam Pharmaceuticals)",
-        "mechanism_of_action": "APP mRNA reduction",
-        "target_population": "CAA",
+        "sponsor_type": "Industry (Example Pharmaceuticals)",
+        "mechanism_of_action": "Target mRNA reduction",
+        "target_population": "Population A",
     }
     values.update(overrides)
     columns = ", ".join(values)
@@ -690,7 +693,7 @@ def _api_record(**overrides: Any) -> Any:
     from pipeline.clinical_trials_fetch import ClinicalTrialRecord
 
     fields: dict[str, Any] = {
-        "drug": "ALN-APP",
+        "drug": "ABC-XYZ",
         "trial_name": "Refreshed title",
         "registry_id": _CURATED_NCT,
         "clinical_trial_phase": "II",
@@ -706,8 +709,8 @@ def _api_record(**overrides: Any) -> Any:
 async def test_a_curated_trial_is_refreshed_rather_than_duplicated() -> None:
     """The registry-first rule, against the rows PostgreSQL actually holds.
 
-    CT.gov names the intervention its sponsor registered ("ALN-APP"); the
-    curated row names the agent ("Mivelsiran (ALN-APP)"). Five of the eight
+    CT.gov names the intervention its sponsor registered ("ABC-XYZ"); the
+    curated row names the agent ("Exemplisiran (ABC-XYZ)"). Five of the eight
     curated trials spell the two differently, so
     `ON CONFLICT (registry_id, drug)` never fired for them: each sync
     inserted a second, wholly uncurated row instead of refreshing the
@@ -732,7 +735,7 @@ async def test_a_curated_trial_is_refreshed_rather_than_duplicated() -> None:
 
         assert len(rows) == 1, "the sync added a second row for one trial"
         row = rows[0]
-        assert row["drug"] == "Mivelsiran (ALN-APP)"
+        assert row["drug"] == "Exemplisiran (ABC-XYZ)"
         # The API columns moved forward -- the point of the sync.
         assert row["target_sample_size"] == 42
         # The curated ones did not. trial_name and primary_outcome are in
@@ -740,9 +743,9 @@ async def test_a_curated_trial_is_refreshed_rather_than_duplicated() -> None:
         assert row["trial_name"] == "Curated title"
         assert row["primary_outcome"] == "Curated outcome"
         assert row["estimated_completion_date"] == "Completed unpublish"
-        assert row["sponsor_type"] == "Industry (Alnylam Pharmaceuticals)"
-        assert row["mechanism_of_action"] == "APP mRNA reduction"
-        assert row["target_population"] == "CAA"
+        assert row["sponsor_type"] == "Industry (Example Pharmaceuticals)"
+        assert row["mechanism_of_action"] == "Target mRNA reduction"
+        assert row["target_population"] == "Population A"
     finally:
         await _clear_trial(_CURATED_NCT)
 
@@ -847,7 +850,7 @@ async def test_a_registry_id_new_to_the_table_is_inserted_uncurated() -> None:
                 _CURATED_NCT,
             )
         assert row is not None
-        assert row["drug"] == "ALN-APP"
+        assert row["drug"] == "ABC-XYZ"
         assert row["target_population"] is None
         assert row["mechanism_of_action"] is None
     finally:

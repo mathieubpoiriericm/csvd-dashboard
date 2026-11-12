@@ -465,7 +465,7 @@ Deno.test("labelWidth is the wider of the first line, glyphs included, and each 
   );
   const long = "A pill label far longer than any gene symbol";
   assertAlmostEquals(
-    labelWidth("GENE1", [{ label: "WMH" }, { label: long }], 1),
+    labelWidth("GENE1", [{ label: "TRAIT-A" }, { label: long }], 1),
     textWidth(long, 400, L.pillFont) + 2 * L.pillPaddingX,
     1e-9,
   );

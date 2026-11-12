@@ -169,9 +169,10 @@ def normalize_gene(row: dict[str, Any]) -> dict[str, Any]:
     through before the island ever draws it: strings are trimmed, a blank
     scalar falls back to "(unknown)", and a list field drops blank entries
     and falls back to `[NONE_FOUND]`. Without this, a regenerated
-    table1.json carrying stray whitespace (`"WMH "`, `"Yes "`) would render
-    differently in this print twin than on screen. Fields the twin never
-    reads (protein, brainCellTypes, ...) pass through unchanged.
+    table1.json carrying stray whitespace (a trait key's trailing space,
+    `"Yes "`) would render differently in this print twin than on screen.
+    Fields the twin never reads (protein, brainCellTypes, ...) pass through
+    unchanged.
     """
     return {
         **row,

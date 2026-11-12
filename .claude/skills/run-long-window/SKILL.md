@@ -200,10 +200,13 @@ expired). A paper whose fetch failed, or whose validation hit an NCBI outage,
 stays on record for the next run to collect. A paper the fallback model rescued
 has no batch answer to collect again, so when its validation hits an NCBI outage
 the rescue's answer goes into the checkpoint instead, as an `unvalidated`
-record, and the next `--batch` run validates it without submitting or rescuing
-the paper (the step says "Validated N papers that were extracted by the fallback
-model in an earlier run whose validation NCBI did not answer"; see "A rescue's
-answer outlives an NCBI outage" in `.claude/rules/pipeline/fallback.md`). Every
+record, and the next run validates it without submitting or rescuing the paper
+(the step says "Validated N papers that were extracted in an earlier run whose
+validation NCBI did not answer"; see "A rescue's answer outlives an NCBI outage"
+in `.claude/rules/pipeline/fallback.md`). A run without `--batch` does the same
+for every paper: an NCBI outage in validation no longer costs a second
+extraction ("A paid answer outlives an NCBI outage" in
+`.claude/rules/pipeline/run-reporting.md`). Every
 other batch on record is kept
 untouched, because `scripts.backfill_pubmed --batch` re-runs from its first
 window after a crash in a later one, and a later window's record erased by the

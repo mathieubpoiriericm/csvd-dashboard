@@ -108,7 +108,7 @@ LEGEND_DOT_PT = 6.5
 # Handle box for a _Swatch, in font units: wide and tall enough for a ring at
 # 1.5x the dot, which the default one-line box clips.
 SWATCH_BOX_EM = 1.6
-# Axes-fraction x of the legends: clear of the "Cognitive Impairment" label,
+# Axes-fraction x of the legends: clear of the longest population label,
 # which sits just outside the band on the right.
 LEGEND_X = 1.2
 # The dashboard's --svd-figure-ink: the one fixed ink of the plate.

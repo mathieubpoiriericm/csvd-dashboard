@@ -29,7 +29,7 @@ def test_a_quoted_entry_validates() -> None:
     entry = GeneEntry(
         gene_symbol="GENE1",
         confidence=0.9,
-        source_quote="GENE1 variants were associated with WMH (p=1e-12).",
+        source_quote="GENE1 variants were associated with trait A (p=1e-12).",
     )
     assert entry.source_quote.startswith("GENE1 variants")
 
@@ -39,7 +39,7 @@ class TestGeneEntry:
         g = GeneEntry(
             gene_symbol="GENE1",
             confidence=0.9,
-            source_quote="GENE1 variants were associated with WMH (p=1e-12).",
+            source_quote="GENE1 variants were associated with trait A (p=1e-12).",
         )
         assert g.gene_symbol == "GENE1"
         assert g.confidence == 0.9
@@ -52,20 +52,20 @@ class TestGeneEntry:
             GeneEntry(
                 gene_symbol="X",
                 confidence=1.5,
-                source_quote="X was associated with WMH (p=1e-8).",
+                source_quote="X was associated with trait A (p=1e-8).",
             )
         with pytest.raises(ValidationError):
             GeneEntry(
                 gene_symbol="X",
                 confidence=-0.1,
-                source_quote="X was associated with WMH (p=1e-8).",
+                source_quote="X was associated with trait A (p=1e-8).",
             )
 
     def test_whitespace_stripped(self):
         g = GeneEntry(
             gene_symbol="  GENE1  ",
             confidence=0.9,
-            source_quote="GENE1 variants were associated with WMH (p=1e-12).",
+            source_quote="GENE1 variants were associated with trait A (p=1e-12).",
         )
         assert g.gene_symbol == "GENE1"
 
@@ -82,7 +82,7 @@ class TestExtractionResult:
                     "gene_symbol": "GENE1",
                     "confidence": 0.85,
                     "source_quote": (
-                        "GENE1 variants were associated with WMH (p=1e-12)."
+                        "GENE1 variants were associated with trait A (p=1e-12)."
                     ),
                 }
             ]
@@ -143,7 +143,7 @@ def test_a_prompt_spelling_of_a_tracked_trait_is_admitted() -> None:
 def test_the_synonym_table_cannot_be_edited_at_runtime() -> None:
     """The fold is part of the method, like the tuple and frozenset beside it."""
     with pytest.raises(TypeError):
-        TRAIT_SYNONYMS["new-spelling"] = "CMB"  # ty: ignore[invalid-assignment]
+        TRAIT_SYNONYMS["new-spelling"] = "TRAIT-A"  # ty: ignore[invalid-assignment]
 
 
 def test_a_curated_spelling_is_not_admitted() -> None:
@@ -174,7 +174,7 @@ def test_an_off_vocabulary_trait_is_refused() -> None:
             gene_symbol="GENE1",
             confidence=0.9,
             gwas_trait=["not a trait, in any vocabulary"],
-            source_quote="GENE1 variants were associated with WMH (p=1e-12).",
+            source_quote="GENE1 variants were associated with trait A (p=1e-12).",
         )
 
 
