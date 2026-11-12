@@ -164,6 +164,24 @@ class TestProcessingWarnings:
             "longer be writing cited prose before the tool call."
         )
 
+    def test_exactly_the_floor_does_not_warn(self, tmp_path) -> None:
+        # 2 of 10 is 20%, which is the floor, not below it.
+        current_tally().record(genes=10, verbatim=10, cited=2)
+        reporter = _progress(tmp_path)
+        _record_processing_actions(reporter, [], PipelineMetrics())
+        assert "citations_missing" not in [w.kind for w in _warnings(reporter)]
+
+    def test_no_citation_at_all_warns_with_every_quote_counted(
+        self, tmp_path
+    ) -> None:
+        current_tally().record(genes=10, verbatim=10, cited=0)
+        reporter = _progress(tmp_path)
+        _record_processing_actions(reporter, [], PipelineMetrics())
+        (warning,) = _warnings(reporter)
+        assert warning.kind == "citations_missing"
+        # The quotes without a citation, which is what the flag counts.
+        assert warning.count == 10
+
     def test_a_normal_citation_rate_is_not(self, tmp_path) -> None:
         current_tally().record(genes=10, verbatim=10, cited=7)
         reporter = _progress(tmp_path)

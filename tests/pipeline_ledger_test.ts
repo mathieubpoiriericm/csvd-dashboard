@@ -75,6 +75,18 @@ Deno.test("a step's flag names one thing, counts several, and says Failed", () =
   });
 });
 
+Deno.test("the citation flag counts the quotes no citation matched", () => {
+  // The warning's count is the uncited quotes, not a number of rates.
+  assertEquals(
+    stepFlag(step({ warnings: [warning("citations_missing", 9)] }))?.label,
+    "9 quotes without a citation",
+  );
+  assertEquals(
+    stepFlag(step({ warnings: [warning("citations_missing", 1)] }))?.label,
+    "1 quote without a citation",
+  );
+});
+
 Deno.test("each known step reads out the run's own counts", () => {
   assertEquals(stepOutcome(RUN, at("searching_pubmed")), {
     lines: [[seg("40", "papers matched"), seg(null, "last 7 days")]],

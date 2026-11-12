@@ -298,7 +298,9 @@ quotes (`_CITATION_RATE_MIN_QUOTES`) and fewer than 20% matched an API citation
 cited prose before its tool call and a model change could silently stop that;
 the warning reads the same tally as `quotesChecked` / `quotesCited`, and the
 streaming and `--batch` paths both end in that function. It is a review flag in
-`lib/pipeline_encoding.json`.
+`lib/pipeline_encoding.json`, and its count is the quotes no citation matched,
+so the flag reads "9 quotes without a citation"; worded as a collapsed rate it
+read "9 citation rates collapsed" over one rate.
 
 **A failed paper's quotes are un-counted, by the rule its genes already
 follow.** `report_provenance` runs inside extraction, before NCBI validation, so
