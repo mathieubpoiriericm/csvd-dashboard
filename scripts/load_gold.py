@@ -338,9 +338,12 @@ def _completion(row: Mapping[str, str]) -> str | None:
     return note
 
 
-def read_population_groups(path: Path) -> tuple[dict[str, str], list[str]]:
-    """Each gold trial's target-population group by registry ID, and every
-    row of *path* that cannot be used.
+def read_population_groups(
+    path: Path,
+) -> tuple[dict[str, str], dict[str, int], list[str]]:
+    """Each gold trial's target-population group by registry ID, the line of
+    *path* each registry ID is filed on, and every row of it that cannot be
+    used.
 
     A group is one of the manifest's `populations`: the Clinical Trials page
     selects by those keys, so a trial filed under any other name would be
@@ -362,6 +365,7 @@ def read_population_groups(path: Path) -> tuple[dict[str, str], list[str]]:
         ) from None
     known = load_disease().population_keys
     groups: dict[str, str] = {}
+    lines: dict[str, int] = {}
     failures: list[str] = []
     with handle:
         reader = csv.DictReader(handle)
@@ -386,13 +390,14 @@ def read_population_groups(path: Path) -> tuple[dict[str, str], list[str]]:
                 failures.append(f"{where}: {registry_id} is listed twice")
             else:
                 groups[registry_id] = group
+                lines[registry_id] = reader.line_num
                 if group not in known:
                     failures.append(
                         f"{where}: {registry_id} has the group {group!r}, "
                         "which is not one of the manifest's populations "
                         f"({', '.join(known)})"
                     )
-    return groups, failures
+    return groups, lines, failures
 
 
 def trial_from_gold(
@@ -439,7 +444,7 @@ def build_gold_plan(gold_dir: Path, populations_path: Path) -> GoldPlan:
     *gold_dir* holds the cleaned tables and *populations_path* is the file
     of each trial's target-population group.
     """
-    groups, failures = read_population_groups(populations_path)
+    groups, lines, failures = read_population_groups(populations_path)
     if suspects := _read_csv(gold_dir / "suspects.csv"):
         failures.append(
             f"suspects.csv lists {len(suspects)} cell(s) the clean-up could "
@@ -496,8 +501,8 @@ def build_gold_plan(gold_dir: Path, populations_path: Path) -> GoldPlan:
     # A group for a trial ST3 does not have is a mistyped registry ID, or a
     # row left behind when the curators dropped the trial.
     failures += [
-        f"{populations_path.name}: {registry_id} is not the registry ID of "
-        "any gold trial"
+        f"{populations_path.name} line {lines[registry_id]}: {registry_id} "
+        "is not the registry ID of any gold trial"
         for registry_id in groups
         if registry_id not in registries
     ]
