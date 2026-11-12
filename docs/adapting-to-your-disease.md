@@ -767,8 +767,9 @@ uv run python -m pipeline.main --sync-external-data --sync-annotations --export
 What each does and why:
 
 - `--batch` submits every paper in one request at half price; results arrive
-  within about an hour. A crash while waiting loses the submission, so let it
-  finish. Without `--batch`, a long run is resumable from a checkpoint file.
+  within about an hour. Either way a long run is resumable: papers are
+  checkpointed as they finish, and the batch id is recorded before the wait, so
+  after a crash re-run the same command and it collects what was paid for.
 - `--export` regenerates `data/*.json` at the end. It changes files but commits
   nothing, because the curated gene table is a scientific judgement and you
   should review the diff.

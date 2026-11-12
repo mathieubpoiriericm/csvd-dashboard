@@ -1,9 +1,9 @@
 """Durable record of submitted-but-uncollected batches, so a crash costs nothing.
 
 `--batch` submits every paper to the Message Batches API and then polls for up
-to 24 hours. The batch id lives only in memory and the run log, so a crash
-inside that poll loop used to lose the whole paid submission, and a re-run paid
-for it again. This file is written the moment a batch is accepted, and the
+to 24 hours. Before this file the batch id lived only in memory and the run
+log, so a crash inside that poll loop lost the whole paid submission, and a
+re-run paid for it again. This file is written the moment a batch is accepted, and the
 next run reads it to collect that batch instead of submitting a new one.
 
 It holds a *list* of batches, not one: a re-run can reuse an old batch and

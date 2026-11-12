@@ -258,12 +258,14 @@ def _claim_pending(
     return out
 
 
-async def _poll_until_ended(client: Any, batch_id: str) -> Any:
+async def _poll_until_ended(client: Any, batch_id: str, *, recorded: bool) -> Any:
     """Poll a batch until it ends, and return it as it ended.
 
     Raises ExtractionFailedError if it is still running after
     _MAX_WAIT_SECONDS -- the batch itself is not cancelled, so its id is in
-    the message and results stay retrievable.
+    the message and results stay retrievable. *recorded* says the state file
+    holds it, and then the way back is the same command run again, which
+    collects it; without one, the id is all there is.
     """
     deadline = time.monotonic() + _MAX_WAIT_SECONDS
     while True:
@@ -271,11 +273,15 @@ async def _poll_until_ended(client: Any, batch_id: str) -> Any:
         if current.processing_status == "ended":
             return current
         if time.monotonic() >= deadline:
+            advice = (
+                "re-run the same command to collect it once it finishes."
+                if recorded
+                else "retrieve its results directly if it finishes later."
+            )
             raise ExtractionFailedError(
                 f"Batch {batch_id} is still "
                 f"{current.processing_status} after "
-                f"{_MAX_WAIT_SECONDS // 3600}h. It was not cancelled; "
-                "retrieve its results directly if it finishes later."
+                f"{_MAX_WAIT_SECONDS // 3600}h. It was not cancelled; {advice}"
             )
         logger.info("Batch %s: %s", batch_id, current.processing_status)
         await asyncio.sleep(_POLL_SECONDS)
@@ -329,16 +335,23 @@ async def submit_and_collect(
     usage: TokenUsage | None = None,
     refusals: dict[str, str] | None = None,
     state_path: str | None = None,
+    reused: set[str] | None = None,
 ) -> dict[str, list[GeneEntry]]:
     """Submit every paper as one batch and poll until it ends.
 
     Raises ExtractionFailedError without a key, and again if the batch is
     still running after _MAX_WAIT_SECONDS -- the batch itself is not
-    cancelled, so its id is in the message and results stay retrievable.
+    cancelled, so its id is in the message and results stay retrievable:
+    with ``state_path`` set the same command run again collects it, and
+    without one its results have to be retrieved by that id.
 
     ``usage`` receives the token usage of every entry collected and
     ``refusals`` the category of every refused one; see
-    ``results_by_custom_id``.
+    ``results_by_custom_id``. ``reused`` receives the PMIDs collected from
+    a batch an earlier call recorded rather than from one this call
+    submitted, so the caller can say so: if the earlier run had collected
+    that batch before it crashed, its failed report counted those tokens
+    too.
 
     ``state_path`` makes a submitted batch survive a crash. Every batch is
     recorded there (``pipeline.batch_state``) the moment the API accepts
@@ -380,6 +393,9 @@ async def submit_and_collect(
         # with the papers it is collected for (None: all of them).
         entries: list[Any] = []
         to_poll: list[tuple[str, set[str] | None]] = []
+        # Whether the new batch, if any, made it into the state file; a
+        # recorded batch being polled is in it by definition.
+        new_batch_recorded = False
         # Recorded batches with nothing left to retrieve: the API no longer
         # knows them, or their results have expired. Only these are left
         # out when the file is written back; every other record, claimed by
@@ -413,6 +429,8 @@ async def submit_and_collect(
             )
             covered |= pmids
 
+        if reused is not None:
+            reused |= covered
         remainder = [r for r in requests if r["custom_id"] not in covered]
         if remainder:
             batch = await client.messages.batches.create(
@@ -432,6 +450,7 @@ async def submit_and_collect(
                 kept = [p for p in recorded if p.batch_id not in gone]
                 try:
                     batch_state.save(state_path, run_fingerprint, [*kept, submitted])
+                    new_batch_recorded = True
                 except OSError:
                     # The batch is already paid for; ending the run here
                     # would lose it as surely as the crash this guards
@@ -446,7 +465,9 @@ async def submit_and_collect(
             to_poll.append((batch.id, None))
 
         for batch_id, pmids in to_poll:
-            ended = await _poll_until_ended(client, batch_id)
+            ended = await _poll_until_ended(
+                client, batch_id, recorded=pmids is not None or new_batch_recorded
+            )
             if pmids is None:
                 entries.extend(await _fetch_entries(client, batch_id, None))
                 continue

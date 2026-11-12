@@ -350,8 +350,13 @@ async def test_submit_and_collect_gives_up_after_the_max_wait(
     mocker.patch("pipeline.batch_extraction.asyncio.sleep", AsyncMock())
     monkeypatch.setattr("pipeline.batch_extraction._MAX_WAIT_SECONDS", 0)
 
-    with pytest.raises(ExtractionFailedError, match="batch_123 is still in_progress"):
+    with pytest.raises(
+        ExtractionFailedError, match="batch_123 is still in_progress"
+    ) as raised:
         await submit_and_collect({"A": "paper text"}, PipelineConfig())
+
+    # Nothing recorded it, so the id in the message is the only way back.
+    assert "retrieve its results directly" in str(raised.value)
 
     # The client is still closed on the way out, as on every other path.
     mock_client.close.assert_awaited_once()
@@ -835,6 +840,26 @@ class TestAPendingBatchIsResumed:
         assert set(genes) == {"111", "333"}
         assert usage.input_tokens == 15
 
+    async def test_the_papers_taken_from_a_recorded_batch_are_named(
+        self, tmp_path, mocker, monkeypatch
+    ) -> None:
+        path = str(tmp_path / "pending.json")
+        self._record(
+            path, PendingBatch("msgbatch_old", {"111": self._sha("111", "t1")})
+        )
+        self._client(
+            mocker,
+            monkeypatch,
+            results={"msgbatch_old": [_fake_batch_entry("111", _NOTCH3_GENES)]},
+        )
+        reused: set[str] = set()
+
+        await submit_and_collect(
+            {"111": "t1", "333": "t3"}, self._CONFIG, state_path=path, reused=reused
+        )
+
+        assert reused == {"111"}
+
     async def test_the_saved_state_names_the_reused_batch_and_the_new_one(
         self, tmp_path, mocker, monkeypatch
     ) -> None:
@@ -1025,6 +1050,25 @@ class TestAPendingBatchIsResumed:
         assert self._submitted(client) == ["111"]
         assert "msgbatch_old" in caplog.text
         assert [p.batch_id for p in self._loaded(path)] == ["msgbatch_new"]
+
+    async def test_a_recorded_batch_that_outlives_the_wait_says_to_re_run(
+        self, tmp_path, mocker, monkeypatch
+    ) -> None:
+        path = str(tmp_path / "pending.json")
+        client = self._client(mocker, monkeypatch, results={})
+        client.messages.batches.retrieve.side_effect = None
+        client.messages.batches.retrieve.return_value = MagicMock(
+            id="msgbatch_new", processing_status="in_progress"
+        )
+        monkeypatch.setattr("pipeline.batch_extraction._MAX_WAIT_SECONDS", 0)
+
+        with pytest.raises(ExtractionFailedError) as raised:
+            await submit_and_collect({"111": "text"}, self._CONFIG, state_path=path)
+
+        message = str(raised.value)
+        assert "msgbatch_new" in message
+        assert "re-run the same command" in message
+        assert "retrieve its results directly" not in message
 
     async def test_without_a_state_path_nothing_is_written(
         self, tmp_path, mocker, monkeypatch

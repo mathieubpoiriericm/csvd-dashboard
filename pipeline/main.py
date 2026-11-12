@@ -2172,6 +2172,7 @@ async def _process_new_pmids_via_batch(
     logger.info(f"  Submitting {len(papers)} papers to the Batch API...")
     batch_usage = TokenUsage()
     refusals: dict[str, str] = {}
+    reused: set[str] = set()
     genes_by_pmid = (
         await submit_and_collect(
             papers,
@@ -2182,11 +2183,23 @@ async def _process_new_pmids_via_batch(
             # record either: the record would outlive a run that was never
             # meant to leave anything behind.
             state_path=config.batch_state_file if use_checkpoint else None,
+            reused=reused,
         )
         if papers
         else {}
     )
     metrics.token_usage += batch_usage
+    if reused:
+        # Named in the report, as `_restore_checkpoint` names a restore: a
+        # crash in the poll left the batch uncollected and its tokens are
+        # this run's alone, but a crash in validation or a rescue came after
+        # the crashed run had collected it and reported its tokens, so the
+        # two reports then hold the same spend.
+        progress.action(
+            f"Collected {_count(len(reused), 'paper')} from a batch an earlier "
+            "run submitted; if that run had already collected it, their "
+            "tokens are in both reports"
+        )
 
     # A pmid absent from genes_by_pmid (vs. present with an empty list) is
     # how results_by_custom_id signals a batch entry that failed or could

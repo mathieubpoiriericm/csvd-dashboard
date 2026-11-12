@@ -1276,6 +1276,12 @@ class TestCheckpointResume:
         assert any(
             "Restored 1" in call.args[0] for call in progress.action.call_args_list
         )
+        # And the batch reuse is named, because the crashed run may have
+        # reported the same tokens.
+        assert (
+            "Collected 1 paper from a batch an earlier run submitted; if that "
+            "run had already collected it, their tokens are in both reports"
+        ) in [call.args[0] for call in progress.action.call_args_list]
         assert not Path(config.batch_state_file).exists()
 
     async def test_a_batch_run_passes_the_state_path_when_checkpointing(
@@ -2416,7 +2422,9 @@ class TestMetricsCountWhatHappened:
             new=AsyncMock(return_value=("text", True, "europepmc")),
         )
 
-        async def _collect(papers, config, *, usage, refusals=None, state_path=None):
+        async def _collect(
+            papers, config, *, usage, refusals=None, state_path=None, reused=None
+        ):
             usage.input_tokens += 1000
             usage.output_tokens += 200
             usage.truncated_responses += 1
@@ -3323,7 +3331,13 @@ class TestTheServingModelAndTheRefusal:
         )
 
         async def fake_submit(
-            papers, config, *, usage=None, refusals=None, state_path=None
+            papers,
+            config,
+            *,
+            usage=None,
+            refusals=None,
+            state_path=None,
+            reused=None,
         ):
             assert refusals is not None
             refusals["222"] = "bio"

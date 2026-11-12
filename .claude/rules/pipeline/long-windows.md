@@ -2,9 +2,12 @@
 paths:
   - "pipeline/main.py"
   - "pipeline/checkpoint.py"
+  - "pipeline/batch_state.py"
+  - "pipeline/batch_extraction.py"
   - "pipeline/config.py"
   - "scripts/backfill_pubmed.py"
   - "tests/pipeline/test_checkpoint.py"
+  - "tests/pipeline/test_batch_state.py"
   - "tests/pipeline/test_config.py"
   - "tests/scripts/test_backfill_pubmed.py"
   - "tests/pipeline/test_main.py"
