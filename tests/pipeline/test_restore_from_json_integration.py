@@ -127,7 +127,7 @@ async def test_a_restored_database_exports_the_committed_files_byte_for_byte(
 
     await write_plan(build_plan(_DATA_DIR, tmp_path / "no-logs"))
     out = tmp_path / "export"
-    await run_export(out)
+    await run_export(out, gold_only_on=False)
 
     produced = sorted(path.name for path in out.glob("*.json"))
     assert {"table1.json", "table2.json", "refs.json", "pipeline_run.json"} <= set(
@@ -146,7 +146,7 @@ async def test_read_published_genes_is_what_the_export_writes(tmp_path: Path) ->
     shape, so this reader has to be exactly what table1.json receives."""
     await write_plan(build_plan(_one_gene_export(tmp_path / "data"), tmp_path / "x"))
     out = tmp_path / "export"
-    await run_export(out)
+    await run_export(out, gold_only_on=False)
 
     published = json.loads((out / "table1.json").read_text(encoding="utf-8"))
     assert await read_published_genes() == published

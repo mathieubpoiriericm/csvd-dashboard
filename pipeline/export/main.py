@@ -3,8 +3,10 @@
 Replaces data-prep/export.R. Run with:  uv run python -m pipeline.export.main
 """
 
+import argparse
 import asyncio
 import logging
+import sys
 import tempfile
 from collections.abc import Iterable, Mapping
 from pathlib import Path
@@ -30,6 +32,9 @@ from pipeline.export.publish import publish_atomically
 from pipeline.export.tables import clean_gene_row, clean_trial_row
 from pipeline.export.text import is_doi, split_genetic_targets
 from pipeline.export.writer import to_camel, write_rows, write_value
+from pipeline.gold_only import gold_only
+from pipeline.preview_run import enter_preview_database
+from pipeline.steps import PREVIEW_RUN_MODE
 
 logger = logging.getLogger(__name__)
 
@@ -286,14 +291,57 @@ async def _read_curated_trials() -> list[dict[str, object]]:
     return running
 
 
-async def run_export(target_dir: Path | None = None) -> None:
+async def _export_preview_run(target: Path) -> None:
+    """Publish data/pipeline_run.json from the preview database, and nothing else.
+
+    The preview database holds one PubMed run and none of the curated tables,
+    so this reads no other table: every other file stays as it is on disk.
+    """
+    run = await read_pipeline_run()
+    if run is None or run.get("runMode") != PREVIEW_RUN_MODE:
+        raise ValueError(
+            "no preview run to publish: the database holds no run recorded "
+            f"with --preview (run mode {PREVIEW_RUN_MODE!r})"
+        )
+    with tempfile.TemporaryDirectory(
+        prefix=".dashboard-export-", dir=target
+    ) as staging_name:
+        staged = {"pipeline_run.json": Path(staging_name) / "pipeline_run.json"}
+        write_value(run, staged["pipeline_run.json"])
+        publish_atomically(staged, target)
+    logger.info("Preview export complete: data/pipeline_run.json only.")
+
+
+async def run_export(
+    target_dir: Path | None = None,
+    *,
+    preview_run: bool = False,
+    gold_only_on: bool | None = None,
+) -> None:
     """Generate all eleven files, publishing only after every step succeeds.
 
     A twelfth committed file, data/geocoded_trials.json, is produced
     separately by `deno task geocode` -- see the closing log message.
+
+    While gold-only is on, data/pipeline_run.json is not regenerated: the
+    database an ordinary export reads holds an older run than the preview
+    report committed there, and would publish over it. ``preview_run``
+    publishes that one file from the preview database instead, and refuses
+    unless gold-only is on. ``gold_only_on=None`` reads the repository's
+    switch.
     """
+    if gold_only_on is None:
+        gold_only_on = gold_only()
+    if preview_run and not gold_only_on:
+        raise ValueError(
+            "a preview export needs GOLD_ONLY: it is true in lib/gold_only.ts "
+            "only while the dashboard publishes hand-curated data"
+        )
     target = target_dir or PROJECT_ROOT / "data"
     target.mkdir(parents=True, exist_ok=True)
+    if preview_run:
+        await _export_preview_run(target)
+        return
 
     with (
         tempfile.TemporaryDirectory(
@@ -378,7 +426,15 @@ async def run_export(target_dir: Path | None = None) -> None:
         # page still renders its summary card when no run has recorded a
         # report yet.
         step("[10/11] Latest pipeline run report")
-        write_value(await read_pipeline_run(), stage("pipeline_run.json"))
+        if gold_only_on:
+            # Left unstaged, like gene_annotations.json above: the committed
+            # file is the preview run's report, which the production database
+            # does not hold.
+            logger.info(
+                "GOLD_ONLY is on; keeping the committed data/pipeline_run.json"
+            )
+        else:
+            write_value(await read_pipeline_run(), stage("pipeline_run.json"))
 
         # The reference-data refreshes, which record their own smaller
         # document: they have no papers, genes or steps, and the upstreams
@@ -398,13 +454,39 @@ async def run_export(target_dir: Path | None = None) -> None:
     logger.info("Export complete. Run `deno task geocode` for the map locations.")
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(
+        description="Generate data/*.json from PostgreSQL."
+    )
+    parser.add_argument(
+        "--preview",
+        action="store_true",
+        help=(
+            "Publish data/pipeline_run.json alone, from the <DB_NAME>_preview "
+            "database a `--preview` PubMed run wrote. Needs GOLD_ONLY."
+        ),
+    )
+    args = parser.parse_args(argv)
+
     logging.basicConfig(level=logging.INFO, format="%(message)s")
+    if args.preview:
+        try:
+            enter_preview_database()
+        except ValueError as e:
+            logger.error(f"Invalid argument: {e}")
+            sys.exit(1)
     profiling.start("pipeline export", "data/*.json from PostgreSQL")
 
     async def _run() -> None:
         try:
-            await run_export()
+            if args.preview:
+                try:
+                    await run_export(preview_run=True)
+                except ValueError as e:
+                    logger.error(f"Preview export refused: {e}")
+                    sys.exit(1)
+            else:
+                await run_export()
         finally:
             await Database.close()
 

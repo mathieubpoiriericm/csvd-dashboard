@@ -3905,8 +3905,13 @@ async def _refresh_lookup_caches(
         )
 
 
-async def _publish_export(summaries: list[dict[str, Any]]) -> bool:
+async def _publish_export(
+    summaries: list[dict[str, Any]], *, preview_run: bool = False
+) -> bool:
     """Regenerate data/*.json from the database. True if it failed.
+
+    ``preview_run`` publishes the preview database's run report alone
+    (data/pipeline_run.json); ``main`` has already pointed ``DB_NAME`` at it.
 
     Called from inside _run_selected_pipelines' `try`, so it runs before the
     `finally` closes the pool and reuses the connection the run already has.
@@ -3926,7 +3931,10 @@ async def _publish_export(summaries: list[dict[str, Any]]) -> bool:
         logger.info(f"Exporting despite failures in: {', '.join(failed)}")
 
     try:
-        await run_export()
+        if preview_run:
+            await run_export(preview_run=True)
+        else:
+            await run_export()
     except Exception as e:
         # The database moved and the files did not -- exactly the condition
         # --export exists to remove -- so this must not pass silently on an
@@ -4058,9 +4066,17 @@ async def _run_selected_pipelines(
                     "Skipping --export: --dry-run / --test-mode wrote nothing"
                 )
             else:
-                if pubmed_run_data is not None and not args.sync_external_data:
+                # A preview run's lookups never reach the published files, so
+                # its caches are not refreshed.
+                if (
+                    pubmed_run_data is not None
+                    and not args.sync_external_data
+                    and not args.preview
+                ):
                     await _refresh_lookup_caches(pubmed_run_data, config)
-                export_failed = await _publish_export(summaries)
+                export_failed = await _publish_export(
+                    summaries, preview_run=args.preview
+                )
 
         return int(any_failed or export_failed)
 

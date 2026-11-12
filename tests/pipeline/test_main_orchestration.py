@@ -2817,6 +2817,27 @@ class TestExportOnRun:
         dispatcher.assert_not_awaited()
         assert "Skipping --export" in caplog.text
 
+    async def test_a_preview_export_skips_the_lookup_refresh_and_publishes_the_report(
+        self, dispatcher, mocker
+    ) -> None:
+        mocker.patch(
+            "pipeline.main.run_pipeline",
+            new=AsyncMock(return_value=(PipelineMetrics(), self._pubmed_run_data())),
+        )
+        mocker.patch("pipeline.main.require_preview_database", new=AsyncMock())
+        refresh = mocker.patch(
+            "pipeline.main._refresh_lookup_caches", new=AsyncMock()
+        )
+
+        exit_code = await pipeline_main._run_selected_pipelines(
+            _dispatcher_args(pubmed=True, export=True, preview=True),
+            PipelineConfig(),
+        )
+
+        assert exit_code == 0
+        refresh.assert_not_awaited()
+        dispatcher.assert_awaited_once_with(preview_run=True)
+
     async def test_a_failed_pipeline_still_publishes_the_export(
         self, dispatcher, mocker, caplog
     ) -> None:

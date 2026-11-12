@@ -273,7 +273,7 @@ class TestRunExport:
         target_dir = tmp_path / "data"  # deliberately not pre-created
         mocks = _patch_export_dependencies(mocker)
 
-        await run_export(target_dir=target_dir)
+        await run_export(target_dir=target_dir, gold_only_on=False)
 
         # Exactly the ten generated files land in target_dir -- no
         # leftover staging tempdir, no .previous-export backup.
@@ -325,12 +325,112 @@ class TestRunExport:
         mocks["annotations"].return_value = []
 
         with caplog.at_level(logging.WARNING):
-            await run_export(target_dir=target_dir)
+            await run_export(target_dir=target_dir, gold_only_on=False)
 
         assert committed.read_text() == '[\n  {\n    "geneSymbol": "GENE1"\n  }\n]\n'
         assert "--sync-annotations" in caplog.text
         # Every other file was still published.
         assert (target_dir / "table1.json").exists()
+
+    async def test_a_gold_only_export_keeps_the_committed_run_report(
+        self, tmp_path: Path, mocker, caplog
+    ) -> None:
+        target_dir = tmp_path / "data"
+        target_dir.mkdir()
+        (target_dir / "pipeline_run.json").write_bytes(b'"committed"\n')
+        _patch_export_dependencies(mocker)
+
+        with caplog.at_level(logging.INFO):
+            await run_export(target_dir=target_dir, gold_only_on=True)
+
+        assert (target_dir / "pipeline_run.json").read_bytes() == b'"committed"\n'
+        assert (target_dir / "table1.json").exists()
+        assert "keeping the committed data/pipeline_run.json" in caplog.text
+
+    async def test_an_export_without_gold_only_writes_the_run_report(
+        self, tmp_path: Path, mocker
+    ) -> None:
+        target_dir = tmp_path / "data"
+        target_dir.mkdir()
+        (target_dir / "pipeline_run.json").write_bytes(b'"committed"\n')
+        _patch_export_dependencies(mocker)
+
+        await run_export(target_dir=target_dir, gold_only_on=False)
+
+        assert (target_dir / "pipeline_run.json").read_bytes() != b'"committed"\n'
+
+    async def test_an_export_reads_the_repositorys_switch_by_default(
+        self, tmp_path: Path, mocker
+    ) -> None:
+        target_dir = tmp_path / "data"
+        target_dir.mkdir()
+        (target_dir / "pipeline_run.json").write_bytes(b'"committed"\n')
+        _patch_export_dependencies(mocker)
+        mocker.patch("pipeline.export.main.gold_only", return_value=True)
+
+        await run_export(target_dir=target_dir)
+
+        assert (target_dir / "pipeline_run.json").read_bytes() == b'"committed"\n'
+
+    async def test_a_preview_export_writes_the_run_report_alone(
+        self, tmp_path: Path, mocker
+    ) -> None:
+        target_dir = tmp_path / "data"
+        target_dir.mkdir()
+        (target_dir / "table1.json").write_bytes(b'"curated"\n')
+        mocks = _patch_export_dependencies(mocker)
+        mocks["run"].return_value = {"runMode": "preview", "status": "completed"}
+        for name in (
+            "pipeline.export.main._read_genes_with_lists",
+            "pipeline.export.main._read_table",
+            "pipeline.export.main.read_ncbi_gene_info",
+            "pipeline.export.main.read_uniprot_info",
+            "pipeline.export.main.read_pubmed_refs",
+            "pipeline.export.main.read_pipeline_status",
+            "pipeline.export.main.read_disease_annotations",
+            "pipeline.export.main.read_sync_runs",
+        ):
+            mocker.patch(name, side_effect=AssertionError(f"{name} was read"))
+
+        await run_export(target_dir=target_dir, preview_run=True, gold_only_on=True)
+
+        assert sorted(p.name for p in target_dir.iterdir()) == [
+            "pipeline_run.json",
+            "table1.json",
+        ]
+        assert (target_dir / "table1.json").read_bytes() == b'"curated"\n'
+        assert json.loads((target_dir / "pipeline_run.json").read_text()) == {
+            "runMode": "preview",
+            "status": "completed",
+        }
+
+    @pytest.mark.parametrize("stored", [None, {"runMode": "standard"}])
+    async def test_a_preview_export_refuses_a_database_with_no_preview_run(
+        self, tmp_path: Path, mocker, stored
+    ) -> None:
+        target_dir = tmp_path / "data"
+        target_dir.mkdir()
+        (target_dir / "pipeline_run.json").write_bytes(b'"committed"\n')
+        mocks = _patch_export_dependencies(mocker)
+        mocks["run"].return_value = stored
+
+        with pytest.raises(ValueError, match="no preview run"):
+            await run_export(target_dir=target_dir, preview_run=True, gold_only_on=True)
+
+        assert (target_dir / "pipeline_run.json").read_bytes() == b'"committed"\n'
+        assert [p.name for p in target_dir.iterdir()] == ["pipeline_run.json"]
+
+    async def test_a_preview_export_needs_gold_only(
+        self, tmp_path: Path, mocker
+    ) -> None:
+        target_dir = tmp_path / "data"
+        _patch_export_dependencies(mocker)
+
+        with pytest.raises(ValueError, match="GOLD_ONLY"):
+            await run_export(
+                target_dir=target_dir, preview_run=True, gold_only_on=False
+            )
+
 
     async def test_pmid_extraction_filters_non_numeric_and_leading_zero_refs(
         self, tmp_path: Path, mocker
@@ -411,7 +511,7 @@ class TestRunExport:
         )
         mocker.patch("pipeline.export.main.read_omim_csv", return_value=[])
 
-        await run_export(target_dir=tmp_path / "data")
+        await run_export(target_dir=tmp_path / "data", gold_only_on=False)
 
         # A preprint's DOI is a citation key too (read from Europe PMC).
         assert mock_pubmed.call_args.args[0] == [
@@ -437,7 +537,7 @@ class TestRunExport:
         )
 
         with pytest.raises(RuntimeError, match="db exploded"):
-            await run_export(target_dir=target_dir)
+            await run_export(target_dir=target_dir, gold_only_on=False)
 
         assert (target_dir / "table1.json").read_text() == "OLD\n"
         assert [p.name for p in target_dir.iterdir()] == ["table1.json"]
@@ -461,10 +561,61 @@ class TestMain:
         )
         mock_close = mocker.patch.object(Database, "close", new_callable=AsyncMock)
 
-        main()
+        main([])
 
         mock_run_export.assert_awaited_once_with()
         mock_close.assert_awaited_once_with()
+
+    def test_a_preview_export_enters_the_preview_database_first(
+        self, mocker
+    ) -> None:
+        order: list[str] = []
+        mocker.patch(
+            "pipeline.export.main.enter_preview_database",
+            side_effect=lambda: order.append("enter") or "db_preview",
+        )
+
+        async def run(**kwargs: object) -> None:
+            order.append(f"run {kwargs}")
+
+        mocker.patch("pipeline.export.main.run_export", new=run)
+        mocker.patch.object(Database, "close", new_callable=AsyncMock)
+
+        main(["--preview"])
+
+        assert order == ["enter", "run {'preview_run': True}"]
+
+    def test_a_refused_preview_export_exits_non_zero(self, mocker, caplog) -> None:
+        mocker.patch(
+            "pipeline.export.main.enter_preview_database", return_value="db_preview"
+        )
+        mocker.patch(
+            "pipeline.export.main.run_export",
+            new_callable=AsyncMock,
+            side_effect=ValueError("a preview export needs GOLD_ONLY"),
+        )
+        mocker.patch.object(Database, "close", new_callable=AsyncMock)
+
+        with pytest.raises(SystemExit) as exit_info:
+            main(["--preview"])
+
+        assert exit_info.value.code == 1
+        assert "needs GOLD_ONLY" in caplog.text
+
+    def test_a_preview_export_without_a_database_name_exits_non_zero(
+        self, mocker
+    ) -> None:
+        mocker.patch(
+            "pipeline.export.main.enter_preview_database",
+            side_effect=ValueError("DB_NAME is not set"),
+        )
+        run = mocker.patch("pipeline.export.main.run_export", new_callable=AsyncMock)
+
+        with pytest.raises(SystemExit) as exit_info:
+            main(["--preview"])
+
+        assert exit_info.value.code == 1
+        run.assert_not_awaited()
 
     def test_closes_the_database_even_when_export_raises(self, mocker) -> None:
         mocker.patch(
@@ -475,7 +626,7 @@ class TestMain:
         mock_close = mocker.patch.object(Database, "close", new_callable=AsyncMock)
 
         with pytest.raises(RuntimeError, match="boom"):
-            main()
+            main([])
 
         mock_close.assert_awaited_once_with()
 
@@ -524,7 +675,7 @@ class TestMain:
         # calling the actual (fake) pool's close() from whatever loop
         # main() runs it in.
 
-        main()  # must not raise RuntimeError: Event loop is closed
+        main([])  # must not raise RuntimeError: Event loop is closed
 
 
 # ---------------------------------------------------------------------------
