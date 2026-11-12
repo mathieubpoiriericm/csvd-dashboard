@@ -65,7 +65,8 @@ class RunConfigRecord(WireModel):
     model: str | None = None
     # The fallback model the run could send a declined paper to: through
     # the server-side fallback on a streaming request, or directly after a
-    # --batch entry was refused. None on a report written before it existed
+    # --batch entry was refused or a streaming refusal the server-side
+    # fallback did not answer. None on a report written before it existed
     # and on a --batch report written before batch runs used it.
     fallback_model: str | None = None
     effort: str | None = None

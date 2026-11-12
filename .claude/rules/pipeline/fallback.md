@@ -97,26 +97,49 @@ and in `TokenUsage.unbilled_*`, which `estimate_cost` takes off; it never joins
 corpus the refusals are `bio`, so the declined attempt is paid for; the batch
 path, where a refused entry is one top-level `usage`, follows the same rule.
 
-**A refusal while the tool call is on the stream is not retried, and the
-streaming path loses that paper for the run.** Anthropic's refusals guide names
-the one case the server-side fallback does not cover: "a streaming decline that
-fires while a tool-use block of any type ... is still open on the stream: that
-refusal is returned directly". Every answer here is a tool-use block, and it is
-more than half of the output. Seen once, 2026-11-11, on PMID 39216230 while
-recording a prompt arm: Opus 5.5 wrote its text and the whole `report_genes`
-input (two genes; the block had closed), and the message then ended
-`stop_reason: "refusal"`, category `bio`, with no `fallback` block and no
+**A refusal while the tool call is on the stream is not retried by the server,
+so `extract` sends the paper to the fallback itself.** Anthropic's refusals
+guide names the one case the server-side fallback does not cover: "a streaming
+decline that fires while a tool-use block of any type ... is still open on the
+stream: that refusal is returned directly". Every answer here is a tool-use
+block, and it is more than half of the output. Seen once, 2026-11-11, on PMID
+39216230 while recording a prompt arm: Opus 5.5 wrote its text and the whole
+`report_genes` input (two genes; the block had closed), and the message then
+ended `stop_reason: "refusal"`, category `bio`, with no `fallback` block and no
 `fallback_message` iteration (`stop_details` carried
 `fallback_has_prefill_claim: true` and a credit token this pipeline does not
 redeem). Reading that as the guide's case is an inference: the guide says
 "still open", and here the block had closed. `_stream_and_parse` raised
-`ExtractionRefusedError`; in a run the paper counts as refused and the next run
-whose window covers it retries it. The same paper sent 16 minutes later under
-the next arm's prompt (same document, tool definition and task instruction, a
-different system prompt) was answered by Opus 5.5. `--batch` rescues its refused
-entries on Opus 4.8 (below) and the streaming path has no such step: sending the
-paper to `extract(model=config.fallback_model, declined=category)` when a
-refusal names no fallback attempt would close it. Not built.
+`ExtractionRefusedError` and, at the time, the paper counted as refused for the
+run. The same paper sent 16 minutes later under the next arm's prompt (same
+document, tool definition and task instruction, a different system prompt) was
+answered by Opus 5.5.
+
+`ExtractionRefusedError.fallback_declined` now says whether the fallback model
+itself declined: true when `_fallback_declined_too` names its hop, when the
+request was a direct one, or when the refusal is the fallback's own sticky
+answer (`_fallback_served`: the response's `model` is the fallback's, or a
+`fallback_message` iteration is there with no block). When it is false -- this
+shape, or one whose fallback could not be attempted (`recommended_model` set) --
+`AnthropicClient.extract` logs one warning ("PMID … was refused (category: bio)
+with no fallback attempt; sending it straight to claude-opus-4-8"), rebuilds the
+request with `_build_message_params(..., model=config.fallback_model)` and
+carries on in the same retry loop as a direct request: `_PaperCalls.direct` set,
+`declined` seeded with the refusal's category, `sent` carried over. So every
+later validation, rate-limit and connection retry stays on Opus 4.8 with no
+`fallbacks` and no beta header, and the answer is `ServedBy(model=<the
+response's>, declined=<that category>)`, which raises the `model_fallback`
+warning like any other. It happens once per paper, and never to a request the
+caller already sent to the fallback (the `--batch` rescue). The refused call
+settled its own TPM reservation in `_stream_and_parse` before the error left it;
+the direct call takes one of its own. Both attempts stay in the paper's
+`TokenUsage`: the refused one at Opus 5.5's rates (or in `unbilled_*` when the
+category and an empty output say it was not charged), the direct one in
+`fallback_*` through `_is_direct_fallback`. If Opus 4.8 declines too, the error
+keeps the first refusal's category, which the run report groups by, and names
+both as the batch rescue does: "Refused by safety classifier for PMID …
+(category: bio; claude-opus-4-8 also declined: cyber)"; the next run whose
+window covers it retries it.
 
 **A paper can be sent straight to the fallback model.**
 `AnthropicClient.extract` (and `extract_from_paper`) take `model=` and

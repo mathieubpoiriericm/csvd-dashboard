@@ -177,6 +177,12 @@ class ExtractionRefusedError(ExtractionFailedError):
 
     Still an `ExtractionFailedError`, so every path that fails a paper on
     one fails it on this; `category` is what the run report groups by.
+
+    `fallback_declined` is whether the fallback model itself declined the
+    paper: it ran behind the requested model and declined too, or the
+    request was sent straight to it. False means only the requested model
+    has seen the paper -- the server-side fallback did not run -- which is
+    what `AnthropicClient.extract` sends on to the fallback model.
     """
 
     def __init__(
@@ -185,6 +191,8 @@ class ExtractionRefusedError(ExtractionFailedError):
         token_usage: TokenUsage | None = None,
         *,
         category: str,
+        fallback_declined: bool = False,
     ) -> None:
         super().__init__(message, token_usage)
         self.category = category
+        self.fallback_declined = fallback_declined

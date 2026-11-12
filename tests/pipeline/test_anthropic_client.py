@@ -458,7 +458,9 @@ class TestAnthropicClientExtract:
         """Claude Opus 5.5 adds a `bio` classifier, and these are biology papers.
 
         Which classifier declined is what tells a false positive on a
-        genetics paper from anything else, so it reaches the error.
+        genetics paper from anything else, so it reaches the error. The
+        refusal names no fallback attempt, so the paper is sent on to the
+        fallback model, which this stub has decline it the same way.
         """
         response = mock_anthropic_response(text="")
         response.stop_reason = "refusal"
@@ -470,7 +472,7 @@ class TestAnthropicClientExtract:
 
         from pipeline.config import PipelineConfig
 
-        with pytest.raises(ExtractionFailedError, match=r"\(category: bio\)"):
+        with pytest.raises(ExtractionFailedError, match=r"\(category: bio;"):
             await client.extract("paper text", "12345678", PipelineConfig(), None)
 
     async def test_a_refusal_without_stop_details_still_reports(
@@ -512,8 +514,12 @@ class TestAnthropicClientExtract:
             await client.extract("paper text", "12345678", PipelineConfig(), None)
         assert isinstance(raised.value, ExtractionFailedError)
         assert raised.value.category == "bio"
+        # No fallback attempt in the refusal, so the paper went on to the
+        # fallback model, which the stub has decline it too.
+        assert mock_client.beta.messages.stream.call_count == 2
         assert str(raised.value) == (
-            "Refused by safety classifier for PMID 12345678 (category: bio)"
+            "Refused by safety classifier for PMID 12345678 "
+            "(category: bio; claude-opus-4-8 also declined: bio)"
         )
 
     async def test_a_chain_refusal_names_the_first_hop_category(
@@ -1719,7 +1725,12 @@ class TestTransportErrorsAndAccounting:
     async def test_a_refused_response_still_counts_its_reported_thinking(
         self, mocker, mock_anthropic_response
     ):
-        """A refusal after reasoning is billed, so its thinking is counted."""
+        """A refusal after reasoning is billed, so its thinking is counted.
+
+        Sent straight to the fallback model, so that the one refusal is the
+        whole story: a refusal of an ordinary request with no fallback
+        attempt in it is sent on, and would count a second response.
+        """
         response = mock_anthropic_response(text="", output_tokens=900)
         response.stop_reason = "refusal"
         response.usage.output_tokens_details = SimpleNamespace(thinking_tokens=850)
@@ -1728,8 +1739,11 @@ class TestTransportErrorsAndAccounting:
             client, "_get_client", return_value=_make_mock_client(response)
         )
 
+        config = PipelineConfig()
         with pytest.raises(ExtractionFailedError) as raised:
-            await client.extract("Paper text", "12345678", PipelineConfig(), None)
+            await client.extract(
+                "Paper text", "12345678", config, None, model=config.fallback_model
+            )
 
         assert raised.value.token_usage is not None
         assert raised.value.token_usage.thinking_tokens == 850
@@ -2062,28 +2076,38 @@ class TestTheRefusalSaysWhatWasTried:
         ) in str(raised.value)
 
     async def test_a_fallback_that_was_not_attempted_says_so(
-        self, mocker, mock_anthropic_response
+        self, mocker, mock_anthropic_response, caplog
     ):
         """Rate-limited or overloaded, the fallback is skipped: the refusal
         returned is the requested model's, with `recommended_model` set --
         a different fact from both models declining, and one worth paying
-        to retry."""
+        for. The log says so, and the paper is sent on to the fallback."""
         response = mock_anthropic_response(text="")
         response.stop_reason = "refusal"
         response.stop_details = SimpleNamespace(
             category="bio", recommended_model="claude-opus-4-8"
         )
-        mock_client = _make_mock_client(response)
+        answered = mock_anthropic_response()
+        answered.model = "claude-opus-4-8"
+        stream_obj = AsyncMock()
+        stream_obj.get_final_message = AsyncMock(side_effect=[response, answered])
+        cm = MagicMock()
+        cm.__aenter__ = AsyncMock(return_value=stream_obj)
+        cm.__aexit__ = AsyncMock(return_value=False)
+        mock_client = MagicMock()
+        mock_client.beta.messages.stream.return_value = cm
         client = AnthropicClient()
         mocker.patch.object(client, "_get_client", return_value=mock_client)
 
         from pipeline.config import PipelineConfig
 
-        with pytest.raises(ExtractionRefusedError) as raised:
-            await client.extract("paper text", "12345678", PipelineConfig(), None)
-        assert raised.value.category == "bio"
-        assert "fallback was not attempted" in str(raised.value)
-        assert "claude-opus-4-8" in str(raised.value)
+        _genes, _usage, served = await client.extract(
+            "paper text", "12345678", PipelineConfig(), None
+        )
+        assert served == ServedBy(model="claude-opus-4-8", declined="bio")
+        assert (
+            "the fallback was not attempted (recommended model: claude-opus-4-8)"
+        ) in caplog.text
 
 
 def test_a_model_override_changes_only_the_model_field():
@@ -2231,6 +2255,262 @@ class TestADirectRequestToTheFallbackModel:
         assert kwargs["model"] == "claude-opus-5-5"
         assert kwargs["fallbacks"] == [{"model": "claude-opus-4-8"}]
         assert served == ServedBy(model="claude-opus-5-5", declined=None)
+
+
+class TestARefusalNoFallbackAnsweredIsSentToTheFallback:
+    """A refusal that comes back with no fallback attempt behind it.
+
+    The server-side fallback does not run when the decline fires with the
+    tool call already on the stream, or when the fallback model could not
+    be attempted (rate-limited or overloaded: `recommended_model` set).
+    Either way only the requested model has seen the paper, so `extract`
+    sends it once more, straight to the fallback model, as the batch path
+    rescues its refused entries.
+    """
+
+    @staticmethod
+    def _client_answering(*responses):
+        stream_obj = AsyncMock()
+        stream_obj.get_final_message = AsyncMock(side_effect=list(responses))
+        cm = MagicMock()
+        cm.__aenter__ = AsyncMock(return_value=stream_obj)
+        cm.__aexit__ = AsyncMock(return_value=False)
+        mock_client = MagicMock()
+        mock_client.beta.messages.stream.return_value = cm
+        return mock_client
+
+    @staticmethod
+    def _refused_alone(make, *, category="bio", recommended=None):
+        """The requested model's refusal, with no fallback attempt in it."""
+        response = make(input_tokens=1000, output_tokens=500)
+        response.stop_reason = "refusal"
+        response.stop_details = SimpleNamespace(
+            category=category, recommended_model=recommended
+        )
+        return response
+
+    @staticmethod
+    def _served_directly(make, **kwargs):
+        response = make(**kwargs)
+        response.model = "claude-opus-4-8"
+        return response
+
+    def _assert_the_second_request_is_direct(self, stream, config):
+        sent = stream.beta.messages.stream.call_args_list
+        assert len(sent) == 2
+        first, second = (call.kwargs for call in sent)
+        assert first["model"] == "claude-opus-5-5"
+        assert first["fallbacks"] == [{"model": "claude-opus-4-8"}]
+        assert second["model"] == "claude-opus-4-8"
+        assert "fallbacks" not in second and "betas" not in second
+        assert {k: v for k, v in second.items() if k != "model"} == {
+            k: v for k, v in first.items() if k not in ("model", "fallbacks", "betas")
+        }
+        assert second == _build_message_params(
+            "t", "1", config, model=config.fallback_model
+        )
+
+    async def test_a_refusal_with_no_fallback_attempt_is_sent_to_the_fallback_model(
+        self, mocker, mock_anthropic_response, caplog
+    ):
+        config = PipelineConfig()
+        refused = self._refused_alone(mock_anthropic_response)
+        answered = self._served_directly(
+            mock_anthropic_response,
+            genes={
+                "genes": [
+                    {
+                        "gene_symbol": "GENE1",
+                        "confidence": 0.9,
+                        "source_quote": "GENE1 was associated with the trait.",
+                    }
+                ]
+            },
+            input_tokens=700,
+            output_tokens=300,
+        )
+        stream = self._client_answering(refused, answered)
+        client = AnthropicClient()
+        mocker.patch.object(client, "_get_client", return_value=stream)
+
+        with caplog.at_level(logging.WARNING):
+            genes, usage, served = await client.extract("t", "1", config, None)
+
+        self._assert_the_second_request_is_direct(stream, config)
+        assert [gene.gene_symbol for gene in genes] == ["GENE1"]
+        assert served == ServedBy(model="claude-opus-4-8", declined="bio")
+        # Both attempts, the refused one at the requested model's rates and
+        # the direct one in the fallback's share.
+        assert (usage.input_tokens, usage.output_tokens) == (1700, 800)
+        assert (usage.fallback_input_tokens, usage.fallback_output_tokens) == (
+            700,
+            300,
+        )
+        assert "PMID 1" in caplog.text
+        assert "sending it straight to claude-opus-4-8" in caplog.text
+
+    async def test_a_refusal_whose_fallback_was_skipped_is_sent_to_the_fallback_model(
+        self, mocker, mock_anthropic_response
+    ):
+        config = PipelineConfig()
+        refused = self._refused_alone(
+            mock_anthropic_response, recommended="claude-opus-4-8"
+        )
+        answered = self._served_directly(mock_anthropic_response, genes={"genes": []})
+        stream = self._client_answering(refused, answered)
+        client = AnthropicClient()
+        mocker.patch.object(client, "_get_client", return_value=stream)
+
+        genes, _usage, served = await client.extract("t", "1", config, None)
+
+        self._assert_the_second_request_is_direct(stream, config)
+        assert genes == []
+        assert served == ServedBy(model="claude-opus-4-8", declined="bio")
+
+    async def test_a_paper_both_models_declined_is_not_sent_again(
+        self, mocker, mock_anthropic_response
+    ):
+        response = mock_anthropic_response(text="", omit_tool_call=True)
+        response.model = "claude-opus-4-8"
+        response.content.insert(
+            0,
+            SimpleNamespace(
+                type="fallback",
+                to=SimpleNamespace(model="claude-opus-4-8"),
+                trigger=SimpleNamespace(type="refusal", category="bio"),
+            ),
+        )
+        response.stop_reason = "refusal"
+        response.stop_details = SimpleNamespace(category="bio")
+        stream = self._client_answering(response)
+        client = AnthropicClient()
+        mocker.patch.object(client, "_get_client", return_value=stream)
+
+        with pytest.raises(ExtractionRefusedError) as raised:
+            await client.extract("t", "1", PipelineConfig(), None)
+
+        assert stream.beta.messages.stream.call_count == 1
+        assert raised.value.fallback_declined is True
+        assert raised.value.category == "bio"
+
+    async def test_the_direct_request_declining_too_names_both_classifiers(
+        self, mocker, mock_anthropic_response
+    ):
+        refused = self._refused_alone(mock_anthropic_response, category="bio")
+        declined_too = self._served_directly(mock_anthropic_response, text="")
+        declined_too.stop_reason = "refusal"
+        declined_too.stop_details = SimpleNamespace(category="cyber")
+        stream = self._client_answering(refused, declined_too)
+        client = AnthropicClient()
+        mocker.patch.object(client, "_get_client", return_value=stream)
+
+        with pytest.raises(ExtractionRefusedError) as raised:
+            await client.extract("t", "1", PipelineConfig(), None)
+
+        assert stream.beta.messages.stream.call_count == 2
+        # Grouped under the requested model's classifier, as the batch
+        # rescue groups its own; the sentence names the fallback's as well.
+        assert raised.value.category == "bio"
+        assert raised.value.fallback_declined is True
+        assert str(raised.value) == (
+            "Refused by safety classifier for PMID 1 "
+            "(category: bio; claude-opus-4-8 also declined: cyber)"
+        )
+        # Both attempts' tokens travel with the failure.
+        assert raised.value.token_usage is not None
+        assert raised.value.token_usage.input_tokens == 2000
+
+    async def test_a_sticky_refusal_by_the_fallback_is_not_sent_to_it_again(
+        self, mocker, mock_anthropic_response
+    ):
+        """A retry of a paper that fell back is answered by the fallback
+        directly (sticky routing): no `fallback` block, but the fallback's
+        `model` and a `fallback_message` iteration. Its refusal is the
+        fallback's own, so there is nowhere left to send the paper."""
+        response = mock_anthropic_response(text="")
+        response.model = "claude-opus-4-8"
+        response.stop_reason = "refusal"
+        response.stop_details = SimpleNamespace(category="bio")
+        response.usage.iterations = [
+            SimpleNamespace(type="fallback_message", model="claude-opus-4-8",
+                            input_tokens=10, output_tokens=5,
+                            cache_creation_input_tokens=0, cache_read_input_tokens=0)
+        ]
+        stream = self._client_answering(response)
+        client = AnthropicClient()
+        mocker.patch.object(client, "_get_client", return_value=stream)
+
+        with pytest.raises(ExtractionRefusedError) as raised:
+            await client.extract("t", "1", PipelineConfig(), None)
+
+        assert stream.beta.messages.stream.call_count == 1
+        assert raised.value.fallback_declined is True
+
+    async def test_a_direct_request_that_is_refused_is_not_rescued(
+        self, mocker, mock_anthropic_response
+    ):
+        config = PipelineConfig()
+        response = self._served_directly(mock_anthropic_response, text="")
+        response.stop_reason = "refusal"
+        response.stop_details = SimpleNamespace(category="cyber")
+        stream = self._client_answering(response)
+        client = AnthropicClient()
+        mocker.patch.object(client, "_get_client", return_value=stream)
+
+        with pytest.raises(ExtractionRefusedError) as raised:
+            await client.extract(
+                "t", "1", config, None, model=config.fallback_model, declined="bio"
+            )
+
+        assert stream.beta.messages.stream.call_count == 1
+        assert raised.value.fallback_declined is True
+        assert raised.value.category == "cyber"
+
+    async def test_a_validation_retry_after_the_rescue_stays_on_the_fallback_model(
+        self, mocker, mock_anthropic_response
+    ):
+        config = PipelineConfig(max_retries=1)
+        refused = self._refused_alone(mock_anthropic_response)
+        prose_only = self._served_directly(
+            mock_anthropic_response, omit_tool_call=True
+        )
+        answered = self._served_directly(mock_anthropic_response, genes={"genes": []})
+        stream = self._client_answering(refused, prose_only, answered)
+        client = AnthropicClient()
+        mocker.patch.object(client, "_get_client", return_value=stream)
+
+        _genes, _usage, served = await client.extract("t", "1", config, None)
+
+        sent = stream.beta.messages.stream.call_args_list
+        assert len(sent) == 3
+        for call in sent[1:]:
+            assert call.kwargs["model"] == "claude-opus-4-8"
+            assert "fallbacks" not in call.kwargs and "betas" not in call.kwargs
+        assert served == ServedBy(model="claude-opus-4-8", declined="bio")
+
+    async def test_the_refused_call_s_reservation_is_settled_before_the_rescue(
+        self, mocker, mock_anthropic_response
+    ):
+        """A refusal is a normal 200 whose usage was recorded against its
+        own reservation; the rescue takes a reservation of its own."""
+        refused = self._refused_alone(mock_anthropic_response)
+        answered = self._served_directly(
+            mock_anthropic_response, input_tokens=700, output_tokens=300
+        )
+        stream = self._client_answering(refused, answered)
+        client = AnthropicClient()
+        mocker.patch.object(client, "_get_client", return_value=stream)
+        rate_limiter = AsyncMock()
+        rate_limiter.acquire = AsyncMock(side_effect=[7, 8])
+        rate_limiter.record_actual_usage = AsyncMock()
+
+        await client.extract("t", "1", PipelineConfig(), rate_limiter)
+
+        assert rate_limiter.acquire.await_count == 2
+        assert [c.args for c in rate_limiter.record_actual_usage.await_args_list] == [
+            (7, 1500),
+            (8, 1000),
+        ]
 
 
 class TestPrewarmCache:

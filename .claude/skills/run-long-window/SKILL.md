@@ -46,9 +46,11 @@ deterministic: on the retry five of the first pass's 37 extracted, and five of
 the papers that had failed on credit were refused instead. **A streaming run
 now falls back to Claude Opus 4.8** (see "A refusal names its classifier" in
 `.claude/rules/pipeline/fallback.md`), so a declined paper is extracted in the
-same call and reported as a `model_fallback` warning; only a paper both models
-decline fails, as a `paper_refused` warning per classifier, and the next run
-whose window still covers it retries it.
+same call and reported as a `model_fallback` warning (a refusal the fallback
+never saw, because it fired with the tool call on the stream or the fallback
+could not be attempted, is sent straight to Opus 4.8 as a second request); only
+a paper both models decline fails, as a `paper_refused` warning per
+classifier, and the next run whose window still covers it retries it.
 Budget a fallback paper at about three times an ordinary one: the declined
 Opus 5.5 attempt is billed (a `bio` refusal is, even before any output; a
 `cyber` one is not), then Opus 4.8 extracts it at $5 / $25 per MTok and

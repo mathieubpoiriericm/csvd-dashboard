@@ -1395,16 +1395,18 @@ def _record_processing_actions(
                 count=count,
                 # The title is true of the paper, not of every request. A
                 # paper gets there two ways: the server-side fallback on a
-                # streaming request, or a direct request once its --batch
-                # entry was refused. On the streaming road a retry of a
-                # paper that fell back goes straight to the fallback (sticky
-                # routing), and a paper that fell back before this run
-                # reaches it with no decline this run saw.
+                # streaming request, or a direct request -- once its --batch
+                # entry was refused, or once a streaming refusal came back
+                # with no fallback attempt in it. On the streaming road a
+                # retry of a paper that fell back goes straight to the
+                # fallback (sticky routing), and a paper that fell back
+                # before this run reaches it with no decline this run saw.
                 detail=(
                     f"A paper reaches {fallback} through the server-side "
                     "fallback on a streaming request, or through a direct "
                     f"request after {primary_model} declined its --batch "
-                    f"entry. A streaming paper that falls back stays on "
+                    "entry or a streaming request the server-side fallback "
+                    f"did not answer. A streaming paper that falls back stays on "
                     f"{fallback} for about an hour (sticky routing), so a "
                     f"retry of it is served without {primary_model} running "
                     "again. Each paper names the classifier that declined it "

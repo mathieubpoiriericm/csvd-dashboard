@@ -183,6 +183,24 @@ def _fallback_declined_too(response: Any) -> str:
     )
 
 
+def _fallback_served(response: Any, fallback_model: str) -> bool:
+    """Whether the fallback model produced this response, block or none.
+
+    A refusal with no `fallback` block can still be the fallback's own: a
+    retry of a paper that fell back is answered by it directly for about an
+    hour (sticky routing), with a `fallback_message` iteration and the
+    response's `model` naming it but no hand-over block, because the
+    requested model never ran. Sending that paper to the fallback again
+    would ask the model that has just declined it.
+    """
+    if getattr(response, "model", None) == fallback_model:
+        return True
+    iterations = getattr(getattr(response, "usage", None), "iterations", None)
+    return isinstance(iterations, list) and any(
+        getattr(entry, "type", None) == "fallback_message" for entry in iterations
+    )
+
+
 def _extract_response_text(response: Any) -> tuple[str, str]:
     """Return answer text and the reasoning trace.
 
@@ -407,10 +425,12 @@ class _PaperCalls:
 
     `direct` is a paper sent straight to a model other than the requested
     one -- the fallback, for a paper the requested model already declined
-    on another path (a batch entry). Its calls carry no `fallbacks`, so
-    every retry stays on that model, and `declined` is seeded with the
-    decline that sent it there: the answer itself has no `fallback` block
-    or `fallback_message` iteration to read one from.
+    on another path (a batch entry), or in a refusal the server-side
+    fallback did not answer (`extract` sets it mid-loop then). Its calls
+    carry no `fallbacks`, so every retry stays on that model, and
+    `declined` is seeded with the decline that sent it there: the answer
+    itself has no `fallback` block or `fallback_message` iteration to read
+    one from.
     """
 
     sent: int = 0
@@ -481,11 +501,13 @@ async def _stream_and_parse(
     # extraction. Treating it as one would burn the validation-retry budget
     # reporting a missing tool call, so the check has to come before
     # _extract_response_text. With the server-side fallback on, a refusal
-    # here means every model in the chain declined -- Opus 5.5, then Opus
-    # 4.8 -- or that the fallback could not be attempted (rate-limited), or
-    # that the decline arrived with the tool call already on the stream,
-    # which the API returns directly (see fallback.md). The paper fails so
-    # that the next run retries it.
+    # here means one of three things: every model in the chain declined --
+    # Opus 5.5, then Opus 4.8 -- or the fallback could not be attempted
+    # (rate-limited), or the decline arrived with the tool call already on
+    # the stream, which the API returns directly (see fallback.md). Only
+    # the first is the fallback's verdict, and `fallback_declined` says
+    # which: `extract` sends a paper the fallback never saw straight to it,
+    # and lets the rest fail so that the next run retries them.
     if response.stop_reason == "refusal":
         category = _refusal_category(response)
         # Set only when the fallback could not be attempted (its model was
@@ -516,6 +538,9 @@ async def _stream_and_parse(
             f"(category: {first}){also}{skipped}",
             usage,
             category=category,
+            fallback_declined=bool(also)
+            or calls.direct
+            or _fallback_served(response, config.fallback_model),
         )
 
     # Truncation is a deterministic token-budget problem, so retrying the
@@ -1085,11 +1110,22 @@ class AnthropicClient:
             declined: With *model*, the category of the decline that sent
                 the paper there, which the returned ``served_by`` reports.
 
+        A refusal the fallback model never saw -- the decline arrived with
+        the tool call on the stream, which the API returns without falling
+        back, or the fallback could not be attempted -- is not the end:
+        the paper is sent once more, straight to the fallback model, as a
+        direct request (see *model*), and every retry after that stays
+        there. If the fallback declines it too, the `ExtractionRefusedError`
+        keeps the first refusal's category and names both. A request the
+        caller already sent to *model* is never sent on.
+
         Returns:
             Tuple of (gene_entries, token_usage, served_by). ``served_by``
             names Claude Opus 4.8 when Opus 5.5 declined and the server-side
-            fallback extracted the paper instead, or when *model* sent it to
-            Opus 4.8 directly.
+            fallback extracted the paper instead, when a refusal it never
+            saw was sent on to it, or when *model* sent it to Opus 4.8
+            directly. ``token_usage`` holds every attempt, a refused one
+            included.
         """
         usage = TokenUsage()
         client = self._get_client()
@@ -1106,6 +1142,10 @@ class AnthropicClient:
             if model is not None
             else _PaperCalls()
         )
+        # The category of the refusal that sent this paper to the fallback
+        # model mid-loop; set at most once, and never for a request the
+        # caller already sent there.
+        rescued_from: str | None = None
 
         while True:
             request_id: int | None = None
@@ -1126,6 +1166,41 @@ class AnthropicClient:
                     calls=calls,
                 )
                 return genes, usage, served
+
+            # Ahead of ExtractionFailedError, which it subclasses. The
+            # refused call settled its own reservation in _stream_and_parse
+            # (a refusal is a 200 whose usage was recorded), so there is
+            # nothing to release; the rescue acquires one of its own.
+            except ExtractionRefusedError as e:
+                if rescued_from is not None:
+                    # The fallback has now declined it too. Grouped under
+                    # the requested model's classifier, as the batch rescue
+                    # groups its own, with the fallback's named beside it.
+                    raise ExtractionRefusedError(
+                        f"Refused by safety classifier for PMID {pmid} "
+                        f"(category: {rescued_from}; {config.fallback_model} "
+                        f"also declined: {e.category})",
+                        usage,
+                        category=rescued_from,
+                        fallback_declined=True,
+                    ) from e
+                if e.fallback_declined or calls.direct:
+                    raise
+                # Only the requested model has seen this paper: the
+                # server-side fallback did not run. Send it straight to the
+                # fallback, once, as a direct request -- every later retry
+                # stays there, with no `fallbacks` and no beta header.
+                logger.warning(
+                    f"PMID {pmid} was refused (category: {e.category}) with no "
+                    f"fallback attempt; sending it straight to "
+                    f"{config.fallback_model}"
+                )
+                rescued_from = e.category
+                stream_kwargs = _build_message_params(
+                    text, pmid, config, model=config.fallback_model
+                )
+                calls.direct = True
+                calls.declined = e.category
 
             except anthropic.RateLimitError as e:
                 await _release_reservation(rate_limiter, request_id)
