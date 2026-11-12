@@ -268,9 +268,9 @@ On the same six papers v8 is 39/45, 22/26, 131 genes and 95/131 = 73% cited, and
 the two arms' tokens include the refused calls' 1,725 and 2,744. The baseline is
 the top of v8's own range, which over four recordings is 39-40 pooled and 21-22
 clean. The cassettes replay only on the code that recorded them (commits
-`fcd9e25` and `6682816` on the branch `prompt-v9`, and `e23c0d6` on
-`tool-definition-arm`, neither merged); on v8's code their request-comparison
-tests fail by design.
+`fcd9e25` and `6682816` under the tag `prompt-v9-archive`, and `e23c0d6` under
+`tool-definition-arm-archive`, both on the private repository and neither
+merged); on v8's code their request-comparison tests fail by design.
 
 **The arm with the reporting threshold lost five gold genes of ten on one
 paper; three are the threshold's.** v8 contradicts itself: a positional
