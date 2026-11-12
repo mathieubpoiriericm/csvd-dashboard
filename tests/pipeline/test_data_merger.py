@@ -92,8 +92,8 @@ class TestFormatOmics:
 class TestBuildGeneData:
     def test_basic_fields(self, sample_gene_entry):
         data = _build_gene_data(sample_gene_entry)
-        assert data["gene"] == "NOTCH3"
-        assert data["protein"] == "Notch receptor 3"
+        assert data["gene"] == "GENE1"
+        assert data["protein"] == "Protein 1"
         assert data["references"] == ["12345678"]
 
     def test_source_quote_carried_through(self, sample_gene_entry):
@@ -163,7 +163,7 @@ class TestBuildGeneData:
     def test_protein_fallback_to_gene(self, make_gene_entry):
         entry = make_gene_entry(protein_name=None)
         data = _build_gene_data(entry)
-        assert data["protein"] == "NOTCH3"
+        assert data["protein"] == "GENE1"
 
     def test_gwas_trait_is_a_deduped_list(self, make_gene_entry, trait_vocabulary):
         """The join table takes one row per trait, so the merge stops joining."""

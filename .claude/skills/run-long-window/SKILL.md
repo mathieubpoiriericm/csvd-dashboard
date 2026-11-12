@@ -46,9 +46,11 @@ deterministic: on the retry five of the first pass's 37 extracted, and five of
 the papers that had failed on credit were refused instead. **A streaming run
 now falls back to Claude Opus 4.8** (see "A refusal names its classifier" in
 `.claude/rules/pipeline/fallback.md`), so a declined paper is extracted in the
-same call and reported as a `model_fallback` warning; only a paper both models
-decline fails, as a `paper_refused` warning per classifier, and the next run
-whose window still covers it retries it.
+same call and reported as a `model_fallback` warning (a refusal the fallback
+never saw, because it fired with the tool call on the stream or the fallback
+could not be attempted, is sent straight to Opus 4.8 as a second request); only
+a paper both models decline fails, as a `paper_refused` warning per
+classifier, and the next run whose window still covers it retries it.
 Budget a fallback paper at about three times an ordinary one: the declined
 Opus 5.5 attempt is billed (a `bio` refusal is, even before any output; a
 `cyber` one is not), then Opus 4.8 extracts it at $5 / $25 per MTok and
@@ -171,6 +173,10 @@ Only papers whose text is unchanged are reused (the file keeps a hash of each
 document block); the rest go out as a new batch, and a changed fingerprint
 discards the file. Anthropic keeps batch results for 29 days; after that, or if
 the API no longer knows the batch, the papers are resubmitted with a warning.
+Each record carries the time its batch was created, and reading the file drops
+(and logs at info level) any record more than a day older than those 29 days, so
+a window that is never re-run does not leave its record behind for ever; a
+record written before that field is kept.
 Which report holds a resumed batch's tokens depends on where the first run
 stopped. After a crash in the poll the batch was never collected, so its tokens
 are counted only by the run that collects it. After a crash in validation or in
@@ -186,12 +192,15 @@ the record (`batch_state.forget`) only once every batch paper has been validated
 and every refused one rescued, so a crash in validation can still retrieve the
 results. It takes off what it stored, what was rescued or declined twice, and
 every entry with no usable result (so that one is resubmitted rather than
-replayed as a failure); a paper whose validation failed stays on record for the
-next run to collect. Every other batch on record is kept untouched, because
-`scripts.backfill_pubmed --batch` re-runs from its first window after a crash in
-a later one, and a later window's record erased by the first would be paid for
-twice. A record goes only when all its papers are forgotten or the API no longer
-has its results. A dry run or `--test-mode` neither writes nor forgets.
+replayed as a failure), and a paper whose validation failed for any reason but
+an NCBI outage (the same answer would fail the same way until the batch
+expired). A paper whose fetch failed, or whose validation hit an NCBI outage,
+stays on record for the next run to collect. Every other batch on record is kept
+untouched, because `scripts.backfill_pubmed --batch` re-runs from its first
+window after a crash in a later one, and a later window's record erased by the
+first would be paid for twice. A record goes only when all its papers are
+forgotten or the API no longer has its results. A dry run or `--test-mode`
+neither writes nor forgets.
 `--test-mode` counts what a window would process before paying for it, and
 `scripts.backfill_pubmed` walks it in committed chunks so the database is
 updated as it goes; both are described in

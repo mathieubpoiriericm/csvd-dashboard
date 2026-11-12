@@ -1395,16 +1395,18 @@ def _record_processing_actions(
                 count=count,
                 # The title is true of the paper, not of every request. A
                 # paper gets there two ways: the server-side fallback on a
-                # streaming request, or a direct request once its --batch
-                # entry was refused. On the streaming road a retry of a
-                # paper that fell back goes straight to the fallback (sticky
-                # routing), and a paper that fell back before this run
-                # reaches it with no decline this run saw.
+                # streaming request, or a direct request -- once its --batch
+                # entry was refused, or once a streaming refusal came back
+                # with no fallback attempt in it. On the streaming road a
+                # retry of a paper that fell back goes straight to the
+                # fallback (sticky routing), and a paper that fell back
+                # before this run reaches it with no decline this run saw.
                 detail=(
                     f"A paper reaches {fallback} through the server-side "
                     "fallback on a streaming request, or through a direct "
                     f"request after {primary_model} declined its --batch "
-                    f"entry. A streaming paper that falls back stays on "
+                    "entry or a streaming request the server-side fallback "
+                    f"did not answer. A streaming paper that falls back stays on "
                     f"{fallback} for about an hour (sticky routing), so a "
                     f"retry of it is served without {primary_model} running "
                     "again. Each paper names the classifier that declined it "
@@ -1981,12 +1983,19 @@ async def _validate_batch_paper(
     config: PipelineConfig,
     *,
     served: ServedBy | None = None,
-) -> PaperResult:
+) -> tuple[PaperResult, bool]:
     """Validate one batch paper's genes with the streaming path's isolation.
 
     An NCBI outage during validation raises rather than rejecting genes
     (see ``_validate_genes``); caught here per paper so it fails that
     paper alone instead of the whole run after the batch was paid for.
+
+    Returns the paper's result and whether it failed on an NCBI outage, the
+    one failure that says nothing about the batch's answer: the caller keeps
+    such a paper on the batch record so the next run collects the same
+    answer again, and takes any other failure off it. The flag is returned
+    beside the result because the result is what the report and the
+    checkpoint publish, and neither has a use for it.
 
     *served* is set for a paper the fallback model rescued after the batch
     declined it (``_rescue_refused_batch_paper``), and names the model and
@@ -1997,7 +2006,10 @@ async def _validate_batch_paper(
         validated, rejected = await _validate_genes(genes, metrics, config)
     except Exception as exc:
         logger.exception(f"Error validating PMID {pmid}")
-        return PaperResult(pmid=pmid, error=str(exc))
+        return (
+            PaperResult(pmid=pmid, error=str(exc)),
+            isinstance(exc, NcbiUnavailableError),
+        )
     # As in process_paper: the paper, its retrieval and its extracted genes
     # count once the paper was processed, and per paper.
     metrics.papers_processed += 1
@@ -2006,18 +2018,23 @@ async def _validate_batch_paper(
         metrics.fulltext_retrieved += 1
     else:
         metrics.abstract_only += 1
-    return PaperResult(
-        pmid=pmid,
-        genes=validated,
-        rejected_genes=[*_quote_rejections(pmid), *rejected],
-        fulltext=fulltext,
-        source=source,
-        text_truncated=truncated,
-        # A batch entry cannot fall back (the Batches API rejects
-        # `fallbacks`), so without *served* the model it was sent to is the
-        # model that answered.
-        extraction_model=served.model if served is not None else config.llm_model,
-        refusal=served.declined if served is not None else None,
+    return (
+        PaperResult(
+            pmid=pmid,
+            genes=validated,
+            rejected_genes=[*_quote_rejections(pmid), *rejected],
+            fulltext=fulltext,
+            source=source,
+            text_truncated=truncated,
+            # A batch entry cannot fall back (the Batches API rejects
+            # `fallbacks`), so without *served* the model it was sent to is
+            # the model that answered.
+            extraction_model=(
+                served.model if served is not None else config.llm_model
+            ),
+            refusal=served.declined if served is not None else None,
+        ),
+        False,
     )
 
 
@@ -2074,9 +2091,10 @@ async def _rescue_refused_batch_paper(
     _count_streamed(paper_metrics, token_usage)
     for gene in genes:
         gene.pmid = pmid
-    return await _validate_batch_paper(
+    result, _ = await _validate_batch_paper(
         pmid, genes, text_meta, paper_metrics, config, served=served
     )
+    return result
 
 
 def _count_streamed(metrics: PipelineMetrics, usage: TokenUsage | None) -> None:
@@ -2137,8 +2155,13 @@ async def _process_new_pmids_via_batch(
 
     papers: dict[str, str] = {}
     text_meta: dict[str, tuple[bool, str, bool]] = {}
-    # Papers a recorded batch may still hold a usable answer for and this
-    # run did not store: they stay on the batch record for the next run.
+    # Papers whose batch answer is still good and which this run did not
+    # store, because something outside the answer failed: a fetch, or NCBI
+    # not answering during validation. They stay on the batch record for the
+    # next run. A paper whose validation failed any other way is not here:
+    # the same answer would fail the same way on every run until the batch
+    # expired, so it comes off and is submitted afresh, as the streaming
+    # path would re-extract it.
     still_owed: set[str] = set()
     for pmid, outcome in zip(pending, fetched, strict=True):
         if isinstance(outcome, BaseException):
@@ -2214,7 +2237,7 @@ async def _process_new_pmids_via_batch(
         # paper that failed validation contributes nothing -- the run that
         # retries it counts its genes.
         paper_metrics = PipelineMetrics()
-        result = await _validate_batch_paper(
+        result, ncbi_outage = await _validate_batch_paper(
             pmid, genes_by_pmid[pmid], text_meta[pmid], paper_metrics, config
         )
         if result.succeeded:
@@ -2224,12 +2247,15 @@ async def _process_new_pmids_via_batch(
             # As on the streaming path: the paper is retried, so its
             # quotes are the retrying run's to count, not this one's --
             # and never checkpointed, but still the run's to report, as
-            # the fetch failures above are. Its batch answer is still good
-            # (an NCBI outage, say, failed it), so the next run collects
-            # that answer again rather than paying for a new one.
+            # the fetch failures above are. Only an NCBI outage leaves its
+            # batch answer owed, so the next run collects that answer again
+            # rather than paying for a new one; any other failure is the
+            # answer's own and would be replayed unchanged, so it is left
+            # off the record.
             current_tally().discard(pmid)
             collected.append(result)
-            still_owed.add(pmid)
+            if ncbi_outage:
+                still_owed.add(pmid)
 
     # A batch entry cannot fall back, so a paper the batch's model declined
     # is sent to the fallback model here, in the same run, rather than
@@ -2275,8 +2301,10 @@ async def _process_new_pmids_via_batch(
     # (validated, restored from the checkpoint, no text), what was rescued
     # or declined twice, and every entry with no usable answer (errored,
     # expired, unparseable, truncated) -- replaying one of those would fail
-    # it again for 29 days instead of resubmitting it. Kept: the papers in
-    # `still_owed`, and every paper of another window's batch, which is
+    # it again for 29 days instead of resubmitting it -- and a paper whose
+    # validation failed for any reason but an NCBI outage, for the same
+    # reason. Kept: the papers in `still_owed` (a fetch failure or an NCBI
+    # outage in validation), and every paper of another window's batch, which is
     # still paid for. A dry run leaves a real run's record alone, as it
     # leaves its checkpoint.
     if use_checkpoint:

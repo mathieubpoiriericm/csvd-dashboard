@@ -688,11 +688,13 @@ class TestRefusalWarnings:
         # Two roads lead to the fallback, and sticky routing is only on one
         # of them: a retry of a streaming paper that fell back is served with
         # no Opus 5.5 attempt at all, and the detail says why a paper can
-        # then name no classifier. A --batch rescue is a direct request.
+        # then name no classifier. A --batch rescue is a direct request, and
+        # so is a streaming refusal the server-side fallback did not answer.
         assert warning.detail == (
             "A paper reaches claude-opus-4-8 through the server-side fallback "
             "on a streaming request, or through a direct request after "
-            "claude-opus-5-5 declined its --batch entry. A streaming paper "
+            "claude-opus-5-5 declined its --batch entry or a streaming "
+            "request the server-side fallback did not answer. A streaming paper "
             "that falls back stays on claude-opus-4-8 for about an hour "
             "(sticky routing), so a retry of it is served without "
             "claude-opus-5-5 running again. Each paper names the classifier "
