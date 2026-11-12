@@ -125,10 +125,16 @@ non-streaming (the API rejects `max_tokens: 0` with `stream: true`) with the
 same `betas` and `fallbacks` the stream call carries, because the citations
 toggle on the document block and the beta-header set both shape the cached
 prefix: a warm-up that differed in either would warm an entry no extraction
-reads. It never raises for an API error (an `anthropic.APIError`, or a missing
-key from `build_async_client`): it logs a warning and returns an empty
-`TokenUsage`, so a failed warm-up costs the saving and not the run. The batch
-path never calls it; the Batches API rejects `max_tokens: 0`.
+reads. It is sent through `with_options(timeout=60, max_retries=0)`: the
+client's 600 s timeout and two SDK retries could otherwise hold a run for half
+an hour before any paper started. It never raises (cancellation aside): any
+`Exception` -- an `anthropic.APIError`, a missing key from `build_async_client`,
+anything else -- logs one warning and returns an empty `TokenUsage`, so a failed
+warm-up costs the saving and not the run. A request that was sent and failed is
+recorded for the API inventory as the streaming path records one (its status for
+an `APIStatusError`, `record_service_failure` otherwise), so the run report
+shows it as an errored Anthropic call. The batch path never calls it; the
+Batches API rejects `max_tokens: 0`.
 
 **This warm-up has not been verified against the live API.** It shipped on the
 documented behaviour alone, with no call made. The check: call `prewarm_cache`,

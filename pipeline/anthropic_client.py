@@ -869,6 +869,11 @@ def build_async_client() -> anthropic.AsyncAnthropic:
     )
 
 
+# Long enough for a request that generates nothing, short enough that a hung
+# connection costs a minute of the run rather than the SDK's ten.
+_WARMUP_TIMEOUT_SECONDS = 60
+
+
 async def prewarm_cache(config: PipelineConfig) -> TokenUsage:
     """Write the shared prompt prefix once, before the papers fan out.
 
@@ -886,10 +891,18 @@ async def prewarm_cache(config: PipelineConfig) -> TokenUsage:
     call does. It is not streamed, because the API rejects `max_tokens: 0`
     with `stream: true`.
 
-    Never raises for an API error: a warm-up that fails costs the saving, not
-    the run, so it logs one warning and returns an empty `TokenUsage`. A
-    successful one is accounted like any other call, so the cache write is
-    priced and reported rather than hidden.
+    Bounded to `_WARMUP_TIMEOUT_SECONDS` with no SDK retries, through
+    `with_options`: the client's own 600 s timeout and two retries could
+    hold a run for half an hour before any paper started, for a saving.
+
+    Never raises (cancellation aside): a warm-up that fails costs the
+    saving, not the run, so it logs one warning and returns an empty
+    `TokenUsage`, whatever the error -- an `anthropic.APIError`, a missing
+    key, or something nobody anticipated in a response it could not read.
+    A request that was sent and failed is recorded as a failed Anthropic
+    call, as the streaming path records one, so the run report shows it
+    beside the log line. A successful one is accounted like any other call,
+    so the cache write is priced and reported rather than hidden.
     """
     params = _build_message_params("warmup", "warmup", config)
     params["max_tokens"] = 0
@@ -898,12 +911,30 @@ async def prewarm_cache(config: PipelineConfig) -> TokenUsage:
     start = time.monotonic()
     try:
         client = build_async_client()
-        response = await client.beta.messages.create(
+        response = await client.with_options(
+            timeout=_WARMUP_TIMEOUT_SECONDS, max_retries=0
+        ).beta.messages.create(
             **params,
             betas=[FALLBACK_BETA],
             fallbacks=[{"model": config.fallback_model}],
         )
-    except (anthropic.APIError, ExtractionFailedError) as error:
+        # Inside the guard: an answer whose usage cannot be read is a failed
+        # warm-up, not a failed run.
+        accumulate_usage(usage, response, fallback_model=config.fallback_model)
+    except Exception as error:
+        if isinstance(error, anthropic.APIStatusError):
+            record_service_call(
+                _ANTHROPIC_SERVICE,
+                endpoint=_MESSAGES_ENDPOINT,
+                method="POST",
+                status=error.status_code,
+            )
+        elif client is not None:
+            # Sent, or tried to be, with no status to show: a timeout, a
+            # dropped connection, an answer that could not be read.
+            record_service_failure(
+                _ANTHROPIC_SERVICE, endpoint=_MESSAGES_ENDPOINT, method="POST"
+            )
         logger.warning(
             f"Cache warm-up failed ({type(error).__name__}: {error}); "
             "the papers will each write the prompt cache themselves"
@@ -919,7 +950,6 @@ async def prewarm_cache(config: PipelineConfig) -> TokenUsage:
         status=200,
         elapsed_ms=(time.monotonic() - start) * 1000.0,
     )
-    accumulate_usage(usage, response, fallback_model=config.fallback_model)
     return usage
 
 

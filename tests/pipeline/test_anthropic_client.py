@@ -2240,12 +2240,26 @@ class TestPrewarmCache:
 
     @staticmethod
     def _client_answering(mocker, *, response=None, error=None):
+        """A client whose `with_options` copy answers the warm-up.
+
+        The copy is a separate object, as the SDK's is, so a warm-up sent
+        on the base client instead would find no `create` that answers.
+        """
         create = AsyncMock(return_value=response, side_effect=error)
+        bounded = MagicMock()
+        bounded.beta.messages.create = create
         fake = MagicMock()
-        fake.beta.messages.create = create
+        fake.with_options.return_value = bounded
         fake.close = AsyncMock()
         mocker.patch("pipeline.anthropic_client.build_async_client", return_value=fake)
         return fake, create
+
+    @staticmethod
+    def _anthropic_row():
+        return next(
+            (r for r in current_recorder().records() if r.service == "anthropic"),
+            None,
+        )
 
     @staticmethod
     def _warmup_response():
@@ -2311,6 +2325,58 @@ class TestPrewarmCache:
             assert await prewarm_cache(PipelineConfig()) == TokenUsage()
 
         assert "warm" in caplog.text.lower()
+        fake.close.assert_awaited_once()
+
+    async def test_the_warmup_is_bounded_to_a_minute_with_no_retries(self, mocker):
+        # The client's own 600 s timeout and two SDK retries could hold the
+        # run for half an hour before any paper started.
+        fake, create = self._client_answering(
+            mocker, response=self._warmup_response()
+        )
+
+        await prewarm_cache(PipelineConfig())
+
+        fake.with_options.assert_called_once_with(timeout=60, max_retries=0)
+        create.assert_awaited_once()
+
+    async def test_a_failed_warmup_is_an_error_in_the_api_inventory(self, mocker):
+        reset_recorder()
+        request = httpx2.Request("POST", "https://api.anthropic.com/v1/messages")
+        error = anthropic.BadRequestError(
+            "max_tokens must be positive",
+            response=httpx2.Response(400, request=request),
+            body=None,
+        )
+        self._client_answering(mocker, error=error)
+
+        await prewarm_cache(PipelineConfig())
+
+        row = self._anthropic_row()
+        assert row is not None
+        assert (row.calls, row.errors) == (1, 1)
+
+    async def test_a_warmup_that_never_connected_is_an_error_too(self, mocker):
+        reset_recorder()
+        request = httpx2.Request("POST", "https://api.anthropic.com/v1/messages")
+        self._client_answering(
+            mocker, error=anthropic.APITimeoutError(request=request)
+        )
+
+        assert await prewarm_cache(PipelineConfig()) == TokenUsage()
+
+        row = self._anthropic_row()
+        assert row is not None
+        assert (row.calls, row.errors) == (1, 1)
+
+    async def test_an_unexpected_error_costs_the_saving_not_the_run(
+        self, mocker, caplog
+    ):
+        fake, _create = self._client_answering(mocker, error=KeyError("usage"))
+
+        with caplog.at_level(logging.WARNING):
+            assert await prewarm_cache(PipelineConfig()) == TokenUsage()
+
+        assert "Cache warm-up failed" in caplog.text
         fake.close.assert_awaited_once()
 
     async def test_a_missing_api_key_is_a_warning_not_a_failed_run(
