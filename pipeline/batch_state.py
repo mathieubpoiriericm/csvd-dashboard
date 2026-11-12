@@ -8,7 +8,7 @@ next run reads it to collect that batch instead of submitting a new one.
 
 It holds a *list* of batches, not one: a re-run can reuse an old batch and
 submit a fresh one for the remainder, and both have to survive a second crash.
-Three properties matter:
+Four properties matter:
 
 - **Atomic.** `save` writes a temporary sibling, fsyncs it and `os.replace`s
   it over the file, so a crash leaves the old list or the new one and never a
@@ -16,6 +16,11 @@ Three properties matter:
 - **Fingerprinted.** A batch was extracted under one model, prompt and effort.
   Collecting it into a run configured differently would mix methods inside one
   dataset, so a fingerprint mismatch discards the file, as `checkpoint` does.
+- **Pruned by age.** The API keeps a batch's results for 29 days, so `load`
+  drops a batch whose `submitted_at` is older than that and rewrites the file
+  without it: a record for a window that is never re-run would otherwise stay
+  for ever, since nothing looks it up to find it expired. A record with no
+  `submitted_at` (written before the field) is kept.
 - **Never fatal to read.** A missing, corrupt or wrong-shaped file is an empty
   list and is deleted, so a stale file is not resumed by some later run whose
   settings happen to match it again. A file that cannot be deleted is still an
@@ -39,6 +44,7 @@ submission.
 import json
 import logging
 import os
+import time
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -49,6 +55,12 @@ logger = logging.getLogger(__name__)
 _FINGERPRINT_KEY = "fingerprint"
 _PENDING_KEY = "pending"
 
+# The Message Batches API keeps a batch's results for 29 days after it was
+# created, and then answers for it as for an id it never knew. A record older
+# than that can only be found gone, and nothing looks up a record for a
+# window that is never re-run, so `load` drops it on age instead.
+RESULTS_RETENTION_SECONDS = 29 * 24 * 60 * 60
+
 
 @dataclass(frozen=True)
 class PendingBatch:
@@ -57,6 +69,10 @@ class PendingBatch:
     batch_id: str
     # PMID -> sha256 hex of the document text sent for that paper.
     document_sha256: dict[str, str]
+    # When the API created the batch, in seconds since the epoch. None for a
+    # record written before this field existed: its age is unknown, so it is
+    # kept, and the collector already drops a batch the API reports gone.
+    submitted_at: float | None = None
 
 
 def save(
@@ -68,24 +84,45 @@ def save(
     payload = {
         _FINGERPRINT_KEY: run_fingerprint,
         _PENDING_KEY: [
-            {"batch_id": p.batch_id, "document_sha256": p.document_sha256}
+            {
+                "batch_id": p.batch_id,
+                "document_sha256": p.document_sha256,
+                "submitted_at": p.submitted_at,
+            }
             for p in pending
         ],
     }
     replacement = target.with_name(target.name + ".tmp")
-    with replacement.open("w", encoding="utf-8") as handle:
-        json.dump(payload, handle)
-        handle.flush()
-        # The point of the file is to survive a process that stops existing.
-        os.fsync(handle.fileno())
-    os.replace(replacement, target)
+    try:
+        with replacement.open("w", encoding="utf-8") as handle:
+            json.dump(payload, handle)
+            handle.flush()
+            # The point of the file is to survive a process that stops
+            # existing.
+            os.fsync(handle.fileno())
+        os.replace(replacement, target)
+    except BaseException:
+        # A failed write must not leave its temporary sibling behind; the
+        # original error is the one the caller sees.
+        try:
+            replacement.unlink(missing_ok=True)
+        except OSError:
+            logger.warning("Could not delete %s", replacement, exc_info=True)
+        raise
 
 
-def load(path: str, run_fingerprint: dict[str, Any]) -> list[PendingBatch]:
+def load(
+    path: str, run_fingerprint: dict[str, Any], *, now: float | None = None
+) -> list[PendingBatch]:
     """The batches saved by a run configured like this one, oldest first.
 
     Returns an empty list, and deletes the file, when there is nothing usable:
     no file, an unreadable or wrong-shaped one, or a different fingerprint.
+
+    A batch created more than `RESULTS_RETENTION_SECONDS` before *now* (the
+    clock, injectable for tests) is left out, logged by id, and the file is
+    rewritten without it, or deleted when it was the last: its results are
+    gone from the API. A batch with no `submitted_at` is kept.
     """
     target = Path(path)
     if not target.exists():
@@ -109,7 +146,39 @@ def load(path: str, run_fingerprint: dict[str, Any]) -> list[PendingBatch]:
         )
         _discard(target)
         return []
-    return pending
+    return _prune_expired(target, run_fingerprint, pending, now)
+
+
+def _prune_expired(
+    target: Path,
+    run_fingerprint: dict[str, Any],
+    pending: list[PendingBatch],
+    now: float | None,
+) -> list[PendingBatch]:
+    """*pending* without the batches the API no longer holds, and the file too.
+
+    Best-effort: a file that cannot be rewritten still loads without them, and
+    the next load drops them again.
+    """
+    cutoff = (time.time() if now is None else now) - RESULTS_RETENTION_SECONDS
+    kept = [p for p in pending if p.submitted_at is None or p.submitted_at >= cutoff]
+    if len(kept) == len(pending):
+        return pending
+    for batch in pending:
+        if batch not in kept:
+            logger.info(
+                "Dropping recorded batch %s: it is older than the API keeps "
+                "results, so its papers will be submitted again.",
+                batch.batch_id,
+            )
+    try:
+        if kept:
+            save(str(target), run_fingerprint, kept)
+        else:
+            target.unlink(missing_ok=True)
+    except OSError:
+        logger.warning("Could not drop expired batches from %s", target, exc_info=True)
+    return kept
 
 
 def _discard(target: Path) -> None:
@@ -145,13 +214,24 @@ def _parse(raw: Any, run_fingerprint: dict[str, Any]) -> list[PendingBatch] | No
             return None
         batch_id = entry.get("batch_id")
         hashes = entry.get("document_sha256")
+        submitted_at = entry.get("submitted_at")
         if not isinstance(batch_id, str) or not isinstance(hashes, dict):
+            return None
+        if submitted_at is not None and (
+            isinstance(submitted_at, bool) or not isinstance(submitted_at, int | float)
+        ):
             return None
         if not all(
             isinstance(k, str) and isinstance(v, str) for k, v in hashes.items()
         ):
             return None
-        batches.append(PendingBatch(batch_id=batch_id, document_sha256=hashes))
+        batches.append(
+            PendingBatch(
+                batch_id=batch_id,
+                document_sha256=hashes,
+                submitted_at=None if submitted_at is None else float(submitted_at),
+            )
+        )
     return batches
 
 
@@ -176,6 +256,7 @@ def forget(path: str, run_fingerprint: dict[str, Any], pmids: Iterable[str]) -> 
                 for pmid, digest in batch.document_sha256.items()
                 if pmid not in done
             },
+            submitted_at=batch.submitted_at,
         )
         for batch in pending
     ]

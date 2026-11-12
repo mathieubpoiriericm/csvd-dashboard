@@ -1,5 +1,7 @@
 import hashlib
 import logging
+import time
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
@@ -751,8 +753,12 @@ class TestAPendingBatchIsResumed:
             return stream()
 
         client = MagicMock()
+        # The API stamps a batch with the time it created it; the test
+        # reads the same stamp back off the client.
+        created = datetime.now(UTC) - timedelta(hours=1)
+        client.created_ts = created.timestamp()
         client.messages.batches.create = AsyncMock(
-            return_value=MagicMock(id="msgbatch_new")
+            return_value=MagicMock(id="msgbatch_new", created_at=created)
         )
         client.messages.batches.retrieve = AsyncMock(side_effect=retrieve)
         client.messages.batches.results = AsyncMock(side_effect=results_for)
@@ -780,7 +786,66 @@ class TestAPendingBatchIsResumed:
             await submit_and_collect({"111": "text"}, self._CONFIG, state_path=path)
 
         assert self._loaded(path) == [
-            PendingBatch("msgbatch_new", {"111": self._sha("111", "text")})
+            PendingBatch(
+                "msgbatch_new",
+                {"111": self._sha("111", "text")},
+                client.created_ts,
+            )
+        ]
+
+    async def test_a_submitted_batch_is_recorded_with_the_time_the_api_made_it(
+        self, tmp_path, mocker, monkeypatch
+    ) -> None:
+        path = str(tmp_path / "pending.json")
+        client = self._client(mocker, monkeypatch, results={})
+        client.messages.batches.retrieve.side_effect = RuntimeError("crash")
+
+        with pytest.raises(RuntimeError, match="crash"):
+            await submit_and_collect({"111": "text"}, self._CONFIG, state_path=path)
+
+        assert [p.submitted_at for p in self._loaded(path)] == [client.created_ts]
+
+    async def test_a_batch_whose_object_has_no_created_at_is_stamped_locally(
+        self, tmp_path, mocker, monkeypatch
+    ) -> None:
+        path = str(tmp_path / "pending.json")
+        client = self._client(mocker, monkeypatch, results={})
+        client.messages.batches.create.return_value = SimpleNamespace(
+            id="msgbatch_new"
+        )
+        client.messages.batches.retrieve.side_effect = RuntimeError("crash")
+        before = time.time()
+
+        with pytest.raises(RuntimeError, match="crash"):
+            await submit_and_collect({"111": "text"}, self._CONFIG, state_path=path)
+
+        (stamp,) = [p.submitted_at for p in self._loaded(path)]
+        assert stamp is not None
+        assert before <= stamp <= time.time()
+
+    async def test_a_resumed_batch_keeps_the_time_it_was_submitted(
+        self, tmp_path, mocker, monkeypatch
+    ) -> None:
+        path = str(tmp_path / "pending.json")
+        stamp = time.time() - 2 * 24 * 60 * 60
+        old = PendingBatch(
+            "msgbatch_old", {"111": self._sha("111", "t1")}, submitted_at=stamp
+        )
+        self._record(path, old)
+        client = self._client(mocker, monkeypatch, results={})
+        client.messages.batches.retrieve.side_effect = [
+            MagicMock(id="msgbatch_old", processing_status="in_progress"),
+            RuntimeError("crash"),
+        ]
+
+        with pytest.raises(RuntimeError, match="crash"):
+            await submit_and_collect(
+                {"111": "t1", "333": "t3"}, self._CONFIG, state_path=path
+            )
+
+        assert [(p.batch_id, p.submitted_at) for p in self._loaded(path)] == [
+            ("msgbatch_old", stamp),
+            ("msgbatch_new", client.created_ts),
         ]
 
     async def test_a_pending_batch_is_retrieved_instead_of_resubmitted(
@@ -883,7 +948,9 @@ class TestAPendingBatchIsResumed:
         assert self._submitted(client) == ["333"]
         assert self._loaded(path) == [
             PendingBatch("msgbatch_old", {"111": self._sha("111", "t1")}),
-            PendingBatch("msgbatch_new", {"333": self._sha("333", "t3")}),
+            PendingBatch(
+                "msgbatch_new", {"333": self._sha("333", "t3")}, client.created_ts
+            ),
         ]
 
     async def test_a_paper_whose_text_changed_is_resubmitted(
@@ -905,7 +972,9 @@ class TestAPendingBatchIsResumed:
         # this function on the strength of a changed hash.
         assert self._loaded(path) == [
             PendingBatch("msgbatch_old", {"111": self._sha("111", "old text")}),
-            PendingBatch("msgbatch_new", {"111": self._sha("111", "new text")}),
+            PendingBatch(
+                "msgbatch_new", {"111": self._sha("111", "new text")}, client.created_ts
+            ),
         ]
 
     async def test_a_disjoint_window_keeps_the_old_record_intact(
@@ -926,7 +995,9 @@ class TestAPendingBatchIsResumed:
         assert self._submitted(client) == ["333"]
         assert self._loaded(path) == [
             wide,
-            PendingBatch("msgbatch_new", {"333": self._sha("333", "t3")}),
+            PendingBatch(
+                "msgbatch_new", {"333": self._sha("333", "t3")}, client.created_ts
+            ),
         ]
 
     async def test_a_subset_window_writes_the_reused_record_back_whole(
@@ -953,7 +1024,9 @@ class TestAPendingBatchIsResumed:
         # 222 was not this run's to collect, so it is still on record.
         assert self._loaded(path) == [
             wide,
-            PendingBatch("msgbatch_new", {"333": self._sha("333", "t3")}),
+            PendingBatch(
+                "msgbatch_new", {"333": self._sha("333", "t3")}, client.created_ts
+            ),
         ]
 
     async def test_a_recorded_batch_still_running_is_polled_and_collected(

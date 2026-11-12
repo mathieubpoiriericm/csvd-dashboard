@@ -9,6 +9,7 @@ import asyncio
 import hashlib
 import logging
 import time
+from datetime import datetime
 from typing import Any, cast
 
 import anthropic
@@ -258,6 +259,18 @@ def _claim_pending(
     return out
 
 
+def _created_at(batch: Any) -> float:
+    """When the API created *batch*, in seconds since the epoch.
+
+    The batch object's own `created_at` when it carries one, since the
+    retention of its results counts from it; the local clock otherwise.
+    """
+    created = getattr(batch, "created_at", None)
+    if isinstance(created, datetime):
+        return created.timestamp()
+    return time.time()
+
+
 async def _poll_until_ended(client: Any, batch_id: str, *, recorded: bool) -> Any:
     """Poll a batch until it ends, and return it as it ended.
 
@@ -446,6 +459,7 @@ async def submit_and_collect(
                         r["custom_id"]: _document_sha256(documents[r["custom_id"]])
                         for r in remainder
                     },
+                    submitted_at=_created_at(batch),
                 )
                 kept = [p for p in recorded if p.batch_id not in gone]
                 try:

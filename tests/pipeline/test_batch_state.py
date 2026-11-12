@@ -1,4 +1,5 @@
 import logging
+import time
 from pathlib import Path
 
 import pytest
@@ -136,3 +137,106 @@ def test_forget_never_raises_when_it_cannot_write(
     else:
         monkeypatch.setattr("pipeline.batch_state.os.replace", refuse)
         forget(path, FP, ["111"])
+
+
+_DAY = 24 * 60 * 60
+_NOW = 1_800_000_000.0
+
+
+def _aged(batch_id: str, days: float, pmid: str = "111") -> PendingBatch:
+    return PendingBatch(batch_id, {pmid: "ab"}, submitted_at=_NOW - days * _DAY)
+
+
+def test_submitted_at_round_trips_through_save_and_load(tmp_path) -> None:
+    path = str(tmp_path / "b.json")
+    batch = PendingBatch("msgbatch_1", {"111": "ab"}, submitted_at=_NOW - 5.5)
+    save(path, FP, [batch])
+    assert load(path, FP, now=_NOW) == [batch]
+
+
+def test_a_file_written_before_submitted_at_still_loads(tmp_path) -> None:
+    path = tmp_path / "b.json"
+    path.write_text(
+        '{"fingerprint": {"model": "m", "effort": "high"}, '
+        '"pending": [{"batch_id": "msgbatch_1", "document_sha256": {"111": "ab"}}]}'
+    )
+    assert load(str(path), FP, now=_NOW) == [PendingBatch("msgbatch_1", {"111": "ab"})]
+
+
+def test_a_batch_older_than_the_api_keeps_results_is_dropped_and_gone_from_the_file(
+    tmp_path, caplog
+) -> None:
+    path = str(tmp_path / "b.json")
+    stale, fresh = _aged("msgbatch_stale", 30), _aged("msgbatch_fresh", 1, "222")
+    save(path, FP, [stale, fresh])
+
+    with caplog.at_level(logging.INFO):
+        assert load(path, FP, now=_NOW) == [fresh]
+
+    assert caplog.text.count("msgbatch_stale") == 1
+    assert "msgbatch_stale" not in Path(path).read_text()
+    assert load(path, FP, now=_NOW) == [fresh]
+
+
+def test_a_batch_of_28_days_is_still_returned(tmp_path) -> None:
+    path = str(tmp_path / "b.json")
+    batch = _aged("msgbatch_1", 28)
+    save(path, FP, [batch])
+    assert load(path, FP, now=_NOW) == [batch]
+
+
+def test_a_batch_with_no_submitted_at_is_kept_however_old_the_clock_says(
+    tmp_path,
+) -> None:
+    path = str(tmp_path / "b.json")
+    batch = PendingBatch("msgbatch_1", {"111": "ab"})
+    save(path, FP, [batch])
+    assert load(path, FP, now=_NOW + 400 * _DAY) == [batch]
+
+
+def test_a_file_whose_every_batch_is_stale_is_deleted(tmp_path) -> None:
+    path = tmp_path / "b.json"
+    save(str(path), FP, [_aged("msgbatch_1", 40), _aged("msgbatch_2", 31, "222")])
+    assert load(str(path), FP, now=_NOW) == []
+    assert not path.exists()
+
+
+def test_a_file_that_cannot_be_rewritten_still_loads_without_the_stale_batch(
+    tmp_path, monkeypatch
+) -> None:
+    path = str(tmp_path / "b.json")
+    fresh = _aged("msgbatch_fresh", 1, "222")
+    save(path, FP, [_aged("msgbatch_stale", 30), fresh])
+
+    def refuse(*args, **kwargs):
+        raise PermissionError("read-only")
+
+    monkeypatch.setattr("pipeline.batch_state.os.replace", refuse)
+    assert load(path, FP, now=_NOW) == [fresh]
+
+
+def test_forget_keeps_submitted_at_on_the_records_it_writes_back(tmp_path) -> None:
+    path = str(tmp_path / "b.json")
+    stamp = time.time() - 3 * _DAY
+    save(
+        path,
+        FP,
+        [PendingBatch("msgbatch_1", {"111": "ab", "222": "cd"}, submitted_at=stamp)],
+    )
+    forget(path, FP, ["111"])
+    assert load(path, FP) == [PendingBatch("msgbatch_1", {"222": "cd"}, stamp)]
+
+
+def test_a_save_that_fails_leaves_no_temporary_file_and_raises(
+    tmp_path, monkeypatch
+) -> None:
+    path = tmp_path / "b.json"
+
+    def refuse(*args, **kwargs):
+        raise PermissionError("read-only")
+
+    monkeypatch.setattr("pipeline.batch_state.os.replace", refuse)
+    with pytest.raises(PermissionError):
+        save(str(path), FP, [PendingBatch("msgbatch_1", {"111": "ab"})])
+
+    assert list(tmp_path.iterdir()) == []

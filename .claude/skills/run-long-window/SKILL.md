@@ -173,6 +173,10 @@ Only papers whose text is unchanged are reused (the file keeps a hash of each
 document block); the rest go out as a new batch, and a changed fingerprint
 discards the file. Anthropic keeps batch results for 29 days; after that, or if
 the API no longer knows the batch, the papers are resubmitted with a warning.
+Each record carries the time its batch was created, and reading the file drops
+(and logs at info level) any record older than 29 days, so a window that is
+never re-run does not leave its record behind for ever; a record written before
+that field is kept.
 Which report holds a resumed batch's tokens depends on where the first run
 stopped. After a crash in the poll the batch was never collected, so its tokens
 are counted only by the run that collects it. After a crash in validation or in
