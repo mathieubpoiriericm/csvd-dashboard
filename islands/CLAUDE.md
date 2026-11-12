@@ -103,10 +103,30 @@ switching on shows the widget directly beneath it, marked "Technical preview",
 and writes the cookie `pipeline_preview=1` (one year, `Path=/`, `SameSite=Lax`),
 which `routes/index.tsx` reads (`previewRequested`,
 `lib/pipeline_preview_request.ts`, kept apart so no `@std` import reaches the
-island's bundle) so the next visit renders it already open. The widget is a
-component inside that island, so no run report crosses island props. With no
-report the notice is exactly the notice, and the widget's own e2e specs skip
-while `GOLD_ONLY` is on.
+island's bundle) so the next visit renders it already open. With no report the
+notice is the plain line, drawn by the route with no island at all, and the
+widget's own e2e specs skip while `GOLD_ONLY` is on.
+
+**The switch holds no data, and must not import any.** It is on the page for
+every gold-only visitor, and the run report is a protected chunk that is never
+cached (219 KB, 42 KB compressed, for the 365-day run), so one static import in
+`PipelinePreview.tsx` puts the report and the widget on every visit. The route
+hands it two serialisable props, `initialOn` and the run's `daysBack`, and the
+widget reaches the page one of two ways: pressed on, the switch fetches
+`PipelineRun.tsx` with a dynamic import and draws it; on already, the route
+draws `PipelinePreviewWidget`, an island of its own directly after the notice,
+whose chunk is fetched only by a page that shows it. The two islands hydrate
+apart, so a press is announced (`announcePreview` / `observePreview` in
+`lib/pipeline_preview.ts`) and the widget island follows it; neither imports the
+other, and no run report crosses island props in either path.
+`ON_DEMAND_ISLANDS` in `server/protected_data_build.ts` fails the build when the
+switch's chunk reaches a protected one through static imports, and the About
+spec watches the network: nothing of the report is requested until the first
+press. A fetch that fails (offline, a deploy replacing the chunk under an open
+page, an expired session) puts the switch and its cookie back off and says so in
+the notice's second line, which is a live region for that reason. The sentence
+asks for a reload, not another press: the same press imports the same dead
+chunk, and a browser may keep a failed module for the life of the document.
 
 It has two readers. A visiting researcher wants to know whether the data is
 fresh and can be trusted; the maintainer wants to know how the run went. So the

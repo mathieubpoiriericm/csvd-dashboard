@@ -65,9 +65,11 @@ interface PipelineRunViewProps {
    */
   run?: PipelineRun | null;
   /**
-   * Whether the card is shown as the About page's technical preview
-   * (`islands/PipelinePreview.tsx`): a pill after the heading says so, and
-   * nothing else changes.
+   * Whether the card is shown as the About page's technical preview, by
+   * the switch that fetched it (`islands/PipelinePreview.tsx`) or by the
+   * island the route draws for a preview left on
+   * (`islands/PipelinePreviewWidget.tsx`): a pill after the heading says
+   * so, and nothing else changes.
    */
   preview?: boolean;
 }

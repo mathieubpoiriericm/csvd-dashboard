@@ -8,6 +8,11 @@
  * it for a year. Reading the cookie off a request is server-only and lives in
  * `lib/pipeline_preview_request.ts`, so this module imports nothing and the
  * island's client bundle carries no cookie parser.
+ *
+ * The switch and the widget can be two islands on one page (a visitor whose
+ * cookie is set gets the widget drawn by the server, as an island of its
+ * own), so a press is also announced as an event the widget observes; no
+ * island depends on the other.
  */
 
 /** The cookie that remembers the preview switch. */
@@ -40,4 +45,34 @@ export function previewCookie(on: boolean): string {
   const value = on ? "1" : "";
   const maxAge = on ? PREVIEW_MAX_AGE : 0;
   return `${PREVIEW_COOKIE}=${value}; Path=/; Max-Age=${maxAge}; SameSite=Lax`;
+}
+
+/**
+ * What the switch's line says when the widget could not be fetched. It asks
+ * for a reload, not another press: a deploy that replaced the chunk under an
+ * open page, or a session that expired, fails the same way on every press,
+ * and a browser may keep a failed module for the life of the document.
+ */
+export const PREVIEW_LOAD_FAILED =
+  "The preview could not be loaded. Reload the page to try again.";
+
+/** The event a press of the switch is announced as. */
+const PREVIEW_EVENT = "pipeline-preview";
+
+/** Tell the page the preview was switched on or off. */
+export function announcePreview(
+  on: boolean,
+  target: EventTarget = globalThis,
+): void {
+  target.dispatchEvent(new CustomEvent(PREVIEW_EVENT, { detail: on }));
+}
+
+/** Hear each press of the switch; the function returned stops listening. */
+export function observePreview(
+  listener: (on: boolean) => void,
+  target: EventTarget = globalThis,
+): () => void {
+  const heard = (event: Event) => listener((event as CustomEvent).detail);
+  target.addEventListener(PREVIEW_EVENT, heard);
+  return () => target.removeEventListener(PREVIEW_EVENT, heard);
 }

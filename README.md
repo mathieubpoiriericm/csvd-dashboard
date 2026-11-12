@@ -367,6 +367,7 @@ page changes, and in a fork after its first live run.
 │   ├── Phenogram.tsx           the karyogram
 │   ├── PipelineRun.tsx         the About page's run report
 │   ├── PipelinePreview.tsx     the gold-only notice and its preview switch
+│   ├── PipelinePreviewWidget.tsx  the run report, drawn for a preview left on
 │   ├── AdaptWizard.tsx         the adapt wizard: interview, lookups, download
 │   └── ThemeToggle.tsx         the theme switch
 ├── components/                 presentational pieces shared by the islands

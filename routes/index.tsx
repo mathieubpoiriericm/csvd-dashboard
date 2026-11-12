@@ -15,10 +15,15 @@ import { pipelineStatus } from "../lib/data/pipeline.ts";
 import { pipelineRun } from "../lib/data/pipeline_run.ts";
 import PipelineRunView from "../islands/PipelineRun.tsx";
 import PipelinePreview from "../islands/PipelinePreview.tsx";
+import PipelinePreviewWidget from "../islands/PipelinePreviewWidget.tsx";
 import { previewRequested } from "../lib/pipeline_preview_request.ts";
 import { PipelineSyncs } from "../components/PipelineSyncs.tsx";
 import { pipelineSyncs } from "../lib/data/pipeline_syncs.ts";
-import { GOLD_DATA_DATE, GOLD_ONLY } from "../lib/gold_only.ts";
+import {
+  GOLD_DATA_DATE,
+  GOLD_ONLY,
+  GOLD_ONLY_NOTICE,
+} from "../lib/gold_only.ts";
 import {
   ABOUT,
   ABOUT_LEDE,
@@ -183,10 +188,11 @@ const KPIS: ReadonlyArray<{ icon: IconName; label: string; value: number }> = [
 interface AboutContentProps {
   status?: PipelineStatus | null;
   /**
-   * The run report the run branch renders. Under gold-only the
-   * `PipelinePreview` island reads the report from `lib/data/pipeline_run.ts`
-   * itself, since no report crosses island props, so `run` governs only the
-   * `goldOnly={false}` branch.
+   * The run report. The run branch renders it. Under gold-only it decides
+   * whether there is a run to preview and gives the notice its window, and
+   * that is all: no report crosses island props, so the widget reads the
+   * committed one from `lib/data/pipeline_run.ts` itself, which is the same
+   * report whenever the route is what renders this.
    */
   run?: PipelineRun | null;
   syncs?: SyncRun[];
@@ -285,14 +291,30 @@ export function AboutContent(
             This is a preview of a dashboard that is still a work in progress.
           </p>
 
-          {goldOnly && (
+          {
             /* No run fed what the page shows, so neither account of one, nor
               the refreshes, belongs on the page: the notice says so, under
-              the preview warning, and offers the run widget as a technical
-              preview beneath it. The island is given no run: it reads the
-              committed one itself, because a report does not survive
-              Fresh's serialisation of island props. */
-            <PipelinePreview initialOn={previewOn} />
+              the preview warning. With a run recorded it also offers the
+              run widget as a technical preview beneath it. The switch is an
+              island that holds no data, and the widget is drawn here, as an
+              island of its own, only for a visitor whose cookie has the
+              preview on: the report is an uncacheable chunk, and either
+              island importing it for every visitor would put it on every
+              visit to this page. */
+          }
+          {goldOnly && run === null && (
+            <p class="notice notice-neutral about-gold-notice">
+              {GOLD_ONLY_NOTICE}
+            </p>
+          )}
+          {goldOnly && run !== null && (
+            <>
+              <PipelinePreview
+                initialOn={previewOn}
+                daysBack={run.config.daysBack}
+              />
+              {previewOn && <PipelinePreviewWidget />}
+            </>
           )}
 
           <div class="card about-hero">

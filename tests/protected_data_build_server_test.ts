@@ -17,6 +17,8 @@ const PROTECTED_2 = "assets/protected-data-references-Cd_34.js";
 const MANIFEST = "assets/manifest-Public2.js";
 const WIZARD = "assets/fresh-island__AdaptWizard-Public3.js";
 const TOGGLE = "assets/fresh-island__ThemeToggle-Public4.js";
+const PREVIEW = "assets/fresh-island__PipelinePreview-Public6.js";
+const WIDGET = "assets/fresh-island__PipelineRun-Public7.js";
 
 /**
  * A chunk whose listed modules each render code; `typeOnly` modules render
@@ -77,6 +79,16 @@ function bundle(
     }),
     chunk(TOGGLE, "toggle", ["/repo/islands/ThemeToggle.tsx"], {
       name: "fresh-island__ThemeToggle",
+    }),
+    // The preview switch reaches the run report only through the widget it
+    // loads when switched on.
+    chunk(WIDGET, "widget", ["/repo/islands/PipelineRun.tsx"], {
+      name: "fresh-island__PipelineRun",
+      imports: [PROTECTED],
+    }),
+    chunk(PREVIEW, "preview", ["/repo/islands/PipelinePreview.tsx"], {
+      name: "fresh-island__PipelinePreview",
+      dynamicImports: [WIDGET],
     }),
   ];
   return Object.fromEntries(chunks.map((output) => [output.fileName, output]));
@@ -200,6 +212,46 @@ Deno.test("build guard counts a data-free island's dynamic imports", () => {
       ),
     Error,
     `Data-free island ThemeToggle loads a protected data chunk: ${TOGGLE} -> ${PROTECTED}`,
+  );
+});
+
+Deno.test("build guard lets an on-demand island reach a dataset through a dynamic import", () => {
+  // bundle() already has the preview switch importing the widget
+  // dynamically, and the widget importing the protected chunk.
+  assertProtectedDataBundle(bundle(), ROOT);
+});
+
+Deno.test("build guard rejects an on-demand island that imports the protected chunk statically", () => {
+  assertThrows(
+    () =>
+      assertProtectedDataBundle(
+        withImports(bundle(), PREVIEW, { imports: [PROTECTED] }),
+        ROOT,
+      ),
+    Error,
+    `On-demand island PipelinePreview loads a protected data chunk with the page: ${PREVIEW} -> ${PROTECTED}`,
+  );
+});
+
+Deno.test("build guard follows an on-demand island's static imports to the protected chunk", () => {
+  assertThrows(
+    () =>
+      assertProtectedDataBundle(
+        withImports(bundle(), PREVIEW, { imports: [WIDGET] }),
+        ROOT,
+      ),
+    Error,
+    `On-demand island PipelinePreview loads a protected data chunk with the page: ${PREVIEW} -> ${WIDGET} -> ${PROTECTED}`,
+  );
+});
+
+Deno.test("build guard rejects a bundle without an on-demand island's chunk", () => {
+  const output = bundle();
+  delete output[PREVIEW];
+  assertThrows(
+    () => assertProtectedDataBundle(output, ROOT),
+    Error,
+    "No client chunk for the on-demand island PipelinePreview",
   );
 });
 
