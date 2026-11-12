@@ -95,10 +95,16 @@ the `leaflet` module, so it type-checks without one.
 the card is the fallback, because the report is `null` until a run records one
 and a database that has not taken migration 009 keeps it that way. Exactly one
 of the two renders — two accounts of the same run would invite them to disagree,
-which is what this replaces. **Neither renders while `GOLD_ONLY` is on**
-(`lib/gold_only.ts`): the About page shows the notice instead, the widget's e2e
-specs skip, and looking at the widget in a browser means flipping the switch
-locally and not committing it.
+which is what this replaces. **Neither renders by default while `GOLD_ONLY` is
+on** (`lib/gold_only.ts`): the About page shows the notice instead, rendered by
+the `PipelinePreview` island. With a report present the notice adds an
+invitation and a switch (`role="switch"`, disabled until the island is live);
+switching on shows the widget directly beneath it, marked "Technical preview",
+and writes the cookie `pipeline_preview=1` (one year, `Path=/`, `SameSite=Lax`),
+which `routes/index.tsx` reads (`previewRequested`, `lib/pipeline_preview.ts`)
+so the next visit renders it already open. The widget is a component inside that
+island, so no run report crosses island props. With no report the notice is
+exactly the notice, and the widget's own e2e specs skip while `GOLD_ONLY` is on.
 
 It has two readers. A visiting researcher wants to know whether the data is
 fresh and can be trusted; the maintainer wants to know how the run went. So the

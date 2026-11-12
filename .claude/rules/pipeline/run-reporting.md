@@ -289,9 +289,13 @@ The offline `--pmids` and `--local-pdfs` modes write no `pipeline_runs` row, and
 that is correct rather than an oversight: they publish no data, so recording one
 would point the About page's "up-to-date as of" date at a run that changed
 nothing. `RUN_MODES` in `pipeline/steps.py` is the vocabulary the column
-accepts, declared as a constant because the encoding contract test reads it — it
+accepts (`preview` is the fourth: a `--preview` run against the preview
+database, labelled "Technical preview" in `lib/pipeline_encoding.json` and
+"Preview" in the notification digest), declared as a constant because the encoding contract test reads it — it
 used to parse `run_mode: One of '…'` out of a docstring, and rewording that
-sentence silently broke the check.
+sentence silently broke the check. A preview run's report alone is exported, by
+`run_export(preview_run=True)`, and a restore skips it, so neither the committed
+data nor a restored production database takes it for a production run.
 
 ## Quote provenance reaches the report
 

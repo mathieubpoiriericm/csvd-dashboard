@@ -1,6 +1,6 @@
 ---
 name: regenerate-data
-description: 'Use when regenerating data/*.json (deno task data, deno task geocode, or --export at the end of a pipeline run), backing up or restoring the production database (from a dump, or from the committed data/*.json when no dump survives), working out which PostgreSQL is serving (the native Homebrew postgresql@18 that holds the data, versus the throwaway dhi.io/postgres:18-alpine3.23 container tests use), a server that brew services reports as started but that answers `FATAL: role "csvd_user" does not exist` (after a Homebrew reinstall, say), rebuilding a database from scratch, or drawing the print figures and cytobands (deno task figure, deno task cytobands).'
+description: 'Use when regenerating data/*.json (deno task data, deno task geocode, or --export at the end of a pipeline run), the preview database and `deno task data:preview`, backing up or restoring the production database (from a dump, or from the committed data/*.json when no dump survives), working out which PostgreSQL is serving (the native Homebrew postgresql@18 that holds the data, versus the throwaway dhi.io/postgres:18-alpine3.23 container tests use), a server that brew services reports as started but that answers `FATAL: role "csvd_user" does not exist` (after a Homebrew reinstall, say), rebuilding a database from scratch, or drawing the print figures and cytobands (deno task figure, deno task cytobands).'
 ---
 
 # Regenerating the data
@@ -29,7 +29,10 @@ group the manifest's `populations` do not list or a registry ID no gold trial
 has). `deno task data` and `deno task geocode` publish them as they publish
 anything else, and `--sync-external-data` and `--sync-annotations` still refresh
 the lookups for their keys, but `pipeline.main` refuses `--pubmed` and
-`--clinical-trials`, which would add rows the curators did not write. The
+`--clinical-trials`, which would add rows the curators did not write, except
+`--pubmed --preview` against the preview database (below). An ordinary export
+while it is true leaves the committed `data/pipeline_run.json` alone and logs
+"GOLD_ONLY is on; keeping the committed data/pipeline_run.json". The
 way back, the pre-gold dump included, is the undo checklist in that file's doc
 comment.
 
@@ -66,6 +69,33 @@ best-effort: a source that cannot be reached is logged as an error and the
 export still runs, because the database has moved and leaving the files behind
 it is worse. A run that _raised_ leaves no report to read those keys out of, so
 whatever it merged before it died waits for the next `--sync-external-data`.
+
+## The preview database
+
+A preview run (`run-long-window` skill) writes to `<DB_NAME>_preview`, never to
+production. The pipeline does not create it, and its role has neither `CREATEDB`
+nor superuser on the Ubuntu server, so an admin creates it empty once, owned by
+that role: `createdb -O <DB_USER> <DB_NAME>_preview` (on the server,
+`sudo -u postgres createdb -O <DB_USER> <DB_NAME>_preview`). Fill it from
+production, and the same way to recreate it for a re-run with `--clean`:
+
+```bash
+pg_dump -Fc <DB_NAME> > prod.dump
+pg_restore --no-owner -d <DB_NAME>_preview prod.dump
+pg_restore --clean --if-exists --no-owner -d <DB_NAME>_preview prod.dump  # re-run
+```
+
+Confirm the copy is the gold state: its gene count matches the committed
+`data/table1.json` and `pubmed_refs` is empty.
+
+`--preview --export` at the end of the run, and `deno task data:preview` for a
+re-export without a new run, write `data/pipeline_run.json` from that database
+and nothing else, and skip the lookup-cache refresh. The export refuses when the
+newest run there is not a preview run, or when gold-only is off. The restore
+below leaves a preview run out: `ledger_from_logs` skips its report in
+`logs/json/` and `logs/events.db`, and no `pipeline_runs` row is rebuilt from a
+`data/pipeline_run.json` whose `runMode` is `preview`, so a restored production
+database never treats the preview's papers as processed.
 
 ## Two databases, and they are not interchangeable
 

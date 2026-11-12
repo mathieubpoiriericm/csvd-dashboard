@@ -1,6 +1,6 @@
 ---
 name: run-long-window
-description: "Use when running the pipeline over a long --days-back window: checkpoint and resume semantics, the --batch state file, backfill_pubmed, and cost estimation."
+description: "Use when running the pipeline over a long --days-back window: checkpoint and resume semantics, the --batch state file, backfill_pubmed, cost estimation, and the preview run against the preview database while gold-only is on."
 ---
 
 # Running a long window
@@ -14,6 +14,30 @@ every `--days-back` window, `--batch` included -- and `scripts.backfill_pubmed`
 refuses too, before any network or database work, while `GOLD_ONLY` is true in
 `lib/gold_only.ts`, because the dashboard then publishes only the
 hand-curated data. The undo checklist in that file's doc comment comes first.
+
+**The exception is a preview run**: `--pubmed --preview` (a bare `--preview`
+selects `--pubmed`; `--days-back` and `--test-mode` work with it). It rewrites
+`DB_NAME` to `<DB_NAME>_preview`, derived and never passed, and checks that
+database exists before any network work. It is refused with any other mode
+(`--clinical-trials`, the syncs, `--pmids`, `--local-pdfs`) and when `GOLD_ONLY`
+is false; `scripts.backfill_pubmed` stays refused. The run is recorded as run
+mode `preview`. This is not the `--dry-run` / `--test-mode` "preview flags".
+Prepare the database as the `regenerate-data` skill says, make sure
+`logs/pipeline_checkpoint.jsonl` is absent (a leftover checkpoint with the same
+fingerprint restores old extractions into a run meant to be fresh), then:
+
+```bash
+uv run python -m pipeline.main --pubmed --days-back 365 --preview --test-mode  # live paper count
+uv run python -m pipeline.main --pubmed --days-back 365 --preview --export
+```
+
+A run cut short by an exhausted credit balance, or resumed from the checkpoint
+after a crash, is not a clean preview: a retry records a second, smaller run and
+the widget shows the newest, and a resumed run's duration times only the tail.
+Recreate the preview database and run again, or accept it knowingly. Afterwards
+`git status` shows `data/pipeline_run.json` and nothing else under `data/`; dump
+the preview database (`pg_dump -Fc`) and keep it, as it holds the merged genes a
+later review reads.
 
 `--days-back 365` is one run, and `_merge_processed_batch` is step 5 of 6: genes
 reach the database and `record_processed_pmids_batch` writes the PMIDs only once

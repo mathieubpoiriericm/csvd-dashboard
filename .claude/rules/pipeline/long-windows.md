@@ -29,6 +29,10 @@ default: cumulative chunks committed as each finishes, at the cost of narrowing
 and not chunking is the answer to a crash. Its module docstring and the
 `run-long-window` skill carry the command and the trade.
 
+**`--preview` is not a preview flag.** The repository calls `--dry-run` and
+`--test-mode` "the preview flags"; `--preview` is a preview _run_ against the
+preview database (`run-long-window` skill).
+
 **Both preview flags deduplicate.** They used to skip it, which made the preview
 wrong in both directions: `--test-mode` reported every paper in the window as
 new, and `--dry-run` -- documented as "skip database writes" -- re-extracted
