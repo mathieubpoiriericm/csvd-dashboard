@@ -146,7 +146,9 @@ the report as stored. An older report's holds stay one record per gene with no
 paper named, because which papers proposed a gene held from two is not in the
 document. `test_the_committed_run_report_is_what_the_export_writes` holds
 `data/pipeline_run.json` to that pass: a committed file it would change is one
-the next export rewrites.
+the next export rewrites. While `GOLD_ONLY` is on that is only
+`deno task data:preview`: an ordinary `deno task data` leaves the committed
+report alone.
 
 **The search window is a field, `config.daysBack`.** It was in
 `PipelineRunData` all along and dropped by the model, so the run card's Search
@@ -291,11 +293,12 @@ would point the About page's "up-to-date as of" date at a run that changed
 nothing. `RUN_MODES` in `pipeline/steps.py` is the vocabulary the column
 accepts (`preview` is the fourth: a `--preview` run against the preview
 database, labelled "Technical preview" in `lib/pipeline_encoding.json` and
-"Preview" in the notification digest), declared as a constant because the encoding contract test reads it — it
-used to parse `run_mode: One of '…'` out of a docstring, and rewording that
-sentence silently broke the check. A preview run's report alone is exported, by
-`run_export(preview_run=True)`, and a restore skips it, so neither the committed
-data nor a restored production database takes it for a production run.
+"Preview" in the notification digest), declared as a constant because the
+encoding contract test reads it — it used to parse `run_mode: One of '…'` out of
+a docstring, and rewording that sentence silently broke the check. A preview
+run's report alone is exported, by `run_export(preview_run=True)`, and a restore
+skips it, so neither the committed data nor a restored production database takes
+it for a production run.
 
 ## Quote provenance reaches the report
 

@@ -39,10 +39,11 @@ What comes back, and from where:
 - pubmed_refs, the processed-PMID ledger, from the run reports under the
   gitignored logs/ rather than from data/: logs/json/pipeline_report_*.json
   and the pipeline_completed events in logs/events.db, a preview run's
-  reports left out as well, so a real run still takes its papers. A paper processed by
-  a run older than every surviving report is missing, and the next window
-  that covers it re-extracts it -- unless a later run's skipped count says
-  how many there were and its query names them (the regenerate-data skill).
+  reports left out as well, so a real run still takes its papers. A paper
+  processed by a run older than every surviving report is missing, and the
+  next window that covers it re-extracts it -- unless a later run's skipped
+  count says how many there were and its query names them (the
+  regenerate-data skill).
 
 What does not: ids and timestamps (rows are renumbered in file order, which
 is the order the export reads them in), gene_annotations (empty until
@@ -290,8 +291,8 @@ def ledger_from_logs(logs_dir: Path) -> list[LedgerRow]:
     `database` block; an offline --pmids / --local-pdfs run's has none --
     and a dry run or a test-mode preview wrote nothing. A preview run
     merged into a database of its own, so production's ledger never held
-    its papers. A failed paper was
-    never recorded, so the next run retried it.
+    its papers. A failed paper was never recorded, so the next run retried
+    it.
     `record_processed_pmids_batch` upserts, so runs are replayed oldest
     first and the last one to process a paper wins. The same run recorded
     both as a report file and as an event is counted once.
