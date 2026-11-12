@@ -30,8 +30,13 @@ and go between recordings with nothing changed, so the clean figure is 81% to
 never to turn a red run green; three floors came down with the move to Opus 5.5,
 to what that re-record measured, and the module records the genes they lost.
 Every one of those was a gene Opus 5 reported below the update floor, bar one:
-scored after the floor, Opus 5 and Opus 5.5 recover 38/46 and 39/46. What
-neither proves:
+scored after the floor, Opus 5 and Opus 5.5 recover 38/46 and 39/46. An effort
+arm is measured with `--golden-effort=<level>`, which records into
+`cassettes/test_extraction_golden-<level>/` beside the baseline, skips the
+floors and prints one summary line scored by the same code (the module
+docstring has the commands); replayed over a copy of the baseline as `high` it
+reproduced pooled 40/46, clean 22/26, 133/133 verbatim and $2.58. What neither
+proves:
 
 - **Precision, anywhere.** The gold standard is a curated table, not a per-paper
   answer key, so a gene absent from it is unreviewed rather than wrong (the

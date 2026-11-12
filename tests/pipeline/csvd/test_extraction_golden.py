@@ -56,6 +56,25 @@ passed before trusting it, and delete the directory again if it did not.
 Then re-measure `_RECALL_BASELINE` and the figures quoted from it in
 .claude/rules/pipeline/not-proven.md and fallback.md and in disease/README.md.
 
+An effort arm is recorded beside the baseline, never over it, in
+tests/pipeline/csvd/cassettes/test_extraction_golden-<level>/ (gitignored
+like the baseline), and scored there:
+
+    set -a; . ./.env; set +a
+    uv run pytest tests/pipeline/csvd/test_extraction_golden.py \
+        --golden-effort=medium --record-mode=once -q
+    uv run pytest tests/pipeline/csvd/test_extraction_golden.py \
+        --golden-effort=medium -q
+
+Under the option the recall floors are not asserted. The run ends with one
+line -- `golden arm medium: pooled …, clean …, genes …, verbatim …, output
+tokens …, cost $…` -- scored by the code that scores the baseline, with the
+eight calls' usage priced by `estimate_cost`; a missing cassette fails its
+test and the line says the arm is incomplete instead of printing figures.
+The same rule about recorded failures applies: check the recording run
+passed. The request checks compare an arm's cassettes with the arm's
+config, so a directory recorded at another effort fails them.
+
 The `live` pytest marker (see pyproject.toml) is reserved for a future test
 that calls the real API directly, outside VCR; nothing here uses it.
 """
@@ -63,12 +82,14 @@ that calls the real API directly, outside VCR; nothing here uses it.
 import csv
 import os
 import re
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Final
 
 import pytest
 
 from pipeline.anthropic_client import _build_message_params
+from pipeline.citations import locate_quote
 from pipeline.config import PipelineConfig
 from pipeline.data_merger import _CANONICAL_GENE_SYMBOLS, canonical_gene_symbol
 from pipeline.llm_extraction import extract_from_paper
@@ -92,6 +113,40 @@ CASSETTE_DIR = _HERE / "cassettes" / "test_extraction_golden"
 # absent, so a fresh clone and CI skip rather than fail.
 requires_fixtures = pytest.mark.paper_fixtures
 requires_recording = pytest.mark.golden_cassettes
+
+
+@pytest.fixture(scope="module")
+def vcr_cassette_dir(golden_arm_cassette_dir: Path) -> str:
+    """pytest-recording's cassette directory, moved aside for an effort arm.
+
+    Unset, `golden_arm_cassette_dir` is `CASSETTE_DIR`, the plugin's own
+    default for this module, so the baseline replays from where it always
+    did; under `--golden-effort=<level>` it is the arm's sibling directory.
+    """
+    return str(golden_arm_cassette_dir)
+
+
+@pytest.fixture
+def golden_config(golden_arm_effort: str | None) -> PipelineConfig:
+    """The config every golden extraction is built with: the arm's effort,
+    or the default config untouched when no arm is selected."""
+    if golden_arm_effort is None:
+        return PipelineConfig()
+    return PipelineConfig(llm_effort=golden_arm_effort)
+
+
+def _skip_under_an_arm(effort: str | None) -> None:
+    """For the tests that pin the baseline's own figures.
+
+    They assert on what the committed cassettes measured; an arm is scored
+    by the summary line instead, and asserting the baseline's floors on it
+    would fail or pass on a number nobody decided was the bar.
+    """
+    if effort is not None:
+        pytest.skip(
+            f"effort arm {effort} selected: this pins the baseline's figures; "
+            "the arm is scored by the summary line"
+        )
 
 
 def normalize_symbol(value: str) -> str:
@@ -159,6 +214,26 @@ def test_f1_partial_overlap_is_the_harmonic_mean() -> None:
 
 def test_normalize_symbol_folds_case_and_whitespace() -> None:
     assert normalize_symbol("  PSMD ") == normalize_symbol("psmd")
+
+
+def test_an_unset_golden_effort_changes_nothing(
+    request: pytest.FixtureRequest,
+) -> None:
+    """Without `--golden-effort` the suite replays and scores the baseline.
+
+    The paths and the config are spelled out rather than read back from the
+    module, so a change to either default fails here instead of moving both
+    sides of the comparison together. The option is read before any fixture
+    is resolved, so a run that does not know it fails on that and not on a
+    missing fixture.
+    """
+    if request.config.getoption("--golden-effort") is not None:
+        pytest.skip("an effort arm is selected; this pins the unset case")
+    cassette_dir = Path(request.getfixturevalue("vcr_cassette_dir"))
+    assert cassette_dir == _HERE / "cassettes" / "test_extraction_golden"
+    config = request.getfixturevalue("golden_config")
+    assert config == PipelineConfig()
+    assert config.llm_effort == "high"
 
 
 def _gold_rows() -> list[dict[str, str]]:
@@ -278,7 +353,9 @@ _MUST_BE_REDACTED = frozenset(
 
 
 @requires_recording
-def test_no_cassette_carries_a_credential_or_an_account_identifier() -> None:
+def test_no_cassette_carries_a_credential_or_an_account_identifier(
+    golden_arm_cassette_dir: Path,
+) -> None:
     """Guard the artifact, not just the hook that writes it.
 
     A cassette recorded before a redaction rule existed keeps whatever it
@@ -289,7 +366,7 @@ def test_no_cassette_carries_a_credential_or_an_account_identifier() -> None:
     import yaml
 
     leaks: list[str] = []
-    for cassette in sorted(CASSETTE_DIR.glob("*.yaml")):
+    for cassette in sorted(golden_arm_cassette_dir.glob("*.yaml")):
         loaded = yaml.safe_load(cassette.read_text(encoding="utf-8"))
         for interaction in loaded.get("interactions", []):
             for side in ("request", "response"):
@@ -558,7 +635,7 @@ def _recorded_extraction(pmid: str) -> set[str]:
     return {normalize_symbol(g["gene_symbol"]) for g in _recorded_genes(pmid)}
 
 
-def _recorded_request(pmid: str) -> dict[str, Any]:
+def _recorded_request(pmid: str, cassette_dir: Path = CASSETTE_DIR) -> dict[str, Any]:
     """The request body this PMID's cassette was recorded against.
 
     Plain JSON, unlike the gzipped SSE on the response side. `stream` is
@@ -570,7 +647,7 @@ def _recorded_request(pmid: str) -> dict[str, Any]:
 
     import yaml
 
-    cassette = CASSETTE_DIR / (
+    cassette = cassette_dir / (
         f"test_extraction_recovers_the_reachable_genes[{pmid}].yaml"
     )
     loaded = yaml.safe_load(cassette.read_text(encoding="utf-8"))
@@ -580,10 +657,12 @@ def _recorded_request(pmid: str) -> dict[str, Any]:
     return recorded
 
 
-def _current_request(pmid: str) -> dict[str, Any]:
+def _current_request(
+    pmid: str, config: PipelineConfig | None = None
+) -> dict[str, Any]:
     """What the pipeline would send for this PMID's fixture today."""
     text = (FIXTURES_DIR / f"{pmid}.txt").read_text(encoding="utf-8")
-    return _build_message_params(text, pmid, PipelineConfig())
+    return _build_message_params(text, pmid, config or PipelineConfig())
 
 
 # Every figure this module reports -- the per-paper recall floors,
@@ -601,7 +680,7 @@ def _current_request(pmid: str) -> dict[str, Any]:
 @requires_recording
 @pytest.mark.parametrize("pmid", _GOLDEN_PMIDS)
 def test_the_cassettes_were_recorded_with_the_request_the_code_sends(
-    pmid: str,
+    pmid: str, golden_arm_cassette_dir: Path, golden_config: PipelineConfig
 ) -> None:
     """Model, prompt, document, thinking and tool_choice, as recorded.
 
@@ -610,12 +689,17 @@ def test_the_cassettes_were_recorded_with_the_request_the_code_sends(
     ``cerebral-microbleeds`` enum member and the SDK's generated
     ``description``. The 2026-09-02 re-record closed that gap and the
     marker came off with it.
+
+    Under `--golden-effort=<level>` it checks the arm's cassettes against
+    the arm's config, whose only difference from the default is
+    `output_config.effort`: an arm is a measurement of that one variable
+    only while everything else it was sent matches what the pipeline sends.
     """
     if not _reachable_genes(pmid):
         pytest.skip(f"PMID {pmid} has no reachable gold gene, so no cassette")
 
-    recorded = _recorded_request(pmid)
-    current = _current_request(pmid)
+    recorded = _recorded_request(pmid, golden_arm_cassette_dir)
+    current = _current_request(pmid, golden_config)
     # `fallbacks` rides on the streaming call, not in the shared params the
     # Batches API also uses (it rejects the field; see `_stream_and_parse` in
     # pipeline/anthropic_client.py), so it is checked against the configured
@@ -644,18 +728,21 @@ def test_the_cassettes_were_recorded_with_the_request_the_code_sends(
 @requires_recording
 @pytest.mark.parametrize("pmid", _GOLDEN_PMIDS)
 def test_the_cassettes_were_recorded_with_the_tool_schema_the_code_sends(
-    pmid: str,
+    pmid: str, golden_arm_cassette_dir: Path, golden_config: PipelineConfig
 ) -> None:
     """The schema is the grammar the recorded answer was produced under."""
     if not _reachable_genes(pmid):
         pytest.skip(f"PMID {pmid} has no reachable gold gene, so no cassette")
 
-    assert _recorded_request(pmid)["tools"] == _current_request(pmid)["tools"]
+    recorded = _recorded_request(pmid, golden_arm_cassette_dir)
+    assert recorded["tools"] == _current_request(pmid, golden_config)["tools"]
 
 
 @requires_fixtures
 @requires_recording
-def test_the_update_floor_is_set_where_gold_recall_saturates() -> None:
+def test_the_update_floor_is_set_where_gold_recall_saturates(
+    golden_arm_effort: str | None,
+) -> None:
     """Sweep the update floor against recall over reachable gold genes.
 
     Recall is the only quantity the gold standard can measure honestly
@@ -673,6 +760,7 @@ def test_the_update_floor_is_set_where_gold_recall_saturates() -> None:
     guards nothing: the whole finding is that 0.65 discards eight gold
     genes the model correctly extracted.
     """
+    _skip_under_an_arm(golden_arm_effort)
     configured = PipelineConfig().confidence_threshold_update
 
     def measure(floor: float) -> tuple[float, int]:
@@ -708,7 +796,9 @@ def test_the_update_floor_is_set_where_gold_recall_saturates() -> None:
 
 @requires_fixtures
 @requires_recording
-def test_recall_is_reported_separately_for_contaminated_genes() -> None:
+def test_recall_is_reported_separately_for_contaminated_genes(
+    golden_arm_effort: str | None,
+) -> None:
     """The honest headline is the clean subset, not the pooled figure.
 
     13 of the 36 gold genes are named in the production prompt and six carry their
@@ -719,6 +809,7 @@ def test_recall_is_reported_separately_for_contaminated_genes() -> None:
     Recorded rather than replayed: this reads the committed cassettes, so
     it costs nothing and needs no credentials.
     """
+    _skip_under_an_arm(golden_arm_effort)
     named = _genes_named_in_the_prompt()
     seen_hit = seen_tot = clean_hit = clean_tot = 0
     for pmid in _GOLDEN_PMIDS:
@@ -780,7 +871,12 @@ def _ensure_credentials(monkeypatch) -> None:
 @requires_fixtures
 @requires_recording
 @pytest.mark.parametrize("pmid", _GOLDEN_PMIDS)
-async def test_extraction_recovers_the_reachable_genes(pmid: str) -> None:
+async def test_extraction_recovers_the_reachable_genes(
+    pmid: str,
+    golden_config: PipelineConfig,
+    golden_arm_effort: str | None,
+    golden_arm_record: Callable[..., None],
+) -> None:
     """Recall over the genes that are actually in the text, never raw F1.
 
     Raw set-F1 against the gold standard was the obvious thing to assert and
@@ -789,26 +885,51 @@ async def test_extraction_recovers_the_reachable_genes(pmid: str) -> None:
     numbers turn out to be. F1 is still computed and reported in the failure
     message, because it is the number a reader will expect to see; it is
     just not what passes or fails the test.
+
+    Under `--golden-effort=<level>` the floors are not asserted: the test
+    records its paper's figures for the arm's summary line instead (see
+    `pytest_terminal_summary` in conftest.py). An extraction that raises
+    still fails it, because `--record-mode=once` records a failed response
+    as readily as a good one and a bad recording must not pass quietly.
     """
     reachable = _reachable_genes(pmid)
     if not reachable:
+        # Recorded as a paper with nothing to score, so the summary can tell
+        # it from a paper whose test never produced figures.
+        golden_arm_record(reachable=0)
         pytest.skip(
             f"PMID {pmid}: none of its {len(_expected_genes_by_pmid()[pmid])} "
             "gold genes appear in the retrieved text (see _reachable_genes)"
         )
 
     text = (FIXTURES_DIR / f"{pmid}.txt").read_text(encoding="utf-8")
-    genes, _, _served = await extract_from_paper(text, pmid, PipelineConfig())
+    genes, usage, _served = await extract_from_paper(text, pmid, golden_config)
     actual = {normalize_symbol(g.gene_symbol) for g in genes}
 
     found = reachable & actual
+    named = _genes_named_in_the_prompt()
+    if golden_arm_effort is not None:
+        # The same split `test_recall_is_reported_separately_for_contaminated_genes`
+        # makes over the baseline, and the same check the verbatim gate runs.
+        golden_arm_record(
+            reachable=len(reachable),
+            found=len(found),
+            named_reachable=len(reachable & named),
+            named_found=len(found & named),
+            genes=len(genes),
+            verbatim=sum(
+                locate_quote(g.source_quote, text) is not None for g in genes
+            ),
+            usage=usage,
+        )
+        return
+
     recall = len(found) / len(reachable)
     expected_all = {normalize_symbol(g) for g in _expected_genes_by_pmid()[pmid]}
     floor = _RECALL_BASELINE[pmid]
     # Mark the misses the prompt already names: missing one of those is a
     # different kind of failure from missing a gene the model had to find
     # on the evidence, and the two should not read alike in a red run.
-    named = _genes_named_in_the_prompt()
     missed = ", ".join(
         f"{gene}{' (named in the prompt)' if gene in named else ''}"
         for gene in sorted(reachable - actual)
@@ -824,11 +945,19 @@ async def test_extraction_recovers_the_reachable_genes(pmid: str) -> None:
 @pytest.mark.vcr
 @requires_fixtures
 @requires_recording
-async def test_every_extracted_gene_carries_a_source_quote() -> None:
-    """Provenance is required; an empty quote must never reach the database."""
+async def test_every_extracted_gene_carries_a_source_quote(
+    golden_config: PipelineConfig, golden_arm_record: Callable[..., None]
+) -> None:
+    """Provenance is required; an empty quote must never reach the database.
+
+    Its call is the arm's eighth and is paid like the other seven, so its
+    usage goes into the arm's token and cost figures; its genes are a second
+    sample of a paper already scored, so they do not go into the gene counts.
+    """
     pmid = _GOLDEN_PMIDS[0]
     text = (FIXTURES_DIR / f"{pmid}.txt").read_text(encoding="utf-8")
-    genes, _, _served = await extract_from_paper(text, pmid, PipelineConfig())
+    genes, usage, _served = await extract_from_paper(text, pmid, golden_config)
     assert genes, "expected at least one gene"
     for gene in genes:
         assert gene.source_quote.strip()
+    golden_arm_record(usage=usage)
