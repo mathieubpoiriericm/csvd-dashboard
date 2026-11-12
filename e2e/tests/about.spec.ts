@@ -88,7 +88,7 @@ test("the totals keep one row above 480px, two rows at and below", async ({ page
  */
 test("says only the hand-curated data is shown, in place of the run", async ({ page }) => {
   test.skip(!EXPECTED.goldOnly, "the gold-only switch is off");
-  await expect(page.locator(".about-gold-notice")).toHaveText(
+  await expect(page.locator(".about-gold-notice")).toContainText(
     EXPECTED.goldOnlyNotice,
   );
   await expect(page.getByRole("heading", { name: "Last Pipeline Run" }))
@@ -96,6 +96,111 @@ test("says only the hand-curated data is shown, in place of the run", async ({ p
   await expect(page.locator(".pipeline-card")).toHaveCount(0);
   await expect(page.locator(".pipeline-status-timestamp")).toHaveCount(0);
   await expect(page.locator(".pipeline-sync")).toHaveCount(0);
+});
+
+/**
+ * The technical preview: a switch in the gold-only notice that shows the
+ * run widget beneath it. Off by default, and remembered in a cookie the
+ * route reads, so the server draws the page the visitor left.
+ */
+test.describe("the technical preview of a pipeline run", () => {
+  test.skip(
+    !(EXPECTED.goldOnly && EXPECTED.hasPipelineRun),
+    "the preview needs gold-only on and a recorded run",
+  );
+
+  const notice = ".about-gold-notice";
+  const live = '.about-preview-switch:not([disabled])';
+
+  test("is off at first, and only invites", async ({ page }) => {
+    const toggle = page.getByRole("switch", {
+      name: "Technical preview of a pipeline run",
+    });
+    await expect(toggle).toHaveAttribute("aria-checked", "false");
+    await expect(page.locator(".about-preview-line")).toHaveText(
+      EXPECTED.previewInvitation,
+    );
+    await expect(page.locator(".pipeline-card")).toHaveCount(0);
+  });
+
+  test("switches the widget on beneath the notice, keeps it on a reload, and off again", async ({ page }) => {
+    const toggle = page.getByRole("switch", {
+      name: "Technical preview of a pipeline run",
+    });
+    await page.waitForSelector(live);
+    await toggle.click();
+
+    await expect(toggle).toHaveAttribute("aria-checked", "true");
+    await expect(page.locator(".about-preview-line")).toHaveText(
+      EXPECTED.previewNote,
+    );
+    const card = page.locator(".pipeline-card");
+    await expect(card).toBeVisible();
+    // Directly beneath the notice, above the welcome card.
+    expect(
+      await page.locator(notice).evaluate((el) =>
+        el.nextElementSibling?.classList.contains("pipeline-card") ?? false
+      ),
+    ).toBe(true);
+    await expect(card.locator(".pipeline-preview-mark")).toHaveText(
+      "Technical preview",
+    );
+
+    // The widget is live inside the switch's island: its dialog opens and
+    // Escape closes it.
+    const dialog = page.getByRole("dialog", { name: "Run details" });
+    await page.getByRole("button", { name: "Run details" }).click();
+    await expect(dialog).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+
+    // The cookie brings it back drawn by the server, and live again.
+    await page.reload();
+    await expect(card).toBeVisible();
+    await expect(toggle).toHaveAttribute("aria-checked", "true");
+    await page.waitForSelector(live);
+    await page.getByRole("button", { name: "Run details" }).click();
+    await expect(dialog).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+    const body = await (await page.request.get("/")).text();
+    expect(body).toContain("pipeline-card");
+
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-checked", "false");
+    await expect(card).toHaveCount(0);
+    await page.reload();
+    await expect(toggle).toHaveAttribute("aria-checked", "false");
+    await expect(card).toHaveCount(0);
+  });
+
+  test("fits a phone, on and off", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 800 });
+    await page.goto("/");
+    const toggle = page.getByRole("switch", {
+      name: "Technical preview of a pipeline run",
+    });
+    await page.waitForSelector(live);
+    for (const state of ["false", "true"]) {
+      await expect(toggle).toHaveAttribute("aria-checked", state);
+      await expect(toggle).toBeVisible();
+      const overflow = await page.evaluate(() => {
+        const de = document.documentElement;
+        return de.scrollWidth - de.clientWidth;
+      });
+      expect(overflow, `sideways scroll, aria-checked=${state}`)
+        .toBeLessThanOrEqual(0);
+      if (state === "false") await toggle.click();
+    }
+  });
+});
+
+test("offers no preview when no run is recorded", async ({ page }) => {
+  test.skip(
+    !(EXPECTED.goldOnly && !EXPECTED.hasPipelineRun),
+    "a run is recorded, or gold-only is off",
+  );
+  await expect(page.locator(".about-preview-switch")).toHaveCount(0);
 });
 
 /**

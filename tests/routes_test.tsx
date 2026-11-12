@@ -19,6 +19,8 @@ import Trials from "../routes/trials.tsx";
 import { DEFAULT_PAGE_SIZE } from "../components/TableShell.tsx";
 import { genes, trialLocations, trials } from "../lib/data.ts";
 import { pipelineStatus } from "../lib/data/pipeline.ts";
+import { pipelineRun } from "../lib/data/pipeline_run.ts";
+import { previewCookie } from "../lib/pipeline_preview.ts";
 import { MAINTAINER, RADAR_TITLE, SITE_TITLE } from "../lib/disease.ts";
 import { DEFAULT_TRIAL_STATUSES } from "../lib/constants.ts";
 import { placeGene } from "../lib/cytobands.ts";
@@ -37,6 +39,24 @@ interface AppProps {
   Component: preact.ComponentType;
   url: URL;
 }
+
+/**
+ * The About route, rendered for a request: it reads the preview cookie off
+ * the request's headers, so it is given one, with `cookie` when the test
+ * needs it.
+ */
+const renderAbout = (cookie?: string) =>
+  renderToString(
+    h(
+      About as unknown as preact.ComponentType<{ req: Request }>,
+      {
+        req: new Request(
+          "http://localhost/",
+          cookie ? { headers: { cookie } } : {},
+        ),
+      },
+    ),
+  );
 
 const Shell = App as unknown as preact.ComponentType<AppProps>;
 
@@ -150,7 +170,7 @@ Deno.test("no refresh recorded means no refreshes block", () => {
 });
 
 Deno.test("About route renders its warning, totals, and the gold-only notice", () => {
-  const html = render(About);
+  const html = renderAbout();
   assertStringIncludes(html, "still a work in progress");
   assertStringIncludes(html, "Dashboard totals");
   assertStringIncludes(html, "Putative Causal Genes");
@@ -170,6 +190,21 @@ Deno.test("About route renders its warning, totals, and the gold-only notice", (
   } else {
     assertStringIncludes(html, "Last Pipeline Run");
     assertNotMatch(html, /Data update date unavailable/);
+  }
+});
+
+Deno.test("the About route draws the preview the visitor's cookie asked for", () => {
+  // The cookie is honoured only where there is something to preview: the
+  // notice is gold-only's, and the widget needs a recorded run.
+  const on = renderAbout(previewCookie(true).split(";")[0]);
+  const off = renderAbout();
+  assertNotMatch(off, /pipeline-card/);
+  if (GOLD_ONLY && pipelineRun !== null) {
+    assertStringIncludes(on, "pipeline-card");
+    assertStringIncludes(on, 'aria-checked="true"');
+    assertStringIncludes(off, 'aria-checked="false"');
+  } else if (GOLD_ONLY) {
+    assertNotMatch(on, /pipeline-card|about-preview-switch/);
   }
 });
 
@@ -424,7 +459,7 @@ Deno.test("the adapt tip names Save session only when sessions are on", () => {
 });
 
 Deno.test("the About page links to the adapt page", () => {
-  const html = render(About);
+  const html = renderAbout();
   assertMatch(html, /<a[^>]*href="\/adapt"[^>]*>/);
   assertStringIncludes(html, "Reuse this dashboard for another disease");
 });

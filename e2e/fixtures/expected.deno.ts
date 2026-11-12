@@ -47,6 +47,7 @@ import {
   visibleTrials,
 } from "../../lib/filters.ts";
 import { computePhenogramLayout } from "../../lib/phenogram.ts";
+import { previewInvitation, previewNote } from "../../lib/pipeline_preview.ts";
 import { chromosomeOf } from "../../lib/sorting.ts";
 import { locationsWithTableStatus, phaseBarLabel } from "../../lib/trials.ts";
 import {
@@ -429,6 +430,9 @@ const expected = {
   goldOnly: GOLD_ONLY,
   goldOnlyNotice: GOLD_ONLY_NOTICE,
   goldDataDate: formatLongDate(GOLD_DATA_DATE),
+  /** The two sentences of the About page's technical-preview switch. */
+  previewInvitation: previewInvitation(pipelineRun?.config.daysBack ?? null),
+  previewNote: previewNote(pipelineRun?.config.daysBack ?? null),
 };
 
 export type Expected = typeof expected;

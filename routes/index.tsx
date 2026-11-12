@@ -14,13 +14,11 @@ import {
 import { pipelineStatus } from "../lib/data/pipeline.ts";
 import { pipelineRun } from "../lib/data/pipeline_run.ts";
 import PipelineRunView from "../islands/PipelineRun.tsx";
+import PipelinePreview from "../islands/PipelinePreview.tsx";
+import { previewRequested } from "../lib/pipeline_preview.ts";
 import { PipelineSyncs } from "../components/PipelineSyncs.tsx";
 import { pipelineSyncs } from "../lib/data/pipeline_syncs.ts";
-import {
-  GOLD_DATA_DATE,
-  GOLD_ONLY,
-  GOLD_ONLY_NOTICE,
-} from "../lib/gold_only.ts";
+import { GOLD_DATA_DATE, GOLD_ONLY } from "../lib/gold_only.ts";
 import {
   ABOUT,
   ABOUT_LEDE,
@@ -194,6 +192,13 @@ interface AboutContentProps {
    * branch.
    */
   goldOnly?: boolean;
+  /**
+   * Whether the visitor's cookie switched the technical preview on, so the
+   * server draws the run widget under the gold-only notice rather than the
+   * page flashing it open once the island is live. Read only while
+   * `goldOnly` is on: the preview is the notice's.
+   */
+  previewOn?: boolean;
 }
 
 type PipelineCount = Exclude<keyof PipelineStatus, "runTimestamp">;
@@ -258,6 +263,7 @@ export function AboutContent(
     run = pipelineRun,
     syncs = pipelineSyncs,
     goldOnly = GOLD_ONLY,
+    previewOn = false,
   }: AboutContentProps,
 ) {
   const dataDateLabel = formatLongDate(
@@ -276,10 +282,11 @@ export function AboutContent(
           {goldOnly && (
             /* No run fed what the page shows, so neither account of one, nor
               the refreshes, belongs on the page: the notice says so, under
-              the preview warning. */
-            <p class="notice notice-neutral about-gold-notice">
-              {GOLD_ONLY_NOTICE}
-            </p>
+              the preview warning, and offers the run widget as a technical
+              preview beneath it. The island is given no run: it reads the
+              committed one itself, because a report does not survive
+              Fresh's serialisation of island props. */
+            <PipelinePreview initialOn={previewOn} />
           )}
 
           <div class="card about-hero">
@@ -415,6 +422,6 @@ export function AboutContent(
   );
 }
 
-export default define.page(function About() {
-  return <AboutContent />;
+export default define.page(function About(ctx) {
+  return <AboutContent previewOn={previewRequested(ctx.req.headers)} />;
 });
