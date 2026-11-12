@@ -158,7 +158,7 @@ def make_gene_entry():
     """Factory fixture for GeneEntry with sensible defaults."""
 
     def _make(
-        gene_symbol: str = "NOTCH3",
+        gene_symbol: str = "GENE1",
         protein_name: str | None = "Notch receptor 3",
         gwas_trait: list[str] | None = None,
         mendelian_randomization: bool = False,

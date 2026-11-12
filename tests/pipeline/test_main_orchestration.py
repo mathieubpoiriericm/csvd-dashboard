@@ -721,7 +721,7 @@ class TestCheckpointResume:
             pmid=pmid,
             genes=[self._gene()],
             rejected_genes=[
-                pipeline_main.RejectedGene(gene=self._gene("APOE"), reasons=["low"])
+                pipeline_main.RejectedGene(gene=self._gene("GENE5"), reasons=["low"])
             ],
             fulltext=True,
             source="pmc",
@@ -797,7 +797,7 @@ class TestCheckpointResume:
 
         restored = batch.results[0]
         assert [g.gene_symbol for g in restored.genes] == ["GENE1"]
-        assert [r.gene.gene_symbol for r in restored.rejected_genes] == ["APOE"]
+        assert [r.gene.gene_symbol for r in restored.rejected_genes] == ["GENE5"]
         assert restored.fulltext is True
         assert restored.source == "pmc"
         assert restored.llm_time == 12.5
