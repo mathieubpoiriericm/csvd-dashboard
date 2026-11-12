@@ -10,7 +10,9 @@ conftest on the path from the rootdir down.
 
 import json
 import os
+import re
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Final
 
@@ -34,19 +36,24 @@ GOLDEN_CASSETTE_DIR: Final = (
 )
 FETCH_FIXTURES_HINT: Final = "uv run python -m scripts.fetch_paper_fixtures"
 
-# The effort sweep. `--golden-effort=<level>` records and scores one effort
+# Golden arms. `--golden-effort=<level>` records and scores one effort
 # "arm" in a cassette directory of its own, beside the baseline's and never
 # inside it, so an arm can be recorded and read without touching the
-# cassettes every committed figure was measured on. An option rather than
-# `PIPELINE_LLM_EFFORT`: the root conftest's `_isolate_credentials` clears the
-# whole `PIPELINE_*` namespace before every test, so the variable would never
-# reach the config the suite builds.
+# cassettes every committed figure was measured on. `--golden-label=<name>`
+# does the same for an arm that is not an effort level -- a prompt revision,
+# say -- and `--golden-fallback` sends that arm's papers straight to the
+# fallback model. Options rather than `PIPELINE_LLM_EFFORT`: the root
+# conftest's `_isolate_credentials` clears the whole `PIPELINE_*` namespace
+# before every test, so the variable would never reach the config the suite
+# builds.
 #
 # pytest reads `pytest_addoption` only from the conftests it loads before
 # collection -- the ones on the path of the arguments it was given -- so the
 # option exists when the run names this tree or a file in it, which is how
 # the commands in test_extraction_golden.py's docstring run it.
 GOLDEN_EFFORT_LEVELS: Final = ("low", "medium", "high")
+# A label becomes a directory name, so it is held to one plain path segment.
+_GOLDEN_LABEL: Final = re.compile(r"[a-z0-9][a-z0-9-]*")
 _ARM_RESULTS: Final = pytest.StashKey[dict[str, dict[str, Any]]]()
 _ARM_EXPECTED: Final = pytest.StashKey[list[str]]()
 # The fixture a golden test takes to report its figures under an arm; the
@@ -66,20 +73,103 @@ def pytest_addoption(parser: pytest.Parser) -> None:
             "baseline's recall floors"
         ),
     )
+    parser.addoption(
+        "--golden-label",
+        default=None,
+        help=(
+            "record or replay the golden extraction suite as an arm named "
+            "<name> ([a-z0-9][a-z0-9-]*), under "
+            "cassettes/test_extraction_golden-<name>/, at --golden-effort's "
+            "level if given and the default effort otherwise"
+        ),
+    )
+    parser.addoption(
+        "--golden-fallback",
+        action="store_true",
+        default=False,
+        help=(
+            "with a --golden-label that is not an effort level: send each "
+            "paper straight to the fallback model, and score only answers "
+            "that model gave"
+        ),
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class GoldenArm:
+    """One arm of the golden suite, as the options selected it.
+
+    *effort* is None when the arm runs at the config's default effort;
+    *fallback* sends every paper straight to the fallback model.
+    """
+
+    name: str
+    effort: str | None
+    fallback: bool
+
+    @property
+    def cassette_dir(self) -> Path:
+        return GOLDEN_CASSETTE_DIR.with_name(f"{GOLDEN_CASSETTE_DIR.name}-{self.name}")
+
+
+def golden_arm_from_options(
+    label: str | None, effort: str | None, fallback: bool
+) -> GoldenArm | None:
+    """The arm three option values select, or None for the baseline.
+
+    `--golden-effort` alone is the arm it always was: the level names the
+    directory and the summary line. A label names them instead. An effort
+    level used as a label must come with that effort, so a directory called
+    `-high` can never hold answers recorded at another level, and the
+    fallback flag needs a label that is not an effort level, so its answers
+    never land in a directory named for an effort the primary model was
+    measured at.
+    """
+    if label is None:
+        if fallback:
+            raise pytest.UsageError(
+                "--golden-fallback needs --golden-label: its answers are the "
+                "fallback model's, and need a directory of their own"
+            )
+        if effort is None:
+            return None
+        return GoldenArm(name=effort, effort=effort, fallback=False)
+    if not _GOLDEN_LABEL.fullmatch(label):
+        raise pytest.UsageError(
+            f"--golden-label {label!r} is not [a-z0-9][a-z0-9-]*: it names a "
+            "cassette directory"
+        )
+    if label in GOLDEN_EFFORT_LEVELS and effort != label:
+        raise pytest.UsageError(
+            f"--golden-label {label} names an effort level, so it needs "
+            f"--golden-effort={label}: the directory would otherwise misstate "
+            "the effort its answers were recorded at"
+        )
+    if label in GOLDEN_EFFORT_LEVELS and fallback:
+        raise pytest.UsageError(
+            f"--golden-fallback cannot record under --golden-label {label}: "
+            "that directory is the primary model's arm at that effort"
+        )
+    return GoldenArm(name=label, effort=effort, fallback=fallback)
+
+
+def golden_arm(config: pytest.Config) -> GoldenArm | None:
+    """The arm this run selected, or None for the baseline."""
+    return golden_arm_from_options(
+        config.getoption("--golden-label", default=None),
+        config.getoption("--golden-effort", default=None),
+        bool(config.getoption("--golden-fallback", default=False)),
+    )
 
 
 def pytest_configure(config: pytest.Config) -> None:
+    arm = golden_arm(config)  # refuses a bad combination before collection
     # The figures are gathered in this process's stash; xdist workers would
     # each hold a share of them and the summary would see none.
-    if golden_effort(config) and getattr(config.option, "numprocesses", None):
-        raise pytest.UsageError("--golden-effort cannot run under xdist (-n)")
+    if arm is not None and getattr(config.option, "numprocesses", None):
+        raise pytest.UsageError("a golden arm cannot run under xdist (-n)")
     config.stash[_ARM_RESULTS] = {}
     config.stash[_ARM_EXPECTED] = []
-
-
-def golden_effort(config: pytest.Config) -> str | None:
-    """The effort arm this run selected, or None for the baseline."""
-    return config.getoption("--golden-effort", default=None)
 
 
 def golden_cassette_dir(config: pytest.Config) -> Path:
@@ -89,10 +179,8 @@ def golden_cassette_dir(config: pytest.Config) -> Path:
     pytest-recording's default for test_extraction_golden.py, so an unset
     option resolves to exactly the path the suite always used.
     """
-    effort = golden_effort(config)
-    if effort is None:
-        return GOLDEN_CASSETTE_DIR
-    return GOLDEN_CASSETTE_DIR.with_name(f"{GOLDEN_CASSETTE_DIR.name}-{effort}")
+    arm = golden_arm(config)
+    return GOLDEN_CASSETTE_DIR if arm is None else arm.cassette_dir
 
 
 @pytest.fixture(scope="session")
@@ -102,9 +190,16 @@ def golden_arm_cassette_dir(pytestconfig: pytest.Config) -> Path:
     return golden_cassette_dir(pytestconfig)
 
 
-@pytest.fixture(scope="session")
-def golden_arm_effort(pytestconfig: pytest.Config) -> str | None:
-    return golden_effort(pytestconfig)
+@pytest.fixture(scope="session", name="golden_arm")
+def golden_arm_fixture(pytestconfig: pytest.Config) -> GoldenArm | None:
+    return golden_arm(pytestconfig)
+
+
+@pytest.fixture(scope="session", name="golden_arm_from_options")
+def golden_arm_from_options_fixture() -> Callable[..., GoldenArm | None]:
+    """`golden_arm_from_options` for the tests that drive it with made-up
+    option values."""
+    return golden_arm_from_options
 
 
 @pytest.fixture
@@ -155,7 +250,7 @@ def pytest_collection_modifyitems(
     cassette_dir = golden_cassette_dir(config)
     no_cassettes = not any(cassette_dir.glob("*.yaml"))
     recording = _can_record(config)
-    if golden_effort(config) is not None:
+    if golden_arm(config) is not None:
         config.stash[_ARM_EXPECTED] = [
             item.nodeid
             for item in items
@@ -190,7 +285,7 @@ def pytest_collection_modifyitems(
 def pytest_terminal_summary(
     terminalreporter: Any, exitstatus: int, config: pytest.Config
 ) -> None:
-    """Print one effort arm's figures, or say plainly why there are none.
+    """Print one arm's figures, or say plainly why there are none.
 
     The figures are summed from what each golden test recorded through
     `golden_arm_record`; the scoring itself -- reachable genes, the split
@@ -200,21 +295,23 @@ def pytest_terminal_summary(
     record, and then the line names the gap instead of printing a sum over
     part of the arm that would read like a result.
     """
-    effort = golden_effort(config)
-    if effort is None:
+    arm = golden_arm(config)
+    if arm is None:
         return
-    terminalreporter.write_line(_arm_summary(effort, config))
+    terminalreporter.write_line(_arm_summary(arm, config))
 
 
-def _arm_summary(effort: str, config: pytest.Config) -> str:
+def _arm_summary(arm: GoldenArm, config: pytest.Config) -> str:
     from pipeline.config import PipelineConfig
 
+    pinned = PipelineConfig()
     return arm_summary_line(
-        effort,
-        golden_cassette_dir(config),
+        arm.name,
+        arm.cassette_dir,
         config.stash[_ARM_EXPECTED],
         config.stash[_ARM_RESULTS],
-        PipelineConfig().llm_model,
+        pinned.fallback_model if arm.fallback else pinned.llm_model,
+        fallback=arm.fallback,
     )
 
 
@@ -225,21 +322,29 @@ def golden_arm_summary_line() -> Callable[..., str]:
 
 
 def arm_summary_line(
-    effort: str,
+    name: str,
     cassette_dir: Path,
     expected: list[str],
     results: dict[str, dict[str, Any]],
-    primary_model: str,
+    expected_model: str,
+    *,
+    fallback: bool = False,
 ) -> str:
     """The arm's summary line from the figures its tests recorded.
 
-    Figures are printed only for an arm that is complete and that the
-    primary model answered throughout. Every extraction carries the
-    fallback model, so a paper the primary model declined comes back with
-    the fallback's genes and quotes; summed in, they would be scored as
-    this effort's result on the model the default is being chosen for.
+    Figures are printed only for an arm that is complete and that
+    *expected_model* answered throughout. Every ordinary extraction carries
+    the fallback model, so a paper the primary model declined comes back
+    with the fallback's genes and quotes; summed in, they would be scored as
+    this arm's result on the model the arm is measuring.
+
+    Under *fallback* every paper was sent straight to the fallback model,
+    whose `ServedBy` always names a decline ("unspecified" when the caller
+    gave none), so there only the model is checked, and the line names it.
     """
-    prefix = f"golden arm {effort}:"
+    prefix = f"golden arm {name} ({expected_model}):" if fallback else (
+        f"golden arm {name}:"
+    )
     if not any(cassette_dir.glob("*.yaml")):
         return (
             f"{prefix} no result -- no cassettes in {cassette_dir}; record "
@@ -261,11 +366,14 @@ def arm_summary_line(
         f"(declined: {figures.get('declined') or 'unspecified'})"
         for figures in results.values()
         if "model" in figures
-        and (figures["model"] != primary_model or figures.get("declined"))
+        and (
+            figures["model"] != expected_model
+            or (not fallback and figures.get("declined"))
+        )
     ]
     if elsewhere:
         problems.append(
-            f"not {primary_model}'s figures at this effort: {primary_model} "
+            f"not {expected_model}'s figures for this arm: {expected_model} "
             f"did not answer {len(elsewhere)} extraction(s) -- "
             + ", ".join(elsewhere)
         )

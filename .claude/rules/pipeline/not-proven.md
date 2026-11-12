@@ -35,8 +35,15 @@ arm is measured with `--golden-effort=<level>`, which records into
 `cassettes/test_extraction_golden-<level>/` beside the baseline, skips the
 floors and prints one summary line scored by the same code (the module
 docstring has the commands); replayed over a copy of the baseline as `high` it
-reproduced pooled 40/46, clean 22/26, 133/133 verbatim and $2.58. What neither
-proves:
+reproduced pooled 40/46, clean 22/26, 133/133 verbatim and $2.58. An arm that
+is not an effort level -- a prompt revision -- takes `--golden-label=<name>`
+instead (directory `-<name>`, at `--golden-effort`'s level or the default); a
+label that is an effort level is refused without that effort, so `-high` always
+holds `high`. `--golden-fallback`, with a label that is not an effort level,
+sends each paper straight to the fallback model, checks the cassettes against
+that direct request and scores only answers the fallback model gave. A copy of
+`-high` replayed as `--golden-label=check` printed the same figures. What
+neither proves:
 
 - **Precision, anywhere.** The gold standard is a curated table, not a per-paper
   answer key, so a gene absent from it is unreviewed rather than wrong (the

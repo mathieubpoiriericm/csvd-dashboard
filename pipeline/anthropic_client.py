@@ -482,8 +482,10 @@ async def _stream_and_parse(
     # reporting a missing tool call, so the check has to come before
     # _extract_response_text. With the server-side fallback on, a refusal
     # here means every model in the chain declined -- Opus 5.5, then Opus
-    # 4.8 -- or that the fallback could not be attempted (rate-limited), and
-    # the paper fails so that the next run retries it.
+    # 4.8 -- or that the fallback could not be attempted (rate-limited), or
+    # that the decline arrived with the tool call already on the stream,
+    # which the API returns directly (see fallback.md). The paper fails so
+    # that the next run retries it.
     if response.stop_reason == "refusal":
         category = _refusal_category(response)
         # Set only when the fallback could not be attempted (its model was

@@ -239,6 +239,103 @@ colocalization nobody checked; v7 left the table, and its hash is in the
 because the version name stopped being enough the moment half the prompt moved
 into a data file.
 
+## A v9 was recorded twice on 2026-11-11 and ruled out: v8 stands
+
+Three changes drawn from Anthropic's prompting and tool-use guides were built as
+a v9 and recorded with `--golden-label` on `claude-opus-5-5` at `high`, over the
+same fixtures as the v8 baseline of the same day. Neither recording met its bar,
+so none of it shipped: the prompt, the tool definition and the task instruction
+are v8's, byte for byte. The cassettes are kept (gitignored) under the labels
+below. Recall is of the reachable gold genes; "cited" is the share of quotes
+that match an API citation span.
+
+| arm                                   | pooled | clean | genes | verbatim                        | cited        | output tokens |
+| ------------------------------------- | ------ | ----- | ----- | ------------------------------- | ------------ | ------------- |
+| **v8 baseline**                       | 40/46  | 22/26 | 133   | 133/133                         | 96/133 = 72% | 81,389        |
+| `-v9-threshold` (all three changes)   | 33/45  | 17/26 | 89    | 89/89                           | 84/89 = 94%  | 70,888        |
+| `-v9-cited-line` (the last two below) | 37/46  | 19/26 | 104   | 104/104 (103 before one repair) | 86/104 = 83% | 78,290        |
+
+The first arm scored six papers: the seventh, PMID 39216230, was refused by the
+safety classifier after its whole answer had streamed (see "A refusal while the
+tool call is on the stream" in `fallback.md`). On the same six papers v8 is
+39/45, 22/26, 131 genes and 95/131 = 73% cited, and the arm's 70,888 tokens
+include the refused call's 1,725. The baseline is the top of v8's own range,
+which over four recordings is 39-40 pooled and 21-22 clean. The cassettes replay
+only on the code that recorded them (commits `fcd9e25` and `6682816` on the
+branch `prompt-v9`, which was not merged); on v8's code their
+request-comparison tests fail by design.
+
+**The arm with the reporting threshold lost five gold genes of ten on one
+paper; three are the threshold's.** v8 contradicts itself: a positional
+candidate is capped at 0.20, yet a genome-wide significant GWAS gene scores at
+least 0.60 and the `include_gwas_alone` example scores a _nearest_ gene 0.65.
+The first arm stated one rule instead -- "Report a gene only if you would score
+it 0.30 or higher" -- with the cap, the "confidence 0" step for negative results
+and that example (rewritten to a _sole_ gene) brought into line; it carried the
+cited line and the tool definition below as well. PMID 33293549 fell from 10/10
+(38 genes reported) to 5/10 (17), losing DEGS2, EFEMP1, KCNK2, NID2 and PLEKHG1,
+every one a gene v8 reported at 0.45 or higher. The second arm, without the
+threshold, kept EFEMP1, KCNK2 and NID2 and lost DEGS2 and PLEKHG1 again, and in
+the first arm's own reasoning DEGS2 went for want of a quotable sentence, so
+three of the five are the threshold's. The reasoning names the positional rule
+for two of them: "Table 1 lists many loci by nearest gene, and the
+positional-only ones seem to score low unless they're the sole gene", "EFEMP1
+likewise looks positional-only", "NID2 remains borderline since it's
+positional". Under v8's scoring text the model weighs the same contradiction and
+reports them -- in the second arm, which kept that text: "I'm weighing whether a
+gene that is only the nearest one to a lead SNP should get the 0.20 positional
+cap or the higher score the example gives" -- and the curated table holds them.
+**On this one recording the contradiction is load-bearing; do not tidy it
+without a recording.** On the v8 recording 14 of 133 genes score below 0.30 and
+one of them is a gold gene (PLEKHG1 at 0.15 on PMID 35511193, which this arm
+lost too: the sixth gene between 39/45 and 33/45), so the rule had well under a
+tenth of the output to save.
+
+**One cited line per gene: three fewer than the same-day baseline, two of them
+by the model's own account.** The second arm kept v8's scoring text (plus one
+added field line, below) and changed the task instruction: one line
+`SYMBOL: traits` per gene, citing the sentence the model would give as its
+`source_quote`, where v8 asks for the supporting evidence in a sentence. A
+parser read each line's cited sentence, and it replaced a `source_quote` that
+was not verbatim in the paper: one repair in each arm's eight calls, here CENPF
+on PMID 37069360, the reassembled table row `provenance.md` describes, so the
+model's own quotes were 103/104 verbatim and 85/104 cited. PMID 33293549 came
+out at 8/10 of 28 genes, without DEGS2 and PLEKHG1, and PMID 35511193 at 3/4 of
+12, without PLEKHG1 (v8: 4/4 of 24). On the first paper the model scored both
+genes (0.65 and 0.6) and then said why it dropped them: "I'm weighing which of
+the table-only genes to keep, since their only source is the big locus table and
+I can't quote that cleanly. I'm leaning toward dropping them". v8's Provenance
+section already says "If no single sentence supports the entry, do not report
+the gene", and the model, not asked to show the sentence first, quotes the table
+row for both. The third gene is not evidence about the line: on PMID 35511193
+the model left PLEKHG1 out for position ("The other nearest-gene-only loci, like
+PPTC7 and NMT1, rest on position alone, so I'm leaving them out of the list"),
+and it is one of the two genes that come and go between identical recordings.
+The `medium` effort arm, with no text changed, is missing the same three, and
+PMID 33293549 measured 8/10 once before, without the same two genes and with
+nothing about extraction changed (2026-09-02, on Opus 5).
+37/46 is two below the low end of v8's four recordings and three below the best,
+on one recording. **A line earned a citation only by carrying the sentence**, so
+it could not save output as well: on most papers the model wrote each sentence
+on its line anyway (25,943 characters of prose before the tool call against
+v8's 25,329), and on PMID 35511193 it wrote the twelve lines as asked, symbol
+and trait only, and the API attached no citation to any of them.
+
+**The tool definition was never recorded alone.** Both arms also sent a
+description for every field of the tool's gene, study and item objects, a
+three-sentence tool description, two `input_examples`, no `pmid` property, and
+one added `- protein_name:` line in the prompt's field guidance. Nothing this
+harness measures could show it as an improvement, only as "no worse", and that
+costs a re-record of the baseline; it was not pursued.
+
+**In all four arms recorded on 2026-11-11, fewer genes reported came with lower
+recall.** `medium`, `low` and the two v9 arms reported 111, 96, 104 and 89 genes
+(the last over six papers, where v8 reported 131) against 133, and recovered 37,
+36 and 37 of 46 and 33 of 45. The v4 arms differed by six genes at the same
+42/46, so this is one day's pattern on one model, not a rule; a change that
+makes the model more selective should still be expected to cost recall on this
+gold standard until a recording says otherwise.
+
 `pipeline/prompts.py` holds one prompt; its module docstring records why v4's
 stricter exclusion guards were measured and ruled out rather than assumed, and
 `tests/pipeline/test_prompts.py` pins it. The 43-vs-17 gap on PMID 37069360 is a

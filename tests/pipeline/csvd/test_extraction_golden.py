@@ -79,6 +79,27 @@ re-recording that cassette is the only remedy. The request checks compare
 an arm's cassettes with the arm's config, so a directory recorded at
 another effort fails them.
 
+Any other arm -- a prompt revision, say -- takes a label instead, which
+names the directory (test_extraction_golden-<name>/) and the summary line;
+it runs at `--golden-effort`'s level when one is given and at the default
+effort otherwise. A label that is an effort level needs that level, so a
+directory's name never misstates the effort it holds:
+
+    uv run pytest tests/pipeline/csvd/test_extraction_golden.py \
+        --golden-label=draft --record-mode=once -q
+
+`--golden-fallback`, with a label that is not an effort level, sends every
+paper straight to the fallback model (the direct request a `--batch` rescue
+sends, with no `fallbacks`), checks the cassettes against that request, and
+scores only answers the fallback model gave; the line names it, as `golden
+arm draft-fallback (claude-opus-4-8): …`:
+
+    uv run pytest tests/pipeline/csvd/test_extraction_golden.py \
+        --golden-label=draft-fallback --golden-fallback --record-mode=once -q
+
+An arm's cassettes replay only against the code that recorded them: the
+request checks fail once the prompt or the tool definition has moved on.
+
 The `live` pytest marker (see pyproject.toml) is reserved for a future test
 that calls the real API directly, outside VCR; nothing here uses it.
 """
@@ -88,7 +109,7 @@ import os
 import re
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Final
+from typing import TYPE_CHECKING, Any, Final
 
 import pytest
 
@@ -99,6 +120,9 @@ from pipeline.data_merger import _CANONICAL_GENE_SYMBOLS, canonical_gene_symbol
 from pipeline.llm_extraction import extract_from_paper
 from pipeline.prompts import build_extraction_prompt
 from pipeline.quality_metrics import TokenUsage
+
+if TYPE_CHECKING:
+    from tests.pipeline.csvd.conftest import GoldenArm
 
 # Anchored to this file, not to the working directory: _expected_genes_by_pmid
 # reads GOLD at *import* time to build the parametrisation, so a CWD-relative
@@ -122,34 +146,57 @@ requires_recording = pytest.mark.golden_cassettes
 
 @pytest.fixture(scope="module")
 def vcr_cassette_dir(golden_arm_cassette_dir: Path) -> str:
-    """pytest-recording's cassette directory, moved aside for an effort arm.
+    """pytest-recording's cassette directory, moved aside for a golden arm.
 
     Unset, `golden_arm_cassette_dir` is `CASSETTE_DIR`, the plugin's own
     default for this module, so the baseline replays from where it always
-    did; under `--golden-effort=<level>` it is the arm's sibling directory.
+    did; under `--golden-effort=<level>` or `--golden-label=<name>` it is the
+    arm's sibling directory.
     """
     return str(golden_arm_cassette_dir)
 
 
-@pytest.fixture
-def golden_config(golden_arm_effort: str | None) -> PipelineConfig:
-    """The config every golden extraction is built with: the arm's effort,
-    or the default config untouched when no arm is selected."""
-    if golden_arm_effort is None:
+def _arm_config(arm: GoldenArm | None) -> PipelineConfig:
+    """The config an arm's extractions are built with: its effort when it
+    names one, and otherwise the default config untouched."""
+    if arm is None or arm.effort is None:
         return PipelineConfig()
-    return PipelineConfig(llm_effort=golden_arm_effort)
+    return PipelineConfig(llm_effort=arm.effort)
 
 
-def _skip_under_an_arm(effort: str | None) -> None:
+def _arm_model(arm: GoldenArm | None, config: PipelineConfig) -> str | None:
+    """The model an arm's papers are sent straight to, or None for the
+    ordinary request (the pinned model, with the server-side fallback)."""
+    if arm is None or not arm.fallback:
+        return None
+    return config.fallback_model
+
+
+@pytest.fixture
+def golden_config(golden_arm: GoldenArm | None) -> PipelineConfig:
+    """The config every golden extraction is built with."""
+    return _arm_config(golden_arm)
+
+
+@pytest.fixture
+def golden_model(
+    golden_arm: GoldenArm | None, golden_config: PipelineConfig
+) -> str | None:
+    """`extract_from_paper`'s `model=`: the fallback model under
+    `--golden-fallback`, else None."""
+    return _arm_model(golden_arm, golden_config)
+
+
+def _skip_under_an_arm(arm: GoldenArm | None) -> None:
     """For the tests that pin the baseline's own figures.
 
     They assert on what the committed cassettes measured; an arm is scored
     by the summary line instead, and asserting the baseline's floors on it
     would fail or pass on a number nobody decided was the bar.
     """
-    if effort is not None:
+    if arm is not None:
         pytest.skip(
-            f"effort arm {effort} selected: this pins the baseline's figures; "
+            f"golden arm {arm.name} selected: this pins the baseline's figures; "
             "the arm is scored by the summary line"
         )
 
@@ -221,10 +268,10 @@ def test_normalize_symbol_folds_case_and_whitespace() -> None:
     assert normalize_symbol("  PSMD ") == normalize_symbol("psmd")
 
 
-def test_an_unset_golden_effort_changes_nothing(
+def test_no_golden_option_changes_nothing(
     request: pytest.FixtureRequest,
 ) -> None:
-    """Without `--golden-effort` the suite replays and scores the baseline.
+    """With no `--golden-*` option the suite replays and scores the baseline.
 
     The paths and the config are spelled out rather than read back from the
     module, so a change to either default fails here instead of moving both
@@ -232,13 +279,19 @@ def test_an_unset_golden_effort_changes_nothing(
     is resolved, so a run that does not know it fails on that and not on a
     missing fixture.
     """
-    if request.config.getoption("--golden-effort") is not None:
-        pytest.skip("an effort arm is selected; this pins the unset case")
+    if (
+        request.config.getoption("--golden-effort") is not None
+        or request.config.getoption("--golden-label") is not None
+        or request.config.getoption("--golden-fallback")
+    ):
+        pytest.skip("a golden arm is selected; this pins the unset case")
+    assert request.getfixturevalue("golden_arm") is None
     cassette_dir = Path(request.getfixturevalue("vcr_cassette_dir"))
     assert cassette_dir == _HERE / "cassettes" / "test_extraction_golden"
     config = request.getfixturevalue("golden_config")
     assert config == PipelineConfig()
     assert config.llm_effort == "high"
+    assert request.getfixturevalue("golden_model") is None
 
 
 def _arm_paper(pmid: str, model: str, declined: str | None = None) -> dict:
@@ -299,6 +352,124 @@ def test_an_incomplete_arm_prints_no_recall(
     )
     assert "pooled" not in line
     assert "incomplete" in line and "test_missing" in line
+
+
+def test_an_effort_alone_is_the_arm_it_always_was(
+    golden_arm_from_options: Callable[..., Any],
+) -> None:
+    """Without `--golden-label`, the level names the directory and the line."""
+    arm = golden_arm_from_options(label=None, effort="medium", fallback=False)
+    assert arm.name == "medium"
+    assert arm.cassette_dir == _HERE / "cassettes" / "test_extraction_golden-medium"
+    assert _arm_config(arm).llm_effort == "medium"
+    assert _arm_model(arm, _arm_config(arm)) is None
+
+
+def test_a_label_alone_selects_its_directory_and_the_default_effort(
+    golden_arm_from_options: Callable[..., Any],
+) -> None:
+    arm = golden_arm_from_options(label="v9-draft", effort=None, fallback=False)
+    assert arm.name == "v9-draft"
+    assert arm.cassette_dir == _HERE / "cassettes" / "test_extraction_golden-v9-draft"
+    assert _arm_config(arm) == PipelineConfig()
+    assert _arm_model(arm, _arm_config(arm)) is None
+
+
+def test_a_label_with_an_effort_selects_its_directory_and_that_effort(
+    golden_arm_from_options: Callable[..., Any],
+) -> None:
+    arm = golden_arm_from_options(label="v9-draft", effort="medium", fallback=False)
+    assert arm.name == "v9-draft"
+    assert arm.cassette_dir == _HERE / "cassettes" / "test_extraction_golden-v9-draft"
+    assert _arm_config(arm).llm_effort == "medium"
+
+
+def test_no_option_selects_no_arm(
+    golden_arm_from_options: Callable[..., Any],
+) -> None:
+    assert golden_arm_from_options(label=None, effort=None, fallback=False) is None
+
+
+@pytest.mark.parametrize("effort", [None, "medium"])
+def test_golden_fallback_without_a_label_is_a_usage_error(
+    golden_arm_from_options: Callable[..., Any], effort: str | None
+) -> None:
+    with pytest.raises(pytest.UsageError, match="--golden-label"):
+        golden_arm_from_options(label=None, effort=effort, fallback=True)
+
+
+@pytest.mark.parametrize(("label", "effort"), [("high", None), ("low", "medium")])
+def test_an_effort_level_is_a_label_only_at_that_effort(
+    golden_arm_from_options: Callable[..., Any], label: str, effort: str | None
+) -> None:
+    """A directory called `-high` must hold answers recorded at high."""
+    with pytest.raises(pytest.UsageError, match="--golden-effort"):
+        golden_arm_from_options(label=label, effort=effort, fallback=False)
+    arm = golden_arm_from_options(label=label, effort=label, fallback=False)
+    assert arm.name == label
+
+
+def test_the_fallback_model_is_never_recorded_under_an_effort_levels_name(
+    golden_arm_from_options: Callable[..., Any],
+) -> None:
+    """`-high` is the primary model's arm; the fallback's needs its own."""
+    with pytest.raises(pytest.UsageError, match="--golden-fallback"):
+        golden_arm_from_options(label="high", effort="high", fallback=True)
+
+
+@pytest.mark.parametrize("label", ["V9", "-v9", "v9/x", "../v9", ""])
+def test_a_label_that_is_not_a_plain_directory_name_is_refused(
+    golden_arm_from_options: Callable[..., Any], label: str
+) -> None:
+    with pytest.raises(pytest.UsageError, match="--golden-label"):
+        golden_arm_from_options(label=label, effort=None, fallback=False)
+
+
+def test_under_golden_fallback_the_request_names_the_fallback_model(
+    golden_arm_from_options: Callable[..., Any],
+) -> None:
+    arm = golden_arm_from_options(label="v9-fallback", effort=None, fallback=True)
+    config = _arm_config(arm)
+    assert _arm_model(arm, config) == config.fallback_model
+
+
+def test_under_golden_fallback_the_fallback_models_answers_are_scored(
+    golden_arm_summary_line: Callable[..., str], tmp_path: Path
+) -> None:
+    """A direct request is the fallback's by construction, and its ServedBy
+    always carries a decline ("unspecified" when the caller named none), so
+    the decline is no sign of another model here; the model alone is."""
+    (tmp_path / "recorded.yaml").write_text("", encoding="utf-8")
+    fallback = PipelineConfig().fallback_model
+    results = {
+        "a": _arm_paper("111", fallback, declined="unspecified"),
+        "b": _arm_paper("222", fallback, declined="unspecified"),
+    }
+    line = golden_arm_summary_line(
+        "check", tmp_path, ["a", "b"], results, fallback, fallback=True
+    )
+    assert line.startswith(
+        f"golden arm check ({fallback}): pooled 4/4, clean 4/4, genes 4,"
+    )
+
+
+def test_under_golden_fallback_a_paper_the_primary_model_answered_refuses_figures(
+    golden_arm_summary_line: Callable[..., str], tmp_path: Path
+) -> None:
+    (tmp_path / "recorded.yaml").write_text("", encoding="utf-8")
+    primary = PipelineConfig().llm_model
+    fallback = PipelineConfig().fallback_model
+    results = {
+        "a": _arm_paper("111", fallback, declined="unspecified"),
+        "b": _arm_paper("222", primary),
+    }
+    line = golden_arm_summary_line(
+        "check", tmp_path, ["a", "b"], results, fallback, fallback=True
+    )
+    assert line.startswith(f"golden arm check ({fallback}): no figures")
+    assert "pooled" not in line
+    assert f"222 served by {primary}" in line
+    assert "111" not in line
 
 
 def _gold_rows() -> list[dict[str, str]]:
@@ -723,11 +894,12 @@ def _recorded_request(pmid: str, cassette_dir: Path = CASSETTE_DIR) -> dict[str,
 
 
 def _current_request(
-    pmid: str, config: PipelineConfig | None = None
+    pmid: str, config: PipelineConfig | None = None, model: str | None = None
 ) -> dict[str, Any]:
-    """What the pipeline would send for this PMID's fixture today."""
+    """What the pipeline would send for this PMID's fixture today; with
+    *model*, the request sent straight to that model."""
     text = (FIXTURES_DIR / f"{pmid}.txt").read_text(encoding="utf-8")
-    return _build_message_params(text, pmid, config or PipelineConfig())
+    return _build_message_params(text, pmid, config or PipelineConfig(), model=model)
 
 
 # Every figure this module reports -- the per-paper recall floors,
@@ -745,7 +917,10 @@ def _current_request(
 @requires_recording
 @pytest.mark.parametrize("pmid", _GOLDEN_PMIDS)
 def test_the_cassettes_were_recorded_with_the_request_the_code_sends(
-    pmid: str, golden_arm_cassette_dir: Path, golden_config: PipelineConfig
+    pmid: str,
+    golden_arm_cassette_dir: Path,
+    golden_config: PipelineConfig,
+    golden_model: str | None,
 ) -> None:
     """Model, prompt, document, thinking and tool_choice, as recorded.
 
@@ -759,19 +934,25 @@ def test_the_cassettes_were_recorded_with_the_request_the_code_sends(
     the arm's config, whose only difference from the default is
     `output_config.effort`: an arm is a measurement of that one variable
     only while everything else it was sent matches what the pipeline sends.
+    Under `--golden-fallback` the request it expects is the direct one, whose
+    `model` is the fallback model and which carries no `fallbacks`.
     """
     if not _reachable_genes(pmid):
         pytest.skip(f"PMID {pmid} has no reachable gold gene, so no cassette")
 
     recorded = _recorded_request(pmid, golden_arm_cassette_dir)
-    current = _current_request(pmid, golden_config)
+    current = _current_request(pmid, golden_config, golden_model)
     # `fallbacks` rides on the streaming call, not in the shared params the
     # Batches API also uses (it rejects the field; see `_stream_and_parse` in
     # pipeline/anthropic_client.py), so it is checked against the configured
-    # fallback model rather than against `_build_message_params`.
-    assert recorded.pop("fallbacks", None) == [
-        {"model": PipelineConfig().fallback_model}
-    ], f"PMID {pmid}: the cassette was recorded with a different fallback model"
+    # fallback model rather than against `_build_message_params`. A direct
+    # request already names the last model there is, and sends none.
+    expected_fallbacks = (
+        None if golden_model is not None else [{"model": golden_config.fallback_model}]
+    )
+    assert recorded.pop("fallbacks", None) == expected_fallbacks, (
+        f"PMID {pmid}: the cassette was recorded with a different fallback model"
+    )
     # Named rather than compared whole: `system` and `messages` carry the
     # prompt and the paper, so an equality assertion on the two dicts would
     # print two 60 kB blobs and say nothing about which part moved.
@@ -793,20 +974,24 @@ def test_the_cassettes_were_recorded_with_the_request_the_code_sends(
 @requires_recording
 @pytest.mark.parametrize("pmid", _GOLDEN_PMIDS)
 def test_the_cassettes_were_recorded_with_the_tool_schema_the_code_sends(
-    pmid: str, golden_arm_cassette_dir: Path, golden_config: PipelineConfig
+    pmid: str,
+    golden_arm_cassette_dir: Path,
+    golden_config: PipelineConfig,
+    golden_model: str | None,
 ) -> None:
     """The schema is the grammar the recorded answer was produced under."""
     if not _reachable_genes(pmid):
         pytest.skip(f"PMID {pmid} has no reachable gold gene, so no cassette")
 
     recorded = _recorded_request(pmid, golden_arm_cassette_dir)
-    assert recorded["tools"] == _current_request(pmid, golden_config)["tools"]
+    current = _current_request(pmid, golden_config, golden_model)
+    assert recorded["tools"] == current["tools"]
 
 
 @requires_fixtures
 @requires_recording
 def test_the_update_floor_is_set_where_gold_recall_saturates(
-    golden_arm_effort: str | None,
+    golden_arm: GoldenArm | None,
 ) -> None:
     """Sweep the update floor against recall over reachable gold genes.
 
@@ -825,7 +1010,7 @@ def test_the_update_floor_is_set_where_gold_recall_saturates(
     guards nothing: the whole finding is that 0.65 discards eight gold
     genes the model correctly extracted.
     """
-    _skip_under_an_arm(golden_arm_effort)
+    _skip_under_an_arm(golden_arm)
     configured = PipelineConfig().confidence_threshold_update
 
     def measure(floor: float) -> tuple[float, int]:
@@ -862,7 +1047,7 @@ def test_the_update_floor_is_set_where_gold_recall_saturates(
 @requires_fixtures
 @requires_recording
 def test_recall_is_reported_separately_for_contaminated_genes(
-    golden_arm_effort: str | None,
+    golden_arm: GoldenArm | None,
 ) -> None:
     """The honest headline is the clean subset, not the pooled figure.
 
@@ -874,7 +1059,7 @@ def test_recall_is_reported_separately_for_contaminated_genes(
     Recorded rather than replayed: this reads the committed cassettes, so
     it costs nothing and needs no credentials.
     """
-    _skip_under_an_arm(golden_arm_effort)
+    _skip_under_an_arm(golden_arm)
     named = _genes_named_in_the_prompt()
     seen_hit = seen_tot = clean_hit = clean_tot = 0
     for pmid in _GOLDEN_PMIDS:
@@ -939,7 +1124,8 @@ def _ensure_credentials(monkeypatch) -> None:
 async def test_extraction_recovers_the_reachable_genes(
     pmid: str,
     golden_config: PipelineConfig,
-    golden_arm_effort: str | None,
+    golden_model: str | None,
+    golden_arm: GoldenArm | None,
     golden_arm_record: Callable[..., None],
 ) -> None:
     """Recall over the genes that are actually in the text, never raw F1.
@@ -951,7 +1137,8 @@ async def test_extraction_recovers_the_reachable_genes(
     message, because it is the number a reader will expect to see; it is
     just not what passes or fails the test.
 
-    Under `--golden-effort=<level>` the floors are not asserted: the test
+    Under a golden arm (`--golden-effort`, `--golden-label`) the floors are
+    not asserted: the test
     records its paper's figures for the arm's summary line instead (see
     `pytest_terminal_summary` in conftest.py). An extraction that raises
     still fails it, because `--record-mode=once` records a failed response
@@ -968,19 +1155,21 @@ async def test_extraction_recovers_the_reachable_genes(
         )
 
     text = (FIXTURES_DIR / f"{pmid}.txt").read_text(encoding="utf-8")
-    genes, usage, served = await extract_from_paper(text, pmid, golden_config)
+    genes, usage, served = await extract_from_paper(
+        text, pmid, golden_config, model=golden_model
+    )
     actual = {normalize_symbol(g.gene_symbol) for g in genes}
 
     found = reachable & actual
     named = _genes_named_in_the_prompt()
-    if golden_arm_effort is not None:
+    if golden_arm is not None:
         # The same split `test_recall_is_reported_separately_for_contaminated_genes`
         # makes over the baseline, and the same check the verbatim gate runs.
         golden_arm_record(
             pmid=pmid,
             # Which model answered: a paper the primary model declined is
             # served by the fallback, and the summary refuses to score it
-            # as this arm's.
+            # as this arm's (under --golden-fallback, the reverse).
             model=served.model if served else None,
             declined=served.declined if served else None,
             reachable=len(reachable),
@@ -1017,7 +1206,9 @@ async def test_extraction_recovers_the_reachable_genes(
 @requires_fixtures
 @requires_recording
 async def test_every_extracted_gene_carries_a_source_quote(
-    golden_config: PipelineConfig, golden_arm_record: Callable[..., None]
+    golden_config: PipelineConfig,
+    golden_model: str | None,
+    golden_arm_record: Callable[..., None],
 ) -> None:
     """Provenance is required; an empty quote must never reach the database.
 
@@ -1027,7 +1218,9 @@ async def test_every_extracted_gene_carries_a_source_quote(
     """
     pmid = _GOLDEN_PMIDS[0]
     text = (FIXTURES_DIR / f"{pmid}.txt").read_text(encoding="utf-8")
-    genes, usage, served = await extract_from_paper(text, pmid, golden_config)
+    genes, usage, served = await extract_from_paper(
+        text, pmid, golden_config, model=golden_model
+    )
     assert genes, "expected at least one gene"
     for gene in genes:
         assert gene.source_quote.strip()
