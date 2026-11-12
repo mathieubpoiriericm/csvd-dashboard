@@ -3393,12 +3393,15 @@ svg {
 /* Each standing re-declares the ink with its own step, as the pipeline's
    status tints do: the wash is the standing's own hue. Not started and no
    quorum share the neutral, and their words tell them apart. */
-.review-standing-accepted {
+.review-standing-accepted,
+.review-answer-accept,
+.review-answer-accept_with_edits {
   --svd-tint: var(--svd-color-ok);
   --svd-tint-ink: var(--svd-color-ok-ink);
 }
 
-.review-standing-rejected {
+.review-standing-rejected,
+.review-answer-reject {
   --svd-tint: var(--svd-color-danger);
   --svd-tint-ink: var(--svd-color-danger-text);
 }
@@ -3416,9 +3419,258 @@ svg {
 }
 
 .review-standing-not_started,
-.review-standing-no_quorum {
+.review-standing-no_quorum,
+.review-answer-abstain,
+.review-answer-none,
+.review-superseded {
   --svd-tint: var(--svd-text-muted);
   --svd-tint-ink: var(--svd-ink);
+}
+
+/* === REVIEW: ONE GENE === */
+
+/* The back link, the gene, then its kind and standing on one wrapping line. */
+.review-back {
+  display: inline-block;
+  margin-bottom: var(--svd-space-2);
+  font-size: var(--svd-text-sm);
+}
+
+.review-gene-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--svd-space-2) var(--svd-space-3);
+  margin-top: var(--svd-space-2);
+}
+
+/* The change and its papers beside the committee and the log; the columns
+   stack once either would fall under 20rem. Each column's floor is 0 so a
+   long value wraps inside it instead of widening the page. */
+.review-gene {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+  gap: var(--svd-space-5);
+  align-items: start;
+}
+
+.review-gene-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--svd-space-5);
+  min-width: 0;
+}
+
+/* The diff: a fixed layout, so a long quote or omics entry wraps inside its
+   column rather than stretching the table past the card. */
+.review-diff {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: var(--svd-text-sm);
+  overflow-wrap: anywhere;
+}
+
+.review-diff th,
+.review-diff td {
+  padding: var(--svd-space-2);
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--svd-border);
+}
+
+.review-diff thead th {
+  color: var(--svd-text-muted);
+  font-family: var(--svd-font-heading);
+  font-size: var(--svd-text-2xs);
+  font-weight: var(--svd-weight-semibold);
+  letter-spacing: var(--svd-tracking-caps);
+  text-transform: uppercase;
+}
+
+.review-diff th.review-diff-label {
+  width: 28%;
+}
+
+.review-diff tbody th {
+  font-weight: var(--svd-weight-semibold);
+}
+
+/* On a phone three columns leave the label a word's width, and a long label
+   broke mid-word. Each row stacks instead: its label across the top, then
+   the gold value beside the value after the run. */
+@media (max-width: 600px) {
+  .review-diff tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    border-bottom: 1px solid var(--svd-border);
+  }
+
+  .review-diff th,
+  .review-diff td {
+    border-bottom: none;
+  }
+
+  .review-diff th.review-diff-label,
+  .review-diff tbody th {
+    grid-column: 1 / -1;
+    width: auto;
+    padding-bottom: 0;
+  }
+}
+
+/* A field the run leaves alone: still in view, one step back. */
+.review-diff-same {
+  color: var(--svd-text-muted);
+}
+
+.review-values,
+.review-edits {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.review-absent {
+  color: var(--svd-text-muted);
+  font-style: italic;
+}
+
+/* Added and removed values. The underline and the strike are the marks; the
+   ink and wash repeat them, so neither depends on colour alone. */
+.review-gene ins {
+  color: var(--svd-color-ok-ink);
+  background: color-mix(in oklab, var(--svd-color-ok) 14%, transparent);
+  text-decoration: underline;
+}
+
+.review-gene del {
+  color: var(--svd-color-danger-text);
+  text-decoration: line-through;
+}
+
+.review-number {
+  font-family: var(--svd-font-heading);
+  font-variant-numeric: tabular-nums;
+}
+
+.review-findings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--svd-space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-wrap: anywhere;
+}
+
+.review-finding + .review-finding {
+  padding-top: var(--svd-space-4);
+  border-top: 1px solid var(--svd-border);
+}
+
+.review-finding-facts {
+  font-size: var(--svd-text-sm);
+  color: var(--svd-text-muted);
+}
+
+/* The paper's own words, as the run's findings panel draws a quote. */
+.review-quote {
+  margin: 0;
+  padding-left: var(--svd-space-2);
+  border-left: 2px solid var(--svd-border);
+  color: var(--svd-text-muted);
+  font-style: italic;
+}
+
+.review-tally-words {
+  margin-bottom: var(--svd-space-1);
+  font-family: var(--svd-font-heading);
+  font-weight: var(--svd-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.review-settles {
+  font-size: var(--svd-text-sm);
+  color: var(--svd-text-muted);
+}
+
+.review-votes {
+  margin: var(--svd-space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.review-votes li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--svd-space-2);
+  padding: var(--svd-space-1) 0;
+  border-bottom: 1px solid var(--svd-border);
+}
+
+.review-role {
+  font-size: var(--svd-text-sm);
+  color: var(--svd-text-muted);
+}
+
+.review-history {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-wrap: anywhere;
+}
+
+.review-event {
+  padding: var(--svd-space-2) 0;
+  border-bottom: 1px solid var(--svd-border);
+}
+
+.review-event-head {
+  margin: 0;
+}
+
+.review-event time {
+  display: block;
+  font-family: var(--svd-font-heading);
+  font-size: var(--svd-text-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--svd-text-muted);
+}
+
+/* An answer to an earlier version: kept where it happened, one step back,
+   and its badge says why in words. */
+.review-event-stale {
+  color: var(--svd-text-muted);
+}
+
+.review-edits {
+  font-size: var(--svd-text-sm);
+}
+
+.review-edit-field {
+  margin-right: var(--svd-space-1);
+  font-weight: var(--svd-weight-semibold);
+}
+
+.review-edits .review-values {
+  display: inline;
+}
+
+.review-edits .review-values li {
+  display: inline;
+}
+
+.review-edits .review-values li + li::before {
+  content: " ";
+}
+
+.review-reason {
+  margin: var(--svd-space-1) 0 0;
+  font-size: var(--svd-text-sm);
+  color: var(--svd-text-muted);
 }
 
 /* The welcome-back screen: what is finished beside what is left. Each panel
