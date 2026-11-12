@@ -136,45 +136,82 @@ an `APIStatusError`, `record_service_failure` otherwise), so the run report
 shows it as an errored Anthropic call. The batch path never calls it; the
 Batches API rejects `max_tokens: 0`.
 
-**This warm-up has not been verified against the live API.** It shipped on the
-documented behaviour alone, with no call made. The check: call `prewarm_cache`,
-then send one real extraction, and expect `cache_read_input_tokens > 0` with
-`cache_creation_input_tokens == 0` on the extraction. If the API rejects the
-warm-up's shape (a 400 shows in the log as "Cache warm-up failed"), or the
-extraction still writes the cache, delete `prewarm_cache` and have
-`process_papers_concurrently` run the first paper to completion before starting
-the rest (`await run_one(pmids[0])`, then the task group over `pmids[1:]`).
+**The warm-up was checked against the live API on 2026-11-11, and a real
+request reads what it writes.** The warm-up request -- `max_tokens: 0`, adaptive
+thinking, the `fallbacks` entry and its beta header -- was accepted and reported
+`cache_creation_input_tokens` 11,100, `cache_read_input_tokens` 0 and 0 output
+tokens; the extraction sent straight after it reported
+`cache_creation_input_tokens` 0 and `cache_read_input_tokens` 11,100. The shared
+prefix is 11,100 tokens. If a future API change breaks this, the run logs
+"Cache warm-up failed" and the API inventory shows the errored call; the
+replacement is to delete `prewarm_cache` and have `process_papers_concurrently`
+run the first paper to completion before starting the rest.
 
-## Effort stays at `high`, and the margin is one gene
+## How often an extraction is retried, counted 2026-11-11
+
+**Never, in the one production run on record.** That run is the report
+committed as `data/pipeline_run.json` (2026-11-03): 38 Anthropic calls for 38
+papers, 0 retries, so 0 validation retries and 0 prose-only turns (a response
+with no `report_genes` call, which `_retry_validation` retries like a schema
+failure) in 38 extractions. `logs/` on this machine holds only test runs. Two
+pieces of work are gated on these rates and were therefore not done: re-testing
+`strict: true` on Opus 5.5 (see `provenance.md`), worth it from 2% validation
+retries, and continuing a prose-only turn instead of restarting it, worth it
+from 1%. Thirty-eight extractions cannot exclude a rate of a few percent, so
+recount on a longer production log:
+
+```bash
+grep -rhoE "Validation retry [0-9]+/[0-9]+|No report_genes tool call|Decoded a JSON-encoded genes value from [a-z0-9-]+|Extracted [0-9]+ gene\(s\) from PMID" logs/log \
+  | sed -E 's/Extracted [0-9]+ gene\(s\) from PMID/extracted/; s/ from claude.*//' | sort | uniq -c
+```
+
+A prose-only turn is logged inside its own `Validation retry` line (or the
+`Validation retries exhausted` line that ends a paper), so its count is a share
+of the retries, not an addition to them.
+
+## Effort stays at `high`: on Opus 5.5 `medium` costs three genes of 46
 
 `PIPELINE_LLM_EFFORT` defaults to `"high"`, and stays there. All three arms were
-recorded over the same ten golden fixtures under a decision rule fixed before
-the numbers were seen: _lower the default to the cheapest arm within 2 points of
-`high` on pooled recall and on verbatim-quote rate_:
+recorded on `claude-opus-5-5` with prompt v8 on 2026-11-11 over the same
+golden fixtures, each arm into its own cassette directory with
+`--golden-effort=<level>`, under a decision rule fixed before the numbers were
+seen: _lower the default to the cheapest arm within 2 points of `high` on pooled
+recall and on verbatim-quote rate_. The `high` row is the replay of the v8
+baseline cassettes recorded the same day. Output tokens and cost cover the eight
+recorded calls of the golden file (the seven scored papers plus the one repeat
+the source-quote test makes); genes and verbatim cover the seven scored papers.
+No paper in any arm was answered by the fallback model, which the harness
+refuses to print figures for otherwise.
 
-| effort   | pooled recall   | genes | verbatim | output tokens | cost  | wall   |
-| -------- | --------------- | ----- | -------- | ------------- | ----- | ------ |
-| low      | 36/46 = 78%     | 113   | 99%      | 31,167        | $1.71 | 6m22s  |
-| medium   | 41/46 = 89%     | 135   | 100%     | 46,812        | $2.10 | 9m42s  |
-| **high** | **42/46 = 91%** | 138   | 99%      | 90,450        | $3.19 | 17m35s |
+| effort   | pooled recall   | clean recall    | genes | verbatim | output tokens | cost  | wall      |
+| -------- | --------------- | --------------- | ----- | -------- | ------------- | ----- | --------- |
+| low      | 36/46 = 78%     | 19/26 = 73%     | 96    | 96/96    | 40,371        | $1.67 | 4m50s     |
+| medium   | 37/46 = 80%     | 19/26 = 73%     | 111   | 111/111  | 62,755        | $2.12 | 7m42s     |
+| **high** | **40/46 = 87%** | **22/26 = 85%** | 133   | 133/133  | 81,389        | $2.58 | not timed |
 
-`medium` fails by 2.2 points, which is one gene (`ICA1L` on PMID 36180795, the
-GIGASTROKE paper the prompt is not aimed at) -- finer than n=46 can resolve, so
-a re-run could land either side. **`medium` is the lever** if cost or latency
-ever binds: 34% cheaper, 55% of the wall-clock, quote fidelity if anything
-better. `low` is not: 13 points, and it stops producing prose.
+Verbatim is 100% in all three. The wall-clock is of the whole golden file while
+recording; `low` and `medium` were recorded concurrently, so the two are
+comparable with each other and not with a run alone, and `high` was not timed in
+this sweep.
 
-**That sweep was measured on Claude Opus 5, and the pipeline now runs Opus
-5.5.** Effort names do not carry across models: Anthropic reports 5.5 at
-`medium` matching or exceeding 5 at `high` on its coding and knowledge-work
-evaluations, and 5.5 thinking more per turn than 5 at the same level (prompting
-guide, "Calibrate effort"). Neither is a measurement of this extraction task.
-`high` was kept as the default through the model change so that one step changes
-one variable; re-run the three arms on 5.5 before reading the table above as a
-statement about it. The recall and quote figures in `provenance.md` and
-`not-proven.md` are Opus 5.5's: the golden cassettes were re-recorded on it at
-`high` on 2026-11-02, where the same eight calls cost $2.48 against Opus 5's
-$3.72, on 77,177 output tokens against 101,007.
+`medium` fails the rule by 6.5 points on pooled recall (three genes of 46) and
+`low` by 8.7 (four genes), so neither qualifies. The gap is larger than the one
+or two genes the prompt never names that come and go between identical
+recordings (`not-proven.md`), though n=46 is still small. **`medium` is the
+lever** if cost or latency ever binds: 18% cheaper ($2.12 against $2.58) and 23%
+fewer output tokens, at the measured price of three genes of 46 pooled and three
+of 26 clean. `low` is 35% cheaper and costs four genes of 46.
+
+The earlier sweep, on Opus 5, came out differently: `medium` missed the same
+rule by a single gene (89% against 91% pooled), which is why that section was
+once titled for a one-gene margin. It does not carry over. Anthropic reports
+Opus 5.5 at `medium` matching Opus 5 at `high` on its own coding and
+knowledge-work evaluations (prompting guide, "Calibrate effort"), and on this
+extraction task that did not hold: lower effort reported fewer genes (96 and 111
+against 133), and recall fell with them. The recall and quote figures in
+`provenance.md` and `not-proven.md` are Opus 5.5's: the golden cassettes were
+re-recorded on it at `high` on 2026-11-02, where the same eight calls cost $2.48
+against Opus 5's $3.72, on 77,177 output tokens against 101,007.
 
 ## The prompt is v8: a template plus `disease/prompt.md`, and v4's guards were measured rather than assumed
 
