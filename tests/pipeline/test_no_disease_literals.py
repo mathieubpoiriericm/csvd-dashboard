@@ -1,13 +1,27 @@
-"""No disease term survives in pipeline/ or scripts/ outside disease/."""
+"""No disease term survives in pipeline/ or scripts/ outside disease/.
+
+Nor in the tests that hold for any disease: a test that names the disease
+lives in a `csvd/` tree, which a fork deletes, so the generic trees are held
+to the rule the code is -- here, where those trees are. A fork has deleted
+them and has nowhere to move a test to, and the generic tests it inherits
+name their own example disease, which is the one the adapt wizard's check
+builds its fork for: there the scan of the tests is skipped.
+"""
 
 import re
 from collections.abc import Callable, Iterable
 from pathlib import Path
 
+import pytest
+
 from pipeline.disease import load_disease
 
 _ROOT = Path(__file__).resolve().parents[2]
 _ROOTS = ("pipeline", "scripts")
+# The generic test trees. Their `csvd/` subtrees are where the disease is
+# named, and this file names its terms in the allow-list below.
+_TEST_ROOTS = ("tests/pipeline", "tests/scripts")
+_DISEASE_TREE = "csvd"
 
 # (relative path, term) -> reason. Whole-word matching means SVDPMIDTOKEN
 # and _svd_started_monotonic never match and need no entry, and the
@@ -156,13 +170,13 @@ def test_the_term_finder_matches_names_in_any_case_and_identifiers_as_written() 
     assert _term_finder([], [])("anything") == []
 
 
-def test_no_disease_literal_remains_outside_disease() -> None:
+def _disease_terms() -> Callable[[str], list[str]]:
     d = load_disease()
     # "csvd-dashboard" goes first: alternation tries each term in order at a
     # given start, so with a shorter term ahead of it that it begins with,
     # "csvd-dashboard" would only ever match as that term, never as the full
     # tool name the allow-list above names.
-    find = _term_finder(
+    return _term_finder(
         ["csvd-dashboard", d.name],
         [
             d.abbreviation,
@@ -172,10 +186,17 @@ def test_no_disease_literal_remains_outside_disease() -> None:
             *(member for members in d.gene_aliases.values() for member in members),
         ],
     )
+
+
+def _hits(roots: Iterable[str], skip: Callable[[Path], bool]) -> list[str]:
+    """Every line under *roots* that names a term and is not allowed to."""
+    find = _disease_terms()
     hits: list[str] = []
-    for root in _ROOTS:
+    for root in roots:
         for path in sorted((_ROOT / root).rglob("*")):
             if path.suffix not in {".py", ".j2"} or "alembic/versions" in str(path):
+                continue
+            if skip(path):
                 continue
             rel = path.relative_to(_ROOT).as_posix()
             for number, line in enumerate(
@@ -185,11 +206,41 @@ def test_no_disease_literal_remains_outside_disease() -> None:
                     if (rel, term) in _ALLOWED:
                         continue
                     hits.append(f"{rel}:{number}: {line.strip()}")
-    assert hits == [], (
+    return hits
+
+
+def test_no_disease_literal_remains_outside_disease() -> None:
+    assert _hits(_ROOTS, lambda path: False) == [], (
         "Reword each line so it names no term of the disease, or, when the "
         "text means something else (a quoted measurement, a tool name), add "
         "an entry to _ALLOWED in tests/pipeline/test_no_disease_literals.py: "
         "the file, the term as written and the reason."
+    )
+
+
+def test_no_disease_literal_remains_in_the_generic_tests() -> None:
+    trees = [_ROOT / root / _DISEASE_TREE for root in _TEST_ROOTS]
+    if not any(tree.is_dir() for tree in trees):
+        pytest.skip(
+            f"no {_DISEASE_TREE}/ tree under {' or '.join(_TEST_ROOTS)}: the "
+            "scan keeps the disease's tests inside those trees, and this "
+            "checkout has none"
+        )
+
+    def skip(path: Path) -> bool:
+        return (
+            _DISEASE_TREE in path.relative_to(_ROOT).parts
+            or path == Path(__file__).resolve()
+        )
+
+    assert _hits(_TEST_ROOTS, skip) == [], (
+        f"A test that names the disease belongs in a {_DISEASE_TREE}/ tree. "
+        "Move it there, or make it hold for any disease: a placeholder for "
+        "an arbitrary gene, a value read from the manifest or the committed "
+        "data at test time, a comment reworded. When the text means "
+        "something else, add an entry to _ALLOWED in "
+        "tests/pipeline/test_no_disease_literals.py: the file, the term as "
+        "written and the reason."
     )
 
 
