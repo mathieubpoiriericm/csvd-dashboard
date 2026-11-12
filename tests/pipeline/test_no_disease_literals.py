@@ -47,20 +47,21 @@ _DISEASE_TREES = ("tests/pipeline/csvd", "tests/scripts/csvd")
 # An entry excuses less than its file. `_prose` is for a comment or a
 # docstring that quotes a measurement: the same term in a line of code, or in
 # a string a statement uses, is still a hit. `_declared` is for a value the
-# code needs: the term is excused inside the assignment it names and nowhere
-# else. Both read the file as Python, which every file with an entry is.
+# code needs: the term is excused inside the module-level assignment it names
+# and nowhere else. Both read the file as Python, so an entry is for a .py
+# file.
 @dataclass(frozen=True)
 class _Excuse:
     reason: str
-    # The name whose assignment may hold the term; None for comments and
-    # docstrings.
+    # The module-level name whose assignment may hold the term; None for
+    # comments and docstrings.
     declaration: str | None = None
 
     @property
     def where(self) -> str:
         if self.declaration is None:
             return "in a comment or a docstring"
-        return f"inside the assignment to {self.declaration}"
+        return f"inside the module-level assignment to {self.declaration}"
 
 
 def _prose(reason: str) -> _Excuse:
@@ -152,8 +153,9 @@ class _Layout:
             for token in tokenize.generate_tokens(io.StringIO(source).readline)
             if token.type == tokenize.COMMENT
         }
+        # Module level only: a local of the same name is another variable.
         self._assignments: dict[str, list[tuple[int, int]]] = {}
-        for node in ast.walk(tree):
+        for node in tree.body:
             if isinstance(node, ast.Assign):
                 targets = node.targets
             elif isinstance(node, ast.AnnAssign):
@@ -175,14 +177,28 @@ class _Layout:
         return line
 
     def assigns(self, name: str, number: int) -> bool:
-        """Whether line *number* is part of an assignment to *name*."""
+        """Whether line *number* is part of a module-level assignment to *name*."""
         return any(
             first <= number <= last for first, last in self._assignments.get(name, ())
         )
 
 
+def _lines(path: Path) -> list[str]:
+    """The file's lines as Python numbers them.
+
+    Split on the newline alone: `str.splitlines` also breaks at a form feed
+    and at the Unicode separators, which `ast` and `tokenize` do not, and
+    every line after one would be numbered apart from its `_Layout`.
+    """
+    return path.read_text(encoding="utf-8").split("\n")
+
+
 @cache
 def _layout(rel: str) -> _Layout:
+    assert rel.endswith(".py"), (
+        f"_ALLOWED has an entry for {rel}: an entry is read as Python, and "
+        "this is not a .py file. Reword the line instead."
+    )
     return _Layout((_ROOT / rel).read_text(encoding="utf-8"))
 
 
@@ -386,9 +402,7 @@ def _hits(
             if skip(path):
                 continue
             rel = path.relative_to(_ROOT).as_posix()
-            for number, line in enumerate(
-                path.read_text(encoding="utf-8").splitlines(), 1
-            ):
+            for number, line in enumerate(_lines(path), 1):
                 for term in find(line):
                     if _excused(rel, number, line, term, find):
                         continue
@@ -486,7 +500,12 @@ def test_an_allow_list_entry_excuses_its_term_only_where_it_says(
         "}\n"  # 15
         'other = {"KEYED1": 1}\n'  # 16
         "# KEYED1 in a comment outside it\n"  # 17
-        'KEPT["KEYED1"]\n',  # 18
+        'KEPT["KEYED1"]\n'  # 18
+        "def g():\n"  # 19
+        '    KEPT = "KEYED1"\n'  # 20
+        "# A form feed \x0c and a line separator \u2028 are not line ends.\n"  # 21
+        'w = "QUOTED1"\n'  # 22
+        '"""A bare string after them, quoting QUOTED1."""\n',  # 23
         encoding="utf-8",
     )
     monkeypatch.setattr(f"{__name__}._ROOT", tmp_path)
@@ -504,7 +523,9 @@ def test_an_allow_list_entry_excuses_its_term_only_where_it_says(
         _layout.cache_clear()
 
     prose_only = "[QUOTED1 is excused there only in a comment or a docstring]"
-    declared_only = "[KEYED1 is excused there only inside the assignment to KEPT]"
+    declared_only = (
+        "[KEYED1 is excused there only inside the module-level assignment to KEPT]"
+    )
     assert hits == [
         f'src/module.py:4: y = "QUOTED1"  {prose_only}',
         # Named twice, listed twice: the comment does not excuse the code.
@@ -514,15 +535,16 @@ def test_an_allow_list_entry_excuses_its_term_only_where_it_says(
         f'src/module.py:16: other = {{"KEYED1": 1}}  {declared_only}',
         f"src/module.py:17: # KEYED1 in a comment outside it  {declared_only}",
         f'src/module.py:18: KEPT["KEYED1"]  {declared_only}',
+        f'src/module.py:20: KEPT = "KEYED1"  {declared_only}',
+        f'src/module.py:22: w = "QUOTED1"  {prose_only}',
     ]
 
 
 def _excused_lines(rel: str, term: str, find: Callable[[str], list[str]]) -> list[int]:
     """The lines of *rel* on which the allow-list excuses *term*."""
-    lines = (_ROOT / rel).read_text(encoding="utf-8").splitlines()
     return [
         number
-        for number, line in enumerate(lines, 1)
+        for number, line in enumerate(_lines(_ROOT / rel), 1)
         if term in find(line) and _excused(rel, number, line, term, find)
     ]
 

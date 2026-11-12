@@ -25,10 +25,11 @@ brings it back.
 hand-curated gold tables alone** (written by `scripts/load_gold.py` from
 `disease/gold/out/`, with each trial's population group read from
 `disease/gold/trial_populations.csv`, a hand-kept file the loader refuses on a
-group the manifest's `populations` do not list). `deno task data` and `deno task geocode` publish them as
-they publish anything else, and `--sync-external-data` and `--sync-annotations`
-still refresh the lookups for their keys, but `pipeline.main` refuses `--pubmed`
-and `--clinical-trials`, which would add rows the curators did not write. The
+group the manifest's `populations` do not list). `deno task data` and
+`deno task geocode` publish them as they publish anything else, and
+`--sync-external-data` and `--sync-annotations` still refresh the lookups for
+their keys, but `pipeline.main` refuses `--pubmed` and `--clinical-trials`,
+which would add rows the curators did not write. The
 way back, the pre-gold dump included, is the undo checklist in that file's doc
 comment.
 

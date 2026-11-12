@@ -20,9 +20,10 @@ naming each row, for:
 
 - a non-empty suspects.csv -- a cell the clean-up could not vouch for;
 - a trial whose registry ID has no group in
-  disease/gold/trial_populations.csv, a row of that file that is blank,
-  repeats a registry ID or names a group the manifest's `populations` do not
-  list, or two trials with one (registry ID, drug);
+  disease/gold/trial_populations.csv, that file without its
+  registry_id,population header, a row of it with a blank cell or a third
+  one, a registry ID it lists twice or a group the manifest's `populations`
+  do not list, or two trials with one (registry ID, drug);
 - a value longer than its column, a completion date that is not YYYY-MM or a
   target size that is not a count;
 - a GWAS trait that is not a vocabulary key once the synonyms are folded;
@@ -101,6 +102,7 @@ _GOLD_DIR: Final = _ROOT / "disease" / "gold" / "out"
 # curated table already gave the same trials. Kept by hand beside the
 # workbook, not under out/, whose CSVs clean_gold.R replaces on every run.
 _POPULATIONS_PATH: Final = _ROOT / "disease" / "gold" / "trial_populations.csv"
+_POPULATION_COLUMNS: Final = ("registry_id", "population")
 
 
 class GoldRefused(Exception):
@@ -341,38 +343,54 @@ def read_population_groups(path: Path) -> tuple[dict[str, str], list[str]]:
 
     A group is one of the manifest's `populations`: the Clinical Trials page
     selects by those keys, so a trial filed under any other name would be
-    published where no population choice reaches it. A row that is refused
-    still gives its trial a group, so one mistake is reported once.
+    published where no population choice reaches it. A row naming such a
+    group still files its trial, so that mistake is reported once and not
+    again as a trial with no group.
+
+    A file that is missing, or whose header is not the two columns, is
+    refused at once: none of its rows can be read.
     """
+    name = path.name
     try:
-        rows = _read_csv(path)
+        handle = path.open(encoding="utf-8-sig", newline="")
     except FileNotFoundError:
         raise GoldRefused(
-            f"{path.name} is missing from {path.parent}: it gives each gold "
+            f"{name} is missing from {path.parent}: it gives each gold "
             "trial its target-population group, one registry_id,population "
             "row per trial"
         ) from None
     known = load_disease().population_keys
     groups: dict[str, str] = {}
     failures: list[str] = []
-    for number, row in enumerate(rows, start=2):
-        registry_id = (row.get("registry_id") or "").strip()
-        group = (row.get("population") or "").strip()
-        if not registry_id or not group:
-            failures.append(
-                f"{path.name} line {number}: registry_id and population "
-                "must both be filled"
+    with handle:
+        reader = csv.DictReader(handle)
+        if reader.fieldnames != list(_POPULATION_COLUMNS):
+            raise GoldRefused(
+                f"{name}: the first line must be the header "
+                f"{','.join(_POPULATION_COLUMNS)}, and it is "
+                f"{','.join(reader.fieldnames or []) or 'missing'}"
             )
-        elif registry_id in groups:
-            failures.append(f"{path.name} line {number}: {registry_id} is listed twice")
-        else:
-            groups[registry_id] = group
-            if group not in known:
+        for row in reader:
+            # The line the row ends on: blank lines are skipped, not counted.
+            where = f"{name} line {reader.line_num}"
+            registry_id = (row["registry_id"] or "").strip()
+            group = (row["population"] or "").strip()
+            if None in row:
+                failures.append(f"{where}: more than two cells")
+            elif not registry_id or not group:
                 failures.append(
-                    f"{path.name} line {number}: {registry_id} has the group "
-                    f"{group!r}, which is not one of the manifest's "
-                    f"populations ({', '.join(known)})"
+                    f"{where}: registry_id and population must both be filled"
                 )
+            elif registry_id in groups:
+                failures.append(f"{where}: {registry_id} is listed twice")
+            else:
+                groups[registry_id] = group
+                if group not in known:
+                    failures.append(
+                        f"{where}: {registry_id} has the group {group!r}, "
+                        "which is not one of the manifest's populations "
+                        f"({', '.join(known)})"
+                    )
     return groups, failures
 
 

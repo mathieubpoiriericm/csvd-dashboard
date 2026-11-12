@@ -3,10 +3,9 @@
 `testpaths` is `["tests/pipeline"]`, so nothing collects this file unless it
 is named: `uv run pytest tests/scripts`. These hold for any disease: the one
 trait they need is read from disease/vocabulary.json, and the populations
-their trials are filed under are the manifest's own. The committed gold tables
-are pinned in
-tests/scripts/csvd/test_load_gold_csvd.py, and the write against a real
-database in tests/pipeline/test_load_gold_integration.py.
+their trials are filed under are the manifest's own. The committed gold
+tables are pinned in tests/scripts/csvd/test_load_gold_csvd.py, and the write
+against a real database in tests/pipeline/test_load_gold_integration.py.
 """
 
 import csv
@@ -526,6 +525,51 @@ def test_a_missing_populations_file_is_refused_by_name(tmp_path: Path) -> None:
     (gold_dir / _POPULATIONS_FILE).unlink()
     with pytest.raises(GoldRefused, match=f"{_POPULATIONS_FILE} is missing"):
         _build(gold_dir)
+
+
+@pytest.mark.parametrize(
+    ("text", "found"),
+    [
+        ("", "it is missing"),
+        ("REG-0001,GROUP\n", "it is REG-0001,GROUP"),
+        ("registry,group\nREG-0001,GROUP\n", "it is registry,group"),
+        ("registry_id,population,note\n", "it is registry_id,population,note"),
+    ],
+)
+def test_a_populations_file_without_its_header_is_refused(
+    tmp_path: Path, text: str, found: str
+) -> None:
+    gold_dir = _gold_dir(tmp_path)
+    (gold_dir / _POPULATIONS_FILE).write_text(text, encoding="utf-8")
+    with pytest.raises(GoldRefused) as refused:
+        _build(gold_dir)
+    assert str(refused.value) == (
+        f"{_POPULATIONS_FILE}: the first line must be the header "
+        f"registry_id,population, and {found}"
+    )
+
+
+def test_a_populations_row_is_named_by_its_line_in_the_file(
+    tmp_path: Path,
+) -> None:
+    """A blank line is skipped and still counted, and a byte-order mark
+    before the header is read past."""
+    path = tmp_path / _POPULATIONS_FILE
+    path.write_text(
+        "registry_id,population\n"
+        f"REG-0001,{_GROUPS['REG-0001']}\n"
+        "\n"
+        f"REG-0001,{_GROUPS['REG-0001']}\n"
+        f"REG-0002,{_GROUPS['REG-0002']},a third cell\n",
+        encoding="utf-8-sig",
+    )
+    assert read_population_groups(path) == (
+        {"REG-0001": _GROUPS["REG-0001"]},
+        [
+            f"{_POPULATIONS_FILE} line 4: REG-0001 is listed twice",
+            f"{_POPULATIONS_FILE} line 5: more than two cells",
+        ],
+    )
 
 
 def test_a_group_the_manifest_does_not_list_is_reported_once(
