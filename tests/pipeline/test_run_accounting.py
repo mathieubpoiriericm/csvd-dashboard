@@ -33,11 +33,11 @@ from pipeline.run_errors import NoPaperProcessedError
 from pipeline.validation import NcbiUnavailableError
 
 
-def _gene(symbol: str = "NOTCH3", pmid: str = "111") -> GeneEntry:
+def _gene(symbol: str = "GENE1", pmid: str = "111") -> GeneEntry:
     return GeneEntry(
         gene_symbol=symbol,
         confidence=0.9,
-        source_quote="NOTCH3 mutations cause CADASIL.",
+        source_quote="GENE1 mutations cause the disease.",
         pmid=pmid,
     )
 
@@ -352,9 +352,9 @@ class TestAFailedRunPublishesWhatItProcessed:
             new=AsyncMock(return_value=(["111"], ["111"])),
         )
         held = GeneEntry(
-            gene_symbol="HTRA1",
+            gene_symbol="GENE2",
             confidence=0.5,
-            source_quote="HTRA1 variants segregate with CARASIL.",
+            source_quote="GENE2 variants segregate with the disease.",
             pmid="111",
         )
         batch = _ProcessedBatch(
@@ -377,7 +377,7 @@ class TestAFailedRunPublishesWhatItProcessed:
                     "inserted": 1,
                     "updated": 0,
                     "held_below_insert_floor": [
-                        {"gene_symbol": "HTRA1", "confidence": 0.5}
+                        {"gene_symbol": "GENE2", "confidence": 0.5}
                     ],
                 }
             ),
@@ -397,8 +397,8 @@ class TestAFailedRunPublishesWhatItProcessed:
         assert report["status"] == "failed"
         assert report["database"]["inserted"] == 1
         assert report["genes"]["rejectedAtInsertFloor"] == 1
-        assert [g["symbol"] for g in report["acceptedGenes"]["items"]] == ["NOTCH3"]
-        assert "HTRA1" in [g["symbol"] for g in report["rejectedGenes"]["items"]]
+        assert [g["symbol"] for g in report["acceptedGenes"]["items"]] == ["GENE1"]
+        assert "GENE2" in [g["symbol"] for g in report["rejectedGenes"]["items"]]
 
     async def test_a_run_killed_inside_step_3_still_lists_its_papers(
         self, tmp_path, mocker
@@ -443,7 +443,7 @@ class TestAFailedRunPublishesWhatItProcessed:
         report = recorded.await_args.kwargs["report"]
         assert report["papers"]["processed"] == 1
         assert [p["pmid"] for p in report["papersDetail"]["items"]] == ["111"]
-        assert [g["symbol"] for g in report["acceptedGenes"]["items"]] == ["NOTCH3"]
+        assert [g["symbol"] for g in report["acceptedGenes"]["items"]] == ["GENE1"]
         assert report["genes"]["validated"] == 1
 
 
@@ -727,7 +727,7 @@ class TestTheCheckpointOutlivesANarrowerRun:
 
         assert fetch.await_args.args[0] == "222"
         assert [r.pmid for r in batch.results] == ["111", "222"]
-        assert [g.gene_symbol for g in batch.genes] == ["NOTCH3"]
+        assert [g.gene_symbol for g in batch.genes] == ["GENE1"]
         assert metrics.token_usage.input_tokens == 1000
 
     async def test_a_batch_run_prices_restored_papers_as_they_were_paid(
@@ -829,7 +829,7 @@ class TestAFailedPaperContributesOnlyItsSpend:
     async def test_genes_are_extracted_only_once_validation_holds(
         self, make_gene_entry, mocker
     ) -> None:
-        genes = [make_gene_entry(gene_symbol="NOTCH3"), make_gene_entry()]
+        genes = [make_gene_entry(gene_symbol="GENE2"), make_gene_entry()]
         mocker.patch(
             "pipeline.main.extract_from_paper",
             new=AsyncMock(
@@ -888,14 +888,14 @@ class TestAFailedPaperContributesOnlyItsSpend:
             "pipeline.main.submit_and_collect",
             new=AsyncMock(
                 return_value={
-                    "111": [make_gene_entry(gene_symbol="NOTCH3")],
-                    "222": [make_gene_entry(gene_symbol="HTRA1")],
+                    "111": [make_gene_entry(gene_symbol="GENE1")],
+                    "222": [make_gene_entry(gene_symbol="GENE2")],
                 }
             ),
         )
 
         async def _validate(genes, metrics, config):
-            if genes[0].gene_symbol == "NOTCH3":
+            if genes[0].gene_symbol == "GENE1":
                 raise NcbiUnavailableError("NCBI down")
             metrics.genes_validated += len(genes)
             return genes, []

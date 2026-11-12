@@ -127,7 +127,7 @@ Deno.test("safeNext keeps only a same-site path", () => {
 });
 
 Deno.test("sessionCookie is HttpOnly, Lax, site-wide, 30 days, and Secure off localhost", () => {
-  const cookie = sessionCookie("token", "csvd-dashboard.example.deno.net");
+  const cookie = sessionCookie("token", "dashboard.example.deno.net");
   assertEquals(cookie.name, SESSION_COOKIE);
   assertEquals(cookie.value, "token");
   assertEquals(cookie.httpOnly, true);
@@ -225,7 +225,7 @@ Deno.test("loginResponse answers a correct passphrase with a cookie and a redire
   const response = await loginResponse(
     CONFIG,
     form({ passphrase: CONFIG.passphrase, next: "/genes" }),
-    "csvd-dashboard.example.deno.net",
+    "dashboard.example.deno.net",
     NOW,
   );
   assert(response);

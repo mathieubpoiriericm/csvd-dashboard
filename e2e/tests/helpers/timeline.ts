@@ -2,7 +2,7 @@ import { expect, type Page } from "@playwright/test";
 
 /**
  * Helpers shared by the radar's specs: e2e/tests/timeline.spec.ts,
- * e2e/tests/timeline-responsive.spec.ts and the cSVD one under csvd/.
+ * e2e/tests/timeline-responsive.spec.ts and the one for the upstream dataset under csvd/.
  */
 
 /**

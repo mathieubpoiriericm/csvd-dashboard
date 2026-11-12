@@ -109,18 +109,18 @@ class TestBuildGeneData:
         rule. `max` returns the first maximal element, which is that."""
         entries = [
             make_gene_entry(
-                gene_symbol="NOTCH3",
+                gene_symbol="GENE1",
                 pmid="111",
-                source_quote="First paper's NOTCH3 quote.",
+                source_quote="First paper's GENE1 quote.",
             ),
             make_gene_entry(
-                gene_symbol="NOTCH3",
+                gene_symbol="GENE1",
                 pmid="222",
-                source_quote="Second paper's NOTCH3 quote.",
+                source_quote="Second paper's GENE1 quote.",
             ),
         ]
         data = _build_combined_gene_data(entries)
-        assert data["source_quote"] == "First paper's NOTCH3 quote."
+        assert data["source_quote"] == "First paper's GENE1 quote."
 
     def test_confidence_carried_through(self, make_gene_entry):
         """Kept beside its quote: one entry names both, so the published
@@ -141,21 +141,21 @@ class TestBuildGeneData:
         """
         entries = [
             make_gene_entry(
-                gene_symbol="NOTCH3",
+                gene_symbol="GENE1",
                 pmid="111",
                 confidence=0.50,
-                source_quote="The weaker paper's NOTCH3 sentence.",
+                source_quote="The weaker paper's GENE1 sentence.",
             ),
             make_gene_entry(
-                gene_symbol="NOTCH3",
+                gene_symbol="GENE1",
                 pmid="222",
                 confidence=0.80,
-                source_quote="The deciding paper's NOTCH3 sentence.",
+                source_quote="The deciding paper's GENE1 sentence.",
             ),
         ]
         data = _build_combined_gene_data(entries)
         assert data["confidence"] == 0.80
-        assert data["source_quote"] == "The deciding paper's NOTCH3 sentence."
+        assert data["source_quote"] == "The deciding paper's GENE1 sentence."
         # The other fields still merge across every entry, and the curated
         # key still comes from the first: only the provenance pair moved.
         assert data["references"] == ["111", "222"]
@@ -186,7 +186,7 @@ class TestBuildGeneData:
         can name a phenotype the dashboard does not carry, and leaves the
         disposition to a later layer. This is that layer: a term stored in
         gene_gwas_traits publishes as a filter choice the dashboard does not
-        have, and the first online run merging COL4A1's ICH-non-lobar would
+        have, and the first online run merging a gene's untracked trait would
         have failed tests/data_contract_test.ts. Dropped, and said so."""
         caplog.set_level(logging.INFO)
         tracked = trait_vocabulary.tracked[0]
@@ -302,13 +302,13 @@ class TestMergeGeneEntries:
         proposed was one of that gene's two curated references.
         """
         mocker.patch(
-            "pipeline.data_merger.get_existing_genes", return_value={"NOTCH3"}
+            "pipeline.data_merger.get_existing_genes", return_value={"GENE1"}
         )
         transactional = mocker.patch(
             "pipeline.data_merger.merge_genes_transactional",
             return_value=(0, 1),
         )
-        entry = make_gene_entry(gene_symbol="NOTCH3", confidence=0.50)
+        entry = make_gene_entry(gene_symbol="GENE1", confidence=0.50)
 
         result = await merge_gene_entries([entry])
 
@@ -332,14 +332,14 @@ class TestMergeGeneEntries:
 
         caplog.set_level(logging.INFO)
         mocker.patch(
-            "pipeline.data_merger.get_existing_genes", return_value={"NOTCH3"}
+            "pipeline.data_merger.get_existing_genes", return_value={"GENE1"}
         )
         transactional = mocker.patch(
             "pipeline.data_merger.merge_genes_transactional",
             return_value=(0, 1),
         )
         entry = make_gene_entry(
-            gene_symbol="NOTCH3",
+            gene_symbol="GENE1",
             confidence=0.50,
             mendelian_randomization=True,
             gwas_trait=[tracked_traits[0]],
@@ -351,7 +351,7 @@ class TestMergeGeneEntries:
         # Returned, not merely logged: the run report lists this gene as
         # accepted, and without the key it showed the trait and the omics
         # evidence the row below never took.
-        assert result.get("citation_only") == ["NOTCH3"]
+        assert result.get("citation_only") == ["GENE1"]
         (_, to_update) = transactional.call_args[0]
         (row,) = to_update
         assert row["mendelian_randomization"] is False
@@ -368,14 +368,14 @@ class TestMergeGeneEntries:
     ):
         """The withholding is the sub-floor case, not every update."""
         mocker.patch(
-            "pipeline.data_merger.get_existing_genes", return_value={"NOTCH3"}
+            "pipeline.data_merger.get_existing_genes", return_value={"GENE1"}
         )
         transactional = mocker.patch(
             "pipeline.data_merger.merge_genes_transactional",
             return_value=(0, 1),
         )
         entry = make_gene_entry(
-            gene_symbol="NOTCH3",
+            gene_symbol="GENE1",
             confidence=0.80,
             mendelian_randomization=True,
             gwas_trait=[tracked_traits[0]],
@@ -527,7 +527,7 @@ class TestMergeGeneEntries:
     async def test_existing_genes_updated(self, sample_gene_entries, mocker):
         mocker.patch(
             "pipeline.data_merger.get_existing_genes",
-            return_value={"NOTCH3", "HTRA1", "COL4A1"},
+            return_value={"GENE1", "GENE2", "GENE3"},
         )
         mocker.patch(
             "pipeline.data_merger.merge_genes_transactional",
@@ -540,7 +540,7 @@ class TestMergeGeneEntries:
     async def test_mix_insert_and_update(self, sample_gene_entries, mocker):
         mocker.patch(
             "pipeline.data_merger.get_existing_genes",
-            return_value={"NOTCH3"},
+            return_value={"GENE1"},
         )
         mocker.patch(
             "pipeline.data_merger.merge_genes_transactional",
@@ -562,19 +562,19 @@ class TestMergeGeneEntries:
         a, b = tracked_traits[:2]
         entries = [
             make_gene_entry(
-                gene_symbol="NOTCH3",
+                gene_symbol="GENE1",
                 pmid="111",
                 gwas_trait=[a],
                 omics_evidence=[TWAS],
-                source_quote="First paper's NOTCH3 quote.",
+                source_quote="First paper's GENE1 quote.",
                 confidence=0.60,
             ),
             make_gene_entry(
-                gene_symbol="NOTCH3",
+                gene_symbol="GENE1",
                 pmid="222",
                 gwas_trait=[b],
                 omics_evidence=[PWAS],
-                source_quote="Second paper's NOTCH3 quote.",
+                source_quote="Second paper's GENE1 quote.",
                 confidence=0.95,
             ),
         ]
@@ -587,7 +587,7 @@ class TestMergeGeneEntries:
             return_value=(1, 0),
         )
         await merge_gene_entries(entries)
-        # Both NOTCH3 entries collapse into a single insert row whose fields
+        # Both GENE1 entries collapse into a single insert row whose fields
         # are the union of the per-entry values.
         call_args = mock_merge.call_args
         to_insert = call_args[0][0]
@@ -595,7 +595,7 @@ class TestMergeGeneEntries:
         assert len(to_insert) == 1
         assert len(to_update) == 0
         merged = to_insert[0]
-        assert merged["gene"] == "NOTCH3"
+        assert merged["gene"] == "GENE1"
         assert a in merged["gwas_trait"]
         assert b in merged["gwas_trait"]
         assert clean_omics_value(merged["evidence_from_other_omics_studies"]) == [
@@ -606,18 +606,17 @@ class TestMergeGeneEntries:
         assert "222" in merged["references"]
         # source_quote and confidence come from the entry the insert floor
         # was decided on -- the 0.95 one -- and travel together.
-        assert merged["source_quote"] == "Second paper's NOTCH3 quote."
+        assert merged["source_quote"] == "Second paper's GENE1 quote."
         assert merged["confidence"] == 0.95
 
 
 class TestCanonicalGeneSymbol:
-    """The curated dataset combines the COL4A1/COL4A2 pair under one key.
+    """The curated dataset combines a pair of genes under one key.
 
-    An extraction names whichever chain its paper discusses, so without this
-    a run adds "COL4A1" as a new gene beside the curated "COL4A1/2" row --
+    An extraction names whichever member its paper discusses, so without this
+    a run adds "GENEA" as a new gene beside the curated "GENEA/B" row --
     genes.gene is UNIQUE, so nothing collapses them and the published table
-    gains a duplicate. That is exactly what the first live run did, from
-    PMID 42437605.
+    gains a duplicate. That is exactly what the first live run did.
     """
 
     def test_both_members_map_to_the_curated_key(self, gene_aliases):
@@ -633,7 +632,9 @@ class TestCanonicalGeneSymbol:
     def test_every_other_symbol_is_returned_untouched(self, gene_aliases):
         """A no-op for all but the pairs the curators combine, so this
         cannot quietly rewrite the other genes."""
-        for symbol in ("NOTCH3", "HTRA1", "LAMB1", "COL4A3", "COL6A1"):
+        # The last two only look like the pair: a third of the same family,
+        # and a symbol that begins as a member does.
+        for symbol in ("GENE1", "GENE2", "GENE3", "GENEC", "GENEA1"):
             assert canonical_gene_symbol(symbol) == symbol
 
     def test_a_mixed_case_member_folds_onto_its_key(self, monkeypatch):
@@ -654,11 +655,11 @@ class TestCanonicalGeneSymbol:
             assert canonical_gene_symbol(symbol) == "C1orf999/GENEX", symbol
 
     def test_an_obsolete_curated_symbol_keeps_its_row(self, gene_aliases):
-        """NCBI answers cSVD's C6orf195 under its current name, LINC01600.
+        """NCBI answers a curated symbol, OLDSYM, under its current name, NEWSYM.
 
         Validation rewrites the extracted symbol to NCBI's official one, so
-        without this map the merge saw LINC01600, found no such curated
-        gene, and inserted a 64th row beside C6orf195 -- the COL4A1 bug in
+        without this map the merge saw NEWSYM, found no such curated
+        gene, and inserted a second row beside OLDSYM -- the pair-key bug in
         a second form.
         """
         assert canonical_gene_symbol("NEWSYM") == "OLDSYM"
@@ -702,7 +703,7 @@ class TestCanonicalGeneSymbol:
     async def test_both_members_in_one_batch_collapse_into_one_row(
         self, make_gene_entry, mocker, gene_aliases
     ):
-        """Grouping happens on the curated key, so COL4A1 and COL4A2 arriving
+        """Grouping happens on the curated key, so GENEA and GENEB arriving
         together merge into one row instead of colliding on genes.gene's
         UNIQUE constraint.
 
@@ -735,8 +736,8 @@ class TestCanonicalGeneSymbol:
     async def test_a_new_member_does_not_create_a_second_row(
         self, make_gene_entry, mocker, gene_aliases
     ):
-        """The bug as it actually happened: COL4A1/2 already exists, a paper
-        names COL4A1, and the run inserted a 64th gene beside it."""
+        """The bug as it actually happened: GENEA/B already exists, a paper
+        names GENEA, and the run inserted another gene beside it."""
         mocker.patch(
             "pipeline.data_merger.get_existing_genes",
             return_value={"GENEA/B"},

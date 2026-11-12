@@ -13,7 +13,7 @@ import type { Gene, Trial } from "../lib/types.ts";
 
 Deno.test("normalizeGene trims text, preserves lists, and replaces invalid values", () => {
   const raw = {
-    gene: "  COL4A1  ",
+    gene: "  GENE1  ",
     protein: 42,
     chromosomalLocation: " ",
     gwasTrait: [" WMH ", null, ""],
@@ -28,7 +28,7 @@ Deno.test("normalizeGene trims text, preserves lists, and replaces invalid value
   } as unknown as Partial<Gene>;
 
   assertEquals(normalizeGene(raw), {
-    gene: "COL4A1",
+    gene: "GENE1",
     protein: "(unknown)",
     chromosomalLocation: "(unknown)",
     gwasTrait: ["WMH"],
@@ -45,22 +45,22 @@ Deno.test("normalizeGene trims text, preserves lists, and replaces invalid value
 
 Deno.test("normalizeGene keeps a real quote and a bounded confidence score", () => {
   const raw = {
-    gene: "NOTCH3",
-    sourceQuote: " NOTCH3 variants were associated with WMH (p=1e-12). ",
+    gene: "GENE2",
+    sourceQuote: " GENE2 variants were associated with WMH (p=1e-12). ",
     confidence: 0.87,
   } as unknown as Partial<Gene>;
 
   const normalized = normalizeGene(raw);
   assertEquals(
     normalized.sourceQuote,
-    "NOTCH3 variants were associated with WMH (p=1e-12).",
+    "GENE2 variants were associated with WMH (p=1e-12).",
   );
   assertEquals(normalized.confidence, 0.87);
 });
 
 Deno.test("gene normalization accepts malformed rows and top-level values", () => {
   assertEquals(normalizeGene(null), normalizeGene({}));
-  assertEquals(normalizeGenes({ gene: "NOTCH3" }), []);
+  assertEquals(normalizeGenes({ gene: "GENE2" }), []);
   assertEquals(normalizeGenes([null]), [normalizeGene({})]);
 });
 
@@ -73,7 +73,7 @@ Deno.test("normalizeTrial enforces the complete string-only boundary", () => {
     trialName: null,
     registryId: undefined,
     clinicalTrialPhase: " III ",
-    targetPopulation: " SVD ",
+    targetPopulation: " Adults ",
     targetPopulationDetails: " Details ",
     targetSampleSize: " 1,200 ",
     estimatedCompletionDate: " 5/2030 ",
@@ -90,7 +90,7 @@ Deno.test("normalizeTrial enforces the complete string-only boundary", () => {
     trialName: "(unknown)",
     registryId: "(unknown)",
     clinicalTrialPhase: "III",
-    targetPopulation: "SVD",
+    targetPopulation: "Adults",
     targetPopulationDetails: "Details",
     targetSampleSize: "1,200",
     estimatedCompletionDate: "5/2030",

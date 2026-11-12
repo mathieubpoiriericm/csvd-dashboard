@@ -111,11 +111,11 @@ Deno.test("a fully populated report keeps every value it was given", () => {
     }],
     acceptedGenes: {
       items: [{
-        symbol: "HTRA1",
+        symbol: "GENE1",
         pmid: "20437615",
         confidence: 1,
-        gwasTraits: ["extreme-cSVD"],
-        proteinName: "HtrA serine peptidase 1",
+        gwasTraits: ["extreme-trait"],
+        proteinName: "Protein 1",
         mendelianRandomization: true,
         omicsEvidence: ["MAGMA"],
         causalEvidenceSummary: "Validated monogenic cause.",
@@ -159,7 +159,7 @@ Deno.test("a fully populated report keeps every value it was given", () => {
   assertEquals(result.apis[0].bytes, 2048);
 
   const gene = result.acceptedGenes.items[0];
-  assertEquals(gene.proteinName, "HtrA serine peptidase 1");
+  assertEquals(gene.proteinName, "Protein 1");
   assertEquals(gene.mendelianRandomization, true);
   assertEquals(gene.omicsEvidence, ["MAGMA"]);
   assertEquals(gene.causalEvidenceSummary, "Validated monogenic cause.");
@@ -176,7 +176,7 @@ Deno.test("a report stored before a field existed reads unknown, not zero", () =
   const result = normalizePipelineRun(run({
     config: { model: "claude-opus-5" },
     tokens: { inputTokens: 10 },
-    acceptedGenes: { items: [{ symbol: "HTRA1" }] },
+    acceptedGenes: { items: [{ symbol: "GENE1" }] },
   }));
   assert(result !== null);
   assertEquals(result.config.batch, null);
@@ -396,7 +396,7 @@ Deno.test("a capped list recomputes shown from the items it actually has", () =>
       acceptedGenes: {
         shown: 200,
         total: 1412,
-        items: [{ symbol: "HTRA1" }, { symbol: "COL4A1" }],
+        items: [{ symbol: "GENE1" }, { symbol: "GENE2" }],
       },
     }),
   );
@@ -521,10 +521,10 @@ Deno.test("an api row falls back to its service key for a label", () => {
 
 Deno.test("text is trimmed at the boundary", () => {
   const result = normalizePipelineRun(
-    run({ acceptedGenes: { items: [{ symbol: "  HTRA1  ", pmid: "  1  " }] } }),
+    run({ acceptedGenes: { items: [{ symbol: "  GENE1  ", pmid: "  1  " }] } }),
   );
   assert(result !== null);
-  assertEquals(result.acceptedGenes.items[0].symbol, "HTRA1");
+  assertEquals(result.acceptedGenes.items[0].symbol, "GENE1");
   assertEquals(result.acceptedGenes.items[0].pmid, "1");
 });
 

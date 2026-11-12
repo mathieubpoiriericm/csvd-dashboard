@@ -35,11 +35,11 @@ def _settings(
 def test_tables_are_exported_as_html_not_markdown() -> None:
     """GWAS tables have merged two-row headers that pipe tables flatten."""
     doc = MagicMock()
-    doc.export_to_html.return_value = "<table><tr><td>HTRA1</td></tr></table>"
+    doc.export_to_html.return_value = "<table><tr><td>GENE1</td></tr></table>"
     with patch("pipeline.pdf_parse._convert", return_value=doc):
         text = parse_pdf_bytes(b"%PDF-1.7 fake")
     assert text is not None
-    assert "HTRA1" in text
+    assert "GENE1" in text
     doc.export_to_html.assert_called_once()
 
 

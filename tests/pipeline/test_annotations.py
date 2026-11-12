@@ -39,26 +39,26 @@ class TestGroupKeyFor:
 class TestAnnotationRow:
     def test_carries_every_field_the_table_stores(self) -> None:
         row = AnnotationRow(
-            gene_symbol="HTRA1",
+            gene_symbol="GENE1",
             source="clinvar",
             relation="disease",
             group_key="MONDO:0010829",
             object_id="Orphanet:199354",
-            object_label="CARASIL syndrome",
+            object_label="Disease 1 syndrome",
             qualifier="Pathogenic/Likely pathogenic",
             score=None,
             evidence_count=5,
             source_version=None,
         )
-        assert row.gene_symbol == "HTRA1"
+        assert row.gene_symbol == "GENE1"
         assert row.evidence_count == 5
 
     def test_sorts_deterministically(self) -> None:
         """Rows are written in sorted order so the export stays reproducible."""
         rows = [
-            AnnotationRow("HTRA1", "clinvar", "disease", "MONDO:0010829",
+            AnnotationRow("GENE1", "clinvar", "disease", "MONDO:0010829",
                           "OMIM:600142", None, None, None, None, None),
-            AnnotationRow("HTRA1", "clinvar", "disease", "MONDO:0010829",
+            AnnotationRow("GENE1", "clinvar", "disease", "MONDO:0010829",
                           "MONDO:0010829", None, None, None, None, None),
         ]
         assert [r.object_id for r in sorted(rows, key=AnnotationRow.sort_key)] == [
@@ -70,7 +70,7 @@ class TestAnnotationRow:
 class TestAnnotationStatus:
     def test_records_a_zero_row_fetch(self) -> None:
         status = AnnotationStatus(
-            gene_symbol="C6orf195", source="clinvar", row_count=0, source_version=None
+            gene_symbol="OLDSYM", source="clinvar", row_count=0, source_version=None
         )
         assert status.row_count == 0
 
@@ -94,15 +94,15 @@ class TestLookupAliases:
     """A curated key that is not a gene symbol is queried by what it stands for."""
 
     def test_an_ordinary_symbol_is_returned_unchanged(self) -> None:
-        assert lookup_symbols("HTRA1") == ("HTRA1",)
+        assert lookup_symbols("GENE1") == ("GENE1",)
 
     def test_a_curated_label_fans_out_to_its_members(self, gene_aliases) -> None:
-        """A curated label that is not a gene symbol (cSVD's COL4A1/2) is
-        queried as the symbols it stands for.
+        """A curated label that is not a gene symbol (one that stands for two
+        genes) is queried as the symbols it stands for.
 
         Queried literally it returned nothing from all three sources, so the
-        pair that causes Gould syndrome, PADMAL and HANAC published no disease
-        at all -- a blank that reads as "none known" rather than "not a symbol".
+        pair published no disease at all -- a blank that reads as "none known"
+        rather than "not a symbol".
         """
         assert lookup_symbols("GENEA/B") == ("GENEA", "GENEB")
 
@@ -115,26 +115,26 @@ class TestLookupAliases:
         self, gene_aliases
     ) -> None:
         queries, curated_by_query = expand_lookup_symbols(
-            ["HTRA1", "GENEA/B", "OLDSYM"]
+            ["GENE1", "GENEA/B", "OLDSYM"]
         )
-        assert queries == ["HTRA1", "GENEA", "GENEB", "NEWSYM"]
+        assert queries == ["GENE1", "GENEA", "GENEB", "NEWSYM"]
         assert curated_by_query == {
-            "HTRA1": "HTRA1",
+            "GENE1": "GENE1",
             "GENEA": "GENEA/B",
             "GENEB": "GENEA/B",
             "NEWSYM": "OLDSYM",
         }
 
     def test_a_repeated_symbol_is_queried_once(self) -> None:
-        queries, _ = expand_lookup_symbols(["HTRA1", "HTRA1"])
-        assert queries == ["HTRA1"]
+        queries, _ = expand_lookup_symbols(["GENE1", "GENE1"])
+        assert queries == ["GENE1"]
 
     def test_the_alias_map_reconciles_with_the_merge_s_canonical_map(self) -> None:
         """The two directions of one correspondence, kept in step.
 
-        `_CANONICAL_GENE_SYMBOLS` folds an extracted `COL4A1` onto the curated
-        `COL4A1/2` on the way in; `_LOOKUP_ALIASES` fans the curated key back
-        out to `COL4A1` on the way to an external database. Both derive from
+        `_CANONICAL_GENE_SYMBOLS` folds an extracted member onto its curated
+        key on the way in; `_LOOKUP_ALIASES` fans the curated key back out to
+        its members on the way to an external database. Both derive from
         `geneAliases` in disease/pipeline.json, one forward and one inverted,
         rather than one importing the other -- `pipeline.annotations` imports
         nothing from the pipeline, which is what keeps the row contract free

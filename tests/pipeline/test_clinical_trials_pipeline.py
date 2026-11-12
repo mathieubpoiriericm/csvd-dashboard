@@ -61,7 +61,7 @@ class TestRunClinicalTrialsPipeline:
             "pipeline.main.sync_clinical_trials",
             new_callable=AsyncMock,
             return_value=SyncResult(
-                fetched=5, cached=4, failed=1, errors=["CTG term 'CADASIL': boom"]
+                fetched=5, cached=4, failed=1, errors=["CTG term 'Disease 1': boom"]
             ),
         )
 
@@ -71,7 +71,7 @@ class TestRunClinicalTrialsPipeline:
         summary = await run_clinical_trials_pipeline(config=config)
 
         assert summary["status"] == "warnings"
-        assert summary["errors"] == ["CTG term 'CADASIL': boom"]
+        assert summary["errors"] == ["CTG term 'Disease 1': boom"]
         # `aborted` is a status, not a count: it must not reach the metrics
         # line the notification renders as key=value pairs.
         assert summary["metrics"] == {"fetched": 5, "cached": 4, "failed": 1}

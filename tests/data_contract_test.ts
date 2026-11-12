@@ -130,9 +130,9 @@ Deno.test("generated trial rows satisfy the string-only UI contract", () => {
 // A trial registered once is one trial however many drugs it tests, so its
 // rows agree on every per-trial column. The population columns did not:
 // upstream, the two were sorted on their own and laid back over rows ordered
-// by drug, so three registry IDs disagreed with themselves and the CADASIL
-// cerebrolysin trial published as CAA. Nothing in the export can see that;
-// this can.
+// by drug, so three registry IDs disagreed with themselves and one trial
+// published under another trial's population. Nothing in the export can see
+// that; this can.
 const PER_TRIAL_FIELDS = [
   "trialName",
   "clinicalTrialPhase",

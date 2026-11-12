@@ -417,11 +417,11 @@ Deno.test("a step that did the same thing twice lists it twice", () => {
 
 Deno.test("the drawer carries a gene's evidence, not just its name", () => {
   const markup = details();
-  assertStringIncludes(markup, "HTRA1");
-  assertStringIncludes(markup, "HtrA serine peptidase 1");
-  assertStringIncludes(markup, "extreme-cSVD");
+  assertStringIncludes(markup, "GENE1");
+  assertStringIncludes(markup, "Protein 1");
+  assertStringIncludes(markup, "extreme-trait");
   assertStringIncludes(markup, "MAGMA");
-  assertStringIncludes(markup, "Validated monogenic cause of cSVD.");
+  assertStringIncludes(markup, "Validated monogenic cause of the disease.");
   assertStringIncludes(
     markup,
     "The diagnosis is established by molecular testing.",
@@ -554,7 +554,7 @@ Deno.test("a finding rejected for several reasons names the others in its row", 
 Deno.test("a value from a fixed vocabulary is a neutral pill", () => {
   // A trait and an omics method: no tint, and no glyph to decode.
   const markup = details("findings");
-  for (const value of ["extreme-cSVD", "MAGMA"]) {
+  for (const value of ["extreme-trait", "MAGMA"]) {
     assertStringIncludes(
       markup,
       `<span class="pipeline-chip pipeline-tint-muted">${value}</span>`,
@@ -874,14 +874,14 @@ Deno.test("step warnings preserve the detail explaining the flagged record", () 
         kind: "batch_validation",
         title: "1 batch check flagged something",
         count: 1,
-        detail: "Gene NOTCH3 extracted from 4 different papers",
+        detail: "Gene GENE1 extracted from 4 different papers",
         subjects: [],
       }],
     }],
   };
   assertStringIncludes(
     renderToString(<PipelineRunView run={run} />),
-    "Gene NOTCH3 extracted from 4 different papers",
+    "Gene GENE1 extracted from 4 different papers",
   );
 });
 

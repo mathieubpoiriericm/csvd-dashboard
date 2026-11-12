@@ -21,7 +21,7 @@ _CAMEL_BOUNDARY = re.compile(r"(?<=[^A-Z])(?=[A-Z])")
 def test_the_empty_export_covers_every_committed_file_but_the_cytobands() -> None:
     """The set is pinned to the directory listing, the way test_writer.py pins
     its round-trip cases: a file added to data/ without an empty shape fails
-    here rather than shipping cSVD rows into a fork."""
+    here rather than shipping upstream rows into a fork."""
     committed = {p.name for p in _DATA_DIR.glob("*.json")}
     assert committed == EMPTY_FILES | UNTOUCHED
     assert {"cytobands_hg38.json"} == UNTOUCHED
@@ -71,7 +71,7 @@ def test_row_tables_are_empty_arrays_and_run_files_are_null(tmp_path: Path) -> N
 
 def test_gene_annotations_is_emptied_not_skipped(tmp_path: Path) -> None:
     """The database export keeps a committed gene_annotations.json when its
-    table is empty; the empty export must not, or a fork ships cSVD
+    table is empty; the empty export must not, or a fork ships the upstream
     annotations."""
     (tmp_path / "gene_annotations.json").write_text('[{"geneSymbol": "X"}]\n')
     write_empty_export(tmp_path, now=_NOW)

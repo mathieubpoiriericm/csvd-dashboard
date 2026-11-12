@@ -149,7 +149,7 @@ class TestEveryEutilitiesCallerIsPaced:
         mocker.patch.object(
             ncbi_gene_fetch._client_manager, "get", return_value=_client(self.ok)
         )
-        await ncbi_gene_fetch._fetch_ncbi_gene_uncached("NOTCH3")
+        await ncbi_gene_fetch._fetch_ncbi_gene_uncached("GENE1")
         self.throttle.assert_awaited()
 
     async def test_citations(self, mocker) -> None:

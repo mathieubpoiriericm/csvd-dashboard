@@ -170,7 +170,7 @@ class TestTransportFailuresAreCounted:
             uniprot_fetch._client_manager, "get", return_value=self._raising_client()
         )
 
-        info = await uniprot_fetch.fetch_uniprot_info("NOTCH3")
+        info = await uniprot_fetch.fetch_uniprot_info("GENE1")
         assert info is not None
         assert info.accession is None and info.cacheable_miss is False
 

@@ -14,17 +14,17 @@ Deno.test("gene lookup indexes discard malformed rows and normalize safe rows", 
     { name: 7 },
     { name: " " },
     {
-      name: " NOTCH3 ",
+      name: " GENE1 ",
       uid: " 4854 ",
       description: 7,
       otheraliases: " ",
     },
   ];
   const expected: [string, GeneInfo[]][] = [[
-    "NOTCH3",
+    "GENE1",
     [{
-      name: "NOTCH3",
-      symbol: "NOTCH3",
+      name: "GENE1",
+      symbol: "GENE1",
       uid: "4854",
       description: null,
       otheraliases: null,
@@ -33,7 +33,7 @@ Deno.test("gene lookup indexes discard malformed rows and normalize safe rows", 
 
   assertEquals([...indexGeneInfoByName(rows)], expected);
   assertEquals([...indexTrialGeneInfoByName(rows)], expected);
-  assertEquals([...indexGeneInfoByName({ name: "NOTCH3" })], []);
+  assertEquals([...indexGeneInfoByName({ name: "GENE1" })], []);
 });
 
 /**
@@ -85,13 +85,13 @@ Deno.test("protein lookup rejects unusable keys without touching optional fields
       null,
       {},
       { gene: 42 },
-      { gene: " COL4A1 ", accession: " P02462 ", url: [] },
+      { gene: " GENE1 ", accession: " P02462 ", url: [] },
     ])],
     [[
-      "COL4A1",
+      "GENE1",
       [{
-        gene: "COL4A1",
-        symbol: "COL4A1",
+        gene: "GENE1",
+        symbol: "GENE1",
         accession: "P02462",
         url: null,
       }],

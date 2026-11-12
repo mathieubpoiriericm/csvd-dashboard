@@ -12,7 +12,7 @@ import {
 /**
  * Every count below is derived from the committed data through the app's
  * own layout function (e2e/fixtures/expected.deno.ts); the tests that name a
- * cSVD drug, trial or population are in csvd/timeline.spec.ts. The radar's
+ * drug, trial or population of the upstream dataset are in csvd/timeline.spec.ts. The radar's
  * chrome, key and skip link render without a trial; the tests that need one
  * guard on `T.markers`.
  */
@@ -54,7 +54,7 @@ const FIGURE = "svg.timeline-figure";
 
 /**
  * Why a test that reads the full radar skips: a fork's longer names may put
- * a window the cSVD data reads cleanly at into the phone views, which have
+ * a window the upstream data reads cleanly at into the phone views, which have
  * no FIGURE to read. Asserting radar there would fail on a null element
  * rather than on anything wrong.
  */

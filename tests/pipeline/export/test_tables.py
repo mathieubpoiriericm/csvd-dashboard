@@ -193,8 +193,8 @@ def test_the_gate_republishes_every_committed_value_unchanged(
 def test_gene_row_produces_the_display_contract() -> None:
     row = clean_gene_row(
         {
-            "gene": "LAMB1",
-            "protein": "LAMB1",
+            "gene": "GENE2",
+            "protein": "GENE2",
             "chromosomal_location": "7q31.1",
             "gwas_trait": ["SVS", "WMH"],
             "mendelian_randomization": None,
@@ -205,7 +205,7 @@ def test_gene_row_produces_the_display_contract() -> None:
             "references": ["37063705", "34606115"],
         }
     )
-    assert row["Gene"] == "LAMB1"
+    assert row["Gene"] == "GENE2"
     assert row["GWAS Trait"] == ["SVS", "WMH"]
     assert row["Mendelian Randomization"] == "No"
     assert row["Evidence From Other Omics Studies"] == ["(none found)"]
@@ -300,19 +300,19 @@ def test_a_protein_written_the_way_proteins_are_written_is_kept(
 
 
 def test_a_real_protein_name_is_published_verbatim() -> None:
-    name = "Neurogenic locus notch homolog protein 3"
-    assert clean_gene_row({"gene": "NOTCH3", "protein": name})["Protein"] == name
+    name = "Example multi-word protein 3"
+    assert clean_gene_row({"gene": "GENE3", "protein": name})["Protein"] == name
 
 
 def test_gene_row_publishes_a_real_source_quote_verbatim() -> None:
     row = clean_gene_row(
         {
-            "gene": "NOTCH3",
+            "gene": "GENE3",
             "references": ["1234567"],
-            "source_quote": "NOTCH3 variants were associated with WMH (p=1e-12).",
+            "source_quote": "GENE3 variants were associated with WMH (p=1e-12).",
         }
     )
-    assert row["Source Quote"] == "NOTCH3 variants were associated with WMH (p=1e-12)."
+    assert row["Source Quote"] == "GENE3 variants were associated with WMH (p=1e-12)."
 
 
 def test_gene_row_sentinels_a_missing_source_quote() -> None:
@@ -339,7 +339,7 @@ def test_gene_row_passes_confidence_through_as_a_nullable_number() -> None:
     score publishes as JSON null rather than a placeholder word.
     """
     row = clean_gene_row(
-        {"gene": "NOTCH3", "references": ["1234567"], "confidence": 0.87}
+        {"gene": "GENE3", "references": ["1234567"], "confidence": 0.87}
     )
     assert row["Confidence"] == 0.87
 
@@ -361,8 +361,8 @@ def test_gene_row_key_order_matches_the_committed_artifact(committed_rows) -> No
 
     row = clean_gene_row(
         {
-            "gene": "LAMB1",
-            "protein": "LAMB1",
+            "gene": "GENE2",
+            "protein": "GENE2",
             "chromosomal_location": "7q31.1",
             "gwas_trait": ["SVS", "WMH"],
             "mendelian_randomization": None,
@@ -464,8 +464,8 @@ def test_known_trait_synonyms_fold_onto_the_controlled_vocabulary() -> None:
     """
     row = clean_gene_row(
         {
-            "gene": "COL4A1/2",
-            "protein": "COL4A1",
+            "gene": "GENE4A1/2",
+            "protein": "GENE4A1",
             "chromosomal_location": "13q34",
             "gwas_trait": ["WMH", "SVS", "lacunes", "CMB"],
             "mendelian_randomization": None,
@@ -485,10 +485,10 @@ def test_an_unmapped_trait_is_left_alone() -> None:
     curators wrote deliberately."""
     row = clean_gene_row(
         {
-            "gene": "NOTCH3",
-            "protein": "NOTCH3",
+            "gene": "GENE3",
+            "protein": "GENE3",
             "chromosomal_location": "19p13.12",
-            "gwas_trait": ["WMH", "PSMD", "extreme-cSVD"],
+            "gwas_trait": ["WMH", "PSMD", "extreme-trait"],
             "mendelian_randomization": None,
             "evidence_from_other_omics_studies": None,
             "link_to_monogenetic_disease": None,
@@ -497,7 +497,7 @@ def test_an_unmapped_trait_is_left_alone() -> None:
             "references": ["12345678"],
         }
     )
-    assert row["GWAS Trait"] == ["WMH", "PSMD", "extreme-cSVD"]
+    assert row["GWAS Trait"] == ["WMH", "PSMD", "extreme-trait"]
 
 
 def test_clean_gene_row_folds_synonyms_and_drops_untracked_terms(
@@ -505,7 +505,7 @@ def test_clean_gene_row_folds_synonyms_and_drops_untracked_terms(
 ) -> None:
     """The join table holds what the merge stored, and until the merge
     learned to drop them that included the `untracked` vocabulary terms:
-    the 2026-09-01 run left COL4A1/2 carrying ICH-non-lobar. A trait with
+    the 2026-09-01 run left one gene carrying an untracked trait. A trait with
     no filter choice fails tests/data_contract_test.ts, so the export is
     the second layer: fold the synonyms, drop the untracked terms, and
     collapse whatever the fold made identical -- in order, as always."""
@@ -554,7 +554,7 @@ def test_split_gwas_traits_treats_the_missing_sentinels_as_no_traits() -> None:
 
 def test_clean_gene_row_applies_sentinels_to_empty_lists() -> None:
     row = {
-        "gene": "HTRA1",
+        "gene": "GENE1",
         "references": [],
         "gwas_trait": [],
         "link_to_monogenetic_disease": [],
@@ -571,7 +571,7 @@ def test_clean_gene_row_applies_sentinels_to_absent_lists() -> None:
     in that key -- the NULL placeholder _read_genes_with_lists selects."""
     out = clean_gene_row(
         {
-            "gene": "HTRA1",
+            "gene": "GENE1",
             "references": None,
             "gwas_trait": None,
             "link_to_monogenetic_disease": None,
@@ -584,7 +584,7 @@ def test_clean_gene_row_applies_sentinels_to_absent_lists() -> None:
 
 def test_clean_gene_row_passes_populated_lists_through_in_order() -> None:
     row = {
-        "gene": "HTRA1",
+        "gene": "GENE1",
         "references": ["33773636", "33773637"],
         "gwas_trait": ["WMH"],
         "link_to_monogenetic_disease": ["600142"],

@@ -307,7 +307,7 @@ test("chromosomal location sorts by chromosome number", async ({ page }) => {
   const locations = await rows(page).locator("td:nth-child(3)").allInnerTexts();
   // Karyotype order, so X and Y rank after 22 rather than failing to parse.
   // The previous `^\d+` parser returned NaN for "Xq22.1" -- the value the
-  // column actually got wrong once GLA arrived.
+  // column actually got wrong once an X-linked gene arrived.
   const KARYOTYPE = [
     ...Array.from({ length: 22 }, (_, i) => String(i + 1)),
     "X",

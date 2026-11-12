@@ -40,7 +40,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 
 def _make_study(
     nct_id: str = "NCT00000001",
-    brief_title: str | None = "A cSVD trial",
+    brief_title: str | None = "A placebo-controlled trial",
     phases: list[str] | None = None,
     interventions: list[dict] | None = None,
     enrollment_count: int | None = 100,

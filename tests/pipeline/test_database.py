@@ -114,8 +114,8 @@ class TestEmptyInputShortCircuits:
 # ---------------------------------------------------------------------------
 
 _GENE_ROW = {
-    "protein": "Notch receptor 3",
-    "gene": "NOTCH3",
+    "protein": "Protein 1",
+    "gene": "GENE1",
     "chromosomal_location": "19p13.12",
     # The two normalized columns arrive as lists, the way
     # _build_combined_gene_data now produces them.
@@ -126,7 +126,7 @@ _GENE_ROW = {
     "brain_cell_types": "",
     "affected_pathway": "",
     "references": ["12345678"],
-    "source_quote": "NOTCH3 variants were associated with WMH (p=1e-12).",
+    "source_quote": "GENE1 variants were associated with WMH (p=1e-12).",
     "confidence": 0.87,
 }
 
@@ -219,8 +219,8 @@ class TestMergeGenesProvenance:
         mock_conn = _mock_merge_connection(mocker)
 
         gene_row = {
-            "protein": "Notch receptor 3",
-            "gene": "NOTCH3",
+            "protein": "Protein 1",
+            "gene": "GENE1",
             "chromosomal_location": "",
             "gwas_trait": ["WMH"],
             "mendelian_randomization": False,
@@ -229,7 +229,7 @@ class TestMergeGenesProvenance:
             "brain_cell_types": "",
             "affected_pathway": "",
             "references": ["12345678"],
-            "source_quote": "NOTCH3 variants were associated with WMH (p=1e-12).",
+            "source_quote": "GENE1 variants were associated with WMH (p=1e-12).",
             "confidence": 0.87,
         }
         await merge_genes_transactional([gene_row], [])
@@ -242,7 +242,7 @@ class TestMergeGenesProvenance:
         params = list(params_list)[0]
         # Column list is (..., source_quote, confidence) -> confidence last.
         assert params[-1] == 0.87
-        assert params[-2] == "NOTCH3 variants were associated with WMH (p=1e-12)."
+        assert params[-2] == "GENE1 variants were associated with WMH (p=1e-12)."
 
     async def test_update_sql_and_params_carry_source_quote_and_confidence(
         self, mocker
@@ -250,13 +250,13 @@ class TestMergeGenesProvenance:
         mock_conn = _mock_merge_connection(mocker)
 
         gene_row = {
-            "protein": "Notch receptor 3",
-            "gene": "NOTCH3",
+            "protein": "Protein 1",
+            "gene": "GENE1",
             "gwas_trait": ["WMH"],
             "mendelian_randomization": False,
             "evidence_from_other_omics_studies": "",
             "references": ["12345678"],
-            "source_quote": "NOTCH3 variants were associated with WMH (p=1e-12).",
+            "source_quote": "GENE1 variants were associated with WMH (p=1e-12).",
             "confidence": 0.87,
         }
         await merge_genes_transactional([], [gene_row])
@@ -269,9 +269,9 @@ class TestMergeGenesProvenance:
         params = list(params_list)[0]
         # WHERE UPPER(gene) = UPPER($6) puts gene last; confidence is $5,
         # source_quote is $4.
-        assert params[-1] == "NOTCH3"
+        assert params[-1] == "GENE1"
         assert params[-2] == 0.87
-        assert params[-3] == "NOTCH3 variants were associated with WMH (p=1e-12)."
+        assert params[-3] == "GENE1 variants were associated with WMH (p=1e-12)."
 
     async def test_insert_sql_fills_quote_and_confidence_on_one_condition(
         self, mocker
@@ -660,9 +660,9 @@ class TestDatabaseSingleton:
 class TestReadHelpers:
     async def test_get_existing_genes_uppercases_at_sql_boundary(self, mocker):
         conn = _mock_plain_connection(mocker)
-        conn.fetch.return_value = [{"gene": "NOTCH3"}, {"gene": "HTRA1"}]
+        conn.fetch.return_value = [{"gene": "GENE1"}, {"gene": "GENE2"}]
 
-        assert await get_existing_genes() == {"NOTCH3", "HTRA1"}
+        assert await get_existing_genes() == {"GENE1", "GENE2"}
         assert "UPPER(gene)" in conn.fetch.await_args.args[0]
 
     async def test_get_existing_pmids(self, mocker):
@@ -692,32 +692,32 @@ class TestCacheOperations:
         conn = _mock_plain_connection(mocker)
         conn.fetch.return_value = [
             {
-                "gene_symbol": "NOTCH3",
+                "gene_symbol": "GENE1",
                 "ncbi_uid": "4854",
-                "description": "notch receptor 3",
-                "aliases": ["CADASIL"],
+                "description": "protein 1",
+                "aliases": ["ALIAS1"],
             }
         ]
 
-        result = await get_cached_ncbi_genes(["NOTCH3"], max_age_days=30)
+        result = await get_cached_ncbi_genes(["GENE1"], max_age_days=30)
 
         assert result == {
-            "NOTCH3": {
+            "GENE1": {
                 "ncbi_uid": "4854",
-                "description": "notch receptor 3",
-                "aliases": ["CADASIL"],
+                "description": "protein 1",
+                "aliases": ["ALIAS1"],
             }
         }
-        assert conn.fetch.await_args.args[1:] == (["NOTCH3"], 30)
+        assert conn.fetch.await_args.args[1:] == (["GENE1"], 30)
 
     async def test_upsert_ncbi_genes(self, mocker):
         conn = _mock_plain_connection(mocker)
         genes = [
             SimpleNamespace(
-                gene_symbol="NOTCH3",
+                gene_symbol="GENE1",
                 ncbi_uid="4854",
-                description="notch receptor 3",
-                aliases=["CADASIL"],
+                description="protein 1",
+                aliases=["ALIAS1"],
                 map_location="19p13.12",
             )
         ]
@@ -726,15 +726,15 @@ class TestCacheOperations:
         # map_location rides along because nothing else in the schema carries
         # a chromosomal band, and the phenogram places a gene by it.
         assert conn.executemany.await_args.args[1] == [
-            ("NOTCH3", "4854", "notch receptor 3", ["CADASIL"], "19p13.12")
+            ("GENE1", "4854", "protein 1", ["ALIAS1"], "19p13.12")
         ]
 
     async def test_get_cached_uniprot_info(self, mocker):
         conn = _mock_plain_connection(mocker)
         row = {
-            "gene_symbol": "HTRA1",
+            "gene_symbol": "GENE2",
             "accession": "Q92743",
-            "protein_name": "Serine protease HTRA1",
+            "protein_name": "Protein 2",
             "biological_process": ["proteolysis"],
             "molecular_function": ["serine-type peptidase activity"],
             "cellular_component": ["extracellular space"],
@@ -742,17 +742,17 @@ class TestCacheOperations:
         }
         conn.fetch.return_value = [row]
 
-        result = await get_cached_uniprot_info(["HTRA1"], max_age_days=7)
+        result = await get_cached_uniprot_info(["GENE2"], max_age_days=7)
 
-        assert result["HTRA1"] == {k: v for k, v in row.items() if k != "gene_symbol"}
-        assert conn.fetch.await_args.args[1:] == (["HTRA1"], 7)
+        assert result["GENE2"] == {k: v for k, v in row.items() if k != "gene_symbol"}
+        assert conn.fetch.await_args.args[1:] == (["GENE2"], 7)
 
     async def test_upsert_uniprot_info(self, mocker):
         conn = _mock_plain_connection(mocker)
         info = SimpleNamespace(
-            gene_symbol="HTRA1",
+            gene_symbol="GENE2",
             accession="Q92743",
-            protein_name="Serine protease HTRA1",
+            protein_name="Protein 2",
             biological_process=["proteolysis"],
             molecular_function=["peptidase"],
             cellular_component=["extracellular"],
@@ -762,9 +762,9 @@ class TestCacheOperations:
         assert await upsert_uniprot_batch([info]) == 1
         assert conn.executemany.await_args.args[1] == [
             (
-                "HTRA1",
+                "GENE2",
                 "Q92743",
-                "Serine protease HTRA1",
+                "Protein 2",
                 ["proteolysis"],
                 ["peptidase"],
                 ["extracellular"],
@@ -1120,12 +1120,12 @@ class TestReferenceSqlPatterns:
 
 def _annotation_row(object_id: str, **overrides) -> AnnotationRow:
     fields = {
-        "gene_symbol": "HTRA1",
+        "gene_symbol": "GENE2",
         "source": "clinvar",
         "relation": "disease",
         "group_key": "MONDO:0010829",
         "object_id": object_id,
-        "object_label": "CARASIL syndrome",
+        "object_label": "Disease 2 syndrome",
         "qualifier": "Pathogenic",
         "score": None,
         "evidence_count": 5,
@@ -1144,25 +1144,25 @@ class TestAnnotationOperations:
         fetched_at = datetime(2026, 9, 2, 12, 0, 0)
         conn.fetch.return_value = [
             {
-                "gene_symbol": "HTRA1",
+                "gene_symbol": "GENE2",
                 "row_count": 4,
                 "source_version": None,
                 "updated_at": fetched_at,
             }
         ]
 
-        result = await get_annotation_statuses(["HTRA1"], "clinvar", max_age_days=30)
+        result = await get_annotation_statuses(["GENE2"], "clinvar", max_age_days=30)
 
         # ``updated_at`` rides along so one source can compare its freshness
         # with another's: Orphadata's rows are keyed on ClinVar's ORPHAcodes.
         assert result == {
-            "HTRA1": {
+            "GENE2": {
                 "row_count": 4,
                 "source_version": None,
                 "updated_at": fetched_at,
             }
         }
-        assert conn.fetch.await_args.args[1:] == (["HTRA1"], "clinvar", 30)
+        assert conn.fetch.await_args.args[1:] == (["GENE2"], "clinvar", 30)
 
     async def test_replace_with_no_statuses_writes_nothing(self, mocker):
         conn = _mock_merge_connection(mocker)
@@ -1184,7 +1184,7 @@ class TestAnnotationOperations:
         ]
         statuses = [
             AnnotationStatus(
-                gene_symbol="HTRA1",
+                gene_symbol="GENE2",
                 source="clinvar",
                 row_count=2,
                 source_version=None,
@@ -1195,20 +1195,20 @@ class TestAnnotationOperations:
 
         delete_call, insert_call, status_call = conn.executemany.await_args_list
         assert "DELETE FROM gene_annotations" in delete_call.args[0]
-        assert delete_call.args[1] == [("HTRA1", "clinvar")]
+        assert delete_call.args[1] == [("GENE2", "clinvar")]
         assert [params[4] for params in insert_call.args[1]] == [
             "MONDO:0010829",
             "OMIM:600142",
         ]
         assert "INSERT INTO gene_annotation_status" in status_call.args[0]
-        assert status_call.args[1] == [("HTRA1", "clinvar", 2, None)]
+        assert status_call.args[1] == [("GENE2", "clinvar", 2, None)]
 
     async def test_replace_with_zero_rows_still_writes_the_status(self, mocker):
         """The negative cache: a gene with no diseases is not a gene unfetched."""
         conn = _mock_merge_connection(mocker)
         statuses = [
             AnnotationStatus(
-                gene_symbol="C6orf195",
+                gene_symbol="GENE3",
                 source="clinvar",
                 row_count=0,
                 source_version=None,
@@ -1223,11 +1223,11 @@ class TestAnnotationOperations:
 
     async def test_read_gene_annotations_orders_by_the_unique_key(self, mocker):
         conn = _mock_plain_connection(mocker)
-        conn.fetch.return_value = [{"gene_symbol": "HTRA1", "object_id": "OMIM:600142"}]
+        conn.fetch.return_value = [{"gene_symbol": "GENE2", "object_id": "OMIM:600142"}]
 
         result = await read_gene_annotations(source="clinvar")
 
-        assert result == [{"gene_symbol": "HTRA1", "object_id": "OMIM:600142"}]
+        assert result == [{"gene_symbol": "GENE2", "object_id": "OMIM:600142"}]
         sql = conn.fetch.await_args.args[0]
         assert "ORDER BY gene_symbol, source, relation, group_key, object_id" in sql
         assert conn.fetch.await_args.args[1:] == ("clinvar",)

@@ -11,7 +11,7 @@ import { choice } from "../helpers.ts";
  * The density readout sits above each table: three stat tiles plus a bar per
  * bucket, each bar drawn to its unfiltered count and filled to the part still
  * showing. Every count is derived from the committed data; the tests that
- * name a cSVD trait or gene are in csvd/readout.spec.ts.
+ * name a trait or gene of the upstream dataset are in csvd/readout.spec.ts.
  */
 const fillHeights = (page: import("@playwright/test").Page) =>
   page.locator(".readout-bar-fill").evaluateAll((els) =>

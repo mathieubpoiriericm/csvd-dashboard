@@ -1,7 +1,7 @@
 """The prompt's trait vocabulary is reconciled against disease/vocabulary.json.
 
 The canonical GWAS trait abbreviations are named in prose, and that sentence is
-prose in `disease/prompt.md`, rendered into the v7 template; the cSVD rendering
+prose in `disease/prompt.md`, rendered into the v7 template; the upstream rendering
 is pinned byte-for-byte by `test_prompt_assembly.py`, so an edit is a visible
 fixture change rather than a silent one. Deriving the sentence from
 `disease/vocabulary.json` instead would let an edit there change what the model

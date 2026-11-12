@@ -104,12 +104,12 @@ class TestTheRefreshStatusEndToEnd:
             AnnotationSyncResult(
                 clinvar_fetched=62,
                 clinvar_failed=1,
-                errors=["ClinVar fetch failed: NOTCH3"],
+                errors=["ClinVar fetch failed: GENE1"],
             )
         )
 
         assert report.status == "completed_with_warnings"
-        assert report.errors.items == ["ClinVar fetch failed: NOTCH3"]
+        assert report.errors.items == ["ClinVar fetch failed: GENE1"]
         clinvar = next(s for s in report.sources if s.key == "clinvar")
         assert (clinvar.fetched, clinvar.failed) == (62, 1)
 

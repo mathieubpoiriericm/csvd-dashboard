@@ -526,14 +526,14 @@ Deno.test("GeneticTargets renders an em dash for the absent sentinel, before spl
   assertStringIncludes(absent, 'class="cell-absent"');
   assertNotMatch(absent, /\(none\)/);
 
-  const present = render(<GeneticTargets value="COL4A1, COL4A2" />);
-  assertStringIncludes(present, "COL4A1");
-  assertStringIncludes(present, "COL4A2");
+  const present = render(<GeneticTargets value="GENE1, GENE2" />);
+  assertStringIncludes(present, "GENE1");
+  assertStringIncludes(present, "GENE2");
 
   // A leading separator produces an empty piece, which renders as itself
   // rather than an empty tooltip trigger.
-  const leadingSeparator = render(<GeneticTargets value=",COL4A2" />);
-  assertStringIncludes(leadingSeparator, "COL4A2");
+  const leadingSeparator = render(<GeneticTargets value=",GENE2" />);
+  assertStringIncludes(leadingSeparator, "GENE2");
 });
 
 Deno.test("GeneticTargets prints a target's label verbatim and makes only the symbol a tooltip", () => {
@@ -653,7 +653,7 @@ Deno.test("tooltip details preserve rows and secure external links when opened",
   const markup = render(
     <TooltipDetails
       content={{
-        rows: [{ label: "Gene", value: "COL4A1" }],
+        rows: [{ label: "Gene", value: "GENE1" }],
         links: [{
           label: "NCBI",
           href: "https://www.ncbi.nlm.nih.gov/gene/1282",
@@ -662,7 +662,7 @@ Deno.test("tooltip details preserve rows and secure external links when opened",
     />,
   );
   assertStringIncludes(markup, "<strong>Gene</strong>");
-  assertStringIncludes(markup, "COL4A1");
+  assertStringIncludes(markup, "GENE1");
   assertStringIncludes(markup, 'target="_blank"');
   assertStringIncludes(markup, 'rel="noopener noreferrer"');
   assertStringIncludes(markup, "https://www.ncbi.nlm.nih.gov/gene/1282");

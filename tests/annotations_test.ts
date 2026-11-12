@@ -62,7 +62,7 @@ Deno.test("an omimId is always a bare six-digit MIM number", () => {
 });
 
 Deno.test("every MONDO identifier is zero-padded to the authority width", () => {
-  // Orphadata returns MONDO ids both padded and bare. HTRA1 shipped
+  // Orphadata returns MONDO ids both padded and bare. One gene shipped
   // "MONDO:18831", which resolves to nothing and can never join ClinVar's
   // "MONDO:0018831".
   for (const row of geneAnnotations) {
@@ -136,7 +136,7 @@ Deno.test("normalizeAnnotation defends the boundary against a malformed row", ()
   assertEquals(
     normalizeAnnotation(
       {
-        geneSymbol: "  HTRA1  ",
+        geneSymbol: "  GENE1  ",
         groupKey: " ",
         diseaseName: 42,
         omimId: "",
@@ -157,7 +157,7 @@ Deno.test("normalizeAnnotation defends the boundary against a malformed row", ()
       } as unknown as Partial<GeneAnnotation>,
     ),
     {
-      geneSymbol: "HTRA1",
+      geneSymbol: "GENE1",
       groupKey: "(unknown)",
       diseaseName: "(unknown)",
       omimId: null,

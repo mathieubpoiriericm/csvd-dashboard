@@ -108,14 +108,14 @@ def test_a_mangled_run_is_dropped_when_a_real_pmid_is_merged_beside_it() -> None
     so the first extraction to touch one of these rows leaves
     "1,953,923,630,859,180; 42437605" in the column. That is an all-numeric
     list by the grammar, so the short-id branch published "1", "953" and
-    "923" as citations beside the real PMID. NOTCH3 and BTN3A2 are the two
+    "923" as citations beside the real PMID. Two rows of the upstream data were the two
     rows this would have hit -- the others are protected only accidentally,
     by zero groups that fail the all-numeric test.
     """
     for mangled in (
-        "1,953,923,630,859,180",  # NOTCH3
-        "3,235,854,739,114,920",  # BTN3A2
-        "2,606,365,833,773,630,000,000,000",  # HTRA1, zero groups
+        "1,953,923,630,859,180",  # GENE1
+        "3,235,854,739,114,920",  # GENE2
+        "2,606,365,833,773,630,000,000,000",  # GENE3, zero groups
     ):
         assert extract_pmids(f"{mangled}; 42437605") == [
             "42437605"
@@ -176,31 +176,31 @@ def test_extract_matches_returns_empty_list_when_nothing_matches() -> None:
     pattern = re.compile(r"\b\d{6}\b")
     assert extract_matches(None, pattern) == []
     assert extract_matches("no ids", pattern) == []
-    assert extract_matches("CADASIL 125310", pattern) == ["125310"]
+    assert extract_matches("ACRONYM 125310", pattern) == ["125310"]
 
 
 def test_split_genetic_targets_does_not_split_na_on_its_slash() -> None:
     assert split_genetic_targets(["N/A"]) == []
-    assert split_genetic_targets(["NOTCH3, HTRA1"]) == ["NOTCH3", "HTRA1"]
-    assert split_genetic_targets(["COL4A1/COL4A2"]) == ["COL4A1", "COL4A2"]
+    assert split_genetic_targets(["GENE2, GENE1"]) == ["GENE2", "GENE1"]
+    assert split_genetic_targets(["GENE4A1/GENE4A2"]) == ["GENE4A1", "GENE4A2"]
     assert split_genetic_targets(["(none)", None, ""]) == []
 
 
 def test_split_genetic_targets_expands_the_curated_pair_shorthand() -> None:
-    """`COL4A1/2` is the curated label for the pair, not COL4A1 and a gene "2"."""
-    assert split_genetic_targets(["COL4A1/2"]) == ["COL4A1", "COL4A2"]
-    assert split_genetic_targets(["COL4A1/2, NOTCH3"]) == [
-        "COL4A1",
-        "COL4A2",
-        "NOTCH3",
+    """`GENE4A1/2` is the curated label for the pair, not GENE4A1 and a gene "2"."""
+    assert split_genetic_targets(["GENE4A1/2"]) == ["GENE4A1", "GENE4A2"]
+    assert split_genetic_targets(["GENE4A1/2, GENE2"]) == [
+        "GENE4A1",
+        "GENE4A2",
+        "GENE2",
     ]
     # Already spelled out, or not a pair at all: untouched.
-    assert split_genetic_targets(["COL4A1/COL4A2"]) == ["COL4A1", "COL4A2"]
-    assert split_genetic_targets(["HTRA1/NOTCH3"]) == ["HTRA1", "NOTCH3"]
+    assert split_genetic_targets(["GENE4A1/GENE4A2"]) == ["GENE4A1", "GENE4A2"]
+    assert split_genetic_targets(["GENE1/GENE2"]) == ["GENE1", "GENE2"]
 
 
 def test_split_genetic_targets_dedupes_preserving_order() -> None:
-    assert split_genetic_targets(["HTRA1", "NOTCH3; HTRA1"]) == ["HTRA1", "NOTCH3"]
+    assert split_genetic_targets(["GENE1", "GENE2; GENE1"]) == ["GENE1", "GENE2"]
 
 
 # ---------------------------------------------------------------------------
@@ -325,7 +325,7 @@ def test_clean_column_name_then_to_camel_reproduces_table2_wire_keys(
 _TSX_ACCESSOR_HEADER = re.compile(r'accessor\("(\w+)",\s*\{\s*header:\s*"([^"]+)"')
 _TSX_ID_HEADER = re.compile(r'id:\s*"(\w+)",\s*\n\s*header:\s*"([^"]+)"')
 
-# Task 6 moved three headers -- the cell-type column and the two SVD
+# Task 6 moved three headers -- the cell-type column and the two
 # Population ones -- off their string literals and onto manifest-derived
 # constants, so `header:` there is an identifier rather than a `"..."`
 # literal and the two regexes above no longer see it. This regex captures
@@ -365,7 +365,7 @@ _RENAMED_AFTER_CLEAN_COLUMN_NAME = {
         "Evidence from Other Omics", "Evidence From Other Omics"
     ),
     "link_to_monogenetic_disease": lambda s: s.replace("Monogenetic", "Monogenic"),
-    # The column keeps its cSVD-era name; the header a reader sees is the
+    # The column keeps its original name; the header a reader sees is the
     # manifest's cellTypes.label, resolved through _MANIFEST_HEADERS above.
     "brain_cell_types": lambda s: _MANIFEST["cellTypes"]["label"],
 }

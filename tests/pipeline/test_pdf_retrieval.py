@@ -1,6 +1,7 @@
 """Tests for pipeline.pdf_retrieval — fulltext cascade, validation helpers."""
 
 import logging
+import re
 import threading
 from collections.abc import AsyncIterator
 from typing import cast
@@ -14,6 +15,7 @@ from pipeline.config import PMID_PATTERN
 from pipeline.pdf_retrieval import (
     DOI_PATTERN,
     MAX_PDF_BYTES,
+    PMC_IDCONV_TOOL,
     RetrievalError,
     _drop_citation_markers,
     _extract_abstract,
@@ -426,18 +428,18 @@ class TestXmlParsers:
 
     def test_pmc_body_paragraphs_preserve_nested_text(self):
         xml = (
-            b"<article><body><p>NOTCH3 <italic>variant</italic>.</p>"
+            b"<article><body><p>GENE1 <italic>variant</italic>.</p>"
             b"<p>  </p></body></article>"
         )
 
-        assert _parse_pmc_xml(xml) == "NOTCH3 variant."
+        assert _parse_pmc_xml(xml) == "GENE1 variant."
 
     def test_pmc_drops_bibliographic_citation_markers(self):
         # JATS puts a reference number in <xref ref-type="bibr"> right after
-        # the word it supports. Joined verbatim, "COL4A1" + "12" reads as the
-        # gene COL4A112 -- an invented symbol handed to the extraction model.
+        # the word it supports. Joined verbatim, "GENE2" + "12" reads as the
+        # gene GENE212 -- an invented symbol handed to the extraction model.
         xml = (
-            b"<article><body><p>Variants in <italic>COL4A1</italic>"
+            b"<article><body><p>Variants in <italic>GENE2</italic>"
             b'<xref ref-type="bibr" rid="B12">12</xref> cause disease.</p>'
             b"</body></article>"
         )
@@ -445,8 +447,8 @@ class TestXmlParsers:
         text = _parse_pmc_xml(xml)
 
         assert text is not None
-        assert "COL4A1 cause" in text
-        assert "COL4A112" not in text
+        assert "GENE2 cause" in text
+        assert "GENE212" not in text
 
     def test_pmc_keeps_other_cross_references(self):
         # Only bibliographic markers are dropped; a figure or table xref is
@@ -521,24 +523,24 @@ class TestXmlParsers:
     def test_pmc_sectioned_article_with_front_matter_is_kept(self):
         xml = (
             b"<article><front><article-meta/></front>"
-            b"<body><sec><p>NOTCH3 variant.</p></sec></body></article>"
+            b"<body><sec><p>GENE1 variant.</p></sec></body></article>"
         )
 
-        assert _parse_pmc_xml(xml) == "NOTCH3 variant."
+        assert _parse_pmc_xml(xml) == "GENE1 variant."
 
     def test_pmc_nested_paragraphs_are_emitted_once(self):
         # `.//body//p` matches the outer paragraph and the one nested in its
         # list item; itertext() on the outer already carries the inner.
         xml = (
             b"<article><body><p>Findings:<list><list-item>"
-            b"<p>NOTCH3 was associated (p=1e-9).</p>"
+            b"<p>GENE1 was associated (p=1e-9).</p>"
             b"</list-item></list></p></body></article>"
         )
 
         text = _parse_pmc_xml(xml)
 
         assert text is not None
-        assert text.count("NOTCH3 was associated (p=1e-9).") == 1
+        assert text.count("GENE1 was associated (p=1e-9).") == 1
 
     def test_abstract_ignores_other_abstract_sections(self):
         # <OtherAbstract> holds a publisher's translation or a plain-language
@@ -752,7 +754,8 @@ class TestPmcFulltext:
         assert url == "https://pmc.ncbi.nlm.nih.gov/tools/idconv/api/v1/articles/"
         assert params["ids"] == "123"
         assert params["format"] == "json"
-        assert params["tool"] == "csvd-dashboard"
+        assert params["tool"] == PMC_IDCONV_TOOL
+        assert re.fullmatch(r"[A-Za-z0-9._-]+", PMC_IDCONV_TOOL)
         assert params["email"] == "curator@example.org"
 
     @pytest.mark.parametrize(
@@ -840,13 +843,13 @@ class TestTruncateBackMatter:
 
         result = _truncate_back_matter(_HTML_WITH_BACK_MATTER)
 
-        assert "HTRA1" in result
+        assert "GENE3" in result
         # A recognised heading is tag-bounded ("<h2>References</h2>"), never
         # newline-bounded plain text — Docling never emits the latter.
-        # HTRA2 only appears in the reference list, so this also confirms
+        # GENE9 only appears in the reference list, so this also confirms
         # the bibliography gene is the thing actually being cut.
         assert "References" not in result
-        assert "HTRA2" not in result
+        assert "GENE9" not in result
 
     def test_no_back_matter_header_returns_text_unchanged(self):
         from pipeline.pdf_retrieval import _truncate_back_matter
@@ -895,16 +898,16 @@ class TestTruncateBackMatter:
         text = (
             "<p>Filler sentence describing cohort recruitment.</p>\n" * 20
             + f"{heading}\n"
-            + "<p>1. Smith J et al. HTRA2 in disease. 2020.</p>"
+            + "<p>1. Smith J et al. GENE9 in disease. 2020.</p>"
         )
 
-        assert "HTRA2" not in _truncate_back_matter(text)
+        assert "GENE9" not in _truncate_back_matter(text)
 
     @pytest.mark.parametrize(
         "line",
         [
             # A sentence that merely begins with the word is not a heading.
-            "<p>References to the discovery cohort are listed in HTRA2.</p>",
+            "<p>References to the discovery cohort are listed in GENE9.</p>",
             # Restricted to the bibliography words: a stray body paragraph
             # naming a section must not cut the results away.
             "<p>Methods</p>",
@@ -917,10 +920,10 @@ class TestTruncateBackMatter:
         text = (
             "<p>Filler sentence describing cohort recruitment.</p>\n" * 20
             + f"{line}\n"
-            + "<p>Genetic variants in HTRA2 were associated with WMH.</p>"
+            + "<p>Genetic variants in GENE9 were associated with WMH.</p>"
         )
 
-        assert "HTRA2" in _truncate_back_matter(text)
+        assert "GENE9" in _truncate_back_matter(text)
 
 
 # ---------------------------------------------------------------------------
@@ -952,15 +955,15 @@ class TestTruncateBackMatter:
 _HTML_WITH_BACK_MATTER = (
     "<p>Filler sentence describing cohort recruitment and methodology.</p>\n"
     * 20
-    + "<p>Genetic variants in HTRA1 were significantly associated with WMH "
+    + "<p>Genetic variants in GENE3 were significantly associated with WMH "
     "burden.</p>\n"
     + "<h2>References</h2>\n"
-    + "<p>1. Smith J et al. HTRA2 in disease. 2020.</p>"
+    + "<p>1. Smith J et al. GENE9 in disease. 2020.</p>"
 )
 
 _HTML_WITH_EARLY_METHODS_MENTION = (
     "<h2>Methods</h2>\n"
-    "<p>We describe our genotyping approach for NOTCH3.</p>\n"
+    "<p>We describe our genotyping approach for GENE1.</p>\n"
     + "<p>Filler sentence padding the document well past the midpoint.</p>\n"
     * 40
 )
@@ -980,9 +983,9 @@ class TestParseLocalPdf:
         result = parse_local_pdf(pdf_path)
 
         assert result is not None
-        assert "HTRA1" in result
+        assert "GENE3" in result
         assert "References" not in result
-        assert "HTRA2" not in result
+        assert "GENE9" not in result
 
     def test_missing_file_raises(self, tmp_path):
         from pipeline.pdf_retrieval import parse_local_pdf
@@ -1026,9 +1029,9 @@ class TestDownloadAndParsePdf:
         result = await download_and_parse_pdf("https://example.com/paper.pdf")
 
         assert result is not None
-        assert "HTRA1" in result
+        assert "GENE3" in result
         assert "References" not in result
-        assert "HTRA2" not in result
+        assert "GENE9" not in result
 
     async def test_none_from_parser_propagates(self, mocker):
         """A corrupt/empty PDF must not crash the run — it returns None."""

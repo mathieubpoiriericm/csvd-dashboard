@@ -67,7 +67,7 @@ class TestGetTable1GeneSymbols:
     async def test_returns_gene_list(self, mocker):
         mock_conn = AsyncMock()
         mock_conn.fetch = AsyncMock(
-            return_value=[{"gene": "NOTCH3"}, {"gene": "HTRA1"}]
+            return_value=[{"gene": "GENE2"}, {"gene": "GENE1"}]
         )
         mock_ctx = AsyncMock()
         mock_ctx.__aenter__ = AsyncMock(return_value=mock_conn)
@@ -78,7 +78,7 @@ class TestGetTable1GeneSymbols:
         )
 
         result = await get_table1_gene_symbols()
-        assert result == ["NOTCH3", "HTRA1"]
+        assert result == ["GENE2", "GENE1"]
 
 
 # ---------------------------------------------------------------------------
@@ -89,7 +89,7 @@ class TestGetTable1GeneSymbols:
 class TestGetTable2GeneSymbols:
     async def test_parses_comma_separated(self, mocker):
         mock_conn = AsyncMock()
-        mock_conn.fetch = AsyncMock(return_value=[{"genetic_target": "NOTCH3, HTRA1"}])
+        mock_conn.fetch = AsyncMock(return_value=[{"genetic_target": "GENE2, GENE1"}])
         mock_ctx = AsyncMock()
         mock_ctx.__aenter__ = AsyncMock(return_value=mock_conn)
         mock_ctx.__aexit__ = AsyncMock(return_value=None)
@@ -99,14 +99,14 @@ class TestGetTable2GeneSymbols:
         )
 
         result = await get_table2_gene_symbols()
-        assert "NOTCH3" in result
-        assert "HTRA1" in result
+        assert "GENE2" in result
+        assert "GENE1" in result
 
     async def test_filters_na_and_dash(self, mocker):
         mock_conn = AsyncMock()
         mock_conn.fetch = AsyncMock(
             return_value=[
-                {"genetic_target": "NOTCH3, NA, -, HTRA1"},
+                {"genetic_target": "GENE2, NA, -, GENE1"},
             ]
         )
         mock_ctx = AsyncMock()
@@ -120,7 +120,7 @@ class TestGetTable2GeneSymbols:
         result = await get_table2_gene_symbols()
         assert "NA" not in result
         assert "-" not in result
-        assert "NOTCH3" in result
+        assert "GENE2" in result
 
     async def test_handles_none_target(self, mocker):
         mock_conn = AsyncMock()
@@ -140,8 +140,8 @@ class TestGetTable2GeneSymbols:
         mock_conn = AsyncMock()
         mock_conn.fetch = AsyncMock(
             return_value=[
-                {"genetic_target": "HTRA1, NOTCH3"},
-                {"genetic_target": "NOTCH3"},
+                {"genetic_target": "GENE1, GENE2"},
+                {"genetic_target": "GENE2"},
             ]
         )
         mock_ctx = AsyncMock()
@@ -269,11 +269,11 @@ class TestSyncAllExternalData:
         config = PipelineConfig()
         mocker.patch(
             "pipeline.external_data_sync.get_table1_gene_symbols",
-            return_value=["NOTCH3"],
+            return_value=["GENE2"],
         )
         mocker.patch(
             "pipeline.external_data_sync.get_table2_gene_symbols",
-            return_value=["HTRA1"],
+            return_value=["GENE1"],
         )
         mocker.patch(
             "pipeline.external_data_sync.get_all_pmids",
@@ -297,18 +297,18 @@ class TestSyncAllExternalData:
         assert result.ncbi_fetched == 2
         assert result.uniprot_fetched == 1
         assert result.pubmed_fetched == 1
-        mock_ncbi.assert_called_once_with(["NOTCH3", "HTRA1"], config=config)
-        mock_uniprot.assert_called_once_with(["NOTCH3"], config=config)
+        mock_ncbi.assert_called_once_with(["GENE2", "GENE1"], config=config)
+        mock_uniprot.assert_called_once_with(["GENE2"], config=config)
         mock_pubmed.assert_called_once_with(["12345678"], config=config)
 
     async def test_deduplicates_genes(self, mocker):
         mocker.patch(
             "pipeline.external_data_sync.get_table1_gene_symbols",
-            return_value=["NOTCH3", "HTRA1"],
+            return_value=["GENE2", "GENE1"],
         )
         mocker.patch(
             "pipeline.external_data_sync.get_table2_gene_symbols",
-            return_value=["NOTCH3"],  # Duplicate
+            return_value=["GENE2"],  # Duplicate
         )
         mocker.patch(
             "pipeline.external_data_sync.get_all_pmids",
@@ -325,7 +325,7 @@ class TestSyncAllExternalData:
         _mock_cleanup(mocker)
 
         await sync_all_external_data()
-        # NCBI sync receives deduplicated: [NOTCH3, HTRA1]
+        # NCBI sync receives deduplicated: [GENE2, GENE1]
         call_args = mock_ncbi.call_args[0][0]
         assert len(call_args) == 2
 
@@ -369,7 +369,7 @@ class TestSyncAllExternalData:
     async def test_skips_pubmed_when_no_pmids(self, mocker):
         mocker.patch(
             "pipeline.external_data_sync.get_table1_gene_symbols",
-            return_value=["NOTCH3"],
+            return_value=["GENE2"],
         )
         mocker.patch(
             "pipeline.external_data_sync.get_table2_gene_symbols",
@@ -523,14 +523,14 @@ class TestSyncExternalDataForOneRun:
         _mock_cleanup(mocker)
 
         result = await sync_external_data_for(
-            ["NOTCH3"], ["12345678"], config=config
+            ["GENE2"], ["12345678"], config=config
         )
 
         # The whole-database collectors are not touched: this refresh is
         # exactly the run's own keys, so it costs what the run added.
         table1.assert_not_called()
-        ncbi.assert_called_once_with(["NOTCH3"], config=config)
-        uniprot.assert_called_once_with(["NOTCH3"], config=config)
+        ncbi.assert_called_once_with(["GENE2"], config=config)
+        uniprot.assert_called_once_with(["GENE2"], config=config)
         pubmed.assert_called_once_with(["12345678"], config=config)
         assert result.ncbi_fetched == 1
         assert result.uniprot_fetched == 1
@@ -571,7 +571,7 @@ class TestSyncExternalDataForOneRun:
         mocker.patch(f"{_mod}.clear_pubmed_cache")
 
         with pytest.raises(RuntimeError, match="NCBI down"):
-            await sync_external_data_for(["NOTCH3"], ["12345678"])
+            await sync_external_data_for(["GENE2"], ["12345678"])
 
         close_ncbi.assert_called_once()
 
@@ -592,7 +592,7 @@ class TestSyncAllAnnotations:
 
         mocker.patch(
             "pipeline.external_data_sync.get_table1_gene_symbols",
-            AsyncMock(return_value=["HTRA1"]),
+            AsyncMock(return_value=["GENE1"]),
         )
         mocker.patch(
             "pipeline.external_data_sync.sync_clinvar_annotations",
@@ -626,7 +626,7 @@ class TestSyncAllAnnotations:
 
         mocker.patch(
             "pipeline.external_data_sync.get_table1_gene_symbols",
-            AsyncMock(return_value=["HTRA1"]),
+            AsyncMock(return_value=["GENE1"]),
         )
         mocker.patch(
             "pipeline.external_data_sync.sync_clinvar_annotations",

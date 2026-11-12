@@ -675,8 +675,8 @@ Deno.test("safeHttpsUrl accepts only normalized HTTPS URLs", () => {
 // phenogramTooltip / phenotypeTooltip
 // -----------------------------------------------------------------------------
 
-// The committed cSVD panels -- JAK1, LAMB1, CENPF, WMH and PSMD -- are pinned
-// in tests/csvd/tooltips_test.ts; these build their rows from the encoding.
+// The upstream dataset's committed panels -- JAK1, LAMB1, CENPF, WMH and
+// PSMD -- are pinned in tests/csvd/tooltips_test.ts; these build their rows from the encoding.
 
 Deno.test("phenogramTooltip names the location, the evidence and the display labels", () => {
   const first = encoding.traits[0];

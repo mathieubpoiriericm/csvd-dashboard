@@ -81,7 +81,7 @@ class TestReadPipelineRun:
             acceptedGenes={
                 "shown": 1,
                 "total": 1,
-                "items": [{"symbol": "NOTCH3", "pmid": "2"}],
+                "items": [{"symbol": "GENE3", "pmid": "2"}],
             },
         )
         _connection(mocker, {"report": json.dumps(stored)})
@@ -114,10 +114,10 @@ class TestReadPipelineRun:
             }
 
         genes = [
-            gene("HTRA1", "1", 0.55),
+            gene("GENE1", "1", 0.55),
             # Decided on its best score, which clears the floor.
-            gene("NOTCH3", "1", 0.5),
-            gene("NOTCH3", "2", 0.9),
+            gene("GENE3", "1", 0.5),
+            gene("GENE3", "2", 0.9),
         ]
         stored = _stored(
             config={"confidenceThresholdInsert": 0.65},
@@ -129,14 +129,14 @@ class TestReadPipelineRun:
         result = await read_pipeline_run()
 
         assert result is not None
-        htra1, *notch3 = result["acceptedGenes"]["items"]
-        assert htra1["citationOnly"] is True
-        assert htra1["gwasTraits"] == []
-        assert htra1["omicsEvidence"] == []
-        assert htra1["mendelianRandomization"] is None
-        assert htra1["sourceQuote"] == "A sentence."
-        assert [g["citationOnly"] for g in notch3] == [False, False]
-        assert notch3[0]["gwasTraits"] == ["WMH"]
+        cited_only, *claimed = result["acceptedGenes"]["items"]
+        assert cited_only["citationOnly"] is True
+        assert cited_only["gwasTraits"] == []
+        assert cited_only["omicsEvidence"] == []
+        assert cited_only["mendelianRandomization"] is None
+        assert cited_only["sourceQuote"] == "A sentence."
+        assert [g["citationOnly"] for g in claimed] == [False, False]
+        assert claimed[0]["gwasTraits"] == ["WMH"]
 
     async def test_a_capped_accepted_list_leaves_the_counts_alone(
         self, mocker

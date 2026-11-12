@@ -144,7 +144,7 @@ Deno.test("the fork's file edits apply to the checkout, and again to a tree that
 Deno.test("on upstream's tree a path the checklist deletes must still be there", async () => {
   const fork = await Deno.makeTempDir({ prefix: "fork-check-adapt-" });
   try {
-    // Upstream's tree, told by its cSVD tests, with one checklist path
+    // Upstream's tree, told by its own disease tests, with one checklist path
     // renamed away: the checklist's own `rm` would fail for the next fork,
     // and a removal that shrugged at absence kept this check green over it.
     for (

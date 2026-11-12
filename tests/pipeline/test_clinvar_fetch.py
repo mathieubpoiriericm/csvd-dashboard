@@ -57,7 +57,7 @@ def _record(
     }
 
 
-_CARASIL_XREFS = [
+_DISEASE_A_XREFS = [
     ("Orphanet", "199354"),
     ("MedGen", "C6022615"),
     ("MONDO", "MONDO:0010829"),
@@ -67,15 +67,15 @@ _CARASIL_XREFS = [
 
 class TestAggregateRecords:
     def test_a_span_naming_hundreds_of_genes_is_dropped(self) -> None:
-        """The first live hit for HTRA1 is a 32-Mb CNV listing 724 genes."""
+        """The first live hit for GENE1 is a 32-Mb CNV listing 724 genes."""
         records = [
             _record(
-                ["HTRA1", *[f"GENE{i}" for i in range(723)]],
-                "Distal 10q deletion syndrome",
+                ["GENE1", *[f"NEIGHBOR{i}" for i in range(723)]],
+                "Distal chromosome deletion syndrome",
                 [("Orphanet", "96148"), ("MONDO", "MONDO:0012315")],
             )
         ]
-        result = _aggregate_records("HTRA1", records)
+        result = _aggregate_records("GENE1", records)
         assert result.diseases == ()
 
     def test_a_copy_number_record_is_dropped_however_few_genes_it_names(
@@ -84,32 +84,32 @@ class TestAggregateRecords:
         """Its traits are the contiguous-gene syndrome's, not the gene's."""
         records = [
             _record(
-                ["ABCC2", "ABLIM1", "HTRA1"],
-                "Distal 10q deletion syndrome",
+                ["NEIGHBOR1", "NEIGHBOR2", "GENE1"],
+                "Distal chromosome deletion syndrome",
                 [("Orphanet", "96148"), ("MONDO", "MONDO:0012315")],
                 obj_type="copy number loss",
             )
         ]
-        result = _aggregate_records("HTRA1", records)
+        result = _aggregate_records("GENE1", records)
         assert result.diseases == ()
 
     def test_an_overlapping_readthrough_does_not_drop_the_record(self) -> None:
-        """None of TREX1's 61 pathogenic records names TREX1 alone.
+        """None of GENE2's 61 pathogenic records names GENE2 alone.
 
         ClinVar files every locus a variant overlaps, so reading a multi-gene
-        record as a copy-number event published TREX1 -- RVCL-S included --
-        with no disease at all.
+        record as a copy-number event published GENE2 with
+        no disease at all.
         """
         records = [
             _record(
-                ["ATRIP", "ATRIP-TREX1", "TREX1"],
-                "Aicardi-Goutieres syndrome 1",
+                ["NEIGHBOR1", "NEIGHBOR1-GENE2", "GENE2"],
+                "Disease B syndrome 1",
                 [("Orphanet", "51"), ("OMIM", "225750")],
             )
         ]
-        result = _aggregate_records("TREX1", records)
+        result = _aggregate_records("GENE2", records)
         assert [d.trait_name for d in result.diseases] == [
-            "Aicardi-Goutieres syndrome 1"
+            "Disease B syndrome 1"
         ]
 
     def test_an_antisense_neighbour_does_not_drop_the_record(self) -> None:
@@ -148,36 +148,36 @@ class TestAggregateRecords:
     def test_a_small_overlapping_deletion_is_kept(self) -> None:
         """The span rule must not cost a readthrough its record.
 
-        TREX1's overlaps are ordinary variants: the widest measured across
+        GENE2's overlaps are ordinary variants: the widest measured across
         all 63 genes is 152 bp, against 40,877 for the narrowest span event.
         """
         records = [
             _record(
-                ["ATRIP", "ATRIP-TREX1", "TREX1"],
-                "Aicardi-Goutieres syndrome 1",
+                ["NEIGHBOR1", "NEIGHBOR1-GENE2", "GENE2"],
+                "Disease B syndrome 1",
                 [("Orphanet", "51"), ("OMIM", "225750")],
                 obj_type="Deletion",
                 span=22,
             )
         ]
-        result = _aggregate_records("TREX1", records)
+        result = _aggregate_records("GENE2", records)
         assert [d.trait_name for d in result.diseases] == [
-            "Aicardi-Goutieres syndrome 1"
+            "Disease B syndrome 1"
         ]
 
     def test_a_wide_single_gene_deletion_is_still_kept(self) -> None:
         """A whole-gene deletion is megabases wide and is the gene's own."""
         records = [
             _record(
-                ["HTRA1"],
-                "CARASIL syndrome",
-                _CARASIL_XREFS,
+                ["GENE1"],
+                "Disease A syndrome",
+                _DISEASE_A_XREFS,
                 obj_type="Deletion",
                 span=2_000_000,
             )
         ]
-        result = _aggregate_records("HTRA1", records)
-        assert [d.trait_name for d in result.diseases] == ["CARASIL syndrome"]
+        result = _aggregate_records("GENE1", records)
+        assert [d.trait_name for d in result.diseases] == ["Disease A syndrome"]
 
     def test_an_unparseable_coordinate_does_not_drop_the_record(self) -> None:
         """A missing or malformed span is ClinVar's omission, not a span.
@@ -187,8 +187,8 @@ class TestAggregateRecords:
         as evidence either way -- the other three rules still decide.
         """
         record = _record(
-            ["ATRIP", "ATRIP-TREX1", "TREX1"],
-            "Aicardi-Goutieres syndrome 1",
+            ["NEIGHBOR1", "NEIGHBOR1-GENE2", "GENE2"],
+            "Disease B syndrome 1",
             [("Orphanet", "51"), ("OMIM", "225750")],
             obj_type="Deletion",
         )
@@ -197,67 +197,67 @@ class TestAggregateRecords:
             {"start": "not a number", "stop": "12"},
             {"start": None, "stop": None},
         ]
-        result = _aggregate_records("TREX1", [record])
+        result = _aggregate_records("GENE2", [record])
         assert [d.trait_name for d in result.diseases] == [
-            "Aicardi-Goutieres syndrome 1"
+            "Disease B syndrome 1"
         ]
 
     def test_a_multi_gene_record_not_naming_the_gene_is_dropped(self) -> None:
         """A neighbour's record must not be attributed to the gene searched."""
         records = [
             _record(
-                ["ATRIP", "ATRIP-TREX1"],
-                "Aicardi-Goutieres syndrome 1",
+                ["NEIGHBOR1", "NEIGHBOR1-GENE2"],
+                "Disease B syndrome 1",
                 [("Orphanet", "51"), ("OMIM", "225750")],
             )
         ]
-        result = _aggregate_records("TREX1", records)
+        result = _aggregate_records("GENE2", records)
         assert result.diseases == ()
 
     def test_a_single_gene_record_is_kept_under_an_obsolete_symbol(self) -> None:
         """ClinVar answers an obsolete symbol under the current one.
 
         The symbol check applies to multi-gene records only, so a rename does
-        not cost the gene its diseases -- ``C6orf195`` is ``LINC01600`` now.
+        not cost the gene its diseases -- ``OLDSYM`` is ``NEWSYM`` now.
         """
-        records = [_record(["LINC01600"], "CARASIL syndrome", _CARASIL_XREFS)]
-        result = _aggregate_records("C6orf195", records)
-        assert [d.trait_name for d in result.diseases] == ["CARASIL syndrome"]
+        records = [_record(["NEWSYM"], "Disease A syndrome", _DISEASE_A_XREFS)]
+        result = _aggregate_records("OLDSYM", records)
+        assert [d.trait_name for d in result.diseases] == ["Disease A syndrome"]
 
     def test_a_single_gene_copy_number_record_is_kept(self) -> None:
         """One gene deleted is a whole-gene deletion, not a CNV syndrome."""
         records = [
             _record(
-                ["HTRA1"],
-                "CARASIL syndrome",
-                _CARASIL_XREFS,
+                ["GENE1"],
+                "Disease A syndrome",
+                _DISEASE_A_XREFS,
                 obj_type="copy number loss",
             )
         ]
-        result = _aggregate_records("HTRA1", records)
-        assert [d.trait_name for d in result.diseases] == ["CARASIL syndrome"]
+        result = _aggregate_records("GENE1", records)
+        assert [d.trait_name for d in result.diseases] == ["Disease A syndrome"]
 
     def test_a_record_naming_no_gene_is_dropped(self) -> None:
-        records = [_record([], "CARASIL syndrome", _CARASIL_XREFS)]
-        result = _aggregate_records("HTRA1", records)
+        records = [_record([], "Disease A syndrome", _DISEASE_A_XREFS)]
+        result = _aggregate_records("GENE1", records)
         assert result.diseases == ()
 
     def test_a_placeholder_trait_is_dropped(self) -> None:
         """"not provided" is the most frequent trait name in the real data."""
         records = [
-            _record(["HTRA1"], "not provided", [("MedGen", "C3661900")]),
-            _record(["HTRA1"], "See cases", []),
-            _record(["HTRA1"], "not specified", [("MedGen", "CN169374")]),
+            _record(["GENE1"], "not provided", [("MedGen", "C3661900")]),
+            _record(["GENE1"], "See cases", []),
+            _record(["GENE1"], "not specified", [("MedGen", "CN169374")]),
         ]
-        result = _aggregate_records("HTRA1", records)
+        result = _aggregate_records("GENE1", records)
         assert result.diseases == ()
 
     def test_a_real_disease_survives_both_filters(self) -> None:
-        records = [_record(["HTRA1"], "CARASIL syndrome", _CARASIL_XREFS)]
-        result = _aggregate_records("HTRA1", records)
+        records = [_record(["GENE1"], "Disease A syndrome", _DISEASE_A_XREFS)]
+        result = _aggregate_records("GENE1", records)
         assert len(result.diseases) == 1
         disease = result.diseases[0]
-        assert disease.trait_name == "CARASIL syndrome"
+        assert disease.trait_name == "Disease A syndrome"
         assert disease.group_key == "MONDO:0010829"
         assert disease.xrefs == (
             "MONDO:0010829",
@@ -269,26 +269,26 @@ class TestAggregateRecords:
 
     def test_diseases_rank_by_supporting_record_count(self) -> None:
         records = [
-            _record(["HTRA1"], "CARASIL syndrome", _CARASIL_XREFS),
+            _record(["GENE1"], "Disease A syndrome", _DISEASE_A_XREFS),
             *[
                 _record(
-                    ["HTRA1"],
-                    "Cerebral arteriopathy, autosomal dominant, type 2",
+                    ["GENE1"],
+                    "Disease C, autosomal dominant, type 2",
                     [("MONDO", "MONDO:0014768"), ("OMIM", "616779")],
                 )
                 for _ in range(3)
             ],
         ]
-        result = _aggregate_records("HTRA1", records)
+        result = _aggregate_records("GENE1", records)
         assert [d.record_count for d in result.diseases] == [3, 1]
         assert result.diseases[0].group_key == "MONDO:0014768"
 
     def test_ties_break_on_trait_name_so_the_order_is_reproducible(self) -> None:
         records = [
-            _record(["HTRA1"], "Zeta disease", [("OMIM", "600001")]),
-            _record(["HTRA1"], "Alpha disease", [("OMIM", "600002")]),
+            _record(["GENE1"], "Zeta disease", [("OMIM", "600001")]),
+            _record(["GENE1"], "Alpha disease", [("OMIM", "600002")]),
         ]
-        result = _aggregate_records("HTRA1", records)
+        result = _aggregate_records("GENE1", records)
         assert [d.trait_name for d in result.diseases] == [
             "Alpha disease",
             "Zeta disease",
@@ -296,22 +296,22 @@ class TestAggregateRecords:
 
     def test_the_most_common_classification_wins(self) -> None:
         records = [
-            _record(["HTRA1"], "CARASIL syndrome", _CARASIL_XREFS, "Pathogenic"),
+            _record(["GENE1"], "Disease A syndrome", _DISEASE_A_XREFS, "Pathogenic"),
             _record(
-                ["HTRA1"], "CARASIL syndrome", _CARASIL_XREFS,
+                ["GENE1"], "Disease A syndrome", _DISEASE_A_XREFS,
                 "Pathogenic/Likely pathogenic",
             ),
             _record(
-                ["HTRA1"], "CARASIL syndrome", _CARASIL_XREFS,
+                ["GENE1"], "Disease A syndrome", _DISEASE_A_XREFS,
                 "Pathogenic/Likely pathogenic",
             ),
         ]
-        result = _aggregate_records("HTRA1", records)
+        result = _aggregate_records("GENE1", records)
         assert result.diseases[0].classification == "Pathogenic/Likely pathogenic"
 
     def test_one_row_per_xref_all_sharing_a_group_key(self) -> None:
-        records = [_record(["HTRA1"], "CARASIL syndrome", _CARASIL_XREFS)]
-        result = _aggregate_records("HTRA1", records)
+        records = [_record(["GENE1"], "Disease A syndrome", _DISEASE_A_XREFS)]
+        result = _aggregate_records("GENE1", records)
         rows = result.to_annotation_rows()
         assert len(rows) == 4
         assert {r.group_key for r in rows} == {"MONDO:0010829"}
@@ -323,7 +323,7 @@ class TestAggregateRecords:
         }
         assert all(r.source == "clinvar" for r in rows)
         assert all(r.relation == "disease" for r in rows)
-        assert all(r.object_label == "CARASIL syndrome" for r in rows)
+        assert all(r.object_label == "Disease A syndrome" for r in rows)
         assert all(r.evidence_count == 1 for r in rows)
 
 
@@ -341,7 +341,7 @@ class TestFetchClinVarDiseases:
             "pipeline.clinvar_fetch._client_manager.get", return_value=mock_client
         )
 
-        result = await fetch_clinvar_diseases("COL4A1/2")
+        result = await fetch_clinvar_diseases("GENEA/B")
 
         assert result is not None
         assert result.diseases == ()
@@ -354,7 +354,7 @@ class TestFetchClinVarDiseases:
             "pipeline.clinvar_fetch._client_manager.get", return_value=mock_client
         )
 
-        assert await fetch_clinvar_diseases("HTRA1") is None
+        assert await fetch_clinvar_diseases("GENE1") is None
 
     async def test_a_timeout_is_a_transient_miss(self, mocker) -> None:
         mock_client = AsyncMock()
@@ -363,7 +363,7 @@ class TestFetchClinVarDiseases:
             "pipeline.clinvar_fetch._client_manager.get", return_value=mock_client
         )
 
-        assert await fetch_clinvar_diseases("HTRA1") is None
+        assert await fetch_clinvar_diseases("GENE1") is None
 
     async def test_the_api_key_reaches_the_search_params(self, mocker) -> None:
         mocker.patch.dict("os.environ", {"NCBI_API_KEY": "test-key-123"})
@@ -376,7 +376,7 @@ class TestFetchClinVarDiseases:
             "pipeline.clinvar_fetch._client_manager.get", return_value=mock_client
         )
 
-        await fetch_clinvar_diseases("HTRA1")
+        await fetch_clinvar_diseases("GENE1")
 
         params = mock_client.get.call_args.kwargs["params"]
         assert params["api_key"] == "test-key-123"
@@ -399,7 +399,7 @@ class TestFetchClinVarDiseases:
             "pipeline.clinvar_fetch._client_manager.get", return_value=mock_client
         )
 
-        result = await fetch_clinvar_diseases("NOTCH3")
+        result = await fetch_clinvar_diseases("GENE3")
 
         assert result is not None
         assert mock_client.post.await_count == 3  # 200 + 200 + 50
@@ -426,11 +426,11 @@ class TestFetchClinVarDiseases:
         )
 
         with caplog.at_level(logging.INFO, logger="pipeline.clinvar_fetch"):
-            result = await fetch_clinvar_diseases("NOTCH3", config=config)
+            result = await fetch_clinvar_diseases("GENE3", config=config)
 
         assert result is not None
         assert (
-            "ClinVar returned 500 records for NOTCH3, capped at 2 -- "
+            "ClinVar returned 500 records for GENE3, capped at 2 -- "
             "record counts are a floor, not a total"
         ) in caplog.text
 
@@ -439,14 +439,14 @@ class TestSyncClinVarAnnotations:
     async def test_a_fresh_cache_skips_the_fetch(self, mocker) -> None:
         mocker.patch(
             "pipeline.database.get_annotation_statuses",
-            AsyncMock(return_value={"HTRA1": {"row_count": 4, "source_version": None}}),
+            AsyncMock(return_value={"GENE1": {"row_count": 4, "source_version": None}}),
         )
         replace = mocker.patch(
             "pipeline.database.replace_gene_annotations", AsyncMock(return_value=0)
         )
         fetch = mocker.patch("pipeline.clinvar_fetch.fetch_clinvar_diseases")
 
-        result = await sync_clinvar_annotations(["HTRA1"])
+        result = await sync_clinvar_annotations(["GENE1"])
 
         assert result.cached == 1
         assert result.fetched == 0
@@ -454,7 +454,7 @@ class TestSyncClinVarAnnotations:
         replace.assert_not_awaited()
 
     async def test_a_gene_with_no_diseases_still_writes_a_status_row(
-        self, mocker
+        self, mocker, gene_aliases
     ) -> None:
         """The negative cache: zero rows and never-fetched must be distinct."""
         from pipeline.clinvar_fetch import ClinVarGeneResult
@@ -465,20 +465,23 @@ class TestSyncClinVarAnnotations:
         replace = mocker.patch(
             "pipeline.database.replace_gene_annotations", AsyncMock(return_value=0)
         )
-        mocker.patch(
+        fetch = mocker.patch(
             "pipeline.clinvar_fetch.fetch_clinvar_diseases",
             AsyncMock(
                 return_value=ClinVarGeneResult(
-                    gene_symbol="C6orf195",
+                    gene_symbol="OLDSYM",
                     diseases=(),
                 )
             ),
         )
 
-        result = await sync_clinvar_annotations(["C6orf195"])
+        result = await sync_clinvar_annotations(["OLDSYM"])
 
+        # The curated key is queried by the symbol it stands for ...
+        assert [c.args[0] for c in fetch.await_args_list] == ["NEWSYM"]
+        # ... and its status is filed back under the curated key.
         statuses = replace.await_args.args[1]
-        assert [s.gene_symbol for s in statuses] == ["C6orf195"]
+        assert [s.gene_symbol for s in statuses] == ["OLDSYM"]
         assert statuses[0].row_count == 0
         assert result.failed == 0
 
@@ -495,7 +498,7 @@ class TestSyncClinVarAnnotations:
             AsyncMock(return_value=None),
         )
 
-        result = await sync_clinvar_annotations(["HTRA1"])
+        result = await sync_clinvar_annotations(["GENE1"])
 
         assert result.failed == 1
         assert replace.await_args.args[1] == []
@@ -503,16 +506,16 @@ class TestSyncClinVarAnnotations:
 
 class TestRecordShapesThatCarryNoClassification:
     def test_a_trait_with_xrefs_but_no_name_is_dropped(self) -> None:
-        record = _record(["HTRA1"], "", [("OMIM", "600142")])
-        result = _aggregate_records("HTRA1", [record])
+        record = _record(["GENE1"], "", [("OMIM", "600142")])
+        result = _aggregate_records("GENE1", [record])
         assert result.diseases == ()
 
     def test_a_record_with_no_description_leaves_classification_none(self) -> None:
         """ClinVar omits the description on some records."""
-        record = _record(["HTRA1"], "CARASIL syndrome", _CARASIL_XREFS)
+        record = _record(["GENE1"], "Disease A syndrome", _DISEASE_A_XREFS)
         record["germline_classification"]["description"] = ""
 
-        result = _aggregate_records("HTRA1", [record])
+        result = _aggregate_records("GENE1", [record])
 
         assert result.diseases[0].classification is None
 
@@ -525,7 +528,7 @@ class TestTransportFailureModes:
             "pipeline.clinvar_fetch._client_manager.get", return_value=mock_client
         )
 
-        assert await fetch_clinvar_diseases("HTRA1") is None
+        assert await fetch_clinvar_diseases("GENE1") is None
 
     async def test_a_search_response_missing_its_envelope_is_a_transient_miss(
         self, mocker
@@ -539,7 +542,7 @@ class TestTransportFailureModes:
             "pipeline.clinvar_fetch._client_manager.get", return_value=mock_client
         )
 
-        assert await fetch_clinvar_diseases("HTRA1") is None
+        assert await fetch_clinvar_diseases("GENE1") is None
 
     @pytest.mark.parametrize(
         "failure",
@@ -556,7 +559,7 @@ class TestTransportFailureModes:
     ) -> None:
         """A partial answer must never be cached as a complete one.
 
-        NOTCH3's 248 uids are two batches. Skipping one published a truncated
+        GENE3's 248 uids are two batches. Skipping one published a truncated
         disease set and skipping both published none -- either way as a fresh
         status row that suppressed the retry for DB_CACHE_TTL_DAYS, which is
         exactly what sync_clinvar_annotations' docstring says never happens.
@@ -575,7 +578,7 @@ class TestTransportFailureModes:
             "pipeline.clinvar_fetch._client_manager.get", return_value=mock_client
         )
 
-        assert await fetch_clinvar_diseases("HTRA1") is None
+        assert await fetch_clinvar_diseases("GENE1") is None
 
     async def test_a_summarised_record_reaches_the_aggregator(self, mocker) -> None:
         """The whole path, so the uid-to-record indirection is exercised."""
@@ -589,7 +592,7 @@ class TestTransportFailureModes:
                 {
                     "result": {
                         "uids": ["1", "2"],
-                        "1": _record(["HTRA1"], "CARASIL syndrome", _CARASIL_XREFS),
+                        "1": _record(["GENE1"], "Disease A syndrome", _DISEASE_A_XREFS),
                         # ClinVar returns a bare error string for a withdrawn uid.
                         "2": "record removed",
                     }
@@ -603,10 +606,10 @@ class TestTransportFailureModes:
             "pipeline.clinvar_fetch._client_manager.get", return_value=mock_client
         )
 
-        result = await fetch_clinvar_diseases("HTRA1")
+        result = await fetch_clinvar_diseases("GENE1")
 
         assert result is not None
-        assert [d.trait_name for d in result.diseases] == ["CARASIL syndrome"]
+        assert [d.trait_name for d in result.diseases] == ["Disease A syndrome"]
         assert result.diseases[0].record_count == 1
 
     async def test_a_per_record_error_dict_fails_the_gene(self, mocker) -> None:
@@ -628,7 +631,7 @@ class TestTransportFailureModes:
                 {
                     "result": {
                         "uids": ["1", "2"],
-                        "1": _record(["HTRA1"], "CARASIL syndrome", _CARASIL_XREFS),
+                        "1": _record(["GENE1"], "Disease A syndrome", _DISEASE_A_XREFS),
                         "2": {"uid": "2", "error": "cannot get document summary"},
                     }
                 }
@@ -641,7 +644,7 @@ class TestTransportFailureModes:
             "pipeline.clinvar_fetch._client_manager.get", return_value=mock_client
         )
 
-        assert await fetch_clinvar_diseases("HTRA1") is None
+        assert await fetch_clinvar_diseases("GENE1") is None
 
 
 class TestAnUnparseableSearchPhrase:
@@ -686,20 +689,20 @@ class TestAnUnparseableSearchPhrase:
             "pipeline.clinvar_fetch._client_manager.get", return_value=mock_client
         )
 
-        assert await fetch_clinvar_diseases("HTRA1") is None
+        assert await fetch_clinvar_diseases("GENE1") is None
         assert "[Properties]" in caplog.text
 
     async def test_a_gene_term_alone_not_found_is_a_genuine_zero(
         self, mocker
     ) -> None:
-        """COL4A1/2 is a curator label, not a symbol; ClinVar has no such gene."""
+        """GENEA/B is a curator label, not a symbol; ClinVar has no such gene."""
         mock_client = AsyncMock()
-        mock_client.get = AsyncMock(return_value=self._search(["COL4A1/2[gene]"]))
+        mock_client.get = AsyncMock(return_value=self._search(["GENEA/B[gene]"]))
         mocker.patch(
             "pipeline.clinvar_fetch._client_manager.get", return_value=mock_client
         )
 
-        result = await fetch_clinvar_diseases("COL4A1/2")
+        result = await fetch_clinvar_diseases("GENEA/B")
 
         assert result is not None
         assert result.diseases == ()
@@ -718,9 +721,9 @@ class TestModuleLifecycle:
         await close_clinvar_client()
 
     def test_clearing_the_cache_empties_it(self) -> None:
-        clinvar._clinvar_cache["HTRA1"] = None
+        clinvar._clinvar_cache["GENE1"] = None
         # A real Task is not needed to prove clear() empties the dict.
-        clinvar._in_flight["HTRA1"] = cast(Any, None)
+        clinvar._in_flight["GENE1"] = cast(Any, None)
 
         clear_clinvar_cache()
 
@@ -744,10 +747,10 @@ class TestSyncWritesRowsForAProductiveGene:
             "pipeline.clinvar_fetch.fetch_clinvar_diseases",
             AsyncMock(
                 return_value=ClinVarGeneResult(
-                    gene_symbol="HTRA1",
+                    gene_symbol="GENE1",
                     diseases=(
                         ClinVarDisease(
-                            trait_name="CARASIL syndrome",
+                            trait_name="Disease A syndrome",
                             group_key="MONDO:0010829",
                             xrefs=("MONDO:0010829", "OMIM:600142"),
                             classification="Pathogenic",
@@ -758,7 +761,7 @@ class TestSyncWritesRowsForAProductiveGene:
             ),
         )
 
-        result = await sync_clinvar_annotations(["HTRA1"])
+        result = await sync_clinvar_annotations(["GENE1"])
 
         rows, statuses = replace.await_args.args
         assert [r.object_id for r in rows] == ["MONDO:0010829", "OMIM:600142"]
@@ -922,7 +925,7 @@ class TestRatePacing:
             "pipeline.clinvar_fetch._client_manager.get", return_value=mock_client
         )
 
-        assert await fetch_clinvar_diseases("HTRA1") is None
+        assert await fetch_clinvar_diseases("GENE1") is None
 
     def test_the_rate_lock_is_created_once(self) -> None:
         assert clinvar._get_rate_lock() is clinvar._get_rate_lock()
@@ -940,16 +943,16 @@ class TestTraitsCollidingOnOneDiseaseGroup:
     def test_two_traits_under_one_group_merge_into_one_disease(self) -> None:
         records = [
             *[
-                _record(["HTRA1"], "Alpha", [("OMIM", "600001"), ("MONDO", "0010829")])
+                _record(["GENE1"], "Alpha", [("OMIM", "600001"), ("MONDO", "0010829")])
                 for _ in range(9)
             ],
             *[
-                _record(["HTRA1"], "Beta", [("OMIM", "600002"), ("MONDO", "0010829")])
+                _record(["GENE1"], "Beta", [("OMIM", "600002"), ("MONDO", "0010829")])
                 for _ in range(2)
             ],
         ]
 
-        result = _aggregate_records("HTRA1", records)
+        result = _aggregate_records("GENE1", records)
 
         assert len(result.diseases) == 1
         disease = result.diseases[0]
@@ -964,25 +967,25 @@ class TestTraitsCollidingOnOneDiseaseGroup:
     ) -> None:
         """Insertion order must not decide which name wins."""
         few = [
-            _record(["HTRA1"], "Zeta", [("OMIM", "600002"), ("MONDO", "0010829")])
+            _record(["GENE1"], "Zeta", [("OMIM", "600002"), ("MONDO", "0010829")])
         ]
         many = [
-            _record(["HTRA1"], "Alpha", [("OMIM", "600001"), ("MONDO", "0010829")])
+            _record(["GENE1"], "Alpha", [("OMIM", "600001"), ("MONDO", "0010829")])
             for _ in range(3)
         ]
 
-        forward = _aggregate_records("HTRA1", [*many, *few])
-        reverse = _aggregate_records("HTRA1", [*few, *many])
+        forward = _aggregate_records("GENE1", [*many, *few])
+        reverse = _aggregate_records("GENE1", [*few, *many])
 
         assert forward.diseases[0].trait_name == "Alpha"
         assert reverse.diseases[0].trait_name == "Alpha"
 
     def test_a_tie_breaks_alphabetically(self) -> None:
         records = [
-            _record(["HTRA1"], "Zeta", [("OMIM", "600002"), ("MONDO", "0010829")]),
-            _record(["HTRA1"], "Alpha", [("OMIM", "600001"), ("MONDO", "0010829")]),
+            _record(["GENE1"], "Zeta", [("OMIM", "600002"), ("MONDO", "0010829")]),
+            _record(["GENE1"], "Alpha", [("OMIM", "600001"), ("MONDO", "0010829")]),
         ]
-        result = _aggregate_records("HTRA1", records)
+        result = _aggregate_records("GENE1", records)
         assert result.diseases[0].trait_name == "Alpha"
 
     def test_three_traits_elect_the_same_name_in_every_listing_order(self) -> None:
@@ -997,20 +1000,20 @@ class TestTraitsCollidingOnOneDiseaseGroup:
         import itertools
 
         alpha = [
-            _record(["HTRA1"], "Alpha", [("OMIM", "600001"), ("MONDO", "0010829")])
+            _record(["GENE1"], "Alpha", [("OMIM", "600001"), ("MONDO", "0010829")])
             for _ in range(3)
         ]
         beta = [
-            _record(["HTRA1"], "Beta", [("OMIM", "600002"), ("MONDO", "0010829")])
+            _record(["GENE1"], "Beta", [("OMIM", "600002"), ("MONDO", "0010829")])
             for _ in range(3)
         ]
         gamma = [
-            _record(["HTRA1"], "Gamma", [("OMIM", "600003"), ("MONDO", "0010829")])
+            _record(["GENE1"], "Gamma", [("OMIM", "600003"), ("MONDO", "0010829")])
             for _ in range(4)
         ]
 
         names = {
-            _aggregate_records("HTRA1", [r for group in order for r in group])
+            _aggregate_records("GENE1", [r for group in order for r in group])
             .diseases[0]
             .trait_name
             for order in itertools.permutations([alpha, beta, gamma])

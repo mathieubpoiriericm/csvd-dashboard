@@ -1,6 +1,6 @@
 """pipeline.query_eval: the gold set, the uid clause, recall, the baseline.
 
-Every test here is disease-neutral. The cSVD measurement itself -- 106 of
+Every test here is disease-neutral. The upstream measurement itself -- 106 of
 111, the five misses and the anchor ceiling -- is
 tests/pipeline/csvd/test_query_recall.py.
 """

@@ -145,15 +145,15 @@ class TestNcbiValidation:
         assert result.normalized_data is not None
 
     async def test_gene_symbol_normalized(self, make_gene_entry, mocker):
-        entry = make_gene_entry(gene_symbol="notch3", confidence=0.9)
+        entry = make_gene_entry(gene_symbol="gene1", confidence=0.9)
         mocker.patch(
             "pipeline.validation.verify_ncbi_gene",
-            return_value="NOTCH3",
+            return_value="GENE1",
         )
         result = await validate_gene_entry(entry)
         assert result.is_valid
         assert result.normalized_data is not None
-        assert result.normalized_data.gene_symbol == "NOTCH3"
+        assert result.normalized_data.gene_symbol == "GENE1"
 
     async def test_a_rename_is_logged_at_info_with_both_symbols(
         self, make_gene_entry, mocker, caplog
@@ -188,10 +188,10 @@ class TestNcbiValidation:
         self, make_gene_entry, mocker, caplog
     ):
         """No substitution, no line: the log has to stay readable."""
-        entry = make_gene_entry(gene_symbol="NOTCH3", confidence=0.9, pmid="")
+        entry = make_gene_entry(gene_symbol="GENE1", confidence=0.9, pmid="")
         mocker.patch(
             "pipeline.validation.verify_ncbi_gene",
-            return_value="NOTCH3",
+            return_value="GENE1",
         )
         with caplog.at_level(logging.INFO, logger="pipeline.validation"):
             await validate_gene_entry(entry)
@@ -228,29 +228,29 @@ class TestVerifyNcbiGeneCache:
     async def test_cache_hit(self, mocker):
         import pipeline.validation as val
 
-        val._gene_cache["NOTCH3"] = "NOTCH3"
+        val._gene_cache["GENE1"] = "GENE1"
 
         mock_fetch = mocker.patch("pipeline.validation._fetch_ncbi_gene_uncached")
-        result = await verify_ncbi_gene("NOTCH3")
+        result = await verify_ncbi_gene("GENE1")
 
-        assert result == "NOTCH3"
+        assert result == "GENE1"
         mock_fetch.assert_not_called()
 
     async def test_cache_miss_fetches(self, mocker):
         mocker.patch(
             "pipeline.validation._fetch_ncbi_gene_uncached",
-            return_value="HTRA1",
+            return_value="GENE2",
         )
-        result = await verify_ncbi_gene("HTRA1")
-        assert result == "HTRA1"
+        result = await verify_ncbi_gene("GENE2")
+        assert result == "GENE2"
 
     async def test_case_insensitive_cache(self, mocker):
         import pipeline.validation as val
 
-        val._gene_cache["NOTCH3"] = "NOTCH3"
+        val._gene_cache["GENE1"] = "GENE1"
 
         mock_fetch = mocker.patch("pipeline.validation._fetch_ncbi_gene_uncached")
-        result = await verify_ncbi_gene("notch3")
+        result = await verify_ncbi_gene("gene1")
         assert result is not None
         mock_fetch.assert_not_called()
 
@@ -294,17 +294,17 @@ class TestVerifyNcbiGeneCache:
             # first task would finish atomically and any buggy
             # implementation would still pass.
             await asyncio.sleep(0)
-            return "NOTCH3"
+            return "GENE1"
 
         mocker.patch(
             "pipeline.validation._fetch_ncbi_gene_uncached",
             side_effect=slow_fetch,
         )
 
-        results = await asyncio.gather(*(verify_ncbi_gene("NOTCH3") for _ in range(10)))
-        assert results == ["NOTCH3"] * 10
+        results = await asyncio.gather(*(verify_ncbi_gene("GENE1") for _ in range(10)))
+        assert results == ["GENE1"] * 10
         assert call_count == 1
-        assert val._gene_cache["NOTCH3"] == "NOTCH3"
+        assert val._gene_cache["GENE1"] == "GENE1"
 
 
 # ---------------------------------------------------------------------------
@@ -329,10 +329,10 @@ class TestFetchNcbiGene:
         summary_response.json.return_value = {
             "result": {
                 "4854": {
-                    "name": "NOTCH3",
-                    "description": "notch receptor 3",
+                    "name": "GENE1",
+                    "description": "protein 1",
                     "chromosome": "19",
-                    "otheraliases": "CADASIL",
+                    "otheraliases": "ALIAS1",
                 }
             }
         }
@@ -343,8 +343,8 @@ class TestFetchNcbiGene:
             return_value=mock_client,
         )
 
-        result = await _fetch_ncbi_gene_uncached("NOTCH3")
-        assert result == "NOTCH3"
+        result = await _fetch_ncbi_gene_uncached("GENE1")
+        assert result == "GENE1"
 
     async def test_gene_not_found(self, mocker):
         mock_client = AsyncMock()
@@ -376,7 +376,7 @@ class TestFetchNcbiGene:
         )
 
         with pytest.raises(NcbiUnavailableError):
-            await _fetch_ncbi_gene_uncached("NOTCH3")
+            await _fetch_ncbi_gene_uncached("GENE1")
 
     async def test_request_error_is_unavailable_not_absent(self, mocker):
         mock_client = AsyncMock()
@@ -387,7 +387,7 @@ class TestFetchNcbiGene:
         )
 
         with pytest.raises(NcbiUnavailableError):
-            await _fetch_ncbi_gene_uncached("NOTCH3")
+            await _fetch_ncbi_gene_uncached("GENE1")
 
     async def test_http_error_is_unavailable_not_absent(self, mocker):
         mock_client = AsyncMock()
@@ -400,7 +400,7 @@ class TestFetchNcbiGene:
         )
 
         with pytest.raises(NcbiUnavailableError):
-            await _fetch_ncbi_gene_uncached("NOTCH3")
+            await _fetch_ncbi_gene_uncached("GENE1")
 
     async def test_non_json_body_is_unavailable_not_absent(self, mocker):
         # A 200 carrying an HTML maintenance page. The sibling esummary
@@ -414,18 +414,18 @@ class TestFetchNcbiGene:
         )
 
         with pytest.raises(NcbiUnavailableError):
-            await _fetch_ncbi_gene_uncached("NOTCH3")
+            await _fetch_ncbi_gene_uncached("GENE1")
 
     async def test_unavailable_is_not_cached(self, mocker):
         clear_gene_cache()
         fetch = mocker.patch(
             "pipeline.validation._fetch_ncbi_gene_uncached",
-            new=AsyncMock(side_effect=[NcbiUnavailableError("down"), "NOTCH3"]),
+            new=AsyncMock(side_effect=[NcbiUnavailableError("down"), "GENE1"]),
         )
 
         with pytest.raises(NcbiUnavailableError):
-            await verify_ncbi_gene("NOTCH3")
-        assert await verify_ncbi_gene("NOTCH3") == "NOTCH3"
+            await verify_ncbi_gene("GENE1")
+        assert await verify_ncbi_gene("GENE1") == "GENE1"
         assert fetch.await_count == 2
 
     async def test_malformed_search_response_is_unavailable(self, mocker):
@@ -440,7 +440,7 @@ class TestFetchNcbiGene:
         )
 
         with pytest.raises(NcbiUnavailableError):
-            await _fetch_ncbi_gene_uncached("NOTCH3")
+            await _fetch_ncbi_gene_uncached("GENE1")
 
     async def test_a_top_level_error_body_is_unavailable(self, mocker):
         # E-utilities reports a failed query inside a 200 as {"error": ...}.
@@ -452,7 +452,7 @@ class TestFetchNcbiGene:
         )
 
         with pytest.raises(NcbiUnavailableError):
-            await _fetch_ncbi_gene_uncached("NOTCH3")
+            await _fetch_ncbi_gene_uncached("GENE1")
 
     async def test_the_search_asks_for_every_candidate(self, mocker):
         """retmax is raised above NCBI's default page of 20.
@@ -562,10 +562,10 @@ class TestFetchOfficialGeneSymbol:
         response.json.return_value = {
             "result": {
                 "4854": {
-                    "name": "NOTCH3",
-                    "description": "notch receptor 3",
+                    "name": "GENE1",
+                    "description": "protein 1",
                     "chromosome": "19",
-                    "otheraliases": "CADASIL, CASIL",
+                    "otheraliases": "ALIAS1, ALIAS2",
                 }
             }
         }
@@ -576,7 +576,7 @@ class TestFetchOfficialGeneSymbol:
         )
 
         result = await _fetch_official_gene_symbol("4854")
-        assert result == "NOTCH3"
+        assert result == "GENE1"
 
     async def test_missing_name_field_is_unavailable(self, mocker):
         """A record with no symbol is a malformed answer, not a missing gene."""
@@ -586,7 +586,7 @@ class TestFetchOfficialGeneSymbol:
         response.json.return_value = {
             "result": {
                 "4854": {
-                    "description": "notch receptor 3",
+                    "description": "protein 1",
                     "chromosome": "19",
                 }
             }
@@ -609,7 +609,7 @@ class TestFetchOfficialGeneSymbol:
             "result": {
                 "4854": {
                     "name": "",
-                    "description": "notch receptor 3",
+                    "description": "protein 1",
                     "chromosome": "19",
                 }
             }
@@ -628,7 +628,7 @@ class TestFetchOfficialGeneSymbol:
 
         It is the in-band shape clinvar_fetch treats as a failed batch. Here
         it returned None, which single_flight_get cached under the symbol,
-        so one hiccup on NOTCH3's summary rejected NOTCH3 on every later
+        so one hiccup on GENE1's summary rejected GENE1 on every later
         paper in the run without another request.
         """
         mock_client = AsyncMock()
