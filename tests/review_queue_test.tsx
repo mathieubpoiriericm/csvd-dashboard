@@ -20,7 +20,7 @@ import ReviewQueuePage, {
 import { ReviewQueue } from "../components/review/ReviewQueue.tsx";
 import { StandingBadge } from "../components/review/StandingBadge.tsx";
 import { TallyBar } from "../components/review/TallyBar.tsx";
-import { currentReview } from "../lib/review/current.ts";
+import { currentReview, REVIEW } from "../lib/review/current.ts";
 import {
   geneHref,
   STANDING_LABELS,
@@ -223,16 +223,22 @@ Deno.test("an unknown filter value is ignored", () => {
   });
 });
 
-Deno.test("without a review the queue is not found", () => {
-  // The committed round is null until a round is published.
-  const err = assertThrows(() =>
+Deno.test("the queue is found only while there is a review", () => {
+  // Holds in both states: the committed round is null until one is published.
+  const page = () =>
     renderToString(
       h(
         ReviewQueuePage as unknown as preact.ComponentType<{ url: URL }>,
         { url: new URL("http://localhost/review") },
       ),
-    ), HttpError);
-  assertEquals(err.status, 404);
+    );
+  if (REVIEW === null) {
+    assertEquals(assertThrows(page, HttpError).status, 404);
+  } else {
+    const html = page();
+    assertStringIncludes(html, "<h1>Review queue</h1>");
+    assertStringIncludes(html, escapeHtml(REVIEW.reviews[0].gene));
+  }
 });
 
 const review = (overrides: Partial<GeneReview>): GeneReview => ({
