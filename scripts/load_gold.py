@@ -19,8 +19,11 @@ Then `deno task data` publishes what this wrote.
 naming each row, for:
 
 - a non-empty suspects.csv -- a cell the clean-up could not vouch for;
-- a trial whose registry ID has no group in `POPULATION_GROUP`, or two trials
-  with one (registry ID, drug);
+- a trial whose registry ID has no group in
+  disease/gold/trial_populations.csv, that file without its
+  registry_id,population header, a row of it with a blank cell or a third
+  one, a registry ID it lists twice or a group the manifest's `populations`
+  do not list, or two trials with one (registry ID, drug);
 - a value longer than its column, a completion date that is not YYYY-MM or a
   target size that is not a count;
 - a GWAS trait that is not a vocabulary key once the synonyms are folded;
@@ -84,7 +87,7 @@ from scripts.restore_from_json import (
 )
 
 from pipeline.database import Database
-from pipeline.disease import VOCABULARY_PATH
+from pipeline.disease import VOCABULARY_PATH, load_disease
 from pipeline.export.tables import (
     clean_omics_value,
     clean_trial_row,
@@ -94,6 +97,12 @@ from pipeline.omics import OMICS_STUDY_TYPES
 
 _ROOT: Final = Path(__file__).resolve().parent.parent
 _GOLD_DIR: Final = _ROOT / "disease" / "gold" / "out"
+# The curators' target-population group for each gold trial, by registry ID:
+# ST3 states only the free-text population, and these are the groups the
+# curated table already gave the same trials. Kept by hand beside the
+# workbook, not under out/, whose CSVs clean_gold.R replaces on every run.
+_POPULATIONS_PATH: Final = _ROOT / "disease" / "gold" / "trial_populations.csv"
+_POPULATION_COLUMNS: Final = ("registry_id", "population")
 
 
 class GoldRefused(Exception):
@@ -105,27 +114,6 @@ class GoldPlan:
     genes: list[GeneRestore]
     trials: list[dict[str, Any]]
 
-
-# The curators' target-population group for each gold trial, keyed by
-# registry ID: ST3 states only the free-text population, and these are the
-# groups the curated table already gave the same trials, approved in the PR.
-POPULATION_GROUP: Final[Mapping[str, str]] = MappingProxyType(
-    {
-        "ChiCTR2500109773": "Stroke",
-        "ISRCTN14632228": "Stroke",
-        "ISRCTN44436843": "Stroke",
-        "NCT06530537": "Stroke",
-        "NCT06674460": "Stroke",
-        "NCT05755997": "SVD",
-        "NCT04658823": "SVD",
-        "NCT06814730": "SVD",
-        "ChiCTR2400094236": "Cognitive Impairment",
-        "NCT05356104": "Cognitive Impairment",
-        "NCT07026994": "CAA",
-        "NCT06393712": "CAA",
-        "ACTRN12624001477516": "CAA",
-    }
-)
 
 # Every bounded column a gold value lands in, and its width, from the
 # migrations (001, 005, 014, 016). The rest are TEXT or INTEGER.
@@ -349,12 +337,76 @@ def _completion(row: Mapping[str, str]) -> str | None:
     return note
 
 
-def trial_from_gold(row: Mapping[str, str]) -> dict[str, Any]:
-    """One ST3 row as a stored clinical_trials row, in `_TRIAL_COLUMNS` order."""
-    registry_id = row["registry_id"].strip()
-    if registry_id not in POPULATION_GROUP:
+def read_population_groups(path: Path) -> tuple[dict[str, str], list[str]]:
+    """Each gold trial's target-population group by registry ID, and every
+    row of *path* that cannot be used.
+
+    A group is one of the manifest's `populations`: the Clinical Trials page
+    selects by those keys, so a trial filed under any other name would be
+    published where no population choice reaches it. A row naming such a
+    group still files its trial, so that mistake is reported once and not
+    again as a trial with no group.
+
+    A file that is missing, or whose header is not the two columns, is
+    refused at once: none of its rows can be read.
+    """
+    name = path.name
+    try:
+        handle = path.open(encoding="utf-8-sig", newline="")
+    except FileNotFoundError:
         raise GoldRefused(
-            f"trial {registry_id}: no target-population group in POPULATION_GROUP"
+            f"{name} is missing from {path.parent}: it gives each gold "
+            "trial its target-population group, one registry_id,population "
+            "row per trial"
+        ) from None
+    known = load_disease().population_keys
+    groups: dict[str, str] = {}
+    failures: list[str] = []
+    with handle:
+        reader = csv.DictReader(handle)
+        if reader.fieldnames != list(_POPULATION_COLUMNS):
+            raise GoldRefused(
+                f"{name}: the first line must be the header "
+                f"{','.join(_POPULATION_COLUMNS)}, and it is "
+                f"{','.join(reader.fieldnames or []) or 'missing'}"
+            )
+        for row in reader:
+            # The line the row ends on: blank lines are skipped, not counted.
+            where = f"{name} line {reader.line_num}"
+            registry_id = (row["registry_id"] or "").strip()
+            group = (row["population"] or "").strip()
+            if None in row:
+                failures.append(f"{where}: more than two cells")
+            elif not registry_id or not group:
+                failures.append(
+                    f"{where}: registry_id and population must both be filled"
+                )
+            elif registry_id in groups:
+                failures.append(f"{where}: {registry_id} is listed twice")
+            else:
+                groups[registry_id] = group
+                if group not in known:
+                    failures.append(
+                        f"{where}: {registry_id} has the group {group!r}, "
+                        "which is not one of the manifest's populations "
+                        f"({', '.join(known)})"
+                    )
+    return groups, failures
+
+
+def trial_from_gold(
+    row: Mapping[str, str], groups: Mapping[str, str]
+) -> dict[str, Any]:
+    """One ST3 row as a stored clinical_trials row, in `_TRIAL_COLUMNS` order.
+
+    *groups* is the target-population group of each registry ID, as
+    `read_population_groups` reads it.
+    """
+    registry_id = row["registry_id"].strip()
+    if registry_id not in groups:
+        raise GoldRefused(
+            f"trial {registry_id}: no target-population group in "
+            f"{_POPULATIONS_PATH.name}"
         )
     target_n = _blank(row["target_n"])
     if target_n is not None and not (target_n.isascii() and target_n.isdigit()):
@@ -367,7 +419,7 @@ def trial_from_gold(row: Mapping[str, str]) -> dict[str, Any]:
         "trial_name": _blank(row["trial_name"]),
         "registry_id": registry_id,
         "clinical_trial_phase": _blank(row["trial_phase"]),
-        "target_population": POPULATION_GROUP[registry_id],
+        "target_population": groups[registry_id],
         "target_population_details": _blank(row["population"]),
         "target_sample_size": None if target_n is None else int(target_n),
         "estimated_completion_date": _completion(row),
@@ -380,9 +432,13 @@ def trial_from_gold(row: Mapping[str, str]) -> dict[str, Any]:
 # --------------------------------------------------------------------- plan
 
 
-def build_gold_plan(gold_dir: Path) -> GoldPlan:
-    """Every row to write, or GoldRefused naming each row that cannot be."""
-    failures: list[str] = []
+def build_gold_plan(gold_dir: Path, populations_path: Path) -> GoldPlan:
+    """Every row to write, or GoldRefused naming each row that cannot be.
+
+    *gold_dir* holds the cleaned tables and *populations_path* is the file
+    of each trial's target-population group.
+    """
+    groups, failures = read_population_groups(populations_path)
     if suspects := _read_csv(gold_dir / "suspects.csv"):
         failures.append(
             f"suspects.csv lists {len(suspects)} cell(s) the clean-up could "
@@ -415,7 +471,7 @@ def build_gold_plan(gold_dir: Path) -> GoldPlan:
     seen_trials: set[tuple[str, str | None]] = set()
     for row in _read_csv(gold_dir / "st3_trials.csv"):
         try:
-            trial = trial_from_gold(row)
+            trial = trial_from_gold(row, groups)
         except GoldRefused as exc:
             failures.append(str(exc))
             continue
@@ -513,7 +569,7 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
 
     try:
-        plan = build_gold_plan(_GOLD_DIR)
+        plan = build_gold_plan(_GOLD_DIR, _POPULATIONS_PATH)
     except GoldRefused as exc:
         sys.exit(str(exc))
 

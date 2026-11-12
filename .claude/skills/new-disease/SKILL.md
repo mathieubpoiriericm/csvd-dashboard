@@ -177,8 +177,10 @@ name and gene symbols as written. Reword a line that is about the disease. A
 hit is often a unit, an identifier or an unrelated code instead (OMIM's `AD`
 for autosomal dominant); allow-list that with a reason -- an `ALLOWED` entry
 `[path regex, line regex, reason]` in the TypeScript test, a `_ALLOWED` entry
-`(file, term as written): reason` in the Python one. A one- or two-letter short
-form matches ordinary words and codes, so expect a few.
+`(file, term as written): _prose(reason)` in the Python one, which excuses the
+term in that file's comments and docstrings only (`_declared(name, reason)`
+excuses it inside one assignment instead). A one- or two-letter short form
+matches ordinary words and codes, so expect a few.
 
 **Cost estimate**, with no database:
 
