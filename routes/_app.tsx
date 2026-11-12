@@ -12,6 +12,7 @@ import { SITE_TITLE, TABS } from "../lib/constants.ts";
 import { HEADING, INSTITUTE, META_DESCRIPTION } from "../lib/disease/site.ts";
 import { observerEntered } from "../lib/review/access_request.ts";
 import { REVIEW } from "../lib/review/current.ts";
+import type { ReviewState } from "../lib/review/summary.ts";
 import { THEME_STORAGE_KEY } from "../lib/theme.ts";
 
 // Vite resolves the same assets as CSS in both build environments. Plain Deno
@@ -73,8 +74,24 @@ const ADAPT_TIP_ID = "nav-adapt-tip";
 const ADAPT_TIP =
   "Recently updated. A step-by-step guide to building this dashboard for your disease of interest: answer nine questions, have them checked against PubMed, the ontology services and ClinicalTrials.gov, and download the folder for a fork.";
 
-function pageTitle(pathname: string): string {
+/**
+ * The browser title of a page. A gene's review page leads with the gene, so
+ * its tabs and history entries tell genes apart, but only for a gene the
+ * review holds: an unknown `?g=` is a 404 and keeps the plain title, so
+ * nothing arbitrary from the URL is echoed into the page.
+ */
+export function pageTitle(
+  pathname: string,
+  params: URLSearchParams = new URLSearchParams(),
+  review: ReviewState | null = null,
+): string {
   if (pathname === LOGIN_PATH) return `Sign in | ${SITE_TITLE}`;
+  if (pathname === "/review/gene") {
+    const gene = params.get("g");
+    if (review?.round.changes.some((c) => c.gene === gene)) {
+      return `${gene} | Review | ${SITE_TITLE}`;
+    }
+  }
   const tab = TABS.find(({ href }) => isActiveTab(pathname, href));
   if (tab) return `${tab.label} | ${SITE_TITLE}`;
   const untabbed = UNTABBED_TITLES.find(([href]) =>
@@ -105,7 +122,7 @@ export default define.page(function App({ Component, url, state, req }) {
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>{pageTitle(url.pathname)}</title>
+        <title>{pageTitle(url.pathname, url.searchParams, REVIEW)}</title>
         <meta
           name="description"
           content={META_DESCRIPTION}
