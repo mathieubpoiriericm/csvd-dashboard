@@ -188,8 +188,10 @@ the record (`batch_state.forget`) only once every batch paper has been validated
 and every refused one rescued, so a crash in validation can still retrieve the
 results. It takes off what it stored, what was rescued or declined twice, and
 every entry with no usable result (so that one is resubmitted rather than
-replayed as a failure); a paper whose validation failed stays on record for the
-next run to collect. Every other batch on record is kept untouched, because
+replayed as a failure), and a paper whose validation failed for any reason but
+an NCBI outage (the same answer would fail the same way until the batch
+expired). A paper whose fetch failed, or whose validation hit an NCBI outage,
+stays on record for the next run to collect. Every other batch on record is kept untouched, because
 `scripts.backfill_pubmed --batch` re-runs from its first window after a crash in
 a later one, and a later window's record erased by the first would be paid for
 twice. A record goes only when all its papers are forgotten or the API no longer

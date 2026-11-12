@@ -402,7 +402,7 @@ class TestTheQuoteGateNamesWhatItDropped:
             "pipeline.main._validate_genes", new=AsyncMock(return_value=([kept], []))
         )
 
-        result = await pipeline_main._validate_batch_paper(
+        result, _ = await pipeline_main._validate_batch_paper(
             "37069360",
             [kept],
             (True, "europepmc", False),
@@ -1083,6 +1083,62 @@ class TestCheckpointResume:
 
         await pipeline_main._process_new_pmids_via_batch(
             ["111", "222"], PipelineMetrics(), config, MagicMock()
+        )
+
+        assert self._on_record(config) == {"msgbatch_old": {"111"}}
+
+    async def test_a_paper_whose_validation_failed_for_its_own_reasons_is_forgotten(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        # Replaying the same answer would fail the same way on every run
+        # until the batch expired; the streaming path re-extracts instead.
+        config = self._config(tmp_path)
+        self._batch_fakes(
+            mocker, {"111": [self._gene("GENE1")], "222": [self._gene("GENE2")]}
+        )
+        self._record_batch(config, "111", "222")
+
+        async def _validate(genes, metrics, config):
+            if genes[0].gene_symbol == "GENE1":
+                raise ValueError("a failure of this paper's own")
+            return genes, []
+
+        mocker.patch("pipeline.main._validate_genes", new=_validate)
+
+        batch = await pipeline_main._process_new_pmids_via_batch(
+            ["111", "222"], PipelineMetrics(), config, MagicMock()
+        )
+
+        assert not Path(config.batch_state_file).exists()
+        assert [r.pmid for r in batch.results if not r.succeeded] == ["111"]
+
+    async def test_only_an_ncbi_outage_in_validation_leaves_a_paper_on_record(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        from pipeline.validation import NcbiUnavailableError
+
+        config = self._config(tmp_path)
+        self._batch_fakes(
+            mocker,
+            {
+                "111": [self._gene("GENE1")],
+                "222": [self._gene("GENE2")],
+                "333": [self._gene("GENE3")],
+            },
+        )
+        self._record_batch(config, "111", "222", "333")
+
+        async def _validate(genes, metrics, config):
+            if genes[0].gene_symbol == "GENE1":
+                raise NcbiUnavailableError("NCBI down")
+            if genes[0].gene_symbol == "GENE2":
+                raise ValueError("its own")
+            return genes, []
+
+        mocker.patch("pipeline.main._validate_genes", new=_validate)
+
+        await pipeline_main._process_new_pmids_via_batch(
+            ["111", "222", "333"], PipelineMetrics(), config, MagicMock()
         )
 
         assert self._on_record(config) == {"msgbatch_old": {"111"}}
