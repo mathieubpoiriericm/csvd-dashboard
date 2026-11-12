@@ -65,8 +65,13 @@ def test_row_tables_are_empty_arrays_and_run_files_are_null(tmp_path: Path) -> N
         "pipeline_syncs.json",
     ):
         assert (tmp_path / name).read_text(encoding="utf-8") == "[]\n", name
-    for name in ("pipeline_status.json", "pipeline_run.json"):
+    for name in ("pipeline_status.json", "pipeline_run.json", "review_round.json"):
         assert (tmp_path / name).read_text(encoding="utf-8") == "null\n", name
+
+
+def test_the_empty_export_writes_a_null_round(tmp_path: Path) -> None:
+    written = write_empty_export(tmp_path, now=_NOW)
+    assert json.loads(written["review_round.json"].read_text()) is None
 
 
 def test_gene_annotations_is_emptied_not_skipped(tmp_path: Path) -> None:
@@ -121,5 +126,5 @@ def test_main_writes_into_the_given_directory(tmp_path: Path, caplog) -> None:
     caplog.set_level(logging.INFO)
     main(["--target", str(tmp_path)])
     assert (tmp_path / "table2.json").read_text() == "[]\n"
-    assert "12 files" in caplog.text
+    assert "13 files" in caplog.text
     assert "cytobands_hg38.json" in caplog.text

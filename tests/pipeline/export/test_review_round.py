@@ -1,7 +1,9 @@
 """Tests for build_review_round -- the diff of gold rows against a preview run."""
 
 import logging
+from contextlib import asynccontextmanager
 from typing import Any
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -9,6 +11,7 @@ from pipeline.export.review_round import (
     ROUND_FILE,
     ReviewRoundError,
     build_review_round,
+    read_review_round,
 )
 
 STAMP = "2026-01-01T00:00:00+00:00"
@@ -237,3 +240,118 @@ def test_the_round_is_open_and_names_its_run():
         "2026-01-01T00:00:00+00:00",
         [],
     )
+
+
+# ---------------------------------------------------------------------------
+# read_review_round -- both connections mocked
+# ---------------------------------------------------------------------------
+
+
+def _report(findings: list[dict[str, Any]], *, shown=None, total=None):
+    """The slice of a published preview report read_review_round reads."""
+    return {
+        "runTimestamp": STAMP,
+        "runMode": "preview",
+        "acceptedGenes": {
+            "shown": len(findings) if shown is None else shown,
+            "total": len(findings) if total is None else total,
+            "items": findings,
+        },
+    }
+
+
+class _Databases:
+    """The preview pool, the gold connection and the gene reader, mocked."""
+
+    def __init__(self, mocker, *, runs: int, gold, preview, papers=()):
+        self.preview_conn = AsyncMock()
+        self.preview_conn.fetchval = AsyncMock(return_value=runs)
+        self.preview_conn.fetch = AsyncMock(return_value=list(papers))
+        mocker.patch(
+            "pipeline.export.review_round.Database.connection",
+            return_value=AsyncMock(
+                __aenter__=AsyncMock(return_value=self.preview_conn),
+                __aexit__=AsyncMock(return_value=False),
+            ),
+        )
+        self.gold_conn = object()
+        self.gold_opened = 0
+
+        @asynccontextmanager
+        async def gold_connection():
+            self.gold_opened += 1
+            yield self.gold_conn
+
+        mocker.patch(
+            "pipeline.export.review_round.gold_connection", new=gold_connection
+        )
+
+        async def read_published_genes(conn=None):
+            return gold if conn is self.gold_conn else preview
+
+        self.genes = mocker.patch(
+            "pipeline.export.main.read_published_genes",
+            new=AsyncMock(side_effect=read_published_genes),
+        )
+
+
+@pytest.mark.parametrize("runs", [0, 2])
+async def test_two_preview_runs_are_refused_before_gold_is_read(mocker, runs):
+    dbs = _Databases(mocker, runs=runs, gold=GOLD, preview=GOLD)
+    with pytest.raises(ReviewRoundError, match=f"{runs} preview runs"):
+        await read_review_round(_report([]))
+    sql, mode = dbs.preview_conn.fetchval.await_args.args
+    assert "FROM pipeline_runs WHERE run_mode = $1" in sql
+    assert mode == "preview"
+    assert dbs.gold_opened == 0
+    dbs.genes.assert_not_awaited()
+
+
+async def test_capped_findings_are_refused(mocker):
+    dbs = _Databases(mocker, runs=1, gold=GOLD, preview=GOLD)
+    findings = [_finding("GENE1", "7")] * 200
+    with pytest.raises(ReviewRoundError, match="200 of 201"):
+        await read_review_round(_report(findings, shown=200, total=201))
+    assert dbs.gold_opened == 0
+    dbs.genes.assert_not_awaited()
+
+
+async def test_the_round_diffs_gold_against_the_preview_with_each_papers_ledger(
+    mocker,
+):
+    preview = [_row("GENE1", references=["1", "7"]), GOLD[1], _row("GENE3")]
+    dbs = _Databases(
+        mocker,
+        runs=1,
+        gold=GOLD,
+        preview=preview,
+        papers=[
+            {"pmid": "7", "fulltext_available": True, "extraction_model": "model-x"},
+            {"pmid": "9", "fulltext_available": False, "extraction_model": None},
+        ],
+    )
+    findings = [_finding("GENE3", "9"), _finding("GENE1", "7"), _finding("GENE3", "7")]
+
+    round_ = await read_review_round(_report(findings))
+
+    assert round_ == build_review_round(
+        gold_rows=GOLD,
+        preview_rows=preview,
+        findings=findings,
+        papers={
+            "7": {"fulltext": True, "extractionModel": "model-x"},
+            "9": {"fulltext": False, "extractionModel": None},
+        },
+        run_timestamp=STAMP,
+    )
+    assert [(c["gene"], c["kind"]) for c in round_["changes"]] == [
+        ("GENE1", "citation"),
+        ("GENE3", "new"),
+    ]
+    assert dbs.gold_opened == 1
+    sql, pmids = dbs.preview_conn.fetch.await_args.args
+    assert sql == (
+        "SELECT pmid, fulltext_available, extraction_model FROM pubmed_refs"
+        " WHERE pmid = ANY($1) ORDER BY pmid"
+    )
+    assert pmids == ["7", "9"]

@@ -29,6 +29,7 @@ from pipeline.export.lookups import (
 )
 from pipeline.export.omim import read_omim_csv, referenced_omim_rows
 from pipeline.export.publish import publish_atomically
+from pipeline.export.review_round import ROUND_FILE, read_review_round
 from pipeline.export.tables import clean_gene_row, clean_trial_row
 from pipeline.export.text import is_doi, split_genetic_targets
 from pipeline.export.writer import to_camel, write_rows, write_value
@@ -292,12 +293,16 @@ async def _read_curated_trials() -> list[dict[str, object]]:
 
 
 async def _export_preview_run(target: Path) -> None:
-    """Publish data/pipeline_run.json from the preview database, and nothing else.
+    """Publish the preview run's report and its review round, and nothing else.
 
     The preview database is a full copy of production, the earlier standard
-    run included, with the preview run merged into it; only this file is
-    published from it, so this reads no other table and every other file
-    stays as it is on disk.
+    run included, with the preview run merged into it. Only two files are
+    published from it -- data/pipeline_run.json and data/review_round.json,
+    the round the committee reads, diffed against the gold database beside
+    it -- so every other file stays as it is on disk. The two are staged
+    together and published in one atomic step, so a refused round publishes
+    neither, and the committed report never describes a run whose round is
+    missing.
     """
     run = await read_pipeline_run()
     if run is None or run.get("runMode") != PREVIEW_RUN_MODE:
@@ -305,13 +310,21 @@ async def _export_preview_run(target: Path) -> None:
             "no preview run to publish: the database holds no run recorded "
             f"with --preview (run mode {PREVIEW_RUN_MODE!r})"
         )
+    round_ = await read_review_round(run)
     with tempfile.TemporaryDirectory(
         prefix=".dashboard-export-", dir=target
     ) as staging_name:
-        staged = {"pipeline_run.json": Path(staging_name) / "pipeline_run.json"}
+        staged = {
+            name: Path(staging_name) / name
+            for name in ("pipeline_run.json", ROUND_FILE)
+        }
         write_value(run, staged["pipeline_run.json"])
+        write_value(round_, staged[ROUND_FILE])
         publish_atomically(staged, target)
-    logger.info("Preview export complete: data/pipeline_run.json only.")
+    logger.info(
+        f"Preview export complete: data/pipeline_run.json and data/{ROUND_FILE}"
+        " only."
+    )
 
 
 async def run_export(
@@ -328,9 +341,9 @@ async def run_export(
     While gold-only is on, data/pipeline_run.json is not regenerated: the
     database an ordinary export reads holds an older run than the preview
     report committed there, and would publish over it. ``preview_run``
-    publishes that one file from the preview database instead, and refuses
-    unless gold-only is on. ``gold_only_on=None`` reads the repository's
-    switch.
+    publishes that file and data/review_round.json from the preview
+    database instead, together or not at all, and refuses unless gold-only
+    is on. ``gold_only_on=None`` reads the repository's switch.
     """
     if gold_only_on is None:
         gold_only_on = gold_only()
@@ -464,8 +477,9 @@ def main(argv: list[str] | None = None) -> None:
         "--preview",
         action="store_true",
         help=(
-            "Publish data/pipeline_run.json alone, from the <DB_NAME>_preview "
-            "database a `--preview` PubMed run wrote. Needs GOLD_ONLY."
+            "Publish data/pipeline_run.json and data/review_round.json alone, "
+            "from the <DB_NAME>_preview database a `--preview` PubMed run "
+            "wrote, diffed against <DB_NAME>. Needs GOLD_ONLY."
         ),
     )
     args = parser.parse_args(argv)

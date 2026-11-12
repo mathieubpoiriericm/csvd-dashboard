@@ -27,6 +27,7 @@ _COMMITTED_FILES: dict[str, str] = {
     "pipeline_syncs.json": "value",
     "protein_info.json": "rows",
     "refs.json": "rows",
+    "review_round.json": "value",
     "table1.json": "rows",
     "table2.json": "rows",
 }

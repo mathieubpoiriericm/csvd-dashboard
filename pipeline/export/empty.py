@@ -31,6 +31,7 @@ from typing import Final
 from pipeline.config import PROJECT_ROOT
 from pipeline.export.omim import read_omim_csv, referenced_omim_rows
 from pipeline.export.publish import publish_atomically
+from pipeline.export.review_round import ROUND_FILE
 from pipeline.export.writer import write_rows, write_value
 
 logger = logging.getLogger(__name__)
@@ -45,7 +46,11 @@ ROW_TABLES: Final[tuple[str, ...]] = (
     "gene_annotations.json",
     "pipeline_syncs.json",
 )
-NULL_VALUES: Final[tuple[str, ...]] = ("pipeline_status.json", "pipeline_run.json")
+NULL_VALUES: Final[tuple[str, ...]] = (
+    "pipeline_status.json",
+    "pipeline_run.json",
+    ROUND_FILE,
+)
 GEOCODED: Final[str] = "geocoded_trials.json"
 OMIM: Final[str] = "omim_info.json"
 
