@@ -2659,6 +2659,30 @@ class TestPrewarmCache:
         assert "Cache warm-up failed" in caplog.text
         fake.close.assert_awaited_once()
 
+    async def test_an_answered_warmup_with_unreadable_usage_is_still_a_200(
+        self, mocker, caplog
+    ):
+        # The API answered and wrote the cache; only reading its usage failed,
+        # which is not a failed Anthropic call.
+        reset_recorder()
+        fake, _create = self._client_answering(
+            mocker, response=self._warmup_response()
+        )
+        mocker.patch(
+            "pipeline.anthropic_client.accumulate_usage",
+            side_effect=KeyError("usage"),
+        )
+
+        with caplog.at_level(logging.WARNING):
+            assert await prewarm_cache(PipelineConfig()) == TokenUsage()
+
+        row = self._anthropic_row()
+        assert row is not None
+        assert (row.calls, row.errors) == (1, 0)
+        assert "answered" in caplog.text
+        assert "Cache warm-up failed" not in caplog.text
+        fake.close.assert_awaited_once()
+
     async def test_a_missing_api_key_is_a_warning_not_a_failed_run(
         self, monkeypatch, caplog
     ):

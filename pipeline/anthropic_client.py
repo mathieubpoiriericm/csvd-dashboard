@@ -928,8 +928,11 @@ async def prewarm_cache(config: PipelineConfig) -> TokenUsage:
     key, or something nobody anticipated in a response it could not read.
     A request that was sent and failed is recorded as a failed Anthropic
     call, as the streaming path records one, so the run report shows it
-    beside the log line. A successful one is accounted like any other call,
-    so the cache write is priced and reported rather than hidden.
+    beside the log line. One the API answered is recorded as the 200 it was
+    and accounted like any other call, so the cache write is priced and
+    reported rather than hidden; if its usage then cannot be read, one
+    warning says so and the tokens are not counted, but the call is not
+    recorded as a failure.
     """
     params = _build_message_params("warmup", "warmup", config)
     params["max_tokens"] = 0
@@ -945,9 +948,7 @@ async def prewarm_cache(config: PipelineConfig) -> TokenUsage:
             betas=[FALLBACK_BETA],
             fallbacks=[{"model": config.fallback_model}],
         )
-        # Inside the guard: an answer whose usage cannot be read is a failed
-        # warm-up, not a failed run.
-        accumulate_usage(usage, response, fallback_model=config.fallback_model)
+        elapsed_ms = (time.monotonic() - start) * 1000.0
     except Exception as error:
         if isinstance(error, anthropic.APIStatusError):
             record_service_call(
@@ -970,13 +971,23 @@ async def prewarm_cache(config: PipelineConfig) -> TokenUsage:
     finally:
         if client is not None:
             await client.close()
+    # The API answered and wrote the cache, so the call is the 200 it was,
+    # whatever the usage then turns out to look like.
     record_service_call(
         _ANTHROPIC_SERVICE,
         endpoint=_MESSAGES_ENDPOINT,
         method="POST",
         status=200,
-        elapsed_ms=(time.monotonic() - start) * 1000.0,
+        elapsed_ms=elapsed_ms,
     )
+    try:
+        accumulate_usage(usage, response, fallback_model=config.fallback_model)
+    except Exception as error:
+        logger.warning(
+            "Cache warm-up was answered but its usage could not be read "
+            f"({type(error).__name__}: {error}); its tokens are not counted"
+        )
+        return TokenUsage()
     return usage
 
 

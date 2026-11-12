@@ -133,7 +133,10 @@ anything else -- logs one warning and returns an empty `TokenUsage`, so a failed
 warm-up costs the saving and not the run. A request that was sent and failed is
 recorded for the API inventory as the streaming path records one (its status for
 an `APIStatusError`, `record_service_failure` otherwise), so the run report
-shows it as an errored Anthropic call. The batch path never calls it; the
+shows it as an errored Anthropic call. A request the API answered is recorded as
+the 200 it was before its usage is read, so an answer whose usage cannot be read
+logs its own warning and counts no tokens, and is not an errored call. The batch
+path never calls it; the
 Batches API rejects `max_tokens: 0`.
 
 **The warm-up was checked against the live API on 2026-11-11, and a real
