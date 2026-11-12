@@ -159,7 +159,7 @@ def make_gene_entry():
 
     def _make(
         gene_symbol: str = "GENE1",
-        protein_name: str | None = "Notch receptor 3",
+        protein_name: str | None = "Protein 1",
         gwas_trait: list[str] | None = None,
         mendelian_randomization: bool = False,
         omics_evidence: list[dict[str, Any]] | None = None,
@@ -167,8 +167,8 @@ def make_gene_entry():
         causal_evidence_summary: str | None = "Strong GWAS association",
         pmid: str = "12345678",
         source_quote: str = (
-            "NOTCH3 mutations were significantly associated with white "
-            "matter hyperintensity volume (p=2.1e-9)."
+            "GENE1 variants were significantly associated with the trait "
+            "(p=2.1e-9)."
         ),
     ) -> GeneEntry:
         return GeneEntry(

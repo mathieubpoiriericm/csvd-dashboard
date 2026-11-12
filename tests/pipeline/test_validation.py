@@ -85,7 +85,7 @@ class TestConfidenceValidation:
         """
         mocker.patch(
             "pipeline.validation.verify_ncbi_gene",
-            return_value="NOTCH3",
+            return_value="GENE1",
         )
         entry = make_gene_entry(confidence=0.50)
         result = await validate_gene_entry(entry)
@@ -95,7 +95,7 @@ class TestConfidenceValidation:
         entry = make_gene_entry(confidence=0.7)
         mocker.patch(
             "pipeline.validation.verify_ncbi_gene",
-            return_value="NOTCH3",
+            return_value="GENE1",
         )
         result = await validate_gene_entry(entry)
         assert result.is_valid
@@ -115,7 +115,7 @@ class TestConfidenceValidation:
         )
         mocker.patch(
             "pipeline.validation.verify_ncbi_gene",
-            return_value="NOTCH3",
+            return_value="GENE1",
         )
         result = await validate_gene_entry(entry, config=cfg)
         assert result.is_valid
@@ -138,7 +138,7 @@ class TestNcbiValidation:
         entry = make_gene_entry(confidence=0.9)
         mocker.patch(
             "pipeline.validation.verify_ncbi_gene",
-            return_value="NOTCH3",
+            return_value="GENE1",
         )
         result = await validate_gene_entry(entry)
         assert result.is_valid

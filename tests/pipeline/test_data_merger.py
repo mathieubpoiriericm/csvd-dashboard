@@ -93,7 +93,7 @@ class TestBuildGeneData:
     def test_basic_fields(self, sample_gene_entry):
         data = _build_gene_data(sample_gene_entry)
         assert data["gene"] == "GENE1"
-        assert data["protein"] == "Notch receptor 3"
+        assert data["protein"] == "Protein 1"
         assert data["references"] == ["12345678"]
 
     def test_source_quote_carried_through(self, sample_gene_entry):
