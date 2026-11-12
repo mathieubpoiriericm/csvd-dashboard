@@ -271,7 +271,9 @@ def published_run_report(stored: dict[str, Any]) -> dict[str, Any]:
     endpoints.
 
     One function so the committed ``data/pipeline_run.json`` can be held to
-    it: a file this would change is one the next export rewrites.
+    it: a file this would change is one the next export of the report
+    rewrites -- ``deno task data:preview`` while gold-only is on, since an
+    ordinary export then leaves the committed file alone.
     """
     report = bring_up_to_date(PipelineRunReport.model_validate(stored))
     wire = reword_findings(recover_search_window(report)).to_wire()

@@ -731,7 +731,7 @@ def build_run_report(
         run_data: The `PipelineRunData` dict `pipeline/report.py` builds.
         steps: `StepRecorder.records()`.
         apis: `ApiRecorder.records()`.
-        run_mode: `standard`, `local_pdf` or `pmid_list`.
+        run_mode: One of `pipeline.steps.RUN_MODES`.
         provenance: `citations.current_tally()`; an empty tally when the
             run did no extraction.
 

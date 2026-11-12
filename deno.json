@@ -18,6 +18,7 @@
     "screenshots": "deno task build && node e2e/screenshots.mjs",
     "models": "uv run docling-tools models download layout tableformer rapidocr --rapidocr-backend-lang onnxruntime:en",
     "data": "uv run python -m pipeline.export.main",
+    "data:preview": "uv run python -m pipeline.export.main --preview",
     "data:empty": "uv run python -m pipeline.export.empty",
     "geocode": "uv run python -m pipeline.export.geocode",
     "cytobands": "uv run scripts/fetch_cytobands.py && deno fmt data/cytobands_hg38.json",

@@ -495,10 +495,10 @@ async def record_pipeline_run(
         fulltext_retrieved: Number of papers with full text.
         genes_extracted: Total genes extracted by LLM.
         genes_validated: Genes passing validation.
-        run_mode: One of ``pipeline.steps.RUN_MODES``. Only 'standard' is
-            written today: the two offline modes publish no data, so
-            recording one would point the About page's "up-to-date as of"
-            date at a run that changed nothing.
+        run_mode: One of ``pipeline.steps.RUN_MODES``. 'standard' and
+            'preview' are written: the two offline modes publish no data,
+            so recording one would point the About page's "up-to-date as
+            of" date at a run that changed nothing.
         status: 'completed', 'completed_with_warnings' or 'failed'.
         duration_seconds: Wall-clock time for the whole run.
         report: The `PipelineRunReport` document the dashboard publishes.

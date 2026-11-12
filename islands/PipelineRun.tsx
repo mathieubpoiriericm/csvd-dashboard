@@ -32,6 +32,7 @@ import {
   field,
   formatCount,
   formatDuration,
+  runModeLabel,
   runStatusBadge,
   runWhen,
   stepStatusBadge,
@@ -63,6 +64,12 @@ interface PipelineRunViewProps {
    * Reading the module binding keeps the client bundle self-sufficient.
    */
   run?: PipelineRun | null;
+  /**
+   * Whether the card is shown as the About page's technical preview
+   * (`islands/PipelinePreview.tsx`): a pill after the heading says so, and
+   * nothing else changes.
+   */
+  preview?: boolean;
 }
 
 /**
@@ -225,12 +232,16 @@ function StepError({ error }: { error: NonNullable<RunStep["error"]> }) {
 }
 
 export default function PipelineRunView(
-  { run = pipelineRun }: PipelineRunViewProps = {},
+  { run = pipelineRun, preview = false }: PipelineRunViewProps = {},
 ) {
-  return run ? <PipelineRunContent key={run.runTimestamp} run={run} /> : null;
+  return run
+    ? <PipelineRunContent key={run.runTimestamp} run={run} preview={preview} />
+    : null;
 }
 
-function PipelineRunContent({ run }: { run: PipelineRun }) {
+function PipelineRunContent(
+  { run, preview }: { run: PipelineRun; preview: boolean },
+) {
   const hydratedRef = useHydratedRef<HTMLDivElement>();
   const [details, setDetails] = useState(false);
   /**
@@ -282,6 +293,11 @@ function PipelineRunContent({ run }: { run: PipelineRun }) {
       <div class="card-body">
         <div class="pipeline-title-row">
           <h2 class="card-title">Last Pipeline Run</h2>
+          {preview && (
+            <span class="pipeline-badge pipeline-tint-muted pipeline-preview-mark">
+              {runModeLabel("preview")}
+            </span>
+          )}
           {
             /* Always there: every run has a method, so the dialog's Setup
               tab is never empty. It names the dialog it opens; the browser

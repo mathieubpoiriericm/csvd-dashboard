@@ -17,6 +17,7 @@ from apprise import NotifyFormat, NotifyType
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from pipeline.disease import load_disease
+from pipeline.steps import PREVIEW_RUN_MODE
 
 if TYPE_CHECKING:
     from pipeline.config import PipelineConfig
@@ -64,6 +65,7 @@ _MODE_LABELS: Final[Mapping[str | None, str]] = MappingProxyType(
         "local_pdf": "Local PDF",
         "pmid_list": "PMID List",
         "combined": "Combined",
+        PREVIEW_RUN_MODE: "Preview",
         None: "Standard",
     }
 )
@@ -103,7 +105,8 @@ def _mode_label(cfg: dict[str, Any], pipelines: Sequence[str] = ()) -> str:
 def _build_template_context(run_data: PipelineRunData) -> dict[str, Any]:
     """Extract template variables from PipelineRunData."""
     cfg = run_data.get("pipeline_config", {})
-    is_standard = cfg.get("mode") is None
+    # A preview run searched and merged like a standard one; only its label differs.
+    is_standard = cfg.get("mode") in (None, PREVIEW_RUN_MODE)
     names = _pipeline_names(run_data)
     mode_label = _mode_label(cfg, names)
 

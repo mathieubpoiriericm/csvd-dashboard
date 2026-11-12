@@ -2033,6 +2033,18 @@ Deno.test("every control that lights on hover lights on focus-visible too", () =
     /\.pipeline-step-head:hover:not\(:disabled\),\s*\.pipeline-step-head:focus-visible:not\(:disabled\)\s*\{/,
     ".pipeline-step-head lights on hover alone",
   );
+  // The preview switch is disabled until its island is live, so its pairs
+  // carry the same qualifier, on and off.
+  assertMatch(
+    css,
+    /\.about-preview-switch:hover:not\(:disabled\),\s*\.about-preview-switch:focus-visible:not\(:disabled\)\s*\{/,
+    ".about-preview-switch lights on hover alone",
+  );
+  assertMatch(
+    css,
+    /\.about-preview-switch\[aria-checked="true"\]:hover:not\(:disabled\),\s*\.about-preview-switch\[aria-checked="true"\]:focus-visible:not\(:disabled\)\s*\{/,
+    "the switched-on .about-preview-switch lights on hover alone",
+  );
   assertMatch(
     css,
     /\.data-table thead th\.sortable:hover,\s*\.data-table thead th\.sortable:has\(\.sort-button:focus-visible\)\s*\{/,

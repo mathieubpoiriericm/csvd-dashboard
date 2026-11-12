@@ -366,6 +366,7 @@ page changes, and in a fork after its first live run.
 │   ├── TrialsTimeline.tsx      the trials radar
 │   ├── Phenogram.tsx           the karyogram
 │   ├── PipelineRun.tsx         the About page's run report
+│   ├── PipelinePreview.tsx     the gold-only notice and its preview switch
 │   ├── AdaptWizard.tsx         the adapt wizard: interview, lookups, download
 │   └── ThemeToggle.tsx         the theme switch
 ├── components/                 presentational pieces shared by the islands
@@ -597,6 +598,7 @@ Tasks live in `deno.json`.
 | `deno task screenshots`   | build, then recapture the README's screenshots  |
 | `deno task data`          | regenerate `data/` except the map and cytobands |
 | `deno task data:empty`    | write the empty `data/` a fork starts from      |
+| `deno task data:preview`  | publish the preview run's report alone          |
 | `deno task geocode`       | regenerate `data/geocoded_trials.json`          |
 | `deno task cytobands`     | regenerate `data/cytobands_hg38.json` from UCSC |
 | `deno task figure`        | draw both print figures into `figures/`         |

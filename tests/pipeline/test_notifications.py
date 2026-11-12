@@ -39,7 +39,7 @@ def _make_run_data(
         cfg["mode"] = mode
     if dry_run:
         cfg["dry_run"] = True
-    if mode is None:
+    if mode in (None, "preview"):
         cfg["days_back"] = 7
     if mode == "local_pdf":
         cfg["pdf_directory"] = "/tmp/pdfs"
@@ -217,6 +217,24 @@ def test_render_markdown_local_pdf():
     md = _render_markdown(_make_run_data(mode="local_pdf"))
     assert "Local PDF" in md
     assert "Search:" not in md
+
+
+def test_a_preview_run_is_labelled_and_digests_like_a_standard_run():
+    """Only the label differs: a preview run searched and merged like any other."""
+    database: MergeResult = {"inserted": 2, "updated": 0}
+    standard = _build_template_context(_make_run_data(database=database))
+    preview_data = _make_run_data(mode="preview", database=database)
+    preview = _build_template_context(preview_data)
+
+    assert preview["mode_label"] == "Preview"
+    assert {k: v for k, v in preview.items() if k != "mode_label"} == {
+        k: v for k, v in standard.items() if k != "mode_label"
+    }
+    md = _render_markdown(preview_data)
+    assert "Preview" in md
+    assert "Papers:" in md
+    assert "Genes:" in md
+    assert "Search:" in md
 
 
 # ---------------------------------------------------------------------------

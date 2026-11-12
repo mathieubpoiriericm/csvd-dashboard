@@ -293,9 +293,9 @@ async def test_export_after_a_run_publishes_from_the_live_pool(
     # the real export rather than a stand-in.
     real_run_export = export_main.run_export
 
-    async def _recording_export(target_dir=None) -> None:
+    async def _recording_export(target_dir=None, **kwargs: Any) -> None:
         seen["export_pool"] = Database._pool
-        await real_run_export(target_dir)
+        await real_run_export(target_dir, gold_only_on=False, **kwargs)
 
     monkeypatch.setattr(export_main, "run_export", _recording_export)
 
@@ -309,6 +309,7 @@ async def test_export_after_a_run_publishes_from_the_live_pool(
         test_mode=False,
         batch=False,
         export=True,
+        preview=False,
     )
     exit_code = await pipeline_main._run_selected_pipelines(args, PipelineConfig())
 

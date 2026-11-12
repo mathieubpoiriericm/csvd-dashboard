@@ -276,6 +276,17 @@ Deno.test("the title row holds the heading and the trigger, whatever the run rec
   }
 });
 
+Deno.test("only a preview carries the preview mark, after the heading", () => {
+  assertNotMatch(html(), /pipeline-preview-mark/);
+  const markup = renderToString(<PipelineRunView run={RUN} preview />);
+  const open = markup.indexOf('class="pipeline-title-row"');
+  const row = markup.slice(open, markup.indexOf("</div>", open));
+  assertMatch(
+    row,
+    /<\/h2><span class="pipeline-badge pipeline-tint-muted pipeline-preview-mark">Technical preview<\/span>/,
+  );
+});
+
 Deno.test("the tabs are a tablist with one selected, and only its panel is in the page", () => {
   const markup = details("findings");
   assertEquals(markup.match(/role="tablist"/g)?.length, 1);

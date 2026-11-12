@@ -26,6 +26,7 @@ from scripts.restore_from_json import (
 )
 
 from pipeline.export.tables import clean_omics_value
+from pipeline.steps import PREVIEW_RUN_MODE
 
 _DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 
@@ -298,6 +299,22 @@ def test_a_failed_newest_run_and_the_last_good_one_are_two_rows(
     ]
 
 
+def test_a_preview_report_restores_no_run_row(tmp_path: Path) -> None:
+    """A preview run merged into a database of its own, and its report is
+    what pipeline_run.json carries; production never held its row."""
+    run = {"runTimestamp": "2026-01-02T00:00:00+00:00", "status": "completed",
+           **{**_REPORT_STUB, "runMode": PREVIEW_RUN_MODE}}
+    status = {"runTimestamp": "2026-01-01T00:00:00Z", "papersProcessed": 5,
+              "fulltextRetrieved": 3, "genesExtracted": 2, "genesValidated": 1}
+    data = _write_export(tmp_path / "data", pipeline_run=run, pipeline_status=status)
+
+    plan = build_plan(data, tmp_path / "logs")
+
+    assert plan.runs == [
+        (datetime(2026, 1, 1, tzinfo=UTC), 5, 3, 2, 1, "standard", None, None, None)
+    ]
+
+
 def test_lookup_fallbacks_are_not_restored_as_cache_rows(tmp_path: Path) -> None:
     """A fallback is the export saying "the cache had nothing". Storing it
     would make the cache claim an answer, and the sync would never fetch
@@ -531,6 +548,29 @@ def test_the_ledger_replays_the_merged_runs_oldest_first(tmp_path: Path) -> None
     assert ledger_from_logs(logs) == [
         ("10000001", datetime(2026, 1, 2, tzinfo=UTC), False, "europepmc", 3, None)
     ]
+
+
+def test_ledger_from_logs_leaves_a_preview_run_out(tmp_path: Path) -> None:
+    """A preview run's papers went into the preview database; marking them
+    processed in production would make a real run skip them."""
+    logs = tmp_path / "logs"
+    (logs / "json").mkdir(parents=True)
+    preview = _report(
+        "2026-01-01T00:00:00+00:00",
+        [_paper("10000001", genes=2)],
+        mode=PREVIEW_RUN_MODE,
+    )
+    (logs / "json" / "pipeline_report_a.json").write_text(json.dumps(preview))
+    _write_events(
+        logs / "events.db",
+        _report(
+            "2026-01-02T00:00:00+00:00",
+            [_paper("10000002")],
+            mode=PREVIEW_RUN_MODE,
+        ),
+    )
+
+    assert ledger_from_logs(logs) == []
 
 
 def test_ledger_from_logs_carries_the_extraction_model(tmp_path: Path) -> None:

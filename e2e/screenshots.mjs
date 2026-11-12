@@ -96,10 +96,15 @@ function belowMergedBlock(page) {
 
 /**
  * The About page hydrates its run report, and renders none -- only a status
- * card -- while `data/pipeline_run.json` is `null`.
+ * card -- while `data/pipeline_run.json` is `null`. Under gold-only with the
+ * preview cookie unset there is no card, only the preview switch, which is
+ * disabled until its island is live.
  */
 async function aboutReady(page) {
   if (await page.$(".pipeline-card")) await READY.get("/")(page);
+  if (await page.$(".about-preview-switch")) {
+    await page.waitForSelector(".about-preview-switch:not([disabled])");
+  }
 }
 
 /**

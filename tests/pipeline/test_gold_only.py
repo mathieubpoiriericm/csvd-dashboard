@@ -6,6 +6,7 @@ discovery while it is true. The guard is tested both ways round whatever the
 committed switch says, so these hold before and after gold-only is undone.
 """
 
+import argparse
 from pathlib import Path
 from unittest.mock import AsyncMock
 
@@ -138,3 +139,45 @@ def test_main_reads_the_switch_before_running_anything(
     else:
         pipeline_main.main()
         run.assert_awaited_once()
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["--preview"],
+        ["--pubmed", "--preview", "--days-back", "365"],
+        ["--preview", "--test-mode"],
+    ],
+)
+def test_gold_only_lets_a_preview_run_through(argv: list[str]) -> None:
+    parser, args = _args(argv)
+    _refuse_while_gold_only(parser, args, gold_only_on=True)  # no SystemExit
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["--preview", "--clinical-trials"],
+        ["--preview", "--sync-annotations"],
+        ["--preview", "--sync-external-data"],
+        ["--preview", "--pmids", "f"],
+        ["--preview", "--local-pdfs", "d"],
+    ],
+)
+def test_a_preview_run_is_the_pubmed_pipeline_alone(argv: list[str]) -> None:
+    parser = _build_parser()
+    with pytest.raises(SystemExit):
+        _prepare_cli_args(parser, parser.parse_args(argv))
+
+
+def test_without_gold_only_a_preview_run_is_refused() -> None:
+    parser, args = _args(["--preview"])
+    with pytest.raises(SystemExit):
+        _refuse_while_gold_only(parser, args, gold_only_on=False)
+
+
+def test_a_namespace_without_the_flag_is_still_refused() -> None:
+    # scripts.backfill_pubmed builds its own namespace.
+    args = argparse.Namespace(pubmed=True, clinical_trials=False)
+    with pytest.raises(SystemExit):
+        _refuse_while_gold_only(_build_parser(), args, gold_only_on=True)

@@ -85,6 +85,14 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Number of days to look back for new papers (default: 7)",
     )
     parser.add_argument(
+        "--preview",
+        action="store_true",
+        help=(
+            "Run the PubMed pipeline into the <DB_NAME>_preview database, the"
+            " one run gold-only allows; the database must already exist"
+        ),
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help=(
@@ -276,6 +284,7 @@ from pipeline.pdf_retrieval import (
     get_fulltext,
     parse_local_pdf,
 )
+from pipeline.preview_run import enter_preview_database, require_preview_database
 from pipeline.prompts import paper_text_truncated
 from pipeline.pubmed_search import filter_new_pmids, search_recent_papers
 from pipeline.quality_metrics import PipelineMetrics, TokenUsage
@@ -296,6 +305,7 @@ from pipeline.run_errors import (
 )
 from pipeline.run_report import build_run_report
 from pipeline.steps import (
+    PREVIEW_RUN_MODE,
     STEP_KEYS,
     SYNC_MODES,
     TOTAL_STEPS,
@@ -2823,6 +2833,7 @@ async def _record_failed_run(
     total_pmids_found: int | None = None,
     new_pmids_count: int = 0,
     deduplicated: bool = True,
+    run_mode: str = "standard",
 ) -> None:
     """Persist a report for a run that did not finish.
 
@@ -2877,6 +2888,7 @@ async def _record_failed_run(
             new_pmids_count=new_pmids_count,
             total_duration=time.monotonic() - started_at,
             use_batch_api=use_batch_api,
+            run_mode=run_mode,
         )
         report_data = cast(dict[str, Any], run_data)
         if total_pmids_found is None:
@@ -2892,7 +2904,7 @@ async def _record_failed_run(
             report_data,
             steps=steps,
             apis=current_recorder().records(),
-            run_mode="standard",
+            run_mode=run_mode,
             provenance=current_tally(),
         )
         await record_pipeline_run(
@@ -2901,7 +2913,7 @@ async def _record_failed_run(
             fulltext_retrieved=metrics.fulltext_retrieved,
             genes_extracted=metrics.genes_extracted,
             genes_validated=metrics.genes_validated,
-            run_mode="standard",
+            run_mode=run_mode,
             status=report.status,
             duration_seconds=report.duration_seconds,
             report=report.to_wire(),
@@ -2918,10 +2930,11 @@ async def _complete_pubmed_run(
     *,
     dry_run: bool,
     manage_lifecycle: bool,
+    run_mode: str = "standard",
 ) -> None:
     """Persist live-run stats, notify, and finalize live-run progress."""
     if not dry_run:
-        await _finalize_run(metrics, run_data, "standard", progress)
+        await _finalize_run(metrics, run_data, run_mode, progress)
     if manage_lifecycle:
         await _record_and_notify(config, run_data)
     if not dry_run:
@@ -2966,6 +2979,7 @@ def _build_pubmed_report(
     total_pmids_found: int,
     started_at: float,
     use_batch_api: bool = False,
+    run_mode: str = "standard",
 ) -> PipelineRunData:
     """Build, persist, and print a standard PubMed run report."""
     run_data = build_run_data(
@@ -2980,6 +2994,7 @@ def _build_pubmed_report(
         new_pmids_count=len(batch.results),
         total_duration=time.monotonic() - started_at,
         use_batch_api=use_batch_api,
+        run_mode=run_mode,
     )
     _emit_report(run_data)
     return run_data
@@ -3165,6 +3180,7 @@ async def run_pipeline(
     use_batch_api: bool = False,
     config: PipelineConfig | None = None,
     manage_lifecycle: bool = True,
+    run_mode: str = "standard",
 ) -> tuple[PipelineMetrics, PipelineRunData | None]:
     """Run the PubMed gene extraction pipeline.
 
@@ -3181,6 +3197,9 @@ async def run_pipeline(
             this function sends its own completion notification. When False
             (set by the ``main()`` dispatcher for combined runs), notifications
             are skipped so the dispatcher can coalesce them across pipelines.
+        run_mode: The mode the run records itself under, one of
+            ``pipeline.steps.RUN_MODES``; ``"preview"`` for a ``--preview``
+            run. A standard run's report is unchanged.
 
     Returns:
         A tuple of (PipelineMetrics, run_data). ``run_data`` is ``None`` on
@@ -3344,6 +3363,7 @@ async def run_pipeline(
             total_pmids_found=len(all_pmids),
             started_at=pipeline_start_time,
             use_batch_api=use_batch_api,
+            run_mode=run_mode,
         )
 
         with profiling.zone("complete run"):
@@ -3354,6 +3374,7 @@ async def run_pipeline(
                 progress,
                 dry_run=dry_run,
                 manage_lifecycle=manage_lifecycle,
+                run_mode=run_mode,
             )
 
         return metrics, run_data
@@ -3374,6 +3395,7 @@ async def run_pipeline(
             days_back=days_back,
             total_pmids_found=found if all_pmids is None else len(all_pmids),
             new_pmids_count=len(new_pmids),
+            run_mode=run_mode,
             deduplicated=all_pmids is not None,
         )
         raise
@@ -3883,8 +3905,13 @@ async def _refresh_lookup_caches(
         )
 
 
-async def _publish_export(summaries: list[dict[str, Any]]) -> bool:
+async def _publish_export(
+    summaries: list[dict[str, Any]], *, preview_run: bool = False
+) -> bool:
     """Regenerate data/*.json from the database. True if it failed.
+
+    ``preview_run`` publishes the preview database's run report alone
+    (data/pipeline_run.json); ``main`` has already pointed ``DB_NAME`` at it.
 
     Called from inside _run_selected_pipelines' `try`, so it runs before the
     `finally` closes the pool and reuses the connection the run already has.
@@ -3904,7 +3931,10 @@ async def _publish_export(summaries: list[dict[str, Any]]) -> bool:
         logger.info(f"Exporting despite failures in: {', '.join(failed)}")
 
     try:
-        await run_export()
+        if preview_run:
+            await run_export(preview_run=True)
+        else:
+            await run_export()
     except Exception as e:
         # The database moved and the files did not -- exactly the condition
         # --export exists to remove -- so this must not pass silently on an
@@ -3935,6 +3965,8 @@ async def _run_selected_pipelines(
     invocation_started = time.monotonic()
 
     try:
+        if args.preview:
+            await require_preview_database()
         if args.pubmed:
             try:
                 # The modes run one after another, so each may hold a zone
@@ -3947,6 +3979,7 @@ async def _run_selected_pipelines(
                         use_batch_api=args.batch,
                         config=config,
                         manage_lifecycle=False,
+                        run_mode=PREVIEW_RUN_MODE if args.preview else "standard",
                     )
                 summaries.append(
                     {
@@ -4033,9 +4066,17 @@ async def _run_selected_pipelines(
                     "Skipping --export: --dry-run / --test-mode wrote nothing"
                 )
             else:
-                if pubmed_run_data is not None and not args.sync_external_data:
+                # A preview run's lookups never reach the published files, so
+                # its caches are not refreshed.
+                if (
+                    pubmed_run_data is not None
+                    and not args.sync_external_data
+                    and not args.preview
+                ):
                     await _refresh_lookup_caches(pubmed_run_data, config)
-                export_failed = await _publish_export(summaries)
+                export_failed = await _publish_export(
+                    summaries, preview_run=args.preview
+                )
 
         return int(any_failed or export_failed)
 
@@ -4067,6 +4108,13 @@ def _prepare_cli_args(
             "--local-pdfs / --pmids cannot be combined with --pubmed,"
             " --clinical-trials, --sync-external-data, or --sync-annotations"
         )
+    if args.preview and (
+        offline_selected
+        or args.clinical_trials
+        or args.sync_external_data
+        or args.sync_annotations
+    ):
+        parser.error("--preview runs the PubMed pipeline alone")
     if args.skip_validation and not offline_selected:
         parser.error("--skip-validation requires --local-pdfs or --pmids")
     # An error rather than the warning the PubMed-only flags below get: the
@@ -4124,9 +4172,19 @@ def _refuse_while_gold_only(
     the arguments ``_prepare_cli_args`` returns, so a bare invocation -- which
     selects --pubmed -- is refused too.
     """
+    preview = getattr(args, "preview", False)
+    if preview and not gold_only_on:
+        parser.error(
+            "--preview refused: GOLD_ONLY is false in lib/gold_only.ts, so"
+            " --pubmed already runs against the production database"
+        )
     if not gold_only_on:
         return
-    refused = [flag for name, flag in _REFUSED_WHILE_GOLD_ONLY if getattr(args, name)]
+    refused = [
+        flag
+        for name, flag in _REFUSED_WHILE_GOLD_ONLY
+        if getattr(args, name) and not (preview and name == "pubmed")
+    ]
     if refused:
         parser.error(
             f"{' and '.join(refused)} refused: GOLD_ONLY is true in"
@@ -4144,6 +4202,12 @@ def main() -> None:
     parser = _build_parser()
     args = _prepare_cli_args(parser, parser.parse_args())
     _refuse_while_gold_only(parser, args, gold_only())
+    if args.preview:
+        try:
+            enter_preview_database()
+        except ValueError as e:
+            logger.error(f"Invalid argument: {e}")
+            sys.exit(1)
 
     config = PipelineConfig()
     # Inert unless the run goes through `deno task tracy:run`.

@@ -289,8 +289,10 @@ def test_the_committed_run_report_is_what_the_export_writes() -> None:
 
     The export re-validates the stored report and brings it up to date
     (`published_run_report`). A committed file that pass would change is
-    one the next `deno task data` rewrites, which is how a correction to
-    the pass reaches the page without anyone regenerating the data.
+    one the next export of the report rewrites -- `deno task data`, or
+    only `deno task data:preview` while gold-only is on -- which is how a
+    correction to the pass reaches the page without anyone regenerating
+    the data.
     """
     committed = json.loads(
         (PROJECT_ROOT / "data" / "pipeline_run.json").read_text(encoding="utf-8")

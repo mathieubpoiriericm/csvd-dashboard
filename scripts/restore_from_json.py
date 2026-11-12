@@ -34,13 +34,16 @@ What comes back, and from where:
   and refs.json. `ncbi_gene_info.map_location` and UniProt's GO columns are
   not published, so they stay NULL until `--sync-external-data`.
 - pipeline_runs, from pipeline_run.json and pipeline_status.json -- only the
-  runs those two files describe -- and sync_runs from pipeline_syncs.json.
+  runs those two files describe, a preview run's report left out: it ran
+  against a database of its own -- and sync_runs from pipeline_syncs.json.
 - pubmed_refs, the processed-PMID ledger, from the run reports under the
   gitignored logs/ rather than from data/: logs/json/pipeline_report_*.json
-  and the pipeline_completed events in logs/events.db. A paper processed by
-  a run older than every surviving report is missing, and the next window
-  that covers it re-extracts it -- unless a later run's skipped count says
-  how many there were and its query names them (the regenerate-data skill).
+  and the pipeline_completed events in logs/events.db, a preview run's
+  reports left out as well, so a real run still takes its papers. A paper
+  processed by a run older than every surviving report is missing, and the
+  next window that covers it re-extracts it -- unless a later run's skipped
+  count says how many there were and its query names them (the
+  regenerate-data skill).
 
 What does not: ids and timestamps (rows are renumbered in file order, which
 is the order the export reads them in), gene_annotations (empty until
@@ -74,6 +77,7 @@ from pipeline.export.tables import clean_gene_row, clean_omics_value, clean_tria
 from pipeline.export.text import clean_column_name
 from pipeline.export.writer import to_camel
 from pipeline.omics import omics_array
+from pipeline.steps import PREVIEW_RUN_MODE
 
 _ROOT: Final = Path(__file__).resolve().parent.parent
 
@@ -285,8 +289,10 @@ def ledger_from_logs(logs_dir: Path) -> list[LedgerRow]:
 
     Only a run that reached the merge wrote it -- its report has a
     `database` block; an offline --pmids / --local-pdfs run's has none --
-    and a dry run or a test-mode preview wrote nothing. A failed paper was
-    never recorded, so the next run retried it.
+    and a dry run or a test-mode preview wrote nothing. A preview run
+    merged into a database of its own, so production's ledger never held
+    its papers. A failed paper was never recorded, so the next run retried
+    it.
     `record_processed_pmids_batch` upserts, so runs are replayed oldest
     first and the last one to process a paper wins. The same run recorded
     both as a report file and as an event is counted once.
@@ -295,6 +301,8 @@ def ledger_from_logs(logs_dir: Path) -> list[LedgerRow]:
     for report in _reports(logs_dir):
         config = report.get("pipeline_config") or {}
         if "database" not in report or config.get("dry_run") or config.get("test_mode"):
+            continue
+        if config.get("mode") == PREVIEW_RUN_MODE:
             continue
         runs.setdefault(
             _utc(report["timestamp"]), (config, report.get("papers_detail") or [])
@@ -342,7 +350,7 @@ def _run_rows(
             None,
             None,
         )
-    if run is not None:
+    if run is not None and run["runMode"] != PREVIEW_RUN_MODE:
         stamp = _utc(run["runTimestamp"])
         key = stamp.strftime("%Y-%m-%dT%H:%M:%S")
         counts = rows[key][1:5] if key in rows else (0, 0, 0, 0)

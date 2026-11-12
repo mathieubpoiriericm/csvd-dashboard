@@ -44,7 +44,17 @@ papers, so re-running after the upgrade costs nothing more).
 working tree**: nothing is committed, because the curated `genes` table is a
 scientific judgement and the e2e fixtures pin exact row counts. When it runs, is
 refused or skipped, and the lookup-cache refresh before it, are in the
-`regenerate-data` skill.
+`regenerate-data` skill. While `GOLD_ONLY` is true an ordinary export leaves the
+committed `data/pipeline_run.json` alone.
+
+**While `GOLD_ONLY` is true, `pipeline.main` refuses `--pubmed` and
+`--clinical-trials` except as `--pubmed --preview`**, a preview _run_ (not the
+`--dry-run`/`--test-mode` flags) against `<DB_NAME>_preview`, a copy of
+production an admin creates empty and the pipeline never creates. It is recorded
+as run mode `preview`, and `--preview --export` or `deno task data:preview`
+writes `data/pipeline_run.json` and nothing else, which the About page offers
+behind a switch. A restore skips a preview run's report. The `run-long-window`
+skill has the run and `regenerate-data` the database.
 
 Tests never touch the production database: `tests/pipeline/conftest.py` empties
 the `DB_*` credentials (so `load_dotenv` cannot refill them from `.env`) and
