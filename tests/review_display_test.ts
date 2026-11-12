@@ -1,0 +1,181 @@
+import { assertEquals } from "@std/assert";
+
+import * as copy from "../lib/review/copy.ts";
+import {
+  ANSWER_LABELS,
+  FIELD_LABELS,
+  geneHref,
+  KIND_LABELS,
+  percent,
+  proposalLine,
+  settlesWords,
+  STANDING_LABELS,
+  tallyWords,
+} from "../lib/review/display.ts";
+import { sampleChange } from "./fixtures/review.ts";
+import { sampleGene } from "./fixtures/rows.ts";
+
+const field = (
+  name: string,
+  added: string[],
+) => ({
+  field: name as never,
+  before: [],
+  after: added,
+  added,
+  removed: [],
+});
+
+Deno.test("a change is described by what it adds", () => {
+  assertEquals(proposalLine(sampleChange()), "+1 GWAS trait");
+  assertEquals(
+    proposalLine(sampleChange({ kind: "new", before: null, fields: [] })),
+    "1 finding",
+  );
+  assertEquals(
+    proposalLine(
+      sampleChange({
+        kind: "new",
+        fields: [],
+        findings: [sampleChange().findings[0], sampleChange().findings[0]],
+      }),
+    ),
+    "2 findings",
+  );
+  assertEquals(
+    proposalLine(sampleChange({
+      fields: [
+        field("gwasTrait", ["A", "B", "C"]),
+        field("evidenceFromOtherOmicsStudies", ["x"]),
+        field("linkToMonogenicDisease", ["d1", "d2"]),
+        field("references", ["1", "2"]),
+      ],
+    })),
+    "+3 GWAS traits · +1 omics entry · +2 monogenic disease links · +2 references",
+  );
+  assertEquals(
+    proposalLine(sampleChange({
+      fields: [
+        field("references", ["1"]),
+        { ...field("mendelianRandomization", []), before: "No", after: "Yes" },
+      ],
+    })),
+    "+1 reference · Mendelian randomization changed",
+  );
+});
+
+Deno.test("a change with nothing added says what it carries", () => {
+  assertEquals(
+    proposalLine(sampleChange({
+      fields: [
+        field("gwasTrait", []),
+        { ...field("sourceQuote", []), before: "a", after: "b" },
+      ],
+    })),
+    "Quote and confidence for a paper already cited",
+  );
+  assertEquals(
+    proposalLine(sampleChange({ fields: [] })),
+    "Quote and confidence for a paper already cited",
+  );
+  assertEquals(
+    proposalLine(sampleChange({
+      fields: [{ ...field("mendelianRandomization", []), after: "Yes" }],
+    })),
+    "Mendelian randomization changed",
+  );
+});
+
+Deno.test("a tally and its settling point are put in words", () => {
+  const tally = { accept: 5, reject: 1, abstain: 1, outstanding: 4 };
+  assertEquals(
+    tallyWords(tally),
+    "5 accept · 1 reject · 1 abstain · 4 to come",
+  );
+  assertEquals(settlesWords(tally), "Settles at 7 of the 10 not abstaining");
+});
+
+Deno.test("a gene's link survives a slash in its key", () => {
+  assertEquals(
+    new URL(geneHref("AB1/2"), "http://x").searchParams.get("g"),
+    "AB1/2",
+  );
+  assertEquals(geneHref("GENE1"), "/review/gene?g=GENE1");
+});
+
+Deno.test("percent is a whole number and zero for an empty whole", () => {
+  assertEquals(percent(1, 3), "33%");
+  assertEquals(percent(2, 3), "67%");
+  assertEquals(percent(5, 5), "100%");
+  assertEquals(percent(0, 0), "0%");
+});
+
+Deno.test("every label table is complete and verbatim", () => {
+  assertEquals(KIND_LABELS, {
+    new: "New gene",
+    claims: "Claims changed",
+    citation: "Citation only",
+  });
+  assertEquals(STANDING_LABELS, {
+    not_started: "Not started",
+    in_review: "In review",
+    conflict: "Conflict",
+    accepted: "Accepted",
+    rejected: "Rejected",
+    no_quorum: "No quorum",
+  });
+  assertEquals(Object.values(ANSWER_LABELS), [
+    "Accept",
+    "Accept with edits",
+    "Reject",
+    "Abstain",
+  ]);
+  assertEquals(
+    Object.keys(FIELD_LABELS),
+    Object.keys(sampleGene({})),
+  );
+  assertEquals(Object.values(FIELD_LABELS), [
+    "Gene",
+    "Protein",
+    "Chromosomal location",
+    "GWAS traits",
+    "Mendelian randomization",
+    "Omics evidence",
+    "Monogenic disease links",
+    "Brain cell types",
+    "Affected pathway",
+    "References",
+    "Source quote",
+    "Confidence",
+  ]);
+});
+
+Deno.test("the fixed copy is exported verbatim", () => {
+  assertEquals(copy.CONTROL, "Review");
+  assertEquals(copy.CONTROL_ENTERED, "Review · Observer");
+  assertEquals(copy.MENU_LOG_IN, "Log in");
+  assertEquals(copy.MENU_REQUEST, "Request an account");
+  assertEquals(copy.MENU_QUEUE, "Review queue");
+  assertEquals(copy.MENU_PROGRESS, "Committee progress");
+  assertEquals(copy.MENU_LEAVE, "Leave review");
+  assertEquals(copy.LOGIN_TITLE, "Committee log in");
+  assertEquals(copy.ENTER_OBSERVER, "Enter as observer");
+  assertEquals(copy.REQUEST_TITLE, "Request an account");
+  assertEquals(copy.REQUEST_SUBMIT, "Send request");
+  assertEquals(
+    copy.LOGIN_BODY,
+    "Member sign-in opens when the scientific review committee is formed. Until then you can look around as an observer, which needs no account.",
+  );
+  assertEquals(
+    copy.REQUEST_DEMO,
+    "Demonstration: the committee is not formed yet, so this form collects nothing. What you type is not stored or sent.",
+  );
+  assertEquals(
+    copy.REQUEST_NOTICE,
+    "Nothing was sent. Once the committee is formed, a request like this will be evaluated by the administrator and answered within a few working days.",
+  );
+  assertEquals(
+    copy.SIMULATED_NOTE,
+    "Simulated review: the changes come from a real pipeline run, the committee and its verdicts are simulated, and none of it is in the other pages.",
+  );
+});
