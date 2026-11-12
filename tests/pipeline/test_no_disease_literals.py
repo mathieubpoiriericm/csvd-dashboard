@@ -542,8 +542,12 @@ def test_an_allow_list_entry_excuses_its_term_only_where_it_says(
         'def h(): u = "QUOTED1"; """QUOTED1"""\n'  # 25
         'KEPT = {"KEYED1": 2}; t = "KEYED1"\n'  # 26
         # ast counts a column in bytes: ten two-byte letters end the first
-        # statement six characters sooner than their bytes would.
-        f'KEPT = "{"\u00e9" * 10}";"KEYED1"\n',  # 27
+        # statement ten characters sooner than their bytes would, and four
+        # start the docstring four characters sooner.
+        f'KEPT = "{"\u00e9" * 10}";"KEYED1"\n'  # 27
+        f'{"\u00e9" * 4} = 1; """QUOTED1"""\n'  # 28
+        # An assignment starts at its target, not at its line.
+        's = "KEYED1"; KEPT = {"KEYED1": 3}\n',  # 29
         encoding="utf-8",
     )
     monkeypatch.setattr(f"{__name__}._ROOT", tmp_path)
@@ -578,6 +582,7 @@ def test_an_allow_list_entry_excuses_its_term_only_where_it_says(
         f'src/module.py:25: def h(): u = "QUOTED1"; """QUOTED1"""  {prose_only}',
         f'src/module.py:26: KEPT = {{"KEYED1": 2}}; t = "KEYED1"  {declared_only}',
         f'src/module.py:27: KEPT = "{"\u00e9" * 10}";"KEYED1"  {declared_only}',
+        f'src/module.py:29: s = "KEYED1"; KEPT = {{"KEYED1": 3}}  {declared_only}',
     ]
 
 
