@@ -136,14 +136,38 @@ an `APIStatusError`, `record_service_failure` otherwise), so the run report
 shows it as an errored Anthropic call. The batch path never calls it; the
 Batches API rejects `max_tokens: 0`.
 
-**This warm-up has not been verified against the live API.** It shipped on the
-documented behaviour alone, with no call made. The check: call `prewarm_cache`,
-then send one real extraction, and expect `cache_read_input_tokens > 0` with
-`cache_creation_input_tokens == 0` on the extraction. If the API rejects the
-warm-up's shape (a 400 shows in the log as "Cache warm-up failed"), or the
-extraction still writes the cache, delete `prewarm_cache` and have
-`process_papers_concurrently` run the first paper to completion before starting
-the rest (`await run_one(pmids[0])`, then the task group over `pmids[1:]`).
+**The warm-up was checked against the live API on 2026-11-11, and a real
+request reads what it writes.** The warm-up request -- `max_tokens: 0`, adaptive
+thinking, the `fallbacks` entry and its beta header -- was accepted and reported
+`cache_creation_input_tokens` 11,100, `cache_read_input_tokens` 0 and 0 output
+tokens; the extraction sent straight after it reported
+`cache_creation_input_tokens` 0 and `cache_read_input_tokens` 11,100. The shared
+prefix is 11,100 tokens. If a future API change breaks this, the run logs
+"Cache warm-up failed" and the API inventory shows the errored call; the
+replacement is to delete `prewarm_cache` and have `process_papers_concurrently`
+run the first paper to completion before starting the rest.
+
+## How often an extraction is retried, counted 2026-11-11
+
+**Never, in the one production run on record.** That run is the report
+committed as `data/pipeline_run.json` (2026-11-03): 38 Anthropic calls for 38
+papers, 0 retries, so 0 validation retries and 0 prose-only turns (a response
+with no `report_genes` call, which `_retry_validation` retries like a schema
+failure) in 38 extractions. `logs/` on this machine holds only test runs. Two
+pieces of work are gated on these rates and were therefore not done: re-testing
+`strict: true` on Opus 5.5 (see `provenance.md`), worth it from 2% validation
+retries, and continuing a prose-only turn instead of restarting it, worth it
+from 1%. Thirty-eight extractions cannot exclude a rate of a few percent, so
+recount on a longer production log:
+
+```bash
+grep -rhoE "Validation retry [0-9]+/[0-9]+|No report_genes tool call|Decoded a JSON-encoded genes value from [a-z0-9-]+|Extracted [0-9]+ gene\(s\) from PMID" logs/log \
+  | sed -E 's/Extracted [0-9]+ gene\(s\) from PMID/extracted/; s/ from claude.*//' | sort | uniq -c
+```
+
+A prose-only turn is logged inside its own `Validation retry` line (or the
+`Validation retries exhausted` line that ends a paper), so its count is a share
+of the retries, not an addition to them.
 
 ## Effort stays at `high`, and the margin is one gene
 
