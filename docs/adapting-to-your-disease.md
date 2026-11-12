@@ -950,8 +950,13 @@ writes autosomal dominant as `AD`). Then add an entry with the reason, to
 or to `_ALLOWED` in the Python one, keyed by the file and the term as written:
 
 ```python
-("pipeline/export/omim.py", "AD"): "OMIM's inheritance code, not a disease",
+("pipeline/export/omim.py", "AD"): _prose("OMIM's inheritance code, not a disease"),
 ```
+
+`_prose` excuses the term in that file's comments and docstrings only, so the
+same term in a line of code still fails. For a value the code itself needs, use
+`_declared("NAME", reason)`: the term is excused inside the assignment to `NAME`
+and nowhere else.
 
 A one- or two-letter short form matches ordinary words and codes, so expect a
 few.

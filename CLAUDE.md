@@ -139,22 +139,24 @@ and Python through `pipeline/disease.py`, which is stdlib-only so `config.py`
 and `extraction_models.py` can both import it.
 `tests/no_disease_literals_test.ts` and
 `tests/pipeline/test_no_disease_literals.py` scan the code for the manifest's
-own terms and fail on any hit outside a reasoned allow-list. Each scans the
-tests outside the `csvd/` trees the same way, wherever those trees exist: a fork
-has deleted them, and the generic tests it inherits name their own example
-disease, the one `adapt-fork` builds its fork for, so there that scan is
-skipped. Where the trees exist both also scan, code and tests, for the trait
-vocabulary (`vocabulary.json`: keys, labels, synonyms, untracked terms and the
-spelled-out names of several words) and the manifest's trial populations,
-leaving out a single lower-case word such as the trait keyed `stroke`, which is
-also an SVG attribute; a fork's traits and populations are free text and may be
-ordinary words, so its code is not scanned for them. `server/`, `scripts/*.ts`
-and the root-level files are scanned upstream only too: the fork check's own
-script names the disease it builds, and a fork's leak sentinels are its own data
-strings. A generic test that needs a trait takes a tracked one from the
-vocabulary at test time or uses the synthetic `TRAIT-A`. Every measurement in
-this file and in `.claude/rules/pipeline/` is of the cSVD dataset this
-repository was built on.
+own terms and fail on any hit outside a reasoned allow-list, whose entries
+excuse less than a file: a line pattern in the TypeScript one, and in the Python
+one a term in the file's comments and docstrings (`_prose`) or inside one named
+assignment (`_declared`). Each scans the tests outside the `csvd/` trees the
+same way, wherever those trees exist: a fork has deleted them, and the generic
+tests it inherits name their own example disease, the one `adapt-fork` builds
+its fork for, so there that scan is skipped. Where the trees exist both also
+scan, code and tests, for the trait vocabulary (`vocabulary.json`: keys, labels,
+synonyms, untracked terms and the spelled-out names of several words) and the
+manifest's trial populations, leaving out a single lower-case word such as the
+trait keyed `stroke`, which is also an SVG attribute; a fork's traits and
+populations are free text and may be ordinary words, so its code is not scanned
+for them. `server/`, `scripts/*.ts` and the root-level files are scanned
+upstream only too: the fork check's own script names the disease it builds, and
+a fork's leak sentinels are its own data strings. A generic test that needs a
+trait takes a tracked one from the vocabulary at test time or uses the synthetic
+`TRAIT-A`. Every measurement in this file and in `.claude/rules/pipeline/` is of
+the cSVD dataset this repository was built on.
 
 **The tests that name the disease live in four `csvd/` trees** — `tests/csvd`,
 `tests/pipeline/csvd`, `tests/scripts/csvd` and `e2e/tests/csvd` — and nowhere

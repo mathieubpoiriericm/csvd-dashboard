@@ -14,9 +14,14 @@ and populations are whatever its curators typed into the wizard, and one of
 them may be an ordinary word the code uses for something else.
 """
 
+import ast
+import io
 import json
 import re
+import tokenize
 from collections.abc import Callable, Iterable
+from dataclasses import dataclass
+from functools import cache
 from pathlib import Path
 
 import pytest
@@ -32,138 +37,91 @@ _TEST_ROOTS = ("tests",)
 _DISEASE_TREE = "csvd"
 _DISEASE_TREES = ("tests/pipeline/csvd", "tests/scripts/csvd")
 
-# (relative path, term) -> reason. Whole-word matching means SVDPMIDTOKEN
-# and _svd_started_monotonic never match and need no entry, and the
-# abbreviation, the short form and the gene symbols match as written, so the
-# lower-case svd and csvd of a path or a CSS property never match either. An
-# entry is for text that names a term for another reason; a fork adds its own
-# the same way.
-_RETIRED_SYMBOL = (
+# (relative path, term) -> where the file may name the term, and why.
+# Whole-word matching means SVDPMIDTOKEN and _svd_started_monotonic never
+# match and need no entry, and the abbreviation, the short form and the gene
+# symbols match as written, so the lower-case svd and csvd of a path or a CSS
+# property never match either. An entry is for text that names a term for
+# another reason; a fork adds its own the same way.
+#
+# An entry excuses less than its file. `_prose` is for a comment or a
+# docstring that quotes a measurement: the same term in a line of code, or in
+# a string a statement uses, is still a hit. `_declared` is for a value the
+# code needs: the term is excused inside the assignment it names and nowhere
+# else. Both read the file as Python, which every file with an entry is.
+@dataclass(frozen=True)
+class _Excuse:
+    reason: str
+    # The name whose assignment may hold the term; None for comments and
+    # docstrings.
+    declaration: str | None = None
+
+    @property
+    def where(self) -> str:
+        if self.declaration is None:
+            return "in a comment or a docstring"
+        return f"inside the assignment to {self.declaration}"
+
+
+def _prose(reason: str) -> _Excuse:
+    return _Excuse(reason)
+
+
+def _declared(name: str, reason: str) -> _Excuse:
+    return _Excuse(reason, declaration=name)
+
+
+_RETIRED_SYMBOL = _prose(
     "worked example of a symbol NCBI retired (C6orf195 now answers as "
     "LINC01600), quoted from the measured record"
 )
-_MEASURED_TRAIT = (
+_MEASURED_COUNT = "comment quoting a measured ClinVar record count"
+_MEASURED_TRAIT = _prose(
     "comment recording what a run or the committed cassettes measured or "
     "stored under this trait's name"
 )
-_GOLD_POPULATION = (
-    "a target-population group the curators gave gold trials, a data value "
-    "keyed by registry ID in POPULATION_GROUP"
-)
-_FORK_EDIT_POINT = (
-    "a key of _ADMITTED_UNASKED, the traits the schema admits and the prompt "
-    "never asks for: the one declaration of this file a fork edits, and the "
-    "adapt wizard's check empties it by name, so it cannot move to a csvd/ "
-    "tree. The entry excuses the term anywhere in that file, which is more "
-    "than the declaration: a test there that names one of these is not caught"
+_FORK_EDIT_POINT = _declared(
+    "_ADMITTED_UNASKED",
+    "a key of the traits the schema admits and the prompt never asks for: "
+    "the one declaration of this file a fork edits, and the adapt wizard's "
+    "check empties it by name, so it cannot move to a csvd/ tree",
 )
 _PROMPT_VOCABULARY = "tests/pipeline/test_prompt_vocabulary.py"
 
-_ALLOWED: dict[tuple[str, str], str] = {
-    (
-        "pipeline/pdf_retrieval.py",
-        "csvd-dashboard",
-    ): "the tool name NCBI knows the pipeline by",
-    (
-        "pipeline/clinvar_fetch.py",
-        "HTRA1",
-    ): "comment quoting a measured ClinVar record count",
-    (
-        "pipeline/clinvar_fetch.py",
-        "NOTCH3",
-    ): "comment quoting a measured ClinVar record count",
-    (
-        "pipeline/clinvar_fetch.py",
-        "TREX1",
-    ): "comment quoting a measured ClinVar record count",
-    (
-        "pipeline/citations.py",
-        "NOTCH3",
-    ): "worked example for the single-sentence rule",
-    (
-        "pipeline/config.py",
-        "NOTCH3",
-    ): "comment quoting a measured ClinVar record count",
-    (
-        "pipeline/config.py",
-        "HTRA1",
-    ): "comment quoting a measured Open Targets association count",
-    (
-        "pipeline/orphadata_fetch.py",
-        "HTRA1",
-    ): "comment recording a verified endpoint probe and real OMIM numbers",
-    (
-        "pipeline/export/omim.py",
-        "AD",
-    ): "OMIM's inheritance code (autosomal dominant), not a disease",
-    (
-        "pipeline/annotations.py",
-        "C6orf195",
-    ): _RETIRED_SYMBOL,
-    (
-        "pipeline/annotations.py",
-        "LINC01600",
-    ): _RETIRED_SYMBOL,
-    (
-        "pipeline/clinvar_fetch.py",
-        "C6orf195",
-    ): _RETIRED_SYMBOL,
-    (
-        "pipeline/clinvar_fetch.py",
-        "LINC01600",
-    ): _RETIRED_SYMBOL,
-    (
-        "pipeline/data_merger.py",
-        "C6orf195",
-    ): _RETIRED_SYMBOL,
-    (
-        "pipeline/data_merger.py",
-        "LINC01600",
-    ): _RETIRED_SYMBOL,
-    (
-        "pipeline/ncbi_http.py",
-        "C6orf195",
-    ): _RETIRED_SYMBOL,
-    (
-        "pipeline/ncbi_http.py",
-        "LINC01600",
-    ): _RETIRED_SYMBOL,
-    (
-        "pipeline/uniprot_fetch.py",
-        "C6orf195",
-    ): _RETIRED_SYMBOL,
-    (
-        "pipeline/uniprot_fetch.py",
-        "LINC01600",
-    ): _RETIRED_SYMBOL,
-    (
-        "scripts/load_gold.py",
-        "SVD",
-    ): _GOLD_POPULATION,
-    (
-        "scripts/load_gold.py",
-        "Stroke",
-    ): _GOLD_POPULATION,
-    (
-        "scripts/load_gold.py",
-        "CAA",
-    ): _GOLD_POPULATION,
-    (
-        "scripts/load_gold.py",
-        "Cognitive Impairment",
-    ): _GOLD_POPULATION,
-    (
-        "pipeline/extraction_models.py",
-        "PVWMH",
-    ): _MEASURED_TRAIT,
-    (
-        "pipeline/extraction_models.py",
-        "ICH-non-lobar",
-    ): _MEASURED_TRAIT,
-    (
-        "pipeline/export/tables.py",
-        "ICH-non-lobar",
-    ): _MEASURED_TRAIT,
+_ALLOWED: dict[tuple[str, str], _Excuse] = {
+    ("pipeline/pdf_retrieval.py", "csvd-dashboard"): _declared(
+        "PMC_IDCONV_TOOL", "the tool name NCBI knows the pipeline by"
+    ),
+    ("pipeline/clinvar_fetch.py", "HTRA1"): _prose(_MEASURED_COUNT),
+    ("pipeline/clinvar_fetch.py", "NOTCH3"): _prose(_MEASURED_COUNT),
+    ("pipeline/clinvar_fetch.py", "TREX1"): _prose(_MEASURED_COUNT),
+    ("pipeline/citations.py", "NOTCH3"): _prose(
+        "worked example for the single-sentence rule"
+    ),
+    ("pipeline/config.py", "NOTCH3"): _prose(_MEASURED_COUNT),
+    ("pipeline/config.py", "HTRA1"): _prose(
+        "comment quoting a measured Open Targets association count"
+    ),
+    ("pipeline/orphadata_fetch.py", "HTRA1"): _prose(
+        "comment recording a verified endpoint probe and real OMIM numbers"
+    ),
+    ("pipeline/export/omim.py", "AD"): _prose(
+        "OMIM's inheritance code (autosomal dominant), not a disease: no term "
+        "upstream, and the short form of more than one disease a fork may be for"
+    ),
+    ("pipeline/annotations.py", "C6orf195"): _RETIRED_SYMBOL,
+    ("pipeline/annotations.py", "LINC01600"): _RETIRED_SYMBOL,
+    ("pipeline/clinvar_fetch.py", "C6orf195"): _RETIRED_SYMBOL,
+    ("pipeline/clinvar_fetch.py", "LINC01600"): _RETIRED_SYMBOL,
+    ("pipeline/data_merger.py", "C6orf195"): _RETIRED_SYMBOL,
+    ("pipeline/data_merger.py", "LINC01600"): _RETIRED_SYMBOL,
+    ("pipeline/ncbi_http.py", "C6orf195"): _RETIRED_SYMBOL,
+    ("pipeline/ncbi_http.py", "LINC01600"): _RETIRED_SYMBOL,
+    ("pipeline/uniprot_fetch.py", "C6orf195"): _RETIRED_SYMBOL,
+    ("pipeline/uniprot_fetch.py", "LINC01600"): _RETIRED_SYMBOL,
+    ("pipeline/extraction_models.py", "PVWMH"): _MEASURED_TRAIT,
+    ("pipeline/extraction_models.py", "ICH-non-lobar"): _MEASURED_TRAIT,
+    ("pipeline/export/tables.py", "ICH-non-lobar"): _MEASURED_TRAIT,
     (_PROMPT_VOCABULARY, "CMB"): _FORK_EDIT_POINT,
     (_PROMPT_VOCABULARY, "NODDI"): _FORK_EDIT_POINT,
     (_PROMPT_VOCABULARY, "lacunar stroke"): _FORK_EDIT_POINT,
@@ -173,6 +131,72 @@ _ALLOWED: dict[tuple[str, str], str] = {
     (_PROMPT_VOCABULARY, "All ICH & lobar ICH only"): _FORK_EDIT_POINT,
     (_PROMPT_VOCABULARY, "lacunes (suggestive significance)"): _FORK_EDIT_POINT,
 }
+
+
+class _Layout:
+    """Where a Python source keeps its prose, and where each name is assigned."""
+
+    def __init__(self, source: str) -> None:
+        tree = ast.parse(source)
+        # A string that is a statement of its own: a docstring.
+        self._docstrings = [
+            (node.lineno, node.end_lineno or node.lineno)
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Expr)
+            and isinstance(node.value, ast.Constant)
+            and isinstance(node.value.value, str)
+        ]
+        # The column each line's comment starts at.
+        self._comments = {
+            token.start[0]: token.start[1]
+            for token in tokenize.generate_tokens(io.StringIO(source).readline)
+            if token.type == tokenize.COMMENT
+        }
+        self._assignments: dict[str, list[tuple[int, int]]] = {}
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Assign):
+                targets = node.targets
+            elif isinstance(node, ast.AnnAssign):
+                targets = [node.target]
+            else:
+                continue
+            for target in targets:
+                if isinstance(target, ast.Name):
+                    self._assignments.setdefault(target.id, []).append(
+                        (node.lineno, node.end_lineno or node.lineno)
+                    )
+
+    def code(self, number: int, line: str) -> str:
+        """What line *number* holds besides a comment or a docstring."""
+        if any(first <= number <= last for first, last in self._docstrings):
+            return ""
+        if number in self._comments:
+            return line[: self._comments[number]]
+        return line
+
+    def assigns(self, name: str, number: int) -> bool:
+        """Whether line *number* is part of an assignment to *name*."""
+        return any(
+            first <= number <= last for first, last in self._assignments.get(name, ())
+        )
+
+
+@cache
+def _layout(rel: str) -> _Layout:
+    return _Layout((_ROOT / rel).read_text(encoding="utf-8"))
+
+
+def _excused(
+    rel: str, number: int, line: str, term: str, find: Callable[[str], list[str]]
+) -> bool:
+    """Whether the allow-list excuses *term* on this line of *rel*."""
+    excuse = _ALLOWED.get((rel, term))
+    if excuse is None:
+        return False
+    layout = _layout(rel)
+    if excuse.declaration is not None:
+        return layout.assigns(excuse.declaration, number)
+    return term not in find(layout.code(number, line))
 
 
 def _whole_words(terms: Iterable[str], flags: int = 0) -> re.Pattern[str] | None:
@@ -366,9 +390,12 @@ def _hits(
                 path.read_text(encoding="utf-8").splitlines(), 1
             ):
                 for term in find(line):
-                    if (rel, term) in _ALLOWED:
+                    if _excused(rel, number, line, term, find):
                         continue
-                    hits.append(f"{rel}:{number}: {line.strip()}")
+                    hit = f"{rel}:{number}: {line.strip()}"
+                    if (excuse := _ALLOWED.get((rel, term))) is not None:
+                        hit += f"  [{term} is excused there only {excuse.where}]"
+                    hits.append(hit)
     return hits
 
 
@@ -377,7 +404,8 @@ def test_no_disease_literal_remains_outside_disease() -> None:
         "Reword each line so it names no term of the disease, or, when the "
         "text means something else (a quoted measurement, a tool name), add "
         "an entry to _ALLOWED in tests/pipeline/test_no_disease_literals.py: "
-        "the file, the term as written and the reason."
+        "the file, the term as written, and the reason in _prose (a comment "
+        "or a docstring) or _declared (the one assignment that holds it)."
     )
 
 
@@ -402,7 +430,8 @@ def test_no_vocabulary_term_remains_outside_disease() -> None:
         "and no trial population of the manifest, or read it from there. "
         "When the text quotes a measurement that the name is part of, add "
         "an entry to _ALLOWED in tests/pipeline/test_no_disease_literals.py: "
-        "the file, the term as written and the reason."
+        "the file, the term as written, and the reason in _prose (a comment "
+        "or a docstring) or _declared (the one assignment that holds it)."
     )
 
 
@@ -429,18 +458,83 @@ def test_no_disease_literal_remains_in_the_generic_tests() -> None:
         "vocabulary or the committed data at test time, a comment reworded. "
         "When the text means something else, add an entry to _ALLOWED in "
         "tests/pipeline/test_no_disease_literals.py: the file, the term as "
-        "written and the reason."
+        "written, and the reason in _prose (a comment or a docstring) or "
+        "_declared (the one assignment that holds it)."
     )
 
 
-def test_every_allow_list_entry_is_still_needed() -> None:
-    for (rel, term), _reason in _ALLOWED.items():
+def test_an_allow_list_entry_excuses_its_term_only_where_it_says(
+    tmp_path, monkeypatch
+) -> None:
+    source = tmp_path / "src" / "module.py"
+    source.parent.mkdir()
+    source.write_text(
+        '"""Module docstring quoting QUOTED1."""\n'  # 1
+        "# A comment quoting QUOTED1.\n"  # 2
+        "x = 1  # a trailing comment quoting QUOTED1\n"  # 3
+        'y = "QUOTED1"\n'  # 4
+        'z = "QUOTED1"  # and QUOTED1 again\n'  # 5
+        "def f():\n"  # 6
+        '    """A docstring of several lines.\n'  # 7
+        "\n"  # 8
+        "    QUOTED1 on its last.\n"  # 9
+        '    """\n'  # 10
+        '    return """a string a statement uses:\n'  # 11
+        '    QUOTED1"""\n'  # 12
+        "KEPT: dict[str, str] = {\n"  # 13
+        '    "KEYED1": "why",  # KEYED1 in a comment of the declaration\n'  # 14
+        "}\n"  # 15
+        'other = {"KEYED1": 1}\n'  # 16
+        "# KEYED1 in a comment outside it\n"  # 17
+        'KEPT["KEYED1"]\n',  # 18
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(f"{__name__}._ROOT", tmp_path)
+    monkeypatch.setattr(
+        f"{__name__}._ALLOWED",
+        {
+            ("src/module.py", "QUOTED1"): _prose("a quoted measurement"),
+            ("src/module.py", "KEYED1"): _declared("KEPT", "a key the code needs"),
+        },
+    )
+    _layout.cache_clear()
+    try:
+        hits = _hits(("src",), lambda path: False, ([], ["QUOTED1", "KEYED1"]))
+    finally:
+        _layout.cache_clear()
+
+    prose_only = "[QUOTED1 is excused there only in a comment or a docstring]"
+    declared_only = "[KEYED1 is excused there only inside the assignment to KEPT]"
+    assert hits == [
+        f'src/module.py:4: y = "QUOTED1"  {prose_only}',
+        # Named twice, listed twice: the comment does not excuse the code.
+        f'src/module.py:5: z = "QUOTED1"  # and QUOTED1 again  {prose_only}',
+        f'src/module.py:5: z = "QUOTED1"  # and QUOTED1 again  {prose_only}',
+        f'src/module.py:12: QUOTED1"""  {prose_only}',
+        f'src/module.py:16: other = {{"KEYED1": 1}}  {declared_only}',
+        f"src/module.py:17: # KEYED1 in a comment outside it  {declared_only}",
+        f'src/module.py:18: KEPT["KEYED1"]  {declared_only}',
+    ]
+
+
+def _excused_lines(rel: str, term: str, find: Callable[[str], list[str]]) -> list[int]:
+    """The lines of *rel* on which the allow-list excuses *term*."""
+    lines = (_ROOT / rel).read_text(encoding="utf-8").splitlines()
+    return [
+        number
+        for number, line in enumerate(lines, 1)
+        if term in find(line) and _excused(rel, number, line, term, find)
+    ]
+
+
+def test_every_allow_list_entry_still_excuses_a_line() -> None:
+    for (rel, term), excuse in _ALLOWED.items():
         if rel.startswith(_TEST_ROOTS) and not _has_disease_trees():
             # The tests are not scanned here, so an entry for one excuses
             # nothing, and a fork has edited what it names.
             continue
-        text = (_ROOT / rel).read_text(encoding="utf-8")
-        # The scan's own boundaries: a term may end in a bracket.
-        assert re.search(
-            rf"(?<!\w){re.escape(term)}(?!\w)", text
-        ), f"{rel} no longer names {term}"
+        # The term is looked for by itself, not with the scans' terms: an
+        # entry may be for a term only a fork's manifest holds.
+        assert _excused_lines(
+            rel, term, _term_finder([], [term])
+        ), f"{rel} no longer names {term} {excuse.where}"
