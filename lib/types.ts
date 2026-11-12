@@ -478,3 +478,55 @@ export interface FilterChoice {
   value: string;
   description?: string;
 }
+
+/** How a review round's change relates to the gold row it would replace. */
+export type ReviewKind = "new" | "claims" | "citation";
+
+/** A `Gene` column's value as a round carries it: text, a score or a list. */
+export type ReviewFieldValue = string | number | null | string[];
+
+/** One column of a gene that the round would change, with what moved in it. */
+export interface ReviewFieldChange {
+  field: keyof Gene;
+  before: ReviewFieldValue;
+  after: ReviewFieldValue;
+  added: string[];
+  removed: string[];
+}
+
+/** What one paper's extraction said about the gene. */
+export interface ReviewFinding {
+  pmid: string | null;
+  confidence: number | null;
+  gwasTraits: string[];
+  mendelianRandomization: boolean | null;
+  omicsEvidence: string[];
+  causalEvidenceSummary: string | null;
+  sourceQuote: string | null;
+  citationOnly: boolean;
+  fulltext: boolean | null;
+  extractionModel: string | null;
+}
+
+/** One gene whose preview row differs from its gold row. */
+export interface ReviewChange {
+  gene: string;
+  kind: ReviewKind;
+  version: string;
+  /** Null for a gene gold does not hold yet. */
+  before: Gene | null;
+  after: Gene;
+  fields: ReviewFieldChange[];
+  findings: ReviewFinding[];
+}
+
+export type RoundState = "open" | "promoted" | "closed";
+
+/** A review round, as `pipeline/export` writes `data/review_round.json`. */
+export interface ReviewRound {
+  id: string;
+  state: RoundState;
+  runTimestamp: string;
+  base: string;
+  changes: ReviewChange[];
+}

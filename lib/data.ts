@@ -16,6 +16,7 @@ export * from "./data/pipeline_run.ts";
 export * from "./data/pipeline_syncs.ts";
 export * from "./data/protein_info.ts";
 export * from "./data/references.ts";
+export * from "./data/review_round.ts";
 export * from "./data/summary.ts";
 export * from "./data/trial_lookups.ts";
 export * from "./data/trials.ts";
