@@ -1,7 +1,10 @@
 import { assertEquals } from "@std/assert";
 
 import {
+  announcePreview,
+  observePreview,
   PREVIEW_COOKIE,
+  PREVIEW_LOAD_FAILED,
   previewCookie,
   previewInvitation,
   previewNote,
@@ -46,5 +49,31 @@ Deno.test("the cookie is set for a year and cleared when off", () => {
   assertEquals(
     previewCookie(false),
     "pipeline_preview=; Path=/; Max-Age=0; SameSite=Lax",
+  );
+});
+
+Deno.test("a switch is announced to whoever observes it, until they stop", () => {
+  const target = new EventTarget();
+  const heard: boolean[] = [];
+  const stop = observePreview((on) => heard.push(on), target);
+  announcePreview(true, target);
+  announcePreview(false, target);
+  stop();
+  announcePreview(true, target);
+  assertEquals(heard, [true, false]);
+});
+
+Deno.test("the switch is announced on the page itself by default", () => {
+  const heard: boolean[] = [];
+  const stop = observePreview((on) => heard.push(on));
+  announcePreview(true);
+  stop();
+  assertEquals(heard, [true]);
+});
+
+Deno.test("a failed load says so and how to try again", () => {
+  assertEquals(
+    PREVIEW_LOAD_FAILED,
+    "The preview could not be loaded. Switch it on to try again.",
   );
 });

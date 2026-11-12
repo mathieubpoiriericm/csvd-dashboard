@@ -42,7 +42,12 @@ test("the dashboard totals report the committed dataset", async ({ page }) => {
  * "PUBLICATION / S"; half of one fits every label whole.
  */
 test("the totals keep one row above 480px, two rows at and below", async ({ page }) => {
-  for (const [width, rows] of [[1440, 1], [900, 1], [600, 1], [481, 1], [480, 2], [380, 2], [320, 2]]) {
+  for (
+    const [width, rows] of [[1440, 1], [900, 1], [600, 1], [481, 1], [480, 2], [
+      380,
+      2,
+    ], [320, 2]]
+  ) {
     await page.setViewportSize({ width, height: 900 });
 
     const tops = await page.locator(".about-kpi").evaluateAll((cells) =>
@@ -102,6 +107,10 @@ test("says only the hand-curated data is shown, in place of the run", async ({ p
  * The technical preview: a switch in the gold-only notice that shows the
  * run widget beneath it. Off by default, and remembered in a cookie the
  * route reads, so the server draws the page the visitor left.
+ *
+ * The widget reaches the page two ways, and both are walked here: fetched
+ * by the switch when it is pressed, and drawn by the server, as an island
+ * of its own, for a visitor whose cookie already has it on.
  */
 test.describe("the technical preview of a pipeline run", () => {
   test.skip(
@@ -110,7 +119,10 @@ test.describe("the technical preview of a pipeline run", () => {
   );
 
   const notice = ".about-gold-notice";
-  const live = '.about-preview-switch:not([disabled])';
+  const live = ".about-preview-switch:not([disabled])";
+  // The run report's chunk and the widget's: neither belongs on a page
+  // whose preview is off.
+  const report = /protected-data-pipeline_run|fresh-island__PipelineRun/;
 
   test("is off at first, and only invites", async ({ page }) => {
     const toggle = page.getByRole("switch", {
@@ -146,8 +158,8 @@ test.describe("the technical preview of a pipeline run", () => {
       "Technical preview",
     );
 
-    // The widget is live inside the switch's island: its dialog opens and
-    // Escape closes it.
+    // The widget the switch fetched is live: its dialog opens and Escape
+    // closes it.
     const dialog = page.getByRole("dialog", { name: "Run details" });
     await page.getByRole("button", { name: "Run details" }).click();
     await expect(dialog).toBeVisible();
@@ -166,12 +178,73 @@ test.describe("the technical preview of a pipeline run", () => {
     const body = await (await page.request.get("/")).text();
     expect(body).toContain("pipeline-card");
 
+    // The widget the server drew is another island, and follows the
+    // switch all the same: off, on again, and off.
     await toggle.click();
     await expect(toggle).toHaveAttribute("aria-checked", "false");
+    await expect(card).toHaveCount(0);
+    await toggle.click();
+    await expect(card).toHaveCount(1);
+    await expect(card).toBeVisible();
+    await toggle.click();
     await expect(card).toHaveCount(0);
     await page.reload();
     await expect(toggle).toHaveAttribute("aria-checked", "false");
     await expect(card).toHaveCount(0);
+  });
+
+  test("fetches the run report only once the preview is switched on", async ({ page }) => {
+    const fetched: string[] = [];
+    page.on("request", (request) => {
+      fetched.push(new URL(request.url()).pathname);
+    });
+    await page.goto("/");
+    await page.waitForSelector(live);
+    await page.waitForLoadState("networkidle");
+    expect(fetched.filter((path) => report.test(path))).toEqual([]);
+
+    const toggle = page.getByRole("switch", {
+      name: "Technical preview of a pipeline run",
+    });
+    const card = page.locator(".pipeline-card");
+    await toggle.click();
+    await expect(card).toBeVisible();
+    const afterFirst = fetched.filter((path) => report.test(path));
+    expect(afterFirst.some((path) => path.includes("pipeline_run"))).toBe(true);
+
+    // Off and on again draws the widget it already has.
+    await toggle.click();
+    await expect(card).toHaveCount(0);
+    await toggle.click();
+    await expect(card).toBeVisible();
+    expect(fetched.filter((path) => report.test(path))).toEqual(afterFirst);
+  });
+
+  test("says so, and stays off, when the widget cannot be fetched", async ({ page }) => {
+    await page.route(report, (route) => route.abort());
+    await page.goto("/");
+    await page.waitForSelector(live);
+    const toggle = page.getByRole("switch", {
+      name: "Technical preview of a pipeline run",
+    });
+    await toggle.click();
+    await expect(page.locator(".about-preview-line")).toHaveText(
+      EXPECTED.previewLoadFailed,
+    );
+    await expect(toggle).toHaveAttribute("aria-checked", "false");
+    await expect(page.locator(".pipeline-card")).toHaveCount(0);
+
+    // The cookie went back off with the switch: a reload does not claim a
+    // preview, and with the chunk reachable again the same press works.
+    await page.unroute(report);
+    await page.reload();
+    await page.waitForSelector(live);
+    await expect(toggle).toHaveAttribute("aria-checked", "false");
+    await expect(page.locator(".about-preview-line")).toHaveText(
+      EXPECTED.previewInvitation,
+    );
+    await toggle.click();
+    await expect(page.locator(".pipeline-card")).toBeVisible();
   });
 
   test("fits a phone, on and off", async ({ page }) => {
