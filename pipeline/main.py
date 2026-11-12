@@ -85,6 +85,14 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Number of days to look back for new papers (default: 7)",
     )
     parser.add_argument(
+        "--preview",
+        action="store_true",
+        help=(
+            "Run the PubMed pipeline into the <DB_NAME>_preview database, the"
+            " one run gold-only allows; the database must already exist"
+        ),
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help=(
@@ -276,6 +284,7 @@ from pipeline.pdf_retrieval import (
     get_fulltext,
     parse_local_pdf,
 )
+from pipeline.preview_run import enter_preview_database, require_preview_database
 from pipeline.prompts import paper_text_truncated
 from pipeline.pubmed_search import filter_new_pmids, search_recent_papers
 from pipeline.quality_metrics import PipelineMetrics, TokenUsage
@@ -3935,6 +3944,8 @@ async def _run_selected_pipelines(
     invocation_started = time.monotonic()
 
     try:
+        if args.preview:
+            await require_preview_database()
         if args.pubmed:
             try:
                 # The modes run one after another, so each may hold a zone
@@ -4067,6 +4078,13 @@ def _prepare_cli_args(
             "--local-pdfs / --pmids cannot be combined with --pubmed,"
             " --clinical-trials, --sync-external-data, or --sync-annotations"
         )
+    if args.preview and (
+        offline_selected
+        or args.clinical_trials
+        or args.sync_external_data
+        or args.sync_annotations
+    ):
+        parser.error("--preview runs the PubMed pipeline alone")
     if args.skip_validation and not offline_selected:
         parser.error("--skip-validation requires --local-pdfs or --pmids")
     # An error rather than the warning the PubMed-only flags below get: the
@@ -4124,9 +4142,19 @@ def _refuse_while_gold_only(
     the arguments ``_prepare_cli_args`` returns, so a bare invocation -- which
     selects --pubmed -- is refused too.
     """
+    preview = getattr(args, "preview", False)
+    if preview and not gold_only_on:
+        parser.error(
+            "--preview refused: GOLD_ONLY is false in lib/gold_only.ts, so"
+            " --pubmed already runs against the production database"
+        )
     if not gold_only_on:
         return
-    refused = [flag for name, flag in _REFUSED_WHILE_GOLD_ONLY if getattr(args, name)]
+    refused = [
+        flag
+        for name, flag in _REFUSED_WHILE_GOLD_ONLY
+        if getattr(args, name) and not (preview and name == "pubmed")
+    ]
     if refused:
         parser.error(
             f"{' and '.join(refused)} refused: GOLD_ONLY is true in"
@@ -4144,6 +4172,12 @@ def main() -> None:
     parser = _build_parser()
     args = _prepare_cli_args(parser, parser.parse_args())
     _refuse_while_gold_only(parser, args, gold_only())
+    if args.preview:
+        try:
+            enter_preview_database()
+        except ValueError as e:
+            logger.error(f"Invalid argument: {e}")
+            sys.exit(1)
 
     config = PipelineConfig()
     # Inert unless the run goes through `deno task tracy:run`.

@@ -838,6 +838,7 @@ def _make_dispatcher_args(**overrides):
         "test_mode": False,
         "batch": False,
         "export": False,
+        "preview": False,
     }
     defaults.update(overrides)
     return argparse.Namespace(**defaults)

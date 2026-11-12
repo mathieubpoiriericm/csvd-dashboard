@@ -62,6 +62,7 @@ def _dispatcher_args(**overrides) -> argparse.Namespace:
         "test_mode": False,
         "batch": False,
         "export": False,
+        "preview": False,
     }
     values.update(overrides)
     return argparse.Namespace(**values)
@@ -4524,3 +4525,52 @@ class TestAStreamedAnswerNcbiDidNotValidate:
         assert outcome.refusal is None
         assert [g.gene_symbol for g in outcome.genes] == ["GENE2"]
         assert stored.validated == ["222"]
+
+
+class TestPreviewRun:
+    def test_main_enters_the_preview_database_before_running(
+        self, monkeypatch, mocker
+    ) -> None:
+        order: list[str] = []
+        mocker.patch(
+            "pipeline.main.enter_preview_database",
+            side_effect=lambda: order.append("enter") or "dashboard_preview",
+        )
+
+        async def run(args, config) -> int:
+            order.append("run")
+            return 0
+
+        mocker.patch("pipeline.main._run_selected_pipelines", new=run)
+        monkeypatch.setattr(pipeline_main, "gold_only", lambda: True)
+        monkeypatch.setattr(
+            pipeline_main.sys, "argv", ["pipeline", "--preview", "--test-mode"]
+        )
+
+        pipeline_main.main()
+
+        assert order == ["enter", "run"]
+
+    async def test_the_run_checks_the_preview_database_before_extracting(
+        self, mocker
+    ) -> None:
+        order: list[str] = []
+
+        async def require() -> None:
+            order.append("require")
+
+        async def run_pipeline(**kwargs):
+            order.append("run_pipeline")
+            raise RuntimeError("stop here")
+
+        mocker.patch("pipeline.main.require_preview_database", new=require)
+        mocker.patch("pipeline.main.run_pipeline", new=run_pipeline)
+        mocker.patch("pipeline.main._record_and_notify", new=AsyncMock())
+        mocker.patch("pipeline.main.close_async_client", new=AsyncMock())
+        mocker.patch("pipeline.main.Database.close", new=AsyncMock())
+
+        await pipeline_main._run_selected_pipelines(
+            _dispatcher_args(pubmed=True, preview=True), PipelineConfig()
+        )
+
+        assert order == ["require", "run_pipeline"]
