@@ -593,9 +593,9 @@ Deno.test("officialSymbol refuses an alias and an unknown symbol", async () => {
   // An alias finds its gene, whose official name is a different word.
   const alias = fake([
     ["db=gene&term=", { esearchresult: { idlist: ["4854"] } }],
-    ["db=gene&id=", { result: { "4854": { name: "NOTCH3" } } }],
+    ["db=gene&id=", { result: { "4854": { name: "GENE1" } } }],
   ]);
-  assertEquals(await officialSymbol(alias, "CASIL", AUTH), {
+  assertEquals(await officialSymbol(alias, "ALIAS1", AUTH), {
     ok: true,
     value: null,
   });

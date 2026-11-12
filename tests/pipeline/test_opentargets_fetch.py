@@ -36,11 +36,11 @@ class TestGraphql:
             "pipeline.opentargets_fetch._client_manager.get", return_value=mock_client
         )
 
-        await graphql("query Q($x: String!) { a }", {"x": "HTRA1"})
+        await graphql("query Q($x: String!) { a }", {"x": "GENE1"})
 
         body = mock_client.post.call_args.kwargs["json"]
         assert body["query"].startswith("query Q")
-        assert body["variables"] == {"x": "HTRA1"}
+        assert body["variables"] == {"x": "GENE1"}
 
     async def test_graphql_errors_are_logged_and_return_none(
         self, mocker, caplog
@@ -97,7 +97,7 @@ class TestFetchDataVersion:
 
 class TestResolveTarget:
     async def test_returns_the_first_exact_symbol_match(self, mocker) -> None:
-        """HTRA1 and HTRA1-AS1 both hit; only the exact symbol is the target."""
+        """GENE1 and GENE1-AS1 both hit; only the exact symbol is the target."""
         mocker.patch(
             "pipeline.opentargets_fetch.graphql",
             AsyncMock(
@@ -106,23 +106,23 @@ class TestResolveTarget:
                         "hits": [
                             {
                                 "id": "ENSG00000285955",
-                                "object": {"approvedSymbol": "HTRA1-AS1"},
+                                "object": {"approvedSymbol": "GENE1-AS1"},
                             },
                             {
                                 "id": "ENSG00000166033",
-                                "object": {"approvedSymbol": "HTRA1"},
+                                "object": {"approvedSymbol": "GENE1"},
                             },
                         ]
                     }
                 }
             ),
         )
-        resolution = await resolve_target("HTRA1")
+        resolution = await resolve_target("GENE1")
         assert resolution is not None
         assert resolution.ensembl_id == "ENSG00000166033"
 
     async def test_no_exact_match_is_a_confirmed_absence(self, mocker) -> None:
-        """COL4A1/2 is a compound curator label, not a gene symbol.
+        """GENEA/B is a compound curator label, not a gene symbol.
 
         A search that succeeded and matched nothing is a final answer. It used
         to be indistinguishable from a transport failure, so an outage was
@@ -134,7 +134,7 @@ class TestResolveTarget:
             AsyncMock(return_value={"search": {"hits": []}}),
         )
 
-        resolution = await resolve_target("COL4A1/2")
+        resolution = await resolve_target("GENEA/B")
 
         assert resolution is not None
         assert resolution.ensembl_id is None
@@ -144,8 +144,8 @@ class TestParseTarget:
     def _payload(self) -> dict[str, Any]:
         return {
             "id": "ENSG00000166033",
-            "approvedSymbol": "HTRA1",
-            "approvedName": "HtrA serine peptidase 1",
+            "approvedSymbol": "GENE1",
+            "approvedName": "Protein 1",
             "biotype": "protein_coding",
             "dbXrefs": [
                 {"id": "9476", "source": "HGNC"},
@@ -173,12 +173,12 @@ class TestParseTarget:
                         "score": 0.7588060448267118,
                         "disease": {
                             "id": "MONDO_0014768",
-                            "name": "cerebral arteriopathy, type 2",
+                            "name": "Disease 1",
                         },
                     },
                     {
                         "score": 0.7525744067902492,
-                        "disease": {"id": "Orphanet_199354", "name": "CARASIL"},
+                        "disease": {"id": "Orphanet_199354", "name": "Disease 2"},
                     },
                     {
                         "score": 0.5,
@@ -189,7 +189,7 @@ class TestParseTarget:
         }
 
     def test_identity_rows_drop_the_pdb_noise(self) -> None:
-        rows = _parse_target("HTRA1", self._payload(), "26.06")
+        rows = _parse_target("GENE1", self._payload(), "26.06")
         identity = [r for r in rows if r.relation == "identity"]
         assert {r.object_id for r in identity} == {
             "Ensembl:ENSG00000166033",
@@ -198,7 +198,7 @@ class TestParseTarget:
         assert all(r.qualifier == "protein_coding" for r in identity)
 
     def test_disease_rows_carry_the_score_and_a_canonical_id(self) -> None:
-        rows = _parse_target("HTRA1", self._payload(), "26.06")
+        rows = _parse_target("GENE1", self._payload(), "26.06")
         diseases = {r.object_id: r for r in rows if r.relation == "disease"}
         assert set(diseases) == {"MONDO:0014768", "Orphanet:199354"}
         assert diseases["MONDO:0014768"].score == pytest.approx(0.7588060448267118)
@@ -206,22 +206,22 @@ class TestParseTarget:
 
     def test_a_therapeutic_area_id_is_not_stored_as_a_disease(self) -> None:
         """OTAR_ is Open Targets' own bucket, not a disease ontology."""
-        rows = _parse_target("HTRA1", self._payload(), "26.06")
+        rows = _parse_target("GENE1", self._payload(), "26.06")
         assert not any("OTAR" in r.object_id for r in rows)
 
     def test_go_rows_join_aspect_and_evidence_into_one_qualifier(self) -> None:
-        rows = _parse_target("HTRA1", self._payload(), "26.06")
+        rows = _parse_target("GENE1", self._payload(), "26.06")
         go = {r.object_id: r for r in rows if r.relation == "gene_ontology"}
         assert go["GO:0005515"].qualifier == "F/IPI"
         assert go["GO:0005515"].object_label == "protein binding"
         assert go["GO:0005515"].group_key == ""
 
     def test_every_row_carries_the_data_version(self) -> None:
-        rows = _parse_target("HTRA1", self._payload(), "26.06")
+        rows = _parse_target("GENE1", self._payload(), "26.06")
         assert {r.source_version for r in rows} == {"26.06"}
 
     def test_rows_are_deduplicated(self) -> None:
-        """GO returns 43 rows for HTRA1 and repeats GO:0005515 with two PMIDs."""
+        """GO returns 43 rows for GENE1 and repeats GO:0005515 with two PMIDs."""
         payload = self._payload()
         payload["geneOntology"].append(
             {
@@ -231,7 +231,7 @@ class TestParseTarget:
                 "term": {"id": "GO:0005515", "label": "protein binding"},
             }
         )
-        rows = _parse_target("HTRA1", payload, "26.06")
+        rows = _parse_target("GENE1", payload, "26.06")
         go_ids = [r.object_id for r in rows if r.relation == "gene_ontology"]
         assert len(go_ids) == len(set(go_ids))
 
@@ -249,7 +249,7 @@ class TestFetchOpenTargetsTarget:
             AsyncMock(return_value="26.06"),
         )
 
-        target = await fetch_opentargets_target("COL4A1/2")
+        target = await fetch_opentargets_target("GENEA/B")
 
         assert target is not None
         assert target.rows == ()
@@ -302,18 +302,18 @@ class TestVersionAndResolutionEdges:
         )
 
         # A transport or GraphQL failure, which must never be cached.
-        assert await resolve_target("HTRA1") is None
+        assert await resolve_target("GENE1") is None
 
 
 class TestParseTargetEdges:
     def test_a_target_with_no_id_writes_no_ensembl_row(self) -> None:
-        rows = _parse_target("HTRA1", {"approvedName": "HtrA serine peptidase 1"}, None)
+        rows = _parse_target("GENE1", {"approvedName": "Protein 1"}, None)
         assert rows == []
 
     def test_an_identity_xref_with_no_value_is_dropped(self) -> None:
         """An HGNC entry carrying an empty id names nothing."""
         rows = _parse_target(
-            "HTRA1",
+            "GENE1",
             {"id": "ENSG00000166033", "dbXrefs": [{"id": "", "source": "HGNC"}]},
             None,
         )
@@ -321,7 +321,7 @@ class TestParseTargetEdges:
 
     def test_a_go_entry_with_no_accession_is_dropped(self) -> None:
         rows = _parse_target(
-            "HTRA1",
+            "GENE1",
             {
                 "id": "ENSG00000166033",
                 "geneOntology": [
@@ -366,7 +366,7 @@ class TestFetchTargetPaths:
         )
 
         assert (
-            await fetch_opentargets_target("HTRA1", data_version="26.06") is None
+            await fetch_opentargets_target("GENE1", data_version="26.06") is None
         )
 
     async def test_a_failed_search_is_a_transient_miss_not_an_empty_gene(
@@ -387,7 +387,7 @@ class TestFetchTargetPaths:
             "pipeline.opentargets_fetch.graphql", AsyncMock()
         )
 
-        assert await fetch_opentargets_target("HTRA1", data_version="26.06") is None
+        assert await fetch_opentargets_target("GENE1", data_version="26.06") is None
         target_query.assert_not_awaited()
 
     async def test_a_resolved_target_parses_into_rows(self, mocker) -> None:
@@ -405,14 +405,14 @@ class TestFetchTargetPaths:
                 return_value={
                     "target": {
                         "id": "ENSG00000166033",
-                        "approvedName": "HtrA serine peptidase 1",
+                        "approvedName": "Protein 1",
                         "biotype": "protein_coding",
                     }
                 }
             ),
         )
 
-        target = await fetch_opentargets_target("HTRA1", data_version="26.06")
+        target = await fetch_opentargets_target("GENE1", data_version="26.06")
 
         assert target is not None
         assert target.ensembl_id == "ENSG00000166033"
@@ -432,9 +432,9 @@ class TestModuleLifecycle:
         await close_opentargets_client()
 
     def test_clearing_the_cache_empties_it(self) -> None:
-        opentargets._target_cache["HTRA1"] = None
+        opentargets._target_cache["GENE1"] = None
         # A real Task is not needed to prove clear() empties the dict.
-        opentargets._in_flight["HTRA1"] = cast(Any, None)
+        opentargets._in_flight["GENE1"] = cast(Any, None)
 
         clear_opentargets_cache()
 
@@ -447,14 +447,14 @@ class TestSyncOpenTargetsAnnotations:
         mocker.patch(
             "pipeline.database.get_annotation_statuses",
             AsyncMock(
-                return_value={"HTRA1": {"row_count": 40, "source_version": "26.06"}}
+                return_value={"GENE1": {"row_count": 40, "source_version": "26.06"}}
             ),
         )
         replace = mocker.patch(
             "pipeline.database.replace_gene_annotations", AsyncMock(return_value=0)
         )
 
-        result = await sync_opentargets_annotations(["HTRA1"])
+        result = await sync_opentargets_annotations(["GENE1"])
 
         assert result.cached == 1
         assert result.fetched == 0
@@ -477,12 +477,12 @@ class TestSyncOpenTargetsAnnotations:
             AsyncMock(return_value="26.06"),
         )
         row = AnnotationRow(
-            gene_symbol="HTRA1",
+            gene_symbol="GENE1",
             source="opentargets",
             relation="identity",
             group_key="",
             object_id="Ensembl:ENSG00000166033",
-            object_label="HtrA serine peptidase 1",
+            object_label="Protein 1",
             qualifier="protein_coding",
             score=None,
             evidence_count=None,
@@ -493,14 +493,14 @@ class TestSyncOpenTargetsAnnotations:
             AsyncMock(
                 side_effect=[
                     OpenTargetsTarget(
-                        gene_symbol="HTRA1",
+                        gene_symbol="GENE1",
                         ensembl_id="ENSG00000166033",
                         rows=(row,),
                         data_version="26.06",
                     ),
-                    # A curated label (cSVD's COL4A1/2) is not a gene symbol,
-                    # so it is queried as its member symbols -- two calls,
-                    # one status row. An unresolvable symbol is a finding,
+                    # A curated label that stands for two genes is not a gene
+                    # symbol, so it is queried as its member symbols -- two
+                    # calls, one status row. An unresolvable symbol is a finding,
                     # not a failure.
                     OpenTargetsTarget(
                         gene_symbol="GENEA",
@@ -519,13 +519,13 @@ class TestSyncOpenTargetsAnnotations:
             ),
         )
 
-        result = await sync_opentargets_annotations(["HTRA1", "GENEA/B", "FOXF2"])
+        result = await sync_opentargets_annotations(["GENE1", "GENEA/B", "GENE4"])
 
         assert meta.await_count == 1
         rows, statuses = replace.await_args.args
         assert [r.object_id for r in rows] == ["Ensembl:ENSG00000166033"]
         assert [(s.gene_symbol, s.row_count) for s in statuses] == [
-            ("HTRA1", 1),
+            ("GENE1", 1),
             ("GENEA/B", 0),
         ]
         assert statuses[0].source_version == "26.06"
@@ -554,7 +554,7 @@ class TestSyncOpenTargetsAnnotations:
             AsyncMock(return_value=opentargets._Resolution(None)),
         )
 
-        result = await sync_opentargets_annotations(["HTRA1", "NOTCH3", "FOXF2"])
+        result = await sync_opentargets_annotations(["GENE1", "GENE3", "GENE4"])
 
         assert meta.await_count == 1
         assert result.fetched == 3
@@ -578,7 +578,7 @@ class TestSyncOpenTargetsAnnotations:
             "pipeline.opentargets_fetch.fetch_opentargets_target",
             AsyncMock(
                 return_value=OpenTargetsTarget(
-                    gene_symbol="HTRA1",
+                    gene_symbol="GENE1",
                     ensembl_id="ENSG00000166033",
                     rows=(),
                     data_version="26.06",
@@ -586,7 +586,7 @@ class TestSyncOpenTargetsAnnotations:
             ),
         )
 
-        result = await sync_opentargets_annotations(["HTRA1"])
+        result = await sync_opentargets_annotations(["GENE1"])
 
         assert result.fetched == 1
         assert result.failed == 0

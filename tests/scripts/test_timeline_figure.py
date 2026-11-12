@@ -4,8 +4,8 @@ The rules pinned here are the same ones tests/timeline_layout_test.ts pins
 for lib/timeline.ts: the island and the print figure implement one rule over
 one encoding file, and these two suites are what keep them in step. Every
 test holds for any dataset -- the committed rows are only ever looped over,
-and the constructed cases build their rows from the encoding. The cSVD
-figure's own counts are pinned in tests/scripts/csvd/.
+and the constructed cases build their rows from the encoding. The
+upstream figure's own counts are pinned in tests/scripts/csvd/.
 """
 
 import json

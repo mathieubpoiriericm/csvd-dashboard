@@ -7,7 +7,12 @@ in memory and nothing durable. A year's window is ~795 papers, ~3 hours and
 ~$70, and a crash at hour two used to discard all of it.
 
 The file is JSON Lines: a header carrying the extraction fingerprint, then one
-record per completed paper, appended as it completes. Four properties matter:
+record per paper, appended as it completes. A record is one of two kinds. A
+finished paper's (`result`) is restored as it stands. An answer still to
+validate (`unvalidated`) is a paper the fallback model extracted for a
+`--batch` run, after the batch's model declined it, whose validation NCBI did
+not answer: the next `--batch` run validates the stored genes instead of
+paying for the rescue again. Four properties matter:
 
 - **Append-only.** A record is one `write` of one line, so a process killed
   mid-append can corrupt only the final line, and `load` drops it. Rewriting
@@ -101,7 +106,7 @@ def _locked(target: Path) -> Generator[None]:
 
 
 def append(path: str, run_fingerprint: dict[str, Any], record: dict[str, Any]) -> None:
-    """Add one completed paper, writing the header first if the file is new."""
+    """Add one paper's record, writing the header first if the file is new."""
     target = Path(path)
     with _locked(target):
         new_file = not target.exists() or target.stat().st_size == 0
@@ -170,7 +175,12 @@ def clear(path: str) -> None:
 
 
 def remove(path: str, pmids: set[str]) -> None:
-    """Drop the records for *pmids*, once those papers are in `pubmed_refs`.
+    """Drop the records for *pmids*.
+
+    Two callers: the run's prune once those papers are in `pubmed_refs`,
+    and a ``--batch`` run whose stored rescue answer failed validation for
+    a reason other than an NCBI outage, so that the next run extracts that
+    paper afresh rather than replaying an answer that fails every time.
 
     The rest stay. A checkpoint written by a wider window holds papers this
     run did not publish, and they were paid for: deleting the whole file
@@ -180,17 +190,21 @@ def remove(path: str, pmids: set[str]) -> None:
     atomically otherwise, so a crash mid-prune leaves the old file or the
     new one and never a torn one.
 
-    A record's PMID is read at `result.pmid` -- the one fact about a
-    record's shape this module knows. A record without one can never be
-    merged, so it can never be removed by name; it is dropped here rather
-    than kept forever.
+    A record's PMID is read at `result.pmid`, or at `unvalidated.pmid` for
+    an answer still to validate -- the one fact about a record's shape this
+    module knows. Both kinds leave with their paper's merge, and another
+    paper's merge keeps both. A record without a PMID can never be merged,
+    so it can never be removed by name; it is dropped here rather than kept
+    forever.
 
-    The prune is best effort, like the append. It runs after
+    The prune is best effort, like the append. After the merge it runs once
     `_merge_processed_batch` has committed the genes and the PMIDs, so a
     full disk or a read-only `logs/` here must not turn a run whose data
-    reached the database into a recorded failure. The records left behind
-    are harmless: their PMIDs are in `pubmed_refs`, and the next run filters
-    them out before extraction.
+    reached the database into a recorded failure, and the records left
+    behind are harmless: their PMIDs are in `pubmed_refs`, and the next run
+    filters them out before extraction. A rejected rescue answer left
+    behind costs one more failed validation on the next run, which tries
+    to drop it again.
     """
     target = Path(path)
     if not target.exists():
@@ -200,8 +214,9 @@ def remove(path: str, pmids: set[str]) -> None:
             _prune(target, pmids)
     except OSError:
         logger.warning(
-            "Could not prune the extraction checkpoint; its merged records "
-            "stay, and the next run skips those PMIDs anyway",
+            "Could not drop records from the extraction checkpoint; they stay "
+            "in the file, which costs nothing for a merged paper and one more "
+            "failed validation for a rejected rescue answer",
             exc_info=True,
         )
 
@@ -231,10 +246,10 @@ def _record_pmid(record: dict[str, Any] | None) -> str | None:
     """The PMID a record is about, or None if it does not say."""
     if record is None:
         return None
-    result = record.get("result")
-    if not isinstance(result, dict):
+    body = record.get("result", record.get("unvalidated"))
+    if not isinstance(body, dict):
         return None
-    pmid = result.get("pmid")
+    pmid = body.get("pmid")
     return pmid if isinstance(pmid, str) else None
 
 

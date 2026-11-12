@@ -50,9 +50,9 @@ def _mock_connection(mocker, conn: AsyncMock) -> None:
 
 
 def test_complete_lookup_returns_one_row_per_request_in_order() -> None:
-    rows = [{"name": "HTRA1", "uid": "5654"}, {"name": "LAMB1", "uid": "3912"}]
-    out = complete_lookup(rows, ["LAMB1", "MISSING", "HTRA1"], "name", {"uid": None})
-    assert [r["name"] for r in out] == ["LAMB1", "MISSING", "HTRA1"]
+    rows = [{"name": "GENE1", "uid": "5654"}, {"name": "GENE2", "uid": "3912"}]
+    out = complete_lookup(rows, ["GENE2", "MISSING", "GENE1"], "name", {"uid": None})
+    assert [r["name"] for r in out] == ["GENE2", "MISSING", "GENE1"]
     assert out[1] == {"name": "MISSING", "uid": None}
 
 
@@ -79,10 +79,10 @@ def test_complete_lookup_repeats_a_duplicate_requested_key() -> None:
     """Matches R's result[match(requested, result[[key_column]]), ]: a key
     requested twice appears twice in the output, once per requested slot.
     """
-    rows = [{"name": "HTRA1", "uid": "5654"}]
-    out = complete_lookup(rows, ["HTRA1", "HTRA1"], "name", {"uid": None})
-    assert [r["name"] for r in out] == ["HTRA1", "HTRA1"]
-    assert out[0] == out[1] == {"name": "HTRA1", "uid": "5654"}
+    rows = [{"name": "GENE1", "uid": "5654"}]
+    out = complete_lookup(rows, ["GENE1", "GENE1"], "name", {"uid": None})
+    assert [r["name"] for r in out] == ["GENE1", "GENE1"]
+    assert out[0] == out[1] == {"name": "GENE1", "uid": "5654"}
 
 
 def test_complete_lookup_all_missing_uses_fallback_for_every_row() -> None:
@@ -95,9 +95,9 @@ def test_complete_lookup_fallback_row_key_order_matches_a_real_row() -> None:
     -- 'name' first, then each default in insertion order -- matching a
     real row. This is the easy detail to get wrong (see the task brief).
     """
-    rows = [{"name": "HTRA1", "uid": "5654", "description": "d"}]
+    rows = [{"name": "GENE1", "uid": "5654", "description": "d"}]
     out = complete_lookup(
-        rows, ["HTRA1", "MISSING"], "name", {"uid": None, "description": None}
+        rows, ["GENE1", "MISSING"], "name", {"uid": None, "description": None}
     )
     assert list(out[0].keys()) == list(out[1].keys()) == ["name", "uid", "description"]
 
@@ -118,30 +118,30 @@ class TestReadNcbiGeneInfo:
         mock_conn.fetch = AsyncMock(
             return_value=[
                 {
-                    "symbol": "LAMB1",
+                    "symbol": "GENE2",
                     "uid": 3912,
-                    "description": "laminin subunit beta 1",
-                    "otheraliases": "CLM, LIS5",
+                    "description": "protein 2",
+                    "otheraliases": "ALIAS2A, ALIAS2B",
                 }
             ]
         )
         _mock_connection(mocker, mock_conn)
 
-        out = await read_ncbi_gene_info(["LAMB1"])
+        out = await read_ncbi_gene_info(["GENE2"])
 
         assert out == [
             {
-                "name": "LAMB1",
-                "symbol": "LAMB1",
+                "name": "GENE2",
+                "symbol": "GENE2",
                 "uid": "3912",
-                "description": "laminin subunit beta 1",
-                "otheraliases": "CLM, LIS5",
+                "description": "protein 2",
+                "otheraliases": "ALIAS2A, ALIAS2B",
             }
         ]
         await_args = mock_conn.fetch.await_args
         assert await_args is not None, "read_ncbi_gene_info executed no SQL"
         assert "ncbi_gene_info" in await_args.args[0]
-        assert await_args.args[1] == ["LAMB1"]
+        assert await_args.args[1] == ["GENE2"]
 
     async def test_miss_gets_a_null_fallback_row(self, mocker) -> None:
         mock_conn = AsyncMock()
@@ -165,7 +165,7 @@ class TestReadNcbiGeneInfo:
         mock_conn.fetch = AsyncMock(
             return_value=[
                 {
-                    "symbol": "HTRA1",
+                    "symbol": "GENE1",
                     "uid": 5654,
                     "description": "d",
                     "otheraliases": "a",
@@ -174,9 +174,9 @@ class TestReadNcbiGeneInfo:
         )
         _mock_connection(mocker, mock_conn)
 
-        out = await read_ncbi_gene_info(["LAMB1", "HTRA1"])
+        out = await read_ncbi_gene_info(["GENE2", "GENE1"])
 
-        assert [r["name"] for r in out] == ["LAMB1", "HTRA1"]
+        assert [r["name"] for r in out] == ["GENE2", "GENE1"]
         assert out[0]["uid"] is None
         assert out[1]["uid"] == "5654"
 
@@ -276,16 +276,16 @@ class TestReadNcbiGeneInfo:
         mock_conn.fetch = AsyncMock(
             return_value=[
                 {
-                    "symbol": "LAMB1",
+                    "symbol": "GENE2",
                     "uid": 3912,
-                    "description": "laminin subunit beta 1",
-                    "otheraliases": "CLM, LIS5",
+                    "description": "protein 2",
+                    "otheraliases": "ALIAS2A, ALIAS2B",
                 }
             ]
         )
         _mock_connection(mocker, mock_conn)
 
-        out = await read_ncbi_gene_info(["LAMB1", "MISSING"])
+        out = await read_ncbi_gene_info(["GENE2", "MISSING"])
         expected = list(committed_rows("gene_info.json")[0].keys())
 
         assert [to_camel(k) for k in out[0]] == expected  # hit
@@ -308,7 +308,7 @@ class TestReadUniprotInfo:
         mock_conn.fetch = AsyncMock(
             return_value=[
                 {
-                    "symbol": "LAMB1",
+                    "symbol": "GENE2",
                     "accession": "P07942",
                     "url": "https://www.uniprot.org/uniprotkb/P07942/entry",
                 }
@@ -316,12 +316,12 @@ class TestReadUniprotInfo:
         )
         _mock_connection(mocker, mock_conn)
 
-        out = await read_uniprot_info(["LAMB1"])
+        out = await read_uniprot_info(["GENE2"])
 
         assert out == [
             {
-                "gene": "LAMB1",
-                "symbol": "LAMB1",
+                "gene": "GENE2",
+                "symbol": "GENE2",
                 "accession": "P07942",
                 "url": "https://www.uniprot.org/uniprotkb/P07942/entry",
             }
@@ -329,7 +329,7 @@ class TestReadUniprotInfo:
         await_args = mock_conn.fetch.await_args
         assert await_args is not None, "read_uniprot_info executed no SQL"
         assert "uniprot_info" in await_args.args[0]
-        assert await_args.args[1] == ["LAMB1"]
+        assert await_args.args[1] == ["GENE2"]
 
     async def test_miss_gets_a_null_fallback_row(self, mocker) -> None:
         mock_conn = AsyncMock()
@@ -381,7 +381,7 @@ class TestReadUniprotInfo:
         mock_conn.fetch = AsyncMock(
             return_value=[
                 {
-                    "symbol": "LAMB1",
+                    "symbol": "GENE2",
                     "accession": "P07942",
                     "url": "https://www.uniprot.org/uniprotkb/P07942/entry",
                 }
@@ -389,7 +389,7 @@ class TestReadUniprotInfo:
         )
         _mock_connection(mocker, mock_conn)
 
-        out = await read_uniprot_info(["LAMB1", "MISSING"])
+        out = await read_uniprot_info(["GENE2", "MISSING"])
         expected = list(committed_rows("protein_info.json")[0].keys())
 
         assert [to_camel(k) for k in out[0]] == expected  # hit
@@ -654,12 +654,12 @@ class TestReadPipelineStatus:
 
 def _clinvar(object_id: str, **overrides) -> dict[str, Any]:
     row = {
-        "gene_symbol": "HTRA1",
+        "gene_symbol": "GENE1",
         "source": "clinvar",
         "relation": "disease",
         "group_key": "MONDO:0010829",
         "object_id": object_id,
-        "object_label": "CARASIL syndrome",
+        "object_label": "Disease 1 syndrome",
         "qualifier": "Pathogenic",
         "score": None,
         "evidence_count": 5,
@@ -671,12 +671,12 @@ def _clinvar(object_id: str, **overrides) -> dict[str, Any]:
 
 def _orphadata(object_id: str, qualifier: str | None, **overrides) -> dict[str, Any]:
     row = {
-        "gene_symbol": "HTRA1",
+        "gene_symbol": "GENE1",
         "source": "orphadata",
         "relation": "disease_xref",
         "group_key": "MONDO:0010829",
         "object_id": object_id,
-        "object_label": "CARASIL",
+        "object_label": "Disease 1",
         "qualifier": qualifier,
         "score": None,
         "evidence_count": None,
@@ -699,9 +699,9 @@ def test_disease_annotations_pivot_to_one_row_per_disease() -> None:
 
     assert len(pivoted) == 1
     row = pivoted[0]
-    assert row["gene_symbol"] == "HTRA1"
+    assert row["gene_symbol"] == "GENE1"
     assert row["group_key"] == "MONDO:0010829"
-    assert row["disease_name"] == "CARASIL syndrome"
+    assert row["disease_name"] == "Disease 1 syndrome"
     assert row["omim_id"] == "600142"
     assert row["mondo_id"] == "MONDO:0010829"
     assert row["orphacode"] == "199354"
@@ -729,25 +729,25 @@ def test_a_group_no_clinvar_row_attests_is_not_published(caplog) -> None:
 
     assert [row["group_key"] for row in pivoted] == ["MONDO:0010829"]
     assert pivoted[0]["orphacode"] == "199354"
-    assert "HTRA1" in caplog.text
+    assert "GENE1" in caplog.text
     assert "OMIM:600142" in caplog.text
 
 
 def test_the_pivot_is_ordered_for_the_byte_exact_contract() -> None:
     rows = [
-        _clinvar("OMIM:125310", gene_symbol="NOTCH3", group_key="OMIM:125310",
-                 object_label="CADASIL", qualifier=None, evidence_count=9),
+        _clinvar("OMIM:125310", gene_symbol="GENE3", group_key="OMIM:125310",
+                 object_label="Disease 3", qualifier=None, evidence_count=9),
         _clinvar("MONDO:0014768", group_key="MONDO:0014768",
-                 object_label="CADASIL type 2", qualifier=None, evidence_count=11),
+                 object_label="Disease 3 type 2", qualifier=None, evidence_count=11),
     ]
     pivoted = pivot_disease_annotations(rows)
-    assert [r["gene_symbol"] for r in pivoted] == ["HTRA1", "NOTCH3"]
+    assert [r["gene_symbol"] for r in pivoted] == ["GENE1", "GENE3"]
 
 
 def test_a_row_with_no_disease_group_is_excluded() -> None:
     """GO terms and identity rows carry group_key '' and are not published."""
     rows = [
-        {"gene_symbol": "HTRA1", "source": "opentargets", "relation": "gene_ontology",
+        {"gene_symbol": "GENE1", "source": "opentargets", "relation": "gene_ontology",
          "group_key": "", "object_id": "GO:0005515", "object_label": "protein binding",
          "qualifier": "F/IPI", "score": None, "evidence_count": None,
          "source_version": "26.06"},
@@ -823,7 +823,7 @@ class TestOnlyThisDiseasesIdentifiersFillAColumn:
     ) -> None:
         """24 real disagreements were previously written nowhere at all.
 
-        Orphanet calls OMIM:100300 an exact mapping of NOTCH3's ORPHAcode while
+        Orphanet calls OMIM:100300 an exact mapping of one gene's ORPHAcode while
         ClinVar attests OMIM:616028 for the same disease group. Both are
         assertions by a reference database; the reader gets to see both.
         """
@@ -952,7 +952,7 @@ def test_a_clinvar_xref_with_no_column_reaches_related_xrefs() -> None:
     rows = [_clinvar("MeSH:D000544"), _clinvar("MONDO:0010829")]
     row = pivot_disease_annotations(rows)[0]
 
-    assert row["disease_name"] == "CARASIL syndrome"
+    assert row["disease_name"] == "Disease 1 syndrome"
     assert row["mondo_id"] == "MONDO:0010829"
     assert row["related_xrefs"] == [{"id": "MeSH:D000544", "relation": None}]
 
@@ -1044,7 +1044,7 @@ class TestPublishedScope:
         monogenic-disease claims; they stay in PostgreSQL."""
         rows = [
             _clinvar("MONDO:0010829"),
-            {"gene_symbol": "HTRA1", "source": "opentargets", "relation": "disease",
+            {"gene_symbol": "GENE1", "source": "opentargets", "relation": "disease",
              "group_key": "MONDO:0005150", "object_id": "MONDO:0005150",
              "object_label": "age-related macular degeneration", "qualifier": None,
              "score": 0.635, "evidence_count": None, "source_version": "26.06"},

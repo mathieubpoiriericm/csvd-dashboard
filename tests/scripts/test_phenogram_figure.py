@@ -5,7 +5,7 @@ lib/phenogram.ts: the island and the print figure implement one rule over one
 encoding file and one cytoband table, and these two suites keep them in step.
 Every test holds for any dataset -- the committed rows are only ever looped
 over, and the constructed cases build their rows from the encoding. The
-cSVD karyogram's own numbers are pinned in tests/scripts/csvd/.
+upstream karyogram's own numbers are pinned in tests/scripts/csvd/.
 """
 
 import copy

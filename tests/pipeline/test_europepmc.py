@@ -13,17 +13,17 @@ from pipeline.europepmc import (
 
 _JATS = b"""<?xml version="1.0"?>
 <article><body>
-<sec><title>Results</title><p>NOTCH3 was associated with WMH.</p></sec>
+<sec><title>Results</title><p>GENE1 was associated with WMH.</p></sec>
 <sec><title>Methods</title><p>We genotyped 500 samples.</p></sec>
 <table-wrap><table><thead><tr><th>Gene</th><th>P</th></tr></thead>
-<tbody><tr><td>HTRA1</td><td>1e-8</td></tr></tbody></table></table-wrap>
+<tbody><tr><td>GENE2</td><td>1e-8</td></tr></tbody></table></table-wrap>
 </body></article>"""
 
 
 def test_parse_jats_keeps_section_prose() -> None:
     text = parse_jats(_JATS)
     assert text is not None
-    assert "NOTCH3 was associated with WMH." in text
+    assert "GENE1 was associated with WMH." in text
     assert "We genotyped 500 samples." in text
 
 
@@ -31,7 +31,7 @@ def test_parse_jats_preserves_table_cell_content() -> None:
     """Association tables are where the gene-trait evidence lives."""
     text = parse_jats(_JATS)
     assert text is not None
-    assert "HTRA1" in text
+    assert "GENE2" in text
     assert "1e-8" in text
 
 
@@ -44,7 +44,7 @@ def test_parse_jats_keeps_a_table_row_on_one_line() -> None:
     assert text is not None
     lines = text.splitlines()
     assert "Gene | P" in lines
-    assert "HTRA1 | 1e-8" in lines
+    assert "GENE2 | 1e-8" in lines
 
 
 def test_parse_jats_keeps_empty_cells_so_columns_line_up() -> None:
@@ -79,34 +79,34 @@ def test_parse_jats_emits_nested_cell_prose_once() -> None:
 <article><body>
 <sec><p>Standalone prose.</p></sec>
 <table-wrap><table><tbody><tr>
-<td><p>NOTCH3 was associated with WMH (p=1e-9).</p></td>
-<td>HTRA1</td>
+<td><p>GENE1 was associated with WMH (p=1e-9).</p></td>
+<td>GENE2</td>
 </tr></tbody></table></table-wrap>
 </body></article>"""
     text = parse_jats(nested)
     assert text is not None
-    assert text.count("NOTCH3 was associated with WMH (p=1e-9).") == 1
+    assert text.count("GENE1 was associated with WMH (p=1e-9).") == 1
     assert text.count("Standalone prose.") == 1
-    assert "NOTCH3 was associated with WMH (p=1e-9). | HTRA1" in text
+    assert "GENE1 was associated with WMH (p=1e-9). | GENE2" in text
 
 
 def test_parse_jats_reads_tables_deposited_in_a_floats_group() -> None:
     """JATS lets <table-wrap> sit beside <body>, and publishers use it.
 
-    PMC12385738 (a 2025 CADASIL review) has zero <tr> in its body and three
+    PMC12385738 (a 2025 review) has zero <tr> in its body and three
     in its floats-group, so the whole table set and its caption were absent
     from the text sent to the model while the paper was still recorded
     `source: "europepmc", fulltext: True` and the PMID retired on it.
     """
     floats = b"""<?xml version="1.0"?>
 <article>
-<body><sec><p>We tested HTRA1.</p></sec></body>
+<body><sec><p>We tested GENE2.</p></sec></body>
 <back/>
 <floats-group>
 <table-wrap>
-<caption><title>Main RNF213 variants in CADASIL patients.</title></caption>
+<caption><title>Main GENE5 variants in patients.</title></caption>
 <table><thead><tr><th>Variant</th><th>P</th></tr></thead>
-<tbody><tr><td>COL4A1</td><td>1e-9</td></tr></tbody></table>
+<tbody><tr><td>GENE3</td><td>1e-9</td></tr></tbody></table>
 </table-wrap>
 </floats-group>
 </article>"""
@@ -114,10 +114,10 @@ def test_parse_jats_reads_tables_deposited_in_a_floats_group() -> None:
     assert text is not None
     lines = text.splitlines()
     # The body still comes first; the floats-group follows it.
-    assert lines[0] == "We tested HTRA1."
-    assert "Main RNF213 variants in CADASIL patients." in lines
+    assert lines[0] == "We tested GENE2."
+    assert "Main GENE5 variants in patients." in lines
     assert "Variant | P" in lines
-    assert "COL4A1 | 1e-9" in lines
+    assert "GENE3 | 1e-9" in lines
 
 
 def test_parse_jats_emits_a_floats_group_row_once() -> None:
@@ -125,12 +125,12 @@ def test_parse_jats_emits_a_floats_group_row_once() -> None:
     floats = b"""<?xml version="1.0"?>
 <article><body><sec><p>Body.</p></sec></body>
 <floats-group><table-wrap><table><tbody>
-<tr><td><p>COL4A2 (p=2e-7)</p></td><td>WMH</td></tr>
+<tr><td><p>GENE4 (p=2e-7)</p></td><td>WMH</td></tr>
 </tbody></table></table-wrap></floats-group></article>"""
     text = parse_jats(floats)
     assert text is not None
-    assert text.count("COL4A2 (p=2e-7)") == 1
-    assert "COL4A2 (p=2e-7) | WMH" in text
+    assert text.count("GENE4 (p=2e-7)") == 1
+    assert "GENE4 (p=2e-7) | WMH" in text
 
 
 def test_parse_jats_returns_none_for_a_pdf_only_notice() -> None:
@@ -153,14 +153,14 @@ def test_parse_jats_keeps_a_real_article_that_mentions_a_pdf_later() -> None:
         b"""<?xml version="1.0"?>
 <article><front/><body><sec><title>Results</title>
 <p>"""
-        + b"NOTCH3 was associated with WMH burden in the discovery cohort. " * 6
+        + b"GENE1 was associated with WMH burden in the discovery cohort. " * 6
         + b"""</p>
 <p>The Full Text of this article is available as a PDF in the archive.</p>
 </sec></body></article>"""
     )
     text = parse_jats(article)
     assert text is not None
-    assert "NOTCH3" in text
+    assert "GENE1" in text
 
 
 def test_parse_jats_returns_none_for_a_body_less_document() -> None:
@@ -352,11 +352,11 @@ def test_parse_jats_does_not_leak_bibliography_text() -> None:
 # a future Europe PMC rendering change doing this.
 _JATS_WITH_LEAKY_REFLIST = b"""<?xml version="1.0"?>
 <article><body>
-<sec><title>Results</title><p>NOTCH3 was associated with WMH.</p></sec>
+<sec><title>Results</title><p>GENE1 was associated with WMH.</p></sec>
 <sec sec-type="ref-list"><title>References</title>
 <ref-list>
 <ref id="R1"><title>Suspicious Title</title>
-<p>A gene called HTRA2 appears here.</p></ref>
+<p>A gene called GENE9 appears here.</p></ref>
 </ref-list>
 </sec>
 </body></article>"""
@@ -367,13 +367,13 @@ def test_parse_jats_excludes_bare_tags_inside_ref_list() -> None:
 
     Without stripping <ref-list> subtrees, the bare <title>/<p> inside the
     <ref> below would be indistinguishable from real body content to the tag
-    walk, and "HTRA2"/"Suspicious Title" would leak into extracted text.
+    walk, and "GENE9"/"Suspicious Title" would leak into extracted text.
     """
     text = parse_jats(_JATS_WITH_LEAKY_REFLIST)
     assert text is not None
-    assert "NOTCH3 was associated with WMH." in text
+    assert "GENE1 was associated with WMH." in text
     assert "References" in text
-    assert "HTRA2" not in text
+    assert "GENE9" not in text
     assert "Suspicious Title" not in text
 
 
@@ -481,7 +481,7 @@ class TestFetchEuropepmcFulltext:
         mocker.patch("pipeline.europepmc._client_manager.get", return_value=mock_client)
         result = await fetch_europepmc_fulltext("1")
         assert result is not None
-        assert "NOTCH3 was associated with WMH." in result
+        assert "GENE1 was associated with WMH." in result
 
     async def test_returns_none_on_404(self, mocker) -> None:
         """A missing fullTextXML is a clean 404 with an empty body (confirmed

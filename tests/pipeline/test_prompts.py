@@ -32,7 +32,7 @@ def test_only_v8_remains() -> None:
     stricter arm returned *more* genes, 144 against 138. The guards are
     ruled out rather than assumed. v7 was v6 split into template and
     disease file; v8 is v7 asking for structured omics evidence, and v7
-    left the table the way v6 did. The cSVD bytes are pinned in
+    left the table the way v6 did. The upstream bytes are pinned in
     csvd/test_csvd_prompt_assembly.py.
     """
     assert set(_PROMPTS) == {"v8"}
@@ -98,7 +98,7 @@ class TestExtractionInstructions:
     def test_has_examples_or_says_there_are_none_yet(self):
         """The block is rendered either way; a disease without papers to
         quote ships the marker the new-disease skill writes, never an
-        invented example. The cSVD examples themselves are pinned in
+        invented example. The upstream examples themselves are pinned in
         tests/pipeline/csvd/test_csvd_prompts.py."""
         assert "<examples>" in DEFAULT_EXTRACTION_INSTRUCTIONS
         has_examples = '<example type="' in DEFAULT_EXTRACTION_INSTRUCTIONS

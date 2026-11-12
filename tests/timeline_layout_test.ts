@@ -32,7 +32,7 @@ import {
 } from "../islands/TrialsTimeline.tsx";
 
 // The rules below hold for any dataset: the committed rows are looped over,
-// and the constructed cases build their trials from the encoding. The cSVD
+// and the constructed cases build their trials from the encoding. The upstream
 // numbers -- four sectors, nine empty cells, 102 markers -- are pinned in
 // tests/csvd/timeline_layout_test.ts.
 const layout = computeTimelineLayout(trials);

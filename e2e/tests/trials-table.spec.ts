@@ -15,7 +15,7 @@ const HAS_ROWS = SHOWN > 0;
 
 /**
  * Every count is derived from the committed data; the tests that name a
- * cSVD drug, trial or search term are in csvd/trials-table.spec.ts.
+ * drug, trial or search term of the upstream dataset are in csvd/trials-table.spec.ts.
  *
  * Chromium reports computed colour-mix() results in oklab(), not rgb() --
  * "oklab(L a b)" when opaque, "oklab(L a b / alpha)" when not -- so this

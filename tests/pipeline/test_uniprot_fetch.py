@@ -80,7 +80,7 @@ class TestFetchUniProtAccessionStatus:
     async def test_exact_match_found(self, mocker):
         tsv = (
             "Entry\tGene Names (primary)\tGene Names (synonym)\tProtein names\n"
-            "P12345\tNOTCH3\t\tNotch receptor 3\n"
+            "P12345\tGENE2\t\tProtein 2\n"
         )
         resp = httpx.Response(200, text=tsv)
         mock_client = AsyncMock()
@@ -90,16 +90,16 @@ class TestFetchUniProtAccessionStatus:
             return_value=mock_client,
         )
 
-        accession, protein, cacheable = await _fetch_uniprot_accession_status("NOTCH3")
+        accession, protein, cacheable = await _fetch_uniprot_accession_status("GENE2")
         assert accession == "P12345"
-        assert protein == "Notch receptor 3"
+        assert protein == "Protein 2"
         assert cacheable is True
 
     async def test_falls_back_to_synonym_search(self, mocker):
         no_results = httpx.Response(200, text="Entry\tGene Names (primary)\n")
         synonym_tsv = (
             "Entry\tGene Names (primary)\tGene Names (synonym)\tProtein names\n"
-            "Q99999\tNOTCH3\tALIAS\tNotch 3\n"
+            "Q99999\tGENE2\tALIAS\tProtein 2 short\n"
         )
         synonym_resp = httpx.Response(200, text=synonym_tsv)
 
@@ -110,7 +110,7 @@ class TestFetchUniProtAccessionStatus:
             return_value=mock_client,
         )
 
-        accession, protein, cacheable = await _fetch_uniprot_accession_status("NOTCH3")
+        accession, protein, cacheable = await _fetch_uniprot_accession_status("GENE2")
         assert accession == "Q99999"
         assert cacheable is True
 
@@ -136,7 +136,7 @@ class TestFetchUniProtAccessionStatus:
             text=(
                 "Entry\tReviewed\tGene Names (primary)\t"
                 "Gene Names (synonym)\tProtein names\n"
-                "P22222\treviewed\tNOTCH3\t\tNotch 3\n"
+                "P22222\treviewed\tGENE2\t\tProtein 2 short\n"
             ),
         )
         mock_client = AsyncMock()
@@ -146,9 +146,9 @@ class TestFetchUniProtAccessionStatus:
             return_value=mock_client,
         )
 
-        accession, protein, cacheable = await _fetch_uniprot_accession_status("NOTCH3")
+        accession, protein, cacheable = await _fetch_uniprot_accession_status("GENE2")
 
-        assert (accession, protein, cacheable) == ("P22222", "Notch 3", True)
+        assert (accession, protein, cacheable) == ("P22222", "Protein 2 short", True)
         assert mock_client.get.await_count == 2
 
     async def test_neither_query_naming_the_symbol_is_a_cacheable_miss(
@@ -169,14 +169,14 @@ class TestFetchUniProtAccessionStatus:
             return_value=mock_client,
         )
 
-        assert await _fetch_uniprot_accession_status("NOTCH3") == (None, None, True)
+        assert await _fetch_uniprot_accession_status("GENE2") == (None, None, True)
 
     async def test_the_matching_row_is_taken_whatever_its_position(self, mocker):
         """The first row is not the answer; the row naming the gene is."""
         tsv = (
             "Entry\tGene Names (primary)\tGene Names (synonym)\tProtein names\n"
             "P11111\tOTHER\t\tOther protein\n"
-            "P22222\tNOTCH3\t\tNotch 3\n"
+            "P22222\tGENE2\t\tProtein 2 short\n"
         )
         resp = httpx.Response(200, text=tsv)
         mock_client = AsyncMock()
@@ -186,8 +186,8 @@ class TestFetchUniProtAccessionStatus:
             return_value=mock_client,
         )
 
-        # NOTCH3 is in second row, so exact match returns it
-        accession, protein, cacheable = await _fetch_uniprot_accession_status("NOTCH3")
+        # GENE2 is in second row, so exact match returns it
+        accession, protein, cacheable = await _fetch_uniprot_accession_status("GENE2")
         assert accession == "P22222"
         assert cacheable is True
 
@@ -216,7 +216,7 @@ class TestFetchUniProtAccessionStatus:
             return_value=mock_client,
         )
 
-        accession, protein, cacheable = await _fetch_uniprot_accession_status("NOTCH3")
+        accession, protein, cacheable = await _fetch_uniprot_accession_status("GENE2")
         assert accession is None
         assert protein is None
         assert cacheable is False
@@ -229,7 +229,7 @@ class TestFetchUniProtAccessionStatus:
             return_value=mock_client,
         )
 
-        accession, protein, cacheable = await _fetch_uniprot_accession_status("NOTCH3")
+        accession, protein, cacheable = await _fetch_uniprot_accession_status("GENE2")
         assert accession is None
         assert protein is None
         assert cacheable is False
@@ -242,7 +242,7 @@ class TestFetchUniProtAccessionStatus:
             return_value=mock_client,
         )
 
-        accession, protein, cacheable = await _fetch_uniprot_accession_status("NOTCH3")
+        accession, protein, cacheable = await _fetch_uniprot_accession_status("GENE2")
         assert accession is None
         assert protein is None
         assert cacheable is False
@@ -259,7 +259,7 @@ class TestFetchUniProtAccessionStatus:
             side_effect=ValueError("bad TSV"),
         )
 
-        assert await _fetch_uniprot_accession_status("NOTCH3") == (
+        assert await _fetch_uniprot_accession_status("GENE2") == (
             None,
             None,
             False,
@@ -279,7 +279,7 @@ class TestParseSearchRows:
             "too-short",
         ]
 
-        assert _parse_search_rows(lines, "NOTCH3") == (None, None)
+        assert _parse_search_rows(lines, "GENE2") == (None, None)
 
     def test_a_row_naming_the_symbol_nowhere_is_not_this_genes_protein(self):
         """UniProt token-matches the gene-names field even under gene_exact:.
@@ -294,16 +294,16 @@ class TestParseSearchRows:
             "P2\treviewed\tOTHER2\t\tProtein 2",
         ]
 
-        assert _parse_search_rows(lines, "NOTCH3") == (None, None)
+        assert _parse_search_rows(lines, "GENE2") == (None, None)
 
     def test_the_primary_gene_match_wins_outright(self):
         lines = [
             _HEADER,
-            "P1\tunreviewed\tOTHER1\tNOTCH3\tProtein 1",
-            "P2\treviewed\tNOTCH3\t\tNotch 3",
+            "P1\tunreviewed\tOTHER1\tGENE2\tProtein 1",
+            "P2\treviewed\tGENE2\t\tProtein 2 short",
         ]
 
-        assert _parse_search_rows(lines, "NOTCH3") == ("P2", "Notch 3")
+        assert _parse_search_rows(lines, "GENE2") == ("P2", "Protein 2 short")
 
     def test_the_primary_match_wins_over_an_earlier_reviewed_synonym(self):
         """UniProt can list another gene's reviewed entry first when it keeps
@@ -319,35 +319,35 @@ class TestParseSearchRows:
         assert _parse_search_rows(lines, "ABC6") == ("P2", "Protein 6")
 
     def test_an_obsolete_symbol_resolves_through_the_synonym_column(self):
-        """C6orf195 is published from LINC01600's entry, which lists it."""
+        """OLDorf1 is published from NEWGENE1's entry, which lists it."""
         lines = [
             _HEADER,
-            "Q96MT4\tunreviewed\tLINC01600\tC6orf195\t"
-            "Uncharacterized protein encoded by LINC01600",
+            "Q96MT4\tunreviewed\tNEWGENE1\tOLDorf1\t"
+            "Uncharacterized protein encoded by NEWGENE1",
         ]
 
-        assert _parse_search_rows(lines, "C6orf195") == (
+        assert _parse_search_rows(lines, "OLDorf1") == (
             "Q96MT4",
-            "Uncharacterized protein encoded by LINC01600",
+            "Uncharacterized protein encoded by NEWGENE1",
         )
 
     def test_a_reviewed_synonym_match_beats_an_unreviewed_one(self):
         lines = [
             _HEADER,
-            "P1\tunreviewed\tOTHER1\tNOTCH3 FOO\tProtein 1",
-            "P2\treviewed\tOTHER2\tBAR NOTCH3\tProtein 2",
+            "P1\tunreviewed\tOTHER1\tGENE2 FOO\tProtein 1",
+            "P2\treviewed\tOTHER2\tBAR GENE2\tProtein 2",
         ]
 
-        assert _parse_search_rows(lines, "NOTCH3") == ("P2", "Protein 2")
+        assert _parse_search_rows(lines, "GENE2") == ("P2", "Protein 2")
 
     def test_without_a_review_column_the_first_synonym_match_stands(self):
         lines = [
             "Entry\tGene Names (primary)\tGene Names (synonym)\tProtein names",
-            "P1\tOTHER1\tNOTCH3\tProtein 1",
-            "P2\tOTHER2\tNOTCH3\tProtein 2",
+            "P1\tOTHER1\tGENE2\tProtein 1",
+            "P2\tOTHER2\tGENE2\tProtein 2",
         ]
 
-        assert _parse_search_rows(lines, "NOTCH3") == ("P1", "Protein 1")
+        assert _parse_search_rows(lines, "GENE2") == ("P1", "Protein 1")
 
 
 # ---------------------------------------------------------------------------
@@ -475,16 +475,18 @@ class TestFetchUniProtInfo:
     async def test_cache_hit(self):
         import pipeline.uniprot_fetch as mod
 
-        cached = UniProtInfo("NOTCH3", "P12345", "Notch 3", None, None, None, "url")
-        mod._uniprot_cache["NOTCH3"] = cached
+        cached = UniProtInfo(
+            "GENE2", "P12345", "Protein 2 short", None, None, None, "url"
+        )
+        mod._uniprot_cache["GENE2"] = cached
 
-        result = await fetch_uniprot_info("NOTCH3")
+        result = await fetch_uniprot_info("GENE2")
         assert result is cached
 
     async def test_cache_miss_fetches_and_caches(self, mocker):
         mocker.patch(
             "pipeline.uniprot_fetch._fetch_uniprot_accession_status",
-            return_value=("P12345", "Notch 3", True),
+            return_value=("P12345", "Protein 2 short", True),
         )
         mocker.patch(
             "pipeline.uniprot_fetch.fetch_uniprot_go_info",
@@ -495,14 +497,14 @@ class TestFetchUniProtInfo:
             },
         )
 
-        result = await fetch_uniprot_info("NOTCH3")
+        result = await fetch_uniprot_info("GENE2")
         assert result is not None
         assert result.accession == "P12345"
         assert result.url == "https://www.uniprot.org/uniprotkb/P12345/entry"
 
         import pipeline.uniprot_fetch as mod
 
-        assert "NOTCH3" in mod._uniprot_cache
+        assert "GENE2" in mod._uniprot_cache
 
     async def test_a_go_transport_failure_is_a_transient_miss(self, mocker):
         """An accession with no GO answer must not become a 30-day row.
@@ -513,13 +515,13 @@ class TestFetchUniProtInfo:
         """
         mocker.patch(
             "pipeline.uniprot_fetch._fetch_uniprot_accession_status",
-            return_value=("P12345", "Notch 3", True),
+            return_value=("P12345", "Protein 2 short", True),
         )
         mocker.patch(
             "pipeline.uniprot_fetch.fetch_uniprot_go_info", return_value=None
         )
 
-        result = await fetch_uniprot_info("NOTCH3")
+        result = await fetch_uniprot_info("GENE2")
 
         assert result is not None
         assert result.accession is None
@@ -556,7 +558,7 @@ class TestFetchUniProtInfo:
             nonlocal accession_calls
             accession_calls += 1
             await asyncio.sleep(0)
-            return "P12345", "Notch 3", True
+            return "P12345", "Protein 2 short", True
 
         mocker.patch(
             "pipeline.uniprot_fetch._fetch_uniprot_accession_status",
@@ -572,11 +574,11 @@ class TestFetchUniProtInfo:
         )
 
         results = await asyncio.gather(
-            *(fetch_uniprot_info("NOTCH3") for _ in range(10))
+            *(fetch_uniprot_info("GENE2") for _ in range(10))
         )
         assert all(r is not None and r.accession == "P12345" for r in results)
         assert accession_calls == 1
-        assert "NOTCH3" in mod._uniprot_cache
+        assert "GENE2" in mod._uniprot_cache
 
 
 # ---------------------------------------------------------------------------
@@ -622,10 +624,10 @@ class TestSyncUniProtInfo:
     async def test_all_cached(self, mocker):
         mocker.patch(
             "pipeline.database.get_cached_uniprot_info",
-            return_value={"NOTCH3": {}, "HTRA1": {}},
+            return_value={"GENE2": {}, "GENE1": {}},
         )
 
-        result = await sync_uniprot_info(["NOTCH3", "HTRA1"])
+        result = await sync_uniprot_info(["GENE2", "GENE1"])
         assert isinstance(result, SyncResult)
         assert result.fetched == 0
         assert result.cached == 2
@@ -633,9 +635,9 @@ class TestSyncUniProtInfo:
     async def test_fetches_missing_stores_results(self, mocker):
         mocker.patch(
             "pipeline.database.get_cached_uniprot_info",
-            return_value={"NOTCH3": {}},
+            return_value={"GENE2": {}},
         )
-        successful = UniProtInfo("HTRA1", "P99999", "prot", None, None, None, "url")
+        successful = UniProtInfo("GENE1", "P99999", "prot", None, None, None, "url")
         failed = UniProtInfo("FAKE", None, None, None, None, None, None)
         mocker.patch(
             "pipeline.uniprot_fetch.fetch_uniprot_batch",
@@ -646,7 +648,7 @@ class TestSyncUniProtInfo:
             return_value=1,
         )
 
-        result = await sync_uniprot_info(["NOTCH3", "HTRA1", "FAKE"])
+        result = await sync_uniprot_info(["GENE2", "GENE1", "FAKE"])
         assert result.cached == 1
         assert result.fetched == 1
         assert result.failed == 1
@@ -660,7 +662,7 @@ class TestSyncUniProtInfo:
         mocker.patch("pipeline.database.get_cached_uniprot_info", return_value={})
         mocker.patch(
             "pipeline.uniprot_fetch._fetch_uniprot_accession_status",
-            return_value=("Q92743", "HTRA1", True),
+            return_value=("Q92743", "GENE1", True),
         )
         client = AsyncMock()
         client.get.side_effect = httpx.TimeoutException("timeout")
@@ -671,7 +673,7 @@ class TestSyncUniProtInfo:
             "pipeline.database.upsert_uniprot_batch", return_value=0
         )
 
-        result = await sync_uniprot_info(["HTRA1"])
+        result = await sync_uniprot_info(["GENE1"])
 
         mock_upsert.assert_not_called()
         assert result.fetched == 0
@@ -683,7 +685,7 @@ class TestSyncUniProtInfo:
             return_value={},
         )
         transient = UniProtInfo(
-            "HTRA1", None, None, None, None, None, None, cacheable_miss=False
+            "GENE1", None, None, None, None, None, None, cacheable_miss=False
         )
         mocker.patch(
             "pipeline.uniprot_fetch.fetch_uniprot_batch",
@@ -694,6 +696,6 @@ class TestSyncUniProtInfo:
             return_value=0,
         )
 
-        result = await sync_uniprot_info(["HTRA1"])
+        result = await sync_uniprot_info(["GENE1"])
         assert result.failed == 1
         mock_upsert.assert_not_called()

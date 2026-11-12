@@ -139,9 +139,12 @@ and Python through `pipeline/disease.py`, which is stdlib-only so `config.py`
 and `extraction_models.py` can both import it.
 `tests/no_disease_literals_test.ts` and
 `tests/pipeline/test_no_disease_literals.py` scan the code for the manifest's
-own terms and fail on any hit outside a reasoned allow-list. Every measurement
-in this file and in `.claude/rules/pipeline/` is of the cSVD dataset this
-repository was built on.
+own terms and fail on any hit outside a reasoned allow-list. Each scans the
+tests outside the `csvd/` trees the same way, wherever those trees exist: a fork
+has deleted them, and the generic tests it inherits name their own example
+disease, the one `adapt-fork` builds its fork for, so there that scan is
+skipped. Every measurement in this file and in `.claude/rules/pipeline/` is of
+the cSVD dataset this repository was built on.
 
 **The tests that name the disease live in four `csvd/` trees** — `tests/csvd`,
 `tests/pipeline/csvd`, `tests/scripts/csvd` and `e2e/tests/csvd` — and nowhere

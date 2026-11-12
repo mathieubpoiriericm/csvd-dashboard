@@ -16,62 +16,62 @@ from scripts.reconcile_omim import (
 )
 
 _TABLE1 = [
-    {"gene": "HTRA1", "linkToMonogenicDisease": ["600142", "616779"]},
-    {"gene": "LAMB1", "linkToMonogenicDisease": ["(none found)"]},
-    {"gene": "LOX", "linkToMonogenicDisease": ["617168"]},
+    {"gene": "GENE1", "linkToMonogenicDisease": ["600142", "616779"]},
+    {"gene": "GENE2", "linkToMonogenicDisease": ["(none found)"]},
+    {"gene": "GENE3", "linkToMonogenicDisease": ["617168"]},
     # The curated column is free text, not an identifier field: the export
     # mines it with the same six-digit regex this script uses.
-    {"gene": "VCAN", "linkToMonogenicDisease": ["Wagner syndrome (MIM 143200)"]},
-    {"gene": "NBEAL1"},
+    {"gene": "GENE4", "linkToMonogenicDisease": ["Wagner syndrome (MIM 143200)"]},
+    {"gene": "GENE5"},
 ]
 
 _ANNOTATIONS = [
-    {"geneSymbol": "HTRA1", "groupKey": "MONDO:0010829", "omimId": "600142"},
-    {"geneSymbol": "HTRA1", "groupKey": "MONDO:0014768", "omimId": "616779"},
-    {"geneSymbol": "LAMB1", "groupKey": "MONDO:0014369", "omimId": "615191"},
+    {"geneSymbol": "GENE1", "groupKey": "MONDO:0010829", "omimId": "600142"},
+    {"geneSymbol": "GENE1", "groupKey": "MONDO:0014768", "omimId": "616779"},
+    {"geneSymbol": "GENE2", "groupKey": "MONDO:0014369", "omimId": "615191"},
     # A disease ClinVar names with no OMIM number at all.
-    {"geneSymbol": "CST6", "groupKey": "MONDO:0000001", "omimId": None},
+    {"geneSymbol": "GENE6", "groupKey": "MONDO:0000001", "omimId": None},
 ]
 
 
 class TestCuratedOmimIds:
     def test_mines_six_digit_numbers_out_of_prose(self) -> None:
         found = curated_omim_ids(_TABLE1)
-        assert found["VCAN"] == {"143200"}
+        assert found["GENE4"] == {"143200"}
 
     def test_the_sentinel_contributes_nothing(self) -> None:
-        assert curated_omim_ids(_TABLE1)["LAMB1"] == set()
+        assert curated_omim_ids(_TABLE1)["GENE2"] == set()
 
     def test_a_row_with_no_column_at_all_is_empty_not_missing(self) -> None:
         found = curated_omim_ids(_TABLE1)
-        assert found["NBEAL1"] == set()
+        assert found["GENE5"] == set()
 
     def test_every_gene_is_represented(self) -> None:
         assert set(curated_omim_ids(_TABLE1)) == {
-            "HTRA1",
-            "LAMB1",
-            "LOX",
-            "VCAN",
-            "NBEAL1",
+            "GENE1",
+            "GENE2",
+            "GENE3",
+            "GENE4",
+            "GENE5",
         }
 
 
 class TestFetchedOmimIds:
     def test_collects_every_disease_row_for_a_gene(self) -> None:
-        assert fetched_omim_ids(_ANNOTATIONS)["HTRA1"] == {"600142", "616779"}
+        assert fetched_omim_ids(_ANNOTATIONS)["GENE1"] == {"600142", "616779"}
 
     def test_a_disease_with_no_omim_number_leaves_the_gene_present_but_empty(
         self,
     ) -> None:
         """A gene ClinVar answered about is not a gene never fetched."""
         found = fetched_omim_ids(_ANNOTATIONS)
-        assert found["CST6"] == set()
+        assert found["GENE6"] == set()
 
 
 class TestReconcile:
     def test_agreement_is_reported_as_nothing(self) -> None:
         curated_only, fetched_only, differing = reconcile(
-            {"HTRA1": {"600142"}}, {"HTRA1": {"600142"}}
+            {"GENE1": {"600142"}}, {"GENE1": {"600142"}}
         )
         assert (curated_only, fetched_only, differing) == ([], [], [])
 
@@ -80,8 +80,8 @@ class TestReconcile:
             curated_omim_ids(_TABLE1), fetched_omim_ids(_ANNOTATIONS)
         )
 
-        assert [row.gene for row in curated_only] == ["LOX", "VCAN"]
-        assert [row.gene for row in fetched_only] == ["LAMB1"]
+        assert [row.gene for row in curated_only] == ["GENE3", "GENE4"]
+        assert [row.gene for row in fetched_only] == ["GENE2"]
         assert differing == []
 
     def test_a_true_disagreement_is_its_own_class(self) -> None:

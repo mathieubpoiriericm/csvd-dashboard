@@ -168,14 +168,14 @@ export const RUN: PipelineRun = {
     total: 24,
     items: [
       {
-        symbol: "HTRA1",
+        symbol: "GENE1",
         pmid: "20437615",
         confidence: 1,
-        gwasTraits: ["extreme-cSVD"],
-        proteinName: "HtrA serine peptidase 1",
+        gwasTraits: ["extreme-trait"],
+        proteinName: "Protein 1",
         mendelianRandomization: false,
         omicsEvidence: ["MAGMA"],
-        causalEvidenceSummary: "Validated monogenic cause of cSVD.",
+        causalEvidenceSummary: "Validated monogenic cause of the disease.",
         sourceQuote: "The diagnosis is established by molecular testing.",
         citationOnly: false,
       },

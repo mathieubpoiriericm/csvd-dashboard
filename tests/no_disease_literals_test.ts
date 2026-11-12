@@ -1,9 +1,19 @@
 /**
- * No disease term survives in the web code outside disease/.
+ * No disease term survives in the web code outside disease/, nor in the
+ * generic tests.
  *
  * The terms are the manifest's own, so a fork's test scans for *its*
  * disease. Every hit not on the allow-list fails, comments included: a
  * comment naming "the SVD rim" is reworded rather than listed.
+ *
+ * Two scans. The web code (lib/, routes/, islands/, components/) is scanned
+ * everywhere. The tests -- tests/ and the whole e2e/ tree, its helpers,
+ * config, screenshot and perf scripts included -- are scanned only where the
+ * csvd/ trees are: that scan exists to keep the upstream disease's tests
+ * inside them. A fork has deleted those trees, and the generic tests it
+ * inherits name their own example disease on purpose (the adapt wizard's
+ * tests type one in), which is the disease the wizard's check builds its
+ * fork for -- so there the scan is ignored rather than run.
  *
  * The monogenic gene symbols live in disease/pipeline.json, not the web
  * manifest -- `lib/disease/manifest.ts`'s `DiseaseManifest` carries no
@@ -18,6 +28,40 @@ import { walk } from "@std/fs/walk";
 import { manifest } from "../lib/disease.ts";
 
 const ROOTS = ["lib", "routes", "islands", "components"];
+
+// The generic test trees. tests/pipeline and tests/scripts are Python trees
+// with their own scanner, the csvd/ trees are where a test that names the
+// disease belongs, this file names terms in its own self-test, and the rest
+// is installed or generated (the gitignored e2e/ output directories). Each
+// pattern is anchored at the start of the path and also matches the
+// directory itself, so walk() does not descend into it.
+const TEST_ROOTS = ["tests", "e2e"];
+const TEST_EXTS = [".ts", ".tsx", ".mjs"];
+const TEST_SKIPS = [
+  /^tests\/csvd(\/|$)/,
+  /^tests\/pipeline(\/|$)/,
+  /^tests\/scripts(\/|$)/,
+  /^tests\/no_disease_literals_test\.ts$/,
+  /^e2e\/tests\/csvd(\/|$)/,
+  /^e2e\/node_modules(\/|$)/,
+  /^e2e\/test-results(\/|$)/,
+  /^e2e\/playwright-report(\/|$)/,
+  /^e2e\/\.auth(\/|$)/,
+  /^e2e\/perf\/artifacts(\/|$)/,
+];
+
+// The test scan runs only where a csvd/ tree is (see the header). Checked at
+// load so a fork reports the test as ignored rather than passing it empty.
+function isDirectory(path: string): boolean {
+  try {
+    return Deno.statSync(path).isDirectory;
+  } catch (error) {
+    if (error instanceof Deno.errors.NotFound) return false;
+    throw error;
+  }
+}
+const HAS_CSVD_TREE = isDirectory("tests/csvd") ||
+  isDirectory("e2e/tests/csvd");
 
 // (path, regex source) -> why it is allowed. The abbreviation and the short
 // form match as written, so the lower-case `svd` namespaces -- the --svd-
@@ -136,12 +180,54 @@ Deno.test("no disease literal remains in lib/, routes/, islands/ or components/"
   );
 });
 
+Deno.test({
+  name: "no disease literal remains in the generic test trees",
+  ignore: !HAS_CSVD_TREE,
+  fn: async () => {
+    const hits: string[] = [];
+    for (const root of TEST_ROOTS) {
+      const entries = await Array.fromAsync(
+        walk(root, {
+          exts: TEST_EXTS,
+          includeDirs: false,
+          skip: TEST_SKIPS,
+        }),
+      );
+      entries.sort((a, b) => a.path.localeCompare(b.path));
+      for (const entry of entries) {
+        const lines = (await Deno.readTextFile(entry.path)).split("\n");
+        lines.forEach((line, i) => {
+          if (!namesTerm(line)) return;
+          const allowed = ALLOWED.some(([path, pat]) =>
+            path.test(entry.path) && pat.test(line)
+          );
+          if (!allowed) hits.push(`${entry.path}:${i + 1}: ${line.trim()}`);
+        });
+      }
+    }
+    assertEquals(
+      hits,
+      [],
+      "A test that has to name the disease belongs in a csvd/ tree (tests/csvd " +
+        "or e2e/tests/csvd), which a fork deletes. Otherwise use a placeholder " +
+        "(GENE1, Protein 1), derive the value from the manifest or the data, or " +
+        "reword the comment so it names no term; when the text means something " +
+        "else, add an entry to ALLOWED in tests/no_disease_literals_test.ts: " +
+        "the path, a pattern for the line and the reason.",
+    );
+  },
+});
+
 Deno.test("every ALLOWED entry still names a line it excuses", async () => {
   for (const [path, pattern, reason] of ALLOWED) {
     let found = false;
-    for (const root of ROOTS) {
+    for (const root of [...ROOTS, ...TEST_ROOTS]) {
       for await (
-        const entry of walk(root, { exts: [".ts", ".tsx"], includeDirs: false })
+        const entry of walk(root, {
+          exts: ROOTS.includes(root) ? [".ts", ".tsx"] : TEST_EXTS,
+          includeDirs: false,
+          skip: ROOTS.includes(root) ? undefined : TEST_SKIPS,
+        })
       ) {
         if (!path.test(entry.path)) continue;
         const text = await Deno.readTextFile(entry.path);

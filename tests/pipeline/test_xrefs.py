@@ -70,11 +70,11 @@ class TestXrefPrefix:
         assert xref_prefix("") == ""
 
 
-def test_all_three_sources_collapse_to_one_spelling_for_carasil() -> None:
+def test_all_three_sources_collapse_to_one_spelling_for_one_disease() -> None:
     """The property this module exists for.
 
     These are the literal payload values recorded from the three APIs on
-    2026-08-31 for CARASIL. If they do not intersect, nothing downstream can
+    2026-08-31 for one disease. If they do not intersect, nothing downstream can
     join a ClinVar disease to its Orphadata enrichment or its Open Targets
     score.
     """
@@ -115,7 +115,7 @@ class TestLocalIdNormalisation:
     Orphadata returns MONDO local ids both padded and bare. Before this,
     ``MONDO:18831`` and ``MONDO:0018831`` were two different strings for one
     disease -- so Orphadata's MONDO could never join ClinVar's, and the short
-    form was published on HTRA1 where it resolves to nothing.
+    form was published on one gene where it resolves to nothing.
     """
 
     def test_a_short_mondo_id_is_padded_to_the_authority_width(self) -> None:

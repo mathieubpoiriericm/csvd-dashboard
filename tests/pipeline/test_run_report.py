@@ -82,7 +82,7 @@ def _run_data(**overrides: Any) -> dict[str, Any]:
                 "source": "europepmc",
                 "error": None,
                 "gene_count": 2,
-                "genes": [_gene("HTRA1", 1.0), _gene("COL4A1", 0.8)],
+                "genes": [_gene("GENE1", 1.0), _gene("GENE2", 0.8)],
                 "rejected_genes": [
                     {
                         "gene": _gene("POLR2F", 0.6),
@@ -189,8 +189,8 @@ class TestCounts:
                 "inserted": 1,
                 "updated": 0,
                 "held_below_insert_floor": [
-                    {"gene_symbol": "WDR12", "confidence": 0.6},
-                    {"gene_symbol": "CALCRL", "confidence": 0.55},
+                    {"gene_symbol": "GENE3", "confidence": 0.6},
+                    {"gene_symbol": "GENE4", "confidence": 0.55},
                 ],
             }
         )
@@ -207,7 +207,7 @@ class TestCounts:
                 "inserted": 0,
                 "updated": 0,
                 "held_below_insert_floor": [
-                    {"gene_symbol": "COL4A1", "confidence": 0.6}
+                    {"gene_symbol": "GENE2", "confidence": 0.6}
                 ],
             },
             papers_detail=[
@@ -216,7 +216,7 @@ class TestCounts:
                     "source": "europepmc",
                     "fulltext": True,
                     "gene_count": 2,
-                    "genes": [_gene("HTRA1"), _gene("COL4A1", 0.6)],
+                    "genes": [_gene("GENE1"), _gene("GENE2", 0.6)],
                     "rejected_genes": [],
                     "processing_time": 1.0,
                 }
@@ -224,16 +224,16 @@ class TestCounts:
         )
         accepted = [gene.symbol for gene in report.accepted_genes.items]
         rejected = [gene.symbol for gene in report.rejected_genes.items]
-        assert accepted == ["HTRA1"]
-        assert "COL4A1" in rejected
+        assert accepted == ["GENE1"]
+        assert "GENE2" in rejected
         assert set(accepted).isdisjoint(rejected)
 
     def test_a_held_gene_is_matched_under_its_canonical_key(
         self, gene_aliases
     ) -> None:
         # `merge_gene_entries` groups on the canonical key, so a held
-        # member symbol (cSVD's COL4A1) is recorded under the curated label
-        # (COL4A1/2). The extracted symbol has to go through the same
+        # member symbol (GENEA) is recorded under the curated label
+        # (GENEA/B). The extracted symbol has to go through the same
         # mapping, or the gene is listed under both accepted and rejected --
         # the double count this exclusion exists to remove.
         report = _report(
@@ -250,7 +250,7 @@ class TestCounts:
                     "source": "europepmc",
                     "fulltext": True,
                     "gene_count": 2,
-                    "genes": [_gene("HTRA1"), _gene("GENEA", 0.6)],
+                    "genes": [_gene("GENE1"), _gene("GENEA", 0.6)],
                     "rejected_genes": [],
                     "processing_time": 1.0,
                 }
@@ -258,7 +258,7 @@ class TestCounts:
         )
         accepted = [gene.symbol for gene in report.accepted_genes.items]
         rejected = [gene.symbol for gene in report.rejected_genes.items]
-        assert accepted == ["HTRA1"]
+        assert accepted == ["GENE1"]
         # Under the paper's own spelling, as the accepted list names a gene.
         assert rejected == ["GENEA"]
 
@@ -286,12 +286,12 @@ class TestCounts:
                 "inserted": 0,
                 "updated": 0,
                 "held_below_insert_floor": [
-                    {"gene_symbol": "WDR12", "confidence": 0.6}
+                    {"gene_symbol": "GENE3", "confidence": 0.6}
                 ],
             },
         )
         assert report.rejected_genes.truncated
-        assert "WDR12" in [gene.symbol for gene in report.rejected_genes.items]
+        assert "GENE3" in [gene.symbol for gene in report.rejected_genes.items]
 
     def test_a_run_that_wrote_nothing_holds_nothing(self) -> None:
         assert _report().genes.rejected_at_insert_floor == 0
@@ -367,21 +367,21 @@ class TestDetail:
     def test_accepted_genes_are_flattened_across_papers(self) -> None:
         report = _report()
         assert [gene.symbol for gene in report.accepted_genes.items] == [
-            "HTRA1",
-            "COL4A1",
+            "GENE1",
+            "GENE2",
         ]
 
     def test_a_gene_carries_its_evidence_not_just_its_name(self) -> None:
         gene = _report().accepted_genes.items[0]
-        assert gene.source_quote == "A sentence naming HTRA1."
-        assert gene.causal_evidence_summary == "Why HTRA1 qualifies."
+        assert gene.source_quote == "A sentence naming GENE1."
+        assert gene.causal_evidence_summary == "Why GENE1 qualifies."
         assert gene.omics_evidence == ["MAGMA"]
         assert gene.mendelian_randomization is False
 
     def test_a_structured_study_is_published_in_its_wire_form(self) -> None:
         """Prompt v8's studies reach papers_detail as dicts; the report keeps
         publishing strings, so a report stored before v8 still validates."""
-        gene = _gene("HTRA1")
+        gene = _gene("GENE1")
         gene["omics_evidence"] = [
             {
                 "study_type": "TWAS",
@@ -412,11 +412,11 @@ class TestDetail:
                 "inserted": 0,
                 "updated": 0,
                 "held_below_insert_floor": [
-                    {"gene_symbol": "WDR12", "confidence": 0.6}
+                    {"gene_symbol": "GENE3", "confidence": 0.6}
                 ],
             }
         )
-        held = [r for r in report.rejected_genes.items if r.symbol == "WDR12"]
+        held = [r for r in report.rejected_genes.items if r.symbol == "GENE3"]
         assert len(held) == 1
         assert held[0].reasons == [
             "Held below the insert floor: 0.60 < 0.65 (new gene)"
@@ -428,7 +428,7 @@ class TestDetail:
                 "inserted": 0,
                 "updated": 0,
                 "held_below_insert_floor": [
-                    {"gene_symbol": "WDR12", "confidence": 0.6}
+                    {"gene_symbol": "GENE3", "confidence": 0.6}
                 ],
             }
         )
@@ -471,7 +471,7 @@ class TestDetail:
                 "inserted": 0,
                 "updated": 0,
                 "held_below_insert_floor": [
-                    {"gene_symbol": "COL4A1", "confidence": 0.6}
+                    {"gene_symbol": "GENE2", "confidence": 0.6}
                 ],
             },
             papers_detail=[
@@ -480,7 +480,7 @@ class TestDetail:
                     "source": "europepmc",
                     "fulltext": True,
                     "gene_count": 2,
-                    "genes": [_gene("HTRA1"), _gene("COL4A1", 0.6)],
+                    "genes": [_gene("GENE1"), _gene("GENE2", 0.6)],
                     "rejected_genes": [
                         {
                             "gene": _gene("POLR2F", 0.3),
@@ -516,8 +516,8 @@ class TestDetail:
                 "processing_time": 1.0,
             }
             for pmid, genes in (
-                ("1", [_gene("HTRA1"), _gene("WDR12", 0.6), _gene("CALCRL", 0.55)]),
-                ("2", [_gene("CALCRL", 0.5)]),
+                ("1", [_gene("GENE1"), _gene("GENE3", 0.6), _gene("GENE4", 0.55)]),
+                ("2", [_gene("GENE4", 0.5)]),
             )
         ]
         report = _report(
@@ -526,8 +526,8 @@ class TestDetail:
                 "inserted": 0,
                 "updated": 1,
                 "held_below_insert_floor": [
-                    {"gene_symbol": "WDR12", "confidence": 0.6},
-                    {"gene_symbol": "CALCRL", "confidence": 0.55},
+                    {"gene_symbol": "GENE3", "confidence": 0.6},
+                    {"gene_symbol": "GENE4", "confidence": 0.55},
                 ],
             },
             papers_detail=papers,
@@ -537,9 +537,9 @@ class TestDetail:
             for gene in report.rejected_genes.items
         ]
         assert held == [
-            ("WDR12", "1", 0.6),
-            ("CALCRL", "1", 0.55),
-            ("CALCRL", "2", 0.5),
+            ("GENE3", "1", 0.6),
+            ("GENE4", "1", 0.55),
+            ("GENE4", "2", 0.5),
         ]
         assert report.rejected_genes.items[2].reasons == [
             "Held below the insert floor: 0.50 < 0.65 (new gene)"
@@ -559,11 +559,11 @@ class TestDetail:
                 "inserted": 0,
                 "updated": 0,
                 "held_below_insert_floor": [
-                    {"gene_symbol": "WDR12", "confidence": 0.6}
+                    {"gene_symbol": "GENE3", "confidence": 0.6}
                 ],
             }
         )
-        (held,) = [g for g in report.rejected_genes.items if g.symbol == "WDR12"]
+        (held,) = [g for g in report.rejected_genes.items if g.symbol == "GENE3"]
         assert held.pmid is None
         assert report.genes.rejected_at_insert_floor == 1
 
@@ -577,19 +577,19 @@ class TestDetail:
                 "inserted": 0,
                 "updated": 2,
                 "held_below_insert_floor": [],
-                "citation_only": ["COL4A1"],
+                "citation_only": ["GENE2"],
             },
         )
         cited, claimed = (
             next(g for g in report.accepted_genes.items if g.symbol == symbol)
-            for symbol in ("COL4A1", "HTRA1")
+            for symbol in ("GENE2", "GENE1")
         )
         assert cited.citation_only is True
         assert cited.gwas_traits == []
         assert cited.omics_evidence == []
         assert cited.mendelian_randomization is None
         # What the citation is made of stays.
-        assert cited.source_quote == "A sentence naming COL4A1."
+        assert cited.source_quote == "A sentence naming GENE2."
         assert cited.confidence == 0.8
         assert claimed.citation_only is False
         assert claimed.gwas_traits == ["PVWMH"]

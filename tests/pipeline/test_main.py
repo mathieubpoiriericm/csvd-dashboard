@@ -73,8 +73,8 @@ class TestValidateGenesNoneGuard:
 
 class TestSharedPipelineHelpers:
     def test_confidence_filter_partitions_and_counts(self, make_gene_entry):
-        accepted_gene = make_gene_entry(gene_symbol="NOTCH3", confidence=0.9)
-        rejected_gene = make_gene_entry(gene_symbol="HTRA1", confidence=0.4)
+        accepted_gene = make_gene_entry(gene_symbol="GENE1", confidence=0.9)
+        rejected_gene = make_gene_entry(gene_symbol="GENE2", confidence=0.4)
         metrics = PipelineMetrics()
 
         accepted, rejected = _filter_genes_by_confidence(
@@ -90,8 +90,8 @@ class TestSharedPipelineHelpers:
     async def test_extract_and_validate_owns_shared_metrics(
         self, make_gene_entry, mocker
     ):
-        accepted_gene = make_gene_entry(gene_symbol="NOTCH3", confidence=0.9)
-        rejected_gene = make_gene_entry(gene_symbol="HTRA1", confidence=0.4)
+        accepted_gene = make_gene_entry(gene_symbol="GENE1", confidence=0.9)
+        rejected_gene = make_gene_entry(gene_symbol="GENE2", confidence=0.4)
         usage = TokenUsage(input_tokens=100, output_tokens=20)
         mocker.patch(
             "pipeline.main.extract_from_paper",
@@ -173,9 +173,9 @@ class TestPaperResult:
         from pipeline.llm_extraction import GeneEntry
 
         gene = GeneEntry(
-            gene_symbol="NOTCH3",
+            gene_symbol="GENE1",
             confidence=0.9,
-            source_quote="NOTCH3 variants were associated with WMH (p=1e-12).",
+            source_quote="GENE1 variants were associated with WMH (p=1e-12).",
         )
         r = PaperResult(pmid="111", genes=[gene])
         assert len(r.genes) == 1
@@ -509,7 +509,7 @@ class TestRunPipelineBatchMode:
                 "fulltext": False,
             },
         )
-        gene = make_gene_entry(gene_symbol="NOTCH3", pmid="111", confidence=0.9)
+        gene = make_gene_entry(gene_symbol="GENE1", pmid="111", confidence=0.9)
         mock_submit = mocker.patch(
             "pipeline.main.submit_and_collect",
             new_callable=AsyncMock,
@@ -641,7 +641,7 @@ class TestRunPipelineBatchMode:
             return {"text": "paper text", "source": "abstract", "fulltext": False}
 
         mocker.patch("pipeline.main.get_fulltext", side_effect=_get_fulltext)
-        gene = make_gene_entry(gene_symbol="NOTCH3", pmid="222", confidence=0.9)
+        gene = make_gene_entry(gene_symbol="GENE1", pmid="222", confidence=0.9)
         mock_submit = mocker.patch(
             "pipeline.main.submit_and_collect",
             new_callable=AsyncMock,

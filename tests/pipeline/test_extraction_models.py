@@ -17,31 +17,31 @@ from pipeline.extraction_models import (
 
 def test_source_quote_is_required() -> None:
     with pytest.raises(ValidationError, match="source_quote"):
-        GeneEntry.model_validate({"gene_symbol": "NOTCH3", "confidence": 0.9})
+        GeneEntry.model_validate({"gene_symbol": "GENE1", "confidence": 0.9})
 
 
 def test_source_quote_must_not_be_blank() -> None:
     with pytest.raises(ValidationError):
-        GeneEntry(gene_symbol="NOTCH3", confidence=0.9, source_quote="   ")
+        GeneEntry(gene_symbol="GENE1", confidence=0.9, source_quote="   ")
 
 
 def test_a_quoted_entry_validates() -> None:
     entry = GeneEntry(
-        gene_symbol="NOTCH3",
+        gene_symbol="GENE1",
         confidence=0.9,
-        source_quote="NOTCH3 variants were associated with WMH (p=1e-12).",
+        source_quote="GENE1 variants were associated with WMH (p=1e-12).",
     )
-    assert entry.source_quote.startswith("NOTCH3 variants")
+    assert entry.source_quote.startswith("GENE1 variants")
 
 
 class TestGeneEntry:
     def test_minimal_valid_entry(self):
         g = GeneEntry(
-            gene_symbol="NOTCH3",
+            gene_symbol="GENE1",
             confidence=0.9,
-            source_quote="NOTCH3 variants were associated with WMH (p=1e-12).",
+            source_quote="GENE1 variants were associated with WMH (p=1e-12).",
         )
-        assert g.gene_symbol == "NOTCH3"
+        assert g.gene_symbol == "GENE1"
         assert g.confidence == 0.9
         assert g.gwas_trait == []
         assert g.mendelian_randomization is False
@@ -63,11 +63,11 @@ class TestGeneEntry:
 
     def test_whitespace_stripped(self):
         g = GeneEntry(
-            gene_symbol="  NOTCH3  ",
+            gene_symbol="  GENE1  ",
             confidence=0.9,
-            source_quote="NOTCH3 variants were associated with WMH (p=1e-12).",
+            source_quote="GENE1 variants were associated with WMH (p=1e-12).",
         )
-        assert g.gene_symbol == "NOTCH3"
+        assert g.gene_symbol == "GENE1"
 
 
 class TestExtractionResult:
@@ -79,16 +79,16 @@ class TestExtractionResult:
         payload = {
             "genes": [
                 {
-                    "gene_symbol": "NOTCH3",
+                    "gene_symbol": "GENE1",
                     "confidence": 0.85,
                     "source_quote": (
-                        "NOTCH3 variants were associated with WMH (p=1e-12)."
+                        "GENE1 variants were associated with WMH (p=1e-12)."
                     ),
                 }
             ]
         }
         r = ExtractionResult.model_validate(payload)
-        assert r.genes[0].gene_symbol == "NOTCH3"
+        assert r.genes[0].gene_symbol == "GENE1"
 
 
 def test_the_canonical_traits_come_from_the_shared_vocabulary() -> None:
@@ -120,7 +120,7 @@ def _vocabulary() -> dict:
 
 
 def test_a_prompt_spelling_of_a_tracked_trait_is_admitted() -> None:
-    """A spelling the prompt asks for (cSVD's `cerebral-microbleeds`) is admitted.
+    """A spelling the prompt asks for (the disease's own wording) is admitted.
 
     Refusing the prompt's own word turned a model that obeyed the prompt
     into a ValidationError, one retry, and a lost paper. The merge folds
@@ -171,10 +171,10 @@ def test_an_off_vocabulary_trait_is_refused() -> None:
     # some disease's vocabulary may declare.
     with pytest.raises(ValidationError):
         GeneEntry(
-            gene_symbol="NOTCH3",
+            gene_symbol="GENE1",
             confidence=0.9,
             gwas_trait=["not a trait, in any vocabulary"],
-            source_quote="NOTCH3 variants were associated with WMH (p=1e-12).",
+            source_quote="GENE1 variants were associated with WMH (p=1e-12).",
         )
 
 

@@ -1116,7 +1116,7 @@ Deno.test("a maintainer address is one address, checked in linear time", () => {
 Deno.test("a ClinicalTrials.gov term its parser refuses is refused", () => {
   for (
     const term of [
-      "exampleitis (SVD",
+      "exampleitis (ABC",
       'the "example',
       "exampleitis [x]",
       "OR exampleitis",

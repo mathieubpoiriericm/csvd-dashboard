@@ -353,11 +353,11 @@ class TestAnthropicClientExtract:
             genes={
                 "genes": [
                     {
-                        "gene_symbol": "NOTCH3",
+                        "gene_symbol": "GENE1",
                         "confidence": 0.9,
-                        "protein_name": "Notch 3",
+                        "protein_name": "Protein 1",
                         "source_quote": (
-                            "NOTCH3 variants were associated with WMH (p=1e-12)."
+                            "GENE1 variants were associated with WMH (p=1e-12)."
                         ),
                     }
                 ]
@@ -373,10 +373,10 @@ class TestAnthropicClientExtract:
         from pipeline.config import PipelineConfig
 
         genes, usage, _served = await client.extract(
-            "This paper discusses NOTCH3...", "12345678", PipelineConfig(), None
+            "This paper discusses GENE1...", "12345678", PipelineConfig(), None
         )
         assert len(genes) == 1
-        assert genes[0].gene_symbol == "NOTCH3"
+        assert genes[0].gene_symbol == "GENE1"
         assert genes[0].pmid == "12345678"
         assert usage.input_tokens == 500
         assert usage.output_tokens == 200
@@ -739,7 +739,7 @@ class TestAnthropicClientExtract:
             genes={
                 "genes": [
                     {
-                        "gene_symbol": "NOTCH3",
+                        "gene_symbol": "GENE1",
                         "confidence": 0.9,
                         "source_quote": "A sentence the API never cited.",
                     }
@@ -776,7 +776,7 @@ class TestAnthropicClientExtract:
             genes={
                 "genes": [
                     {
-                        "gene_symbol": "NOTCH3",
+                        "gene_symbol": "GENE1",
                         "confidence": 0.9,
                         "source_quote": "A sentence the API never cited.",
                     }
@@ -806,12 +806,12 @@ class TestAnthropicClientExtract:
         citation would delete them; gating on the document does not.
         """
         monkeypatch.setenv("PIPELINE_REQUIRE_VERIFIED_QUOTES", "true")
-        quote = "NOTCH3 variants were associated with WMH (p=1e-12)."
+        quote = "GENE1 variants were associated with WMH (p=1e-12)."
         response = mock_anthropic_response(
             genes={
                 "genes": [
                     {
-                        "gene_symbol": "NOTCH3",
+                        "gene_symbol": "GENE1",
                         "confidence": 0.9,
                         "source_quote": quote,
                     }
@@ -829,7 +829,7 @@ class TestAnthropicClientExtract:
         genes, _, _served = await client.extract(
             f"Intro. {quote} Outro.", "12345678", PipelineConfig(), None
         )
-        assert [g.gene_symbol for g in genes] == ["NOTCH3"]
+        assert [g.gene_symbol for g in genes] == ["GENE1"]
 
     async def test_a_verified_quote_survives_the_gate(
         self, mocker, mock_anthropic_response, monkeypatch, caplog
@@ -841,12 +841,12 @@ class TestAnthropicClientExtract:
         quote that is in fact verbatim -- and under the gate, delete it.
         """
         monkeypatch.setenv("PIPELINE_REQUIRE_VERIFIED_QUOTES", "true")
-        quote = "NOTCH3 variants were associated with WMH (p=1e-12)."
+        quote = "GENE1 variants were associated with WMH (p=1e-12)."
         response = mock_anthropic_response(
             genes={
                 "genes": [
                     {
-                        "gene_symbol": "NOTCH3",
+                        "gene_symbol": "GENE1",
                         "confidence": 0.9,
                         "source_quote": quote,
                     }
@@ -865,7 +865,7 @@ class TestAnthropicClientExtract:
         genes, _, _served = await client.extract(
             quote, "12345678", PipelineConfig(), None
         )
-        assert [g.gene_symbol for g in genes] == ["NOTCH3"]
+        assert [g.gene_symbol for g in genes] == ["GENE1"]
         assert "1/1 quotes verbatim in the paper" in caplog.text
         assert "1/1 matched an API citation span" in caplog.text
 
@@ -881,17 +881,17 @@ class TestAnthropicClientExtract:
         from pipeline.config import PipelineConfig
 
         reset_tally()
-        quote = "NOTCH3 variants were associated with WMH (p=1e-12)."
+        quote = "GENE1 variants were associated with WMH (p=1e-12)."
         response = mock_anthropic_response(
             genes={
                 "genes": [
                     {
-                        "gene_symbol": "NOTCH3",
+                        "gene_symbol": "GENE1",
                         "confidence": 0.9,
                         "source_quote": quote,
                     },
                     {
-                        "gene_symbol": "HTRA1",
+                        "gene_symbol": "GENE2",
                         "confidence": 0.9,
                         "source_quote": "A sentence that is not in the paper.",
                     },
@@ -925,7 +925,7 @@ class TestAnthropicClientExtract:
             genes={
                 "genes": [
                     {
-                        "gene_symbol": "HTRA1",
+                        "gene_symbol": "GENE2",
                         "confidence": 0.9,
                         "source_quote": "A sentence that is not in the paper.",
                     }
@@ -943,7 +943,7 @@ class TestAnthropicClientExtract:
 
         assert genes == []
         assert [gene.gene_symbol for gene in current_tally().dropped("12345678")] == [
-            "HTRA1"
+            "GENE2"
         ]
 
     async def test_no_genes_reports_no_provenance_line(
@@ -1795,13 +1795,13 @@ class TestTransportErrorsAndAccounting:
         # one turn may carry two report_genes calls. Only the first was
         # read; the second's genes vanished with no log line.
         response = mock_anthropic_response(
-            genes={"genes": [{"gene_symbol": "NOTCH3", "confidence": 0.9,
-                              "source_quote": "NOTCH3 was associated with WMH."}]}
+            genes={"genes": [{"gene_symbol": "GENE1", "confidence": 0.9,
+                              "source_quote": "GENE1 was associated with WMH."}]}
         )
         response.content.append(
             MockToolUseBlock(
-                input={"genes": [{"gene_symbol": "HTRA1", "confidence": 0.8,
-                                  "source_quote": "HTRA1 was associated with WMH."}]}
+                input={"genes": [{"gene_symbol": "GENE2", "confidence": 0.8,
+                                  "source_quote": "GENE2 was associated with WMH."}]}
             )
         )
         mock_client = _make_mock_client(response)
@@ -1812,7 +1812,7 @@ class TestTransportErrorsAndAccounting:
             "Paper text", "12345678", PipelineConfig(), None
         )
 
-        assert [g.gene_symbol for g in genes] == ["NOTCH3", "HTRA1"]
+        assert [g.gene_symbol for g in genes] == ["GENE1", "GENE2"]
 
 
 class TestAToolInputWithItsGenesEncodedAsAString:
@@ -1828,7 +1828,7 @@ class TestAToolInputWithItsGenesEncodedAsAString:
 
     # No trait: the trait vocabulary is the disease's, and this module runs
     # unchanged in every fork (scripts/adapt_fork_check.ts), whose
-    # vocabulary does not carry cSVD's.
+    # vocabulary does not carry this one's.
     _GENE = {
         "gene_symbol": "SLC13A3",
         "gwas_trait": [],
@@ -1907,13 +1907,13 @@ class TestAMidStreamFallbackKeepsOnlyTheServingHop:
         response.model = "claude-opus-4-8"
         response.content = [
             SimpleNamespace(type="thinking", thinking="5.5 reasoning"),
-            self._tool("NOTCH3"),
+            self._tool("GENE1"),
             SimpleNamespace(
                 type="fallback",
                 trigger=SimpleNamespace(type="refusal", category="bio"),
             ),
             SimpleNamespace(type="text", text="The genes.", citations=None),
-            self._tool("HTRA1"),
+            self._tool("GENE2"),
         ]
         response.usage.iterations = [
             SimpleNamespace(type="message", model="claude-opus-5-5",
@@ -1933,7 +1933,7 @@ class TestAMidStreamFallbackKeepsOnlyTheServingHop:
         genes, _usage, served = await client.extract(
             "paper text", "12345678", PipelineConfig(), None
         )
-        assert [g.gene_symbol for g in genes] == ["HTRA1"]
+        assert [g.gene_symbol for g in genes] == ["GENE2"]
         assert served == ServedBy(model="claude-opus-4-8", declined="bio")
         # Opus 5.5's reasoning is not saved as Opus 4.8's.
         assert "5.5 reasoning" not in record.call_args.kwargs["thinking"]

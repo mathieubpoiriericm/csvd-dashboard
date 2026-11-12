@@ -185,9 +185,9 @@ class TestPaperResultsToSummaries:
 
     def test_result_with_genes(self):
         gene = GeneEntry(
-            gene_symbol="NOTCH3",
+            gene_symbol="GENE1",
             confidence=0.9,
-            source_quote="NOTCH3 variants were associated with WMH (p=1e-12).",
+            source_quote="GENE1 variants were associated with WMH (p=1e-12).",
         )
         result = MockPaperResult(pmid="222", genes=[gene])
         summaries = _paper_results_to_summaries([result])
@@ -399,8 +399,8 @@ class TestPrintRichSummary:
                         "error": None,
                         "genes": [
                             {
-                                "gene_symbol": "NOTCH3",
-                                "protein_name": "Notch 3",
+                                "gene_symbol": "GENE1",
+                                "protein_name": "Protein 1",
                                 "pmid": "111",
                                 "confidence": 0.9,
                                 "gwas_trait": ["WMH"],
@@ -686,7 +686,7 @@ class TestRejectedGeneSerialization:
             gene_symbol="BAD1",
             confidence=0.2,
             pmid="888",
-            source_quote="BAD1 was tested but showed no association with cSVD.",
+            source_quote="BAD1 was tested but showed no association with the trait.",
         )
         rejected = MockRejectedGene(gene=gene, reasons=["Invalid symbol"])
         result = MockPaperResult(pmid="888", rejected_genes=[rejected])
@@ -719,8 +719,8 @@ class TestPrintRichSummaryWithRejected:
                         "error": None,
                         "genes": [
                             {
-                                "gene_symbol": "NOTCH3",
-                                "protein_name": "Notch 3",
+                                "gene_symbol": "GENE1",
+                                "protein_name": "Protein 1",
                                 "pmid": "123",
                                 "confidence": 0.95,
                                 "gwas_trait": [],

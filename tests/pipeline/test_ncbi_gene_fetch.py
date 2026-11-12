@@ -26,15 +26,15 @@ from pipeline.ncbi_gene_fetch import (
 class TestNCBIGeneInfo:
     def test_field_access(self):
         info = NCBIGeneInfo(
-            gene_symbol="NOTCH3",
+            gene_symbol="GENE2",
             ncbi_uid="4854",
-            description="notch receptor 3",
-            aliases="CADASIL, CASIL",
+            description="protein 2",
+            aliases="ALIAS1, ALIAS2",
         )
-        assert info.gene_symbol == "NOTCH3"
+        assert info.gene_symbol == "GENE2"
         assert info.ncbi_uid == "4854"
-        assert info.description == "notch receptor 3"
-        assert info.aliases == "CADASIL, CASIL"
+        assert info.description == "protein 2"
+        assert info.aliases == "ALIAS1, ALIAS2"
 
     def test_map_location_is_carried(self):
         """The band the phenogram places the gene by."""
@@ -75,28 +75,28 @@ class TestFetchNCBIGeneInfo:
     async def test_cache_hit(self):
         import pipeline.ncbi_gene_fetch as mod
 
-        cached = NCBIGeneInfo("NOTCH3", "4854", "desc", "alias")
-        mod._gene_cache["NOTCH3"] = cached
+        cached = NCBIGeneInfo("GENE2", "4854", "desc", "alias")
+        mod._gene_cache["GENE2"] = cached
 
-        result = await fetch_ncbi_gene_info("NOTCH3")
+        result = await fetch_ncbi_gene_info("GENE2")
         assert result is cached
 
     async def test_cache_case_insensitive(self):
         import pipeline.ncbi_gene_fetch as mod
 
-        cached = NCBIGeneInfo("notch3", "4854", "desc", "alias")
-        mod._gene_cache["NOTCH3"] = cached
+        cached = NCBIGeneInfo("gene2", "4854", "desc", "alias")
+        mod._gene_cache["GENE2"] = cached
 
-        result = await fetch_ncbi_gene_info("notch3")
+        result = await fetch_ncbi_gene_info("gene2")
         assert result is cached
 
     async def test_cache_miss_calls_uncached(self, mocker):
-        expected = NCBIGeneInfo("HTRA1", "5654", "desc", None)
+        expected = NCBIGeneInfo("GENE1", "5654", "desc", None)
         mocker.patch(
             "pipeline.ncbi_gene_fetch._fetch_ncbi_gene_uncached",
             return_value=expected,
         )
-        result = await fetch_ncbi_gene_info("HTRA1")
+        result = await fetch_ncbi_gene_info("GENE1")
         assert result is expected
 
     async def test_none_results_are_cached(self, mocker):
@@ -125,7 +125,7 @@ class TestFetchNCBIGeneInfo:
         import pipeline.ncbi_gene_fetch as mod
 
         clear_ncbi_cache()
-        expected = NCBIGeneInfo("NOTCH3", "4854", "desc", None)
+        expected = NCBIGeneInfo("GENE2", "4854", "desc", None)
         call_count = 0
 
         async def slow_fetch(symbol: str) -> NCBIGeneInfo:
@@ -143,11 +143,11 @@ class TestFetchNCBIGeneInfo:
         )
 
         results = await asyncio.gather(
-            *(fetch_ncbi_gene_info("NOTCH3") for _ in range(10))
+            *(fetch_ncbi_gene_info("GENE2") for _ in range(10))
         )
         assert all(r is expected for r in results)
         assert call_count == 1
-        assert mod._gene_cache["NOTCH3"] is expected
+        assert mod._gene_cache["GENE2"] is expected
 
 
 # ---------------------------------------------------------------------------
@@ -166,7 +166,7 @@ class TestSelectUid:
         """The common case must not pay for a candidate lookup."""
         client = _summary_client(httpx.Response(200, json={}))
 
-        assert await ncbi_http.select_gene_uid(client, "NOTCH3", ["4854"]) == "4854"
+        assert await ncbi_http.select_gene_uid(client, "GENE2", ["4854"]) == "4854"
         client.get.assert_not_called()
 
     async def test_the_first_hit_is_kept_when_it_already_matches(self):
@@ -293,7 +293,7 @@ class TestFetchNCBIGeneUncached:
             200,
             json={"esearchresult": {"count": "1", "idlist": ["4854"]}},
         )
-        summary_info = NCBIGeneInfo("NOTCH3", "4854", "notch receptor 3", "CADASIL")
+        summary_info = NCBIGeneInfo("GENE2", "4854", "protein 2", "ALIAS1")
 
         mock_client = AsyncMock()
         mock_client.get = AsyncMock(return_value=search_resp)
@@ -306,7 +306,7 @@ class TestFetchNCBIGeneUncached:
             return_value=summary_info,
         )
 
-        result = await _fetch_ncbi_gene_uncached("NOTCH3")
+        result = await _fetch_ncbi_gene_uncached("GENE2")
         assert result is summary_info
 
     async def test_the_search_asks_for_every_candidate(self, mocker):
@@ -396,7 +396,7 @@ class TestFetchNCBIGeneUncached:
         assert result.description == "arylsulfatase B"
 
     async def test_a_renamed_symbol_still_resolves(self, mocker):
-        """C6orf195 is obsolete and NCBI answers with LINC01600.
+        """OLDGENE1 is obsolete and NCBI answers with NEWGENE1.
 
         No returned record carries the searched symbol, so requiring an exact
         match would lose the gene entirely. The first hit is the right answer
@@ -413,11 +413,11 @@ class TestFetchNCBIGeneUncached:
                     "result": {
                         "uids": ["154386"],
                         "154386": {
-                            "name": "LINC01600",
+                            "name": "NEWGENE1",
                             "description": (
-                                "long independently transcribed non-coding RNA 1600"
+                                "replacement for the retired gene"
                             ),
-                            "otheraliases": "C6orf195",
+                            "otheraliases": "OLDGENE1",
                         },
                     }
                 },
@@ -435,7 +435,7 @@ class TestFetchNCBIGeneUncached:
             return_value=mock_client,
         )
 
-        result = await _fetch_ncbi_gene_uncached("C6orf195")
+        result = await _fetch_ncbi_gene_uncached("OLDGENE1")
 
         assert result is not None
         assert result.ncbi_uid == "154386"
@@ -523,7 +523,7 @@ class TestFetchNCBIGeneUncached:
             return_value=mock_client,
         )
 
-        result = await _fetch_ncbi_gene_uncached("NOTCH3")
+        result = await _fetch_ncbi_gene_uncached("GENE2")
         assert result is None
 
     async def test_timeout_returns_none(self, mocker):
@@ -534,7 +534,7 @@ class TestFetchNCBIGeneUncached:
             return_value=mock_client,
         )
 
-        result = await _fetch_ncbi_gene_uncached("NOTCH3")
+        result = await _fetch_ncbi_gene_uncached("GENE2")
         assert result is None
 
     async def test_request_error_returns_none(self, mocker):
@@ -545,7 +545,7 @@ class TestFetchNCBIGeneUncached:
             return_value=mock_client,
         )
 
-        result = await _fetch_ncbi_gene_uncached("NOTCH3")
+        result = await _fetch_ncbi_gene_uncached("GENE2")
         assert result is None
 
     async def test_key_error_in_json_returns_none(self, mocker):
@@ -557,7 +557,7 @@ class TestFetchNCBIGeneUncached:
             return_value=mock_client,
         )
 
-        result = await _fetch_ncbi_gene_uncached("NOTCH3")
+        result = await _fetch_ncbi_gene_uncached("GENE2")
         assert result is None
 
 
@@ -573,8 +573,8 @@ class TestFetchGeneSummary:
             json={
                 "result": {
                     "4854": {
-                        "description": "notch receptor 3",
-                        "otheraliases": "CADASIL, CASIL",
+                        "description": "protein 2",
+                        "otheraliases": "ALIAS1, ALIAS2",
                     }
                 }
             },
@@ -586,11 +586,11 @@ class TestFetchGeneSummary:
             return_value=mock_client,
         )
 
-        result = await _fetch_gene_summary("NOTCH3", "4854")
+        result = await _fetch_gene_summary("GENE2", "4854")
         assert result is not None
         assert result.ncbi_uid == "4854"
-        assert result.description == "notch receptor 3"
-        assert result.aliases == "CADASIL, CASIL"
+        assert result.description == "protein 2"
+        assert result.aliases == "ALIAS1, ALIAS2"
 
     async def test_error_field_in_response(self, mocker):
         resp = httpx.Response(
@@ -604,7 +604,7 @@ class TestFetchGeneSummary:
             return_value=mock_client,
         )
 
-        result = await _fetch_gene_summary("NOTCH3", "4854")
+        result = await _fetch_gene_summary("GENE2", "4854")
         assert result is None
 
     async def test_missing_gene_data(self, mocker):
@@ -616,7 +616,7 @@ class TestFetchGeneSummary:
             return_value=mock_client,
         )
 
-        result = await _fetch_gene_summary("NOTCH3", "4854")
+        result = await _fetch_gene_summary("GENE2", "4854")
         assert result is None
 
     async def test_timeout(self, mocker):
@@ -627,7 +627,7 @@ class TestFetchGeneSummary:
             return_value=mock_client,
         )
 
-        result = await _fetch_gene_summary("NOTCH3", "4854")
+        result = await _fetch_gene_summary("GENE2", "4854")
         assert result is None
 
     async def test_non_200_returns_none(self, mocker):
@@ -637,7 +637,7 @@ class TestFetchGeneSummary:
             "pipeline.ncbi_gene_fetch._client_manager.get", return_value=client
         )
 
-        assert await _fetch_gene_summary("NOTCH3", "4854") is None
+        assert await _fetch_gene_summary("GENE2", "4854") is None
 
     async def test_request_error_returns_none(self, mocker):
         client = AsyncMock()
@@ -646,7 +646,7 @@ class TestFetchGeneSummary:
             "pipeline.ncbi_gene_fetch._client_manager.get", return_value=client
         )
 
-        assert await _fetch_gene_summary("NOTCH3", "4854") is None
+        assert await _fetch_gene_summary("GENE2", "4854") is None
 
     async def test_invalid_json_returns_none(self, mocker):
         client = AsyncMock()
@@ -655,7 +655,7 @@ class TestFetchGeneSummary:
             "pipeline.ncbi_gene_fetch._client_manager.get", return_value=client
         )
 
-        assert await _fetch_gene_summary("NOTCH3", "4854") is None
+        assert await _fetch_gene_summary("GENE2", "4854") is None
 
 
 async def test_close_ncbi_client(mocker):
@@ -712,9 +712,9 @@ class TestSyncNCBIGeneInfo:
     async def test_all_cached(self, mocker):
         mocker.patch(
             "pipeline.database.get_cached_ncbi_genes",
-            return_value={"NOTCH3": {}, "HTRA1": {}},
+            return_value={"GENE2": {}, "GENE1": {}},
         )
-        result = await sync_ncbi_gene_info(["NOTCH3", "HTRA1"])
+        result = await sync_ncbi_gene_info(["GENE2", "GENE1"])
         assert isinstance(result, SyncResult)
         assert result.fetched == 0
         assert result.cached == 2
@@ -722,9 +722,9 @@ class TestSyncNCBIGeneInfo:
     async def test_mix_cached_and_new(self, mocker):
         mocker.patch(
             "pipeline.database.get_cached_ncbi_genes",
-            return_value={"NOTCH3": {}},
+            return_value={"GENE2": {}},
         )
-        fetched = NCBIGeneInfo("HTRA1", "5654", "desc", None)
+        fetched = NCBIGeneInfo("GENE1", "5654", "desc", None)
         mocker.patch(
             "pipeline.ncbi_gene_fetch.fetch_ncbi_genes_batch",
             return_value=[fetched],
@@ -734,7 +734,7 @@ class TestSyncNCBIGeneInfo:
             return_value=1,
         )
 
-        result = await sync_ncbi_gene_info(["NOTCH3", "HTRA1"])
+        result = await sync_ncbi_gene_info(["GENE2", "GENE1"])
         assert result.cached == 1
         assert result.fetched == 1
         assert result.failed == 0
@@ -767,7 +767,7 @@ class TestSyncNCBIGeneInfo:
             "pipeline.database.get_cached_ncbi_genes",
             return_value={},
         )
-        transient = NCBIGeneInfo("HTRA1", None, None, None, cacheable_miss=False)
+        transient = NCBIGeneInfo("GENE1", None, None, None, cacheable_miss=False)
         mocker.patch(
             "pipeline.ncbi_gene_fetch.fetch_ncbi_genes_batch",
             return_value=[transient],
@@ -777,7 +777,7 @@ class TestSyncNCBIGeneInfo:
             return_value=0,
         )
 
-        result = await sync_ncbi_gene_info(["HTRA1"])
+        result = await sync_ncbi_gene_info(["GENE1"])
         assert result.failed == 1
         mock_upsert.assert_not_called()
 

@@ -116,15 +116,15 @@ class TestTitleCase:
     @pytest.mark.parametrize(
         ("title", "expected"),
         [
-            ("ICA1L variants in SVD", "ICA1L variants in SVD"),
-            ("CADASIL. A review", "CADASIL. A review"),
+            ("GENE1 variants in the disease", "GENE1 variants in the disease"),
+            ("ACRONYM. A review", "ACRONYM. A review"),
             ("GWAS of white matter", "GWAS of white matter"),
         ],
     )
     def test_keeps_the_rest_of_the_first_word(self, title, expected):
         # str.capitalize() lowercases everything after the first letter, so
         # a gene symbol or acronym leading the title was published as
-        # "Ica1l" and "Cadasil." (committed refs.json carried both).
+        # "Gene1" or "Acronym." (committed refs.json carried both kinds).
         assert _title_case(title) == expected
 
 
@@ -180,7 +180,7 @@ _FULL_ARTICLE_XML = b"""<?xml version="1.0"?>
   <PubmedArticle>
     <MedlineCitation>
       <Article>
-        <ArticleTitle>Gene discovery in SVD</ArticleTitle>
+        <ArticleTitle>Gene discovery in disease</ArticleTitle>
         <Journal>
           <Title>Nature Genetics</Title>
         </Journal>
@@ -210,7 +210,7 @@ class TestParsePubmedXml:
         result = _parse_pubmed_xml("12345678", _FULL_ARTICLE_XML)
         assert result is not None
         assert result.pmid == "12345678"
-        assert result.title == "Gene discovery in SVD"
+        assert result.title == "Gene discovery in disease"
         assert result.journal == "Nature Genetics"
         assert result.doi == "10.1038/test"
         assert result.authors is not None
@@ -317,7 +317,7 @@ class TestParsePubmedXml:
           <ArticleId IdType="doi">10.1000/chapter</ArticleId>
         </ArticleIdList>
         <Book><BookTitle>GeneReviews</BookTitle></Book>
-        <ArticleTitle>CADASIL</ArticleTitle>
+        <ArticleTitle>ACRONYM</ArticleTitle>
         </BookDocument></PubmedBookArticle></PubmedArticleSet>"""
 
         result = _parse_pubmed_xml("1", xml)
@@ -345,14 +345,14 @@ class TestParsePubmedXml:
         # stops at the first child element, so the committed refs.json held
         # "Extension of the ... End-Truncating" with the gene cut off.
         xml = b"""<PubmedArticleSet><PubmedArticle><MedlineCitation><Article>
-        <ArticleTitle>Spectrum of end-truncating <i>NOTCH3</i> variants.</ArticleTitle>
+        <ArticleTitle>Spectrum of end-truncating <i>GENE1</i> variants.</ArticleTitle>
         <Journal><Title>Journal of <i>Rare</i> Diseases</Title></Journal>
         </Article></MedlineCitation></PubmedArticle></PubmedArticleSet>"""
 
         result = _parse_pubmed_xml("44444444", xml)
 
         assert result is not None
-        assert result.title == "Spectrum of end-truncating NOTCH3 variants."
+        assert result.title == "Spectrum of end-truncating GENE1 variants."
         assert result.journal == "Journal of Rare Diseases"
 
     def test_book_chapter_is_a_citation(self):
@@ -371,7 +371,7 @@ class TestParsePubmedXml:
             <Author><LastName>Adam</LastName><Initials>MP</Initials></Author>
           </AuthorList>
         </Book>
-        <ArticleTitle>CADASIL</ArticleTitle>
+        <ArticleTitle>ACRONYM</ArticleTitle>
         <AuthorList Type="authors">
           <Author><LastName>Hack</LastName><Initials>RJ</Initials></Author>
           <Author><LastName>Rutten</LastName><Initials>J</Initials></Author>
@@ -381,7 +381,7 @@ class TestParsePubmedXml:
         result = _parse_pubmed_xml("20301673", xml)
 
         assert result is not None
-        assert result.title == "CADASIL"
+        assert result.title == "ACRONYM"
         assert result.journal == "GeneReviews"
         assert result.authors == "Hack RJ, Rutten J"
         assert result.publication_date == "1993"
@@ -552,7 +552,7 @@ class TestFetchPubmedUncached:
         result = await _fetch_pubmed_uncached("12345678")
         assert result is not None
         assert result.pmid == "12345678"
-        assert result.title == "Gene discovery in SVD"
+        assert result.title == "Gene discovery in disease"
 
 
 # ---------------------------------------------------------------------------
@@ -564,7 +564,7 @@ _PREPRINT_DOI = "10.21203/rs.3.rs-5926137/v1"
 _PREPRINT_RECORD = {
     "source": "PPR",
     "doi": _PREPRINT_DOI,
-    "title": "Genomics of diffusion-imaging <in> SVD",
+    "title": "Genomics of diffusion-imaging <in> disease",
     "authorList": {
         "author": [
             {"lastName": "Debette", "initials": "S"},

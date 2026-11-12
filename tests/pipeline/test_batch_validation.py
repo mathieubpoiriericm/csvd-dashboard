@@ -5,11 +5,11 @@ from pipeline.llm_extraction import GeneEntry
 
 
 def _make_entry(
-    gene_symbol: str = "NOTCH3",
+    gene_symbol: str = "GENE1",
     confidence: float = 0.85,
-    protein_name: str | None = "Notch 3",
+    protein_name: str | None = "Protein 1",
     pmid: str = "12345678",
-    source_quote: str = "NOTCH3 variants were associated with WMH (p=1e-12).",
+    source_quote: str = "GENE1 variants were associated with WMH (p=1e-12).",
 ) -> GeneEntry:
     return GeneEntry(
         gene_symbol=gene_symbol,
@@ -27,7 +27,7 @@ class TestBatchValidateEmpty:
 
 class TestPanderaSchema:
     def test_valid_entries_pass(self):
-        genes = [_make_entry(), _make_entry(gene_symbol="HTRA1")]
+        genes = [_make_entry(), _make_entry(gene_symbol="GENE2")]
         warnings = batch_validate(genes)
         # Should pass all checks with normal data
         schema_warnings = [w for w in warnings if "Schema" in w]
@@ -44,8 +44,8 @@ class TestPanderaSchema:
 class TestGeneDuplication:
     def test_no_duplication_warning(self):
         genes = [
-            _make_entry(gene_symbol="NOTCH3", pmid="111"),
-            _make_entry(gene_symbol="HTRA1", pmid="222"),
+            _make_entry(gene_symbol="GENE1", pmid="111"),
+            _make_entry(gene_symbol="GENE2", pmid="222"),
         ]
         warnings = batch_validate(genes)
         dup_warnings = [w for w in warnings if "extracted from" in w]
@@ -54,15 +54,15 @@ class TestGeneDuplication:
     def test_duplication_warning_at_threshold(self):
         """Gene in exactly 4 papers should trigger warning (>3)."""
         genes = [
-            _make_entry(gene_symbol="NOTCH3", pmid=f"1111111{i}") for i in range(4)
+            _make_entry(gene_symbol="GENE1", pmid=f"1111111{i}") for i in range(4)
         ]
         warnings = batch_validate(genes)
-        assert any("NOTCH3" in w and "4 different papers" in w for w in warnings)
+        assert any("GENE1" in w and "4 different papers" in w for w in warnings)
 
     def test_no_warning_at_3_papers(self):
         """Gene in exactly 3 papers should NOT trigger warning."""
         genes = [
-            _make_entry(gene_symbol="NOTCH3", pmid=f"1111111{i}") for i in range(3)
+            _make_entry(gene_symbol="GENE1", pmid=f"1111111{i}") for i in range(3)
         ]
         warnings = batch_validate(genes)
         dup_warnings = [w for w in warnings if "extracted from" in w]
@@ -71,8 +71,8 @@ class TestGeneDuplication:
     def test_same_pmid_not_counted_twice(self):
         """Same gene + same PMID should count as 1, not 2."""
         genes = [
-            _make_entry(gene_symbol="NOTCH3", pmid="11111111"),
-            _make_entry(gene_symbol="NOTCH3", pmid="11111111"),
+            _make_entry(gene_symbol="GENE1", pmid="11111111"),
+            _make_entry(gene_symbol="GENE1", pmid="11111111"),
         ]
         warnings = batch_validate(genes)
         dup_warnings = [w for w in warnings if "extracted from" in w]

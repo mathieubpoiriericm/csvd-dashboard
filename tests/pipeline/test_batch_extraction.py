@@ -33,12 +33,12 @@ from pipeline.quality_metrics import TokenUsage
 # assert on *which* content ends up under *which* key — not just that the
 # right set of keys exists (a sort-then-zip bug would get the key set right
 # while pairing each key with the wrong entry's content).
-_NOTCH3_GENES = {
+_GENE1_GENES = {
     "genes": [
         {
-            "gene_symbol": "NOTCH3",
+            "gene_symbol": "GENE1",
             "confidence": 0.9,
-            "source_quote": "NOTCH3 variants were significantly associated (p=1e-9).",
+            "source_quote": "GENE1 variants were significantly associated (p=1e-9).",
         }
     ]
 }
@@ -166,13 +166,13 @@ def test_results_are_keyed_by_custom_id_not_position() -> None:
     out = results_by_custom_id(
         [
             _fake_batch_entry("B", _EMPTY_GENES),
-            _fake_batch_entry("A", _NOTCH3_GENES),
+            _fake_batch_entry("A", _GENE1_GENES),
         ]
     )
     assert set(out) == {"A", "B"}
     assert out["B"] == []
     assert len(out["A"]) == 1
-    assert out["A"][0].gene_symbol == "NOTCH3"
+    assert out["A"][0].gene_symbol == "GENE1"
     assert out["A"][0].pmid == "A"
 
 
@@ -255,7 +255,7 @@ async def test_submit_and_collect_handles_scrambled_sdk_result_order(
     async def _fake_results_stream():
         # Submitted as {"A": ..., "B": ...} below; returned B-before-A.
         yield _fake_batch_entry("B", _EMPTY_GENES)
-        yield _fake_batch_entry("A", _NOTCH3_GENES)
+        yield _fake_batch_entry("A", _GENE1_GENES)
 
     mock_client = MagicMock()
     mock_client.messages.batches.create = AsyncMock(return_value=_FakeBatch())
@@ -276,7 +276,7 @@ async def test_submit_and_collect_handles_scrambled_sdk_result_order(
 
     assert out["B"] == []
     assert len(out["A"]) == 1
-    assert out["A"][0].gene_symbol == "NOTCH3"
+    assert out["A"][0].gene_symbol == "GENE1"
     mock_client.close.assert_awaited_once()
 
 
@@ -447,9 +447,9 @@ class TestBatchResultsAreAccountedLikeStreamedOnes:
             {
                 "genes": [
                     {
-                        "gene_symbol": "NOTCH3",
+                        "gene_symbol": "GENE1",
                         "confidence": 0.9,
-                        "source_quote": "NOTCH3 was associated with WMH.",
+                        "source_quote": "GENE1 was associated with WMH.",
                     }
                 ]
             },
@@ -461,13 +461,13 @@ class TestBatchResultsAreAccountedLikeStreamedOnes:
                 {
                     "type": "tool_use",
                     "name": "report_genes",
-                    "input": {"genes": [{"gene_symbol": "HTRA1", "confidence": 0.8,
-                                         "source_quote": "HTRA1 was associated."}]},
+                    "input": {"genes": [{"gene_symbol": "GENE2", "confidence": 0.8,
+                                         "source_quote": "GENE2 was associated."}]},
                 },
             )()
         )
         out = results_by_custom_id([entry], usage=TokenUsage())
-        assert [g.gene_symbol for g in out["1"]] == ["NOTCH3", "HTRA1"]
+        assert [g.gene_symbol for g in out["1"]] == ["GENE1", "GENE2"]
 
 
 class TestBatchReasoningIsAccountedLikeStreamedReasoning:
@@ -598,7 +598,7 @@ class TestBatchProvenance:
     over every gene the batch found.
     """
 
-    _QUOTE = "NOTCH3 variants were significantly associated (p=1e-9)."
+    _QUOTE = "GENE1 variants were significantly associated (p=1e-9)."
 
     def test_a_quote_absent_from_the_paper_is_dropped_when_required(
         self, monkeypatch
@@ -606,7 +606,7 @@ class TestBatchProvenance:
         monkeypatch.setenv("PIPELINE_REQUIRE_VERIFIED_QUOTES", "true")
         reset_tally()
         out = results_by_custom_id(
-            [_fake_batch_entry("1", _NOTCH3_GENES)],
+            [_fake_batch_entry("1", _GENE1_GENES)],
             documents={"1": "A paper that says something else entirely."},
             config=PipelineConfig(),
         )
@@ -618,16 +618,16 @@ class TestBatchProvenance:
             "cited": 0,
             "dropped_unverified": 1,
         }
-        assert [gene.gene_symbol for gene in tally.dropped("1")] == ["NOTCH3"]
+        assert [gene.gene_symbol for gene in tally.dropped("1")] == ["GENE1"]
 
     def test_the_tally_counts_a_verbatim_quote(self) -> None:
         reset_tally()
         out = results_by_custom_id(
-            [_fake_batch_entry("1", _NOTCH3_GENES)],
+            [_fake_batch_entry("1", _GENE1_GENES)],
             documents={"1": f"Background. {self._QUOTE} Methods."},
             config=PipelineConfig(),
         )
-        assert [g.gene_symbol for g in out["1"]] == ["NOTCH3"]
+        assert [g.gene_symbol for g in out["1"]] == ["GENE1"]
         tally = current_tally()
         assert (tally.genes, tally.verbatim, tally.cited) == (1, 1, 0)
 
@@ -637,7 +637,7 @@ class TestBatchProvenance:
         # does, or a resumed batch run restores the genes without the quotes.
         reset_tally()
         results_by_custom_id(
-            [_fake_batch_entry("1", _NOTCH3_GENES)],
+            [_fake_batch_entry("1", _GENE1_GENES)],
             documents={"1": f"Background. {self._QUOTE} Methods."},
             config=PipelineConfig(),
         )
@@ -651,11 +651,11 @@ class TestBatchProvenance:
     def test_an_unverified_quote_is_kept_by_default(self) -> None:
         reset_tally()
         out = results_by_custom_id(
-            [_fake_batch_entry("1", _NOTCH3_GENES)],
+            [_fake_batch_entry("1", _GENE1_GENES)],
             documents={"1": "A paper that says something else entirely."},
             config=PipelineConfig(),
         )
-        assert [g.gene_symbol for g in out["1"]] == ["NOTCH3"]
+        assert [g.gene_symbol for g in out["1"]] == ["GENE1"]
         assert current_tally().verbatim == 0
 
     async def test_submit_and_collect_checks_every_quote_against_its_paper(
@@ -675,7 +675,7 @@ class TestBatchProvenance:
             processing_status = "ended"
 
         async def _fake_results_stream():
-            yield _fake_batch_entry("A", _NOTCH3_GENES)
+            yield _fake_batch_entry("A", _GENE1_GENES)
 
         mock_client = MagicMock()
         mock_client.messages.batches.create = AsyncMock(return_value=_FakeBatch())
@@ -704,6 +704,10 @@ class TestAPendingBatchIsResumed:
     """
 
     _CONFIG = PipelineConfig()
+    # When the recorded batch of a test that compares whole records was
+    # created: `batch_state.load` dates an undated record itself, so only a
+    # dated one comes back as it was saved.
+    _OLD_TS = time.time() - 3600
 
     @staticmethod
     def _sha(pmid: str, text: str) -> str:
@@ -858,7 +862,7 @@ class TestAPendingBatchIsResumed:
         client = self._client(
             mocker,
             monkeypatch,
-            results={"msgbatch_old": [_fake_batch_entry("111", _NOTCH3_GENES)]},
+            results={"msgbatch_old": [_fake_batch_entry("111", _GENE1_GENES)]},
         )
 
         genes = await submit_and_collect(
@@ -887,9 +891,9 @@ class TestAPendingBatchIsResumed:
             monkeypatch,
             results={
                 "msgbatch_old": [
-                    _fake_batch_entry("111", _NOTCH3_GENES, input_tokens=10),
+                    _fake_batch_entry("111", _GENE1_GENES, input_tokens=10),
                     # Outside this run's window: neither returned nor counted.
-                    _fake_batch_entry("222", _NOTCH3_GENES, input_tokens=1000),
+                    _fake_batch_entry("222", _GENE1_GENES, input_tokens=1000),
                 ],
                 "msgbatch_new": [
                     _fake_batch_entry("333", _EMPTY_GENES, input_tokens=5)
@@ -915,7 +919,7 @@ class TestAPendingBatchIsResumed:
         self._client(
             mocker,
             monkeypatch,
-            results={"msgbatch_old": [_fake_batch_entry("111", _NOTCH3_GENES)]},
+            results={"msgbatch_old": [_fake_batch_entry("111", _GENE1_GENES)]},
         )
         reused: set[str] = set()
 
@@ -931,9 +935,10 @@ class TestAPendingBatchIsResumed:
         """A second crash must lose neither: the reused batch is still paid
         for and still uncollected until the caller clears the file."""
         path = str(tmp_path / "pending.json")
-        self._record(
-            path, PendingBatch("msgbatch_old", {"111": self._sha("111", "t1")})
+        old = PendingBatch(
+            "msgbatch_old", {"111": self._sha("111", "t1")}, self._OLD_TS
         )
+        self._record(path, old)
         client = self._client(mocker, monkeypatch, results={})
         client.messages.batches.retrieve.side_effect = [
             MagicMock(id="msgbatch_old", processing_status="in_progress"),
@@ -947,7 +952,7 @@ class TestAPendingBatchIsResumed:
 
         assert self._submitted(client) == ["333"]
         assert self._loaded(path) == [
-            PendingBatch("msgbatch_old", {"111": self._sha("111", "t1")}),
+            old,
             PendingBatch(
                 "msgbatch_new", {"333": self._sha("333", "t3")}, client.created_ts
             ),
@@ -957,9 +962,10 @@ class TestAPendingBatchIsResumed:
         self, tmp_path, mocker, monkeypatch
     ) -> None:
         path = str(tmp_path / "pending.json")
-        self._record(
-            path, PendingBatch("msgbatch_old", {"111": self._sha("111", "old text")})
+        old = PendingBatch(
+            "msgbatch_old", {"111": self._sha("111", "old text")}, self._OLD_TS
         )
+        self._record(path, old)
         client = self._client(mocker, monkeypatch, results={})
 
         await submit_and_collect({"111": "new text"}, self._CONFIG, state_path=path)
@@ -971,7 +977,7 @@ class TestAPendingBatchIsResumed:
         # Still on record: the caller forgets 111 once it is stored, not
         # this function on the strength of a changed hash.
         assert self._loaded(path) == [
-            PendingBatch("msgbatch_old", {"111": self._sha("111", "old text")}),
+            old,
             PendingBatch(
                 "msgbatch_new", {"111": self._sha("111", "new text")}, client.created_ts
             ),
@@ -986,6 +992,7 @@ class TestAPendingBatchIsResumed:
         wide = PendingBatch(
             "msgbatch_wide",
             {"111": self._sha("111", "t1"), "222": self._sha("222", "t2")},
+            self._OLD_TS,
         )
         self._record(path, wide)
         client = self._client(mocker, monkeypatch, results={})
@@ -1007,12 +1014,13 @@ class TestAPendingBatchIsResumed:
         wide = PendingBatch(
             "msgbatch_wide",
             {"111": self._sha("111", "t1"), "222": self._sha("222", "t2")},
+            self._OLD_TS,
         )
         self._record(path, wide)
         client = self._client(
             mocker,
             monkeypatch,
-            results={"msgbatch_wide": [_fake_batch_entry("111", _NOTCH3_GENES)]},
+            results={"msgbatch_wide": [_fake_batch_entry("111", _GENE1_GENES)]},
         )
 
         genes = await submit_and_collect(
@@ -1040,7 +1048,7 @@ class TestAPendingBatchIsResumed:
         client = self._client(
             mocker,
             monkeypatch,
-            results={"msgbatch_old": [_fake_batch_entry("111", _NOTCH3_GENES)]},
+            results={"msgbatch_old": [_fake_batch_entry("111", _GENE1_GENES)]},
         )
         client.messages.batches.retrieve.side_effect = [
             MagicMock(id="msgbatch_old", processing_status="in_progress"),
@@ -1054,7 +1062,7 @@ class TestAPendingBatchIsResumed:
 
         assert client.messages.batches.create.call_count == 0
         assert client.messages.batches.retrieve.call_count == 3
-        assert [g.gene_symbol for g in genes["111"]] == ["NOTCH3"]
+        assert [g.gene_symbol for g in genes["111"]] == ["GENE1"]
         assert [p.batch_id for p in self._loaded(path)] == ["msgbatch_old"]
 
     async def test_a_record_that_cannot_be_written_does_not_end_the_run(
@@ -1066,7 +1074,7 @@ class TestAPendingBatchIsResumed:
         self._client(
             mocker,
             monkeypatch,
-            results={"msgbatch_new": [_fake_batch_entry("111", _NOTCH3_GENES)]},
+            results={"msgbatch_new": [_fake_batch_entry("111", _GENE1_GENES)]},
         )
         mocker.patch(
             "pipeline.batch_extraction.batch_state.save",

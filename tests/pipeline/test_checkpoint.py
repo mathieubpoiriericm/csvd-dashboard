@@ -232,6 +232,28 @@ class TestRemove:
 
         assert not Path(path).exists()
 
+    def test_an_unvalidated_record_is_kept_until_its_paper_is_merged(
+        self, tmp_path: Path
+    ) -> None:
+        # A rescued `--batch` paper whose validation NCBI did not answer is
+        # stored as an answer still to validate, keyed at `unvalidated.pmid`.
+        # Another paper's prune must not take it, or the next run pays for
+        # the rescue again; its own paper's merge must.
+        path = _path(tmp_path)
+        self._write(path, "111")
+        checkpoint.append(
+            path, _FINGERPRINT, {"unvalidated": {"pmid": "222", "genes": []}}
+        )
+        checkpoint.append(
+            path, _FINGERPRINT, {"unvalidated": {"pmid": "333", "genes": []}}
+        )
+
+        checkpoint.remove(path, {"111", "333"})
+
+        assert checkpoint.load(path, _FINGERPRINT) == [
+            {"unvalidated": {"pmid": "222", "genes": []}}
+        ]
+
     def test_a_file_that_cannot_be_read_is_left_alone(
         self, tmp_path: Path, monkeypatch
     ) -> None:

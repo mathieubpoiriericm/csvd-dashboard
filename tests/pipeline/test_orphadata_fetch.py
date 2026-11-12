@@ -40,8 +40,8 @@ def _xref_payload() -> dict[str, Any]:
                 "Date": "2026-06-23 07:53:50",
                 "ORPHAcode": 199354,
                 "Preferred term": (
-                    "Cerebral autosomal recessive arteriopathy-subcortical "
-                    "infarcts-leukoencephalopathy"
+                    "Disease 1 syndrome, a long preferred term that "
+                    "wraps onto a second line"
                 ),
                 "ExternalReference": [
                     {
@@ -171,7 +171,7 @@ class TestFetchOrphadataDisease:
         assert disease is not None
         assert len(disease.cross_references) == 3
         assert len(disease.phenotypes) == 2
-        assert disease.preferred_term.startswith("Cerebral autosomal recessive")
+        assert disease.preferred_term.startswith("Disease 1 syndrome")
 
     async def test_a_404_is_a_confirmed_absence_not_a_failure(self, mocker) -> None:
         mock_client = AsyncMock()
@@ -222,17 +222,17 @@ class TestOrphacodesByGene:
             AsyncMock(
                 return_value=[
                     {
-                        "gene_symbol": "HTRA1",
+                        "gene_symbol": "GENE1",
                         "object_id": "Orphanet:199354",
                         "group_key": "MONDO:0010829",
                     },
                     {
-                        "gene_symbol": "HTRA1",
+                        "gene_symbol": "GENE1",
                         "object_id": "OMIM:600142",
                         "group_key": "MONDO:0010829",
                     },
                     {
-                        "gene_symbol": "HTRA1",
+                        "gene_symbol": "GENE1",
                         "object_id": "Orphanet:482072",
                         "group_key": "Orphanet:482072",
                     },
@@ -243,7 +243,7 @@ class TestOrphacodesByGene:
         found = await orphacodes_by_gene()
 
         assert found == {
-            "HTRA1": [("199354", "MONDO:0010829"), ("482072", "Orphanet:482072")]
+            "GENE1": [("199354", "MONDO:0010829"), ("482072", "Orphanet:482072")]
         }
 
 
@@ -254,7 +254,7 @@ class TestSyncOrphadataAnnotations:
         """There is no gene entry point, so no ORPHAcode means no enrichment."""
         mocker.patch(
             "pipeline.database.get_annotation_statuses",
-            _statuses(clinvar=_clinvar_answered("FOXF2", row_count=0)),
+            _statuses(clinvar=_clinvar_answered("GENE1", row_count=0)),
         )
         mocker.patch(
             "pipeline.orphadata_fetch.orphacodes_by_gene", AsyncMock(return_value={})
@@ -263,10 +263,10 @@ class TestSyncOrphadataAnnotations:
             "pipeline.database.replace_gene_annotations", AsyncMock(return_value=0)
         )
 
-        result = await sync_orphadata_annotations(["FOXF2"])
+        result = await sync_orphadata_annotations(["GENE1"])
 
         statuses = replace.await_args.args[1]
-        assert [(s.gene_symbol, s.row_count) for s in statuses] == [("FOXF2", 0)]
+        assert [(s.gene_symbol, s.row_count) for s in statuses] == [("GENE1", 0)]
         assert result.failed == 0
 
 
@@ -403,12 +403,12 @@ class TestOrphacodesByGeneDeduplicates:
             AsyncMock(
                 return_value=[
                     {
-                        "gene_symbol": "HTRA1",
+                        "gene_symbol": "GENE1",
                         "object_id": "Orphanet:199354",
                         "group_key": "MONDO:0010829",
                     },
                     {
-                        "gene_symbol": "HTRA1",
+                        "gene_symbol": "GENE1",
                         "object_id": "Orphanet:199354",
                         "group_key": "MONDO:0010829",
                     },
@@ -416,7 +416,7 @@ class TestOrphacodesByGeneDeduplicates:
             ),
         )
 
-        assert await orphacodes_by_gene() == {"HTRA1": [("199354", "MONDO:0010829")]}
+        assert await orphacodes_by_gene() == {"GENE1": [("199354", "MONDO:0010829")]}
 
 
 class TestModuleLifecycle:
@@ -441,10 +441,10 @@ class TestModuleLifecycle:
         assert orphadata._in_flight == {}
 
 
-def _carasil() -> OrphadataDisease:
+def _disease_1() -> OrphadataDisease:
     """ORPHAcode 199354 as the sync sees it: one xref and one phenotype."""
     return OrphadataDisease(
-        preferred_term="CARASIL",
+        preferred_term="Disease 1",
         cross_references=(
             OrphadataReference(
                 object_id="OMIM:600142",
@@ -534,14 +534,14 @@ class TestSyncOrphadataWritesEnrichment:
         mocker.patch(
             "pipeline.database.get_annotation_statuses",
             AsyncMock(
-                return_value={"HTRA1": {"row_count": 7, "source_version": None}}
+                return_value={"GENE1": {"row_count": 7, "source_version": None}}
             ),
         )
         replace = mocker.patch(
             "pipeline.database.replace_gene_annotations", AsyncMock(return_value=0)
         )
 
-        result = await sync_orphadata_annotations(["HTRA1"])
+        result = await sync_orphadata_annotations(["GENE1"])
 
         assert result.cached == 1
         assert result.fetched == 0
@@ -553,21 +553,21 @@ class TestSyncOrphadataWritesEnrichment:
         """The join: Orphadata's rows carry the group_key ClinVar chose."""
         mocker.patch(
             "pipeline.database.get_annotation_statuses",
-            _statuses(clinvar=_clinvar_answered("HTRA1")),
+            _statuses(clinvar=_clinvar_answered("GENE1")),
         )
         mocker.patch(
             "pipeline.orphadata_fetch.orphacodes_by_gene",
-            AsyncMock(return_value={"HTRA1": [("199354", "MONDO:0010829")]}),
+            AsyncMock(return_value={"GENE1": [("199354", "MONDO:0010829")]}),
         )
         mocker.patch(
             "pipeline.orphadata_fetch.fetch_orphadata_disease",
-            AsyncMock(return_value=_carasil()),
+            AsyncMock(return_value=_disease_1()),
         )
         replace = mocker.patch(
             "pipeline.database.replace_gene_annotations", AsyncMock(return_value=2)
         )
 
-        result = await sync_orphadata_annotations(["HTRA1"])
+        result = await sync_orphadata_annotations(["GENE1"])
 
         rows, statuses = replace.await_args.args
         assert [(r.relation, r.object_id, r.group_key) for r in rows] == [
@@ -576,7 +576,7 @@ class TestSyncOrphadataWritesEnrichment:
         ]
         # A cross-reference carries no label of its own, so it inherits the
         # disorder's preferred term; a phenotype keeps the HPO term.
-        assert rows[0].object_label == "CARASIL"
+        assert rows[0].object_label == "Disease 1"
         assert rows[1].object_label == "Spasticity"
         assert statuses[0].row_count == 2
         assert result.failed == 0
@@ -594,11 +594,11 @@ class TestAGeneWithAFailedCode:
         """
         mocker.patch(
             "pipeline.database.get_annotation_statuses",
-            _statuses(clinvar=_clinvar_answered("HTRA1")),
+            _statuses(clinvar=_clinvar_answered("GENE1")),
         )
         mocker.patch(
             "pipeline.orphadata_fetch.orphacodes_by_gene",
-            AsyncMock(return_value={"HTRA1": [("199354", "MONDO:0010829")]}),
+            AsyncMock(return_value={"GENE1": [("199354", "MONDO:0010829")]}),
         )
         mocker.patch(
             "pipeline.orphadata_fetch.fetch_orphadata_disease",
@@ -608,7 +608,7 @@ class TestAGeneWithAFailedCode:
             "pipeline.database.replace_gene_annotations", AsyncMock(return_value=0)
         )
 
-        result = await sync_orphadata_annotations(["HTRA1"])
+        result = await sync_orphadata_annotations(["GENE1"])
 
         rows, statuses = replace.await_args.args
         assert rows == []
@@ -627,13 +627,13 @@ class TestAGeneWithAFailedCode:
         """
         mocker.patch(
             "pipeline.database.get_annotation_statuses",
-            _statuses(clinvar=_clinvar_answered("HTRA1")),
+            _statuses(clinvar=_clinvar_answered("GENE1")),
         )
         mocker.patch(
             "pipeline.orphadata_fetch.orphacodes_by_gene",
             AsyncMock(
                 return_value={
-                    "HTRA1": [
+                    "GENE1": [
                         ("199354", "MONDO:0010829"),
                         ("482072", "Orphanet:482072"),
                     ]
@@ -642,13 +642,13 @@ class TestAGeneWithAFailedCode:
         )
         mocker.patch(
             "pipeline.orphadata_fetch.fetch_orphadata_disease",
-            AsyncMock(side_effect=[_carasil(), None]),
+            AsyncMock(side_effect=[_disease_1(), None]),
         )
         replace = mocker.patch(
             "pipeline.database.replace_gene_annotations", AsyncMock(return_value=0)
         )
 
-        result = await sync_orphadata_annotations(["HTRA1"])
+        result = await sync_orphadata_annotations(["GENE1"])
 
         rows, statuses = replace.await_args.args
         assert rows == []
@@ -666,7 +666,7 @@ class TestAGeneWithAFailedCode:
         """
         mocker.patch(
             "pipeline.database.get_annotation_statuses",
-            _statuses(clinvar=_clinvar_answered("FOXF2", row_count=0)),
+            _statuses(clinvar=_clinvar_answered("GENE1", row_count=0)),
         )
         mocker.patch(
             "pipeline.orphadata_fetch.orphacodes_by_gene", AsyncMock(return_value={})
@@ -675,10 +675,10 @@ class TestAGeneWithAFailedCode:
             "pipeline.database.replace_gene_annotations", AsyncMock(return_value=0)
         )
 
-        result = await sync_orphadata_annotations(["FOXF2"])
+        result = await sync_orphadata_annotations(["GENE1"])
 
         statuses = replace.await_args.args[1]
-        assert [(s.gene_symbol, s.row_count) for s in statuses] == [("FOXF2", 0)]
+        assert [(s.gene_symbol, s.row_count) for s in statuses] == [("GENE1", 0)]
         assert result.failed == 0
 
     async def test_a_gene_clinvar_never_answered_is_not_written(self, mocker) -> None:
@@ -697,18 +697,18 @@ class TestAGeneWithAFailedCode:
             "pipeline.database.replace_gene_annotations", AsyncMock(return_value=0)
         )
 
-        result = await sync_orphadata_annotations(["HTRA1"])
+        result = await sync_orphadata_annotations(["GENE1"])
 
         rows, statuses = replace.await_args.args
         assert rows == []
         assert statuses == []
         assert result.fetched == 0
         assert result.failed == 1
-        assert result.errors == ["Orphadata skipped HTRA1: no ClinVar answer yet"]
+        assert result.errors == ["Orphadata skipped GENE1: no ClinVar answer yet"]
 
     async def test_the_clinvar_status_is_read_at_any_age(self, mocker) -> None:
         """A stale ClinVar answer is still an answer; the TTL is Orphadata's."""
-        statuses = _statuses(clinvar=_clinvar_answered("FOXF2", row_count=0))
+        statuses = _statuses(clinvar=_clinvar_answered("GENE1", row_count=0))
         mocker.patch("pipeline.database.get_annotation_statuses", statuses)
         mocker.patch(
             "pipeline.orphadata_fetch.orphacodes_by_gene", AsyncMock(return_value={})
@@ -717,7 +717,7 @@ class TestAGeneWithAFailedCode:
             "pipeline.database.replace_gene_annotations", AsyncMock(return_value=0)
         )
 
-        await sync_orphadata_annotations(["FOXF2"])
+        await sync_orphadata_annotations(["GENE1"])
 
         clinvar_calls = [
             c for c in statuses.await_args_list if c.args[1] == "clinvar"
@@ -740,11 +740,11 @@ class TestOrphadataFreshnessFollowsClinVar:
         mocker.patch("pipeline.database.get_annotation_statuses", statuses)
         mocker.patch(
             "pipeline.orphadata_fetch.orphacodes_by_gene",
-            AsyncMock(return_value={"HTRA1": [("199354", "MONDO:0010829")]}),
+            AsyncMock(return_value={"GENE1": [("199354", "MONDO:0010829")]}),
         )
         mocker.patch(
             "pipeline.orphadata_fetch.fetch_orphadata_disease",
-            AsyncMock(return_value=_carasil()),
+            AsyncMock(return_value=_disease_1()),
         )
         return mocker.patch(
             "pipeline.database.replace_gene_annotations", AsyncMock(return_value=2)
@@ -757,19 +757,19 @@ class TestOrphadataFreshnessFollowsClinVar:
             mocker,
             _statuses(
                 orphadata=_orphadata_cached(
-                    "HTRA1", updated_at=datetime(2026, 8, 20, 9, 0)
+                    "GENE1", updated_at=datetime(2026, 8, 20, 9, 0)
                 ),
                 clinvar=_clinvar_answered(
-                    "HTRA1", updated_at=datetime(2026, 9, 1, 9, 0)
+                    "GENE1", updated_at=datetime(2026, 9, 1, 9, 0)
                 ),
             ),
         )
 
-        result = await sync_orphadata_annotations(["HTRA1"])
+        result = await sync_orphadata_annotations(["GENE1"])
 
         assert result.fetched == 1
         assert result.cached == 0
-        assert [s.gene_symbol for s in replace.await_args.args[1]] == ["HTRA1"]
+        assert [s.gene_symbol for s in replace.await_args.args[1]] == ["GENE1"]
 
     async def test_an_older_clinvar_status_leaves_the_cache_alone(
         self, mocker
@@ -778,15 +778,15 @@ class TestOrphadataFreshnessFollowsClinVar:
             mocker,
             _statuses(
                 orphadata=_orphadata_cached(
-                    "HTRA1", updated_at=datetime(2026, 9, 1, 9, 1)
+                    "GENE1", updated_at=datetime(2026, 9, 1, 9, 1)
                 ),
                 clinvar=_clinvar_answered(
-                    "HTRA1", updated_at=datetime(2026, 9, 1, 9, 0)
+                    "GENE1", updated_at=datetime(2026, 9, 1, 9, 0)
                 ),
             ),
         )
 
-        result = await sync_orphadata_annotations(["HTRA1"])
+        result = await sync_orphadata_annotations(["GENE1"])
 
         assert (result.fetched, result.cached) == (0, 1)
         replace.assert_not_awaited()
@@ -798,14 +798,14 @@ class TestOrphadataFreshnessFollowsClinVar:
         replace = self._sync_with(
             mocker,
             _statuses(
-                orphadata=_orphadata_cached("HTRA1", updated_at=None),
+                orphadata=_orphadata_cached("GENE1", updated_at=None),
                 clinvar=_clinvar_answered(
-                    "HTRA1", updated_at=datetime(2026, 9, 1, 9, 0)
+                    "GENE1", updated_at=datetime(2026, 9, 1, 9, 0)
                 ),
             ),
         )
 
-        result = await sync_orphadata_annotations(["HTRA1"])
+        result = await sync_orphadata_annotations(["GENE1"])
 
         assert (result.fetched, result.cached) == (0, 1)
         replace.assert_not_awaited()
@@ -817,12 +817,12 @@ class TestOrphadataFreshnessFollowsClinVar:
             mocker,
             _statuses(
                 orphadata=_orphadata_cached(
-                    "HTRA1", updated_at=datetime(2026, 9, 1, 9, 0)
+                    "GENE1", updated_at=datetime(2026, 9, 1, 9, 0)
                 )
             ),
         )
 
-        result = await sync_orphadata_annotations(["HTRA1"])
+        result = await sync_orphadata_annotations(["GENE1"])
 
         assert (result.fetched, result.cached) == (0, 1)
         replace.assert_not_awaited()

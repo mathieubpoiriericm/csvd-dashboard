@@ -25,7 +25,7 @@ const institute = {
  *   the maintainer's address, the first trait and family labels and the one
  *   population, and letters outside ASCII;
  * - a two-letter abbreviation that is also a common code (OMIM's "AD");
- * - a glossary without cSVD's EC, whose first abbreviation holds a space;
+ * - a glossary without the upstream glossary's EC, whose first abbreviation holds a space;
  * - a first trait whose label is not its key, and a last trait keyed with
  *   the micro sign, which upper-casing turns into a Greek mu for good;
  * - one trial population, no condition pair, and a first mechanism filed

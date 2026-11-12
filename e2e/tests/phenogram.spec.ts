@@ -9,7 +9,7 @@ import { tooltip } from "../helpers.ts";
  * polls rather than asserting once. The interactive layer is an HTML list of
  * buttons over the SVG, so the tooltip assertions are the same ones the tables
  * use. Every count is derived from the committed data; the tests that name a
- * cSVD gene or trait are in csvd/phenogram.spec.ts.
+ * gene or trait of the upstream dataset are in csvd/phenogram.spec.ts.
  */
 
 const FIGURE = "svg.phenogram-figure";

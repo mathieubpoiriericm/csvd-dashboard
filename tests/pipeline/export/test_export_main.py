@@ -64,8 +64,8 @@ class TestReadTable:
             return_value=[
                 {
                     "id": 1,
-                    "gene": "LAMB1",
-                    "protein": "LAMB1",
+                    "gene": "GENE2",
+                    "protein": "GENE2",
                     "created_at": "2026-01-01",
                     "updated_at": "2026-01-02",
                 }
@@ -75,7 +75,7 @@ class TestReadTable:
 
         rows = await _read_table("genes")
 
-        assert rows == [{"gene": "LAMB1", "protein": "LAMB1"}]
+        assert rows == [{"gene": "GENE2", "protein": "GENE2"}]
 
     async def test_queries_the_requested_table_by_name(self, mocker) -> None:
         mock_conn = AsyncMock()
@@ -136,34 +136,34 @@ _RAW_GENES: list[dict[str, object]] = [
 # ClinicalTrials.gov discovery has none, and run_export drops it before the
 # cleaner ever sees it -- so every row here carries one.
 _RAW_TRIALS: list[dict[str, object]] = [
-    {"drug": "d1", "target_population": "SVD"},
+    {"drug": "d1", "target_population": "Population A"},
     {"drug": "d2", "target_population": "Stroke"},
 ]
 
-# Duplicate "LAMB1" (rows 0 and 2) and a duplicate PMID ("37063705" in rows
+# Duplicate "GENE2" (rows 0 and 2) and a duplicate PMID ("37063705" in rows
 # 0 and 2) exercise the dict.fromkeys de-duplication in run_export itself.
 # "012345" (leading zero) and "(reference needed)" (non-numeric) must both
 # be filtered out of the PMID list, mirroring export.R's
 # grep("^[1-9][0-9]*$", ...).
 _CLEANED_GENES = [
     {
-        "Gene": "LAMB1",
+        "Gene": "GENE2",
         "References": ["37063705", "(reference needed)"],
         "Link to Monogenic Disease": ["(none found)"],
     },
     {
-        "Gene": "HTRA1",
+        "Gene": "GENE1",
         "References": ["012345", "12345678"],
         "Link to Monogenic Disease": ["600142"],
     },
     {
-        "Gene": "LAMB1",
+        "Gene": "GENE2",
         "References": ["37063705"],
         "Link to Monogenic Disease": ["(none found)"],
     },
 ]
 _CLEANED_TRIALS = [
-    {"Genetic Target": "NOTCH3, HTRA1"},
+    {"Genetic Target": "GENE3, GENE1"},
     {"Genetic Target": "N/A"},
 ]
 
@@ -237,7 +237,7 @@ def _patch_export_dependencies(mocker, *, pubmed_side_effect=None):
     mock_annotations = mocker.patch(
         "pipeline.export.main.read_disease_annotations",
         new_callable=AsyncMock,
-        return_value=[{"gene_symbol": "HTRA1"}],
+        return_value=[{"gene_symbol": "GENE1"}],
     )
     mock_run = mocker.patch(
         "pipeline.export.main.read_pipeline_run",
@@ -280,7 +280,7 @@ class TestRunExport:
         assert sorted(p.name for p in target_dir.iterdir()) == sorted(_STAGED_FILENAMES)
 
         table1 = json.loads((target_dir / "table1.json").read_text())
-        assert [row["gene"] for row in table1] == ["LAMB1", "HTRA1", "LAMB1"]
+        assert [row["gene"] for row in table1] == ["GENE2", "GENE1", "GENE2"]
 
         status = json.loads((target_dir / "pipeline_status.json").read_text())
         assert status == {"runTimestamp": "2026-01-01T00:00:00Z"}
@@ -293,12 +293,12 @@ class TestRunExport:
 
         # gene_symbols: unique Gene values from the cleaned rows, in
         # first-occurrence order.
-        assert mocks["ncbi"].call_args_list[0].args[0] == ["LAMB1", "HTRA1"]
+        assert mocks["ncbi"].call_args_list[0].args[0] == ["GENE2", "GENE1"]
         # targets: split_genetic_targets applied to the REAL (unmocked)
         # function against the cleaned trials' "Genetic Target" column --
         # "N/A" must contribute nothing.
-        assert mocks["ncbi"].call_args_list[1].args[0] == ["NOTCH3", "HTRA1"]
-        assert mocks["uniprot"].call_args_list[0].args[0] == ["LAMB1", "HTRA1"]
+        assert mocks["ncbi"].call_args_list[1].args[0] == ["GENE3", "GENE1"]
+        assert mocks["uniprot"].call_args_list[0].args[0] == ["GENE2", "GENE1"]
         mocks["omim"].assert_called_once_with()
         # Only the entry a published gene links to is published.
         omim = json.loads((target_dir / "omim_info.json").read_text())
@@ -319,7 +319,7 @@ class TestRunExport:
         target_dir = tmp_path / "data"
         target_dir.mkdir()
         committed = target_dir / "gene_annotations.json"
-        committed.write_text('[\n  {\n    "geneSymbol": "HTRA1"\n  }\n]\n')
+        committed.write_text('[\n  {\n    "geneSymbol": "GENE1"\n  }\n]\n')
 
         mocks = _patch_export_dependencies(mocker)
         mocks["annotations"].return_value = []
@@ -327,7 +327,7 @@ class TestRunExport:
         with caplog.at_level(logging.WARNING):
             await run_export(target_dir=target_dir)
 
-        assert committed.read_text() == '[\n  {\n    "geneSymbol": "HTRA1"\n  }\n]\n'
+        assert committed.read_text() == '[\n  {\n    "geneSymbol": "GENE1"\n  }\n]\n'
         assert "--sync-annotations" in caplog.text
         # Every other file was still published.
         assert (target_dir / "table1.json").exists()
@@ -577,7 +577,7 @@ class TestReadCuratedTrials:
     ) -> None:
         rows = [
             {"drug": "Cilostazol", "target_population": "Stroke"},
-            {"drug": "Cerebrolysin", "target_population": "SVD"},
+            {"drug": "Cerebrolysin", "target_population": "Population A"},
         ]
         self._rows(mocker, rows)
 
@@ -614,7 +614,7 @@ async def test_a_gene_with_no_join_rows_keeps_its_null_placeholders(mocker) -> N
     mock_conn = AsyncMock()
     mock_conn.fetch = AsyncMock(
         side_effect=[
-            [{"id": 1, "gene": "HTRA1", "gwas_trait": None, "references": None}],
+            [{"id": 1, "gene": "GENE1", "gwas_trait": None, "references": None}],
             [],  # gene_references
             [],  # gene_gwas_traits
             [],  # gene_monogenic_links
@@ -623,7 +623,7 @@ async def test_a_gene_with_no_join_rows_keeps_its_null_placeholders(mocker) -> N
     _mock_connection(mocker, mock_conn)
 
     assert await _read_genes_with_lists() == [
-        {"gene": "HTRA1", "gwas_trait": None, "references": None}
+        {"gene": "GENE1", "gwas_trait": None, "references": None}
     ]
 
 
@@ -631,7 +631,7 @@ async def test_join_rows_attach_to_their_gene_in_ordinal_order(mocker) -> None:
     mock_conn = AsyncMock()
     mock_conn.fetch = AsyncMock(
         side_effect=[
-            [{"id": 1, "gene": "HTRA1", "references": None}],
+            [{"id": 1, "gene": "GENE1", "references": None}],
             [
                 {"gene_id": 1, "pmid": "33773636"},
                 {"gene_id": 1, "pmid": "33773637"},
@@ -643,7 +643,7 @@ async def test_join_rows_attach_to_their_gene_in_ordinal_order(mocker) -> None:
     _mock_connection(mocker, mock_conn)
 
     assert await _read_genes_with_lists() == [
-        {"gene": "HTRA1", "references": ["33773636", "33773637"]}
+        {"gene": "GENE1", "references": ["33773636", "33773637"]}
     ]
 
 

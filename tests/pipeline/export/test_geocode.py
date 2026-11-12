@@ -47,7 +47,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 
 _STUDY = {
     "protocolSection": {
-        "identificationModule": {"nctId": "NCT05755997", "briefTitle": "CADASIL"},
+        "identificationModule": {"nctId": "NCT05755997", "briefTitle": "ACRONYM"},
         "statusModule": {"overallStatus": "ACTIVE_NOT_RECRUITING"},
         "contactsLocationsModule": {
             "locations": [
@@ -73,7 +73,7 @@ def test_parse_uses_the_geopoint_the_api_already_returns() -> None:
         "city": "Prague",
         "state": None,
         "country": "Czechia",
-        "trialTitle": "CADASIL",
+        "trialTitle": "ACRONYM",
         "status": "ACTIVE_NOT_RECRUITING",
         "lat": 50.08804,
         "lon": 14.42076,

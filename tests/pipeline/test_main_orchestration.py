@@ -3544,7 +3544,8 @@ class TestTheServingModelAndTheRefusal:
     ) -> None:
         # The fallback answered, so its tokens are spent at the streaming
         # rate; NCBI then failed the paper, so the retrying run counts its
-        # quotes and nothing restores it.
+        # quotes and nothing restores it as finished. (Its answer is kept
+        # for that run to validate: `TestARescueNcbiDidNotValidate`.)
         from pipeline.validation import NcbiUnavailableError
 
         async def answer(text, pmid, *, config, rate_limiter, model, declined):
@@ -3589,7 +3590,7 @@ class TestTheServingModelAndTheRefusal:
         records = checkpoint.load(
             config.checkpoint_file, checkpoint.fingerprint(config)
         )
-        assert [r["result"]["pmid"] for r in records] == ["111"]
+        assert [r["result"]["pmid"] for r in records if "result" in r] == ["111"]
 
     async def test_a_batch_keeps_its_state_until_the_rescues_finish(
         self, mocker, tmp_path: Path
@@ -3618,3 +3619,446 @@ class TestTheServingModelAndTheRefusal:
 
         assert seen == [True]
         assert not Path(config.batch_state_file).exists()
+
+
+class TestARescueNcbiDidNotValidate:
+    """A rescued batch paper's answer survives an NCBI outage in validation.
+
+    The rescue is a full-rate request, and the batch's entry for the paper is
+    a refusal, so without a record of the answer the next run paid for a
+    batch entry the primary model declines again and then for a second
+    rescue.
+    """
+
+    _TEXT = "paper text"
+
+    @staticmethod
+    def _rescue_answer(calls: list[str]):
+        async def answer(text, pmid, *, config, rate_limiter, model, declined):
+            calls.append(pmid)
+            # Two genes reached the gate and one was dropped for a quote not
+            # in the paper, as `report_provenance` records them.
+            current_tally().record(genes=2, verbatim=1, cited=1, dropped_unverified=1)
+            current_tally().record_dropped(
+                pmid,
+                [
+                    GeneEntry(
+                        gene_symbol="GENE3",
+                        confidence=0.8,
+                        source_quote="GENE3 is paraphrased.",
+                    )
+                ],
+            )
+            return (
+                [
+                    GeneEntry(
+                        gene_symbol="GENE2",
+                        confidence=0.9,
+                        source_quote="GENE2 is mentioned.",
+                    )
+                ],
+                TokenUsage(input_tokens=700, output_tokens=70),
+                ServedBy(model="claude-opus-4-8", declined=declined),
+            )
+
+        return answer
+
+    @staticmethod
+    def _validate(mocker, *, outage: bool = False, error: Exception | None = None):
+        """Validation that passes GENE1 and fails GENE2 as asked."""
+        from pipeline.validation import NcbiUnavailableError
+
+        seen: list[str] = []
+
+        async def validate(genes, metrics, config):
+            seen.extend(g.gene_symbol for g in genes)
+            if genes and genes[0].gene_symbol == "GENE2":
+                if outage:
+                    raise NcbiUnavailableError("NCBI down")
+                if error is not None:
+                    raise error
+            metrics.genes_validated += len(genes)
+            return genes, []
+
+        mocker.patch("pipeline.main._validate_genes", new=validate)
+        return seen
+
+    def _outage_run(
+        self, mocker, tmp_path: Path, *, use_checkpoint: bool = True
+    ) -> tuple[PipelineConfig, list[PaperResult]]:
+        """Run 1: 222 is declined, rescued, and NCBI does not answer for it."""
+        calls: list[str] = []
+        config = TestTheServingModelAndTheRefusal._refused_batch(
+            mocker, tmp_path, AsyncMock(side_effect=self._rescue_answer(calls))
+        )
+        self._validate(mocker, outage=True)
+        batch_state.save(
+            config.batch_state_file,
+            checkpoint.fingerprint(config),
+            [PendingBatch("msgbatch_old", {"111": "ab", "222": "cd"})],
+        )
+        batch = asyncio.run(
+            pipeline_main._process_new_pmids_via_batch(
+                ["111", "222"],
+                PipelineMetrics(),
+                config,
+                pipeline_main._ProgressReporter(config),
+                use_checkpoint=use_checkpoint,
+            )
+        )
+        assert calls == ["222"]
+        return config, batch.results
+
+    @staticmethod
+    def _records(config: PipelineConfig) -> list[dict]:
+        return checkpoint.load(config.checkpoint_file, checkpoint.fingerprint(config))
+
+    @staticmethod
+    def _unvalidated(config: PipelineConfig) -> list[dict]:
+        return [
+            r["unvalidated"]
+            for r in TestARescueNcbiDidNotValidate._records(config)
+            if "unvalidated" in r
+        ]
+
+    def _second_run(
+        self,
+        mocker,
+        config: PipelineConfig,
+        *,
+        text: str = _TEXT,
+        outage: bool = False,
+        error: Exception | None = None,
+    ):
+        """Run 2 over the same papers; returns what it submitted and extracted."""
+        reset_tally()
+        submitted: list[str] = []
+
+        async def fake_submit(
+            papers, config, *, usage=None, refusals=None, state_path=None, reused=None
+        ):
+            submitted.extend(papers)
+            return {pmid: [] for pmid in papers}
+
+        mocker.patch("pipeline.main.submit_and_collect", new=fake_submit)
+        mocker.patch(
+            "pipeline.main._fetch_paper_text_for_batch",
+            new=AsyncMock(return_value=(text, False, "abstract")),
+        )
+        extract = AsyncMock()
+        mocker.patch("pipeline.main.extract_from_paper", new=extract)
+        validated = self._validate(mocker, outage=outage, error=error)
+        metrics = PipelineMetrics()
+        reporter = pipeline_main._ProgressReporter(config)
+        batch = asyncio.run(
+            pipeline_main._process_new_pmids_via_batch(
+                ["111", "222"], metrics, config, reporter
+            )
+        )
+        return SimpleNamespace(
+            batch=batch,
+            metrics=metrics,
+            submitted=submitted,
+            extract=extract,
+            validated=validated,
+            actions=[a for step in reporter.steps() for a in step.actions],
+            reporter=reporter,
+        )
+
+    def test_the_rescue_s_answer_is_stored_for_the_next_run(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        import hashlib
+
+        config, results = self._outage_run(mocker, tmp_path)
+
+        failed = next(r for r in results if r.pmid == "222")
+        assert not failed.succeeded and failed.error == "NCBI down"
+        [stored] = self._unvalidated(config)
+        assert stored["pmid"] == "222"
+        assert (
+            stored["document_sha256"]
+            == hashlib.sha256(self._TEXT.encode("utf-8")).hexdigest()
+        )
+        assert [g["gene_symbol"] for g in stored["genes"]] == ["GENE2"]
+        assert stored["genes"][0]["pmid"] == "222"
+        assert stored["extraction_model"] == "claude-opus-4-8"
+        assert stored["refusal"] == "bio"
+        assert stored["provenance"] == {
+            "genes": 2,
+            "verbatim": 1,
+            "cited": 1,
+            "dropped_unverified": 1,
+        }
+        assert [g["gene_symbol"] for g in stored["dropped"]] == ["GENE3"]
+        # No usage: the run that paid for the rescue already counts it.
+        assert "result" not in self._records(config)[-1]
+        assert set(stored) == {
+            "pmid",
+            "document_sha256",
+            "genes",
+            "extraction_model",
+            "refusal",
+            "provenance",
+            "dropped",
+        }
+        # The batch's entry for it is a refusal, so it comes off the record.
+        assert not Path(config.batch_state_file).exists()
+        # Still un-counted for this run, as every failed paper is.
+        assert current_tally().genes == 0
+
+    def test_a_dry_run_stores_no_answer(self, mocker, tmp_path: Path) -> None:
+        config, _ = self._outage_run(mocker, tmp_path, use_checkpoint=False)
+
+        assert self._records(config) == []
+
+    def test_the_next_run_validates_the_stored_answer_without_paying_again(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        config, _ = self._outage_run(mocker, tmp_path)
+
+        run = self._second_run(mocker, config)
+
+        run.extract.assert_not_awaited()
+        assert "222" not in run.submitted
+        assert run.validated == ["GENE2"]
+        replayed = next(r for r in run.batch.results if r.pmid == "222")
+        assert replayed.succeeded
+        assert replayed.extraction_model == "claude-opus-4-8"
+        assert replayed.refusal == "bio"
+        assert [g.gene_symbol for g in replayed.genes] == ["GENE2"]
+        # The gate's rejection is published again, as the rescue's would be.
+        assert [r.gene.gene_symbol for r in replayed.rejected_genes] == ["GENE3"]
+        assert current_tally().paper("222") == {
+            "genes": 2,
+            "verbatim": 1,
+            "cited": 1,
+            "dropped_unverified": 1,
+        }
+        assert current_tally().genes == 2
+        # Its tokens are in the run that paid for them.
+        assert run.metrics.token_usage == TokenUsage()
+        assert run.metrics.papers_processed == 2
+        # Checkpointed as a finished paper now.
+        finished = [r for r in self._records(config) if "result" in r]
+        assert [r["result"]["pmid"] for r in finished] == ["111", "222"]
+        assert finished[1]["result"]["extraction_model"] == "claude-opus-4-8"
+        assert finished[1]["metrics"]["token_usage"]["input_tokens"] == 0
+        assert any(
+            w.kind == "model_fallback" and w.subjects == ["222"]
+            for step in run.reporter.steps()
+            for w in step.warnings
+        )
+        assert any(
+            "1 paper that was extracted by the fallback model" in a
+            for a in run.actions
+        )
+
+    def test_ncbi_still_out_keeps_the_answer_for_the_run_after(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        config, _ = self._outage_run(mocker, tmp_path)
+
+        run = self._second_run(mocker, config, outage=True)
+
+        run.extract.assert_not_awaited()
+        assert "222" not in run.submitted
+        failed = next(r for r in run.batch.results if r.pmid == "222")
+        assert not failed.succeeded and failed.error == "NCBI down"
+        assert [r["pmid"] for r in self._unvalidated(config)] == ["222"]
+        assert current_tally().genes == 0
+
+    def test_a_stored_answer_that_fails_validation_is_dropped(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        config, _ = self._outage_run(mocker, tmp_path)
+
+        run = self._second_run(mocker, config, error=ValueError("bad gene"))
+
+        failed = next(r for r in run.batch.results if r.pmid == "222")
+        assert not failed.succeeded and failed.error == "bad gene"
+        assert self._unvalidated(config) == []
+        assert current_tally().genes == 0
+
+    def test_a_changed_text_ignores_the_stored_answer(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        config, _ = self._outage_run(mocker, tmp_path)
+
+        run = self._second_run(mocker, config, text="a revised paper text")
+
+        assert run.submitted == ["222"]
+        assert run.validated == []
+        assert not any("fallback model" in a for a in run.actions)
+
+    def test_a_finished_record_wins_over_a_stored_answer(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        config, _ = self._outage_run(mocker, tmp_path)
+        checkpoint.append(
+            config.checkpoint_file,
+            checkpoint.fingerprint(config),
+            pipeline_main._checkpoint_record(
+                PaperResult(pmid="222", source="abstract"), PipelineMetrics()
+            ),
+        )
+
+        run = self._second_run(mocker, config)
+
+        assert run.validated == []
+        assert run.submitted == []
+        restored = next(r for r in run.batch.results if r.pmid == "222")
+        assert restored.succeeded and restored.genes == []
+        assert not any("fallback model" in a for a in run.actions)
+
+    @staticmethod
+    def _stored_answer(config: PipelineConfig, text: str = _TEXT) -> None:
+        import hashlib
+
+        checkpoint.append(
+            config.checkpoint_file,
+            checkpoint.fingerprint(config),
+            pipeline_main._UnvalidatedPaper(
+                pmid="222",
+                document_sha256=hashlib.sha256(text.encode("utf-8")).hexdigest(),
+                genes=[
+                    GeneEntry(
+                        gene_symbol="GENE2",
+                        confidence=0.9,
+                        source_quote="GENE2 is mentioned.",
+                        pmid="222",
+                    )
+                ],
+                extraction_model="claude-opus-4-8",
+                refusal="bio",
+                provenance={
+                    "genes": 1,
+                    "verbatim": 1,
+                    "cited": 1,
+                    "dropped_unverified": 0,
+                },
+                dropped=[],
+            ).record(),
+        )
+
+    def test_the_streaming_restore_skips_a_stored_answer_quietly(
+        self, tmp_path: Path, caplog
+    ) -> None:
+        config = PipelineConfig(checkpoint_file=str(tmp_path / "checkpoint.jsonl"))
+        self._stored_answer(config)
+        progress = MagicMock()
+
+        with caplog.at_level(logging.WARNING):
+            restored, pending = pipeline_main._restore_checkpoint(
+                ["222"], PipelineMetrics(), config, progress
+            )
+
+        assert restored == []
+        assert pending == ["222"]
+        assert "unreadable" not in caplog.text
+        progress.action.assert_not_called()
+
+    def test_the_batch_restore_hands_back_a_stored_answer_quietly(
+        self, tmp_path: Path, caplog
+    ) -> None:
+        config = PipelineConfig(checkpoint_file=str(tmp_path / "checkpoint.jsonl"))
+        self._stored_answer(config)
+        progress = MagicMock()
+        found: dict = {}
+
+        with caplog.at_level(logging.WARNING):
+            restored, pending = pipeline_main._restore_checkpoint(
+                ["222"],
+                PipelineMetrics(),
+                config,
+                progress,
+                batched=True,
+                unvalidated=found,
+            )
+
+        assert restored == []
+        assert pending == ["222"]
+        assert found.keys() == {"222"}
+        assert caplog.text == ""
+        progress.action.assert_not_called()
+
+    def test_a_malformed_stored_answer_is_dropped_and_the_paper_extracted(
+        self, mocker, tmp_path: Path, caplog
+    ) -> None:
+        config, _ = self._outage_run(mocker, tmp_path)
+        checkpoint.clear(config.checkpoint_file)
+        checkpoint.append(
+            config.checkpoint_file,
+            checkpoint.fingerprint(config),
+            # Every key present, one of the wrong type.
+            {
+                "unvalidated": {
+                    "pmid": "222",
+                    "document_sha256": "0" * 64,
+                    "genes": [],
+                    "extraction_model": "claude-opus-4-8",
+                    "refusal": "bio",
+                    "provenance": "not a mapping",
+                    "dropped": [],
+                }
+            },
+        )
+
+        with caplog.at_level(logging.WARNING):
+            run = self._second_run(mocker, config)
+
+        assert "Dropping an unreadable unvalidated checkpoint record" in caplog.text
+        # Not replayed: the paper takes the ordinary path, into the batch.
+        assert "222" in run.submitted
+        assert "GENE2" not in run.validated
+        assert not any("fallback model" in a for a in run.actions)
+
+    def test_a_rescued_answer_that_cannot_be_stored_is_not_fatal(
+        self, mocker, tmp_path: Path, caplog
+    ) -> None:
+        real_append = checkpoint.append
+
+        def append(path, fingerprint, record):
+            if "unvalidated" in record:
+                raise OSError("read-only file system")
+            real_append(path, fingerprint, record)
+
+        mocker.patch("pipeline.checkpoint.append", side_effect=append)
+
+        with caplog.at_level(logging.WARNING):
+            config, results = self._outage_run(mocker, tmp_path)
+
+        assert "Could not checkpoint the rescued answer for PMID 222" in caplog.text
+        failed = next(r for r in results if r.pmid == "222")
+        assert not failed.succeeded and failed.error == "NCBI down"
+        assert next(r for r in results if r.pmid == "111").succeeded
+        assert self._unvalidated(config) == []
+
+    def test_each_text_keeps_its_own_stored_answer(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        # Run 1 stored text A's answer; run 2 saw text B, paid for a rescue
+        # and stored B's. Run 3 sees A again, and A's answer is still there.
+        config = PipelineConfig(
+            checkpoint_file=str(tmp_path / "checkpoint.jsonl"),
+            batch_state_file=str(tmp_path / "batch_state.json"),
+            progress_file=str(tmp_path / "progress.json"),
+        )
+        self._stored_answer(config, self._TEXT)
+        self._stored_answer(config, "a revised paper text")
+
+        run = self._second_run(mocker, config)
+
+        run.extract.assert_not_awaited()
+        assert "222" not in run.submitted
+        assert run.validated == ["GENE2"]
+        assert next(r for r in run.batch.results if r.pmid == "222").succeeded
+
+    def test_a_replay_that_fails_is_not_named_as_validated(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        config, _ = self._outage_run(mocker, tmp_path)
+
+        run = self._second_run(mocker, config, outage=True)
+
+        assert not any("fallback model" in a for a in run.actions)

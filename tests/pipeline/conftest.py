@@ -196,17 +196,17 @@ def sample_gene_entry(make_gene_entry):
 def sample_gene_entries(make_gene_entry):
     """Multiple GeneEntry instances for batch testing."""
     return [
-        make_gene_entry(gene_symbol="NOTCH3", pmid="11111111"),
+        make_gene_entry(gene_symbol="GENE1", pmid="11111111"),
         make_gene_entry(
-            gene_symbol="HTRA1",
-            protein_name="Serine protease HTRA1",
+            gene_symbol="GENE2",
+            protein_name="Protein 2",
             gwas_trait=[_TRACKED[0]],
             confidence=0.95,
             pmid="22222222",
         ),
         make_gene_entry(
-            gene_symbol="COL4A1",
-            protein_name="Collagen type IV alpha 1",
+            gene_symbol="GENE3",
+            protein_name="Protein 3",
             gwas_trait=[_TRACKED[1], _TRACKED[0]],
             omics_evidence=[{"study_type": "TWAS"}],
             confidence=0.85,

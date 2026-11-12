@@ -1,7 +1,8 @@
 /**
  * The karyogram layout rules, over the committed rows (looped) and over
- * constructed ones. Every test holds for any dataset; the cSVD numbers --
- * 79 genes, 21 chromosomes, CENPF's row -- are tests/csvd/phenogram_layout_test.ts.
+ * constructed ones. Every test holds for any dataset; the upstream
+ * dataset's numbers -- 79 genes, 21 chromosomes, CENPF's row -- are
+ * tests/csvd/phenogram_layout_test.ts.
  */
 import { assert, assertAlmostEquals, assertEquals } from "@std/assert";
 

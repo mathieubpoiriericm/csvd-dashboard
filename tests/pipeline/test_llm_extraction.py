@@ -23,11 +23,11 @@ from pipeline.quality_metrics import TokenUsage
 class TestGeneEntryModel:
     def test_minimal_valid(self):
         ge = GeneEntry(
-            gene_symbol="NOTCH3",
+            gene_symbol="GENE1",
             confidence=0.9,
-            source_quote="NOTCH3 variants were associated with WMH (p=1e-12).",
+            source_quote="GENE1 variants were associated with WMH (p=1e-12).",
         )
-        assert ge.gene_symbol == "NOTCH3"
+        assert ge.gene_symbol == "GENE1"
         assert ge.confidence == 0.9
         assert ge.protein_name is None
         assert ge.gwas_trait == []
@@ -37,8 +37,8 @@ class TestGeneEntryModel:
 
     def test_full_fields(self, tracked_traits):
         ge = GeneEntry(
-            gene_symbol="HTRA1",
-            protein_name="Serine protease HTRA1",
+            gene_symbol="GENE2",
+            protein_name="Protein 2",
             gwas_trait=[tracked_traits[0]],
             mendelian_randomization=True,
             omics_evidence=[{"study_type": "TWAS"}],
@@ -46,11 +46,11 @@ class TestGeneEntryModel:
             causal_evidence_summary="Strong evidence",
             pmid="12345678",
             source_quote=(
-                "HTRA1 reached genome-wide significance for WMH volume "
+                "GENE2 reached genome-wide significance for WMH volume "
                 "(p=4.2e-15) with confirmatory TWAS evidence in brain tissue."
             ),
         )
-        assert ge.gene_symbol == "HTRA1"
+        assert ge.gene_symbol == "GENE2"
         assert ge.mendelian_randomization is True
 
     def test_confidence_lower_bound(self):
@@ -65,7 +65,7 @@ class TestGeneEntryModel:
         ge = GeneEntry(
             gene_symbol="X",
             confidence=1.0,
-            source_quote="X is a validated monogenic cause of cSVD.",
+            source_quote="X is a validated monogenic cause of the disease.",
         )
         assert ge.confidence == 1.0
 
@@ -87,11 +87,11 @@ class TestGeneEntryModel:
 
     def test_whitespace_stripped(self):
         ge = GeneEntry(
-            gene_symbol="  NOTCH3  ",
+            gene_symbol="  GENE1  ",
             confidence=0.9,
-            source_quote="NOTCH3 variants were associated with WMH (p=1e-12).",
+            source_quote="GENE1 variants were associated with WMH (p=1e-12).",
         )
-        assert ge.gene_symbol == "NOTCH3"
+        assert ge.gene_symbol == "GENE1"
 
     def test_missing_gene_symbol_rejected(self):
         with pytest.raises(ValidationError):
@@ -150,17 +150,17 @@ class TestValidateToolInput:
             {
                 "genes": [
                     {
-                        "gene_symbol": "NOTCH3",
+                        "gene_symbol": "GENE1",
                         "confidence": 0.9,
                         "source_quote": (
-                            "NOTCH3 variants were associated with WMH (p=1e-12)."
+                            "GENE1 variants were associated with WMH (p=1e-12)."
                         ),
                     }
                 ]
             }
         )
         assert len(result.genes) == 1
-        assert result.genes[0].gene_symbol == "NOTCH3"
+        assert result.genes[0].gene_symbol == "GENE1"
 
     def test_empty_genes(self):
         assert ExtractionResult.model_validate({"genes": []}).genes == []

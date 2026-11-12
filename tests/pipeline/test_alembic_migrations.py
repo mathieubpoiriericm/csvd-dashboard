@@ -56,7 +56,7 @@ def test_revision_upgrade_and_downgrade_execute_expected_sql(
 def _set_database_environment(monkeypatch) -> None:
     monkeypatch.setenv("DB_HOST", "db.example")
     monkeypatch.setenv("DB_PORT", "6543")
-    monkeypatch.setenv("DB_NAME", "cSVD/data")
+    monkeypatch.setenv("DB_NAME", "appdb/data")
     monkeypatch.setenv("DB_USER", "pipeline@example")
     monkeypatch.setenv("DB_PASSWORD", "p@ss/#word")
 
@@ -75,7 +75,7 @@ def test_alembic_offline_mode_configures_encoded_url(monkeypatch, mocker) -> Non
     context.configure.assert_called_once_with(
         url=(
             "postgresql+psycopg2://pipeline%40example:p%40ss%2F%23word"
-            "@db.example:6543/cSVD%2Fdata"
+            "@db.example:6543/appdb%2Fdata"
         ),
         target_metadata=None,
         literal_binds=True,
@@ -100,7 +100,7 @@ def test_alembic_online_mode_uses_engine_connection(monkeypatch, mocker) -> None
 
     create_engine.assert_called_once_with(
         "postgresql+psycopg2://pipeline%40example:p%40ss%2F%23word"
-        "@db.example:6543/cSVD%2Fdata"
+        "@db.example:6543/appdb%2Fdata"
     )
     context.configure.assert_called_once_with(
         connection=connection,

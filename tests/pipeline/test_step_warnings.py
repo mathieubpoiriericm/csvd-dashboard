@@ -350,12 +350,12 @@ class TestOtherStepsCanWarnToo:
         pipeline_main._record_validation_actions(
             reporter,
             [],
-            ["Gene 'HTRA1' extracted from 5 different papers"],
+            ["Gene 'GENE1' extracted from 5 different papers"],
         )
         step = reporter.steps()[3]
         assert step.status == "warning"
         assert step.warnings[0].kind == "batch_validation"
-        assert "HTRA1" in (step.warnings[0].detail or "")
+        assert "GENE1" in (step.warnings[0].detail or "")
 
     def test_a_clean_batch_check_does_not_warn(self, tmp_path) -> None:
         reporter = self._validation_step(tmp_path)
@@ -422,7 +422,7 @@ class TestOtherStepsCanWarnToo:
         reporter.report(4)
         pipeline_main._record_merge_actions(
             reporter,
-            {"inserted": 0, "updated": 2, "citation_only": ["NOTCH3"]},
+            {"inserted": 0, "updated": 2, "citation_only": ["GENE1"]},
             recorded=1,
         )
         step = reporter.steps()[4]
