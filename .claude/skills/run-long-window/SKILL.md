@@ -174,9 +174,9 @@ document block); the rest go out as a new batch, and a changed fingerprint
 discards the file. Anthropic keeps batch results for 29 days; after that, or if
 the API no longer knows the batch, the papers are resubmitted with a warning.
 Each record carries the time its batch was created, and reading the file drops
-(and logs at info level) any record older than 29 days, so a window that is
-never re-run does not leave its record behind for ever; a record written before
-that field is kept.
+(and logs at info level) any record more than a day older than those 29 days, so
+a window that is never re-run does not leave its record behind for ever; a
+record written before that field is kept.
 Which report holds a resumed batch's tokens depends on where the first run
 stopped. After a crash in the poll the batch was never collected, so its tokens
 are counted only by the run that collects it. After a crash in validation or in
@@ -195,10 +195,10 @@ every entry with no usable result (so that one is resubmitted rather than
 replayed as a failure), and a paper whose validation failed for any reason but
 an NCBI outage (the same answer would fail the same way until the batch
 expired). A paper whose fetch failed, or whose validation hit an NCBI outage,
-stays on record for the next run to collect. Every other batch on record is kept untouched, because
-`scripts.backfill_pubmed --batch` re-runs from its first window after a crash in
-a later one, and a later window's record erased by the first would be paid for
-twice. A record goes only when all its papers are forgotten or the API no longer
+stays on record for the next run to collect. Every other batch on record is kept
+untouched, because `scripts.backfill_pubmed --batch` re-runs from its first
+window after a crash in a later one, and a later window's record erased by the
+first would be paid for twice. A record goes only when all its papers are forgotten or the API no longer
 has its results. A dry run or `--test-mode` neither writes nor forgets.
 `--test-mode` counts what a window would process before paying for it, and
 `scripts.backfill_pubmed` walks it in committed chunks so the database is

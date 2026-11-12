@@ -140,8 +140,10 @@ category and an empty output say it was not charged), the direct one in
 `fallback_*` through `_is_direct_fallback`. When the fallback was skipped
 because its model was rate-limited or overloaded, the direct request goes to
 that same model and takes the ordinary 429/529 backoff. The first refusal is
-logged at WARNING, since the paper is about to be sent on and may succeed, and
-a refusal the fallback has declined or cannot decline at ERROR. If Opus 4.8
+logged at WARNING, since the paper is about to be sent on and may succeed. A
+refusal that is final is logged at ERROR: the fallback model itself declined,
+or the request was already the fallback model's (a direct or sticky-served
+request). If Opus 4.8
 declines too, the error
 keeps the first refusal's category, which the run report groups by, and names
 both as the batch rescue does: "Refused by safety classifier for PMID …

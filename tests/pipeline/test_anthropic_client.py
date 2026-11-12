@@ -2743,7 +2743,7 @@ class TestPrewarmCache:
         row = self._anthropic_row()
         assert row is not None
         assert (row.calls, row.errors) == (1, 0)
-        assert "answered" in caplog.text
+        assert "Cache warm-up was answered but its usage" in caplog.text
         assert "Cache warm-up failed" not in caplog.text
         fake.close.assert_awaited_once()
 
