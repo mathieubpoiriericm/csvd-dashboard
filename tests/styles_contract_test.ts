@@ -1820,6 +1820,8 @@ Deno.test("every chip and badge is a pill", () => {
       ".timeline-tooltip-tag",
       ".timeline-drawer-tag",
       ".adapt-pill",
+      ".review-badge",
+      ".review-filter",
     ]
   ) {
     const rule = radii.find((d) =>
@@ -1989,6 +1991,7 @@ Deno.test("every control that lights on hover lights on focus-visible too", () =
     ".navbar-signout",
     ".review-button",
     ".review-menu-item",
+    ".review-filter",
     ".sidebar-toggle",
     ".filter-option",
     ".pipeline-apis summary",
