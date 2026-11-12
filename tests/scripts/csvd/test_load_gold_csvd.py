@@ -5,9 +5,16 @@ tables are cSVD's, so a fork deletes this file with the rest of the tree.
 """
 
 import json
+from collections import Counter
 from functools import cache
 
-from scripts.load_gold import _GOLD_DIR, GoldPlan, build_gold_plan
+from scripts.load_gold import (
+    _GOLD_DIR,
+    _POPULATIONS_PATH,
+    GoldPlan,
+    build_gold_plan,
+    read_population_groups,
+)
 from scripts.restore_from_json import GeneRestore, export_gene
 
 from pipeline.disease import VOCABULARY_PATH
@@ -17,7 +24,7 @@ from pipeline.export.text import is_doi
 
 @cache
 def _plan() -> GoldPlan:
-    return build_gold_plan(_GOLD_DIR)
+    return build_gold_plan(_GOLD_DIR, _POPULATIONS_PATH)
 
 
 def _gene(symbol: str) -> GeneRestore:
@@ -33,6 +40,27 @@ def test_every_gold_trial_is_published() -> None:
     trials = _plan().trials
     assert len(trials) == 16
     assert all(_is_curated_trial(t) and _is_running_trial(t) for t in trials)
+
+
+def test_every_gold_trial_is_filed_under_its_curated_population() -> None:
+    """disease/gold/trial_populations.csv: thirteen registry IDs, each a gold
+    trial's, for sixteen trials -- a registry entry can test several agents."""
+    groups, failures = read_population_groups(_POPULATIONS_PATH)
+    assert failures == []
+    assert Counter(groups.values()) == {
+        "Stroke": 5,
+        "SVD": 3,
+        "CAA": 3,
+        "Cognitive Impairment": 2,
+    }
+    trials = _plan().trials
+    assert set(groups) == {trial["registry_id"] for trial in trials}
+    assert Counter(trial["target_population"] for trial in trials) == {
+        "Stroke": 8,
+        "SVD": 3,
+        "CAA": 3,
+        "Cognitive Impairment": 2,
+    }
 
 
 def test_a_protein_named_by_its_gene_symbol_is_published() -> None:

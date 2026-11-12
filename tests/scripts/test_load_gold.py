@@ -2,8 +2,9 @@
 
 `testpaths` is `["tests/pipeline"]`, so nothing collects this file unless it
 is named: `uv run pytest tests/scripts`. These hold for any disease: the one
-trait they need is read from disease/vocabulary.json, and the population map
-is replaced by a synthetic one. The committed gold tables are pinned in
+trait they need is read from disease/vocabulary.json, and the populations
+their trials are filed under are the manifest's own. The committed gold tables
+are pinned in
 tests/scripts/csvd/test_load_gold_csvd.py, and the write against a real
 database in tests/pipeline/test_load_gold_integration.py.
 """
@@ -16,14 +17,16 @@ from typing import Any
 import pytest
 from scripts import load_gold
 from scripts.load_gold import (
+    GoldPlan,
     GoldRefused,
     build_gold_plan,
     gene_from_gold,
+    read_population_groups,
     trial_from_gold,
 )
 from scripts.restore_from_json import export_gene
 
-from pipeline.disease import VOCABULARY_PATH
+from pipeline.disease import VOCABULARY_PATH, load_disease
 from pipeline.export.main import _is_curated_trial, _is_running_trial
 from pipeline.export.tables import clean_trial_row
 from pipeline.omics import OMICS_STUDY_TYPES
@@ -73,12 +76,12 @@ _ST3_COLUMNS = (
     "trial_sponsor_type",
 )
 
-_POPULATIONS = {"REG-0001": "Population A", "REG-0002": "Population B"}
-
-
-@pytest.fixture(autouse=True)
-def _synthetic_populations(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(load_gold, "POPULATION_GROUP", _POPULATIONS)
+# A group is one of the manifest's populations, so the two trials take its
+# first and its last: one and the same where a fork has a single population.
+_POPULATION_KEYS = load_disease().population_keys
+_GROUPS = {"REG-0001": _POPULATION_KEYS[0], "REG-0002": _POPULATION_KEYS[-1]}
+_POPULATIONS_FILE = "trial_populations.csv"
+_NO_SUCH_POPULATION = "NOT-A-POPULATION-ANYWHERE"
 
 
 def _gene_row(**cells: str) -> dict[str, str]:
@@ -233,7 +236,7 @@ def test_traits_split_on_commas_and_semicolons_outside_parentheses() -> None:
 
 
 def test_trial_from_gold_maps_the_columns() -> None:
-    trial = trial_from_gold(_trial_row(genetic_target=""))
+    trial = trial_from_gold(_trial_row(genetic_target=""), _GROUPS)
     assert trial == {
         "drug": "Drug A",
         "mechanism_of_action": "Inhibitor",
@@ -242,7 +245,7 @@ def test_trial_from_gold_maps_the_columns() -> None:
         "trial_name": "TRIAL-A",
         "registry_id": "REG-0001",
         "clinical_trial_phase": "II",
-        "target_population": "Population A",
+        "target_population": _GROUPS["REG-0001"],
         "target_population_details": "Adults with condition A",
         "target_sample_size": 120,
         "estimated_completion_date": "7/2028",
@@ -254,7 +257,7 @@ def test_trial_from_gold_maps_the_columns() -> None:
 
 def test_trial_completion_note_used_when_date_blank() -> None:
     trial = trial_from_gold(
-        _trial_row(estimated_completion="", completion_note="Completed")
+        _trial_row(estimated_completion="", completion_note="Completed"), _GROUPS
     )
     assert trial["estimated_completion_date"] == "Completed"
 
@@ -264,7 +267,8 @@ def test_trial_completion_note_appended_to_a_date() -> None:
     trial = trial_from_gold(
         _trial_row(
             estimated_completion="2028-07", completion_note="primary completion"
-        )
+        ),
+        _GROUPS,
     )
     assert trial["estimated_completion_date"] == "7/2028 (primary completion)"
     assert clean_trial_row(dict(trial))["Estimated Completion Date"] == (
@@ -273,13 +277,13 @@ def test_trial_completion_note_appended_to_a_date() -> None:
 
 
 def test_unknown_registry_refused() -> None:
-    with pytest.raises(GoldRefused, match="REG-9999"):
-        trial_from_gold(_trial_row(registry_id="REG-9999"))
+    with pytest.raises(GoldRefused, match=f"REG-9999.*{_POPULATIONS_FILE}"):
+        trial_from_gold(_trial_row(registry_id="REG-9999"), _GROUPS)
 
 
 def test_every_gold_trial_publishes() -> None:
     trials = [
-        trial_from_gold(_trial_row()),
+        trial_from_gold(_trial_row(), _GROUPS),
         trial_from_gold(
             _trial_row(
                 agent="Drug B",
@@ -288,7 +292,8 @@ def test_every_gold_trial_publishes() -> None:
                 genetic_evidence="Yes",
                 estimated_completion="",
                 completion_note="Completed",
-            )
+            ),
+            _GROUPS,
         ),
     ]
     published = [
@@ -298,8 +303,8 @@ def test_every_gold_trial_publishes() -> None:
     ]
     assert len(published) == len(trials)
     assert [row["Target Population"] for row in published] == [
-        "Population A",
-        "Population B",
+        _GROUPS["REG-0001"],
+        _GROUPS["REG-0002"],
     ]
 
 
@@ -323,6 +328,7 @@ def _gold_dir(
     trials: list[dict[str, str]] | None = None,
     references: list[dict[str, Any]] | None = None,
     suspects: list[dict[str, str]] | None = None,
+    populations: list[dict[str, str]] | None = None,
 ) -> Path:
     _write_csv(
         directory / "st1_genes.csv",
@@ -356,11 +362,26 @@ def _gold_dir(
          "detail"),
         suspects or [],
     )
+    _write_csv(
+        directory / _POPULATIONS_FILE,
+        ("registry_id", "population"),
+        [
+            {"registry_id": registry_id, "population": group}
+            for registry_id, group in _GROUPS.items()
+        ]
+        if populations is None
+        else populations,
+    )
     return directory
 
 
+def _build(gold_dir: Path) -> GoldPlan:
+    """The plan of a directory `_gold_dir` wrote, its populations file included."""
+    return build_gold_plan(gold_dir, gold_dir / _POPULATIONS_FILE)
+
+
 def test_the_plan_attaches_st1_references_in_position_order(tmp_path: Path) -> None:
-    plan = build_gold_plan(_gold_dir(tmp_path))
+    plan = _build(_gold_dir(tmp_path))
     assert [gene.references for gene in plan.genes] == [
         ["11111111", "10.1000/xyz.1"]
     ]
@@ -385,13 +406,25 @@ def test_the_plan_attaches_st1_references_in_position_order(tmp_path: Path) -> N
         ({"trials": [_trial_row(estimated_completion="July 2028")]}, "YYYY-MM"),
         ({"trials": [_trial_row(estimated_completion="2028-13")]}, "YYYY-MM"),
         ({"trials": [_trial_row(target_n="about 100")]}, "target_n"),
+        ({"populations": [{"registry_id": "REG-0001", "population": ""}]},
+         f"{_POPULATIONS_FILE} line 2: registry_id and population"),
+        ({"populations": [{"registry_id": "", "population": _GROUPS["REG-0001"]}]},
+         f"{_POPULATIONS_FILE} line 2: registry_id and population"),
+        ({"populations": [
+            {"registry_id": "REG-0001", "population": _GROUPS["REG-0001"]},
+            {"registry_id": "REG-0001", "population": _GROUPS["REG-0002"]},
+        ]}, f"{_POPULATIONS_FILE} line 3: REG-0001 is listed twice"),
+        ({"populations": [
+            {"registry_id": "REG-0001", "population": _NO_SUCH_POPULATION},
+        ]}, f"{_POPULATIONS_FILE} line 2: REG-0001 has the group "
+            f"'{_NO_SUCH_POPULATION}'"),
     ],
 )
 def test_the_plan_refuses(
     tmp_path: Path, files: dict[str, Any], reason: str
 ) -> None:
     with pytest.raises(GoldRefused, match=reason):
-        build_gold_plan(_gold_dir(tmp_path, **files))
+        _build(_gold_dir(tmp_path, **files))
 
 
 def test_a_scalar_the_export_would_rewrite_is_refused(
@@ -404,13 +437,13 @@ def test_a_scalar_the_export_would_rewrite_is_refused(
 
     monkeypatch.setattr(load_gold, "export_gene", rewriting)
     with pytest.raises(GoldRefused, match="protein"):
-        build_gold_plan(_gold_dir(tmp_path))
+        _build(_gold_dir(tmp_path))
 
 
 def test_case_is_the_only_tolerated_rewrite(tmp_path: Path) -> None:
     """The export lowercases "ALL" in the cell types; gold spelt with capitals
     loads, and publishes lowercased. The pathway publishes as gold writes it."""
-    plan = build_gold_plan(
+    plan = _build(
         _gold_dir(
             tmp_path,
             genes=[
@@ -439,7 +472,7 @@ def test_a_pathway_whose_case_the_export_would_change_is_refused(
 
     monkeypatch.setattr(load_gold, "export_gene", lowercasing)
     with pytest.raises(GoldRefused, match="affectedPathway"):
-        build_gold_plan(
+        _build(
             _gold_dir(
                 tmp_path,
                 genes=[_gene_row(pathway_goa_function="Wnt signaling pathway")],
@@ -455,4 +488,61 @@ def test_a_trial_the_export_cannot_read_is_refused_not_raised(
 
     monkeypatch.setattr(load_gold, "clean_trial_row", unreadable)
     with pytest.raises(GoldRefused, match="cannot read"):
-        build_gold_plan(_gold_dir(tmp_path))
+        _build(_gold_dir(tmp_path))
+
+
+# ------------------------------------------------------------- populations
+
+
+def test_the_population_groups_are_read_by_registry_id(tmp_path: Path) -> None:
+    path = _gold_dir(tmp_path) / _POPULATIONS_FILE
+    assert read_population_groups(path) == (_GROUPS, [])
+
+
+def test_a_trial_takes_the_group_its_registry_id_is_filed_under(
+    tmp_path: Path,
+) -> None:
+    """Two rows of one registry share its group, and the file's row order
+    decides nothing."""
+    plan = _build(
+        _gold_dir(
+            tmp_path,
+            trials=[
+                _trial_row(registry_id="REG-0002"),
+                _trial_row(agent="Drug B", registry_id="REG-0002"),
+                _trial_row(),
+            ],
+        )
+    )
+    assert [trial["target_population"] for trial in plan.trials] == [
+        _GROUPS["REG-0002"],
+        _GROUPS["REG-0002"],
+        _GROUPS["REG-0001"],
+    ]
+
+
+def test_a_missing_populations_file_is_refused_by_name(tmp_path: Path) -> None:
+    gold_dir = _gold_dir(tmp_path)
+    (gold_dir / _POPULATIONS_FILE).unlink()
+    with pytest.raises(GoldRefused, match=f"{_POPULATIONS_FILE} is missing"):
+        _build(gold_dir)
+
+
+def test_a_group_the_manifest_does_not_list_is_reported_once(
+    tmp_path: Path,
+) -> None:
+    """The refused row still files its trial, so the trial is not refused a
+    second time for having no group."""
+    with pytest.raises(GoldRefused) as refused:
+        _build(
+            _gold_dir(
+                tmp_path,
+                populations=[
+                    {"registry_id": "REG-0001", "population": _NO_SUCH_POPULATION}
+                ],
+            )
+        )
+    message = str(refused.value)
+    assert message.count("REG-0001") == 1
+    assert all(key in message for key in _POPULATION_KEYS)
+    assert "no target-population group" not in message
