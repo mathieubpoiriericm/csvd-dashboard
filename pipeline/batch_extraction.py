@@ -226,7 +226,11 @@ def results_by_custom_id(
 
 
 def _document_sha256(text: str) -> str:
-    """The fingerprint of one paper's document block, as the state file keeps it."""
+    """The sha256 of one paper's text, as the records of paid answers keep it.
+
+    The batch state file takes it over the document block a request carried;
+    the checkpoint's record of a rescued answer, over the text as fetched.
+    """
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
@@ -376,7 +380,7 @@ async def submit_and_collect(
     batch is written back beside it, claimed by this call or not: one
     window's run must not erase a batch paid for by another's. When nothing
     new is submitted the file is left as it was, apart from records
-    ``batch_state.load`` prunes by age. This function never takes
+    ``batch_state.load`` dates or prunes by age. This function never takes
     a paper off the record: the caller does (``batch_state.forget``), once
     its result is safely stored. With ``state_path`` None nothing is read or
     written and the API calls are exactly those of a plain submission.

@@ -175,8 +175,10 @@ discards the file. Anthropic keeps batch results for 29 days; after that, or if
 the API no longer knows the batch, the papers are resubmitted with a warning.
 Each record carries the time its batch was created, and reading the file drops
 (and logs at info level) any record more than a day older than those 29 days, so
-a window that is never re-run does not leave its record behind for ever; a
-record written before that field is kept.
+a window that is never re-run does not leave its record behind for ever. A
+record written before that field is dated, the first time it is read, from the
+file's last write -- the latest its batch can have been created -- and ages from
+there like the rest.
 Which report holds a resumed batch's tokens depends on where the first run
 stopped. After a crash in the poll the batch was never collected, so its tokens
 are counted only by the run that collects it. After a crash in validation or in
@@ -195,7 +197,14 @@ every entry with no usable result (so that one is resubmitted rather than
 replayed as a failure), and a paper whose validation failed for any reason but
 an NCBI outage (the same answer would fail the same way until the batch
 expired). A paper whose fetch failed, or whose validation hit an NCBI outage,
-stays on record for the next run to collect. Every other batch on record is kept
+stays on record for the next run to collect. A paper the fallback model rescued
+has no batch answer to collect again, so when its validation hits an NCBI outage
+the rescue's answer goes into the checkpoint instead, as an `unvalidated`
+record, and the next `--batch` run validates it without submitting or rescuing
+the paper (the step says "Validated N papers that were extracted by the fallback
+model in an earlier run whose validation NCBI did not answer"; see "A rescue's
+answer outlives an NCBI outage" in `.claude/rules/pipeline/fallback.md`). Every
+other batch on record is kept
 untouched, because `scripts.backfill_pubmed --batch` re-runs from its first
 window after a crash in a later one, and a later window's record erased by the
 first would be paid for twice. A record goes only when all its papers are
