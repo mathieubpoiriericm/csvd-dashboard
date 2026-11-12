@@ -25,7 +25,7 @@ class TestGeneEntryModel:
         ge = GeneEntry(
             gene_symbol="GENE1",
             confidence=0.9,
-            source_quote="GENE1 variants were associated with WMH (p=1e-12).",
+            source_quote="GENE1 variants were associated with trait A (p=1e-12).",
         )
         assert ge.gene_symbol == "GENE1"
         assert ge.confidence == 0.9
@@ -46,7 +46,7 @@ class TestGeneEntryModel:
             causal_evidence_summary="Strong evidence",
             pmid="12345678",
             source_quote=(
-                "GENE2 reached genome-wide significance for WMH volume "
+                "GENE2 reached genome-wide significance for trait A volume "
                 "(p=4.2e-15) with confirmatory TWAS evidence in brain tissue."
             ),
         )
@@ -57,7 +57,7 @@ class TestGeneEntryModel:
         ge = GeneEntry(
             gene_symbol="X",
             confidence=0.0,
-            source_quote="X was tested but showed no association with WMH.",
+            source_quote="X was tested but showed no association with trait A.",
         )
         assert ge.confidence == 0.0
 
@@ -74,7 +74,7 @@ class TestGeneEntryModel:
             GeneEntry(
                 gene_symbol="X",
                 confidence=-0.1,
-                source_quote="X was associated with WMH (p=1e-8).",
+                source_quote="X was associated with trait A (p=1e-8).",
             )
 
     def test_confidence_above_one_rejected(self):
@@ -82,14 +82,14 @@ class TestGeneEntryModel:
             GeneEntry(
                 gene_symbol="X",
                 confidence=1.1,
-                source_quote="X was associated with WMH (p=1e-8).",
+                source_quote="X was associated with trait A (p=1e-8).",
             )
 
     def test_whitespace_stripped(self):
         ge = GeneEntry(
             gene_symbol="  GENE1  ",
             confidence=0.9,
-            source_quote="GENE1 variants were associated with WMH (p=1e-12).",
+            source_quote="GENE1 variants were associated with trait A (p=1e-12).",
         )
         assert ge.gene_symbol == "GENE1"
 
@@ -105,7 +105,7 @@ class TestGeneEntryModel:
         ge = GeneEntry(
             gene_symbol="X",
             confidence=0.9,
-            source_quote="X was associated with WMH (p=1e-8).",
+            source_quote="X was associated with trait A (p=1e-8).",
         )
         ge.pmid = "99999999"
         assert ge.pmid == "99999999"
@@ -126,7 +126,7 @@ class TestExtractionResult:
                 GeneEntry(
                     gene_symbol="X",
                     confidence=0.9,
-                    source_quote="X was associated with WMH (p=1e-8).",
+                    source_quote="X was associated with trait A (p=1e-8).",
                 )
             ]
         )
@@ -153,7 +153,7 @@ class TestValidateToolInput:
                         "gene_symbol": "GENE1",
                         "confidence": 0.9,
                         "source_quote": (
-                            "GENE1 variants were associated with WMH (p=1e-12)."
+                            "GENE1 variants were associated with trait A (p=1e-12)."
                         ),
                     }
                 ]
@@ -176,17 +176,17 @@ class TestValidateToolInput:
                 {
                     "gene_symbol": "A",
                     "confidence": 0.9,
-                    "source_quote": "A was associated with WMH (p=1e-9).",
+                    "source_quote": "A was associated with trait A (p=1e-9).",
                 },
                 {
                     "gene_symbol": "B",
                     "confidence": 0.8,
-                    "source_quote": "B was associated with SVS (p=2e-8).",
+                    "source_quote": "B was associated with trait B (p=2e-8).",
                 },
                 {
                     "gene_symbol": "C",
                     "confidence": 0.7,
-                    "source_quote": "C reached significance for lacunar stroke.",
+                    "source_quote": "C reached significance for trait C.",
                 },
             ]
         }
@@ -200,7 +200,7 @@ class TestValidateToolInput:
                         {
                             "gene_symbol": "X",
                             "confidence": 1.5,
-                            "source_quote": "X was associated with WMH (p=1e-8).",
+                            "source_quote": "X was associated with trait A (p=1e-8).",
                         }
                     ]
                 }
@@ -224,7 +224,7 @@ class TestValidateToolInput:
                             "gene_symbol": "X",
                             "confidence": 0.9,
                             "gwas_trait": ["not a trait, in any vocabulary"],
-                            "source_quote": "X was associated with WMH (p=1e-8).",
+                            "source_quote": "X was associated with trait A (p=1e-8).",
                         }
                     ]
                 }

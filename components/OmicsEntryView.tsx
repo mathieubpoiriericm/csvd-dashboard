@@ -70,7 +70,7 @@ function StudyType({ entry, suffix }: { entry: OmicsEntry; suffix: string }) {
  * inside a colocalized item says that its tissue colocalized.
  *
  * Every piece of punctuation goes into the text of the piece it follows or
- * opens (`"(WMH:"`, `"brain,"`, `"RNA-Seq),"`), so `AcronymText` can hold
+ * opens (`"(<biomarker>:"`, `"brain,"`, `"RNA-Seq),"`), so `AcronymText` can hold
  * it to an acronym beside it; `suffix` is the list separator after the
  * whole entry, for the same reason.
  */

@@ -78,7 +78,7 @@ class TestAnnotationStatus:
 class TestDrugAnnotationRow:
     def test_records_an_unresolved_drug(self) -> None:
         row = DrugAnnotationRow(
-            drug="THN391",
+            drug="XYZ391",
             chembl_id=None,
             action_type=None,
             mechanism_of_action=None,

@@ -50,7 +50,8 @@ _SPLIT_OMICS = re.compile(r"\s*,\s*(?![^(]*\))")
 # Read from disease/vocabulary.json rather than listed: that file is the
 # single source of truth for the trait vocabulary, and every consumer derives
 # from it. Order is load-bearing -- these are applied in sequence as substring
-# replacements, matching the long-standing SVS rewrite rather than exact match.
+# replacements, matching the export's long-standing first rewrite (the
+# curated spreadsheet spelling) rather than exact match.
 # Changing that would risk the byte-exact contract for no gain, so the file
 # keeps `synonyms` as an ordered array.
 _VOCABULARY: Final[Path] = VOCABULARY_PATH
@@ -102,7 +103,8 @@ def split_gwas_traits(value: str | None) -> list[str]:
     normalize_text runs first because clean_gene_row applied it to every
     string column before splitting: it trims the whole cell, and
     _SPLIT_ON_COMMA reaches neither the first part's leading nor the last
-    part's trailing whitespace. The stored "PSMD " is a real value.
+    part's trailing whitespace. A trait stored with a trailing space is a
+    real value.
 
     fill_missing_text is then asked what it would call missing, rather than
     the NA/N/A set being restated here -- a value the export folds to a

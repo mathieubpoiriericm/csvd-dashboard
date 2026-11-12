@@ -138,10 +138,10 @@ class TestPipelineConfigDefaults:
 
         And it enumerates the *full* canonical list -- tracked traits and
         `untracked` ones alike. Narrowing it to the tracked set would
-        destroy the signal the vocabulary work exists to surface: PVWMH
-        was emitted 29 times because the model was correctly naming a
-        phenotype the dashboard lacked, and ICH-non-lobar 13 times across
-        the committed cassettes. Constrained to the tracked set, either
+        destroy the signal the vocabulary work exists to surface: one
+        phenotype the dashboard then lacked was emitted 29 times because
+        the model was correctly naming it, and an untracked term 13 times
+        across the committed cassettes. Constrained to the tracked set, either
         silently becomes something else or vanishes.
         """
         import json
@@ -304,9 +304,9 @@ class TestPipelineConfigEnvOverrides:
         assert PipelineConfig().ct_enabled is expected
 
     def test_list_override_strips_and_drops_empty_entries(self, monkeypatch):
-        monkeypatch.setenv("PIPELINE_CT_SEARCH_TERMS", " WMH, ,lacunar stroke ")
+        monkeypatch.setenv("PIPELINE_CT_SEARCH_TERMS", " TERM-A, ,term b ")
 
-        assert PipelineConfig().ct_search_terms == ("WMH", "lacunar stroke")
+        assert PipelineConfig().ct_search_terms == ("TERM-A", "term b")
 
 
 class TestConstants:

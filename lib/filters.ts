@@ -11,8 +11,8 @@
  * silently dropped three cases:
  *   * the "Proteomics" choice never matched, because the data says
  *     "proteomics";
- *   * traits stored with a trailing space ("PSMD ", "WMH ") were missed by
- *     their own filter;
+ *   * traits stored with a trailing space (two of them, in the R app's data)
+ *     were missed by their own filter;
  *   * both bugs failed closed, hiding rows rather than showing extra ones.
  * The runtime data boundary also trims display strings; these helpers remain
  * defensive so synthetic callers and older data behave the same way.

@@ -214,14 +214,14 @@ class TestBuildGeneData:
     def test_a_prompt_synonym_is_folded_onto_its_trait(
         self, make_gene_entry, trait_vocabulary
     ):
-        """The prompt asks for `cerebral-microbleeds`; the dashboard stores CMB.
+        """The prompt asks for one spelling; the dashboard stores another key.
 
         disease/vocabulary.json records the fold, and the schema admits the
         prompt's spelling so the model can obey the instruction it was
         given. Folded by exact key -- the export's substring rewrites are a
         different tool for curated prose -- and before the tracked filter,
         or the term would be dropped as untracked. Deduped with the target,
-        so a paper naming both spellings stores CMB once.
+        so a paper naming both spellings stores the key once.
         """
         ((spelling, target),) = trait_vocabulary.synonyms.items()
         other = trait_vocabulary.tracked[1]

@@ -13,7 +13,7 @@ from pipeline.europepmc import (
 
 _JATS = b"""<?xml version="1.0"?>
 <article><body>
-<sec><title>Results</title><p>GENE1 was associated with WMH.</p></sec>
+<sec><title>Results</title><p>GENE1 was associated with trait A.</p></sec>
 <sec><title>Methods</title><p>We genotyped 500 samples.</p></sec>
 <table-wrap><table><thead><tr><th>Gene</th><th>P</th></tr></thead>
 <tbody><tr><td>GENE2</td><td>1e-8</td></tr></tbody></table></table-wrap>
@@ -23,7 +23,7 @@ _JATS = b"""<?xml version="1.0"?>
 def test_parse_jats_keeps_section_prose() -> None:
     text = parse_jats(_JATS)
     assert text is not None
-    assert "GENE1 was associated with WMH." in text
+    assert "GENE1 was associated with trait A." in text
     assert "We genotyped 500 samples." in text
 
 
@@ -79,15 +79,15 @@ def test_parse_jats_emits_nested_cell_prose_once() -> None:
 <article><body>
 <sec><p>Standalone prose.</p></sec>
 <table-wrap><table><tbody><tr>
-<td><p>GENE1 was associated with WMH (p=1e-9).</p></td>
+<td><p>GENE1 was associated with trait A (p=1e-9).</p></td>
 <td>GENE2</td>
 </tr></tbody></table></table-wrap>
 </body></article>"""
     text = parse_jats(nested)
     assert text is not None
-    assert text.count("GENE1 was associated with WMH (p=1e-9).") == 1
+    assert text.count("GENE1 was associated with trait A (p=1e-9).") == 1
     assert text.count("Standalone prose.") == 1
-    assert "GENE1 was associated with WMH (p=1e-9). | GENE2" in text
+    assert "GENE1 was associated with trait A (p=1e-9). | GENE2" in text
 
 
 def test_parse_jats_reads_tables_deposited_in_a_floats_group() -> None:
@@ -125,12 +125,12 @@ def test_parse_jats_emits_a_floats_group_row_once() -> None:
     floats = b"""<?xml version="1.0"?>
 <article><body><sec><p>Body.</p></sec></body>
 <floats-group><table-wrap><table><tbody>
-<tr><td><p>GENE4 (p=2e-7)</p></td><td>WMH</td></tr>
+<tr><td><p>GENE4 (p=2e-7)</p></td><td>trait A</td></tr>
 </tbody></table></table-wrap></floats-group></article>"""
     text = parse_jats(floats)
     assert text is not None
     assert text.count("GENE4 (p=2e-7)") == 1
-    assert "GENE4 (p=2e-7) | WMH" in text
+    assert "GENE4 (p=2e-7) | trait A" in text
 
 
 def test_parse_jats_returns_none_for_a_pdf_only_notice() -> None:
@@ -153,7 +153,7 @@ def test_parse_jats_keeps_a_real_article_that_mentions_a_pdf_later() -> None:
         b"""<?xml version="1.0"?>
 <article><front/><body><sec><title>Results</title>
 <p>"""
-        + b"GENE1 was associated with WMH burden in the discovery cohort. " * 6
+        + b"GENE1 was associated with trait A burden in the discovery cohort. " * 6
         + b"""</p>
 <p>The Full Text of this article is available as a PDF in the archive.</p>
 </sec></body></article>"""
@@ -190,8 +190,8 @@ def test_parse_jats_tolerates_a_detached_reference_list(mocker) -> None:
 # ---------------------------------------------------------------------------
 
 # Trimmed excerpt of the real fullTextXML served for PMC13239414 (PMID
-# 42224635, "Identification of Novel Genetic Risk Variants Associated With
-# Early-Onset Ischemic Stroke", Neurology), fetched live from
+# 42224635, a Neurology paper on genetic risk variants for early-onset
+# stroke), fetched live from
 # https://www.ebi.ac.uk/europepmc/webservices/rest/PMC13239414/fullTextXML
 # while verifying this task. Trimmed to most of Table 1's rows, one
 # reference, and the table's caption/label — dropped the footnote and
@@ -352,7 +352,7 @@ def test_parse_jats_does_not_leak_bibliography_text() -> None:
 # a future Europe PMC rendering change doing this.
 _JATS_WITH_LEAKY_REFLIST = b"""<?xml version="1.0"?>
 <article><body>
-<sec><title>Results</title><p>GENE1 was associated with WMH.</p></sec>
+<sec><title>Results</title><p>GENE1 was associated with trait A.</p></sec>
 <sec sec-type="ref-list"><title>References</title>
 <ref-list>
 <ref id="R1"><title>Suspicious Title</title>
@@ -371,7 +371,7 @@ def test_parse_jats_excludes_bare_tags_inside_ref_list() -> None:
     """
     text = parse_jats(_JATS_WITH_LEAKY_REFLIST)
     assert text is not None
-    assert "GENE1 was associated with WMH." in text
+    assert "GENE1 was associated with trait A." in text
     assert "References" in text
     assert "GENE9" not in text
     assert "Suspicious Title" not in text
@@ -481,7 +481,7 @@ class TestFetchEuropepmcFulltext:
         mocker.patch("pipeline.europepmc._client_manager.get", return_value=mock_client)
         result = await fetch_europepmc_fulltext("1")
         assert result is not None
-        assert "GENE1 was associated with WMH." in result
+        assert "GENE1 was associated with trait A." in result
 
     async def test_returns_none_on_404(self, mocker) -> None:
         """A missing fullTextXML is a clean 404 with an empty body (confirmed

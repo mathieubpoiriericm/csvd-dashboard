@@ -119,14 +119,14 @@ _GENE_ROW = {
     "chromosomal_location": "19p13.12",
     # The two normalized columns arrive as lists, the way
     # _build_combined_gene_data now produces them.
-    "gwas_trait": ["WMH"],
+    "gwas_trait": ["TRAIT-A"],
     "mendelian_randomization": False,
     "evidence_from_other_omics_studies": "",
     "link_to_monogenetic_disease": "",
     "brain_cell_types": "",
     "affected_pathway": "",
     "references": ["12345678"],
-    "source_quote": "GENE1 variants were associated with WMH (p=1e-12).",
+    "source_quote": "GENE1 variants were associated with trait A (p=1e-12).",
     "confidence": 0.87,
 }
 
@@ -222,14 +222,14 @@ class TestMergeGenesProvenance:
             "protein": "Protein 1",
             "gene": "GENE1",
             "chromosomal_location": "",
-            "gwas_trait": ["WMH"],
+            "gwas_trait": ["TRAIT-A"],
             "mendelian_randomization": False,
             "evidence_from_other_omics_studies": "",
             "link_to_monogenetic_disease": "",
             "brain_cell_types": "",
             "affected_pathway": "",
             "references": ["12345678"],
-            "source_quote": "GENE1 variants were associated with WMH (p=1e-12).",
+            "source_quote": "GENE1 variants were associated with trait A (p=1e-12).",
             "confidence": 0.87,
         }
         await merge_genes_transactional([gene_row], [])
@@ -242,7 +242,7 @@ class TestMergeGenesProvenance:
         params = list(params_list)[0]
         # Column list is (..., source_quote, confidence) -> confidence last.
         assert params[-1] == 0.87
-        assert params[-2] == "GENE1 variants were associated with WMH (p=1e-12)."
+        assert params[-2] == "GENE1 variants were associated with trait A (p=1e-12)."
 
     async def test_update_sql_and_params_carry_source_quote_and_confidence(
         self, mocker
@@ -252,11 +252,11 @@ class TestMergeGenesProvenance:
         gene_row = {
             "protein": "Protein 1",
             "gene": "GENE1",
-            "gwas_trait": ["WMH"],
+            "gwas_trait": ["TRAIT-A"],
             "mendelian_randomization": False,
             "evidence_from_other_omics_studies": "",
             "references": ["12345678"],
-            "source_quote": "GENE1 variants were associated with WMH (p=1e-12).",
+            "source_quote": "GENE1 variants were associated with trait A (p=1e-12).",
             "confidence": 0.87,
         }
         await merge_genes_transactional([], [gene_row])
@@ -271,7 +271,7 @@ class TestMergeGenesProvenance:
         # source_quote is $4.
         assert params[-1] == "GENE1"
         assert params[-2] == 0.87
-        assert params[-3] == "GENE1 variants were associated with WMH (p=1e-12)."
+        assert params[-3] == "GENE1 variants were associated with trait A (p=1e-12)."
 
     async def test_insert_sql_fills_quote_and_confidence_on_one_condition(
         self, mocker
@@ -816,7 +816,10 @@ class TestCacheOperations:
 
 
 def _stored(
-    drug: str, *, registry_id: str = "NCT123", target_population: str | None = "CAA"
+    drug: str,
+    *,
+    registry_id: str = "NCT123",
+    target_population: str | None = "Population A",
 ) -> dict[str, object]:
     """One row as the upsert's own SELECT returns it.
 
@@ -841,7 +844,7 @@ class TestClinicalTrialUpsert:
             clinical_trial_phase="Phase 2",
             target_sample_size=100,
             estimated_completion_date="2027-01-01",
-            primary_outcome="WMH volume",
+            primary_outcome="Trait A volume",
             sponsor_type="Academic",
             overall_status="RECRUITING",
         )
@@ -890,12 +893,12 @@ class TestClinicalTrialUpsert:
         """
         conn = _mock_plain_connection(mocker)
         conn.fetch.return_value = [
-            _stored("Mivelsiran (ALN-APP)"),
+            _stored("Exemplisiran (ABC-XYZ)"),
             _stored("Second curated arm"),
         ]
 
         result = await upsert_clinical_trials_batch(
-            [self._trial("NCT123", drug="ALN-APP")]
+            [self._trial("NCT123", drug="ABC-XYZ")]
         )
 
         assert result == TrialUpsertResult(
@@ -912,7 +915,7 @@ class TestClinicalTrialUpsert:
                 "Phase 2",
                 100,
                 "2027-01-01",
-                "WMH volume",
+                "Trait A volume",
                 "Academic",
                 "RECRUITING",
                 "NCT123",
@@ -1238,7 +1241,7 @@ class TestAnnotationOperations:
     async def test_upsert_drug_annotations_binds_every_column(self, mocker):
         conn = _mock_plain_connection(mocker)
         row = DrugAnnotationRow(
-            drug="THN391",
+            drug="XYZ391",
             chembl_id=None,
             action_type=None,
             mechanism_of_action=None,
@@ -1249,7 +1252,7 @@ class TestAnnotationOperations:
 
         assert await upsert_drug_annotations([row]) == 1
         assert conn.executemany.await_args.args[1] == [
-            ("THN391", None, None, None, None, "26.06", False)
+            ("XYZ391", None, None, None, None, "26.06", False)
         ]
 
 

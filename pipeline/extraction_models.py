@@ -46,7 +46,7 @@ def _load_trait_vocabulary() -> tuple[tuple[str, ...], dict[str, str], frozenset
 
     The prompt-sourced synonyms are here because the enum is what the
     model is told it may say, and the prompt's frozen canonical sentence
-    asks for `cerebral-microbleeds` while the tracked key is `CMB`. With
+    asks for a tracked trait by a spelling other than its key. With
     the spelling refused, a model that obeyed the prompt failed the paper
     after two paid calls; which instruction it followed decided whether
     the paper was lost. A curated synonym stays out: it is a spreadsheet
@@ -76,9 +76,10 @@ _TRAIT_VOCABULARY = _load_trait_vocabulary()
 
 CANONICAL_TRAITS: Final[tuple[str, ...]] = _TRAIT_VOCABULARY[0]
 
-# What the merge folds before it filters: the prompt's `cerebral-microbleeds`
-# becomes CMB rather than being dropped as untracked. Exact keys only; the
-# export's ordered substring rewrites serve curated prose and are not this.
+# What the merge folds before it filters: the prompt's spelling of a tracked
+# trait becomes its key rather than being dropped as untracked. Exact keys
+# only; the export's ordered substring rewrites serve curated prose and are
+# not this.
 TRAIT_SYNONYMS: Final[Mapping[str, str]] = MappingProxyType(_TRAIT_VOCABULARY[1])
 
 # The subset of CANONICAL_TRAITS that may be stored. Every entry is a filter

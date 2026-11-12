@@ -433,7 +433,7 @@ function LabelBox(
             <Fragment key={i}>
               {
                 /* The word space a wrap replaced, for the accessible text:
-                  without it "Cognitive Impairment" was read as one word.
+                  without it a two-word population label was read as one word.
                   Zero-size, so it adds no advance to the line it ends and
                   an end-anchored first line does not shift. */
               }
@@ -907,7 +907,7 @@ export default function TrialsTimeline(
   // sector's mid-angle (lib/timeline.ts, pinned by tests/timeline_layout_test.ts).
   // CANVAS was sized to the angles the committed 102 rows produce; a status
   // selection reshapes the sectors and can swing a label's angle past that
-  // margin (Stroke's sector straddling straight-down, for one). Rather than
+  // margin (a population's sector straddling straight-down, for one). Rather than
   // resize the plate -- which the pinned CENTER/CANVAS geometry above would
   // break -- a label that lands off the plate is re-placed on it by
   // `placePopulationLabel`, which slides it round its own sector rather than in over
@@ -1042,8 +1042,8 @@ export default function TrialsTimeline(
     // sized to the angles the committed 102 rows produce, with as little as
     // 19 units of margin at the tightest edge, so a status selection that
     // reshapes the sectors can swing a label's angle past that margin --
-    // Stroke's sector straddling straight-down under the default filter is
-    // the one that found this. A label whose measured extent falls off the
+    // one population's sector straddling straight-down under the default
+    // filter is the one that found this. A label whose measured extent falls off the
     // plate is re-placed by `placePopulationLabel`: `PLATE_MARGIN` short of the edge
     // rather than flush against it, and round its own sector rather than in
     // across its own rim band, which is what pulling it straight back did to
@@ -1752,9 +1752,9 @@ export default function TrialsTimeline(
                           title: populationTitle(layout, band.population),
                           // Drugs, not trials: the band's angular width is
                           // `uniqueDrugCount`, so a trial count here reads as the
-                          // arc's scale and contradicts it — Cognitive Impairment
-                          // carries 2 trials across 1 drug on a 30° arc, Stroke 8
-                          // across 5 on 150°.
+                          // arc's scale and contradicts it — one population
+                          // carries 2 trials across 1 drug on a 30° arc, another
+                          // 8 across 5 on 150°.
                           rows: [{
                             label: "Drugs",
                             value: String(

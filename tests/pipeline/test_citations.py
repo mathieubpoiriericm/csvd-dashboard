@@ -230,7 +230,7 @@ def test_a_bare_gene_symbol_is_not_provenance() -> None:
     the paper by definition, so it counted as verbatim and satisfied the
     gate while supporting nothing.
     """
-    document = "Rare GENE1 variants raise WMH burden in the discovery cohort."
+    document = "Rare GENE1 variants raise TRAIT-A burden in the discovery cohort."
     assert locate_quote("GENE1", document) is None
 
 
@@ -241,14 +241,14 @@ def test_a_mid_word_fragment_is_not_provenance() -> None:
     happily. Anchoring on word boundaries is what rejects it; the word
     count alone would not, since a long enough fragment clears that.
     """
-    document = "Rare GENE1 variants raise WMH burden in the discovery cohort."
-    assert locate_quote("NE1 variants raise WMH burden", document) is None
+    document = "Rare GENE1 variants raise TRAIT-A burden in the discovery cohort."
+    assert locate_quote("NE1 variants raise TRAIT-A burden", document) is None
 
 
 def test_a_quote_that_ends_mid_word_is_not_provenance() -> None:
     """The tail is anchored as well as the head."""
-    document = "Rare GENE1 variants raise WMH burden in the discovery cohort."
-    assert locate_quote("variants raise WMH burd", document) is None
+    document = "Rare GENE1 variants raise TRAIT-A burden in the discovery cohort."
+    assert locate_quote("variants raise TRAIT-A burd", document) is None
 
 
 def test_a_quote_may_open_on_punctuation() -> None:
@@ -266,7 +266,7 @@ def test_a_quote_may_open_on_punctuation() -> None:
 
 def test_a_three_word_quote_is_under_the_floor() -> None:
     """Four words is the floor, and it is checked on the quote alone."""
-    document = "The variant was strongly associated with WMH volume."
+    document = "The variant was strongly associated with TRAIT-A volume."
     assert locate_quote("was strongly associated", document) is None
     assert locate_quote("variant was strongly associated", document) is not None
 
@@ -275,7 +275,7 @@ def test_is_sentence_like_is_the_shape_check_on_its_own() -> None:
     """Exported because the failures are reported apart from paraphrases."""
     assert not is_sentence_like("GENE1")
     assert not is_sentence_like("   ")
-    assert is_sentence_like("GENE1 raises WMH burden.")
+    assert is_sentence_like("GENE1 raises TRAIT-A burden.")
 
 
 class _Gene:
@@ -295,7 +295,7 @@ def test_a_short_quote_is_reported_as_a_shape_failure(
     something the model never wrote.
     """
     reset_tally()
-    document = "Rare GENE1 variants raise WMH burden in the discovery cohort."
+    document = "Rare GENE1 variants raise TRAIT-A burden in the discovery cohort."
     with caplog.at_level(logging.WARNING, logger="pipeline.citations"):
         report_provenance(
             [_Gene("GENE1", "GENE1"), _Gene("GENE2", "GENE2 was not measured.")],
@@ -316,15 +316,15 @@ def test_the_gate_drops_a_gene_whose_quote_is_only_its_symbol() -> None:
     so it passed the check that exists to make provenance mean something.
     """
     reset_tally()
-    document = "Rare GENE1 variants raise WMH burden in the discovery cohort."
+    document = "Rare GENE1 variants raise TRAIT-A burden in the discovery cohort."
     kept = report_provenance(
         [
             _Gene("GENE1", "GENE1"),
-            _Gene("WMH", "Rare GENE1 variants raise WMH burden"),
+            _Gene("TRAIT-A", "Rare GENE1 variants raise TRAIT-A burden"),
         ],
         spans=[],
         document=document,
         pmid="1",
         require_verified_quotes=True,
     )
-    assert [gene.gene_symbol for gene in kept] == ["WMH"]
+    assert [gene.gene_symbol for gene in kept] == ["TRAIT-A"]

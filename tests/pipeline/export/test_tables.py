@@ -16,15 +16,15 @@ from pipeline.export.tables import (
 from pipeline.export.writer import to_camel
 
 _TRIAL = {
-    "drug": "Butylphthalide (NBP)",
+    "drug": "Demozolid (DZL)",
     "mechanism_of_action": "Neuroprotective",
     "genetic_target": None,
     "genetic_evidence": "N",
-    "trial_name": "Isosorbide Mononitrate and Butylphthalide",
-    "registry_id": "ChiCTR2500109773",
+    "trial_name": "Placebide Mockonate and Demozolid",
+    "registry_id": "ChiCTR2500000000",
     "clinical_trial_phase": "III",
-    "target_population": "CAA",
-    "target_population_details": "CAA-related ICH",
+    "target_population": "Population A",
+    "target_population_details": "Population A details",
     "target_sample_size": 3156,
     "estimated_completion_date": "7/2028",
     "primary_outcome": "Post-stroke disability at 6 months",
@@ -190,13 +190,13 @@ def test_the_gate_republishes_every_committed_value_unchanged(
     assert _publishable_omics(published, "committed") == published
 
 
-def test_gene_row_produces_the_display_contract() -> None:
+def test_gene_row_produces_the_display_contract(trait_vocabulary) -> None:
     row = clean_gene_row(
         {
             "gene": "GENE2",
             "protein": "GENE2",
             "chromosomal_location": "7q31.1",
-            "gwas_trait": ["SVS", "WMH"],
+            "gwas_trait": ["TRAIT-A", "TRAIT-B"],
             "mendelian_randomization": None,
             "evidence_from_other_omics_studies": None,
             "link_to_monogenetic_disease": None,
@@ -206,7 +206,7 @@ def test_gene_row_produces_the_display_contract() -> None:
         }
     )
     assert row["Gene"] == "GENE2"
-    assert row["GWAS Trait"] == ["SVS", "WMH"]
+    assert row["GWAS Trait"] == ["TRAIT-A", "TRAIT-B"]
     assert row["Mendelian Randomization"] == "No"
     assert row["Evidence From Other Omics Studies"] == ["(none found)"]
     assert row["Link to Monogenic Disease"] == ["(none found)"]
@@ -309,10 +309,12 @@ def test_gene_row_publishes_a_real_source_quote_verbatim() -> None:
         {
             "gene": "GENE3",
             "references": ["1234567"],
-            "source_quote": "GENE3 variants were associated with WMH (p=1e-12).",
+            "source_quote": "GENE3 variants were associated with trait A (p=1e-12).",
         }
     )
-    assert row["Source Quote"] == "GENE3 variants were associated with WMH (p=1e-12)."
+    assert row["Source Quote"] == (
+        "GENE3 variants were associated with trait A (p=1e-12)."
+    )
 
 
 def test_gene_row_sentinels_a_missing_source_quote() -> None:
@@ -347,7 +349,9 @@ def test_gene_row_passes_confidence_through_as_a_nullable_number() -> None:
     assert row["Confidence"] is None
 
 
-def test_gene_row_key_order_matches_the_committed_artifact(committed_rows) -> None:
+def test_gene_row_key_order_matches_the_committed_artifact(
+    committed_rows, trait_vocabulary
+) -> None:
     """Field order is part of write_rows' contract: pipeline/export/writer.py
     preserves dict insertion order verbatim into the emitted JSON, so a
     column rename must relabel a key in place rather than move it -- exactly
@@ -364,7 +368,7 @@ def test_gene_row_key_order_matches_the_committed_artifact(committed_rows) -> No
             "gene": "GENE2",
             "protein": "GENE2",
             "chromosomal_location": "7q31.1",
-            "gwas_trait": ["SVS", "WMH"],
+            "gwas_trait": ["TRAIT-A", "TRAIT-B"],
             "mendelian_randomization": None,
             "evidence_from_other_omics_studies": None,
             "link_to_monogenetic_disease": None,
@@ -451,7 +455,9 @@ def test_trial_row_key_order_matches_the_committed_artifact(committed_rows) -> N
     assert [to_camel(key) for key in row] == expected
 
 
-def test_known_trait_synonyms_fold_onto_the_controlled_vocabulary() -> None:
+def test_known_trait_synonyms_fold_onto_the_controlled_vocabulary(
+    trait_vocabulary,
+) -> None:
     """lib/constants.ts GWAS_TRAIT_CHOICES and phenogram_encoding.json both
     key on short STRIVE-style codes. A synonym that never reaches that
     vocabulary is unreachable in the UI and fails tests/data_contract_test.ts
@@ -467,7 +473,7 @@ def test_known_trait_synonyms_fold_onto_the_controlled_vocabulary() -> None:
             "gene": "GENE4A1/2",
             "protein": "GENE4A1",
             "chromosomal_location": "13q34",
-            "gwas_trait": ["WMH", "SVS", "lacunes", "CMB"],
+            "gwas_trait": ["TRAIT-C", "TRAIT-A", "TRAIT-B"],
             "mendelian_randomization": None,
             "evidence_from_other_omics_studies": None,
             "link_to_monogenetic_disease": None,
@@ -476,10 +482,10 @@ def test_known_trait_synonyms_fold_onto_the_controlled_vocabulary() -> None:
             "references": ["42437605"],
         }
     )
-    assert row["GWAS Trait"] == ["WMH", "SVS", "lacunes", "CMB"]
+    assert row["GWAS Trait"] == ["TRAIT-C", "TRAIT-A", "TRAIT-B"]
 
 
-def test_an_unmapped_trait_is_left_alone() -> None:
+def test_an_unmapped_trait_is_left_alone(trait_vocabulary) -> None:
     """A trait the rewrite does not know reaches the join table verbatim and
     must publish that way -- clean_gene_row may not mangle a value the
     curators wrote deliberately."""
@@ -488,7 +494,7 @@ def test_an_unmapped_trait_is_left_alone() -> None:
             "gene": "GENE3",
             "protein": "GENE3",
             "chromosomal_location": "19p13.12",
-            "gwas_trait": ["WMH", "PSMD", "extreme-trait"],
+            "gwas_trait": ["TRAIT-B", "TRAIT-A", "extreme-trait"],
             "mendelian_randomization": None,
             "evidence_from_other_omics_studies": None,
             "link_to_monogenetic_disease": None,
@@ -497,7 +503,7 @@ def test_an_unmapped_trait_is_left_alone() -> None:
             "references": ["12345678"],
         }
     )
-    assert row["GWAS Trait"] == ["WMH", "PSMD", "extreme-trait"]
+    assert row["GWAS Trait"] == ["TRAIT-B", "TRAIT-A", "extreme-trait"]
 
 
 def test_clean_gene_row_folds_synonyms_and_drops_untracked_terms(
@@ -535,11 +541,14 @@ def test_split_gwas_traits_folds_synonyms_in_source_order(trait_vocabulary) -> N
     assert split_gwas_traits(f"{spelling}, {other}") == [target, other]
 
 
-def test_split_gwas_traits_trims_the_whole_cell_before_splitting() -> None:
+def test_split_gwas_traits_trims_the_whole_cell_before_splitting(
+    trait_vocabulary,
+) -> None:
     """clean_gene_row applied normalize_text first, and _SPLIT_ON_COMMA
     reaches neither the first part's leading nor the last part's trailing
-    whitespace. "PSMD " is a real stored value, not a hypothetical."""
-    assert split_gwas_traits("  PSMD , WMH  ") == ["PSMD", "WMH"]
+    whitespace. A trait key stored with a trailing space is a real stored
+    value, not a hypothetical."""
+    assert split_gwas_traits("  TRAIT-A , TRAIT-B  ") == ["TRAIT-A", "TRAIT-B"]
 
 
 def test_split_gwas_traits_treats_the_missing_sentinels_as_no_traits() -> None:
@@ -582,17 +591,19 @@ def test_clean_gene_row_applies_sentinels_to_absent_lists() -> None:
     assert out["GWAS Trait"] == ["(none found)"]
 
 
-def test_clean_gene_row_passes_populated_lists_through_in_order() -> None:
+def test_clean_gene_row_passes_populated_lists_through_in_order(
+    trait_vocabulary,
+) -> None:
     row = {
         "gene": "GENE1",
         "references": ["33773636", "33773637"],
-        "gwas_trait": ["WMH"],
+        "gwas_trait": ["TRAIT-A"],
         "link_to_monogenetic_disease": ["600142"],
         "evidence_from_other_omics_studies": None,
     }
     out = clean_gene_row(row)
     assert out["References"] == ["33773636", "33773637"]
-    assert out["GWAS Trait"] == ["WMH"]
+    assert out["GWAS Trait"] == ["TRAIT-A"]
 
 
 def test_clean_gene_row_renders_boolean_mr_as_yes_no() -> None:
@@ -647,7 +658,7 @@ def test_the_dashboards_absent_sentinels_are_the_ones_the_export_writes() -> Non
 @pytest.mark.parametrize(
     "entry",
     [
-        "Proteogenomic MR;WMH",
+        "Proteogenomic MR;TRAIT-A",
         "Fine-mapping;multiancestry fine-mapping",
         "Experimental;CRISPR, experimental",
     ],
@@ -747,8 +758,11 @@ def test_a_runs_array_merged_after_stored_prose_still_publishes() -> None:
     """Most curated rows are stored as prose (`stored_omics` writes prose
     whenever prose round-trips), and the merge appends a v8 run's array
     after it, joined on ";"."""
-    stored = "Experimental:CRISPR;" + _array(["PWAS;WMH: brain*"])
-    assert clean_omics_value(stored) == ["Experimental;CRISPR", "PWAS;WMH: brain*"]
+    stored = "Experimental:CRISPR;" + _array(["PWAS;TRAIT-A: brain*"])
+    assert clean_omics_value(stored) == [
+        "Experimental;CRISPR",
+        "PWAS;TRAIT-A: brain*",
+    ]
 
 
 def test_arrays_and_prose_interleaved_publish_in_order() -> None:

@@ -17,12 +17,13 @@ import { expect, type Locator, type Page } from "@playwright/test";
  * continues with a comma — the shape a visually-hidden suffix takes (a
  * group's active-count readout, a GWAS trait's long-name description). A bare
  * `exact: false` would do substring matching anywhere in the name, which is
- * unsafe here: "WMH" would also match "PVWMH". Anchoring at the start avoids
- * that while still tolerating the hidden suffix.
+ * unsafe here: a short trait key would also match a longer one that ends in
+ * it. Anchoring at the start avoids that while still tolerating the hidden
+ * suffix.
  *
  * The browser's accessible-name computation inserts a space at every element
  * boundary, so a visible label followed by a nested `<span>` suffix reads as
- * "SVS , Small vessel stroke", not "SVS, ..." — hence the `\s*` before the
+ * "KEY , Spelled-out name", not "KEY, ..." — hence the `\s*` before the
  * comma.
  */
 function startsWithName(text: string): RegExp {

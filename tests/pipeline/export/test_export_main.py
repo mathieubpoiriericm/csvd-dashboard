@@ -112,12 +112,12 @@ class TestReadTable:
         self, mocker
     ) -> None:
         mock_conn = AsyncMock()
-        mock_conn.fetch = AsyncMock(return_value=[{"drug": "Butylphthalide"}])
+        mock_conn.fetch = AsyncMock(return_value=[{"drug": "Demozolid"}])
         _mock_connection(mocker, mock_conn)
 
         rows = await _read_table("clinical_trials")
 
-        assert rows == [{"drug": "Butylphthalide"}]
+        assert rows == [{"drug": "Demozolid"}]
 
 
 # ---------------------------------------------------------------------------
@@ -137,7 +137,7 @@ _RAW_GENES: list[dict[str, object]] = [
 # cleaner ever sees it -- so every row here carries one.
 _RAW_TRIALS: list[dict[str, object]] = [
     {"drug": "d1", "target_population": "Population A"},
-    {"drug": "d2", "target_population": "Stroke"},
+    {"drug": "d2", "target_population": "Population B"},
 ]
 
 # Duplicate "GENE2" (rows 0 and 2) and a duplicate PMID ("37063705" in rows
@@ -556,7 +556,7 @@ class TestReadCuratedTrials:
         self._rows(
             mocker,
             [
-                {"drug": "Cilostazol", "target_population": "Stroke"},
+                {"drug": "Samplinib", "target_population": "Population B"},
                 {"drug": "Discovered", "target_population": None},
             ],
         )
@@ -564,7 +564,7 @@ class TestReadCuratedTrials:
         with caplog.at_level(logging.WARNING, logger="pipeline.export.main"):
             rows = await _read_curated_trials()
 
-        assert rows == [{"drug": "Cilostazol", "target_population": "Stroke"}]
+        assert rows == [{"drug": "Samplinib", "target_population": "Population B"}]
         assert "Skipping 1 of 2 clinical trial row(s)" in caplog.text
 
     async def test_a_blank_population_counts_as_uncurated(self, mocker) -> None:
@@ -576,8 +576,8 @@ class TestReadCuratedTrials:
         self, mocker, caplog
     ) -> None:
         rows = [
-            {"drug": "Cilostazol", "target_population": "Stroke"},
-            {"drug": "Cerebrolysin", "target_population": "Population A"},
+            {"drug": "Samplinib", "target_population": "Population B"},
+            {"drug": "Examplumab", "target_population": "Population A"},
         ]
         self._rows(mocker, rows)
 
@@ -696,9 +696,9 @@ class TestStoppedTrialsAreNotPublished:
     @staticmethod
     def _trial(**overrides: object) -> dict[str, object]:
         row: dict[str, object] = {
-            "drug": "Cilostazol",
+            "drug": "Samplinib",
             "registry_id": "NCT01011011",
-            "target_population": "Stroke",
+            "target_population": "Population B",
             "overall_status": "RECRUITING",
         }
         row.update(overrides)
@@ -723,7 +723,7 @@ class TestStoppedTrialsAreNotPublished:
         with caplog.at_level(logging.WARNING, logger="pipeline.export.main"):
             rows = await _read_curated_trials()
 
-        assert [row["drug"] for row in rows] == ["Cilostazol"]
+        assert [row["drug"] for row in rows] == ["Samplinib"]
         # Named, not just counted: which trials left Table 2 is what the
         # operator reads the diff against.
         assert "Skipping 1 of 2 curated clinical trial row(s)" in caplog.text
@@ -768,10 +768,12 @@ class TestStoppedTrialsAreNotPublished:
         downstream. That is the loud failure the export wants on a database
         below migration 013, rather than a silently absent column.
         """
-        self._rows(mocker, [{"drug": "Cilostazol", "target_population": "Stroke"}])
+        self._rows(
+            mocker, [{"drug": "Samplinib", "target_population": "Population B"}]
+        )
 
         assert await _read_curated_trials() == [
-            {"drug": "Cilostazol", "target_population": "Stroke"}
+            {"drug": "Samplinib", "target_population": "Population B"}
         ]
 
     async def test_a_blank_status_publishes(self, mocker) -> None:
@@ -837,7 +839,7 @@ class TestStoppedTrialsAreNotPublished:
         with caplog.at_level(logging.WARNING, logger="pipeline.export.main"):
             rows = await _read_curated_trials()
 
-        assert [row["drug"] for row in rows] == ["Cilostazol"]
+        assert [row["drug"] for row in rows] == ["Samplinib"]
         assert "Skipping 1 of 2 clinical trial row(s)" in caplog.text
         assert "curated clinical trial row(s)" not in caplog.text
 
@@ -848,7 +850,7 @@ class TestStoppedTrialsAreNotPublished:
             mocker,
             [
                 self._trial(),
-                self._trial(drug="Cerebrolysin", overall_status="COMPLETED"),
+                self._trial(drug="Examplumab", overall_status="COMPLETED"),
             ],
         )
 

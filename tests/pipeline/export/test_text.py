@@ -16,7 +16,7 @@ from pipeline.export.writer import to_camel
 
 
 def test_normalize_text_blanks_become_none() -> None:
-    assert normalize_text("  PSMD  ") == "PSMD"
+    assert normalize_text("  TRAIT-A  ") == "TRAIT-A"
     assert normalize_text("   ") is None
     assert normalize_text(None) is None
 

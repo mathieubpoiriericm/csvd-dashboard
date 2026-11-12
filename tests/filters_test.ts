@@ -111,11 +111,11 @@ Deno.test("GWAS filter matches genes carrying the trait", () => {
 });
 
 Deno.test("GWAS filter matches values stored with a trailing space", () => {
-  const padded = { ...sampleGene(), gene: "PADDED", gwasTrait: ["PSMD "] };
+  const padded = { ...sampleGene(), gene: "PADDED", gwasTrait: ["TRAIT-A "] };
 
   const filtered = filterGenes([padded], {
     ...NO_GENE_FILTERS,
-    gwasTraits: ["PSMD"],
+    gwasTraits: ["TRAIT-A"],
   });
   assertEquals(filtered.map((gene) => gene.gene), ["PADDED"]);
 });
@@ -179,18 +179,35 @@ Deno.test("every committed omics value is reachable through its type", () => {
 });
 
 Deno.test("gene filters compose as an intersection", () => {
+  // A trait whose committed rows are some MR "Yes" and some not, so the MR
+  // filter narrows it; any trait when no row has one (the empty export).
+  const mixed = VOCABULARY_TRAITS.map((choice) => choice.value).find(
+    (value) => {
+      const rows = filterGenes(genes, {
+        ...NO_GENE_FILTERS,
+        gwasTraits: [value],
+      });
+      const yes = rows.filter((g) => g.mendelianRandomization === "Yes").length;
+      return yes > 0 && yes < rows.length;
+    },
+  );
+  const trait = mixed ?? VOCABULARY_TRAITS[0].value;
   const combined = filterGenes(genes, {
     mendelianRandomization: ["Yes"],
-    gwasTraits: ["SVS"],
+    gwasTraits: [trait],
     omics: [SHOW_ALL],
   });
   const gwasOnly = filterGenes(genes, {
     ...NO_GENE_FILTERS,
-    gwasTraits: ["SVS"],
+    gwasTraits: [trait],
   });
 
   assertEquals(combined.length <= gwasOnly.length, true);
   assertEquals(combined.every((g) => g.mendelianRandomization === "Yes"), true);
+  if (mixed !== undefined) {
+    // It narrows, and to something.
+    assert(0 < combined.length && combined.length < gwasOnly.length);
+  }
 });
 
 // -----------------------------------------------------------------------------
@@ -247,7 +264,7 @@ Deno.test("a recased sample value is one the filters' comparison still finds", (
 Deno.test("registryOf reads the registry from the ID prefix", () => {
   assertEquals(registryOf("NCT05755997"), "NCT");
   assertEquals(registryOf("ISRCTN14632228"), "ISRCTN");
-  assertEquals(registryOf("ChiCTR2500109773"), "ChiCTR");
+  assertEquals(registryOf("ChiCTR2500000000"), "ChiCTR");
   assertEquals(registryOf("ACTRN12624001477516"), "ACTRN");
   assertEquals(registryOf("  nct05755997  "), "NCT");
   assertEquals(registryOf("chictr2500109773"), "ChiCTR");

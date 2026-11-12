@@ -24,9 +24,9 @@ import { deltaE, HEX, oklab } from "./helpers/colour.ts";
 const FAMILY_ORDER = families.families.map((f) => f.key);
 
 Deno.test("the filter choices are derived from the vocabulary, not restated", () => {
-  // Guards the regression this file exists for: `lacunar stroke` was once
-  // "Lacunar Stroke" in lib/constants.ts and "Lacunar stroke" in the encoding,
-  // and nothing compared the two files' labels. Re-hardcoding the list fails here.
+  // Guards the regression this file exists for: one trait's label was once
+  // capitalised one way in lib/constants.ts and another in the encoding, and
+  // nothing compared the two files' labels. Re-hardcoding the list fails here.
   const derived = GWAS_TRAIT_CHOICES
     .filter((c) => c.value !== SHOW_ALL && c.value !== NONE_FOUND)
     .map((c) => ({ value: c.value, label: c.label }));

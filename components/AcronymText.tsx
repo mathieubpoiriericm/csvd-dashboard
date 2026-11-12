@@ -39,7 +39,7 @@ function piecesOf(text: string): Piece[] {
  * opening parenthesis before it, a comma, colon, closing parenthesis or
  * `-word` after it -- so a wrapped cell never starts a line with "," or ends
  * one with "(". Callers put a list's separators inside the text for the same
- * reason (`"WMH,"`, then a space).
+ * reason (`"<trait>,"`, then a space).
  *
  * Each plain segment is a keyed Fragment, not a bare string: under
  * `jsx: "precompile"` a string in a mixed array is escaped as it is built and

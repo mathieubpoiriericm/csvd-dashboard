@@ -449,7 +449,7 @@ class TestBatchResultsAreAccountedLikeStreamedOnes:
                     {
                         "gene_symbol": "GENE1",
                         "confidence": 0.9,
-                        "source_quote": "GENE1 was associated with WMH.",
+                        "source_quote": "GENE1 was associated with trait A.",
                     }
                 ]
             },

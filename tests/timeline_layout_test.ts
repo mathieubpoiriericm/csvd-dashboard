@@ -63,8 +63,9 @@ Deno.test("polar angles run clockwise from 12 o'clock", () => {
 });
 
 Deno.test("a wedge from the centre and an annular sector produce the old paths", () => {
-  // The same two paths scripts/python_plot.py emitted for CAA, translated to
-  // the enlarged canvas's centre: only CENTER moved, the radii are unchanged.
+  // The same two paths scripts/python_plot.py emitted for one population,
+  // translated to the enlarged canvas's centre: only CENTER moved, the radii
+  // are unchanged.
   assertEquals(
     annularSectorPath(0, 180, 0, 90),
     "M 536.00 484.00 L 536.00 304.00 A 180.00 180.00 0 0 1 716.00 484.00 Z",
@@ -1036,9 +1037,10 @@ Deno.test("a label clear of the band is pulled straight back onto the plate", ()
 });
 
 Deno.test("a label that would be pulled onto its own band slides round its sector", () => {
-  // Straight down, as Stroke sits under the radar's default selection: the
-  // box hangs off the bottom of the plate, and pulling it up puts it on the
-  // band. The slide keeps the radius and re-anchors to the side it lands on.
+  // Straight down, as one upstream population sits under the radar's default
+  // selection: the box hangs off the bottom of the plate, and pulling it up
+  // puts it on the band. The slide keeps the radius and re-anchors to the
+  // side it lands on.
   const label = labelAt("P2", 183.33);
   const base = {
     x: label.point.x - 26,

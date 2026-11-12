@@ -920,7 +920,7 @@ class TestTruncateBackMatter:
         text = (
             "<p>Filler sentence describing cohort recruitment.</p>\n" * 20
             + f"{line}\n"
-            + "<p>Genetic variants in GENE9 were associated with WMH.</p>"
+            + "<p>Genetic variants in GENE9 were associated with trait A.</p>"
         )
 
         assert "GENE9" in _truncate_back_matter(text)
@@ -955,7 +955,7 @@ class TestTruncateBackMatter:
 _HTML_WITH_BACK_MATTER = (
     "<p>Filler sentence describing cohort recruitment and methodology.</p>\n"
     * 20
-    + "<p>Genetic variants in GENE3 were significantly associated with WMH "
+    + "<p>Genetic variants in GENE3 were significantly associated with trait A "
     "burden.</p>\n"
     + "<h2>References</h2>\n"
     + "<p>1. Smith J et al. GENE9 in disease. 2020.</p>"

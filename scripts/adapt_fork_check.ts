@@ -7,7 +7,7 @@
  * abbreviation, one trial population -- never surfaced upstream. This copies
  * the tree, unpacks a wizard bundle over it and follows the adaptation
  * checklist's steps 2 to 4 (lib/adapt/checklist.ts): the upstream logos go,
- * the data is emptied, `GOLD_ONLY` is switched off, the four cSVD test trees
+ * the data is emptied, `GOLD_ONLY` is switched off, the four csvd/ test trees
  * and the recall cassettes are deleted and `_ADMITTED_UNASKED` is emptied.
  * Then it runs step 5's checks and the production build. A fork's CI runs it
  * too, on a checkout those steps were applied to long ago, so each of them
@@ -125,7 +125,7 @@ async function copyTree(into: string) {
 // checklist deletes may already be gone, and what it edits already edited.
 
 /**
- * Whether the tree at `fork` is still upstream's: it holds the cSVD tests,
+ * Whether the tree at `fork` is still upstream's: it holds the csvd/ tests,
  * which checklist step 3 deletes and no fork puts back.
  */
 async function isUpstream(fork: string): Promise<boolean> {

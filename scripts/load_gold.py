@@ -176,7 +176,7 @@ _STUDY_SEPARATOR: Final = re.compile(rf"\n|;{_OUTSIDE_PARENS}")
 # "AIS: tissue*". The type takes the omics filter's spelling. Every published
 # type can lead (`OMICS_STUDY_TYPES`, the export's own vocabulary), so a
 # curated rewrite can put any entry in the wire form's own order
-# ("WES/WGS non-lobar ICH: …", "Fine-mapping: multi-ancestry"). Longest first,
+# ("WES/WGS <trait>: …", "Fine-mapping: multi-ancestry"). Longest first,
 # so a type that begins another never takes its place in the alternation.
 _TYPE_SPELLING: Final[Mapping[str, str]] = MappingProxyType(
     {spelling.lower(): spelling for spelling in OMICS_STUDY_TYPES}
