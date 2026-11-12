@@ -25,6 +25,7 @@ from pipeline.cache_utils import DB_CACHE_TTL_DAYS
 from pipeline.database import Database, get_cached_uniprot_info
 from pipeline.export.lookups import read_uniprot_info
 from pipeline.export.main import read_published_genes, run_export
+from pipeline.steps import PREVIEW_RUN_MODE
 
 pytestmark = pytest.mark.usefixtures("database_env")
 
@@ -125,14 +126,30 @@ async def test_a_restored_database_exports_the_committed_files_byte_for_byte(
     if not json.loads((_DATA_DIR / "table1.json").read_text(encoding="utf-8")):
         pytest.skip("data/table1.json is empty -- nothing committed to restore")
 
+    # A committed preview report is left out of the restore (it ran against a
+    # database of its own), so the restored database holds no report, and an
+    # export with gold-only off would write null over it. Key on the
+    # committed file rather than on GOLD_ONLY: a preview report is exported
+    # the gold-only way, which leaves pipeline_run.json unstaged, and is
+    # then neither required nor compared.
+    committed_run = json.loads(
+        (_DATA_DIR / "pipeline_run.json").read_text(encoding="utf-8")
+    )
+    preview = (
+        committed_run is not None and committed_run.get("runMode") == PREVIEW_RUN_MODE
+    )
+
     await write_plan(build_plan(_DATA_DIR, tmp_path / "no-logs"))
     out = tmp_path / "export"
-    await run_export(out, gold_only_on=False)
+    await run_export(out, gold_only_on=preview)
 
     produced = sorted(path.name for path in out.glob("*.json"))
-    assert {"table1.json", "table2.json", "refs.json", "pipeline_run.json"} <= set(
-        produced
-    )
+    required = {"table1.json", "table2.json", "refs.json"}
+    if not preview:
+        required.add("pipeline_run.json")
+    assert required <= set(produced)
+    if preview:
+        assert "pipeline_run.json" not in produced
     differing = [
         name
         for name in produced

@@ -114,6 +114,11 @@ Deno.test("a preview switched on opens the widget between the notice and the her
   const card = html.indexOf("pipeline-card");
   assert(notice !== -1 && notice < card, "the widget follows the notice");
   assert(card < html.indexOf("about-hero"), "the widget precedes the hero");
+  // The preview adds the widget and nothing else: the hero keeps the
+  // curated date, and the run branch's date and refreshes stay out.
+  assertStringIncludes(html, "Hand-curated data as of");
+  assertNotMatch(html, /Up to date as of/);
+  assertNotMatch(html, /Reference Data Refreshes/);
 });
 
 Deno.test("the run branch carries no notice", () => {

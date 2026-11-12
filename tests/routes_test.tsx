@@ -198,13 +198,21 @@ Deno.test("the About route draws the preview the visitor's cookie asked for", ()
   // notice is gold-only's, and the widget needs a recorded run.
   const on = renderAbout(previewCookie(true).split(";")[0]);
   const off = renderAbout();
-  assertNotMatch(off, /pipeline-card/);
-  if (GOLD_ONLY && pipelineRun !== null) {
-    assertStringIncludes(on, "pipeline-card");
-    assertStringIncludes(on, 'aria-checked="true"');
-    assertStringIncludes(off, 'aria-checked="false"');
-  } else if (GOLD_ONLY) {
-    assertNotMatch(on, /pipeline-card|about-preview-switch/);
+  if (GOLD_ONLY) {
+    // Under gold-only the widget is the preview's alone, so without the
+    // cookie there is none.
+    assertNotMatch(off, /pipeline-card/);
+    if (pipelineRun !== null) {
+      assertStringIncludes(on, "pipeline-card");
+      assertStringIncludes(on, 'aria-checked="true"');
+      assertStringIncludes(off, 'aria-checked="false"');
+    } else {
+      assertNotMatch(on, /pipeline-card|about-preview-switch/);
+    }
+  } else {
+    // The run branch renders its own widget whenever a run is recorded, and
+    // the cookie changes nothing.
+    assertEquals(on, off);
   }
 });
 
