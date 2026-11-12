@@ -7,6 +7,7 @@ import json
 import logging
 import signal
 from pathlib import Path
+from types import SimpleNamespace
 from typing import cast
 from unittest.mock import AsyncMock, MagicMock
 
@@ -15,7 +16,8 @@ import httpx
 import pytest
 
 import pipeline.main as pipeline_main
-from pipeline import checkpoint
+from pipeline import batch_state, checkpoint
+from pipeline.batch_state import PendingBatch
 from pipeline.citations import current_tally, report_provenance, reset_tally
 from pipeline.config import PipelineConfig
 from pipeline.database import DatabaseConfigError
@@ -630,6 +632,72 @@ class TestConcurrentProcessing:
         assert not (tmp_path / "checkpoint.jsonl").exists()
 
 
+class TestCacheWarmup:
+    """The streaming fan-out writes the shared prompt cache once, up front."""
+
+    @staticmethod
+    def _fakes(mocker, usage: TokenUsage | None = None):
+        async def fake(pmid, metrics, *, config, rate_limiter=None):
+            return {
+                "genes": [],
+                "rejected_genes": [],
+                "fulltext": True,
+                "source": "pmc",
+                "text_truncated": False,
+            }
+
+        mocker.patch("pipeline.main.process_paper", new=fake)
+        prewarm = AsyncMock(return_value=usage or TokenUsage())
+        mocker.patch("pipeline.main.prewarm_cache", new=prewarm)
+        return prewarm
+
+    async def test_one_paper_is_not_worth_a_warmup(self, mocker) -> None:
+        prewarm = self._fakes(mocker)
+
+        await pipeline_main.process_papers_concurrently(
+            ["111"], PipelineMetrics(), PipelineConfig()
+        )
+
+        prewarm.assert_not_awaited()
+
+    async def test_two_papers_are_warmed_once(self, mocker) -> None:
+        prewarm = self._fakes(mocker)
+
+        await pipeline_main.process_papers_concurrently(
+            ["111", "222"], PipelineMetrics(), PipelineConfig()
+        )
+
+        prewarm.assert_awaited_once()
+
+    async def test_the_warmup_is_paid_for_in_the_run_total(self, mocker) -> None:
+        self._fakes(mocker, TokenUsage(cache_creation_input_tokens=9000))
+        metrics = PipelineMetrics()
+
+        await pipeline_main.process_papers_concurrently(
+            ["111", "222"], metrics, PipelineConfig()
+        )
+
+        assert metrics.token_usage.cache_creation_input_tokens == 9000
+
+    async def test_the_batch_path_does_not_warm(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        # The Batches API rejects max_tokens 0, and a batch's cache hits are
+        # best-effort anyway.
+        prewarm = self._fakes(mocker)
+        mocker.patch(
+            "pipeline.main._fetch_paper_text_for_batch",
+            new=AsyncMock(return_value=("", False, "none")),
+        )
+        config = PipelineConfig(checkpoint_file=str(tmp_path / "checkpoint.jsonl"))
+
+        await pipeline_main._process_new_pmids_via_batch(
+            ["111", "222"], PipelineMetrics(), config, MagicMock()
+        )
+
+        prewarm.assert_not_awaited()
+
+
 class TestCheckpointResume:
     """A crash after hours of extraction must not discard the extraction."""
 
@@ -820,16 +888,15 @@ class TestCheckpointResume:
             "pipeline.main._fetch_paper_text_for_batch",
             new=AsyncMock(return_value=("text", True, "europepmc")),
         )
-        mocker.patch(
-            "pipeline.main.submit_and_collect",
-            new=AsyncMock(return_value=genes_by_pmid),
-        )
+        submit = AsyncMock(return_value=genes_by_pmid)
+        mocker.patch("pipeline.main.submit_and_collect", new=submit)
 
         async def _validate(genes, metrics, config):
             metrics.genes_validated += len(genes)
             return genes, []
 
         mocker.patch("pipeline.main._validate_genes", new=_validate)
+        return submit
 
     async def test_a_batch_run_checkpoints_each_validated_paper(
         self, mocker, tmp_path: Path
@@ -934,6 +1001,315 @@ class TestCheckpointResume:
         )
 
         assert not Path(config.checkpoint_file).exists()
+
+    @staticmethod
+    def _record_batch(config: PipelineConfig, *pmids: str) -> None:
+        """Put one recorded batch on file, holding *pmids*."""
+        batch_state.save(
+            config.batch_state_file,
+            checkpoint.fingerprint(config),
+            [PendingBatch("msgbatch_old", {pmid: "ab" for pmid in pmids})],
+        )
+
+    @staticmethod
+    def _on_record(config: PipelineConfig) -> dict[str, set[str]]:
+        return {
+            p.batch_id: set(p.document_sha256)
+            for p in batch_state.load(
+                config.batch_state_file, checkpoint.fingerprint(config)
+            )
+        }
+
+    async def test_a_batch_run_forgets_its_papers_once_every_one_is_validated(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        config = self._config(tmp_path)
+        self._batch_fakes(mocker, {"111": [self._gene()]})
+        self._record_batch(config, "111")
+
+        await pipeline_main._process_new_pmids_via_batch(
+            ["111"], PipelineMetrics(), config, MagicMock()
+        )
+
+        assert not Path(config.batch_state_file).exists()
+
+    async def test_a_batch_run_keeps_the_papers_it_did_not_claim_on_record(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        # A narrower window's run over a batch a wider one paid for: 222 is
+        # still that batch's to answer.
+        config = self._config(tmp_path)
+        self._batch_fakes(mocker, {"111": [self._gene()]})
+        self._record_batch(config, "111", "222")
+
+        await pipeline_main._process_new_pmids_via_batch(
+            ["111"], PipelineMetrics(), config, MagicMock()
+        )
+
+        assert self._on_record(config) == {"msgbatch_old": {"222"}}
+
+    async def test_a_disjoint_batch_run_leaves_another_window_s_record_intact(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        config = self._config(tmp_path)
+        self._batch_fakes(mocker, {"333": [self._gene()]})
+        self._record_batch(config, "111", "222")
+
+        await pipeline_main._process_new_pmids_via_batch(
+            ["333"], PipelineMetrics(), config, MagicMock()
+        )
+
+        assert self._on_record(config) == {"msgbatch_old": {"111", "222"}}
+
+    async def test_a_paper_whose_validation_failed_stays_on_record(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        # Its batch answer is good and paid for; NCBI being down is no
+        # reason to pay for it again on the next run.
+        from pipeline.validation import NcbiUnavailableError
+
+        config = self._config(tmp_path)
+        self._batch_fakes(
+            mocker, {"111": [self._gene()], "222": [self._gene("HTRA1")]}
+        )
+        self._record_batch(config, "111", "222")
+
+        async def _validate(genes, metrics, config):
+            if genes[0].gene_symbol == "NOTCH3":
+                raise NcbiUnavailableError("NCBI down")
+            return genes, []
+
+        mocker.patch("pipeline.main._validate_genes", new=_validate)
+
+        await pipeline_main._process_new_pmids_via_batch(
+            ["111", "222"], PipelineMetrics(), config, MagicMock()
+        )
+
+        assert self._on_record(config) == {"msgbatch_old": {"111"}}
+
+    async def test_an_entry_with_no_usable_result_is_forgotten(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        # Absent from the result map: errored, expired, unparseable. Kept on
+        # record it would be replayed as the same failure for 29 days.
+        config = self._config(tmp_path)
+        self._batch_fakes(mocker, {"111": [self._gene()]})
+        self._record_batch(config, "111", "222")
+
+        batch = await pipeline_main._process_new_pmids_via_batch(
+            ["111", "222"], PipelineMetrics(), config, MagicMock()
+        )
+
+        assert not Path(config.batch_state_file).exists()
+        failed = next(r for r in batch.results if r.pmid == "222")
+        assert failed.error == "no result returned by the batch"
+
+    async def test_a_paper_whose_fetch_failed_stays_on_record(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        config = self._config(tmp_path)
+        self._batch_fakes(mocker, {"111": [self._gene()]})
+        self._record_batch(config, "111", "222")
+
+        async def fetch(pmid, semaphore):
+            if pmid == "222":
+                raise httpx.ConnectError("down")
+            return ("text", True, "europepmc")
+
+        mocker.patch("pipeline.main._fetch_paper_text_for_batch", new=fetch)
+
+        await pipeline_main._process_new_pmids_via_batch(
+            ["111", "222"], PipelineMetrics(), config, MagicMock()
+        )
+
+        assert self._on_record(config) == {"msgbatch_old": {"222"}}
+
+    async def test_a_batch_run_keeps_its_state_when_validation_crashes(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        # The results are paid for until every paper is validated, so a
+        # crash in validation must leave the batch retrievable.
+        config = self._config(tmp_path)
+        self._batch_fakes(mocker, {"111": [self._gene()]})
+        self._record_batch(config, "111")
+        mocker.patch(
+            "pipeline.main._validate_batch_paper",
+            new=AsyncMock(side_effect=RuntimeError("boom")),
+        )
+
+        with pytest.raises(RuntimeError):
+            await pipeline_main._process_new_pmids_via_batch(
+                ["111"], PipelineMetrics(), config, MagicMock()
+            )
+
+        assert self._on_record(config) == {"msgbatch_old": {"111"}}
+
+    async def test_a_dry_run_batch_leaves_a_real_run_s_record_untouched(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        config = self._config(tmp_path)
+        self._batch_fakes(mocker, {"111": [self._gene()]})
+        self._record_batch(config, "111")
+        before = Path(config.batch_state_file).read_bytes()
+
+        await pipeline_main._process_new_pmids_via_batch(
+            ["111"], PipelineMetrics(), config, MagicMock(), use_checkpoint=False
+        )
+
+        assert Path(config.batch_state_file).read_bytes() == before
+
+    @staticmethod
+    def _batch_entry(pmid: str, symbol: str) -> SimpleNamespace:
+        """One succeeded batch entry reporting *symbol*, as the SDK yields it."""
+        tool_call = SimpleNamespace(
+            type="tool_use",
+            name="report_genes",
+            input={
+                "genes": [
+                    {
+                        "gene_symbol": symbol,
+                        "confidence": 0.9,
+                        "source_quote": f"{symbol} variants were associated.",
+                    }
+                ]
+            },
+        )
+        usage = SimpleNamespace(
+            input_tokens=100,
+            output_tokens=10,
+            cache_creation_input_tokens=0,
+            cache_read_input_tokens=0,
+            output_tokens_details=None,
+        )
+        message = SimpleNamespace(
+            content=[tool_call], stop_reason="end_turn", usage=usage, model=None
+        )
+        return SimpleNamespace(
+            custom_id=pmid,
+            result=SimpleNamespace(type="succeeded", message=message),
+        )
+
+    def _sdk_client(self, mocker, monkeypatch) -> MagicMock:
+        """A Batches API holding one ended batch for 111 and 222."""
+        entries = [self._batch_entry("111", "GENE1"), self._batch_entry("222", "GENE2")]
+
+        async def results(batch_id):
+            async def stream():
+                for entry in entries:
+                    yield entry
+
+            return stream()
+
+        client = MagicMock()
+        client.messages.batches.create = AsyncMock(
+            return_value=MagicMock(id="msgbatch_1")
+        )
+        client.messages.batches.retrieve = AsyncMock(
+            return_value=MagicMock(id="msgbatch_1", processing_status="ended")
+        )
+        client.messages.batches.results = AsyncMock(side_effect=results)
+        client.close = AsyncMock()
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+        mocker.patch(
+            "pipeline.batch_extraction.build_async_client", return_value=client
+        )
+        return client
+
+    async def test_a_crash_in_validation_resumes_from_the_checkpoint_and_the_batch(
+        self, mocker, monkeypatch, tmp_path: Path
+    ) -> None:
+        """The whole resume, with the real collector and a real state file.
+
+        The first run collects the batch, validates 111 and is killed while
+        validating 222. The second checkpoint-restores 111, claims 222 from
+        the recorded batch without submitting anything, and takes both off
+        the record once they are stored.
+        """
+        config = self._config(tmp_path)
+        mocker.patch(
+            "pipeline.main._fetch_paper_text_for_batch",
+            new=AsyncMock(return_value=("paper text", True, "europepmc")),
+        )
+
+        async def _validate(genes, metrics, config):
+            metrics.genes_validated += len(genes)
+            return genes, []
+
+        mocker.patch("pipeline.main._validate_genes", new=_validate)
+        first = self._sdk_client(mocker, monkeypatch)
+        real_validate = pipeline_main._validate_batch_paper
+
+        async def killed_on_222(pmid, *args, **kwargs):
+            if pmid == "222":
+                raise RuntimeError("killed")
+            return await real_validate(pmid, *args, **kwargs)
+
+        mocker.patch("pipeline.main._validate_batch_paper", new=killed_on_222)
+
+        with pytest.raises(RuntimeError, match="killed"):
+            await pipeline_main._process_new_pmids_via_batch(
+                ["111", "222"], PipelineMetrics(), config, MagicMock()
+            )
+
+        first.messages.batches.create.assert_awaited_once()
+        assert self._on_record(config) == {"msgbatch_1": {"111", "222"}}
+
+        mocker.patch("pipeline.main._validate_batch_paper", new=real_validate)
+        second = self._sdk_client(mocker, monkeypatch)
+        progress = MagicMock()
+        metrics = PipelineMetrics()
+
+        batch = await pipeline_main._process_new_pmids_via_batch(
+            ["111", "222"], metrics, config, progress
+        )
+
+        second.messages.batches.create.assert_not_awaited()
+        assert {r.pmid: r.succeeded for r in batch.results} == {
+            "111": True,
+            "222": True,
+        }
+        resumed = next(r for r in batch.results if r.pmid == "222")
+        assert [g.gene_symbol for g in resumed.genes] == ["GENE2"]
+        # The checkpoint narrowed the run: only 222's entry was collected
+        # and counted (a restored batch paper's record carries no tokens).
+        assert metrics.token_usage.input_tokens == 100
+        assert any(
+            "Restored 1" in call.args[0] for call in progress.action.call_args_list
+        )
+        # And the batch reuse is named, because the crashed run may have
+        # reported the same tokens.
+        assert (
+            "Collected 1 paper from a batch an earlier run submitted; if that "
+            "run had already collected it, their tokens are in both reports"
+        ) in [call.args[0] for call in progress.action.call_args_list]
+        assert not Path(config.batch_state_file).exists()
+
+    async def test_a_batch_run_passes_the_state_path_when_checkpointing(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        config = self._config(tmp_path)
+        submit = self._batch_fakes(mocker, {"111": [self._gene()]})
+
+        await pipeline_main._process_new_pmids_via_batch(
+            ["111"], PipelineMetrics(), config, MagicMock()
+        )
+
+        assert (
+            submit.call_args.kwargs["state_path"]
+            == config.batch_state_file
+        )
+
+    async def test_a_dry_run_batch_writes_no_state(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        config = self._config(tmp_path)
+        submit = self._batch_fakes(mocker, {"111": [self._gene()]})
+
+        await pipeline_main._process_new_pmids_via_batch(
+            ["111"], PipelineMetrics(), config, MagicMock(), use_checkpoint=False
+        )
+
+        assert submit.call_args.kwargs["state_path"] is None
 
     async def test_a_batch_checkpoint_that_cannot_be_written_does_not_end_the_run(
         self, mocker, tmp_path: Path
@@ -2046,7 +2422,9 @@ class TestMetricsCountWhatHappened:
             new=AsyncMock(return_value=("text", True, "europepmc")),
         )
 
-        async def _collect(papers, config, *, usage, refusals=None):
+        async def _collect(
+            papers, config, *, usage, refusals=None, state_path=None, reused=None
+        ):
             usage.input_tokens += 1000
             usage.output_tokens += 200
             usage.truncated_responses += 1
@@ -2939,27 +3317,248 @@ class TestTheServingModelAndTheRefusal:
         assert result["extraction_model"] is None
         assert result["refusal"] is None
 
-    async def test_a_refused_batch_entry_fails_with_its_category(
-        self, mocker, tmp_path
-    ) -> None:
+    @staticmethod
+    def _refused_batch(mocker, tmp_path: Path, extract: AsyncMock) -> PipelineConfig:
+        """A batch of 111 and 222 whose entry for 222 the classifier declined.
+
+        111 comes back with one gene and validation passes everything, so
+        whatever happens to 222 is the rescue's doing alone.
+        """
+        reset_tally()
         mocker.patch(
             "pipeline.main._fetch_paper_text_for_batch",
             new=AsyncMock(return_value=("paper text", False, "abstract")),
         )
 
-        async def fake_submit(papers, config, *, usage=None, refusals=None):
+        async def fake_submit(
+            papers,
+            config,
+            *,
+            usage=None,
+            refusals=None,
+            state_path=None,
+            reused=None,
+        ):
             assert refusals is not None
-            refusals["777"] = "bio"
-            return {}
+            refusals["222"] = "bio"
+            return {
+                "111": [
+                    GeneEntry(
+                        gene_symbol="GENE1",
+                        confidence=0.9,
+                        source_quote="GENE1 is mentioned.",
+                        pmid="111",
+                    )
+                ]
+            }
+
+        async def validate(genes, metrics, config):
+            metrics.genes_validated += len(genes)
+            return genes, []
 
         mocker.patch("pipeline.main.submit_and_collect", new=fake_submit)
-        config = PipelineConfig(progress_file=str(tmp_path / "progress.json"))
+        mocker.patch("pipeline.main._validate_genes", new=validate)
+        mocker.patch("pipeline.main.extract_from_paper", new=extract)
+        return PipelineConfig(
+            checkpoint_file=str(tmp_path / "checkpoint.jsonl"),
+            batch_state_file=str(tmp_path / "batch_state.json"),
+            progress_file=str(tmp_path / "progress.json"),
+        )
+
+    async def test_a_refused_batch_paper_is_extracted_by_the_fallback_in_the_same_run(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        usage = TokenUsage(input_tokens=1000, output_tokens=200)
+
+        async def answer(text, pmid, *, config, rate_limiter, model, declined):
+            # Its quotes are the paper's own, as on the streaming path.
+            current_tally().record(genes=1, verbatim=1, cited=1)
+            return (
+                [
+                    GeneEntry(
+                        gene_symbol="GENE2",
+                        confidence=0.9,
+                        source_quote="GENE2 is mentioned.",
+                    )
+                ],
+                usage,
+                ServedBy(model="claude-opus-4-8", declined=declined),
+            )
+
+        extract = AsyncMock(side_effect=answer)
+        config = self._refused_batch(mocker, tmp_path, extract)
+        metrics = PipelineMetrics()
         reporter = pipeline_main._ProgressReporter(config)
+
         batch = await pipeline_main._process_new_pmids_via_batch(
-            ["777"], PipelineMetrics(), config, reporter, use_checkpoint=False
+            ["111", "222"], metrics, config, reporter
         )
-        (result,) = batch.results
-        assert result.refusal == "bio"
-        assert result.error == (
-            "Refused by safety classifier for PMID 777 (category: bio)"
+
+        extract.assert_awaited_once()
+        assert extract.call_args.kwargs["model"] == config.fallback_model
+        assert extract.call_args.kwargs["declined"] == "bio"
+        assert extract.call_args.kwargs["rate_limiter"] is None
+        rescued = next(r for r in batch.results if r.pmid == "222")
+        assert rescued.succeeded and rescued.extraction_model == "claude-opus-4-8"
+        assert rescued.refusal == "bio"
+        assert [g.gene_symbol for g in rescued.genes] == ["GENE2"]
+        assert rescued.genes[0].pmid == "222"
+        # Validated, counted and checkpointed like every other batch paper.
+        assert metrics.papers_processed == 2
+        assert metrics.genes_validated == 2
+        records = {
+            r["result"]["pmid"]: r
+            for r in checkpoint.load(
+                config.checkpoint_file, checkpoint.fingerprint(config)
+            )
+        }
+        assert records["222"]["result"]["extraction_model"] == "claude-opus-4-8"
+        assert records["222"]["provenance"]["genes"] == 1
+        # Streamed, so the batch discount must not be taken off it.
+        assert metrics.token_usage.input_tokens == 1000
+        assert metrics.streamed_token_usage.input_tokens == 1000
+        assert any(
+            w.kind == "model_fallback" and w.subjects == ["222"]
+            for step in reporter.steps()
+            for w in step.warnings
         )
+
+    async def test_a_paper_both_models_decline_fails_alone_and_names_both(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        extract = AsyncMock(
+            side_effect=ExtractionRefusedError(
+                "x",
+                TokenUsage(input_tokens=500),
+                category="cyber",
+            )
+        )
+        config = self._refused_batch(mocker, tmp_path, extract)
+        metrics = PipelineMetrics()
+        reporter = pipeline_main._ProgressReporter(config)
+
+        batch = await pipeline_main._process_new_pmids_via_batch(
+            ["111", "222"], metrics, config, reporter
+        )
+
+        failed = next(r for r in batch.results if r.pmid == "222")
+        other = next(r for r in batch.results if r.pmid == "111")
+        assert not failed.succeeded and failed.error is not None
+        assert "bio" in failed.error and "cyber" in failed.error
+        assert failed.error == (
+            "Refused by safety classifier for PMID 222 (category: bio; "
+            "claude-opus-4-8 also declined: cyber)"
+        )
+        # As on the streaming path, the paper's refusal is the requested
+        # model's classifier.
+        assert failed.refusal == "bio"
+        assert other.succeeded
+        # A declined attempt is still spent.
+        assert metrics.token_usage.input_tokens == 500
+        assert metrics.streamed_token_usage.input_tokens == 500
+
+    async def test_a_rescue_that_errors_does_not_lose_the_batch(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        extract = AsyncMock(
+            side_effect=ExtractionFailedError("boom", TokenUsage(output_tokens=40))
+        )
+        config = self._refused_batch(mocker, tmp_path, extract)
+        metrics = PipelineMetrics()
+
+        batch = await pipeline_main._process_new_pmids_via_batch(
+            ["111", "222"],
+            metrics,
+            config,
+            pipeline_main._ProgressReporter(config),
+        )
+
+        failed = next(r for r in batch.results if r.pmid == "222")
+        other = next(r for r in batch.results if r.pmid == "111")
+        assert other.succeeded and not failed.succeeded
+        assert failed.error == "boom"
+        assert metrics.token_usage.output_tokens == 40
+        records = checkpoint.load(
+            config.checkpoint_file, checkpoint.fingerprint(config)
+        )
+        assert [r["result"]["pmid"] for r in records] == ["111"]
+
+    async def test_a_rescued_paper_that_fails_validation_is_paid_for_not_kept(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        # The fallback answered, so its tokens are spent at the streaming
+        # rate; NCBI then failed the paper, so the retrying run counts its
+        # quotes and nothing restores it.
+        from pipeline.validation import NcbiUnavailableError
+
+        async def answer(text, pmid, *, config, rate_limiter, model, declined):
+            current_tally().record(genes=1, verbatim=1, cited=1)
+            return (
+                [
+                    GeneEntry(
+                        gene_symbol="GENE2",
+                        confidence=0.9,
+                        source_quote="GENE2 is mentioned.",
+                    )
+                ],
+                TokenUsage(input_tokens=700, output_tokens=70),
+                ServedBy(model="claude-opus-4-8", declined=declined),
+            )
+
+        config = self._refused_batch(mocker, tmp_path, AsyncMock(side_effect=answer))
+
+        async def validate(genes, metrics, config):
+            if genes[0].gene_symbol == "GENE2":
+                raise NcbiUnavailableError("NCBI down")
+            metrics.genes_validated += len(genes)
+            return genes, []
+
+        mocker.patch("pipeline.main._validate_genes", new=validate)
+        metrics = PipelineMetrics()
+
+        batch = await pipeline_main._process_new_pmids_via_batch(
+            ["111", "222"],
+            metrics,
+            config,
+            pipeline_main._ProgressReporter(config),
+        )
+
+        failed = next(r for r in batch.results if r.pmid == "222")
+        assert not failed.succeeded and failed.error == "NCBI down"
+        assert metrics.token_usage.input_tokens == 700
+        assert metrics.token_usage.output_tokens == 70
+        assert metrics.streamed_token_usage.input_tokens == 700
+        # 111 recorded no quotes, so the run's tally is 222's alone.
+        assert current_tally().genes == 0
+        records = checkpoint.load(
+            config.checkpoint_file, checkpoint.fingerprint(config)
+        )
+        assert [r["result"]["pmid"] for r in records] == ["111"]
+
+    async def test_a_batch_keeps_its_state_until_the_rescues_finish(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        # A crash during a rescue must still be able to retrieve the batch.
+        seen: list[bool] = []
+
+        async def answer(text, pmid, *, config, rate_limiter, model, declined):
+            seen.append(Path(config.batch_state_file).exists())
+            raise ExtractionFailedError("boom")
+
+        extract = AsyncMock(side_effect=answer)
+        config = self._refused_batch(mocker, tmp_path, extract)
+        batch_state.save(
+            config.batch_state_file,
+            checkpoint.fingerprint(config),
+            [PendingBatch("msgbatch_old", {"111": "ab", "222": "cd"})],
+        )
+
+        await pipeline_main._process_new_pmids_via_batch(
+            ["111", "222"],
+            PipelineMetrics(),
+            config,
+            pipeline_main._ProgressReporter(config),
+        )
+
+        assert seen == [True]
+        assert not Path(config.batch_state_file).exists()

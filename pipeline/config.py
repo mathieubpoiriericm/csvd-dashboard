@@ -604,6 +604,16 @@ class PipelineConfig:
         )
     )
 
+    # The batches a `--batch` run has submitted and not yet collected. The
+    # batch id otherwise lives only in memory and the run log, so a crash in
+    # the up-to-24h poll loop would lose a paid submission.
+    batch_state_file: str = field(
+        default_factory=lambda: _env_path(
+            "PIPELINE_BATCH_STATE_FILE",
+            PROJECT_ROOT / "logs" / "pipeline_batch.json",
+        )
+    )
+
     notify_max_retries: int = field(
         default_factory=lambda: _env_int("PIPELINE_NOTIFY_MAX_RETRIES", 3)
     )

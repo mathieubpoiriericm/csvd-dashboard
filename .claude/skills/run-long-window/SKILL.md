@@ -1,6 +1,6 @@
 ---
 name: run-long-window
-description: "Use when running the pipeline over a long --days-back window: checkpoint and resume semantics, the --batch exception, backfill_pubmed, and cost estimation."
+description: "Use when running the pipeline over a long --days-back window: checkpoint and resume semantics, the --batch state file, backfill_pubmed, and cost estimation."
 ---
 
 # Running a long window
@@ -55,9 +55,10 @@ Opus 5.5 attempt is billed (a `bio` refusal is, even before any output; a
 writes more than Opus 5.5 does. Measured on 2026-11-03, the retry of the 37
 refused papers (plus one new one) cost $8.38 for 38 papers, about $0.22 each
 against the window's $0.074: Opus 4.8 extracted 34, Opus 5.5 took 3 itself this
-time, and both models declined 1. `--batch`
-cannot fall back -- the Batches API rejects `fallbacks` -- so under it every
-refusal fails the paper as before.
+time, and both models declined 1. A `--batch` entry cannot fall back -- the
+Batches API rejects `fallbacks` -- so the run sends each refused entry straight
+to Opus 4.8 as a streaming request once the batch is collected: the same
+`model_fallback` warning, at the streaming rate rather than the batch's half.
 
 **`pipeline/checkpoint.py` is what makes that survivable.** Each paper is
 appended to `logs/pipeline_checkpoint.jsonl` as it finishes, through the
@@ -154,16 +155,46 @@ paper is written as its validation finishes, from its own `PipelineMetrics`,
 with its share of the quote tally (`results_by_custom_id` runs
 `report_provenance` under `paper_scope`). One difference from the streaming path
 is deliberate: the batch's tokens are one figure for the whole batch, not per
-paper, so a restored batch paper carries none -- the crashed run's own failed
-report holds the spend. The batch path used to write nothing and also reached
-the unconditional clear without restoring a streaming run's papers.
+paper, so a restored batch paper carries none of them -- the crashed run's own
+failed report holds the spend. A paper the fallback model rescued after the
+batch declined it is the exception: its record carries that streamed request's
+tokens, and the restoring run counts them at the full rate. The batch path used
+to write nothing and also reached the unconditional clear without restoring a
+streaming run's papers.
 
-**The poll window of a `--batch` run is the one unprotected stretch**: the batch
-id lives only in the `Submitted batch %s` log line, so a crash inside the
-up-to-24h wait loses the submission and a re-run pays again -- see "Commands" in
-the root `CLAUDE.md`. `--test-mode` counts what a window would process before
-paying for it, and `scripts.backfill_pubmed` walks it in committed chunks so the
-database is updated as it goes; both are described in
+**The poll window of a `--batch` run is covered by a state file.**
+`submit_and_collect` writes the batch id to `logs/pipeline_batch.json`
+(`PIPELINE_BATCH_STATE_FILE`) right after `batches.create`, before the first
+poll, so a crash inside the up-to-24h wait costs nothing: a re-run with the same
+method fingerprint retrieves the recorded batch instead of submitting it again.
+Only papers whose text is unchanged are reused (the file keeps a hash of each
+document block); the rest go out as a new batch, and a changed fingerprint
+discards the file. Anthropic keeps batch results for 29 days; after that, or if
+the API no longer knows the batch, the papers are resubmitted with a warning.
+Which report holds a resumed batch's tokens depends on where the first run
+stopped. After a crash in the poll the batch was never collected, so its tokens
+are counted only by the run that collects it. After a crash in validation or in
+a rescue the crashed run had already collected the batch, so its failed report
+holds the batch's tokens, and the resuming run counts the tokens of the papers
+it collects again: paid once, reported in both. The resuming run names the reuse
+as a step action ("Collected N papers from a batch an earlier run submitted; if
+that run had already collected it, their tokens are in both reports"), as a
+checkpoint restore is named. An entry of a recorded batch that expired or was
+canceled comes back as a failed paper on the resuming run, is taken off the
+record, and is resubmitted by the run after it. A run takes its own papers off
+the record (`batch_state.forget`) only once every batch paper has been validated
+and every refused one rescued, so a crash in validation can still retrieve the
+results. It takes off what it stored, what was rescued or declined twice, and
+every entry with no usable result (so that one is resubmitted rather than
+replayed as a failure); a paper whose validation failed stays on record for the
+next run to collect. Every other batch on record is kept untouched, because
+`scripts.backfill_pubmed --batch` re-runs from its first window after a crash in
+a later one, and a later window's record erased by the first would be paid for
+twice. A record goes only when all its papers are forgotten or the API no longer
+has its results. A dry run or `--test-mode` neither writes nor forgets.
+`--test-mode` counts what a window would process before paying for it, and
+`scripts.backfill_pubmed` walks it in committed chunks so the database is
+updated as it goes; both are described in
 `.claude/rules/pipeline/long-windows.md`.
 
 ```bash

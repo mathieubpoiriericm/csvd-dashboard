@@ -41,6 +41,7 @@ WarningKind = Literal[
     "paper_truncated",
     "paper_refused",
     "model_fallback",
+    "citations_missing",
 ]
 
 # What `stop_details.category` (and a fallback block's `trigger.category`)

@@ -262,6 +262,11 @@
     "model_fallback": {
       "icon": "arrowsRightLeft",
       "review": false
+    },
+    "citations_missing": {
+      "icon": "chatQuote",
+      "review": true,
+      "flag": ["quote without a citation", "quotes without a citation"]
     }
   },
   "fields": {

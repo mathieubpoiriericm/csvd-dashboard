@@ -61,11 +61,11 @@ occurrence, and from three steps rather than one. A service that was retried and
 still failed raises two, `api_retried` and `api_errored`; one warning chosen by
 `retries or errors` said nothing about the calls that failed anyway.
 
-| Step                | Warns on                                                                                                                                                                                                                                                                                                                                                                                         |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `processing_papers` | papers with no retrievable text, papers that failed outright, papers a safety classifier declined (`paper_refused`, one warning per classifier), papers the fallback model extracted (`model_fallback`), papers cut short at `max_paper_text_chars`, findings below the validation floor, findings dropped for an unverifiable quote, truncated model responses, services that errored or were retried |
-| `batch_validation`  | anything `batch_validate` flagged (over-extraction, say)                                                                                                                                                                                                                                                                                                                                         |
-| `merging_database`  | new genes the insert floor refused                                                                                                                                                                                                                                                                                                                                                               |
+| Step                | Warns on                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `processing_papers` | papers with no retrievable text, papers that failed outright, papers a safety classifier declined (`paper_refused`, one warning per classifier), papers the fallback model extracted (`model_fallback`), papers cut short at `max_paper_text_chars`, findings below the validation floor, findings dropped for an unverifiable quote, truncated model responses, a citation rate below 20% (`citations_missing`), services that errored or were retried |
+| `batch_validation`  | anything `batch_validate` flagged (over-extraction, say)                                                                                                                                                                                                                                                                                                                                                                                                |
+| `merging_database`  | new genes the insert floor refused                                                                                                                                                                                                                                                                                                                                                                                                                      |
 
 Two of those are easy to lose. Genes removed for an unverifiable quote
 (`require_verified_quotes`) are dropped _inside_ extraction, so `extracted`
@@ -228,10 +228,13 @@ the class name.
   or 0, on a report stored before them.
 - **A `--batch` run prices the papers it restored at the rate they were paid.**
   A batch entry's checkpoint record carries no tokens, so every token a batch
-  run restores came from a streaming run at the full rate.
+  run restores came from a streaming request at the full rate: a streaming run's
+  paper, or a batch paper the fallback model rescued.
   `_restore_checkpoint(batched=True)` counts them in
   `PipelineMetrics.streamed_token_usage` as well, and `_build_common_run_data`
-  takes the batch discount back off that share.
+  takes the batch discount back off that share. A refused entry the run sends to
+  the fallback model (`_rescue_refused_batch_paper`) is a streaming request too,
+  so its tokens join the same share, whether or not the paper is kept.
 - **`processingSeconds` is null for a paper nobody timed.** A `--batch` entry
   keeps `PaperResult.processing_time`'s default of 0.0, which published "0 ms"
   on every row of a day-long poll.
@@ -287,6 +290,17 @@ attested to that span — the stronger claim, but bounded by how much prose the
 model wrote rather than by quote quality, which is why it sits at 98/124 while
 verbatim sits at 122/124. One averaged rate would report a quality figure the
 second number cannot carry.
+
+**A collapsed citation rate is a warning.** `_record_processing_actions` raises
+`citations_missing` on `processing_papers` when the tally holds at least 10
+quotes (`_CITATION_RATE_MIN_QUOTES`) and fewer than 20% matched an API citation
+(`_CITATION_RATE_FLOOR`; the measured rate has ranged 33-79%). The model writes
+cited prose before its tool call and a model change could silently stop that;
+the warning reads the same tally as `quotesChecked` / `quotesCited`, and the
+streaming and `--batch` paths both end in that function. It is a review flag in
+`lib/pipeline_encoding.json`, and its count is the quotes no citation matched,
+so the flag reads "9 quotes without a citation"; worded as a collapsed rate it
+read "9 citation rates collapsed" over one rate.
 
 **A failed paper's quotes are un-counted, by the rule its genes already
 follow.** `report_provenance` runs inside extraction, before NCBI validation, so

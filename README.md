@@ -971,12 +971,13 @@ within an hour; the default streaming path stays better for small runs.
 
 A long `--days-back` run is **resumable**: every paper is checkpointed to
 `logs/pipeline_checkpoint.jsonl` as it finishes, so a crash costs the papers in
-flight and nothing else — re-run the same command. `--batch` is the exception:
-every paper is in flight until the batch's results arrive, and the batch id is
-held only in the run log, so a crash inside the poll loses the whole submission
-and re-running pays again. `uv run python -m scripts.backfill_pubmed` walks the
-window in committed chunks instead, for when the database should be updated as
-it goes.
+flight and nothing else — re-run the same command. `--batch` resumes too: the
+batch id is written to `logs/pipeline_batch.json` before the first poll, so a
+re-run collects the batch it already paid for instead of submitting it again,
+and a run over another window leaves that record alone. A paper the batch's
+model declines is sent to the fallback model in the same run.
+`uv run python -m scripts.backfill_pubmed` walks the window in committed chunks
+instead, for when the database should be updated as it goes.
 
 `--export` does `deno task data`'s work at the end of a live run, so the
 figures, the About page's date and the run widget track the database without a

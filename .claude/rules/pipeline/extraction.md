@@ -114,6 +114,37 @@ connection-retry branch in `AnthropicClient.extract` therefore catches
 can raise, and the one failure a ten-minute stream is exposed to fell through
 with zero retries.
 
+**The streaming fan-out writes the prompt cache once before it starts.** A cache
+entry is readable only after the first response begins, so the papers launched
+together at the start of a run each paid the write rate for the same large
+prefix (tools and both system blocks). `process_papers_concurrently` therefore
+awaits `prewarm_cache` once when it has two or more papers, and adds the usage
+it returns to the run's `token_usage`. The request is
+`_build_message_params("warmup", "warmup", config)` with `max_tokens` 0, sent
+non-streaming (the API rejects `max_tokens: 0` with `stream: true`) with the
+same `betas` and `fallbacks` the stream call carries, because the citations
+toggle on the document block and the beta-header set both shape the cached
+prefix: a warm-up that differed in either would warm an entry no extraction
+reads. It is sent through `with_options(timeout=60, max_retries=0)`: the
+client's 600 s timeout and two SDK retries could otherwise hold a run for half
+an hour before any paper started. It never raises (cancellation aside): any
+`Exception` -- an `anthropic.APIError`, a missing key from `build_async_client`,
+anything else -- logs one warning and returns an empty `TokenUsage`, so a failed
+warm-up costs the saving and not the run. A request that was sent and failed is
+recorded for the API inventory as the streaming path records one (its status for
+an `APIStatusError`, `record_service_failure` otherwise), so the run report
+shows it as an errored Anthropic call. The batch path never calls it; the
+Batches API rejects `max_tokens: 0`.
+
+**This warm-up has not been verified against the live API.** It shipped on the
+documented behaviour alone, with no call made. The check: call `prewarm_cache`,
+then send one real extraction, and expect `cache_read_input_tokens > 0` with
+`cache_creation_input_tokens == 0` on the extraction. If the API rejects the
+warm-up's shape (a 400 shows in the log as "Cache warm-up failed"), or the
+extraction still writes the cache, delete `prewarm_cache` and have
+`process_papers_concurrently` run the first paper to completion before starting
+the rest (`await run_one(pmids[0])`, then the task group over `pmids[1:]`).
+
 ## Effort stays at `high`, and the margin is one gene
 
 `PIPELINE_LLM_EFFORT` defaults to `"high"`, and stays there. All three arms were

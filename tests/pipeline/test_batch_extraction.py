@@ -1,8 +1,11 @@
+import hashlib
 import logging
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
+import anthropic
+import httpx2
 import pytest
 from anthropic.types import ErrorResponse, InvalidRequestError
 from anthropic.types.messages import (
@@ -10,12 +13,15 @@ from anthropic.types.messages import (
     MessageBatchExpiredResult,
 )
 
+from pipeline import batch_state, checkpoint
+from pipeline.anthropic_client import _document_text
 from pipeline.api_telemetry import current_recorder, reset_recorder
 from pipeline.batch_extraction import (
     build_batch_request,
     results_by_custom_id,
     submit_and_collect,
 )
+from pipeline.batch_state import PendingBatch
 from pipeline.citations import current_tally, reset_tally
 from pipeline.config import PipelineConfig
 from pipeline.extraction_models import ExtractionFailedError
@@ -344,8 +350,13 @@ async def test_submit_and_collect_gives_up_after_the_max_wait(
     mocker.patch("pipeline.batch_extraction.asyncio.sleep", AsyncMock())
     monkeypatch.setattr("pipeline.batch_extraction._MAX_WAIT_SECONDS", 0)
 
-    with pytest.raises(ExtractionFailedError, match="batch_123 is still in_progress"):
+    with pytest.raises(
+        ExtractionFailedError, match="batch_123 is still in_progress"
+    ) as raised:
         await submit_and_collect({"A": "paper text"}, PipelineConfig())
+
+    # Nothing recorded it, so the id in the message is the only way back.
+    assert "retrieve its results directly" in str(raised.value)
 
     # The client is still closed on the way out, as on every other path.
     mock_client.close.assert_awaited_once()
@@ -681,3 +692,391 @@ class TestBatchProvenance:
 
         tally = current_tally()
         assert (tally.genes, tally.verbatim) == (1, 1)
+
+
+class TestAPendingBatchIsResumed:
+    """A `--batch` run that crashed while polling has already paid for its
+    batch. With ``state_path`` set, ``submit_and_collect`` records every
+    batch it submits before the first poll, and a re-run collects a
+    recorded batch instead of submitting its papers again.
+    """
+
+    _CONFIG = PipelineConfig()
+
+    @staticmethod
+    def _sha(pmid: str, text: str) -> str:
+        """The hash the code records: over the text the document block carried."""
+        request = build_batch_request(pmid, text, TestAPendingBatchIsResumed._CONFIG)
+        return hashlib.sha256(
+            _document_text(request["params"]).encode("utf-8")
+        ).hexdigest()
+
+    def _record(self, path: str, *pending: PendingBatch) -> None:
+        batch_state.save(path, checkpoint.fingerprint(self._CONFIG), list(pending))
+
+    def _loaded(self, path: str) -> list[PendingBatch]:
+        return batch_state.load(path, checkpoint.fingerprint(self._CONFIG))
+
+    @staticmethod
+    def _client(
+        mocker,
+        monkeypatch,
+        *,
+        results: dict[str, list[Any]],
+        missing: set[str] | None = None,
+    ) -> MagicMock:
+        """A client to which every batch it is asked about has ended, and
+        which answers ``create`` with ``msgbatch_new``. ``results`` maps a
+        batch id to its entries; an id in ``missing`` raises NotFoundError
+        on retrieve, as the API does for an id it does not know.
+        """
+        unknown = missing or set()
+
+        async def retrieve(batch_id: str) -> Any:
+            if batch_id in unknown:
+                raise anthropic.NotFoundError(
+                    f"no batch {batch_id}",
+                    response=httpx2.Response(
+                        404, request=httpx2.Request("GET", "https://api.test")
+                    ),
+                    body=None,
+                )
+            return MagicMock(id=batch_id, processing_status="ended")
+
+        async def results_for(batch_id: str) -> Any:
+            async def stream():
+                for entry in results.get(batch_id, []):
+                    yield entry
+
+            return stream()
+
+        client = MagicMock()
+        client.messages.batches.create = AsyncMock(
+            return_value=MagicMock(id="msgbatch_new")
+        )
+        client.messages.batches.retrieve = AsyncMock(side_effect=retrieve)
+        client.messages.batches.results = AsyncMock(side_effect=results_for)
+        client.close = AsyncMock()
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+        mocker.patch(
+            "pipeline.batch_extraction.build_async_client", return_value=client
+        )
+        mocker.patch("pipeline.batch_extraction.asyncio.sleep", AsyncMock())
+        return client
+
+    @staticmethod
+    def _submitted(client: MagicMock) -> list[str]:
+        requests = client.messages.batches.create.call_args.kwargs["requests"]
+        return [r["custom_id"] for r in requests]
+
+    async def test_the_batch_id_is_saved_before_the_first_poll(
+        self, tmp_path, mocker, monkeypatch
+    ) -> None:
+        path = str(tmp_path / "pending.json")
+        client = self._client(mocker, monkeypatch, results={})
+        client.messages.batches.retrieve.side_effect = RuntimeError("crash")
+
+        with pytest.raises(RuntimeError, match="crash"):
+            await submit_and_collect({"111": "text"}, self._CONFIG, state_path=path)
+
+        assert self._loaded(path) == [
+            PendingBatch("msgbatch_new", {"111": self._sha("111", "text")})
+        ]
+
+    async def test_a_pending_batch_is_retrieved_instead_of_resubmitted(
+        self, tmp_path, mocker, monkeypatch
+    ) -> None:
+        path = str(tmp_path / "pending.json")
+        self._record(
+            path, PendingBatch("msgbatch_old", {"111": self._sha("111", "text")})
+        )
+        client = self._client(
+            mocker,
+            monkeypatch,
+            results={"msgbatch_old": [_fake_batch_entry("111", _NOTCH3_GENES)]},
+        )
+
+        genes = await submit_and_collect(
+            {"111": "text"}, self._CONFIG, state_path=path
+        )
+
+        assert client.messages.batches.create.call_count == 0
+        assert len(genes["111"]) == 1
+        # Nothing new was submitted, so the file is left as it was.
+        assert [p.batch_id for p in self._loaded(path)] == ["msgbatch_old"]
+
+    async def test_only_the_overlap_is_reused_when_the_window_moved(
+        self, tmp_path, mocker, monkeypatch
+    ) -> None:
+        path = str(tmp_path / "pending.json")
+        self._record(
+            path,
+            PendingBatch(
+                "msgbatch_old",
+                {"111": self._sha("111", "t1"), "222": self._sha("222", "t2")},
+            ),
+        )
+        usage = TokenUsage()
+        client = self._client(
+            mocker,
+            monkeypatch,
+            results={
+                "msgbatch_old": [
+                    _fake_batch_entry("111", _NOTCH3_GENES, input_tokens=10),
+                    # Outside this run's window: neither returned nor counted.
+                    _fake_batch_entry("222", _NOTCH3_GENES, input_tokens=1000),
+                ],
+                "msgbatch_new": [
+                    _fake_batch_entry("333", _EMPTY_GENES, input_tokens=5)
+                ],
+            },
+        )
+
+        genes = await submit_and_collect(
+            {"111": "t1", "333": "t3"}, self._CONFIG, usage=usage, state_path=path
+        )
+
+        assert self._submitted(client) == ["333"]
+        assert set(genes) == {"111", "333"}
+        assert usage.input_tokens == 15
+
+    async def test_the_papers_taken_from_a_recorded_batch_are_named(
+        self, tmp_path, mocker, monkeypatch
+    ) -> None:
+        path = str(tmp_path / "pending.json")
+        self._record(
+            path, PendingBatch("msgbatch_old", {"111": self._sha("111", "t1")})
+        )
+        self._client(
+            mocker,
+            monkeypatch,
+            results={"msgbatch_old": [_fake_batch_entry("111", _NOTCH3_GENES)]},
+        )
+        reused: set[str] = set()
+
+        await submit_and_collect(
+            {"111": "t1", "333": "t3"}, self._CONFIG, state_path=path, reused=reused
+        )
+
+        assert reused == {"111"}
+
+    async def test_the_saved_state_names_the_reused_batch_and_the_new_one(
+        self, tmp_path, mocker, monkeypatch
+    ) -> None:
+        """A second crash must lose neither: the reused batch is still paid
+        for and still uncollected until the caller clears the file."""
+        path = str(tmp_path / "pending.json")
+        self._record(
+            path, PendingBatch("msgbatch_old", {"111": self._sha("111", "t1")})
+        )
+        client = self._client(mocker, monkeypatch, results={})
+        client.messages.batches.retrieve.side_effect = [
+            MagicMock(id="msgbatch_old", processing_status="in_progress"),
+            RuntimeError("crash"),
+        ]
+
+        with pytest.raises(RuntimeError, match="crash"):
+            await submit_and_collect(
+                {"111": "t1", "333": "t3"}, self._CONFIG, state_path=path
+            )
+
+        assert self._submitted(client) == ["333"]
+        assert self._loaded(path) == [
+            PendingBatch("msgbatch_old", {"111": self._sha("111", "t1")}),
+            PendingBatch("msgbatch_new", {"333": self._sha("333", "t3")}),
+        ]
+
+    async def test_a_paper_whose_text_changed_is_resubmitted(
+        self, tmp_path, mocker, monkeypatch
+    ) -> None:
+        path = str(tmp_path / "pending.json")
+        self._record(
+            path, PendingBatch("msgbatch_old", {"111": self._sha("111", "old text")})
+        )
+        client = self._client(mocker, monkeypatch, results={})
+
+        await submit_and_collect({"111": "new text"}, self._CONFIG, state_path=path)
+
+        assert self._submitted(client) == ["111"]
+        # A batch with nothing reusable is not even looked up.
+        retrieved = [c.args[0] for c in client.messages.batches.retrieve.call_args_list]
+        assert retrieved == ["msgbatch_new"]
+        # Still on record: the caller forgets 111 once it is stored, not
+        # this function on the strength of a changed hash.
+        assert self._loaded(path) == [
+            PendingBatch("msgbatch_old", {"111": self._sha("111", "old text")}),
+            PendingBatch("msgbatch_new", {"111": self._sha("111", "new text")}),
+        ]
+
+    async def test_a_disjoint_window_keeps_the_old_record_intact(
+        self, tmp_path, mocker, monkeypatch
+    ) -> None:
+        """`backfill_pubmed --batch` re-runs from its first window after a
+        crash in a later one; the later window's batch must survive that."""
+        path = str(tmp_path / "pending.json")
+        wide = PendingBatch(
+            "msgbatch_wide",
+            {"111": self._sha("111", "t1"), "222": self._sha("222", "t2")},
+        )
+        self._record(path, wide)
+        client = self._client(mocker, monkeypatch, results={})
+
+        await submit_and_collect({"333": "t3"}, self._CONFIG, state_path=path)
+
+        assert self._submitted(client) == ["333"]
+        assert self._loaded(path) == [
+            wide,
+            PendingBatch("msgbatch_new", {"333": self._sha("333", "t3")}),
+        ]
+
+    async def test_a_subset_window_writes_the_reused_record_back_whole(
+        self, tmp_path, mocker, monkeypatch
+    ) -> None:
+        path = str(tmp_path / "pending.json")
+        wide = PendingBatch(
+            "msgbatch_wide",
+            {"111": self._sha("111", "t1"), "222": self._sha("222", "t2")},
+        )
+        self._record(path, wide)
+        client = self._client(
+            mocker,
+            monkeypatch,
+            results={"msgbatch_wide": [_fake_batch_entry("111", _NOTCH3_GENES)]},
+        )
+
+        genes = await submit_and_collect(
+            {"111": "t1", "333": "t3"}, self._CONFIG, state_path=path
+        )
+
+        assert self._submitted(client) == ["333"]
+        assert set(genes) == {"111"}
+        # 222 was not this run's to collect, so it is still on record.
+        assert self._loaded(path) == [
+            wide,
+            PendingBatch("msgbatch_new", {"333": self._sha("333", "t3")}),
+        ]
+
+    async def test_a_recorded_batch_still_running_is_polled_and_collected(
+        self, tmp_path, mocker, monkeypatch
+    ) -> None:
+        """The headline resume: the crashed run's batch has not ended yet."""
+        path = str(tmp_path / "pending.json")
+        self._record(
+            path, PendingBatch("msgbatch_old", {"111": self._sha("111", "text")})
+        )
+        client = self._client(
+            mocker,
+            monkeypatch,
+            results={"msgbatch_old": [_fake_batch_entry("111", _NOTCH3_GENES)]},
+        )
+        client.messages.batches.retrieve.side_effect = [
+            MagicMock(id="msgbatch_old", processing_status="in_progress"),
+            MagicMock(id="msgbatch_old", processing_status="in_progress"),
+            MagicMock(id="msgbatch_old", processing_status="ended"),
+        ]
+
+        genes = await submit_and_collect(
+            {"111": "text"}, self._CONFIG, state_path=path
+        )
+
+        assert client.messages.batches.create.call_count == 0
+        assert client.messages.batches.retrieve.call_count == 3
+        assert [g.gene_symbol for g in genes["111"]] == ["NOTCH3"]
+        assert [p.batch_id for p in self._loaded(path)] == ["msgbatch_old"]
+
+    async def test_a_record_that_cannot_be_written_does_not_end_the_run(
+        self, tmp_path, mocker, monkeypatch, caplog
+    ) -> None:
+        """The batch is paid for the moment it is created; ending the run
+        then would lose it as surely as the crash the file guards against."""
+        path = str(tmp_path / "pending.json")
+        self._client(
+            mocker,
+            monkeypatch,
+            results={"msgbatch_new": [_fake_batch_entry("111", _NOTCH3_GENES)]},
+        )
+        mocker.patch(
+            "pipeline.batch_extraction.batch_state.save",
+            side_effect=PermissionError("read-only"),
+        )
+
+        with caplog.at_level(logging.WARNING):
+            genes = await submit_and_collect(
+                {"111": "text"}, self._CONFIG, state_path=path
+            )
+
+        assert set(genes) == {"111"}
+        assert (
+            "Could not record batch msgbatch_new; a crash before its results "
+            "are collected will lose it"
+        ) in caplog.text
+
+    async def test_an_unknown_pending_batch_is_resubmitted_with_a_warning(
+        self, tmp_path, mocker, monkeypatch, caplog
+    ) -> None:
+        path = str(tmp_path / "pending.json")
+        self._record(
+            path, PendingBatch("msgbatch_old", {"111": self._sha("111", "text")})
+        )
+        client = self._client(
+            mocker, monkeypatch, results={}, missing={"msgbatch_old"}
+        )
+
+        with caplog.at_level(logging.WARNING):
+            await submit_and_collect({"111": "text"}, self._CONFIG, state_path=path)
+
+        assert self._submitted(client) == ["111"]
+        assert "msgbatch_old" in caplog.text
+        assert [p.batch_id for p in self._loaded(path)] == ["msgbatch_new"]
+
+    async def test_an_ended_batch_whose_results_are_gone_is_resubmitted(
+        self, tmp_path, mocker, monkeypatch, caplog
+    ) -> None:
+        """Results stay retrievable for 29 days; after that the batch still
+        exists, ended, with no results URL."""
+        path = str(tmp_path / "pending.json")
+        self._record(
+            path, PendingBatch("msgbatch_old", {"111": self._sha("111", "text")})
+        )
+        client = self._client(mocker, monkeypatch, results={})
+        client.messages.batches.retrieve.side_effect = [
+            MagicMock(id="msgbatch_old", processing_status="ended", results_url=None),
+            MagicMock(id="msgbatch_new", processing_status="ended"),
+        ]
+
+        with caplog.at_level(logging.WARNING):
+            await submit_and_collect({"111": "text"}, self._CONFIG, state_path=path)
+
+        assert self._submitted(client) == ["111"]
+        assert "msgbatch_old" in caplog.text
+        assert [p.batch_id for p in self._loaded(path)] == ["msgbatch_new"]
+
+    async def test_a_recorded_batch_that_outlives_the_wait_says_to_re_run(
+        self, tmp_path, mocker, monkeypatch
+    ) -> None:
+        path = str(tmp_path / "pending.json")
+        client = self._client(mocker, monkeypatch, results={})
+        client.messages.batches.retrieve.side_effect = None
+        client.messages.batches.retrieve.return_value = MagicMock(
+            id="msgbatch_new", processing_status="in_progress"
+        )
+        monkeypatch.setattr("pipeline.batch_extraction._MAX_WAIT_SECONDS", 0)
+
+        with pytest.raises(ExtractionFailedError) as raised:
+            await submit_and_collect({"111": "text"}, self._CONFIG, state_path=path)
+
+        message = str(raised.value)
+        assert "msgbatch_new" in message
+        assert "re-run the same command" in message
+        assert "retrieve its results directly" not in message
+
+    async def test_without_a_state_path_nothing_is_written(
+        self, tmp_path, mocker, monkeypatch
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        client = self._client(mocker, monkeypatch, results={})
+
+        await submit_and_collect({"111": "text"}, self._CONFIG)
+
+        assert list(tmp_path.iterdir()) == []
+        assert client.messages.batches.retrieve.call_count == 1

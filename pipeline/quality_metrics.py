@@ -31,7 +31,9 @@ class TokenUsage:
     # that declined as well (see `accumulate_usage`). The totals stay
     # totals across both models, so every panel reading them is unchanged;
     # these exist so `estimate_cost` can price each model's share at its own
-    # rates. A batch never falls back, so they stay 0 there.
+    # rates. A batch entry never falls back, so its own usage leaves them at
+    # 0; a --batch run still fills them from the papers it sends straight to
+    # the fallback model after the batch declined them.
     fallback_input_tokens: int = 0
     fallback_output_tokens: int = 0
     fallback_cache_creation_input_tokens: int = 0
@@ -147,6 +149,21 @@ def _is_fallback_attempt(entry: Any, fallback_model: str | None) -> bool:
     return fallback_model is not None and model == fallback_model
 
 
+def _is_direct_fallback(response: Any, fallback_model: str | None) -> bool:
+    """Whether a response with no `iterations` is the fallback model's.
+
+    A request sent straight to the fallback model carries no `fallbacks`,
+    so its answer has no `iterations` to name the attempt; the response's
+    own top-level `model` is the only signal, and without this its tokens
+    were priced at the requested model's rates. A response naming any
+    other model -- every ordinary answer, and every batch entry, whose
+    caller passes no *fallback_model* -- stays the requested one's.
+    """
+    return fallback_model is not None and (
+        getattr(response, "model", None) == fallback_model
+    )
+
+
 def _unbilled_attempts(
     response: Any, entries: list[Any], *, per_attempt: bool
 ) -> set[int]:
@@ -205,7 +222,9 @@ def accumulate_usage(
     for `estimate_cost`: the one that served, and one that declined too,
     which is a `message` entry naming that model (see
     `_is_fallback_attempt`). Thinking stays top-level: only the served
-    attempt reports it.
+    attempt reports it. A request sent straight to the fallback model has
+    no `iterations`, and its top-level usage is the fallback's share (see
+    `_is_direct_fallback`).
 
     **Not every reported attempt is billed.** One refused before any output
     is billed only in some categories (see `_unbilled_attempts`); its
@@ -230,7 +249,11 @@ def accumulate_usage(
             delta.unbilled_input_tokens += inp
             delta.unbilled_cache_creation_input_tokens += write
             delta.unbilled_cache_read_input_tokens += read
-        elif entries is not None and _is_fallback_attempt(entry, fallback_model):
+        elif (
+            _is_fallback_attempt(entry, fallback_model)
+            if entries is not None
+            else _is_direct_fallback(response, fallback_model)
+        ):
             delta.fallback_input_tokens += inp
             delta.fallback_output_tokens += out
             delta.fallback_cache_creation_input_tokens += write
@@ -256,9 +279,11 @@ class PipelineMetrics:
         genes_rejected: Genes failing confidence or NCBI checks.
         token_usage: Accumulated LLM token usage.
         streamed_token_usage: The share of ``token_usage`` a ``--batch``
-            run restored from a checkpoint. A batch entry's record carries
-            no tokens, so all of it was paid for by a streaming run at the
-            full rate, and the cost estimate must not halve it.
+            run paid for at the full rate: what it restored from a
+            checkpoint (a batch entry's record carries no tokens, so all of
+            it was a streaming run's) and the direct requests that sent a
+            refused entry to the fallback model. The cost estimate must not
+            halve it.
     """
 
     papers_processed: int = 0

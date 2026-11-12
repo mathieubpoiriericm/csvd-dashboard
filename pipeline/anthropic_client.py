@@ -302,8 +302,16 @@ def _build_message_params(
     text: str,
     pmid: str,
     config: PipelineConfig,
+    *,
+    model: str | None = None,
 ) -> dict[str, Any]:
-    """Build message parameters shared by streaming and batch requests."""
+    """Build message parameters shared by streaming and batch requests.
+
+    *model* names a model other than the pinned one, for a request sent
+    straight to the fallback model; it changes the `model` field and
+    nothing else, so the request the fallback reads is the one the
+    requested model would have read.
+    """
     prompt = build_extraction_prompt(
         paper_text=text,
         pmid=pmid,
@@ -315,7 +323,7 @@ def _build_message_params(
     # PipelineConfig.thinking_config for what happened when only the schema
     # was shared.
     kwargs: dict[str, Any] = {
-        "model": config.llm_model,
+        "model": model or config.llm_model,
         "max_tokens": config.llm_max_tokens,
         "system": [
             {
@@ -396,10 +404,18 @@ class _PaperCalls:
     Opus 4.8 from here or not at all -- read off that response alone, a
     paper Opus 5.5 declined as `bio` was recorded as declined by "a safety
     classifier".
+
+    `direct` is a paper sent straight to a model other than the requested
+    one -- the fallback, for a paper the requested model already declined
+    on another path (a batch entry). Its calls carry no `fallbacks`, so
+    every retry stays on that model, and `declined` is seeded with the
+    decline that sent it there: the answer itself has no `fallback` block
+    or `fallback_message` iteration to read one from.
     """
 
     sent: int = 0
     declined: str | None = None
+    direct: bool = False
 
 
 async def _stream_and_parse(
@@ -431,10 +447,15 @@ async def _stream_and_parse(
     # with it, and what the golden cassettes' recorded bodies are compared
     # against -- must not carry it. The beta stream posts to the same
     # /v1/messages, so the cassettes, matched on method and URI, replay.
+    # A direct request already names the fallback model, and has nowhere
+    # further to fall back to: it sends neither the field nor its beta.
+    fallback_kwargs: dict[str, Any] = (
+        {}
+        if calls.direct
+        else {"betas": [FALLBACK_BETA], "fallbacks": [{"model": config.fallback_model}]}
+    )
     async with client.beta.messages.stream(
-        **stream_kwargs,
-        betas=[FALLBACK_BETA],
-        fallbacks=[{"model": config.fallback_model}],
+        **stream_kwargs, **fallback_kwargs
     ) as stream:
         response = await stream.get_final_message()
     stream_elapsed = time.monotonic() - stream_start
@@ -510,7 +531,9 @@ async def _stream_and_parse(
 
     # Who served it is read off the whole response (the iterations and the
     # fallback blocks); what it said, off the serving hop alone.
-    served = _served_by(response, declined_earlier=calls.declined)
+    served = _served_by(
+        response, declined_earlier=calls.declined, direct=calls.direct
+    )
     if served.declined is not None:
         calls.declined = served.declined
     response = _serving_hop(response, pmid=pmid)
@@ -582,7 +605,9 @@ async def _stream_and_parse(
     return genes, served
 
 
-def _served_by(response: Any, *, declined_earlier: str | None = None) -> ServedBy:
+def _served_by(
+    response: Any, *, declined_earlier: str | None = None, direct: bool = False
+) -> ServedBy:
     """Who produced a response that was not a refusal.
 
     The served-by signal is a `fallback_message` entry in
@@ -593,7 +618,15 @@ def _served_by(response: Any, *, declined_earlier: str | None = None) -> ServedB
     which has no block -- *declined_earlier*, the category an earlier call
     for the same paper saw. With neither, "unspecified": the paper fell
     back before this run, and nothing here saw why.
+
+    A *direct* request was sent to the fallback model by name, so its
+    answer carries neither signal; it is the fallback's by construction,
+    and *declined_earlier* is the decline the caller said sent it there.
     """
+    if direct:
+        return ServedBy(
+            model=response.model, declined=declined_earlier or "unspecified"
+        )
     iterations = getattr(getattr(response, "usage", None), "iterations", None)
     fell_back = isinstance(iterations, list) and any(
         getattr(entry, "type", None) == "fallback_message" for entry in iterations
@@ -836,6 +869,90 @@ def build_async_client() -> anthropic.AsyncAnthropic:
     )
 
 
+# Long enough for a request that generates nothing, short enough that a hung
+# connection costs a minute of the run rather than the SDK's ten.
+_WARMUP_TIMEOUT_SECONDS = 60
+
+
+async def prewarm_cache(config: PipelineConfig) -> TokenUsage:
+    """Write the shared prompt prefix once, before the papers fan out.
+
+    A cache entry becomes readable only after the first response starts, so
+    the papers launched together at the start of a run each wrote the same
+    large prefix (tools and both system blocks) at the write rate. One
+    request with `max_tokens: 0` writes it and generates nothing, and every
+    paper after it reads.
+
+    The request is `_build_message_params`' own, with a placeholder document,
+    because two things besides the system blocks shape the cached prefix --
+    the citations toggle on the document block and the set of beta headers --
+    and a warm-up that differed in either would warm an entry no extraction
+    reads. It therefore sends the same `betas` and `fallbacks` the stream
+    call does. It is not streamed, because the API rejects `max_tokens: 0`
+    with `stream: true`.
+
+    Bounded to `_WARMUP_TIMEOUT_SECONDS` with no SDK retries, through
+    `with_options`: the client's own 600 s timeout and two retries could
+    hold a run for half an hour before any paper started, for a saving.
+
+    Never raises (cancellation aside): a warm-up that fails costs the
+    saving, not the run, so it logs one warning and returns an empty
+    `TokenUsage`, whatever the error -- an `anthropic.APIError`, a missing
+    key, or something nobody anticipated in a response it could not read.
+    A request that was sent and failed is recorded as a failed Anthropic
+    call, as the streaming path records one, so the run report shows it
+    beside the log line. A successful one is accounted like any other call,
+    so the cache write is priced and reported rather than hidden.
+    """
+    params = _build_message_params("warmup", "warmup", config)
+    params["max_tokens"] = 0
+    usage = TokenUsage()
+    client: anthropic.AsyncAnthropic | None = None
+    start = time.monotonic()
+    try:
+        client = build_async_client()
+        response = await client.with_options(
+            timeout=_WARMUP_TIMEOUT_SECONDS, max_retries=0
+        ).beta.messages.create(
+            **params,
+            betas=[FALLBACK_BETA],
+            fallbacks=[{"model": config.fallback_model}],
+        )
+        # Inside the guard: an answer whose usage cannot be read is a failed
+        # warm-up, not a failed run.
+        accumulate_usage(usage, response, fallback_model=config.fallback_model)
+    except Exception as error:
+        if isinstance(error, anthropic.APIStatusError):
+            record_service_call(
+                _ANTHROPIC_SERVICE,
+                endpoint=_MESSAGES_ENDPOINT,
+                method="POST",
+                status=error.status_code,
+            )
+        elif client is not None:
+            # Sent, or tried to be, with no status to show: a timeout, a
+            # dropped connection, an answer that could not be read.
+            record_service_failure(
+                _ANTHROPIC_SERVICE, endpoint=_MESSAGES_ENDPOINT, method="POST"
+            )
+        logger.warning(
+            f"Cache warm-up failed ({type(error).__name__}: {error}); "
+            "the papers will each write the prompt cache themselves"
+        )
+        return TokenUsage()
+    finally:
+        if client is not None:
+            await client.close()
+    record_service_call(
+        _ANTHROPIC_SERVICE,
+        endpoint=_MESSAGES_ENDPOINT,
+        method="POST",
+        status=200,
+        elapsed_ms=(time.monotonic() - start) * 1000.0,
+    )
+    return usage
+
+
 def _priced(
     pricing: tuple[float, float],
     cache_read_multiplier: float,
@@ -877,13 +994,14 @@ class AnthropicClient:
             await self._client.close()
             self._client = None
 
-    def report_metadata(
-        self, config: PipelineConfig, *, batched: bool = False
-    ) -> dict[str, Any]:
+    def report_metadata(self, config: PipelineConfig) -> dict[str, Any]:
         return {
             "model": config.llm_model,
-            # A batch run requested none: the Batches API rejects `fallbacks`.
-            "fallback_model": None if batched else config.fallback_model,
+            # Named on both paths. A batch *entry* cannot fall back (the
+            # Batches API rejects `fallbacks`), but a batch *run* sends each
+            # paper the batch declined straight to this model, so a --batch
+            # report that said null could carry papers it extracted.
+            "fallback_model": config.fallback_model,
             "model_version": config.model_version,
             "thinking_mode": config.thinking_mode,
             "effort": config.llm_effort,
@@ -923,7 +1041,8 @@ class AnthropicClient:
             - usage.unbilled_cache_read_input_tokens,
         )
         # The totals hold both models; the fallback_* counts are Opus 4.8's
-        # share, billed at its own rates. A batch never falls back.
+        # share, billed at its own rates. A batch entry never falls back, but
+        # a batch run's papers rescued after a refusal are in this share.
         fallback = _priced(
             FALLBACK_MODEL_PRICING,
             _FALLBACK_CACHE_READ_MULTIPLIER,
@@ -941,6 +1060,9 @@ class AnthropicClient:
         pmid: str,
         config: PipelineConfig,
         rate_limiter: AsyncRateLimiter | None,
+        *,
+        model: str | None = None,
+        declined: str | None = None,
     ) -> tuple[list[GeneEntry], TokenUsage, ServedBy]:
         """Extract genes using Claude API with streaming and Pydantic validation.
 
@@ -954,22 +1076,34 @@ class AnthropicClient:
             pmid: PubMed ID for context.
             config: Pipeline configuration.
             rate_limiter: Optional rate limiter for coordinated throttling.
+            model: Send the paper straight to this model, with no
+                `fallbacks` -- the fallback model, for a paper the requested
+                model already declined on another path. None, every normal
+                request, is the pinned model with the server-side fallback.
+            declined: With *model*, the category of the decline that sent
+                the paper there, which the returned ``served_by`` reports.
 
         Returns:
             Tuple of (gene_entries, token_usage, served_by). ``served_by``
             names Claude Opus 4.8 when Opus 5.5 declined and the server-side
-            fallback extracted the paper instead.
+            fallback extracted the paper instead, or when *model* sent it to
+            Opus 4.8 directly.
         """
         usage = TokenUsage()
         client = self._get_client()
-        stream_kwargs = _build_message_params(text, pmid, config)
+        stream_kwargs = _build_message_params(text, pmid, config, model=model)
 
         rate_limit_retries = 0
         validation_retries = 0
         connection_retries = 0
         # Every call sent for this paper, whatever sent it again, and the
-        # decline the first fallback named (see _PaperCalls).
-        calls = _PaperCalls()
+        # decline the first fallback named -- or, for a direct request, the
+        # one the caller says sent it (see _PaperCalls).
+        calls = (
+            _PaperCalls(declined=declined, direct=True)
+            if model is not None
+            else _PaperCalls()
+        )
 
         while True:
             request_id: int | None = None

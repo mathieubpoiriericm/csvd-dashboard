@@ -285,7 +285,30 @@ class TestExtractFromPaper:
 
         await extract_from_paper("paper text", "1", config, limiter)
 
-        client.extract.assert_awaited_once_with("paper text", "1", config, limiter)
+        client.extract.assert_awaited_once_with(
+            "paper text", "1", config, limiter, model=None, declined=None
+        )
+
+    async def test_passes_a_direct_model_and_its_decline_to_the_client(
+        self, monkeypatch
+    ):
+        client = MagicMock()
+        client.extract = AsyncMock(return_value=([], TokenUsage(), None))
+        monkeypatch.setattr(llm_extraction, "_client", client)
+        config = PipelineConfig()
+
+        await extract_from_paper(
+            "paper text",
+            "1",
+            config=config,
+            rate_limiter=None,
+            model=config.fallback_model,
+            declined="bio",
+        )
+
+        client.extract.assert_awaited_once_with(
+            "paper text", "1", config, None, model="claude-opus-4-8", declined="bio"
+        )
 
 
 class TestCloseAsyncClient:

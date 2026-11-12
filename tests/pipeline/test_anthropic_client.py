@@ -21,10 +21,12 @@ from pipeline.anthropic_client import (
     _merge_tool_blocks,
     _record_thinking_trace,
     build_async_client,
+    prewarm_cache,
 )
 from pipeline.api_telemetry import current_recorder, reset_recorder
 from pipeline.config import (
     EXTRACTION_MODEL,
+    FALLBACK_BETA,
     MODEL_MAX_OUTPUT_TOKENS,
     PROJECT_ROOT,
     PipelineConfig,
@@ -34,6 +36,7 @@ from pipeline.extraction_models import (
     ExtractionRefusedError,
     ServedBy,
 )
+from pipeline.quality_metrics import TokenUsage
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -2081,3 +2084,307 @@ class TestTheRefusalSaysWhatWasTried:
         assert raised.value.category == "bio"
         assert "fallback was not attempted" in str(raised.value)
         assert "claude-opus-4-8" in str(raised.value)
+
+
+def test_a_model_override_changes_only_the_model_field():
+    config = PipelineConfig()
+    base = _build_message_params("t", "1", config)
+    over = _build_message_params("t", "1", config, model="claude-opus-4-8")
+    assert over == {**base, "model": "claude-opus-4-8"}
+
+
+class TestADirectRequestToTheFallbackModel:
+    """One paper sent straight to the fallback model, for a paper the
+    requested model already declined elsewhere (a batch entry): no
+    `fallbacks`, no beta, and the decline it was given reported as the
+    reason the paper is on the fallback."""
+
+    @staticmethod
+    def _served_directly(make, **kwargs):
+        response = make(**kwargs)
+        response.model = "claude-opus-4-8"
+        return response
+
+    @staticmethod
+    def _client_answering(*responses):
+        stream_obj = AsyncMock()
+        stream_obj.get_final_message = AsyncMock(side_effect=list(responses))
+        cm = MagicMock()
+        cm.__aenter__ = AsyncMock(return_value=stream_obj)
+        cm.__aexit__ = AsyncMock(return_value=False)
+        mock_client = MagicMock()
+        mock_client.beta.messages.stream.return_value = cm
+        return mock_client
+
+    async def test_a_direct_fallback_request_sends_no_fallbacks(
+        self, mocker, mock_anthropic_response
+    ):
+        config = PipelineConfig()
+        stream = _make_mock_client(self._served_directly(mock_anthropic_response))
+        client = AnthropicClient()
+        mocker.patch.object(client, "_get_client", return_value=stream)
+
+        await client.extract(
+            "t", "1", config, None, model=config.fallback_model, declined="bio"
+        )
+        kwargs = stream.beta.messages.stream.call_args.kwargs
+        assert "fallbacks" not in kwargs and "betas" not in kwargs
+        assert kwargs["model"] == "claude-opus-4-8"
+
+    async def test_a_direct_fallback_request_reports_the_category_it_was_given(
+        self, mocker, mock_anthropic_response
+    ):
+        config = PipelineConfig()
+        stream = _make_mock_client(self._served_directly(mock_anthropic_response))
+        client = AnthropicClient()
+        mocker.patch.object(client, "_get_client", return_value=stream)
+
+        _, _, served = await client.extract(
+            "t", "1", config, None, model=config.fallback_model, declined="bio"
+        )
+        assert served == ServedBy(model="claude-opus-4-8", declined="bio")
+
+    async def test_a_direct_request_given_no_category_reads_unspecified(
+        self, mocker, mock_anthropic_response
+    ):
+        config = PipelineConfig()
+        stream = _make_mock_client(self._served_directly(mock_anthropic_response))
+        client = AnthropicClient()
+        mocker.patch.object(client, "_get_client", return_value=stream)
+
+        _, _, served = await client.extract(
+            "t", "1", config, None, model=config.fallback_model
+        )
+        assert served == ServedBy(model="claude-opus-4-8", declined="unspecified")
+
+    async def test_a_direct_fallback_request_is_priced_at_the_fallback_rates(
+        self, mocker, mock_anthropic_response
+    ):
+        config = PipelineConfig()
+        stream = _make_mock_client(
+            self._served_directly(
+                mock_anthropic_response, input_tokens=700, output_tokens=300
+            )
+        )
+        client = AnthropicClient()
+        mocker.patch.object(client, "_get_client", return_value=stream)
+
+        _, usage, _ = await client.extract(
+            "t", "1", config, None, model=config.fallback_model, declined="bio"
+        )
+        assert usage.input_tokens == 700
+        assert usage.fallback_input_tokens == usage.input_tokens
+        assert usage.fallback_output_tokens == usage.output_tokens
+
+    async def test_a_validation_retry_of_a_direct_request_stays_direct(
+        self, mocker, mock_anthropic_response
+    ):
+        config = PipelineConfig(max_retries=1)
+        malformed = self._served_directly(
+            mock_anthropic_response, genes={"genes": "not json"}
+        )
+        good = self._served_directly(mock_anthropic_response, genes={"genes": []})
+        stream = self._client_answering(malformed, good)
+        client = AnthropicClient()
+        mocker.patch.object(client, "_get_client", return_value=stream)
+
+        _, _, served = await client.extract(
+            "t", "1", config, None, model=config.fallback_model, declined="bio"
+        )
+        sent = stream.beta.messages.stream.call_args_list
+        assert len(sent) == 2
+        for call in sent:
+            assert call.kwargs["model"] == "claude-opus-4-8"
+            assert "fallbacks" not in call.kwargs and "betas" not in call.kwargs
+        assert served == ServedBy(model="claude-opus-4-8", declined="bio")
+
+    async def test_the_fallback_declining_a_direct_request_is_a_refusal(
+        self, mocker, mock_anthropic_response
+    ):
+        """No `fallback` block on a direct answer: the category is the
+        fallback model's own, read from `stop_details`."""
+        config = PipelineConfig()
+        response = self._served_directly(mock_anthropic_response, text="")
+        response.stop_reason = "refusal"
+        response.stop_details = SimpleNamespace(category="cyber")
+        stream = _make_mock_client(response)
+        client = AnthropicClient()
+        mocker.patch.object(client, "_get_client", return_value=stream)
+
+        with pytest.raises(ExtractionRefusedError) as raised:
+            await client.extract(
+                "t", "1", config, None, model=config.fallback_model, declined="bio"
+            )
+        assert raised.value.category == "cyber"
+
+    async def test_a_normal_request_still_carries_the_fallback(
+        self, mocker, mock_anthropic_response
+    ):
+        stream = _make_mock_client(mock_anthropic_response())
+        client = AnthropicClient()
+        mocker.patch.object(client, "_get_client", return_value=stream)
+
+        _, _, served = await client.extract(
+            "t", "1", PipelineConfig(), None, model=None
+        )
+        kwargs = stream.beta.messages.stream.call_args.kwargs
+        assert kwargs["model"] == "claude-opus-5-5"
+        assert kwargs["fallbacks"] == [{"model": "claude-opus-4-8"}]
+        assert served == ServedBy(model="claude-opus-5-5", declined=None)
+
+
+class TestPrewarmCache:
+    """One cheap request that writes the shared prefix before the papers
+    fan out: a cache entry is readable only once the first response has
+    started, so papers launched together each paid to write it."""
+
+    @staticmethod
+    def _client_answering(mocker, *, response=None, error=None):
+        """A client whose `with_options` copy answers the warm-up.
+
+        The copy is a separate object, as the SDK's is, so a warm-up sent
+        on the base client instead would find no `create` that answers.
+        """
+        create = AsyncMock(return_value=response, side_effect=error)
+        bounded = MagicMock()
+        bounded.beta.messages.create = create
+        fake = MagicMock()
+        fake.with_options.return_value = bounded
+        fake.close = AsyncMock()
+        mocker.patch("pipeline.anthropic_client.build_async_client", return_value=fake)
+        return fake, create
+
+    @staticmethod
+    def _anthropic_row():
+        return next(
+            (r for r in current_recorder().records() if r.service == "anthropic"),
+            None,
+        )
+
+    @staticmethod
+    def _warmup_response():
+        return SimpleNamespace(
+            model=EXTRACTION_MODEL,
+            usage=SimpleNamespace(
+                input_tokens=3,
+                output_tokens=0,
+                cache_creation_input_tokens=9000,
+                cache_read_input_tokens=0,
+            ),
+        )
+
+    async def test_the_warmup_shares_every_prefix_field_with_a_real_request(
+        self, mocker
+    ):
+        config = PipelineConfig()
+        _fake, create = self._client_answering(
+            mocker, response=self._warmup_response()
+        )
+
+        await prewarm_cache(config)
+
+        sent = create.call_args.kwargs
+        real = _build_message_params("paper", "1", config)
+        for key in (
+            "model",
+            "system",
+            "tools",
+            "tool_choice",
+            "thinking",
+            "output_config",
+        ):
+            assert sent[key] == real[key]
+        assert sent["max_tokens"] == 0
+        assert sent["betas"] == [FALLBACK_BETA]
+        assert sent["fallbacks"] == [{"model": config.fallback_model}]
+        assert sent["messages"][0]["content"][0]["citations"] == {"enabled": True}
+        assert "stream" not in sent
+
+    async def test_the_cache_write_is_priced_like_any_other_call(self, mocker):
+        fake, _create = self._client_answering(
+            mocker, response=self._warmup_response()
+        )
+
+        usage = await prewarm_cache(PipelineConfig())
+
+        assert usage.cache_creation_input_tokens == 9000
+        fake.close.assert_awaited_once()
+
+    async def test_a_failed_warmup_is_a_warning_not_a_failed_run(
+        self, mocker, caplog
+    ):
+        request = httpx2.Request("POST", "https://api.anthropic.com/v1/messages")
+        error = anthropic.BadRequestError(
+            "max_tokens must be positive",
+            response=httpx2.Response(400, request=request),
+            body=None,
+        )
+        fake, _create = self._client_answering(mocker, error=error)
+
+        with caplog.at_level(logging.WARNING):
+            assert await prewarm_cache(PipelineConfig()) == TokenUsage()
+
+        assert "warm" in caplog.text.lower()
+        fake.close.assert_awaited_once()
+
+    async def test_the_warmup_is_bounded_to_a_minute_with_no_retries(self, mocker):
+        # The client's own 600 s timeout and two SDK retries could hold the
+        # run for half an hour before any paper started.
+        fake, create = self._client_answering(
+            mocker, response=self._warmup_response()
+        )
+
+        await prewarm_cache(PipelineConfig())
+
+        fake.with_options.assert_called_once_with(timeout=60, max_retries=0)
+        create.assert_awaited_once()
+
+    async def test_a_failed_warmup_is_an_error_in_the_api_inventory(self, mocker):
+        reset_recorder()
+        request = httpx2.Request("POST", "https://api.anthropic.com/v1/messages")
+        error = anthropic.BadRequestError(
+            "max_tokens must be positive",
+            response=httpx2.Response(400, request=request),
+            body=None,
+        )
+        self._client_answering(mocker, error=error)
+
+        await prewarm_cache(PipelineConfig())
+
+        row = self._anthropic_row()
+        assert row is not None
+        assert (row.calls, row.errors) == (1, 1)
+
+    async def test_a_warmup_that_never_connected_is_an_error_too(self, mocker):
+        reset_recorder()
+        request = httpx2.Request("POST", "https://api.anthropic.com/v1/messages")
+        self._client_answering(
+            mocker, error=anthropic.APITimeoutError(request=request)
+        )
+
+        assert await prewarm_cache(PipelineConfig()) == TokenUsage()
+
+        row = self._anthropic_row()
+        assert row is not None
+        assert (row.calls, row.errors) == (1, 1)
+
+    async def test_an_unexpected_error_costs_the_saving_not_the_run(
+        self, mocker, caplog
+    ):
+        fake, _create = self._client_answering(mocker, error=KeyError("usage"))
+
+        with caplog.at_level(logging.WARNING):
+            assert await prewarm_cache(PipelineConfig()) == TokenUsage()
+
+        assert "Cache warm-up failed" in caplog.text
+        fake.close.assert_awaited_once()
+
+    async def test_a_missing_api_key_is_a_warning_not_a_failed_run(
+        self, monkeypatch, caplog
+    ):
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
+        with caplog.at_level(logging.WARNING):
+            assert await prewarm_cache(PipelineConfig()) == TokenUsage()
+
+        assert "warm" in caplog.text.lower()

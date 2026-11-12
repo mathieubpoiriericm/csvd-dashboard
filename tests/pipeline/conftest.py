@@ -434,6 +434,22 @@ def _reset_validation_cache():
 
 
 @pytest.fixture(autouse=True)
+def _no_cache_warmup(mocker) -> None:
+    """The streaming fan-out sends one warm-up request before two or more papers.
+
+    Tests stub extraction, not the client, so left alone the warm-up would
+    build a real one; the tests of the warm-up itself patch it again.
+    """
+    from unittest.mock import AsyncMock
+
+    from pipeline.quality_metrics import TokenUsage
+
+    mocker.patch(
+        "pipeline.main.prewarm_cache", new=AsyncMock(return_value=TokenUsage())
+    )
+
+
+@pytest.fixture(autouse=True)
 def _reset_llm_client() -> Iterator[None]:
     """The extraction module caches one client at module scope."""
     yield
@@ -607,6 +623,12 @@ def _isolate_checkpoint(_isolate_credentials, monkeypatch, tmp_path):
     """
     monkeypatch.setenv(
         "PIPELINE_CHECKPOINT_FILE", str(tmp_path / "pipeline_checkpoint.jsonl")
+    )
+    # The batch path records a submitted batch beside the checkpoint and
+    # clears that record when it finishes, so a default config would read
+    # and delete the developer's real `logs/pipeline_batch.json`.
+    monkeypatch.setenv(
+        "PIPELINE_BATCH_STATE_FILE", str(tmp_path / "pipeline_batch.json")
     )
 
 
