@@ -45,7 +45,7 @@ def test_every_gold_trial_is_published() -> None:
 def test_every_gold_trial_is_filed_under_its_curated_population() -> None:
     """disease/gold/trial_populations.csv: thirteen registry IDs, each a gold
     trial's, for sixteen trials -- a registry entry can test several agents."""
-    groups, failures = read_population_groups(_POPULATIONS_PATH)
+    groups, _lines, failures = read_population_groups(_POPULATIONS_PATH)
     assert failures == []
     assert Counter(groups.values()) == {
         "Stroke": 5,

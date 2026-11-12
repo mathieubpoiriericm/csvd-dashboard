@@ -502,7 +502,11 @@ def test_a_trial_the_export_cannot_read_is_refused_not_raised(
 def test_the_population_groups_are_read_by_registry_id(tmp_path: Path) -> None:
     both = [_trial_row(), _trial_row(registry_id="REG-0002")]
     path = _gold_dir(tmp_path, trials=both) / _POPULATIONS_FILE
-    assert read_population_groups(path) == (_GROUPS, [])
+    assert read_population_groups(path) == (
+        _GROUPS,
+        {"REG-0001": 2, "REG-0002": 3},
+        [],
+    )
 
 
 def test_a_trial_takes_the_group_its_registry_id_is_filed_under(
@@ -530,8 +534,8 @@ def test_a_trial_takes_the_group_its_registry_id_is_filed_under(
 def test_a_group_for_a_trial_the_gold_table_does_not_have_is_refused(
     tmp_path: Path,
 ) -> None:
-    """Named once, and by its ID alone: the trials that have a group are
-    not refused with it."""
+    """Named once, by its ID and its line in the file: the trials that have
+    a group are not refused with it."""
     with pytest.raises(GoldRefused) as refused:
         _build(
             _gold_dir(
@@ -546,8 +550,10 @@ def test_a_group_for_a_trial_the_gold_table_does_not_have_is_refused(
             )
         )
     assert str(refused.value).splitlines()[1:] == [
-        f"  {_POPULATIONS_FILE}: REG-0002 is not the registry ID of any gold trial",
-        f"  {_POPULATIONS_FILE}: REG-9999 is not the registry ID of any gold trial",
+        f"  {_POPULATIONS_FILE} line 3: REG-0002 is not the registry ID of "
+        "any gold trial",
+        f"  {_POPULATIONS_FILE} line 4: REG-9999 is not the registry ID of "
+        "any gold trial",
     ]
 
 
@@ -605,6 +611,8 @@ def test_a_populations_row_is_named_by_its_line_in_the_file(
     )
     assert read_population_groups(path) == (
         {"REG-0001": _GROUPS["REG-0001"]},
+        # The line a registry ID was filed on, not the one that repeats it.
+        {"REG-0001": 2},
         [
             f"{_POPULATIONS_FILE} line 4: REG-0001 is listed twice",
             f"{_POPULATIONS_FILE} line 5: more than two cells",
