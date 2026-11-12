@@ -274,6 +274,14 @@ class TestBuildRunData:
         assert search["pmids_new"] == 10
         assert search["pmids_skipped"] == 10
 
+    def test_a_standard_run_names_no_mode(self):
+        assert "mode" not in self._build()["pipeline_config"]
+        assert "mode" not in self._build(run_mode="standard")["pipeline_config"]
+
+    def test_a_preview_run_names_its_mode(self):
+        data = self._build(run_mode="preview")
+        assert data["pipeline_config"]["mode"] == "preview"
+
     def test_dry_run_flag(self):
         data = self._build(dry_run=True)
         assert data["pipeline_config"]["dry_run"] is True

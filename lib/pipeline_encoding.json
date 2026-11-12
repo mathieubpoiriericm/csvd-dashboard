@@ -62,7 +62,8 @@
   "runModes": {
     "standard": "PubMed search",
     "pmid_list": "PMID list",
-    "local_pdf": "Local PDFs"
+    "local_pdf": "Local PDFs",
+    "preview": "Technical preview"
   },
   "syncModes": {
     "$comment": "The reference-data refreshes, as `sync_runs.mode` names them. Separate from `runModes` because a refresh is not a run: it has no papers, genes or steps, and it records its own smaller document in its own table. The labels name what each one refreshes rather than the flag that starts it, because that is what the reader is looking at.",

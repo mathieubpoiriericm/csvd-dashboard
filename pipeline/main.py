@@ -305,6 +305,7 @@ from pipeline.run_errors import (
 )
 from pipeline.run_report import build_run_report
 from pipeline.steps import (
+    PREVIEW_RUN_MODE,
     STEP_KEYS,
     SYNC_MODES,
     TOTAL_STEPS,
@@ -2832,6 +2833,7 @@ async def _record_failed_run(
     total_pmids_found: int | None = None,
     new_pmids_count: int = 0,
     deduplicated: bool = True,
+    run_mode: str = "standard",
 ) -> None:
     """Persist a report for a run that did not finish.
 
@@ -2886,6 +2888,7 @@ async def _record_failed_run(
             new_pmids_count=new_pmids_count,
             total_duration=time.monotonic() - started_at,
             use_batch_api=use_batch_api,
+            run_mode=run_mode,
         )
         report_data = cast(dict[str, Any], run_data)
         if total_pmids_found is None:
@@ -2901,7 +2904,7 @@ async def _record_failed_run(
             report_data,
             steps=steps,
             apis=current_recorder().records(),
-            run_mode="standard",
+            run_mode=run_mode,
             provenance=current_tally(),
         )
         await record_pipeline_run(
@@ -2910,7 +2913,7 @@ async def _record_failed_run(
             fulltext_retrieved=metrics.fulltext_retrieved,
             genes_extracted=metrics.genes_extracted,
             genes_validated=metrics.genes_validated,
-            run_mode="standard",
+            run_mode=run_mode,
             status=report.status,
             duration_seconds=report.duration_seconds,
             report=report.to_wire(),
@@ -2927,10 +2930,11 @@ async def _complete_pubmed_run(
     *,
     dry_run: bool,
     manage_lifecycle: bool,
+    run_mode: str = "standard",
 ) -> None:
     """Persist live-run stats, notify, and finalize live-run progress."""
     if not dry_run:
-        await _finalize_run(metrics, run_data, "standard", progress)
+        await _finalize_run(metrics, run_data, run_mode, progress)
     if manage_lifecycle:
         await _record_and_notify(config, run_data)
     if not dry_run:
@@ -2975,6 +2979,7 @@ def _build_pubmed_report(
     total_pmids_found: int,
     started_at: float,
     use_batch_api: bool = False,
+    run_mode: str = "standard",
 ) -> PipelineRunData:
     """Build, persist, and print a standard PubMed run report."""
     run_data = build_run_data(
@@ -2989,6 +2994,7 @@ def _build_pubmed_report(
         new_pmids_count=len(batch.results),
         total_duration=time.monotonic() - started_at,
         use_batch_api=use_batch_api,
+        run_mode=run_mode,
     )
     _emit_report(run_data)
     return run_data
@@ -3174,6 +3180,7 @@ async def run_pipeline(
     use_batch_api: bool = False,
     config: PipelineConfig | None = None,
     manage_lifecycle: bool = True,
+    run_mode: str = "standard",
 ) -> tuple[PipelineMetrics, PipelineRunData | None]:
     """Run the PubMed gene extraction pipeline.
 
@@ -3190,6 +3197,9 @@ async def run_pipeline(
             this function sends its own completion notification. When False
             (set by the ``main()`` dispatcher for combined runs), notifications
             are skipped so the dispatcher can coalesce them across pipelines.
+        run_mode: The mode the run records itself under, one of
+            ``pipeline.steps.RUN_MODES``; ``"preview"`` for a ``--preview``
+            run. A standard run's report is unchanged.
 
     Returns:
         A tuple of (PipelineMetrics, run_data). ``run_data`` is ``None`` on
@@ -3353,6 +3363,7 @@ async def run_pipeline(
             total_pmids_found=len(all_pmids),
             started_at=pipeline_start_time,
             use_batch_api=use_batch_api,
+            run_mode=run_mode,
         )
 
         with profiling.zone("complete run"):
@@ -3363,6 +3374,7 @@ async def run_pipeline(
                 progress,
                 dry_run=dry_run,
                 manage_lifecycle=manage_lifecycle,
+                run_mode=run_mode,
             )
 
         return metrics, run_data
@@ -3383,6 +3395,7 @@ async def run_pipeline(
             days_back=days_back,
             total_pmids_found=found if all_pmids is None else len(all_pmids),
             new_pmids_count=len(new_pmids),
+            run_mode=run_mode,
             deduplicated=all_pmids is not None,
         )
         raise
@@ -3958,6 +3971,7 @@ async def _run_selected_pipelines(
                         use_batch_api=args.batch,
                         config=config,
                         manage_lifecycle=False,
+                        run_mode=PREVIEW_RUN_MODE if args.preview else "standard",
                     )
                 summaries.append(
                     {

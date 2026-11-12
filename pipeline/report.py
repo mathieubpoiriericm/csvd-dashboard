@@ -199,8 +199,14 @@ def build_run_data(
     new_pmids_count: int,
     total_duration: float = 0.0,
     use_batch_api: bool = False,
+    run_mode: str = "standard",
 ) -> PipelineRunData:
-    """Assemble all pipeline run data into a single dict (standard mode)."""
+    """Assemble all pipeline run data into a single dict (standard mode).
+
+    *run_mode* is written to ``pipeline_config["mode"]`` only when it is not
+    ``"standard"``: a standard run has no ``mode`` key, and its report must
+    stay as it was.
+    """
     client = AnthropicClient()
     data = _build_common_run_data(
         metrics,
@@ -219,6 +225,8 @@ def build_run_data(
         client=client,
         batched=use_batch_api,
     )
+    if run_mode != "standard":
+        data["pipeline_config"]["mode"] = run_mode
     data["search"] = {
         "pmids_found": total_pmids_found,
         "pmids_new": new_pmids_count,

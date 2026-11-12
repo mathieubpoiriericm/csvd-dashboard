@@ -43,13 +43,22 @@ PIPELINE_STEPS: Final[tuple[PipelineStep, ...]] = (
 STEP_KEYS: Final[tuple[str, ...]] = tuple(step.key for step in PIPELINE_STEPS)
 TOTAL_STEPS: Final[int] = len(PIPELINE_STEPS)
 
-# Every value `pipeline_runs.run_mode` accepts. Only `standard` is written
-# today -- the two offline modes publish no data, so recording one would
+# The run mode of a `--preview` run: a PubMed run against the separate
+# preview database, which a reader must be able to tell from a standard one.
+PREVIEW_RUN_MODE: Final = "preview"
+
+# Every value `pipeline_runs.run_mode` accepts. `standard` and `preview` are
+# written -- the two offline modes publish no data, so recording one would
 # point the About page's "up-to-date as of" date at a run that changed
 # nothing -- but the dashboard has to be able to label any of them.
 # Declared here rather than described in a docstring: the encoding
 # contract test reads this, and prose is not a vocabulary.
-RUN_MODES: Final[tuple[str, ...]] = ("standard", "local_pdf", "pmid_list")
+RUN_MODES: Final[tuple[str, ...]] = (
+    "standard",
+    "local_pdf",
+    "pmid_list",
+    PREVIEW_RUN_MODE,
+)
 
 # Every value `sync_runs.mode` accepts -- the reference-data refreshes,
 # which record their own smaller document rather than a run report. They

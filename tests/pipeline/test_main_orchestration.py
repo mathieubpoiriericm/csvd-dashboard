@@ -4574,3 +4574,114 @@ class TestPreviewRun:
         )
 
         assert order == ["require", "run_pipeline"]
+
+    async def test_a_completed_preview_run_is_recorded_as_one(
+        self, tmp_path, mocker
+    ) -> None:
+        _mock_pubmed_cleanup(mocker)
+        mocker.patch(
+            "pipeline.main._install_termination_handlers",
+            return_value=(MagicMock(), []),
+        )
+        mocker.patch("pipeline.main._remove_signal_handlers")
+        mocker.patch(
+            "pipeline.main._discover_new_pmids",
+            new=AsyncMock(return_value=(["123"], ["123"])),
+        )
+        mocker.patch(
+            "pipeline.main._process_new_pmids",
+            new=AsyncMock(
+                return_value=_ProcessedBatch(
+                    results=[PaperResult(pmid="123")], warnings=[]
+                )
+            ),
+        )
+        mocker.patch(
+            "pipeline.main._merge_processed_batch",
+            new=AsyncMock(return_value={"inserted": 1, "updated": 0}),
+        )
+        mocker.patch("pipeline.main._emit_report")
+        record = mocker.patch(
+            "pipeline.main.record_pipeline_run", new=_run_recorder()
+        )
+        config = PipelineConfig(progress_file=str(tmp_path / "progress.json"))
+
+        _, run_data = await pipeline_main.run_pipeline(
+            config=config, manage_lifecycle=False, run_mode="preview"
+        )
+
+        assert run_data is not None
+        assert run_data["pipeline_config"]["mode"] == "preview"
+        kwargs = record.await_args.kwargs
+        assert kwargs["run_mode"] == "preview"
+        assert kwargs["report"]["runMode"] == "preview"
+
+    async def test_a_failed_preview_run_is_recorded_as_one(
+        self, tmp_path, mocker
+    ) -> None:
+        from pipeline.api_telemetry import reset_recorder
+
+        reset_recorder()
+        record = mocker.patch(
+            "pipeline.main.record_pipeline_run", new=AsyncMock(return_value=1)
+        )
+        reporter = _ProgressReporter(
+            PipelineConfig(progress_file=str(tmp_path / "progress.json"))
+        )
+
+        await pipeline_main._record_failed_run(
+            PipelineMetrics(),
+            reporter,
+            dry_run=False,
+            started_at=0.0,
+            config=PipelineConfig(),
+            run_mode="preview",
+        )
+
+        kwargs = record.await_args.kwargs
+        assert kwargs["run_mode"] == "preview"
+        assert kwargs["report"]["runMode"] == "preview"
+
+    async def test_a_failed_standard_run_is_still_recorded_as_standard(
+        self, tmp_path, mocker
+    ) -> None:
+        from pipeline.api_telemetry import reset_recorder
+
+        reset_recorder()
+        record = mocker.patch(
+            "pipeline.main.record_pipeline_run", new=AsyncMock(return_value=1)
+        )
+        reporter = _ProgressReporter(
+            PipelineConfig(progress_file=str(tmp_path / "progress.json"))
+        )
+
+        await pipeline_main._record_failed_run(
+            PipelineMetrics(),
+            reporter,
+            dry_run=False,
+            started_at=0.0,
+            config=PipelineConfig(),
+        )
+
+        assert record.await_args.kwargs["run_mode"] == "standard"
+
+    @pytest.mark.parametrize(
+        ("preview", "expected"), [(True, "preview"), (False, "standard")]
+    )
+    async def test_the_dispatcher_passes_the_run_mode_exactly_when_previewing(
+        self, mocker, preview, expected
+    ) -> None:
+        mocker.patch("pipeline.main.require_preview_database", new=AsyncMock())
+        run = mocker.patch(
+            "pipeline.main.run_pipeline",
+            new=AsyncMock(return_value=(MagicMock(), None)),
+        )
+        mocker.patch("pipeline.main._record_and_notify", new=AsyncMock())
+        mocker.patch("pipeline.main.close_async_client", new=AsyncMock())
+        mocker.patch("pipeline.main.Database.close", new=AsyncMock())
+
+        await pipeline_main._run_selected_pipelines(
+            _dispatcher_args(pubmed=True, preview=preview), PipelineConfig()
+        )
+
+        assert run.await_args.kwargs["run_mode"] == expected
