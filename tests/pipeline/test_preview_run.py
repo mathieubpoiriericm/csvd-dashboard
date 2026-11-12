@@ -1,5 +1,8 @@
 """The preview run's database: derived from production's name, never typed."""
 
+import logging
+from unittest.mock import AsyncMock
+
 import asyncpg
 import pytest
 
@@ -39,3 +42,34 @@ async def test_a_missing_preview_database_says_how_to_create_it(
     with pytest.raises(PreviewDatabaseError, match="createdb -O owner") as info:
         await require_preview_database()
     assert "dashboard_preview" in str(info.value)
+    assert "regenerate-data" in str(info.value)
+    assert "alembic" not in str(info.value)
+
+
+def _connection_to(mocker, database: str) -> AsyncMock:
+    """Patch ``Database.connection`` to one whose server reports ``database``."""
+    conn = AsyncMock()
+    conn.fetchval = AsyncMock(return_value=database)
+    ctx = AsyncMock()
+    ctx.__aenter__ = AsyncMock(return_value=conn)
+    ctx.__aexit__ = AsyncMock(return_value=None)
+    mocker.patch("pipeline.preview_run.Database.connection", return_value=ctx)
+    return conn
+
+
+async def test_the_preview_database_is_accepted_and_named_in_the_log(
+    mocker, caplog: pytest.LogCaptureFixture
+) -> None:
+    conn = _connection_to(mocker, "dashboard_preview")
+    with caplog.at_level(logging.INFO, logger="pipeline.preview_run"):
+        await require_preview_database()
+    conn.fetchval.assert_awaited_once_with("SELECT current_database()")
+    assert "Preview run: writing to dashboard_preview" in caplog.text
+
+
+async def test_a_connection_to_another_database_is_refused(mocker) -> None:
+    # DB_NAME says preview, but the server says otherwise (a PGDATABASE
+    # override, a pooler, a stale pool): believe the server.
+    _connection_to(mocker, "dashboard")
+    with pytest.raises(PreviewDatabaseError, match="'dashboard'"):
+        await require_preview_database()

@@ -32,6 +32,7 @@ from pipeline.export.main import (
 from pipeline.export.tables import _RENAMES
 from pipeline.export.text import clean_column_name
 from pipeline.export.writer import to_camel
+from pipeline.preview_run import PreviewDatabaseError
 
 
 def _mock_connection(mocker, conn: AsyncMock) -> None:
@@ -578,16 +579,45 @@ class TestMain:
         async def run(**kwargs: object) -> None:
             order.append(f"run {kwargs}")
 
+        async def require() -> None:
+            order.append("require")
+
+        mocker.patch("pipeline.export.main.require_preview_database", new=require)
         mocker.patch("pipeline.export.main.run_export", new=run)
         mocker.patch.object(Database, "close", new_callable=AsyncMock)
 
         main(["--preview"])
 
-        assert order == ["enter", "run {'preview_run': True}"]
+        assert order == ["enter", "require", "run {'preview_run': True}"]
+
+    def test_a_preview_export_refused_by_the_database_check_exits_non_zero(
+        self, mocker, caplog
+    ) -> None:
+        mocker.patch(
+            "pipeline.export.main.enter_preview_database", return_value="db_preview"
+        )
+        mocker.patch(
+            "pipeline.export.main.require_preview_database",
+            new_callable=AsyncMock,
+            side_effect=PreviewDatabaseError("the preview database does not exist"),
+        )
+        run = mocker.patch("pipeline.export.main.run_export", new_callable=AsyncMock)
+        close = mocker.patch.object(Database, "close", new_callable=AsyncMock)
+
+        with pytest.raises(SystemExit) as exit_info:
+            main(["--preview"])
+
+        assert exit_info.value.code == 1
+        assert "does not exist" in caplog.text
+        run.assert_not_awaited()
+        close.assert_awaited_once_with()
 
     def test_a_refused_preview_export_exits_non_zero(self, mocker, caplog) -> None:
         mocker.patch(
             "pipeline.export.main.enter_preview_database", return_value="db_preview"
+        )
+        mocker.patch(
+            "pipeline.export.main.require_preview_database", new_callable=AsyncMock
         )
         mocker.patch(
             "pipeline.export.main.run_export",

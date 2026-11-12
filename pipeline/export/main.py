@@ -33,7 +33,7 @@ from pipeline.export.tables import clean_gene_row, clean_trial_row
 from pipeline.export.text import is_doi, split_genetic_targets
 from pipeline.export.writer import to_camel, write_rows, write_value
 from pipeline.gold_only import gold_only
-from pipeline.preview_run import enter_preview_database
+from pipeline.preview_run import enter_preview_database, require_preview_database
 from pipeline.steps import PREVIEW_RUN_MODE
 
 logger = logging.getLogger(__name__)
@@ -294,8 +294,10 @@ async def _read_curated_trials() -> list[dict[str, object]]:
 async def _export_preview_run(target: Path) -> None:
     """Publish data/pipeline_run.json from the preview database, and nothing else.
 
-    The preview database holds one PubMed run and none of the curated tables,
-    so this reads no other table: every other file stays as it is on disk.
+    The preview database is a full copy of production, the earlier standard
+    run included, with the preview run merged into it; only this file is
+    published from it, so this reads no other table and every other file
+    stays as it is on disk.
     """
     run = await read_pipeline_run()
     if run is None or run.get("runMode") != PREVIEW_RUN_MODE:
@@ -481,6 +483,9 @@ def main(argv: list[str] | None = None) -> None:
         try:
             if args.preview:
                 try:
+                    # A missing or wrong database is the same readable refusal
+                    # the pipeline's --preview gives, not an asyncpg traceback.
+                    await require_preview_database()
                     await run_export(preview_run=True)
                 except ValueError as e:
                     logger.error(f"Preview export refused: {e}")
