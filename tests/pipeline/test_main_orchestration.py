@@ -145,7 +145,7 @@ class TestExtractionOrchestration:
     async def test_validation_exception_rejects_only_that_gene(
         self, make_gene_entry, mocker
     ) -> None:
-        gene = make_gene_entry(gene_symbol="NOTCH3")
+        gene = make_gene_entry(gene_symbol="GENE1")
         mocker.patch(
             "pipeline.main.validate_gene_entry",
             new=AsyncMock(side_effect=RuntimeError("NCBI unavailable")),
@@ -338,12 +338,12 @@ class TestTheQuoteGateNamesWhatItDropped:
     async def test_a_dropped_gene_is_a_rejection_with_the_reason(
         self, mocker, make_gene_entry
     ) -> None:
-        document = "NOTCH3 mutations cause CADASIL."
-        kept = make_gene_entry(gene_symbol="NOTCH3", source_quote=document)
-        # A genomic-table row the model reassembled from cells -- the one
-        # real failure on PMID 37069360.
+        document = "GENE1 mutations cause T1."
+        kept = make_gene_entry(gene_symbol="GENE1", source_quote=document)
+        # A genomic-table row the model reassembled from cells -- the
+        # kind of failure the provenance check exists to catch.
         dropped = make_gene_entry(
-            gene_symbol="CENPF", source_quote="9,033/38,008 8.20 x 10 -11"
+            gene_symbol="GENE3", source_quote="9,033/38,008 8.20 x 10 -11"
         )
         mocker.patch(
             "pipeline.main.extract_from_paper",
@@ -354,22 +354,22 @@ class TestTheQuoteGateNamesWhatItDropped:
         )
 
         outcome = await pipeline_main._extract_and_validate(
-            document, "37069360", PipelineMetrics(), PipelineConfig(), None
+            document, "99900011", PipelineMetrics(), PipelineConfig(), None
         )
 
         assert outcome.genes == [kept]
-        assert [r.gene.gene_symbol for r in outcome.rejected_genes] == ["CENPF"]
+        assert [r.gene.gene_symbol for r in outcome.rejected_genes] == ["GENE3"]
         assert outcome.rejected_genes[0].reasons == ["Quote not found in the paper"]
         # The PMID rides the gene, so the published record can point at the
         # paper the quote was supposed to come from.
-        assert outcome.rejected_genes[0].gene.pmid == "37069360"
+        assert outcome.rejected_genes[0].gene.pmid == "99900011"
 
     async def test_the_gate_off_leaves_the_rejections_alone(
         self, mocker, make_gene_entry
     ) -> None:
-        document = "NOTCH3 mutations cause CADASIL."
-        kept = make_gene_entry(gene_symbol="NOTCH3", source_quote=document)
-        unverifiable = make_gene_entry(gene_symbol="CENPF", source_quote="not here")
+        document = "GENE1 mutations cause T1."
+        kept = make_gene_entry(gene_symbol="GENE1", source_quote=document)
+        unverifiable = make_gene_entry(gene_symbol="GENE3", source_quote="not here")
 
         async def fake(text, pmid, *, config=None, rate_limiter=None):
             genes = report_provenance(
@@ -388,29 +388,29 @@ class TestTheQuoteGateNamesWhatItDropped:
         )
 
         outcome = await pipeline_main._extract_and_validate(
-            document, "37069360", PipelineMetrics(), PipelineConfig(), None
+            document, "99900011", PipelineMetrics(), PipelineConfig(), None
         )
 
         assert outcome.rejected_genes == []
         assert len(outcome.genes) == 2
 
     async def test_the_batch_path_lists_them_too(self, mocker, make_gene_entry) -> None:
-        kept = make_gene_entry(gene_symbol="NOTCH3")
-        dropped = make_gene_entry(gene_symbol="CENPF", source_quote="not in the paper")
-        current_tally().record_dropped("37069360", [dropped])
+        kept = make_gene_entry(gene_symbol="GENE1")
+        dropped = make_gene_entry(gene_symbol="GENE3", source_quote="not in the paper")
+        current_tally().record_dropped("99900011", [dropped])
         mocker.patch(
             "pipeline.main._validate_genes", new=AsyncMock(return_value=([kept], []))
         )
 
         result, _ = await pipeline_main._validate_batch_paper(
-            "37069360",
+            "99900011",
             [kept],
             (True, "europepmc", False),
             PipelineMetrics(),
             PipelineConfig(),
         )
 
-        assert [r.gene.gene_symbol for r in result.rejected_genes] == ["CENPF"]
+        assert [r.gene.gene_symbol for r in result.rejected_genes] == ["GENE3"]
 
 
 class TestPaperProcessing:
@@ -702,11 +702,11 @@ class TestCheckpointResume:
     """A crash after hours of extraction must not discard the extraction."""
 
     @staticmethod
-    def _gene(symbol: str = "NOTCH3") -> GeneEntry:
+    def _gene(symbol: str = "GENE1") -> GeneEntry:
         return GeneEntry(
             gene_symbol=symbol,
             confidence=0.9,
-            source_quote="NOTCH3 mutations cause CADASIL.",
+            source_quote="GENE1 mutations cause T1.",
             pmid="111",
         )
 
@@ -796,7 +796,7 @@ class TestCheckpointResume:
         )
 
         restored = batch.results[0]
-        assert [g.gene_symbol for g in restored.genes] == ["NOTCH3"]
+        assert [g.gene_symbol for g in restored.genes] == ["GENE1"]
         assert [r.gene.gene_symbol for r in restored.rejected_genes] == ["APOE"]
         assert restored.fulltext is True
         assert restored.source == "pmc"
@@ -906,7 +906,7 @@ class TestCheckpointResume:
         # and the next run resubmitted every paper.
         config = self._config(tmp_path)
         self._batch_fakes(
-            mocker, {"111": [self._gene()], "222": [self._gene("HTRA1")]}
+            mocker, {"111": [self._gene()], "222": [self._gene("GENE2")]}
         )
 
         await pipeline_main._process_new_pmids_via_batch(
@@ -921,7 +921,7 @@ class TestCheckpointResume:
         }
         assert set(records) == {"111", "222"}
         assert [g["gene_symbol"] for g in records["222"]["result"]["genes"]] == [
-            "HTRA1"
+            "GENE2"
         ]
         assert records["222"]["result"]["source"] == "europepmc"
         # The paper's own contribution, not the run's running total.
@@ -961,11 +961,11 @@ class TestCheckpointResume:
 
         config = self._config(tmp_path)
         self._batch_fakes(
-            mocker, {"111": [self._gene()], "222": [self._gene("HTRA1")]}
+            mocker, {"111": [self._gene()], "222": [self._gene("GENE2")]}
         )
 
         async def _validate(genes, metrics, config):
-            if genes[0].gene_symbol == "NOTCH3":
+            if genes[0].gene_symbol == "GENE1":
                 raise NcbiUnavailableError("NCBI down")
             return genes, []
 
@@ -1070,12 +1070,12 @@ class TestCheckpointResume:
 
         config = self._config(tmp_path)
         self._batch_fakes(
-            mocker, {"111": [self._gene()], "222": [self._gene("HTRA1")]}
+            mocker, {"111": [self._gene()], "222": [self._gene("GENE2")]}
         )
         self._record_batch(config, "111", "222")
 
         async def _validate(genes, metrics, config):
-            if genes[0].gene_symbol == "NOTCH3":
+            if genes[0].gene_symbol == "GENE1":
                 raise NcbiUnavailableError("NCBI down")
             return genes, []
 
@@ -2270,7 +2270,7 @@ class TestAnnotationSyncWrapperAndDispatcher:
             orphadata_cached=2,
             opentargets_failed=1,
             drugs_written=11,
-            errors=["Open Targets fetch failed: FOXF2"],
+            errors=["Open Targets fetch failed: GENE4"],
         )
         sync = mocker.patch(
             "pipeline.external_data_sync.sync_all_annotations",
@@ -2284,7 +2284,7 @@ class TestAnnotationSyncWrapperAndDispatcher:
         assert summary["status"] == "warnings"
         assert summary["metrics"]["clinvar_fetched"] == 61
         assert summary["metrics"]["drugs_written"] == 11
-        assert summary["errors"] == ["Open Targets fetch failed: FOXF2"]
+        assert summary["errors"] == ["Open Targets fetch failed: GENE4"]
         sync.assert_awaited_once()
         close.assert_awaited_once()
 
@@ -2359,7 +2359,7 @@ class TestTransientFailuresAreRetryable:
     ) -> None:
         from pipeline.validation import NcbiUnavailableError
 
-        genes = [make_gene_entry(gene_symbol="NOTCH3"), make_gene_entry()]
+        genes = [make_gene_entry(gene_symbol="GENE1"), make_gene_entry()]
         mocker.patch(
             "pipeline.main.validate_gene_entry",
             new=AsyncMock(side_effect=NcbiUnavailableError("NCBI down")),
@@ -2372,7 +2372,7 @@ class TestTransientFailuresAreRetryable:
     async def test_an_ordinary_validation_error_still_rejects_only_that_gene(
         self, make_gene_entry, mocker
     ) -> None:
-        genes = [make_gene_entry(gene_symbol="NOTCH3")]
+        genes = [make_gene_entry(gene_symbol="GENE1")]
         mocker.patch(
             "pipeline.main.validate_gene_entry",
             new=AsyncMock(side_effect=RuntimeError("parser broke")),
@@ -2396,13 +2396,13 @@ class TestTransientFailuresAreRetryable:
             "pipeline.main.submit_and_collect",
             new=AsyncMock(
                 return_value={
-                    "111": [make_gene_entry(gene_symbol="NOTCH3")],
-                    "222": [make_gene_entry(gene_symbol="HTRA1")],
+                    "111": [make_gene_entry(gene_symbol="GENE1")],
+                    "222": [make_gene_entry(gene_symbol="GENE2")],
                 }
             ),
         )
         async def _validate(genes, metrics, config):
-            if genes[0].gene_symbol == "NOTCH3":
+            if genes[0].gene_symbol == "GENE1":
                 raise NcbiUnavailableError("NCBI down")
             return genes, []
 
