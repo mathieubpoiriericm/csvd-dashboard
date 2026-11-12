@@ -5,7 +5,6 @@ import {
   previewCookie,
   previewInvitation,
   previewNote,
-  previewRequested,
 } from "../lib/pipeline_preview.ts";
 
 Deno.test("the invitation names the window the report states", () => {
@@ -36,16 +35,6 @@ Deno.test("the note says the findings are not in the other pages", () => {
     previewNote(null),
     "Technical preview: a real pipeline run. Its findings are not in the other pages.",
   );
-});
-
-Deno.test("only the cookie's own value turns the preview on", () => {
-  const on = (cookie?: string) =>
-    previewRequested(new Headers(cookie ? { cookie } : {}));
-  assertEquals(on("pipeline_preview=1"), true);
-  assertEquals(on("other=1; pipeline_preview=1"), true);
-  assertEquals(on("pipeline_preview=0"), false);
-  assertEquals(on("other=1"), false);
-  assertEquals(on(), false);
 });
 
 Deno.test("the cookie is set for a year and cleared when off", () => {

@@ -20,22 +20,11 @@ import type { Expected } from "./expected.deno.ts";
 
 const ROOT = join(__dirname, "..", "..");
 
-// `--config` names the root's deno.json outright: left to discover one,
-// `deno run` stops at e2e/package.json beside the script, and a bare
-// specifier the root's import map holds (`@std/http/cookie`, which
-// lib/pipeline_preview.ts reads) is then "not a dependency".
 export const EXPECTED: Expected = JSON.parse(
-  execFileSync(
-    "deno",
-    [
-      "run",
-      "-A",
-      "--config",
-      join(ROOT, "deno.json"),
-      join(__dirname, "expected.deno.ts"),
-    ],
-    { cwd: ROOT, encoding: "utf8" },
-  ),
+  execFileSync("deno", ["run", "-A", join(__dirname, "expected.deno.ts")], {
+    cwd: ROOT,
+    encoding: "utf8",
+  }),
 );
 
 export const SITE_TITLE = EXPECTED.siteTitle;

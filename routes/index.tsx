@@ -15,7 +15,7 @@ import { pipelineStatus } from "../lib/data/pipeline.ts";
 import { pipelineRun } from "../lib/data/pipeline_run.ts";
 import PipelineRunView from "../islands/PipelineRun.tsx";
 import PipelinePreview from "../islands/PipelinePreview.tsx";
-import { previewRequested } from "../lib/pipeline_preview.ts";
+import { previewRequested } from "../lib/pipeline_preview_request.ts";
 import { PipelineSyncs } from "../components/PipelineSyncs.tsx";
 import { pipelineSyncs } from "../lib/data/pipeline_syncs.ts";
 import { GOLD_DATA_DATE, GOLD_ONLY } from "../lib/gold_only.ts";
@@ -182,6 +182,12 @@ const KPIS: ReadonlyArray<{ icon: IconName; label: string; value: number }> = [
 
 interface AboutContentProps {
   status?: PipelineStatus | null;
+  /**
+   * The run report the run branch renders. Under gold-only the
+   * `PipelinePreview` island reads the report from `lib/data/pipeline_run.ts`
+   * itself, since no report crosses island props, so `run` governs only the
+   * `goldOnly={false}` branch.
+   */
   run?: PipelineRun | null;
   syncs?: SyncRun[];
   /**

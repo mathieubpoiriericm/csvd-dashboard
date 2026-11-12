@@ -101,10 +101,12 @@ the `PipelinePreview` island. With a report present the notice adds an
 invitation and a switch (`role="switch"`, disabled until the island is live);
 switching on shows the widget directly beneath it, marked "Technical preview",
 and writes the cookie `pipeline_preview=1` (one year, `Path=/`, `SameSite=Lax`),
-which `routes/index.tsx` reads (`previewRequested`, `lib/pipeline_preview.ts`)
-so the next visit renders it already open. The widget is a component inside that
-island, so no run report crosses island props. With no report the notice is
-exactly the notice, and the widget's own e2e specs skip while `GOLD_ONLY` is on.
+which `routes/index.tsx` reads (`previewRequested`,
+`lib/pipeline_preview_request.ts`, kept apart so no `@std` import reaches the
+island's bundle) so the next visit renders it already open. The widget is a
+component inside that island, so no run report crosses island props. With no
+report the notice is exactly the notice, and the widget's own e2e specs skip
+while `GOLD_ONLY` is on.
 
 It has two readers. A visiting researcher wants to know whether the data is
 fresh and can be trusted; the maintainer wants to know how the run went. So the

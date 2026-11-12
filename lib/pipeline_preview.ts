@@ -5,9 +5,10 @@
  * The preview shows a pipeline run widget as a technical preview. The
  * invitation and the note name the run's publication window when there is
  * one, and the cookie is the only state: a visitor who switches it on keeps
- * it for a year.
+ * it for a year. Reading the cookie off a request is server-only and lives in
+ * `lib/pipeline_preview_request.ts`, so this module imports nothing and the
+ * island's client bundle carries no cookie parser.
  */
-import { getCookies } from "@std/http/cookie";
 
 /** The cookie that remembers the preview switch. */
 export const PREVIEW_COOKIE = "pipeline_preview";
@@ -32,11 +33,6 @@ export function previewInvitation(daysBack: number | null): string {
 export function previewNote(daysBack: number | null): string {
   const phrase = previewWindow(daysBack);
   return `Technical preview: a real pipeline run${phrase}. Its findings are not in the other pages.`;
-}
-
-/** Whether the request's cookies switch the preview on. */
-export function previewRequested(headers: Headers): boolean {
-  return getCookies(headers)[PREVIEW_COOKIE] === "1";
 }
 
 /** The `document.cookie` assignment that switches the preview on or off. */
