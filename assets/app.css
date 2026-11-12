@@ -4831,6 +4831,25 @@ button.adapt-card-head:focus-visible {
     gap: var(--svd-space-2) var(--svd-space-3);
   }
 
+  /* With the Review control, the top row's content is 306px wide: the 140px
+     logo, the 12px column gap above and the 154px action cluster (the
+     control's 36px glyph, the 36px theme toggle, the 66px Sign out and two
+     8px gaps). With the 20px gutters that is 346px, so at 320px the cluster
+     ran 6px past the screen. The gutters give way instead, and only there:
+     half the bar less half the row is 20px or more from 346px up, so every
+     wider phone keeps the gutters it had, and at 320px each is 7px. A
+     percentage, not vw, so a classic scrollbar cannot push the row back
+     out. Fluid rather than one more breakpoint: the set is closed and its
+     narrowest, 480px, holds the 390px phones whose bar must not change.
+     Only with the control: without it the row is 262px and already fits. */
+  .navbar-inner:has(.review-control) {
+    padding-inline: clamp(
+      var(--svd-space-1),
+      calc(50% - 153px),
+      var(--svd-space-5)
+    );
+  }
+
   .institute-logo {
     height: 2.5rem;
   }

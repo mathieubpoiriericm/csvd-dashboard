@@ -247,41 +247,44 @@ test.describe("with a review round", () => {
       .toHaveCount(0);
   });
 
-  test("no review page scrolls sideways on a phone", async ({ page }) => {
-    const copy = REVIEW!.copy;
-    await page.setViewportSize({ width: 390, height: 844 });
-    const noSidewaysScroll = async (where: string) => {
-      const [scroll, client] = await page.evaluate(() => [
-        document.documentElement.scrollWidth,
-        document.documentElement.clientWidth,
-      ]);
-      expect(scroll, where).toBeLessThanOrEqual(client);
-    };
+  for (const width of [390, 320]) {
+    test(`no review page scrolls sideways on a ${width}px phone`, async ({ page }) => {
+      const copy = REVIEW!.copy;
+      await page.setViewportSize({ width, height: 844 });
+      const noSidewaysScroll = async (where: string) => {
+        const [scroll, client] = await page.evaluate(() => [
+          document.documentElement.scrollWidth,
+          document.documentElement.clientWidth,
+        ]);
+        expect(scroll, where).toBeLessThanOrEqual(client);
+      };
 
-    for (const path of ["/review", REVIEW!.gene.href, "/review/progress"]) {
-      await page.goto(path);
-      await expect(page.locator("main")).toBeVisible();
-      await noSidewaysScroll(path);
-    }
+      for (const path of ["/review", REVIEW!.gene.href, "/review/progress"]) {
+        await page.goto(path);
+        await expect(page.locator("main")).toBeVisible();
+        await noSidewaysScroll(path);
+      }
 
-    // The open menu, entered: the area's page links and Leave review.
-    await controlIn(page).click();
-    await expect(page.getByRole("menuitem", { name: copy.MENU_LEAVE }))
-      .toBeVisible();
-    await noSidewaysScroll("the entered menu");
-    await page.getByRole("menuitem", { name: copy.MENU_LEAVE }).click();
-    await expect(page).toHaveURL("/");
+      // The open menu, entered: the area's page links and Leave review.
+      await controlIn(page).click();
+      await expect(page.getByRole("menuitem", { name: copy.MENU_LEAVE }))
+        .toBeVisible();
+      await noSidewaysScroll("the entered menu");
+      await page.getByRole("menuitem", { name: copy.MENU_LEAVE }).click();
+      await expect(page).toHaveURL("/");
 
-    // The open menu signed out, then the request dialog.
-    await controlOut(page).click();
-    await expect(page.getByRole("menuitem", { name: copy.MENU_REQUEST }))
-      .toBeVisible();
-    await noSidewaysScroll("the signed-out menu");
-    await page.getByRole("menuitem", { name: copy.MENU_REQUEST }).click();
-    await expect(page.getByRole("dialog", { name: copy.REQUEST_TITLE }))
-      .toBeVisible();
-    await noSidewaysScroll("the request dialog");
-  });
+      // The open menu signed out, then the request dialog.
+      await noSidewaysScroll("signed out of the review");
+      await controlOut(page).click();
+      await expect(page.getByRole("menuitem", { name: copy.MENU_REQUEST }))
+        .toBeVisible();
+      await noSidewaysScroll("the signed-out menu");
+      await page.getByRole("menuitem", { name: copy.MENU_REQUEST }).click();
+      await expect(page.getByRole("dialog", { name: copy.REQUEST_TITLE }))
+        .toBeVisible();
+      await noSidewaysScroll("the request dialog");
+    });
+  }
 });
 
 test.describe("signed out of the dashboard", () => {
