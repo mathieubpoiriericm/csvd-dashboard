@@ -34,6 +34,25 @@ if (WORKERS !== undefined && (!Number.isInteger(WORKERS) || WORKERS < 1)) {
   throw new Error("E2E_WORKERS must be a positive integer");
 }
 
+// Which engines the suite runs on. Chromium alone unless E2E_BROWSERS names
+// others ("webkit", "firefox", or several with commas): the fork checks and a
+// local run stay one engine, and CI's `e2e-engines` job runs the committed
+// data's suite on each of the other two. An empty value counts as unset.
+const ENGINES = {
+  chromium: devices["Desktop Chrome"],
+  firefox: devices["Desktop Firefox"],
+  webkit: devices["Desktop Safari"],
+} as const;
+const BROWSERS = (process.env.E2E_BROWSERS || "chromium").split(",")
+  .map((name) => name.trim());
+for (const name of BROWSERS) {
+  if (!(name in ENGINES)) {
+    throw new Error(
+      `E2E_BROWSERS names "${name}"; it takes chromium, firefox and webkit`,
+    );
+  }
+}
+
 // Saved sessions are on for the suite, kept here. Derived from the port, not
 // made with mkdtemp: Playwright evaluates this config once per worker, and
 // every runner already has its own E2E_PORT.
@@ -65,20 +84,22 @@ export default defineConfig({
   },
 
   projects: [
-    { name: "setup", testMatch: /auth\.setup\.ts$/ },
     {
-      name: "chromium",
+      name: "setup",
+      testMatch: /auth\.setup\.ts$/,
+      use: { ...ENGINES[BROWSERS[0] as keyof typeof ENGINES] },
+    },
+    // One project an engine. The setup project signs in with the first of
+    // them, so a WebKit-only run needs no Chromium installed.
+    ...BROWSERS.map((name) => ({
+      name,
       testMatch: /\.spec\.ts$/,
       dependencies: ["setup"],
-      use: { ...devices["Desktop Chrome"], storageState: STORAGE_STATE },
-    },
-    // Leaflet and the tooltip popovers are the only engine-sensitive surfaces
-    // here, and the popovers lean on native top-layer and focus-order
-    // behaviour, so they are worth a cross-engine run if they ever look off.
-    // Enable these if either starts misbehaving off-Chromium; they triple the
-    // run, and need `npx playwright install firefox webkit` first.
-    // { name: "firefox", use: { ...devices["Desktop Firefox"] } },
-    // { name: "webkit", use: { ...devices["Desktop Safari"] } },
+      use: {
+        ...ENGINES[name as keyof typeof ENGINES],
+        storageState: STORAGE_STATE,
+      },
+    })),
   ],
 
   webServer: {

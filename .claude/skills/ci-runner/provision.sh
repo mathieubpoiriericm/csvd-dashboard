@@ -86,8 +86,8 @@ END \$\$;
 ALTER ROLE $PG_ROLE WITH LOGIN CREATEDB NOSUPERUSER PASSWORD '$pg_password';
 SQL
 
-echo "== Chromium's system packages, for Playwright $PLAYWRIGHT_VERSION"
-npx -y "playwright@$PLAYWRIGHT_VERSION" install-deps chromium
+echo "== the three engines' system packages, for Playwright $PLAYWRIGHT_VERSION"
+npx -y "playwright@$PLAYWRIGHT_VERSION" install-deps chromium firefox webkit
 
 echo "== GitHub's runner"
 release=$(curl -fsSL https://api.github.com/repos/actions/runner/releases/latest)
