@@ -29,7 +29,7 @@ from pipeline.export.main import (
     main,
     run_export,
 )
-from pipeline.export.review_round import ReviewRoundError
+from pipeline.export.review_round import ROUND_FILE, ReviewRoundError
 from pipeline.export.tables import _RENAMES
 from pipeline.export.text import clean_column_name
 from pipeline.export.writer import to_camel
@@ -181,6 +181,7 @@ _STAGED_FILENAMES = (
     "gene_annotations.json",
     "pipeline_run.json",
     "pipeline_syncs.json",
+    ROUND_FILE,
 )
 
 
@@ -277,8 +278,8 @@ class TestRunExport:
 
         await run_export(target_dir=target_dir, gold_only_on=False)
 
-        # Exactly the ten generated files land in target_dir -- no
-        # leftover staging tempdir, no .previous-export backup.
+        # Exactly the generated files land in target_dir, the null round
+        # included -- no leftover staging tempdir, no .previous-export backup.
         assert sorted(p.name for p in target_dir.iterdir()) == sorted(_STAGED_FILENAMES)
 
         table1 = json.loads((target_dir / "table1.json").read_text())
@@ -348,6 +349,35 @@ class TestRunExport:
         assert (target_dir / "pipeline_run.json").read_bytes() == b'"committed"\n'
         assert (target_dir / "table1.json").exists()
         assert "keeping the committed data/pipeline_run.json" in caplog.text
+
+    async def test_an_export_without_gold_only_clears_the_review_round(
+        self, tmp_path: Path, mocker
+    ) -> None:
+        """Outside gold-only there is no review: the round is published as null.
+
+        A fork that merged upstream, or this repository once GOLD_ONLY is off,
+        would otherwise keep this dataset's round in data/ and its bundle.
+        """
+        target_dir = tmp_path / "data"
+        target_dir.mkdir()
+        (target_dir / ROUND_FILE).write_bytes(b'{"id": "round"}\n')
+        _patch_export_dependencies(mocker)
+
+        await run_export(target_dir=target_dir, gold_only_on=False)
+
+        assert (target_dir / ROUND_FILE).read_bytes() == b"null\n"
+
+    async def test_a_gold_only_export_keeps_the_committed_review_round(
+        self, tmp_path: Path, mocker
+    ) -> None:
+        target_dir = tmp_path / "data"
+        target_dir.mkdir()
+        (target_dir / ROUND_FILE).write_bytes(b'{"id": "round"}\n')
+        _patch_export_dependencies(mocker)
+
+        await run_export(target_dir=target_dir, gold_only_on=True)
+
+        assert (target_dir / ROUND_FILE).read_bytes() == b'{"id": "round"}\n'
 
     async def test_an_export_without_gold_only_writes_the_run_report(
         self, tmp_path: Path, mocker

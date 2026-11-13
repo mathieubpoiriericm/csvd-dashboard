@@ -129,7 +129,10 @@ async def test_the_gold_connection_reads_gold_inside_a_read_only_transaction(
         password="secret",
         database="dashboard",
     )
-    conn.transaction.assert_called_once_with(readonly=True)
+    # One snapshot: the gene reader's four SELECTs see the same gold.
+    conn.transaction.assert_called_once_with(
+        isolation="repeatable_read", readonly=True
+    )
     assert events == ["begin", "body", "end", "close"]
 
 
@@ -167,3 +170,19 @@ async def test_the_gold_connection_defaults_the_port(mocker) -> None:
         pass
     assert connect.await_args is not None
     assert connect.await_args.kwargs["port"] == 5432
+
+
+@pytest.mark.parametrize(
+    "error",
+    [asyncpg.InvalidCatalogNameError, asyncpg.InsufficientPrivilegeError],
+)
+async def test_a_gold_database_that_cannot_be_read_is_a_refusal(
+    mocker, error: type[Exception]
+) -> None:
+    mocker.patch(
+        "pipeline.preview_run.asyncpg.connect",
+        new=AsyncMock(side_effect=error("no")),
+    )
+    with pytest.raises(PreviewDatabaseError, match="dashboard"):
+        async with gold_connection(_PREVIEW_ENV):
+            pass

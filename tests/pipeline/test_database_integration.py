@@ -1085,24 +1085,43 @@ async def _admin(settings: dict[str, str], *statements: str) -> None:
         await conn.close()
 
 
+async def _database_exists(settings: dict[str, str], database: str) -> bool:
+    conn = await _connect(settings, _MAINTENANCE_DATABASE)
+    try:
+        return bool(
+            await conn.fetchval(
+                "SELECT 1 FROM pg_database WHERE datname = $1", database
+            )
+        )
+    finally:
+        await conn.close()
+
+
 @pytest.fixture
 async def preview_database(database_env):
     """A `<DB_NAME>_preview` copied from the test database, dropped after.
 
     The copy is the shape a real preview database has: production's rows,
     with a preview run merged on top. The pool is closed first because the
-    template must have no session on it, and again at teardown because the
-    test's pool is connected to the copy. Skips, rather than fails, where
-    the role cannot create a database or reach the maintenance database.
+    template must have no session on it, and this role's other sessions on
+    it (an earlier test's, say) are ended too; the pool is closed again at
+    teardown because the test's pool is connected to the copy. Skips, rather
+    than fails, where the role cannot create a database or reach the
+    maintenance database, and where a database of the preview's name
+    already exists: only a database this fixture made is ever dropped
+    (`tests/pipeline/conftest.py` holds the same rule for its own).
     """
     gold = database_env["DB_NAME"]
     preview = preview_database_name(gold)
     drop = _drop_statements(preview)
+    end_sessions_on_gold, _drop_gold = _drop_statements(gold)
     await Database.close()
     try:
-        await _admin(database_env, *drop)
+        if await _database_exists(database_env, preview):
+            pytest.skip(f"{preview!r} already exists and this test did not make it")
         await _admin(
             database_env,
+            end_sessions_on_gold,
             f"CREATE DATABASE {quote_identifier(preview)}"
             f" TEMPLATE {quote_identifier(gold)}",
         )
@@ -1135,7 +1154,11 @@ async def test_the_round_reads_the_preview_and_its_gold_sibling(
     through `gold_connection`, the papers from the preview's ledger -- and
     gold cannot be written through that connection."""
     gold = await _connect(database_env, database_env["DB_NAME"])
-    preview = await _connect(database_env, preview_database)
+    try:
+        preview = await _connect(database_env, preview_database)
+    except BaseException:
+        await gold.close()
+        raise
     try:
         await gold.execute("DELETE FROM genes WHERE gene IN ('GENE1', 'GENE2')")
         await preview.execute("DELETE FROM genes WHERE gene IN ('GENE1', 'GENE2')")

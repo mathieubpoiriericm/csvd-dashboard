@@ -343,7 +343,10 @@ async def run_export(
     report committed there, and would publish over it. ``preview_run``
     publishes that file and data/review_round.json from the preview
     database instead, together or not at all, and refuses unless gold-only
-    is on. ``gold_only_on=None`` reads the repository's switch.
+    is on. Without gold-only an ordinary export also publishes
+    data/review_round.json as ``null``, since there is no review to show; with
+    it, the committed round is left alone like the report.
+    ``gold_only_on=None`` reads the repository's switch.
     """
     if gold_only_on is None:
         gold_only_on = gold_only()
@@ -444,12 +447,18 @@ async def run_export(
         if gold_only_on:
             # Left unstaged, like gene_annotations.json above: the committed
             # file is the preview run's report, which the production database
-            # does not hold.
+            # does not hold. The review round beside it is the preview
+            # export's too, and stays for the same reason.
             logger.info(
                 "GOLD_ONLY is on; keeping the committed data/pipeline_run.json"
+                f" and data/{ROUND_FILE}"
             )
         else:
             write_value(await read_pipeline_run(), stage("pipeline_run.json"))
+            # Without gold-only there is no review, so no round: a fork that
+            # merged upstream, or this repository once GOLD_ONLY is off, must
+            # not keep a round of another database in data/ and its bundle.
+            write_value(None, stage(ROUND_FILE))
 
         # The reference-data refreshes, which record their own smaller
         # document: they have no papers, genes or steps, and the upstreams

@@ -114,8 +114,10 @@ def build_review_round(
     """The round a preview run proposes against the gold rows.
 
     Raises ReviewRoundError when a gold gene is missing from the preview
-    rows (a run never deletes a row) or when a change has no finding to
-    explain it.
+    rows (a run never deletes a row), when a field of a change lost a list
+    value (a run never removes one, so gold was curated after the preview
+    was copied from it, on a row the run also touched), or when a change has
+    no finding to explain it.
     """
     gold = {_key(row["gene"]): row for row in gold_rows}
     preview_keys = {_key(row["gene"]) for row in preview_rows}
@@ -134,6 +136,13 @@ def build_review_round(
             fields = _differing_fields(before, after)
             if not fields:
                 continue
+            for field in fields:
+                if field["removed"]:
+                    raise ReviewRoundError(
+                        f"the preview's {after['gene']} lacks {field['removed']}"
+                        f" of gold's {field['field']}: a run never removes a list"
+                        " value, so gold changed after the preview was copied"
+                    )
             kind = (
                 "claims"
                 if any(f["field"] in _CLAIM_FIELDS for f in fields)

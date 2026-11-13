@@ -62,13 +62,15 @@ async def gold_connection(
     with the name `gold_database_name` derives from ``DB_NAME``, so it is
     reachable only from a process that has entered the preview database.
     A connection of its own rather than the shared pool, which is the
-    preview's. Everything runs inside ``transaction(readonly=True)``, so
-    the server refuses any write to production, and the connection is
-    closed on the way out however the body ends.
+    preview's. Everything runs inside one read-only, repeatable-read
+    transaction, so the server refuses any write to production and every
+    read sees the same snapshot, and the connection is closed on the way out
+    however the body ends.
 
     Raises:
         PreviewDatabaseError: If ``DB_NAME`` is not a preview database's
-            name, or a credential is unset or empty.
+            name, a credential is unset or empty, or the gold database does
+            not exist or this role may not connect to it.
     """
     database = gold_database_name(environ.get("DB_NAME", ""))
     required = ("DB_HOST", "DB_USER", "DB_PASSWORD")
@@ -83,15 +85,24 @@ async def gold_connection(
         raise PreviewDatabaseError(
             f"DB_PORT must be an integer, got {port_raw!r}"
         ) from None
-    conn = await asyncpg.connect(
-        host=environ["DB_HOST"],
-        port=port,
-        user=environ["DB_USER"],
-        password=environ["DB_PASSWORD"],
-        database=database,
-    )
     try:
-        async with conn.transaction(readonly=True):
+        conn = await asyncpg.connect(
+            host=environ["DB_HOST"],
+            port=port,
+            user=environ["DB_USER"],
+            password=environ["DB_PASSWORD"],
+            database=database,
+        )
+    except (asyncpg.InvalidCatalogNameError, asyncpg.InsufficientPrivilegeError) as e:
+        # A refusal like the others, so `main` prints it and exits 1 rather
+        # than ending the export in a traceback.
+        raise PreviewDatabaseError(
+            f"the gold database {database} could not be read: {e}"
+        ) from e
+    try:
+        # Repeatable read, so the gene reader's several SELECTs see one
+        # snapshot of gold even if it is written to meanwhile.
+        async with conn.transaction(isolation="repeatable_read", readonly=True):
             yield conn
     finally:
         await conn.close()

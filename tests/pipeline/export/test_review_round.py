@@ -101,11 +101,18 @@ def test_sentinels_are_left_out_of_added_and_removed():
     preview = [GOLD[0], _row("GENE2", gwasTrait=["TRAIT-A"])]
     (change,) = build(preview, findings=[_finding("GENE2", "7")])["changes"]
     assert change["fields"][0]["removed"] == []
+
+
+def test_a_removed_list_value_is_refused_as_gold_drift():
+    """A run never removes a list value, so a removal means gold moved.
+
+    The one drift the other refusals cannot see: gold was curated after the
+    preview was copied from it, on a row the run also touched.
+    """
     gold = [_row("GENE1", gwasTrait=["TRAIT-A"])]
     preview = [_row("GENE1", gwasTrait=["(unknown)"])]
-    (change,) = build(preview, findings=[_finding("GENE1", "7")], gold=gold)["changes"]
-    assert change["fields"][0]["removed"] == ["TRAIT-A"]
-    assert change["fields"][0]["added"] == []
+    with pytest.raises(ReviewRoundError, match=r"GENE1.*gwasTrait"):
+        build(preview, findings=[_finding("GENE1", "7")], gold=gold)
 
 
 def test_a_scalar_field_has_no_added_or_removed():
@@ -169,7 +176,9 @@ def test_the_version_names_the_proposal_and_the_base_names_gold():
     assert other["changes"][0]["version"] != first["changes"][0]["version"]
     assert other["base"] == first["base"]
 
-    other_gold = [GOLD[0], _row("GENE2", gwasTrait=["TRAIT-C"])]
+    # Another gold that a run could have started from: a scalar differs, so
+    # no list value is removed (which would be refused as drift).
+    other_gold = [GOLD[0], _row("GENE2", protein="P2")]
     moved = build(preview, findings=findings, gold=other_gold)
     assert moved["base"] != first["base"]
 
