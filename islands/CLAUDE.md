@@ -564,12 +564,16 @@ chunk reaches a protected one.
   The dot is drawn only there: above 600px the label reads "Review · Observer",
   and the same amber dot the navbar's "Build Your Own" link uses for "recently
   updated" read beside it as a notification. The island renders it whenever
-  entered; the stylesheet shows it only in the icon-only layout. At 390px the
-  bar had 62px to spare beside the logo, the toggle and Sign out, and the
-  labelled button is 129px. At 320px even the glyph leaves the logo less than
-  its width, and the logo gives way: below 1410px its grid track is what the
-  actions leave, the logo is capped at it, and `object-fit: contain` draws the
-  mark scaled down and undistorted in the narrower box
-  (`.navbar-brand .institute-logo` in `assets/app.css`). Nothing in that rule
-  knows the logo's or the buttons' sizes, so where the row has room, with or
-  without the control, the logo is its full size and the bar is unchanged.
+  entered; the stylesheet shows it only in the icon-only layout. The menu there
+  hangs from the action cluster's right edge, not the button's
+  (`.navbar-actions` is the positioned box and `.review-control` is static): the
+  toggle and Sign out sit to the glyph's right, and at 320px the 192px menu hung
+  from the button ran 10px past the screen's left edge. At 390px the bar had
+  62px to spare beside the logo, the toggle and Sign out, and the labelled
+  button is 129px. At 320px even the glyph leaves the logo less than its width,
+  and the logo gives way: below 1410px its grid track is what the actions leave,
+  the logo is capped at it, and `object-fit: contain` draws the mark scaled down
+  and undistorted in the narrower box (`.navbar-brand .institute-logo` in
+  `assets/app.css`). Nothing in that rule knows the logo's or the buttons'
+  sizes, so where the row has room, with or without the control, the logo is its
+  full size and the bar is unchanged.

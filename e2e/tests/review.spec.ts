@@ -358,6 +358,26 @@ test.describe("with a review round", () => {
       await expect(controlOut(page)).toBeVisible();
       await expect(marker).toHaveCount(0);
 
+      // Overflow to the left adds no scroll width, so the menu's own box is
+      // measured: whole on the screen, and hanging below its button.
+      const menuOnScreen = async (where: string) => {
+        const box = await page.evaluate(() => {
+          const rect = (selector: string) =>
+            document.querySelector(selector)!.getBoundingClientRect();
+          const menu = rect(".navbar .review-menu");
+          return {
+            left: menu.left,
+            right: menu.right,
+            top: menu.top,
+            buttonBottom: rect(".navbar .review-button").bottom,
+            client: document.documentElement.clientWidth,
+          };
+        });
+        expect(box.left, where).toBeGreaterThanOrEqual(0);
+        expect(box.right, where).toBeLessThanOrEqual(box.client);
+        expect(box.top, where).toBeGreaterThanOrEqual(box.buttonBottom);
+      };
+
       const noSidewaysScroll = async (where: string) => {
         const [scroll, client] = await page.evaluate(() => [
           document.documentElement.scrollWidth,
@@ -380,6 +400,7 @@ test.describe("with a review round", () => {
       await expect(page.getByRole("menuitem", { name: copy.MENU_LEAVE }))
         .toBeVisible();
       await noSidewaysScroll("the entered menu");
+      await menuOnScreen("the entered menu");
       await page.getByRole("menuitem", { name: copy.MENU_LEAVE }).click();
       await expect(page).toHaveURL("/");
 
@@ -390,6 +411,7 @@ test.describe("with a review round", () => {
       await expect(page.getByRole("menuitem", { name: copy.MENU_REQUEST }))
         .toBeVisible();
       await noSidewaysScroll("the signed-out menu");
+      await menuOnScreen("the signed-out menu");
       await page.getByRole("menuitem", { name: copy.MENU_REQUEST }).click();
       await expect(page.getByRole("dialog", { name: copy.REQUEST_TITLE }))
         .toBeVisible();

@@ -282,6 +282,18 @@ Deno.test("an empty round renders zeros, not NaN", () => {
   assertStringIncludes(html, 'style="width: 0%"');
 });
 
+Deno.test("a round of one gene counts it in the singular", () => {
+  const one = currentReview(true, sampleRound(1), goldOf(sampleRound(1)))!;
+  assertEquals(one.summary.total, 1);
+  const settled = cards(render(<ReviewProgressContent state={one} />)).map(
+    text,
+  )[0];
+  assertEquals(
+    settled,
+    `Settled ${one.summary.settled} of 1 gene ${one.summary.accepted} accepted · ${one.summary.rejected} rejected`,
+  );
+});
+
 Deno.test("the page says the committee is simulated", () => {
   const html = render(<ReviewProgressContent state={s} />);
   assertStringIncludes(html, "<h1>Committee progress</h1>");

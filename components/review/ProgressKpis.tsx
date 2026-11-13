@@ -1,6 +1,6 @@
 import type { ComponentChildren } from "preact";
 
-import { percent } from "../../lib/review/display.ts";
+import { percent, plural } from "../../lib/review/display.ts";
 import type { ReviewSummary } from "../../lib/review/summary.ts";
 
 /**
@@ -37,7 +37,7 @@ export function ProgressKpis({ summary }: { summary: ReviewSummary }) {
       <Kpi
         label="Settled"
         value={summary.settled}
-        unit={`of ${summary.total} genes`}
+        unit={`of ${plural(summary.total, "gene", "genes")}`}
         sub={`${summary.accepted} accepted · ${summary.rejected} rejected`}
       />
       <Kpi

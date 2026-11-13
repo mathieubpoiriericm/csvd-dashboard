@@ -14,12 +14,22 @@
  * last the run's new proposals: a simulated rejection or conflict must never
  * read as a verdict on an established gene. A round too small for all eight
  * plants what fits, benign cases first, and never two cases on one change.
- * Every other change is answered at random by the odds below.
+ * Every other change is answered at random by the odds below, and for the
+ * same reason never ends at conflict, rejected or no quorum: an objection that
+ * would tip it there is given as a plain accept instead.
  */
 
 import type { ReviewChange, ReviewRound } from "../types.ts";
-import type { Account, Answer, Edit, ReviewEvent } from "./events.ts";
+import type {
+  Account,
+  Answer,
+  AnswerEvent,
+  Edit,
+  ReviewEvent,
+} from "./events.ts";
 import { PIPELINE_ACTOR } from "./events.ts";
+import type { Standing } from "./rules.ts";
+import { standingOf } from "./rules.ts";
 
 export const SEED = 20261112;
 
@@ -45,6 +55,13 @@ const VOTERS = ACCOUNTS.slice(0, 11);
  * different stages.
  */
 const ANSWER_ODDS = [1, .96, .93, .9, .87, .85, .83, .6, .4, .25, .7];
+
+/** The standings only a planted change may reach. */
+const ADVERSE_STANDINGS: readonly Standing[] = [
+  "conflict",
+  "rejected",
+  "no_quorum",
+];
 
 /** A scripted case, planted on one change. */
 export type Planted =
@@ -232,6 +249,7 @@ export function simulate(
 
     const kind = planted.get(index);
     if (kind === undefined) {
+      const first = events.length;
       VOTERS.forEach((_, k) => {
         if (rand() >= ANSWER_ODDS[k]) return;
         const u = rand();
@@ -246,6 +264,26 @@ export function simulate(
             : "abstain",
         );
       });
+      // Each voter answered at most once, so the answers are the tally. The
+      // repair draws no random number: a history that needs none is unchanged.
+      const given = events.slice(first) as AnswerEvent[];
+      const count = (...kinds: Answer[]) =>
+        given.filter((e) => kinds.includes(e.answer)).length;
+      const adverse = () =>
+        ADVERSE_STANDINGS.includes(standingOf({
+          accept: count("accept", "accept_with_edits"),
+          reject: count("reject"),
+          abstain: count("abstain"),
+          outstanding: VOTERS.length - given.length,
+        }));
+      while (adverse()) {
+        const objection = given.findLast((e) => e.answer === "reject") ??
+          given.findLast((e) => e.answer === "abstain");
+        if (!objection) break;
+        objection.answer = "accept";
+        objection.edits = [];
+        objection.reason = null;
+      }
       return;
     }
     switch (kind) {

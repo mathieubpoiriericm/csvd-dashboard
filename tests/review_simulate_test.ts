@@ -119,6 +119,28 @@ Deno.test("the adverse cases land on the last changes, never the first", () => {
   }
 });
 
+Deno.test("only a planted change ends at conflict, rejected or no quorum", () => {
+  // The random answers alone must never read as a verdict against a gene,
+  // whatever the seed and wherever the change sits in the round.
+  const adverse = ["conflict", "rejected", "no_quorum"];
+  const stray: string[] = [];
+  for (const n of [9, 30, 80]) {
+    const round = sampleRound(n);
+    const planted = plantings(round.changes);
+    for (let seed = SEED; seed < SEED + 500; seed++) {
+      const events = simulate(round, seed);
+      round.changes.forEach((c, i) => {
+        if (planted.has(i)) return;
+        const r = reviewGene(c, ACCOUNTS, events);
+        if (adverse.includes(r.standing) || adverse.includes(r.voted)) {
+          stray.push(`${n} changes, seed ${seed}, change ${i}: ${r.voted}`);
+        }
+      });
+    }
+  }
+  assertEquals(stray, []);
+});
+
 Deno.test("a small round plants what fits, benign first, once per change", () => {
   const expected: Record<number, string[]> = {
     0: [],
