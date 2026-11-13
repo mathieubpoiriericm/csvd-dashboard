@@ -121,9 +121,6 @@ export function rejectionGroups(run: PipelineRun): RejectionGroup[] {
   });
 }
 
-/** The `source` of a paper whose retrieval succeeded and found no text. */
-const NO_TEXT_SOURCE = "none";
-
 /** One paper of the run, as its row of the Papers table reads. */
 export interface PaperRow {
   paper: RunPaper;
@@ -138,8 +135,7 @@ export interface PaperRow {
  * The Papers table's rows, with the two facts its head needs.
  *
  * A paper that errored leads, since it is the one that needs a look; the
- * rest keep the report's order, a paper with no text among them: the run
- * raises those in a note of their own. `declinedColumn` is whether any paper was
+ * rest keep the report's order. `declinedColumn` is whether any paper was
  * declined, so a run nothing was declined in has no empty column for it.
  * `written` is whether the run reached its merge: accepted means what
  * reached the database, so before it a paper's findings are validated and
@@ -150,13 +146,8 @@ export function paperRows(
 ): { rows: PaperRow[]; declinedColumn: boolean; written: boolean } {
   const rows = run.papersDetail.items.map((paper): PaperRow => ({
     paper,
-    // Nobody read a paper that errored, nor one no text was retrieved for:
-    // no model ran on either. Only for a paper that had text does a null
-    // model mean a report from before it was recorded per paper, the run's.
-    readBy: paper.error !== null || paper.source === NO_TEXT_SOURCE
-      ? "unread"
-      : paper.extractionModel === null ||
-          paper.extractionModel === run.config.model
+    readBy: paper.error !== null ? "unread" : paper.extractionModel === null ||
+        paper.extractionModel === run.config.model
       ? "primary"
       : "fallback",
     declinedBy: paper.refusal === null
@@ -321,20 +312,15 @@ export function setupMethod(run: PipelineRun): SetupRow[] {
  * What the run cost in time and tokens, and how its extractions checked
  * out. The two quote numbers stay two: one asks whether the sentence is in
  * the paper, the other whether the model's own citation attested to it.
- * The estimated cost is published and not shown. The work under the
- * duration is left out where it was not measured.
+ * The estimated cost is published and not shown.
  */
 export function setupUsage(run: PipelineRun): SetupRow[] {
   const { tokens, genes } = run;
-  // The work is the sum of each paper's own time, and a paper nobody timed
-  // adds nothing to it: a run that timed none has no work to state, and a
-  // batch run's sum holds only the papers its fallback rescued.
-  const timed = run.computeSeconds > 0 && run.config.batch !== true;
   const rows = [
     row(
       field("duration").label,
       formatDuration(run.durationSeconds),
-      timed ? `${formatDuration(run.computeSeconds)} ${SETUP.work}` : null,
+      `${formatDuration(run.computeSeconds)} ${SETUP.work}`,
     ),
   ];
   if (tokens.totalTokens > 0) {

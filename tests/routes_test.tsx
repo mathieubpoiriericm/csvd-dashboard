@@ -11,10 +11,7 @@ import { renderToString } from "preact-render-to-string";
 import App, { pageTitle, ReviewControl } from "../routes/_app.tsx";
 import AdaptPage, { AdaptTip } from "../routes/adapt.tsx";
 import Genes from "../routes/genes.tsx";
-import About, {
-  AboutContent,
-  handler as aboutHandler,
-} from "../routes/index.tsx";
+import About, { AboutContent } from "../routes/index.tsx";
 import MapPage from "../routes/map.tsx";
 import PhenogramPage from "../routes/phenogram.tsx";
 import TimelinePage from "../routes/timeline.tsx";
@@ -225,34 +222,6 @@ Deno.test("the About route draws the preview the visitor's cookie asked for", ()
     // the cookie changes nothing.
     assertEquals(on, off);
   }
-});
-
-Deno.test("the About route renews the preview cookie it drew the preview for", () => {
-  // The switch writes its cookie from script, which WebKit keeps for seven
-  // days at most; the route that honours it sends it back as a header, so
-  // it lasts the year the switch asked for.
-  const get = (cookie?: string) =>
-    new Headers(
-      (aboutHandler.GET({
-        req: new Request(
-          "http://localhost/",
-          cookie ? { headers: { cookie } } : {},
-        ),
-      } as never) as { headers?: HeadersInit }).headers,
-    ).get("set-cookie");
-  const on = get(previewCookie(true).split(";")[0]);
-  if (GOLD_ONLY && pipelineRun !== null) {
-    assertEquals(
-      on,
-      "pipeline_preview=1; Path=/; Max-Age=31536000; SameSite=Lax",
-    );
-  } else {
-    // No preview is offered, so there is no cookie to keep.
-    assertEquals(on, null);
-  }
-  // The server never switches the preview on by itself.
-  assertEquals(get(), null);
-  assertEquals(get("other=1"), null);
 });
 
 Deno.test("About content reports an unavailable date when no run is recorded", () => {

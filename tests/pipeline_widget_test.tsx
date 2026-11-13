@@ -841,21 +841,12 @@ Deno.test("a paper with no retrievable text does not read as 'none'", () => {
         ...RUN.papersDetail.items[0],
         source: "none",
         fulltext: false,
-        extractionModel: null,
       }],
     },
   };
   const markup = detailsOf(none);
   assertStringIncludes(markup, "No text retrieved");
   assert(!markup.includes(">none<"));
-  // No model ran on it, so its Read by cell says so rather than naming
-  // the run's model.
-  const readBy = markup.match(
-    /<td[^>]*data-lead="Read by"[^>]*>([\s\S]*?)<\/td>/,
-  );
-  assert(readBy !== null);
-  assertStringIncludes(readBy[1], "Not read");
-  assertNotMatch(readBy[1], /Primary/);
 });
 
 Deno.test("one identifier reads one way: every PMID is named and linked alike", () => {

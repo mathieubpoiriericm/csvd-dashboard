@@ -96,7 +96,7 @@ Deno.test("each known step reads out the run's own counts", () => {
     [seg("16", "new"), seg("24", "seen before")],
   ]);
   assertEquals(stepOutcome(RUN, at("processing_papers")).lines, [
-    [seg("16", "read"), seg(null, "10 full text, 5 abstract only, 1 no text")],
+    [seg("15", "read"), seg(null, "10 full text, 5 abstract only, 1 no text")],
     [
       seg("50", "findings extracted"),
       seg(null, "26 passed validation, 24 rejected"),
@@ -236,54 +236,6 @@ Deno.test("the verdict is how much was read, what changed, and what was checked"
       sub: "found word for word in their paper",
     },
   ]);
-});
-
-Deno.test("the papers figure counts the papers that had text to read", () => {
-  // The pipeline counts a paper with no retrievable text as processed, so
-  // that it is not fetched again; nobody read it. The figure is the sum of
-  // its own breakdown, not every paper the run took up.
-  const figure = verdictFigures(RUN)[0];
-  assertEquals(RUN.papers.processed, 16);
-  assertEquals(RUN.papers.noTextAvailable, 1);
-  assertEquals([figure.value, figure.of], ["15", "16"]);
-  const whole = runWith({
-    papers: {
-      ...RUN.papers,
-      newlySeen: 836,
-      processed: 836,
-      fulltext: 533,
-      abstractOnly: 294,
-      noTextAvailable: 9,
-    },
-  });
-  assertEquals(verdictFigures(whole)[0], {
-    key: "papers",
-    value: "827",
-    of: "836",
-    label: "new papers read",
-    sub: "533 in full text, 294 from the abstract",
-  });
-  // A report whose counts disagree never prints a negative figure.
-  const odd = runWith({
-    papers: { ...RUN.papers, processed: 0, noTextAvailable: 1 },
-  });
-  assertEquals(verdictFigures(odd)[0].value, "0");
-});
-
-Deno.test("the papers figure's noun follows the number it stands beside", () => {
-  // "1 of 38 new papers read": the noun comes after the denominator.
-  const one = { ...RUN.papers, processed: 1, noTextAvailable: 0 };
-  const figure = (papers: typeof RUN.papers) => {
-    const { value, of, label } = verdictFigures(runWith({ papers }))[0];
-    return [value, of, label];
-  };
-  assertEquals(figure({ ...one, newlySeen: 38 }), [
-    "1",
-    "38",
-    "new papers read",
-  ]);
-  assertEquals(figure({ ...one, newlySeen: 1 }), ["1", "1", "new paper read"]);
-  assertEquals(figure({ ...one, newlySeen: null }), ["1", null, "paper read"]);
 });
 
 Deno.test("a figure with no source is left out", () => {

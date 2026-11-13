@@ -148,14 +148,6 @@ Deno.test("an errored paper leads, and each row says who read it", () => {
         processingSeconds: null,
       }),
       paper({ pmid: "4", extractionModel: null }),
-      // No text was retrieved, so no model ran: nobody read it. It does
-      // not lead, since it is not an error.
-      paper({
-        pmid: "5",
-        source: "none",
-        fulltext: false,
-        extractionModel: null,
-      }),
     ]),
   });
   const { rows, declinedColumn, written } = paperRows(run);
@@ -167,7 +159,6 @@ Deno.test("an errored paper leads, and each row says who read it", () => {
       ["2", "fallback", "Biology safety classifier", formatDuration(41)],
       // A report from before the model was recorded per paper: the run's.
       ["4", "primary", null, formatDuration(41)],
-      ["5", "unread", null, formatDuration(41)],
     ],
   );
   assert(declinedColumn && written);
@@ -334,25 +325,6 @@ Deno.test("Setup states the usage and the checks, and never the cost", () => {
     tokens: { ...RUN.tokens, totalTokens: 0 },
   });
   assertEquals(setupUsage(bare).map((r) => r.label), ["Duration"]);
-});
-
-Deno.test("Setup prints the work under the duration only when it was measured", () => {
-  // No paper was timed: a sum of nothing is not "0 ms of work".
-  assertEquals(setupUsage(runWith({ computeSeconds: 0 }))[0], {
-    label: "Duration",
-    value: formatDuration(RUN.durationSeconds),
-    sub: null,
-    code: false,
-  });
-  // A batch entry is never timed, so on a batch run the sum holds only the
-  // papers the fallback rescued, which is not the run's work.
-  const batch = runWith({ config: { ...RUN.config, batch: true } });
-  assertEquals(setupUsage(batch)[0].sub, null);
-  const streamed = runWith({ config: { ...RUN.config, batch: false } });
-  assertEquals(
-    setupUsage(streamed)[0].sub,
-    `${formatDuration(RUN.computeSeconds)} of work, run in parallel`,
-  );
 });
 
 Deno.test("the legend says what the track's marks are, for the floors the run recorded", () => {

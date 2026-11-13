@@ -320,18 +320,10 @@ export interface Figure {
 export function verdictFigures(run: PipelineRun): Figure[] {
   const { papers, genes, database } = run;
   const figures: Figure[] = [];
-  // A paper with no retrievable text is counted as processed, so that no
-  // later run fetches it again, and nobody read it: the figure is the
-  // papers that had text, which is what its breakdown adds up to.
-  const readCount = Math.max(0, papers.processed - papers.noTextAvailable);
-  // The noun stands after the denominator when there is one: "1 of 38 new
-  // papers read".
-  const read = `${
-    nounFor(papers.newlySeen ?? readCount, "paper")
-  } ${VERDICT.read}`;
+  const read = `${nounFor(papers.processed, "paper")} ${VERDICT.read}`;
   figures.push({
     key: "papers",
-    value: formatCount(readCount),
+    value: formatCount(papers.processed),
     of: papers.newlySeen === null ? null : formatCount(papers.newlySeen),
     label: papers.newlySeen === null ? read : `${VERDICT.new} ${read}`,
     sub: `${formatCount(papers.fulltext)} ${VERDICT.inFullText}, ${
