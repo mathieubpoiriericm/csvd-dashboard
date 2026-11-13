@@ -1,4 +1,4 @@
-import { assertEquals } from "@std/assert";
+import { assert, assertEquals } from "@std/assert";
 
 import {
   announcePreview,
@@ -34,6 +34,8 @@ Deno.test("the note says the findings are not in the other pages", () => {
     previewNote(365),
     "Technical preview: a real pipeline run over the last 365 days of publications. Its findings are not in the other pages.",
   );
+  // Grouped as the run card's Search row prints the same window.
+  assert(previewNote(1825).includes("over the last 1,825 days"));
   assertEquals(
     previewNote(null),
     "Technical preview: a real pipeline run. Its findings are not in the other pages.",

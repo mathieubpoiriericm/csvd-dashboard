@@ -18,7 +18,7 @@ from pipeline.run_report import (
     recover_search_window,
     reword_findings,
 )
-from pipeline.steps import StepRecorder
+from pipeline.steps import PREVIEW_RUN_MODE, StepRecorder
 
 
 def _gene(symbol: str, confidence: float = 0.9) -> dict[str, Any]:
@@ -716,6 +716,31 @@ class TestCappedList:
         assert report.genes.extracted == 999
         assert report.accepted_genes.total == DETAIL_CAP + 10
         assert report.accepted_genes.shown == DETAIL_CAP
+
+    def test_a_preview_run_lists_every_accepted_gene(self) -> None:
+        # Its review round needs a finding behind every change, and the
+        # preview export refuses a capped list.
+        papers = [
+            {
+                "pmid": str(i),
+                "fulltext": False,
+                "source": "abstract",
+                "gene_count": 1,
+                "genes": [_gene(f"G{i}")],
+                "rejected_genes": [],
+                "processing_time": 1.0,
+            }
+            for i in range(DETAIL_CAP + 10)
+        ]
+        report = build_run_report(
+            _run_data(papers_detail=papers),
+            steps=StepRecorder().records(),
+            apis=[],
+            run_mode=PREVIEW_RUN_MODE,
+        )
+        assert report.accepted_genes.shown == report.accepted_genes.total
+        assert report.accepted_genes.total == DETAIL_CAP + 10
+        assert report.papers_detail.shown == DETAIL_CAP
 
     def test_an_empty_list_is_well_formed(self) -> None:
         report = _report(papers_detail=[])

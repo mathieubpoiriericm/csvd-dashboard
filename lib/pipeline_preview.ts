@@ -6,14 +6,17 @@
  * invitation and the note name the run's publication window when there is
  * one, and the cookie is the only state: a visitor who switches it on keeps
  * it for a year. Reading the cookie off a request is server-only and lives in
- * `lib/pipeline_preview_request.ts`, so this module imports nothing and the
- * island's client bundle carries no cookie parser.
+ * `lib/pipeline_preview_request.ts`, so this module imports only the
+ * dependency-free number formatter and the island's client bundle carries no
+ * cookie parser and no data.
  *
  * The switch and the widget can be two islands on one page (a visitor whose
  * cookie is set gets the widget drawn by the server, as an island of its
  * own), so a press is also announced as an event the widget observes; no
  * island depends on the other.
  */
+
+import { formatCount } from "./format.ts";
 
 /** The cookie that remembers the preview switch. */
 export const PREVIEW_COOKIE = "pipeline_preview";
@@ -25,7 +28,7 @@ const PREVIEW_MAX_AGE = 31536000;
 function previewWindow(daysBack: number | null): string {
   if (daysBack === null || daysBack === 0) return "";
   if (daysBack === 1) return " over the last day of publications";
-  return ` over the last ${daysBack} days of publications`;
+  return ` over the last ${formatCount(daysBack)} days of publications`;
 }
 
 /** The sentence that invites a visitor to switch the preview on. */

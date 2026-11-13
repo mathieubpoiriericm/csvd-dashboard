@@ -21,7 +21,7 @@ from pipeline.api_telemetry import ApiServiceRecord
 from pipeline.citations import ProvenanceTally
 from pipeline.data_merger import canonical_gene_symbol
 from pipeline.omics import wire_strings
-from pipeline.steps import StepRecord
+from pipeline.steps import PREVIEW_RUN_MODE, StepRecord
 from pipeline.wire_model import WireModel
 
 # Detail lists are capped so a 500-paper run cannot turn a committed,
@@ -731,7 +731,9 @@ def build_run_report(
         run_data: The `PipelineRunData` dict `pipeline/report.py` builds.
         steps: `StepRecorder.records()`.
         apis: `ApiRecorder.records()`.
-        run_mode: One of `pipeline.steps.RUN_MODES`.
+        run_mode: One of `pipeline.steps.RUN_MODES`. A preview run lists
+            every accepted gene, uncapped: its review round needs a finding
+            behind each change, and the preview export refuses a capped list.
         provenance: `citations.current_tally()`; an empty tally when the
             run did no extraction.
 
@@ -762,6 +764,7 @@ def build_run_report(
         for key in (cited if isinstance(cited, list) else [])
     }
     provenance = provenance or ProvenanceTally()
+    accepted = _gene_records(papers_detail, held_keys, citation_only)
 
     return PipelineRunReport(
         run_timestamp=run_data.get("timestamp", ""),
@@ -802,7 +805,7 @@ def build_run_report(
             _paper_records(papers_detail, held_keys)
         ),
         accepted_genes=CappedList[GeneRecord].of(
-            _gene_records(papers_detail, held_keys, citation_only)
+            accepted, cap=len(accepted) if run_mode == PREVIEW_RUN_MODE else DETAIL_CAP
         ),
         rejected_genes=CappedList[RejectedGeneRecord].of(
             _rejected_records(papers_detail, holds)

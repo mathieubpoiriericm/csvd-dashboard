@@ -148,6 +148,8 @@ Deno.test("an errored paper leads, and each row says who read it", () => {
         processingSeconds: null,
       }),
       paper({ pmid: "4", extractionModel: null }),
+      // No text retrieved: processed, with no error and no model.
+      paper({ pmid: "5", extractionModel: null, source: "none" }),
     ]),
   });
   const { rows, declinedColumn, written } = paperRows(run);
@@ -159,6 +161,7 @@ Deno.test("an errored paper leads, and each row says who read it", () => {
       ["2", "fallback", "Biology safety classifier", formatDuration(41)],
       // A report from before the model was recorded per paper: the run's.
       ["4", "primary", null, formatDuration(41)],
+      ["5", "unread", null, formatDuration(41)],
     ],
   );
   assert(declinedColumn && written);

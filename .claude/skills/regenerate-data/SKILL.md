@@ -104,7 +104,7 @@ the round (`pipeline/export/review_round.py`) refuses in six more cases:
 | ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
 | `the preview database holds N preview runs`                         | a retry or a second run was recorded there, so the report cannot say which rows are its own     |
 | `the preview run never merged its findings`                         | the run failed before its merge, so no preview row shows a finding and the round would be empty |
-| `the run report lists S of T accepted genes`                        | the report capped its accepted findings below their total, and a change would go unexplained    |
+| `the run report lists S of T accepted genes`                        | the report capped its accepted findings, and a change would go unexplained; only a report stored before preview runs listed every finding |
 | `gold gene G is missing from the preview`                           | a gold row is absent from the preview, which a run never does (a run deletes nothing)           |
 | `no finding explains the change to G`                               | a preview row differs from gold with no accepted finding behind it: something else wrote it     |
 | `the preview's G lacks [...] of gold's F: a run never removes …`    | gold was curated after the preview was copied from it, on a row the run also touched            |

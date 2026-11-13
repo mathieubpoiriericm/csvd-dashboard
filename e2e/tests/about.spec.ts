@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import { EXPECTED, MAINTAINER_EMAIL } from "../fixtures/expected-data.ts";
 
 /**
@@ -252,6 +252,10 @@ test.describe("the technical preview of a pipeline run", () => {
     for (const state of ["false", "true"]) {
       await expect(toggle).toHaveAttribute("aria-checked", state);
       await expect(toggle).toBeVisible();
+      // The widget is fetched on the press: measure it, not the page before it.
+      if (state === "true") {
+        await expect(page.locator(".pipeline-card")).toBeVisible();
+      }
       const overflow = await page.evaluate(() => {
         const de = document.documentElement;
         return de.scrollWidth - de.clientWidth;
@@ -313,17 +317,25 @@ test("reports the last run exactly once", async ({ page }) => {
 });
 
 /**
- * The widget's interactions, exercised only once a run has recorded a
- * report. `data/pipeline_run.json` carries one today, but it is committed
- * as a bare `null` until a run records one, so these skip rather than
- * assert against a block that may not be on the page.
+ * The widget's interactions, exercised whenever a run has recorded a report;
+ * `data/pipeline_run.json` is a bare `null` until one does, and these skip
+ * then. Under gold-only the widget is behind the technical-preview switch, so
+ * `showWidget` sets the switch's cookie and reloads first. The skip reads the
+ * committed data, never the page: a widget missing from a page that should
+ * draw it fails.
  */
+async function showWidget(page: Page): Promise<void> {
+  if (!EXPECTED.goldOnly) return;
+  await page.context().addCookies([
+    { name: EXPECTED.previewCookie, value: "1", url: page.url() },
+  ]);
+  await page.goto("/");
+}
+
+const NO_RUN = "no run report recorded (data/pipeline_run.json is null)";
 test("the run details open as a dialog, walk their tabs, and close on Escape", async ({ page }) => {
-  const widget = page.locator(".pipeline-card");
-  test.skip(
-    await widget.count() === 0,
-    "no run report recorded (data/pipeline_run.json is null)",
-  );
+  test.skip(!EXPECTED.hasPipelineRun, NO_RUN);
+  await showWidget(page);
   await page.waitForSelector('.pipeline-card[data-hydrated="true"]');
 
   const trigger = page.getByRole("button", { name: "Run details" });
@@ -365,10 +377,8 @@ test("the run details open as a dialog, walk their tabs, and close on Escape", a
  * wrap at.
  */
 test("an opened step never scrolls the page sideways, down to 320px", async ({ page }) => {
-  test.skip(
-    await page.locator(".pipeline-card").count() === 0,
-    "no run report recorded (data/pipeline_run.json is null)",
-  );
+  test.skip(!EXPECTED.hasPipelineRun, NO_RUN);
+  await showWidget(page);
   for (const width of [390, 320]) {
     await page.setViewportSize({ width, height: 700 });
     await page.goto("/");
@@ -389,10 +399,8 @@ test("an opened step never scrolls the page sideways, down to 320px", async ({ p
 });
 
 test("the open run details never scroll sideways, down to 320px", async ({ page }) => {
-  test.skip(
-    await page.locator(".pipeline-card").count() === 0,
-    "no run report recorded (data/pipeline_run.json is null)",
-  );
+  test.skip(!EXPECTED.hasPipelineRun, NO_RUN);
+  await showWidget(page);
   // 601 is the first width past the phone layout, where a row has the
   // least room for the columns it still sets side by side.
   for (const width of [601, 390, 320]) {
@@ -417,11 +425,9 @@ test("the open run details never scroll sideways, down to 320px", async ({ page 
 });
 
 test("a step expands by keyboard as well as by click", async ({ page }) => {
+  test.skip(!EXPECTED.hasPipelineRun, NO_RUN);
+  await showWidget(page);
   const widget = page.locator(".pipeline-card");
-  test.skip(
-    await widget.count() === 0,
-    "no run report recorded (data/pipeline_run.json is null)",
-  );
 
   await page.waitForSelector('.pipeline-card[data-hydrated="true"]');
   // A row is a control only when it holds a note or an error, and one that

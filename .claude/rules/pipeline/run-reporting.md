@@ -46,7 +46,10 @@ second recomputes a metric the first computed.
 - **Detail lists are capped at 200 (`DETAIL_CAP`) and carry `shown` beside
   `total`.** Counts above them are never capped. A 500-paper run would otherwise
   turn a reviewed file into an unreviewable diff, and a truncated list that did
-  not say so would read as the whole record.
+  not say so would read as the whole record. **A preview run's
+  `acceptedGenes` is the exception, uncapped**: its review round needs a
+  finding behind every change, and the preview export refuses a capped list,
+  so a capped preview run of more than 200 findings could never be published.
 
 ## One step vocabulary, and it is timed now
 

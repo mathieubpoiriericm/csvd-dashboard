@@ -146,8 +146,11 @@ export function paperRows(
 ): { rows: PaperRow[]; declinedColumn: boolean; written: boolean } {
   const rows = run.papersDetail.items.map((paper): PaperRow => ({
     paper,
-    readBy: paper.error !== null ? "unread" : paper.extractionModel === null ||
-        paper.extractionModel === run.config.model
+    // A paper with no text went to no model, and records no error either.
+    readBy: paper.error !== null || paper.source === "none"
+      ? "unread"
+      : paper.extractionModel === null ||
+          paper.extractionModel === run.config.model
       ? "primary"
       : "fallback",
     declinedBy: paper.refusal === null
