@@ -1,6 +1,7 @@
 /** Synthetic review-round rows for the tests, naming no real gene or trait. */
 
 import type {
+  Gene,
   ReviewChange,
   ReviewFinding,
   ReviewKind,
@@ -155,4 +156,9 @@ export function withEveryKind(count: number): ReviewRound {
       kindChange("citation_protein", `GENE${n}`, `v${n}`),
     ],
   };
+}
+
+/** The gold genes a round was measured against: every change's `before`. */
+export function goldOf(round: ReviewRound): Gene[] {
+  return round.changes.flatMap((c) => c.before === null ? [] : [c.before]);
 }

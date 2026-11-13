@@ -117,13 +117,25 @@ preview run out: `ledger_from_logs` skips its report in `logs/json/` and
 `data/pipeline_run.json` whose `runMode` is `preview`, so a restored production
 database never treats the preview's papers as processed.
 
-**A committed round goes stale when gold is curated.**
-`tests/review_round_run_test.ts` checks that every change's gold row equals the
-committed `data/table1.json` row and that no new gene is in it; after a curation
-edit it fails. Two remedies: write `null` to `data/review_round.json`
-(`deno task data:empty` shows the form) and commit it, or rebuild the preview
-database from gold, make a new preview run, and export it with
-`deno task data:preview`.
+**A committed round goes stale when gold is curated, and then hides itself.**
+A round is stale when a change's gold row (`before`) no longer equals the
+committed `data/table1.json` row of its gene, that row is gone, or a new gene is
+now in gold (`staleChanges` in `lib/review/stale.ts`). `currentReview` then
+returns `null`, exactly as for a closed round: there is no Review control and
+every `/review*` page is a 404, and the server logs one warning at start naming
+how many changes no longer match. Nothing fails, so a gold fix ships without
+waiting on a paid run. The ordinary export says so where the edit is made:
+while gold-only is on, `deno task data` compares the rows it is about to
+publish with the committed round (`stale_genes` in
+`pipeline/export/review_round.py`, the same rule) and logs one warning naming
+the first few genes; it writes nothing and never fails on it. The remedy is a
+new round: rebuild the preview database from gold, make a new preview run, and
+export it with `deno task data:preview`. Writing `null` to
+`data/review_round.json` (`deno task data:empty` shows the form) is optional
+housekeeping, not a fix: a stale round is already hidden.
+`tests/csvd/review_round_test.ts` pins that today's committed round is current,
+so a curation edit to one of its genes fails that dataset pin, not the generic
+suite.
 
 ## Two databases, and they are not interchangeable
 

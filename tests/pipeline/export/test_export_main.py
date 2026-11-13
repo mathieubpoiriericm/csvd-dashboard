@@ -379,6 +379,46 @@ class TestRunExport:
 
         assert (target_dir / ROUND_FILE).read_bytes() == b'{"id": "round"}\n'
 
+    async def test_a_gold_only_export_warns_of_a_stale_review_round(
+        self, tmp_path: Path, mocker, caplog
+    ) -> None:
+        """A gold edit to a gene the round touches is said where it is made.
+
+        The dashboard hides a stale round by itself; the export only warns,
+        and leaves the committed round byte-identical.
+        """
+        target_dir = tmp_path / "data"
+        target_dir.mkdir()
+        stale = (
+            b'{"changes": [{"gene": "GENE1", "kind": "claims",'
+            b' "before": {"gene": "GENE1"}}]}\n'
+        )
+        (target_dir / ROUND_FILE).write_bytes(stale)
+        _patch_export_dependencies(mocker)
+
+        with caplog.at_level(logging.WARNING):
+            await run_export(target_dir=target_dir, gold_only_on=True)
+
+        assert "no longer matches gold for 1 gene (GENE1)" in caplog.text
+        assert (target_dir / ROUND_FILE).read_bytes() == stale
+
+    async def test_a_gold_only_export_is_quiet_about_a_current_round(
+        self, tmp_path: Path, mocker, caplog
+    ) -> None:
+        target_dir = tmp_path / "data"
+        target_dir.mkdir()
+        current = (
+            b'{"changes": [{"gene": "GENE9", "kind": "new", "before": null}]}\n'
+        )
+        (target_dir / ROUND_FILE).write_bytes(current)
+        _patch_export_dependencies(mocker)
+
+        with caplog.at_level(logging.WARNING):
+            await run_export(target_dir=target_dir, gold_only_on=True)
+
+        assert "review round" not in caplog.text
+        assert (target_dir / ROUND_FILE).read_bytes() == current
+
     async def test_an_export_without_gold_only_writes_the_run_report(
         self, tmp_path: Path, mocker
     ) -> None:

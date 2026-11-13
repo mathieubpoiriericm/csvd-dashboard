@@ -6,7 +6,10 @@
  */
 import { assert, assertEquals } from "@std/assert";
 
+import { genes } from "../../lib/data/genes.ts";
 import { reviewRound } from "../../lib/data/review_round.ts";
+import { REVIEW } from "../../lib/review/current.ts";
+import { staleChanges } from "../../lib/review/stale.ts";
 import { FIELD_LABELS, proposalLine } from "../../lib/review/display.ts";
 import { ACCOUNTS, simulate } from "../../lib/review/simulate.ts";
 import { reviewState } from "../../lib/review/summary.ts";
@@ -33,6 +36,13 @@ Deno.test("the 12 Nov 2026 round", () => {
     20,
   );
   assertEquals(reviewRound.changes[0].gene, "STN1");
+});
+
+Deno.test("the committed round is current against the committed gold", () => {
+  // Fails after a gold edit to a gene the round touches: the dashboard then
+  // hides the review area, and this pin says the dataset's state moved.
+  assertEquals(staleChanges(reviewRound!, genes), []);
+  assert(REVIEW !== null);
 });
 
 Deno.test("the queue's line names every changed field of the round", () => {

@@ -35,11 +35,16 @@ import type { AnswerEvent, ReviewEvent } from "../lib/review/events.ts";
 import { PIPELINE_ACTOR } from "../lib/review/events.ts";
 import { simulatedTime } from "../lib/review/time.ts";
 import { SIMULATED_NOTE } from "../lib/review/copy.ts";
-import { sampleChange, sampleFinding, sampleRound } from "./fixtures/review.ts";
+import {
+  goldOf,
+  sampleChange,
+  sampleFinding,
+  sampleRound,
+} from "./fixtures/review.ts";
 import { sampleGene } from "./fixtures/rows.ts";
 import { escapeHtml } from "./helpers/html.ts";
 
-const s = currentReview(true, sampleRound(12))!;
+const s = currentReview(true, sampleRound(12), goldOf(sampleRound(12)))!;
 const run = s.round.runTimestamp;
 
 /** The body rows of the first table in `html`, each as its own HTML. */

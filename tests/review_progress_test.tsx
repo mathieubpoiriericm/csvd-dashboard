@@ -36,11 +36,11 @@ import { simulatedTime } from "../lib/review/time.ts";
 import { SIMULATED_NOTE } from "../lib/review/copy.ts";
 import type { Standing } from "../lib/review/rules.ts";
 import type { ReviewKind } from "../lib/types.ts";
-import { sampleRound, withEveryKind } from "./fixtures/review.ts";
+import { goldOf, sampleRound, withEveryKind } from "./fixtures/review.ts";
 import { escapeHtml } from "./helpers/html.ts";
 
 const render = (node: VNode) => renderToString(node);
-const s = currentReview(true, sampleRound(20))!;
+const s = currentReview(true, sampleRound(20), goldOf(sampleRound(20)))!;
 
 /** Text with its tags dropped and its spaces collapsed. */
 const text = (html: string) =>
@@ -181,7 +181,7 @@ Deno.test("the legend counts every standing over the round, zeros included", () 
 
 Deno.test("a kind with no genes has no bar", () => {
   // Two changes: one new, one claims, no citation.
-  const two = currentReview(true, sampleRound(2))!;
+  const two = currentReview(true, sampleRound(2), goldOf(sampleRound(2)))!;
   const html = render(<StandingBars summary={two.summary} />);
   const drawn = bars(html);
   assertEquals(drawn.length, 2);
@@ -265,7 +265,7 @@ Deno.test("an account with no event reads as no activity", () => {
 });
 
 Deno.test("an empty round renders zeros, not NaN", () => {
-  const empty = currentReview(true, sampleRound(0))!;
+  const empty = currentReview(true, sampleRound(0), goldOf(sampleRound(0)))!;
   const html = render(<ReviewProgressContent state={empty} />);
   assertNotMatch(html, /NaN|undefined|Infinity/);
   assertEquals(cards(html).map(text), [
@@ -310,7 +310,11 @@ Deno.test("the route is found only while there is a review", () => {
 });
 
 Deno.test("the bars run new, claims, citation and protein, citation only", () => {
-  const every = currentReview(true, withEveryKind(3))!;
+  const every = currentReview(
+    true,
+    withEveryKind(3),
+    goldOf(withEveryKind(3)),
+  )!;
   const drawn = bars(render(<StandingBars summary={every.summary} />));
   assertEquals(
     drawn.map((b) => b.label.split(":")[0]),
