@@ -97,6 +97,22 @@ November 2026):
 - **About 55 s is the floor** at this volume of tests: six jobs finished within
   51-54 s of one another. Going lower means less work, not more parallelism.
 
+## The other two engines
+
+`e2e-engines` runs the committed data's suite on WebKit and on Firefox, one job
+each, since 13 November 2026: `E2E_BROWSERS` picks the engines
+`e2e/playwright.config.ts` makes projects for (Chromium alone when unset, so
+the fork checks and a local run are unchanged), and `deploy` waits for both.
+They make fourteen jobs for twelve runners, so each starts when a Deno or
+Python job frees a runner, some forty seconds in, and with 4 workers takes about
+a minute and a half on an idle machine (351 and 352 tests). `RUNNERS=14` on a
+re-run of `provision.sh` gives them runners of their own, at the price of two
+more suites sharing the 16 cores from the start; measure before keeping it.
+Both engines need system packages the runner cannot install: `provision.sh`
+installs them for all three, and a machine provisioned before that date got
+WebKit's by hand (`sudo npx playwright install-deps webkit firefox`).
+All three engines locally: `E2E_BROWSERS=chromium,webkit,firefox`.
+
 ## Switching
 
 ```sh
@@ -165,7 +181,7 @@ Server:
 - a `runner` user with no sudo and **no `docker` group**: until 4 November 2026
   it had one, for the service containers, which let any CI job start a container
   with the whole disk mounted -- root in all but name;
-- Chromium's system packages through `npx playwright install-deps`;
+- the three engines' system packages through `npx playwright install-deps`;
 - the runner instances as systemd services, each `.env` holding its `E2E_PORT`
   and `CSVD_TEST_DB_URL`.
 

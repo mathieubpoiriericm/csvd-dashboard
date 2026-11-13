@@ -16,6 +16,12 @@ The suite drives the **production build**: `playwright.config.ts` runs
 import `data/*.json` at build time and only the bundled output proves hydration
 works. It needs no database.
 
+It runs on Chromium unless `E2E_BROWSERS` names other engines
+(`chromium,webkit,firefox` for all three); CI's `e2e-engines` job runs it on
+WebKit and Firefox. A spec that needs Chromium's own APIs (a CDP session, the
+clipboard permissions) skips on `browserName`, and none may assume how Chromium
+scrolls a clicked or hovered element: WebKit centres it.
+
 The suite signs in once through the `setup` project (see "Login" in the root
 `CLAUDE.md`). One consequence:
 

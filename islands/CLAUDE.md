@@ -137,9 +137,8 @@ against its chunks past the reload, and the next `import()` fails at once with
 no request sent. So a failed press keeps the chunks it asked for in
 `sessionStorage` (the hrefs of the `modulepreload` links the bundler's loader
 left, `rememberFailedChunks`), and the next press fetches them again before it
-imports (`refetchFailedChunks`), which replaces what WebKit held. The e2e config
-runs Chromium only; the About spec passes under WebKit with
-`npx playwright install webkit` and a project for it.
+imports (`refetchFailedChunks`), which replaces what WebKit held. CI's
+`e2e-engines` job runs the About spec under WebKit, where it failed before.
 
 It has two readers. A visiting researcher wants to know whether the data is
 fresh and can be trusted; the maintainer wants to know how the run went. So the
@@ -544,8 +543,10 @@ Eleven things are load-bearing:
 
 ## Other engines
 
-The e2e config runs Chromium, but the suite passes under Playwright's WebKit and
-Firefox too (2026-11-13), and three things it found are load-bearing:
+The suite passes under Playwright's WebKit and Firefox as well as Chromium, and
+CI's `e2e-engines` job runs it on both (`E2E_BROWSERS=webkit,firefox` locally,
+after `npx playwright install webkit firefox`). Three things the first such run
+found, on 2026-11-13, are load-bearing:
 
 - **A figure's skip link focuses its target from the click** (`followSkipLink`
   in `lib/skip_link.ts`). The target is clipped out of flow until focused;
