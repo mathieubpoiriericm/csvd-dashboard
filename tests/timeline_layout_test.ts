@@ -11,6 +11,7 @@ import {
   computeTimelineLayout,
   encoding,
   MARKER_RADIUS,
+  MEASURE_TOLERANCE,
   OUTER_RADIUS,
   placePopulationLabel,
   PLATE_MARGIN,
@@ -849,6 +850,25 @@ Deno.test("a re-measure that moved nothing compares equal", () => {
     assert(
       !sameBoxes(measured, new Map([["drug-0", { ...box, [edge]: 99 }]])),
       `${edge} must be compared`,
+    );
+    // A step of an engine's own measuring is not a move: WebKit reports a
+    // text box in sixty-fourths, and a re-solve on each froze the page.
+    for (const step of [1 / 64, -2 / 64, MEASURE_TOLERANCE / 2]) {
+      const again = { ...box, [edge]: box[edge] + step };
+      assert(
+        sameBoxes(measured, new Map([["drug-0", again]])),
+        `${edge} ${step} off is the same layout`,
+      );
+    }
+    assert(
+      !sameBoxes(
+        measured,
+        new Map([["drug-0", {
+          ...box,
+          [edge]: box[edge] + MEASURE_TOLERANCE * 1.5,
+        }]]),
+      ),
+      `${edge} past the tolerance is a move`,
     );
   }
 });

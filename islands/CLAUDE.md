@@ -542,6 +542,26 @@ Eleven things are load-bearing:
   (`tests/adapt/cards_test.ts`), which is what stands in for the step-level
   issue list this replaced.
 
+## Other engines
+
+The e2e config runs Chromium, but the suite passes under Playwright's WebKit and
+Firefox too (2026-11-13), and three things it found are load-bearing:
+
+- **A figure's skip link focuses its target from the click** (`followSkipLink`
+  in `lib/skip_link.ts`). The target is clipped out of flow until focused;
+  followed as a plain fragment link, Firefox and WebKit scroll to the clipped
+  box and then focus it, so the line appears a screen below the window.
+- **`.adapt-actions` is never a scroll anchor** (`overflow-anchor: none`).
+  WebKit anchors scrolling, and Back and Next are the same elements from step to
+  step: entering the long Review step, the page jumped to its end.
+- The radar's measure loop and the preview's failed fetch, in
+  `.claude/rules/timeline.md` and "Pipeline run widget" above.
+
+A spec that needs a CDP session or the clipboard permissions skips off Chromium,
+and one that blocks a chunk the page already loaded skips on WebKit, which
+serves it from memory. `hover()` in WebKit scrolls its target to the middle of
+the window even when it is in view.
+
 ## Review control
 
 `islands/ReviewMenu.tsx` is the way into the scientific review area: a "Review"

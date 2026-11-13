@@ -646,23 +646,42 @@ export interface LabelShift {
  * functions of the measured boxes, so a pass that measures the same boxes
  * reaches the same result and sets nothing: comparing is what lets it cost
  * nothing instead of a full reconcile.
+ *
+ * "The same" is within `MEASURE_TOLERANCE`, not equal. A shift moves a
+ * label, the next pass measures it where it now is, and the solver's input
+ * is that box less the shift; in an engine whose `getBBox()` is exact that
+ * round trip returns the same numbers and the loop ends. WebKit snaps a text
+ * box to 1/64 of a unit, so the round trip came back a sixty-fourth off, the
+ * solve moved the label by about as much, and the next measure differed
+ * again: the passes never ended and the page froze (1366x768, some nine
+ * thousand passes in five seconds). The measure loop runs inside layout
+ * effects, so nothing else could run.
  */
 export function sameBoxes(
   a: ReadonlyMap<string, Box>,
   b: ReadonlyMap<string, Box>,
 ): boolean {
   if (a.size !== b.size) return false;
+  const near = (p: number, q: number) => Math.abs(p - q) <= MEASURE_TOLERANCE;
   for (const [key, box] of a) {
     const other = b.get(key);
     if (
-      other === undefined || other.x !== box.x || other.y !== box.y ||
-      other.width !== box.width || other.height !== box.height
+      other === undefined || !near(other.x, box.x) || !near(other.y, box.y) ||
+      !near(other.width, box.width) || !near(other.height, box.height)
     ) {
       return false;
     }
   }
   return true;
 }
+
+/**
+ * How far a re-measured box may sit from the last one and still be the same
+ * layout, in canvas units. Several times the coarsest step an engine
+ * measures text in (WebKit's 1/64, and a label was seen two steps off), and
+ * a tenth of a pixel at the plate's full size, which no reader can see.
+ */
+export const MEASURE_TOLERANCE = 0.1;
 
 export const overlaps = (a: Box, b: Box) =>
   a.x < b.x + b.width && a.x + a.width > b.x &&

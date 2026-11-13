@@ -70,6 +70,7 @@ import {
   type RadarState,
 } from "../lib/timeline_scale.ts";
 import type { Trial } from "../lib/types.ts";
+import { followSkipLink } from "../lib/skip_link.ts";
 
 const RADAR_FILTERS = {
   statuses: {
@@ -1625,7 +1626,9 @@ export default function TrialsTimeline(
           flex children would become a third row item on focus. Sitting here
           keeps it order-independent of that row/column switch. */
       }
-      <a class="skip-figure" href="#timeline-end">Skip the figure</a>
+      <a class="skip-figure" href="#timeline-end" onClick={followSkipLink}>
+        Skip the figure
+      </a>
       <div class="timeline-controls">
         {controls.map((props) => (
           <CheckboxFilter

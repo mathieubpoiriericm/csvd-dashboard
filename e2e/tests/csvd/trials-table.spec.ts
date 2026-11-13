@@ -91,7 +91,10 @@ test("search narrows the trials table to the two CADASIL trials", async ({ page 
   await expect(rows(page)).toHaveCount(10);
 });
 
-test("search results keep alternating drug-group striping", async ({ page }) => {
+test("search results keep alternating drug-group striping", async ({ page, browserName }) => {
+  // The CPU throttle and the listener count are read over the DevTools
+  // protocol, which only Chromium speaks.
+  test.skip(browserName !== "chromium", "needs a CDP session");
   const cdp = await page.context().newCDPSession(page);
   await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
   await page.getByRole("searchbox", { name: "Search trials" }).fill(

@@ -38,6 +38,7 @@ import {
   phenogramTooltip,
   phenotypeTooltip,
 } from "../lib/phenogram_tooltips.ts";
+import { followSkipLink } from "../lib/skip_link.ts";
 
 /**
  * Widths of exported text, measured with the page's own loaded faces.
@@ -151,7 +152,9 @@ export default function Phenogram({ rows = genes }: PhenogramProps = {}) {
 
   return (
     <div class="phenogram-layout" ref={hydratedRef}>
-      <a class="skip-figure" href="#phenogram-end">Skip the figure</a>
+      <a class="skip-figure" href="#phenogram-end" onClick={followSkipLink}>
+        Skip the figure
+      </a>
 
       <div class="phenogram-toolbar">
         <PhenogramDownload build={buildSvg} />
