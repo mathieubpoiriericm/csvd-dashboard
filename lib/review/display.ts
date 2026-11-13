@@ -11,6 +11,7 @@ import type { Standing, Tally } from "./rules.ts";
 export const KIND_LABELS: Record<ReviewKind, string> = {
   new: "New gene",
   claims: "Claims changed",
+  citation_protein: "Citation and protein",
   citation: "Citation only",
 };
 

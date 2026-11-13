@@ -111,6 +111,7 @@ Deno.test("every label table is complete and verbatim", () => {
   assertEquals(KIND_LABELS, {
     new: "New gene",
     claims: "Claims changed",
+    citation_protein: "Citation and protein",
     citation: "Citation only",
   });
   assertEquals(STANDING_LABELS, {

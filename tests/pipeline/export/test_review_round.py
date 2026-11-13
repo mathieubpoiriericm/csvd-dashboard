@@ -42,6 +42,7 @@ def _finding(symbol: str, pmid: str, **overrides: Any) -> dict[str, Any]:
         "pmid": pmid,
         "confidence": 0.9,
         "gwasTraits": [],
+        "proteinName": None,
         "mendelianRandomization": False,
         "omicsEvidence": [],
         "causalEvidenceSummary": "summary",
@@ -141,6 +142,33 @@ def test_a_quote_alone_is_a_citation_change():
     assert [f["field"] for f in change["fields"]] == ["sourceQuote", "confidence"]
 
 
+def test_a_protein_changed_beside_a_citation_is_its_own_kind():
+    """A run that rewrote a stored protein is told apart from a citation.
+
+    The merge once read a protein equal to the symbol as a placeholder, and
+    the rows it rewrote that way otherwise look like a citation only.
+    """
+    gold = [_row("GENE1", protein="GENE1", references=["1"])]
+    preview = [_row("GENE1", protein="Protein one", references=["1", "7"])]
+    (change,) = build(preview, findings=[_finding("GENE1", "7")], gold=gold)["changes"]
+    assert change["kind"] == "citation_protein"
+    assert [f["field"] for f in change["fields"]] == ["protein", "references"]
+
+
+def test_a_protein_alone_is_a_citation_and_protein_change():
+    gold = [_row("GENE1", protein="GENE1")]
+    preview = [_row("GENE1", protein="Protein one")]
+    (change,) = build(preview, findings=[_finding("GENE1", "7")], gold=gold)["changes"]
+    assert change["kind"] == "citation_protein"
+
+
+def test_a_changed_claim_outranks_a_changed_protein():
+    gold = [_row("GENE1", protein="GENE1")]
+    preview = [_row("GENE1", protein="Protein one", gwasTrait=["TRAIT-A"])]
+    (change,) = build(preview, findings=[_finding("GENE1", "7")], gold=gold)["changes"]
+    assert change["kind"] == "claims"
+
+
 def test_changes_keep_the_preview_order_and_unchanged_rows_are_skipped():
     preview = [
         _row("GENE2", gwasTrait=["TRAIT-A"]),
@@ -196,7 +224,13 @@ def test_a_finding_reaches_its_row_through_the_curated_alias(gene_aliases):
 def test_a_finding_carries_its_papers_full_text_and_model():
     preview = [GOLD[0], _row("GENE2", references=["7", "9"])]
     findings = [
-        _finding("GENE2", "7", gwasTraits=["TRAIT-A"], omicsEvidence=["x"]),
+        _finding(
+            "GENE2",
+            "7",
+            gwasTraits=["TRAIT-A"],
+            proteinName="Protein two",
+            omicsEvidence=["x"],
+        ),
         _finding("GENE2", "9"),
     ]
     papers = {"7": {"fulltext": True, "extractionModel": "model-x"}}
@@ -206,6 +240,7 @@ def test_a_finding_carries_its_papers_full_text_and_model():
         "pmid": "7",
         "confidence": 0.9,
         "gwasTraits": ["TRAIT-A"],
+        "proteinName": "Protein two",
         "mendelianRandomization": False,
         "omicsEvidence": ["x"],
         "causalEvidenceSummary": "summary",
@@ -215,6 +250,21 @@ def test_a_finding_carries_its_papers_full_text_and_model():
         "extractionModel": "model-x",
     }
     assert (second["fulltext"], second["extractionModel"]) == (None, None)
+    assert second["proteinName"] is None
+    # The report's own key order, then the ledger's two.
+    assert list(first) == [
+        "pmid",
+        "confidence",
+        "gwasTraits",
+        "proteinName",
+        "mendelianRandomization",
+        "omicsEvidence",
+        "causalEvidenceSummary",
+        "sourceQuote",
+        "citationOnly",
+        "fulltext",
+        "extractionModel",
+    ]
 
 
 def test_a_finding_for_an_unchanged_row_is_dropped_and_counted(caplog):

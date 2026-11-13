@@ -480,7 +480,7 @@ export interface FilterChoice {
 }
 
 /** How a review round's change relates to the gold row it would replace. */
-export type ReviewKind = "new" | "claims" | "citation";
+export type ReviewKind = "new" | "claims" | "citation_protein" | "citation";
 
 /** A `Gene` column's value as a round carries it: text, a score or a list. */
 export type ReviewFieldValue = string | number | null | string[];
@@ -499,6 +499,8 @@ export interface ReviewFinding {
   pmid: string | null;
   confidence: number | null;
   gwasTraits: string[];
+  /** The protein name the extraction gave, or null when it named none. */
+  proteinName: string | null;
   mendelianRandomization: boolean | null;
   omicsEvidence: string[];
   causalEvidenceSummary: string | null;

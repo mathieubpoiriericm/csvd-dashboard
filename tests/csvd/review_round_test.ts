@@ -21,7 +21,17 @@ Deno.test("the 12 Nov 2026 round", () => {
   assertEquals(reviewRound.changes.length, 80);
   assertEquals(count("new"), 15);
   assertEquals(count("claims"), 23);
-  assertEquals(count("citation"), 42);
+  assertEquals(count("citation_protein"), 13);
+  assertEquals(count("citation"), 29);
+  // The run replaced 20 curated proteins (the merge then read a protein
+  // equal to the symbol as a placeholder): 13 beside a citation alone, 7
+  // in changes whose claims changed too.
+  assertEquals(
+    reviewRound!.changes.filter((c) =>
+      c.fields.some((f) => f.field === "protein")
+    ).length,
+    20,
+  );
   assertEquals(reviewRound.changes[0].gene, "STN1");
 });
 

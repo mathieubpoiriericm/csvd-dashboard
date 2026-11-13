@@ -51,6 +51,9 @@ function Finding({ finding }: { finding: ReviewFinding }) {
           ))}
         </p>
       )}
+      {finding.proteinName !== null && (
+        <p>Protein name: {finding.proteinName}</p>
+      )}
       {finding.causalEvidenceSummary && <p>{finding.causalEvidenceSummary}</p>}
       {finding.sourceQuote && (
         <blockquote class="review-quote">{finding.sourceQuote}</blockquote>

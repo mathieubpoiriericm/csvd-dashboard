@@ -24,7 +24,12 @@ import {
 } from "./normalize.ts";
 
 const STATES: ReadonlySet<string> = new Set(["open", "promoted", "closed"]);
-const KINDS: ReadonlySet<string> = new Set(["new", "claims", "citation"]);
+const KINDS: ReadonlySet<string> = new Set([
+  "new",
+  "claims",
+  "citation_protein",
+  "citation",
+]);
 
 // The keys of a `Gene`, read off the normalizer that builds one, so a column
 // added to `Gene` is accepted here without a second list to keep in step.
@@ -55,6 +60,8 @@ function normalizeFinding(value: unknown): ReviewFinding {
     pmid: nullableText(source.pmid),
     confidence: numberInRange(source.confidence, 0, 1),
     gwasTraits: textArray(source.gwasTraits),
+    // Absent from a round written before findings carried it.
+    proteinName: nullableText(source.proteinName),
     mendelianRandomization: typeof source.mendelianRandomization === "boolean"
       ? source.mendelianRandomization
       : null,

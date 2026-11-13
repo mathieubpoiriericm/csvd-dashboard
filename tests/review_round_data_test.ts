@@ -3,7 +3,12 @@
 import { assert, assertEquals } from "@std/assert";
 
 import { normalizeReviewRound } from "../lib/data/review_round.ts";
-import { sampleChange, sampleRound } from "./fixtures/review.ts";
+import {
+  sampleChange,
+  sampleFinding,
+  sampleRound,
+  withEveryKind,
+} from "./fixtures/review.ts";
 
 function viaJson(value: unknown): unknown {
   return JSON.parse(JSON.stringify(value));
@@ -29,6 +34,23 @@ Deno.test("a sound round survives unchanged", () => {
   const round = sampleRound(3);
   assertEquals(normalizeReviewRound(viaJson(round)), round);
   assertEquals(round.changes.map((c) => c.kind), ["new", "claims", "citation"]);
+});
+
+Deno.test("a citation and protein change is a kind the round knows", () => {
+  const round = withEveryKind(3);
+  assertEquals(normalizeReviewRound(viaJson(round)), round);
+  assertEquals(round.changes[3].kind, "citation_protein");
+});
+
+Deno.test("a finding keeps the protein name it extracted", () => {
+  const change = {
+    ...sampleChange(),
+    findings: [sampleFinding({ proteinName: "Protein one" })],
+  };
+  const round = normalizeReviewRound(
+    viaJson({ ...sampleRound(1), changes: [change] }),
+  );
+  assertEquals(round?.changes[0].findings[0].proteinName, "Protein one");
 });
 
 Deno.test("a change that cannot be shown is dropped, not thrown on", () => {
@@ -100,6 +122,8 @@ Deno.test("findings default what they lack and never invent a flag", () => {
       confidence: 3,
       mendelianRandomization: "yes",
       fulltext: 1,
+      // An older file has no protein name; a malformed one is not text.
+      proteinName: 7,
     }],
   };
   const findings = normalizeReviewRound({
@@ -111,6 +135,7 @@ Deno.test("findings default what they lack and never invent a flag", () => {
     pmid: null,
     confidence: null,
     gwasTraits: [],
+    proteinName: null,
     mendelianRandomization: null,
     omicsEvidence: [],
     causalEvidenceSummary: null,

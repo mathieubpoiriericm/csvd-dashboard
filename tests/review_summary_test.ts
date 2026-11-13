@@ -4,7 +4,7 @@ import { PIPELINE_ACTOR } from "../lib/review/events.ts";
 import type { AnswerEvent, ReviewEvent } from "../lib/review/events.ts";
 import { ACCOUNTS, simulate } from "../lib/review/simulate.ts";
 import { reviewState } from "../lib/review/summary.ts";
-import { sampleRound } from "./fixtures/review.ts";
+import { sampleRound, withEveryKind } from "./fixtures/review.ts";
 
 const state = (round = sampleRound(20)) =>
   reviewState(round, ACCOUNTS, simulate(round));
@@ -149,4 +149,18 @@ Deno.test("an answer of another round counts nowhere and is not in the state", (
   const both = reviewState(round, ACCOUNTS, [other, mine]);
   assertEquals(both.events, [mine]);
   assertEquals(both.reviews[0].tally.reject, 1);
+});
+
+Deno.test("a citation and protein change is counted under its own kind", () => {
+  const s = state(withEveryKind(3)).summary;
+  const total = (row: Record<string, number>) =>
+    Object.values(row).reduce((a, b) => a + b, 0);
+  assertEquals(Object.keys(s.byKind), [
+    "new",
+    "claims",
+    "citation_protein",
+    "citation",
+  ]);
+  assertEquals(total(s.byKind.citation_protein), 1);
+  assertEquals(total(s.byKind.citation), 1);
 });

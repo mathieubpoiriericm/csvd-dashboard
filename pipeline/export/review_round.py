@@ -39,10 +39,13 @@ _SENTINELS: Final[frozenset[str]] = frozenset(
     }
 )
 
+# A finding's keys, in the run report's own order (`GeneRecord`); `_finding`
+# appends the ledger's `fulltext` and `extractionModel` after them.
 _FINDING_KEYS: Final[tuple[str, ...]] = (
     "pmid",
     "confidence",
     "gwasTraits",
+    "proteinName",
     "mendelianRandomization",
     "omicsEvidence",
     "causalEvidenceSummary",
@@ -103,6 +106,18 @@ def _finding(
     }
 
 
+def _kind(fields: Sequence[Mapping[str, Any]]) -> str:
+    """`claims` when a claim field differs; otherwise `citation_protein` when
+    the protein does, which a run can no longer replace but once did; else
+    `citation`."""
+    changed = {f["field"] for f in fields}
+    if changed & _CLAIM_FIELDS:
+        return "claims"
+    if "protein" in changed:
+        return "citation_protein"
+    return "citation"
+
+
 def build_review_round(
     *,
     gold_rows: Sequence[Mapping[str, Any]],
@@ -143,11 +158,7 @@ def build_review_round(
                         f" of gold's {field['field']}: a run never removes a list"
                         " value, so gold changed after the preview was copied"
                     )
-            kind = (
-                "claims"
-                if any(f["field"] in _CLAIM_FIELDS for f in fields)
-                else "citation"
-            )
+            kind = _kind(fields)
         changes.append(
             {
                 "gene": after["gene"],

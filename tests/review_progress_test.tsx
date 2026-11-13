@@ -36,7 +36,7 @@ import { simulatedTime } from "../lib/review/time.ts";
 import { SIMULATED_NOTE } from "../lib/review/copy.ts";
 import type { Standing } from "../lib/review/rules.ts";
 import type { ReviewKind } from "../lib/types.ts";
-import { sampleRound } from "./fixtures/review.ts";
+import { sampleRound, withEveryKind } from "./fixtures/review.ts";
 import { escapeHtml } from "./helpers/html.ts";
 
 const render = (node: VNode) => renderToString(node);
@@ -307,4 +307,19 @@ Deno.test("the route is found only while there is a review", () => {
   } else {
     assertStringIncludes(page(), "<h1>Committee progress</h1>");
   }
+});
+
+Deno.test("the bars run new, claims, citation and protein, citation only", () => {
+  const every = currentReview(true, withEveryKind(3))!;
+  const drawn = bars(render(<StandingBars summary={every.summary} />));
+  assertEquals(
+    drawn.map((b) => b.label.split(":")[0]),
+    [
+      KIND_LABELS.new,
+      KIND_LABELS.claims,
+      KIND_LABELS.citation_protein,
+      KIND_LABELS.citation,
+    ],
+  );
+  assertEquals(KIND_LABELS.citation_protein, "Citation and protein");
 });
