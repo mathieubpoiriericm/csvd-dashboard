@@ -52,9 +52,13 @@ committed `data/pipeline_run.json` alone.
 `--dry-run`/`--test-mode` flags) against `<DB_NAME>_preview`, a copy of
 production an admin creates empty and the pipeline never creates. It is recorded
 as run mode `preview`, and `--preview --export` or `deno task data:preview`
-writes `data/pipeline_run.json` and nothing else, which the About page offers
-behind a switch. A restore skips a preview run's report. The `run-long-window`
-skill has the run and `regenerate-data` the database.
+writes two files, published together or not at all: `data/pipeline_run.json`,
+which the About page offers behind a switch, and `data/review_round.json`, the
+review round, diffed against the gold database it reads read-only. It refuses
+unless the preview database is gold plus exactly one preview run; the four
+refusals and the remedy are in `regenerate-data`. A restore skips a preview
+run's report. The `run-long-window` skill has the run and `regenerate-data` the
+database.
 
 Tests never touch the production database: `tests/pipeline/conftest.py` empties
 the `DB_*` credentials (so `load_dotenv` cannot refill them from `.env`) and
@@ -206,6 +210,8 @@ the tests that exercise the complete boundary. Consequences worth remembering:
 - `data/pipeline_run.json` is committed as a bare `null` until a run records a
   report, exactly as `data/pipeline_status.json` was. Both states are covered;
   the About page falls back to the summary card for the null one.
+- **`data/review_round.json` is `null` until a preview export writes it**, and
+  `deno task data:empty` writes it `null`.
 - **`data/pipeline_syncs.json` is the reference-data refreshes**, one entry per
   sync mode, committed as `[]` until one is recorded — a separate file and table
   from the runs, so nothing feeding the run widget or the About page's date can
@@ -262,8 +268,22 @@ carry no outer margin.
 Theme state, events and observers live in `lib/theme.ts` so no other island
 depends on `ThemeToggle`.
 
-`routes/adapt.tsx` is the one page that is not a tab; its title comes from
-`UNTABBED_TITLES` in `routes/_app.tsx`.
+`routes/adapt.tsx` and the review area are the pages that are not tabs; their
+titles come from `UNTABBED_TITLES` in `routes/_app.tsx`.
+
+### Review area
+
+`/review`, `/review/gene?g=` and `/review/progress` exist only while `GOLD_ONLY`
+is on and a round is committed (`REVIEW` in `lib/review/current.ts`); otherwise
+each is a 404 and no page shows the Review control. They are server-rendered
+with no island of their own, the one place a dataset is read without shipping to
+the browser. The committee's rules live in `lib/review/`, and every number on
+the pages is computed there, from a simulated committee's history that
+`lib/review/simulate.ts` generates from the round and a fixed seed. The navbar's
+Review control (`islands/ReviewMenu.tsx`) is on every signed-in page while a
+review exists, and holds no data: `DATA_FREE_ISLANDS` in
+`server/protected_data_build.ts` fails the build if its chunk reaches a
+protected one. `islands/CLAUDE.md` has the control.
 
 ### Login
 

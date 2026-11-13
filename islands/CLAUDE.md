@@ -529,7 +529,7 @@ site's Sign out beside it, which ends the passphrase session; this touches only
 its own cookie, and it carries a glyph and a caret so the two do not read alike.
 The shell draws it only while a review exists (`ReviewControl` in
 `routes/_app.tsx`, called with `REVIEW !== null`, so both branches are tested
-while the committed round is `null`), and never on the login page.
+whichever the committed data holds), and never on the login page.
 
 **It holds no data and imports none.** It is in the navbar of every page while a
 review exists, so it imports `lib/review/copy.ts` and `lib/review/access.ts`

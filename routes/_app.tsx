@@ -103,7 +103,7 @@ export function pageTitle(
 /**
  * The navbar's way into the review area, drawn only while a review exists.
  * The shell calls it with `REVIEW !== null`; apart so that both branches are
- * tested while the committed round is `null`. The island holds no data, only
+ * tested whichever the committed data holds. The island holds no data, only
  * whether the visitor is in the area already.
  */
 export function ReviewControl(

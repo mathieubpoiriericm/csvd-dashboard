@@ -149,7 +149,8 @@ Vite is pinned to 7.x because `@fresh/plugin-vite` requires `vite@^7.1.4`.
 ## Features
 
 Six tabs, one server-rendered route each, listed in `TABS` (`lib/constants.ts`),
-and the adapt page beside them. Interactivity lives in eight Preact islands.
+and the adapt page and the review area beside them. Interactivity lives in
+eleven Preact islands.
 
 ### About (`/`)
 
@@ -272,6 +273,29 @@ disease.
   checklist of the steps that follow and the answers themselves;
   `scripts/adapt_fork_check.ts` runs every gate on a fork built from one
 
+### Review (`/review`)
+
+Not a tab: the scientific review committee's area, reached from the navbar's
+Review control (`islands/ReviewMenu.tsx`) on every signed-in page. It exists
+only while `GOLD_ONLY` is on and `data/review_round.json` holds a round, the
+changes a preview run proposes against the gold data; otherwise there is no
+control and every review page is a 404. The three pages are server-rendered with
+no island, so the round never reaches the browser:
+
+- **The review queue** (`/review`) — one row per gene the run changed, filtered
+  by kind of change (new gene, claims changed, citation only) and by standing,
+  with the committee's tally and standing on each
+- **A gene's review** (`/review/gene?g=`) — the change field by field against
+  the gold row, the findings behind it, each member's verdict and the history
+- **Committee progress** (`/review/progress`) — settled and conflicted genes,
+  the verdicts in, where the genes stand by kind of change, and each member's
+  progress
+
+The committee and its verdicts are simulated, and the pages say so: the rules
+are in `lib/review/`, and every number is computed there from a history
+`lib/review/simulate.ts` generates from the round and a fixed seed. Entering as
+an observer needs no account; the account request collects nothing.
+
 ### Across every view
 
 - Light / dark theme, following `prefers-color-scheme` until the toggle is used
@@ -288,10 +312,11 @@ disease.
 
 ## Screenshots
 
-The deployed site sits behind a login, so these are its six tabs as a signed-in
-visitor sees them: light theme, this repository's data. `deno task screenshots`
-recaptures all six from a fresh production build; rerun it when the data or a
-page changes, and in a fork after its first live run.
+The deployed site sits behind a login, so these are its six tabs and its review
+area as a signed-in visitor sees them: light theme, this repository's data.
+`deno task screenshots` recaptures them from a fresh production build, the
+review area only while the build has one; rerun it when the data or a page
+changes, and in a fork after its first live run.
 
 <!-- markdownlint-disable MD013 MD033 -->
 <table>
@@ -318,6 +343,22 @@ page changes, and in a fork after its first live run.
   <tr valign="top">
     <td><img src="docs/screenshots/trials-radar.webp" width="100%" alt="The trials radar: population sectors, phase rings and one marker per trial" /></td>
     <td><img src="docs/screenshots/trials-map.webp" width="100%" alt="The Trials Map page: the study-status filter and the clustered sites" /></td>
+  </tr>
+  <tr valign="top">
+    <td><strong>Review queue</strong> — every gene the preview run changed, with the simulated committee's tally and standing on each.</td>
+    <td><strong>Gene review</strong> — one gene's change against the gold data, beside each member's verdict.</td>
+  </tr>
+  <tr valign="top">
+    <td><img src="docs/screenshots/review-queue.webp" width="100%" alt="The review queue: the kind and standing filters and one row per changed gene" /></td>
+    <td><img src="docs/screenshots/review-gene.webp" width="100%" alt="A gene's review: the change field by field and the committee's verdicts" /></td>
+  </tr>
+  <tr valign="top">
+    <td><strong>Committee progress</strong> — the settled genes, the verdicts in, the standings by kind of change and each member's progress.</td>
+    <td></td>
+  </tr>
+  <tr valign="top">
+    <td><img src="docs/screenshots/review-progress.webp" width="100%" alt="Committee progress: the four figures, the standings by kind and the members table" /></td>
+    <td></td>
   </tr>
 </table>
 <!-- markdownlint-enable MD013 MD033 -->
@@ -347,7 +388,9 @@ page changes, and in a fork after its first live run.
 │   ├── timeline.tsx            Trials Radar
 │   ├── map.tsx                 Trials Map
 │   ├── login.tsx, logout.tsx   the passphrase form and its counterpart
-│   └── adapt.tsx               the adapt wizard's page (not a tab)
+│   ├── adapt.tsx               the adapt wizard's page (not a tab)
+│   └── review/                 the review queue, a gene's review and the
+│                               committee's progress (not tabs)
 ├── server/                     middleware in main.ts order, then a shared
 │   │                           helper and the two Vite guards
 │   ├── compression.ts          gzip ahead of staticFiles(), ETag suffixed
@@ -369,6 +412,7 @@ page changes, and in a fork after its first live run.
 │   ├── PipelinePreview.tsx     the gold-only notice and its preview switch
 │   ├── PipelinePreviewWidget.tsx  the run report, drawn for a preview left on
 │   ├── AdaptWizard.tsx         the adapt wizard: interview, lookups, download
+│   ├── ReviewMenu.tsx          the navbar's Review control; holds no data
 │   └── ThemeToggle.tsx         the theme switch
 ├── components/                 presentational pieces shared by the islands
 │   ├── TableShell.tsx          controls, header, body, pagination, the
@@ -380,6 +424,7 @@ page changes, and in a fork after its first live run.
 │   ├── PipelineSyncs.tsx       the About page's reference-data refreshes
 │   ├── Icon.tsx                Heroicons v2 outline, plus four custom glyphs
 │   ├── adapt/                  the wizard's steps, cards and fields
+│   ├── review/                 the review pages' tables, bars and badges
 │   └── …                       Page, ValueBox, MapPopup, TipBox, …
 ├── lib/                        types, constants, data loading, filtering
 │   ├── data/                   per-file readers and normalizers
@@ -391,6 +436,8 @@ page changes, and in a fork after its first live run.
 │   ├── disease/                the narrow readers over disease/manifest.json
 │   ├── adapt/                  the wizard's answers, checks, lookups and
 │   │                           the generators that write disease/
+│   ├── review/                 the committee's rules, its simulation and
+│   │                           every figure the review pages show
 │   ├── timeline_encoding.json  radar appearance contract
 │   ├── phenogram_encoding.json karyogram appearance contract
 │   ├── pipeline_encoding.json  run-widget labels, glyphs and tints
@@ -599,7 +646,7 @@ Tasks live in `deno.json`.
 | `deno task screenshots`   | build, then recapture the README's screenshots  |
 | `deno task data`          | regenerate `data/` except the map and cytobands |
 | `deno task data:empty`    | write the empty `data/` a fork starts from      |
-| `deno task data:preview`  | publish the preview run's report alone          |
+| `deno task data:preview`  | publish the preview run's report and round      |
 | `deno task geocode`       | regenerate `data/geocoded_trials.json`          |
 | `deno task cytobands`     | regenerate `data/cytobands_hg38.json` from UCSC |
 | `deno task figure`        | draw both print figures into `figures/`         |
@@ -811,6 +858,7 @@ The app reads static JSON from `data/`, imported at build time.
 | `pipeline_status.json`  | one object, or `null` until a run    | `pipeline_runs` table               |
 | `pipeline_run.json`     | one report, or `null` until a run    | `pipeline_runs.run_report`          |
 | `pipeline_syncs.json`   | one entry per sync mode              | `sync_runs` table                   |
+| `review_round.json`     | one round, or `null` until a preview | gold and preview databases, diffed  |
 | `geocoded_trials.json`  | `nctIds`, `generatedAt`, `locations` | ClinicalTrials.gov                  |
 | `cytobands_hg38.json`   | 862 hg38 bands                       | UCSC Genome Browser                 |
 
@@ -831,6 +879,10 @@ Some of these behave differently from the rest:
 - **`pipeline_run.json` and `pipeline_status.json` are `null` until a run
   records them.** The About page shows the run report when there is one, and
   otherwise the four counts from `pipeline_status.json`.
+- **`review_round.json` is `null` until a preview export writes it**, beside the
+  preview run's report and only with it: one change per gene the preview run
+  inserted or altered, against the gold database, with the findings behind each.
+  The review area reads it on the server and nowhere else.
 - **`pipeline_syncs.json` is `[]` until a reference-data refresh is recorded**,
   one entry per sync mode. A refresh is a separate event from a run, so it has
   its own table and file, and no query feeding the run widget or the About
