@@ -1,9 +1,10 @@
 /**
  * The README's screenshots.
  *
- * Captures the six tabs into `docs/screenshots/` from the *production* build,
- * the one `e2e/playwright.config.ts` and the perf harness drive: 1440 CSS px
- * wide at device scale 2, light theme, signed in. Each image is cropped to what
+ * Captures the six tabs, and the review area's three pages while the build
+ * has one, into `docs/screenshots/` from the *production* build, the one
+ * `e2e/playwright.config.ts` and the perf harness drive: 1440 CSS px wide at
+ * device scale 2, light theme, signed in. Each image is cropped to what
  * its README caption describes and written as lossless WebP by libwebp's
  * `cwebp`. Chromium's own encoder is no substitute: its lossless output holds
  * the same pixels in two to seven times the bytes.
@@ -22,7 +23,7 @@
  */
 import { execFileSync, spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { mkdir, mkdtemp, rm, stat } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { createServer } from "node:net";
 import os from "node:os";
 import path from "node:path";
@@ -127,6 +128,25 @@ async function mapReady(page) {
   );
 }
 
+/**
+ * The first gene of the committed review round, whose page is the gene-page
+ * shot, or `null` with no round. Read from the file the build bundles, so the
+ * script names no gene.
+ */
+async function firstRoundGene() {
+  const round = JSON.parse(
+    await readFile(path.join(ROOT, "data", "review_round.json"), "utf8"),
+  );
+  return round?.changes[0]?.gene ?? null;
+}
+
+const reviewGene = await firstRoundGene();
+
+/** A server-rendered review page: its only island is the navbar's control. */
+async function reviewReady(page) {
+  await page.waitForSelector(".page-header");
+}
+
 /** In README order. `crop` returns the document-space band to keep. */
 const SHOTS = [
   {
@@ -173,6 +193,38 @@ const SHOTS = [
       const map = await extent(page, ".map-container");
       if (!map) throw new Error("no .map-container to crop to");
       return { top: 0, bottom: map.bottom + MARGIN };
+    },
+  },
+  // The review area exists only under gold-only with a round (a fork, or an
+  // empty start, has none), so these three are taken only when it does.
+  {
+    name: "review-queue",
+    route: "/review",
+    review: true,
+    ready: reviewReady,
+    // One screenful: the notice, the filters and the first rows.
+    crop: () => ({ top: 0, bottom: FOLD }),
+  },
+  {
+    name: "review-gene",
+    route: reviewGene === null
+      ? null
+      : `/review/gene?g=${encodeURIComponent(reviewGene)}`,
+    review: true,
+    ready: reviewReady,
+    // One screenful: the change against gold beside the committee's votes.
+    crop: () => ({ top: 0, bottom: FOLD }),
+  },
+  {
+    name: "review-progress",
+    route: "/review/progress",
+    review: true,
+    ready: reviewReady,
+    // The figures, the standings by kind and the members table.
+    crop: async (page) => {
+      const members = await extent(page, "table.review-members", ".card");
+      if (!members) throw new Error("no members table to crop to");
+      return { top: 0, bottom: members.bottom + MARGIN };
     },
   },
 ];
@@ -264,7 +316,15 @@ try {
 
   for (const shot of SHOTS) {
     try {
-      await page.goto(`${base}${shot.route}`);
+      if (shot.review && reviewGene === null) {
+        console.log(`${shot.name}: skipped, no review round in data/`);
+        continue;
+      }
+      const response = await page.goto(`${base}${shot.route}`);
+      if (shot.review && response?.status() === 404) {
+        console.log(`${shot.name}: skipped, the review area is off`);
+        continue;
+      }
       await shot.ready(page);
       await settle(page);
       const band = await shot.crop(page);
