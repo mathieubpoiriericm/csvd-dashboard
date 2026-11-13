@@ -71,6 +71,14 @@ The figure has two renderers and one contract:
   labels and every marker as fixed obstacles. The Python script does the same
   with `Text.get_window_extent()` and annotation offsets in points. Neither
   estimates glyph widths.
+- **A re-measure is the same layout within `MEASURE_TOLERANCE` (0.1 unit), not
+  when it is equal** (`sameBoxes` in `lib/timeline.ts`). WebKit reports a text
+  box in sixty-fourths of a unit, so a label measured again after its own shift
+  came back a step off, the solve moved it by about as much, and the passes
+  never ended: they run in layout effects, so the Trials Radar froze the tab in
+  Safari's engine between about 1290 and 1410px wide at 740 to 768px tall. An
+  engine with exact boxes never showed it. Do not tighten the comparison back to
+  equality.
 - **`separateLabels()` is two passes, and its shifts are `{dx, dy}` for the sake
   of the second.** Its doc block in `lib/timeline.ts` records why, and
   `e2e/tests/timeline.spec.ts` pins both collision counts at zero rather than

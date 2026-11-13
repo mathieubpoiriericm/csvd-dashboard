@@ -147,8 +147,20 @@ test("hovering a trial shows its tooltip, and its children keep it open", async 
   await expect(tooltip).not.toContainText("Mechanism of Action");
   await expect(tooltip.locator(".tooltip-row")).toHaveCount(0);
 
-  await trial.locator("text").hover();
-  await expect(tooltip).toBeVisible();
+  // The pointer is moved by hand, not with `hover()`: WebKit's hover first
+  // scrolls its target to the middle of the window though it is in view,
+  // and a scroll that carries the trial from under the pointer dismisses
+  // the tooltip by design.
+  // Read and moved together, and again if the page was still coming to
+  // rest from that scroll when the label was read.
+  await expect(async () => {
+    const label = (await trial.locator("text").boundingBox())!;
+    await page.mouse.move(
+      label.x + label.width / 2,
+      label.y + label.height / 2,
+    );
+    await expect(tooltip).toBeVisible({ timeout: 1000 });
+  }).toPass();
 
   await page.mouse.move(5, 5);
   await expect(tooltip).toHaveCount(0);

@@ -4621,10 +4621,16 @@ button.adapt-card-head:focus-visible {
     var(--svd-space-1));
 }
 
+/* Never a scroll anchor. Back and Next sit under the step and are the same
+   elements from one step to the next, so an engine that anchors scrolling
+   (WebKit does) held the row where it was while the step above it changed:
+   entering a step ten screens long, the page jumped to its end, and the
+   heading that had just taken focus was ten screens up. */
 .adapt-actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--svd-space-2);
+  overflow-anchor: none;
 }
 
 .adapt-button,

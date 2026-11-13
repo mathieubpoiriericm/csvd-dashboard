@@ -1290,7 +1290,10 @@ test.describe("on a touch screen", () => {
   });
 });
 
-test("until the island runs, the page says so and the form stays shut", async ({ page }) => {
+test("until the island runs, the page says so and the form stays shut", async ({ page, browserName }) => {
+  // The page was opened once already (beforeEach), and WebKit then takes
+  // the island's chunk from its memory cache without a request to abort.
+  test.skip(browserName === "webkit", "WebKit serves the chunk from memory");
   await page.route("**/fresh-island__AdaptWizard*", (route) => route.abort());
   await page.goto("/adapt");
   await expect(page.getByText("Loading the wizard…")).toBeVisible();

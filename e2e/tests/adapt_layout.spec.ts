@@ -214,7 +214,9 @@ test("reverse Tab onto a field under the navbar brings it out", async ({ page })
   }).focus();
   await page.keyboard.press("Shift+Tab");
   await expect(key).toBeFocused();
-  expect(await topOf(key)).toBeGreaterThanOrEqual(bar);
+  // Polled: WebKit's scroll for a focus move can land a frame after the
+  // focus itself.
+  await expect.poll(() => topOf(key)).toBeGreaterThanOrEqual(bar);
 });
 
 for (const viewport of [PHONE, DESKTOP]) {
@@ -553,6 +555,10 @@ for (
 test("the open Session panel sits just under its button, inside the viewport", async ({ page }) => {
   await openAttached(page, DESKTOP);
   const toggle = page.getByRole("button", { name: "Session", exact: true });
+  // Mid-screen first, so there is room under the button in every engine: a
+  // click scrolls the button only just into view, which in WebKit is the
+  // window's bottom edge, and the panel then rightly opens above it.
+  await toggle.evaluate((el) => el.scrollIntoView({ block: "center" }));
   await toggle.click();
   const panel = page.locator(".adapt-bar-session");
   await expect(panel).toHaveClass(/is-placed/);

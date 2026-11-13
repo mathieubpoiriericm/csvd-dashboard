@@ -5,6 +5,7 @@ import {
   TRIAL_SHOWN,
 } from "../fixtures/expected-data.ts";
 import { rows, tooltip } from "../helpers.ts";
+import { settleRadar } from "./helpers/timeline.ts";
 
 test("closed tooltip bodies are deferred and an open row can be filtered away", async ({ page }) => {
   test.skip(GENE_TOTAL === 0, "no committed genes to open a tooltip on");
@@ -93,7 +94,10 @@ test("pipeline details mount on first opening and survive close and step changes
 for (
   const [route, shown] of [["genes", GENE_TOTAL], ["trials", TRIAL_SHOWN]] as const
 ) {
-  test(`pagination retains stable DOM and listeners on ${route}`, async ({ page }) => {
+  test(`pagination retains stable DOM and listeners on ${route}`, async ({ page, browserName }) => {
+    // The CPU throttle and the listener count are read over the DevTools
+    // protocol, which only Chromium speaks.
+    test.skip(browserName !== "chromium", "needs a CDP session");
     test.skip(shown <= 10, "a second page needs more than ten rows");
     await page.goto(`/${route}`);
     await page.waitForSelector('.table-controls[data-hydrated="true"]');
@@ -157,6 +161,10 @@ test("timeline remeasures when delayed web fonts replace fallback glyphs", async
           return [box.x, box.y, box.width, box.height];
         })
       );
+    // Once the radar's own solves are through: the first changed width is
+    // the fonts landing, and in WebKit under load the passes that fit them
+    // were still running two frames later.
+    await settleRadar(page);
     const settled = await positions();
     await page.evaluate(() =>
       new Promise((resolve) =>

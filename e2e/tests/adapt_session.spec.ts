@@ -319,7 +319,7 @@ test("two tabs of one browser share the session", async ({ page, context }) => {
   expect(asked).toEqual([]);
 });
 
-test("leaving with unsaved session changes asks; a saved session does not", async ({ page }) => {
+test("leaving with unsaved session changes asks; a saved session does not", async ({ page, browserName }) => {
   await openAdapt(page);
   await saveFirst(page);
   // Typed, not filled: Chrome asks before leaving only a page the visitor has
@@ -357,6 +357,11 @@ test("leaving with unsaved session changes asks; a saved session does not", asyn
       JSON.parse(localStorage.getItem("svd-adapt-session") ?? "{}").dirty
     )
   ).toBe(false);
+  // Playwright's WebKit does not close a page whose leave prompt was
+  // dismissed once, whatever the page then does: a blank page with its
+  // handler removed stays open too. The asking half above is what it can
+  // show.
+  if (browserName === "webkit") return;
   expect(await closing()).toBe("closed");
   expect(types).toEqual(["beforeunload"]);
 });
@@ -480,7 +485,10 @@ test("the greeting focuses Start a new session, so Enter starts", async ({ brows
   await page.context().close();
 });
 
-test("Copy code says Copied, and reads as before a moment later", async ({ browser }) => {
+test("Copy code says Copied, and reads as before a moment later", async ({ browser, browserName }) => {
+  // Playwright grants the clipboard permissions in Chromium alone; Firefox
+  // and WebKit refuse the names.
+  test.skip(browserName !== "chromium", "clipboard permissions are Chromium's");
   const context = await browser.newContext({
     storageState: STORAGE_STATE,
     permissions: ["clipboard-read", "clipboard-write"],
