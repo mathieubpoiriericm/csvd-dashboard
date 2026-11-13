@@ -1,16 +1,18 @@
 ---
 name: ci-runner
-description: Use when CI jobs queue and never start, when moving CI between the home mini PC and GitHub's runners, when CI gets slower or the e2e suite turns flaky, when tuning test parallelism or adding a CI job, after upgrading @playwright/test, or when provisioning, re-registering or cleaning up the self-hosted runners - the CI_RUNNER variable and its fallback, the twelve-job layout and why its parallelism is moderate, nice, why the runners belong to the private repository alone, the per-runner E2E_PORT, and the machine's housekeeping.
+description: Use when CI jobs queue and never start, when moving CI between the home mini PC and GitHub's runners, when CI gets slower or the e2e suite turns flaky, when tuning test parallelism or adding a CI job, after upgrading @playwright/test, or when provisioning, re-registering or cleaning up the self-hosted runners - the CI_RUNNER variable and its fallback, the fourteen-job layout and why its parallelism is moderate, nice, why the runners belong to the private repository alone, the per-runner E2E_PORT, and the machine's housekeeping.
 ---
 
 # The self-hosted CI runners
 
-The five test jobs in `.github/workflows/ci.yml` (`check`, `python`, `e2e`, and
-the `empty-data` and `adapt-fork` matrices, twelve jobs in all) run on
+The six test jobs in `.github/workflows/ci.yml` (`check`, `python`, `e2e`, and
+the `e2e-engines`, `empty-data` and `adapt-fork` matrices, fourteen jobs in all)
+run on
 `${{ vars.CI_RUNNER || 'ubuntu-latest' }}`. The private repository
 (`mathieubpoiriericm/csvd-dashboard-private`) has set the repository variable
-`CI_RUNNER=csvd-ci` since 3 November 2026, which sends them to twelve runners,
-`ryzen-1` to `ryzen-12`, on a dedicated mini PC at home: Ubuntu Server 26.04 on
+`CI_RUNNER=csvd-ci` since 3 November 2026, which sends them to fourteen runners,
+`ryzen-1` to `ryzen-14` (twelve until 13 November 2026), on a dedicated mini PC
+at home: Ubuntu Server 26.04 on
 bare metal, a Ryzen 9 9955HX (16 cores, 32 threads) with 32 GB, reached from the
 researcher's Mac as `ssh minipc` with key login only. The public repository and
 every fork have no such variable and stay on `ubuntu-latest`. `container` and
@@ -31,7 +33,8 @@ it lands (the `deploy` skill has how).
 `adapt-fork` as six, one per answer set and family
 (`--shard=K/2
 --only=<family>`). With `check`, `python` and `e2e` that is twelve
-test jobs at once, one per runner, sharing 16 cores. On the mini PC:
+test jobs at once, and the two `e2e-engines` jobs below make fourteen, one per
+runner, sharing 16 cores. On the mini PC:
 
 | Setting                                        | Value                             |
 | ---------------------------------------------- | --------------------------------- |
@@ -103,11 +106,28 @@ November 2026):
 each, since 13 November 2026: `E2E_BROWSERS` picks the engines
 `e2e/playwright.config.ts` makes projects for (Chromium alone when unset, so
 the fork checks and a local run are unchanged), and `deploy` waits for both.
-They make fourteen jobs for twelve runners, so each starts when a Deno or
-Python job frees a runner, some forty seconds in, and with 4 workers takes about
-a minute and a half on an idle machine (351 and 352 tests). `RUNNERS=14` on a
-re-run of `provision.sh` gives them runners of their own, at the price of two
-more suites sharing the 16 cores from the start; measure before keeping it.
+With 4 workers each takes about a minute and a half on an idle machine (351 and
+352 tests) and about twice that beside the other twelve jobs, so the two are
+the critical path now: a pull request takes about 2m55s, where PR #155's, the
+last before them, took 1m37s.
+
+**Two more runners did not shorten it.** The same commit, PR #156's run
+(43523196748), re-run three times each way, first job start to last finish:
+
+| Runners | Runs                | WebKit and Firefox jobs |
+| ------- | ------------------- | ----------------------- |
+| 12      | 175 s, 175 s, 170 s | 166-175 s               |
+| 14      | 181 s, 174 s, 172 s | 170-181 s               |
+
+With twelve runners the engine jobs started at once in every sample and two
+short Python jobs waited 36-44 s for a runner, so nothing on the critical path
+was queued. The fourteen are kept because they cost nothing idle and a second
+run started beside the first queues less. What would shorten a run is less work
+at once, not more runners: the engines' time is contention for the 16 cores.
+One test retried in three of the six runs. Only the first was read: a tooltip
+spec under WebKit (`csvd/tooltips.spec.ts`), which is on the starved-suite list
+above.
+
 Both engines need system packages the runner cannot install: `provision.sh`
 installs them for all three, and a machine provisioned before that date got
 WebKit's by hand (`sudo npx playwright install-deps webkit firefox`).
@@ -137,14 +157,14 @@ GitHub's runners. Set it again once `actions/runners` lists the instances
   would hand the machine to anyone who opens one. The variable is only the
   selector; the registration is the boundary.
 - **No job may take a fixed host port.** On GitHub's runners every job has a VM
-  of its own; here twelve share one. On GitHub's runners the postgres services
+  of its own; here fourteen share one. On GitHub's runners the postgres services
   publish on a free port, read back through
   `job.services.postgres.ports['5432']` into `CSVD_TEST_DB_URL` (in a step,
   because the `job` context is not available in a job's `env`). Here no service
   starts: each runner's `.env` names a database of its own, `csvd_ci_r<N>`, on
   the machine's native PostgreSQL, and a job's pytest-xdist workers create and
   drop `csvd_ci_r<N>_gw<n>` beside it, so two jobs never share a database. Each
-  runner's `.env` also sets `E2E_PORT` as 8100 plus its number (8101 to 8112),
+  runner's `.env` also sets `E2E_PORT` as 8100 plus its number (8101 to 8114),
   which `e2e/playwright.config.ts` serves the build on. A new job that serves on
   a port, or a fixed container name or image tag like the `container` job's,
   either follows suit or stays on `ubuntu-latest`.
@@ -207,8 +227,8 @@ look up " minipc" and report "Could not resolve hostname".
 
 Playwright 1.64.1's `install-deps` accepted Ubuntu 26.04. If a later one refuses
 the machine's release, reinstall it with the release `ubuntu-latest` uses, which
-also keeps the two environments alike. Twelve instances (the script's default,
-`E2E_PORT` 8101 to 8112) cover one full run of twelve test jobs at once, and a
+also keeps the two environments alike. Fourteen instances (the script's default,
+`E2E_PORT` 8101 to 8114) cover one full run of fourteen test jobs at once, and a
 second run queues behind it, taking runners as the first frees them. With the
 earlier six-job layout, re-runs of PR #65's and PR #64's CI started together
 finished green in 2m03 and 3m36 with no port or container clash between the two.
