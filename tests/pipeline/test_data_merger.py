@@ -160,10 +160,20 @@ class TestBuildGeneData:
         # key still comes from the first: only the provenance pair moved.
         assert data["references"] == ["111", "222"]
 
-    def test_protein_fallback_to_gene(self, make_gene_entry):
+    def test_a_gene_no_paper_names_a_protein_for_stores_none(self, make_gene_entry):
+        """Empty, not the gene symbol: a stored protein is never replaced, so
+        the symbol would stand until a curator renamed it, while an empty one
+        is filled by the first later run whose paper names the protein."""
         entry = make_gene_entry(protein_name=None)
         data = _build_gene_data(entry)
-        assert data["protein"] == "GENE1"
+        assert data["protein"] == ""
+
+    def test_the_protein_is_the_first_one_any_entry_names(self, make_gene_entry):
+        entries = [
+            make_gene_entry(protein_name=None, pmid="111"),
+            make_gene_entry(protein_name="Protein 1", pmid="222"),
+        ]
+        assert _build_combined_gene_data(entries)["protein"] == "Protein 1"
 
     def test_gwas_trait_is_a_deduped_list(self, make_gene_entry, trait_vocabulary):
         """The join table takes one row per trait, so the merge stops joining."""

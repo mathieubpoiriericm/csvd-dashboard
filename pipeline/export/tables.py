@@ -418,11 +418,11 @@ def clean_gene_row(row: dict[str, Any]) -> dict[str, Any]:
         out.get("Chromosomal Location"), "(unknown)"
     )
 
-    # Published as stored. The merge stores the gene symbol when no paper
-    # named a protein, and neither write path in pipeline/database.py ever
-    # replaces a stored protein, the symbol included: the curated gold table
-    # names most proteins by their gene symbol on purpose, and gold is
-    # published verbatim.
+    # Published as stored, a protein equal to the gene symbol included: the
+    # curated gold table names most proteins by their symbol on purpose, and
+    # gold is published verbatim. The merge stores "" when no paper named a
+    # protein (pipeline/data_merger.py), which is the one value a later run
+    # may fill and the one this sentinel is for.
     out["Protein"] = fill_missing_text(out.get("Protein"), "(unknown)")
 
     cell_types = _ALL_WORD.sub("all", out.get("Brain Cell Types") or "")

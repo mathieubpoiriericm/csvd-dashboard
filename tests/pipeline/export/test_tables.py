@@ -276,8 +276,9 @@ def test_a_pipeline_inserted_gene_publishes_a_location_sentinel() -> None:
 
 def test_a_protein_named_by_the_gene_symbol_is_published_verbatim() -> None:
     """The curated gold table names most proteins by the gene symbol, and
-    gold is published as written. (The merge's own placeholder -- the symbol
-    stored when no paper named a protein -- now publishes the same way.)
+    gold is published as written. (The merge no longer stores the symbol
+    when no paper named a protein; it stores "", which publishes the
+    sentinel below.)
     """
     row = clean_gene_row({"gene": "BTN3A2", "protein": "BTN3A2"})
     assert row["Protein"] == "BTN3A2"

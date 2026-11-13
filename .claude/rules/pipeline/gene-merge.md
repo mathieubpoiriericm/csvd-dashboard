@@ -40,18 +40,18 @@ with PMID 42607872's at 0.95. No pair in the table was written by hand.
 `tests/pipeline/test_database_integration.py` merges the pair both ways round
 against a real database.
 
-**A gene the pipeline admits carries two placeholders, and the export
-sentinels only the band.** `_build_combined_gene_data` stores `chromosomal_location`
+**A gene the pipeline admits carries two placeholders, both empty, and the
+export sentinels both.** `_build_combined_gene_data` stores `chromosomal_location`
 as `""` -- nothing in `pipeline/` derives a cytogenetic band, the curators write
-it -- and stores the gene symbol in `protein` when no paper named a protein.
-`clean_gene_row` fills the first with `"(unknown)"`, because a string-typed,
+it -- and stores `protein` as `""` when no paper named a protein.
+`clean_gene_row` fills each with `"(unknown)"`, because a string-typed,
 sentinel-typed column publishing JSON `null` fails `tests/data_contract_test.ts`
 and `lib/data/genes.ts` would rewrite it to `"(unknown)"` at runtime anyway,
 hiding the gap instead of reporting it; the phenogram then lists the gene as
-unplaced rather than guessing a band. The second it publishes as stored.
-It used to map a protein equal to the gene symbol to `"(unknown)"`; it stopped
-when the curated gold table became the published data, because gold names most
-proteins by their gene symbol and gold is published verbatim.
+unplaced rather than guessing a band. A protein that is stored is published as
+stored. The export used to map one equal to the gene symbol to `"(unknown)"`;
+it stopped when the curated gold table became the published data, because gold
+names most proteins by their gene symbol and gold is published verbatim.
 
 **A run never replaces a stored protein.** Both write paths in
 `merge_genes_transactional` fill `protein` only where the stored value is NULL
@@ -60,8 +60,12 @@ read a protein equal to the symbol as a placeholder and fill it from the
 extraction, but the curated table uses the symbol as the protein on purpose,
 and the 12 Nov 2026 preview run rewrote 20 of them. Those 20 rewrites are still
 in the preview database and in `data/review_round.json`, for the committee to
-judge. The consequence: a gene a run admits with no protein named stores its
-symbol, and keeps it -- no later run fills it; a curator names the protein.
+judge. **Which is why the merge stores `""`, not the symbol, for a gene no
+paper names a protein for**: it did store the symbol until 12 Nov 2026, and
+under this rule that symbol would have stood until a curator renamed it. An
+empty protein publishes as `"(unknown)"` and is filled by the first later run
+whose paper names one. A row a run admitted before that date still holds its
+symbol, and no run will change it.
 `TestMergeGenesProtein` in `tests/pipeline/test_database.py` pins the clause's
 spelling in both statements, and `tests/pipeline/test_database_integration.py`
 what PostgreSQL computes from it.
