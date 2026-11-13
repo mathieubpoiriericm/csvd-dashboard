@@ -61,6 +61,7 @@ import {
 import { votes } from "../../lib/review/events.ts";
 import type { ReviewState } from "../../lib/review/summary.ts";
 import {
+  PREVIEW_COOKIE,
   PREVIEW_LOAD_FAILED,
   previewInvitation,
   previewNote,
@@ -507,6 +508,8 @@ const expected = {
   previewInvitation: previewInvitation(pipelineRun?.config.daysBack ?? null),
   previewNote: previewNote(pipelineRun?.config.daysBack ?? null),
   previewLoadFailed: PREVIEW_LOAD_FAILED,
+  /** The cookie that keeps the switch on, so a spec can start with it on. */
+  previewCookie: PREVIEW_COOKIE,
 
   /** The review area, or null when there is no review round. */
   review: reviewExpectations(REVIEW),
