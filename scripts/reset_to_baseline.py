@@ -3,7 +3,7 @@
 For the day the extraction method changes enough that nothing the old one
 merged should stand -- 2026-11-02, when extraction moved from Claude Opus 5 with
 prompt v6 to Opus 5.5 with v7 and every value the pipeline had ever merged
-came from the old pair. The merge only adds (references append, a placeholder
+came from the old pair. The merge only adds (references append, an absent
 protein is filled, MR flips No to Yes, a quote and its confidence fill an empty
 pair), so a new run over the same papers cannot take the old method's values
 back out. This puts the table back where it stood before the old method's first

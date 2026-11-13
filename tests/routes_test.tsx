@@ -35,7 +35,7 @@ import {
   CONTROL_ENTERED as REVIEW_CONTROL_ENTERED,
 } from "../lib/review/copy.ts";
 import { currentReview } from "../lib/review/current.ts";
-import { sampleChange, sampleRound } from "./fixtures/review.ts";
+import { goldOf, sampleChange, sampleRound } from "./fixtures/review.ts";
 import { escapeHtml } from "./helpers/html.ts";
 
 const render = (component: unknown) =>
@@ -576,7 +576,7 @@ Deno.test("application shell titles the review pages without a tab", () => {
 Deno.test("a gene's review page is titled by its gene", () => {
   const round = sampleRound(3);
   round.changes.push(sampleChange({ gene: "AB1/2", version: "v9" }));
-  const review = currentReview(true, round)!;
+  const review = currentReview(true, round, goldOf(round))!;
   const title = (query: string, path = "/review/gene") =>
     pageTitle(path, new URLSearchParams(query), review);
   assertEquals(title("g=GENE2"), `GENE2 | Review | ${SITE_TITLE}`);

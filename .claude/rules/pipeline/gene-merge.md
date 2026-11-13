@@ -13,7 +13,7 @@ paths:
   - "tests/scripts/test_reset_to_baseline.py"
 ---
 
-# Gene merge: the `source_quote` and `confidence` columns, and placeholders
+# Gene merge: the `source_quote` and `confidence` columns, placeholders, and the stored protein
 
 **The two columns are filled as one pair, or not at all.** A confidence scores
 the sentence it was extracted with, so `merge_genes_transactional` guards both
@@ -49,9 +49,19 @@ sentinel-typed column publishing JSON `null` fails `tests/data_contract_test.ts`
 and `lib/data/genes.ts` would rewrite it to `"(unknown)"` at runtime anyway,
 hiding the gap instead of reporting it; the phenogram then lists the gene as
 unplaced rather than guessing a band. The second it publishes as stored.
-It used to map a protein equal to the gene symbol to `"(unknown)"`, the test
-both write paths in `pipeline/database.py` still use to decide the protein is
-missing; it stopped when the curated gold table became the published data,
-because gold names most proteins by their gene symbol and gold is published
-verbatim. A gene a run admits with no protein named therefore shows its symbol
-in the Protein column until a later run fills it.
+It used to map a protein equal to the gene symbol to `"(unknown)"`; it stopped
+when the curated gold table became the published data, because gold names most
+proteins by their gene symbol and gold is published verbatim.
+
+**A run never replaces a stored protein.** Both write paths in
+`merge_genes_transactional` fill `protein` only where the stored value is NULL
+or empty; a stored value is kept, the gene's own symbol included. They used to
+read a protein equal to the symbol as a placeholder and fill it from the
+extraction, but the curated table uses the symbol as the protein on purpose,
+and the 12 Nov 2026 preview run rewrote 20 of them. Those 20 rewrites are still
+in the preview database and in `data/review_round.json`, for the committee to
+judge. The consequence: a gene a run admits with no protein named stores its
+symbol, and keeps it -- no later run fills it; a curator names the protein.
+`TestMergeGenesProtein` in `tests/pipeline/test_database.py` pins the clause's
+spelling in both statements, and `tests/pipeline/test_database_integration.py`
+what PostgreSQL computes from it.

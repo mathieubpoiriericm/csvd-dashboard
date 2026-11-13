@@ -10,6 +10,7 @@ import hashlib
 import json
 import logging
 from collections.abc import Mapping, Sequence
+from pathlib import Path
 from typing import Any, Final
 
 from pipeline.data_merger import canonical_gene_symbol
@@ -39,10 +40,13 @@ _SENTINELS: Final[frozenset[str]] = frozenset(
     }
 )
 
+# A finding's keys, in the run report's own order (`GeneRecord`); `_finding`
+# appends the ledger's `fulltext` and `extractionModel` after them.
 _FINDING_KEYS: Final[tuple[str, ...]] = (
     "pmid",
     "confidence",
     "gwasTraits",
+    "proteinName",
     "mendelianRandomization",
     "omicsEvidence",
     "causalEvidenceSummary",
@@ -103,6 +107,18 @@ def _finding(
     }
 
 
+def _kind(fields: Sequence[Mapping[str, Any]]) -> str:
+    """`claims` when a claim field differs; otherwise `citation_protein` when
+    the protein does, which a run can no longer replace but once did; else
+    `citation`."""
+    changed = {f["field"] for f in fields}
+    if changed & _CLAIM_FIELDS:
+        return "claims"
+    if "protein" in changed:
+        return "citation_protein"
+    return "citation"
+
+
 def build_review_round(
     *,
     gold_rows: Sequence[Mapping[str, Any]],
@@ -143,11 +159,7 @@ def build_review_round(
                         f" of gold's {field['field']}: a run never removes a list"
                         " value, so gold changed after the preview was copied"
                     )
-            kind = (
-                "claims"
-                if any(f["field"] in _CLAIM_FIELDS for f in fields)
-                else "citation"
-            )
+            kind = _kind(fields)
         changes.append(
             {
                 "gene": after["gene"],
@@ -184,6 +196,62 @@ def build_review_round(
         "base": _digest(list(gold_rows)),
         "changes": changes,
     }
+
+
+def stale_genes(
+    round_: Mapping[str, Any], rows: Sequence[Mapping[str, Any]]
+) -> list[str]:
+    """The genes of *round_* whose change no longer matches *rows*.
+
+    *rows* are the gene rows as published (camelCase keys). A change is
+    stale when gold was curated after the round was measured: its
+    ``before`` differs from the row of the same gene, that row is gone, or
+    a ``new`` gene is now present. The same rule as `staleChanges` in
+    lib/review/stale.ts, which hides such a round from the dashboard.
+    """
+    gold = {row["gene"]: row for row in rows}
+    changes = round_.get("changes")
+    stale: list[str] = []
+    for change in changes if isinstance(changes, list) else []:
+        row = gold.get(change.get("gene"))
+        if change.get("kind") == "new":
+            gone_stale = row is not None
+        else:
+            gone_stale = row is None or change.get("before") != row
+        if gone_stale:
+            stale.append(change.get("gene"))
+    return stale
+
+
+def warn_if_round_stale(target: Path, rows: Sequence[Mapping[str, Any]]) -> None:
+    """Warn once when the committed round in *target* no longer matches *rows*.
+
+    Called by the ordinary export while gold-only is on, where a gold edit
+    is made: the dashboard already hides a stale round, and this says so
+    while the edit is in hand. It writes nothing and never raises; a round
+    file that is missing, ``null`` or unreadable is nothing to compare.
+    """
+    path = target / ROUND_FILE
+    try:
+        round_ = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        logger.debug("No review round to compare with gold: %s", exc)
+        return
+    if not isinstance(round_, dict):
+        return
+    stale = stale_genes(round_, rows)
+    if not stale:
+        return
+    named = ", ".join(stale[:5]) + (", ..." if len(stale) > 5 else "")
+    logger.warning(
+        "The committed data/%s no longer matches gold for %d %s (%s): the"
+        " dashboard hides the review area until a new preview run is exported"
+        " with deno task data:preview",
+        ROUND_FILE,
+        len(stale),
+        "gene" if len(stale) == 1 else "genes",
+        named,
+    )
 
 
 # Ordered, like every export query: the ledger becomes a mapping here, but

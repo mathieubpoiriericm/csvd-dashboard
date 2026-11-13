@@ -529,7 +529,9 @@ site's Sign out beside it, which ends the passphrase session; this touches only
 its own cookie, and it carries a glyph and a caret so the two do not read alike.
 The shell draws it only while a review exists (`ReviewControl` in
 `routes/_app.tsx`, called with `REVIEW !== null`, so both branches are tested
-whichever the committed data holds), and never on the login page.
+whichever the committed data holds), and never on the login page. A stale round
+-- measured against a gold since curated (`lib/review/stale.ts`) -- is no
+review, so a gold edit to one of its genes removes the control by itself.
 
 **It holds no data and imports none.** It is in the navbar of every page while a
 review exists, so it imports `lib/review/copy.ts` and `lib/review/access.ts`
@@ -558,12 +560,16 @@ chunk reaches a protected one.
   one subscribed a frame late and missed a press that quick.
 - **Below 600px the button is its glyph alone**, named by `aria-label`; entered,
   a dot on the glyph's corner (`.review-button-marker`, positioned over the
-  padding so it costs no width) is what tells it from the signed-out control. At
-  390px the bar had 62px to spare beside the logo, the toggle and Sign out, and
-  the labelled button is 129px. At 320px even the glyph leaves the logo less
-  than its width, and the logo gives way: below 1410px its grid track is what
-  the actions leave, the logo is capped at it, and `object-fit: contain` draws
-  the mark scaled down and undistorted in the narrower box
+  padding so it costs no width) is what tells it from the signed-out control.
+  The dot is drawn only there: above 600px the label reads "Review · Observer",
+  and the same amber dot the navbar's "Build Your Own" link uses for "recently
+  updated" read beside it as a notification. The island renders it whenever
+  entered; the stylesheet shows it only in the icon-only layout. At 390px the
+  bar had 62px to spare beside the logo, the toggle and Sign out, and the
+  labelled button is 129px. At 320px even the glyph leaves the logo less than
+  its width, and the logo gives way: below 1410px its grid track is what the
+  actions leave, the logo is capped at it, and `object-fit: contain` draws the
+  mark scaled down and undistorted in the narrower box
   (`.navbar-brand .institute-logo` in `assets/app.css`). Nothing in that rule
   knows the logo's or the buttons' sizes, so where the row has room, with or
   without the control, the logo is its full size and the bar is unchanged.

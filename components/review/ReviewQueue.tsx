@@ -10,7 +10,12 @@ import type { ReviewKind } from "../../lib/types.ts";
 import { StandingBadge } from "./StandingBadge.tsx";
 import { TallyBar, TallyLegend } from "./TallyBar.tsx";
 
-export const KINDS: readonly ReviewKind[] = ["new", "claims", "citation"];
+export const KINDS: readonly ReviewKind[] = [
+  "new",
+  "claims",
+  "citation_protein",
+  "citation",
+];
 
 export const STANDINGS: readonly Standing[] = [
   "not_started",

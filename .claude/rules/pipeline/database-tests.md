@@ -111,8 +111,9 @@ what a mocked connection cannot: that Alembic reaches a single head, that the
 report survives the `JSON` column and `read_pipeline_run`'s re-validation, that
 an ISO timestamp string becomes a real `timestamptz`, and **what the gene-merge
 CTE computes** -- ordinals continuing off the pre-statement `MAX`, `btrim`
-collapsing `"1 "` onto `"1"`, a re-run writing nothing, and `source_quote` and
-`confidence` filling as one pair. `test_database.py` pins the spelling of those
+collapsing `"1 "` onto `"1"`, a re-run writing nothing, `source_quote` and
+`confidence` filling as one pair, and a stored protein -- the symbol included --
+kept while an absent one is filled. `test_database.py` pins the spelling of those
 clauses against the statement asyncpg is handed, which a mutation can satisfy
 from inside an SQL comment; dropping `AND existing.pmid = incoming.val` from the
 NOT EXISTS keeps all seven of its assertions passing and stops the merge

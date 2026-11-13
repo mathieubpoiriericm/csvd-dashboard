@@ -419,11 +419,10 @@ def clean_gene_row(row: dict[str, Any]) -> dict[str, Any]:
     )
 
     # Published as stored. The merge stores the gene symbol when no paper
-    # named a protein, and both write paths in pipeline/database.py read
-    # `protein = gene` back as "still missing" so a later run can fill it --
-    # but the export no longer second-guesses it: the curated gold table
-    # names most proteins by their gene symbol, and gold is published
-    # verbatim.
+    # named a protein, and neither write path in pipeline/database.py ever
+    # replaces a stored protein, the symbol included: the curated gold table
+    # names most proteins by their gene symbol on purpose, and gold is
+    # published verbatim.
     out["Protein"] = fill_missing_text(out.get("Protein"), "(unknown)")
 
     cell_types = _ALL_WORD.sub("all", out.get("Brain Cell Types") or "")

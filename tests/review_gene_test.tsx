@@ -35,11 +35,16 @@ import type { AnswerEvent, ReviewEvent } from "../lib/review/events.ts";
 import { PIPELINE_ACTOR } from "../lib/review/events.ts";
 import { simulatedTime } from "../lib/review/time.ts";
 import { SIMULATED_NOTE } from "../lib/review/copy.ts";
-import { sampleChange, sampleFinding, sampleRound } from "./fixtures/review.ts";
+import {
+  goldOf,
+  sampleChange,
+  sampleFinding,
+  sampleRound,
+} from "./fixtures/review.ts";
 import { sampleGene } from "./fixtures/rows.ts";
 import { escapeHtml } from "./helpers/html.ts";
 
-const s = currentReview(true, sampleRound(12))!;
+const s = currentReview(true, sampleRound(12), goldOf(sampleRound(12)))!;
 const run = s.round.runTimestamp;
 
 /** The body rows of the first table in `html`, each as its own HTML. */
@@ -160,7 +165,11 @@ Deno.test("a finding shows its paper, score, quote and how it was read", () => {
   const html = renderToString(
     <Findings
       findings={[
-        sampleFinding({ confidence: 0.65, causalEvidenceSummary: "Summary." }),
+        sampleFinding({
+          confidence: 0.65,
+          causalEvidenceSummary: "Summary.",
+          proteinName: "Protein one",
+        }),
         sampleFinding({
           pmid: "10000002",
           fulltext: false,
@@ -186,6 +195,9 @@ Deno.test("a finding shows its paper, score, quote and how it was read", () => {
     }</blockquote>`,
   );
   assert(!first.includes("citation only"));
+  assertStringIncludes(text(first), "Protein name: Protein one");
+  // A finding that named no protein says nothing of one.
+  assert(!second.includes("Protein name"), second);
   assertStringIncludes(text(second), "abstract only");
   assertStringIncludes(text(second), "citation only");
 });
@@ -466,4 +478,12 @@ Deno.test("omics entries print as the Genes page prints them", () => {
   assertStringIncludes(omics, ">TWAS (tissue-a)</li>");
   assertStringIncludes(omics, "<ins>PWAS (tissue-b)</ins>");
   assert(!omics.includes(";"), omics);
+});
+
+Deno.test("a protein name is printed as the extraction gave it", () => {
+  const html = renderToString(
+    <Findings findings={[sampleFinding({ proteinName: "A & B protein" })]} />,
+  );
+  const [only] = items(html, "review-findings");
+  assertStringIncludes(only, `Protein name: ${escapeHtml("A & B protein")}`);
 });

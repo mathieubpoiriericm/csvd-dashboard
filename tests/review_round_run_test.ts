@@ -8,13 +8,18 @@
  * review is `null` whenever gold-only is off, so each test returns early then.
  * A report without a round is legitimate (a fork with gold-only off exports
  * the report and `null` for the round); a round without its report is not.
+ * A round measured against a gold since curated is stale and hidden
+ * (`lib/review/stale.ts`), never a failure here: a gold fix must not wait on
+ * a new paid run.
  */
 import { assert, assertEquals } from "@std/assert";
 
 import { genes } from "../lib/data/genes.ts";
 import { pipelineRun } from "../lib/data/pipeline_run.ts";
 import { reviewRound } from "../lib/data/review_round.ts";
+import { GOLD_ONLY } from "../lib/gold_only.ts";
 import { REVIEW } from "../lib/review/current.ts";
+import { staleChanges } from "../lib/review/stale.ts";
 import type { Standing } from "../lib/review/rules.ts";
 
 Deno.test("the round and the run report describe one run", () => {
@@ -61,25 +66,19 @@ Deno.test("the simulated review of the committed round shows every standing", ()
   assert(REVIEW.reviews.some((r) => r.resolvedByChair));
 });
 
-/** What a round that no longer matches gold means, and the two ways out. */
-const STALE =
-  `data/review_round.json no longer matches the committed gold genes (data/table1.json): the round was measured against a gold that has since been curated, so its "before" column and its new genes are wrong. Either write null to data/review_round.json (deno task data:empty shows the form), or rebuild the preview database from gold, make a new preview run, and export it with deno task data:preview.`;
-
-Deno.test("the round is measured against the committed gold genes", () => {
-  if (reviewRound === null) return;
-  const gold = new Map(genes.map((g) => [g.gene, g]));
-  for (const change of reviewRound.changes) {
-    if (change.kind === "new") {
-      assert(
-        !gold.has(change.gene),
-        `${change.gene} is new but in gold. ${STALE}`,
-      );
-    } else {
-      assertEquals(
-        change.before,
-        gold.get(change.gene),
-        `${change.gene}. ${STALE}`,
-      );
-    }
+Deno.test("a stale committed round is never shown, a current one is", () => {
+  // A gold curation edit to a gene the round touches makes the round stale;
+  // that hides the review area rather than failing the suite, so the edit
+  // can ship before a new preview run.
+  if (reviewRound === null) {
+    assertEquals(REVIEW, null);
+    return;
+  }
+  if (staleChanges(reviewRound, genes).length > 0) {
+    assertEquals(REVIEW, null);
+  } else if (GOLD_ONLY && reviewRound.state === "open") {
+    assert(REVIEW !== null, "a current open round under gold-only is shown");
+  } else {
+    assertEquals(REVIEW, null);
   }
 });

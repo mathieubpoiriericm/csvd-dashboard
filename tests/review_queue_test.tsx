@@ -31,10 +31,10 @@ import { formatLongDate } from "../lib/constants.ts";
 import type { ReviewState } from "../lib/review/summary.ts";
 import type { GeneReview, Standing } from "../lib/review/rules.ts";
 import type { ReviewKind } from "../lib/types.ts";
-import { sampleRound } from "./fixtures/review.ts";
+import { goldOf, sampleRound, withEveryKind } from "./fixtures/review.ts";
 import { escapeHtml } from "./helpers/html.ts";
 
-const s = currentReview(true, sampleRound(12))!;
+const s = currentReview(true, sampleRound(12), goldOf(sampleRound(12)))!;
 
 const queue = (
   state: ReviewState,
@@ -86,6 +86,7 @@ Deno.test("a filter keeps only its kind and says how many", () => {
     "All 12",
     "New gene 4",
     "Claims changed 4",
+    "Citation and protein 0",
     "Citation only 4",
   ]);
   // The active link, and only it, says so.
@@ -177,7 +178,7 @@ Deno.test("the page says the committee is simulated", () => {
 });
 
 Deno.test("an empty round renders an empty queue", () => {
-  const empty = currentReview(true, sampleRound(0))!;
+  const empty = currentReview(true, sampleRound(0), goldOf(sampleRound(0)))!;
   const html = renderToString(
     <ReviewQueueContent state={empty} kind={null} standing={null} />,
   );
@@ -185,14 +186,24 @@ Deno.test("an empty round renders an empty queue", () => {
   assertStringIncludes(html, "No genes match");
   assertEquals(
     filterLinks(html, "Filter by kind").map(linkText),
-    ["All 0", "New gene 0", "Claims changed 0", "Citation only 0"],
+    [
+      "All 0",
+      "New gene 0",
+      "Claims changed 0",
+      "Citation and protein 0",
+      "Citation only 0",
+    ],
   );
   assert(!/NaN|undefined/.test(html), html);
 });
 
 Deno.test("a round too small for every planted case still renders", () => {
   for (const count of [1, 3]) {
-    const small = currentReview(true, sampleRound(count))!;
+    const small = currentReview(
+      true,
+      sampleRound(count),
+      goldOf(sampleRound(count)),
+    )!;
     const html = renderToString(
       <ReviewQueueContent state={small} kind={null} standing={null} />,
     );
@@ -289,4 +300,30 @@ Deno.test("the tally bar sizes a segment by its count and names itself", () => {
     Number(m[1])
   );
   assertEquals(grows, [3, 1, 0, 2]);
+});
+
+Deno.test("a citation and protein change has a filter of its own", () => {
+  const every = currentReview(
+    true,
+    withEveryKind(3),
+    goldOf(withEveryKind(3)),
+  )!;
+  const html = queue(every, "citation_protein");
+  assertEquals(genesOf(html), ["GENE4"]);
+  assertEquals(filterLinks(html, "Filter by kind").map(linkText), [
+    "All 4",
+    "New gene 1",
+    "Claims changed 1",
+    "Citation and protein 1",
+    "Citation only 1",
+  ]);
+  assertStringIncludes(
+    filterLinks(html, "Filter by kind")[3],
+    'href="/review?kind=citation_protein"',
+  );
+  assertStringIncludes(rows(html)[0], "Citation and protein");
+  assertEquals(
+    queueFilters(new URLSearchParams("kind=citation_protein")).kind,
+    "citation_protein",
+  );
 });

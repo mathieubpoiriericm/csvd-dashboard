@@ -1,7 +1,9 @@
 """Tests for build_review_round -- the diff of gold rows against a preview run."""
 
+import json
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock
 
@@ -12,6 +14,8 @@ from pipeline.export.review_round import (
     ReviewRoundError,
     build_review_round,
     read_review_round,
+    stale_genes,
+    warn_if_round_stale,
 )
 
 STAMP = "2026-01-01T00:00:00+00:00"
@@ -42,6 +46,7 @@ def _finding(symbol: str, pmid: str, **overrides: Any) -> dict[str, Any]:
         "pmid": pmid,
         "confidence": 0.9,
         "gwasTraits": [],
+        "proteinName": None,
         "mendelianRandomization": False,
         "omicsEvidence": [],
         "causalEvidenceSummary": "summary",
@@ -141,6 +146,33 @@ def test_a_quote_alone_is_a_citation_change():
     assert [f["field"] for f in change["fields"]] == ["sourceQuote", "confidence"]
 
 
+def test_a_protein_changed_beside_a_citation_is_its_own_kind():
+    """A run that rewrote a stored protein is told apart from a citation.
+
+    The merge once read a protein equal to the symbol as a placeholder, and
+    the rows it rewrote that way otherwise look like a citation only.
+    """
+    gold = [_row("GENE1", protein="GENE1", references=["1"])]
+    preview = [_row("GENE1", protein="Protein one", references=["1", "7"])]
+    (change,) = build(preview, findings=[_finding("GENE1", "7")], gold=gold)["changes"]
+    assert change["kind"] == "citation_protein"
+    assert [f["field"] for f in change["fields"]] == ["protein", "references"]
+
+
+def test_a_protein_alone_is_a_citation_and_protein_change():
+    gold = [_row("GENE1", protein="GENE1")]
+    preview = [_row("GENE1", protein="Protein one")]
+    (change,) = build(preview, findings=[_finding("GENE1", "7")], gold=gold)["changes"]
+    assert change["kind"] == "citation_protein"
+
+
+def test_a_changed_claim_outranks_a_changed_protein():
+    gold = [_row("GENE1", protein="GENE1")]
+    preview = [_row("GENE1", protein="Protein one", gwasTrait=["TRAIT-A"])]
+    (change,) = build(preview, findings=[_finding("GENE1", "7")], gold=gold)["changes"]
+    assert change["kind"] == "claims"
+
+
 def test_changes_keep_the_preview_order_and_unchanged_rows_are_skipped():
     preview = [
         _row("GENE2", gwasTrait=["TRAIT-A"]),
@@ -196,7 +228,13 @@ def test_a_finding_reaches_its_row_through_the_curated_alias(gene_aliases):
 def test_a_finding_carries_its_papers_full_text_and_model():
     preview = [GOLD[0], _row("GENE2", references=["7", "9"])]
     findings = [
-        _finding("GENE2", "7", gwasTraits=["TRAIT-A"], omicsEvidence=["x"]),
+        _finding(
+            "GENE2",
+            "7",
+            gwasTraits=["TRAIT-A"],
+            proteinName="Protein two",
+            omicsEvidence=["x"],
+        ),
         _finding("GENE2", "9"),
     ]
     papers = {"7": {"fulltext": True, "extractionModel": "model-x"}}
@@ -206,6 +244,7 @@ def test_a_finding_carries_its_papers_full_text_and_model():
         "pmid": "7",
         "confidence": 0.9,
         "gwasTraits": ["TRAIT-A"],
+        "proteinName": "Protein two",
         "mendelianRandomization": False,
         "omicsEvidence": ["x"],
         "causalEvidenceSummary": "summary",
@@ -215,6 +254,21 @@ def test_a_finding_carries_its_papers_full_text_and_model():
         "extractionModel": "model-x",
     }
     assert (second["fulltext"], second["extractionModel"]) == (None, None)
+    assert second["proteinName"] is None
+    # The report's own key order, then the ledger's two.
+    assert list(first) == [
+        "pmid",
+        "confidence",
+        "gwasTraits",
+        "proteinName",
+        "mendelianRandomization",
+        "omicsEvidence",
+        "causalEvidenceSummary",
+        "sourceQuote",
+        "citationOnly",
+        "fulltext",
+        "extractionModel",
+    ]
 
 
 def test_a_finding_for_an_unchanged_row_is_dropped_and_counted(caplog):
@@ -249,6 +303,88 @@ def test_the_round_is_open_and_names_its_run():
         "2026-01-01T00:00:00+00:00",
         [],
     )
+
+
+# ---------------------------------------------------------------------------
+# stale_genes and warn_if_round_stale -- a round against a curated gold
+# ---------------------------------------------------------------------------
+
+
+def _measured_round() -> dict[str, Any]:
+    """GENE2 gains a trait, GENE3 is new: measured against GOLD."""
+    preview = [GOLD[0], _row("GENE2", gwasTrait=["TRAIT-A"]), _row("GENE3")]
+    return build(
+        preview, findings=[_finding("GENE2", "7"), _finding("GENE3", "8")]
+    )
+
+
+def test_a_round_against_the_gold_it_was_measured_on_is_current():
+    assert stale_genes(_measured_round(), GOLD) == []
+
+
+def test_a_curated_gold_row_makes_its_change_stale():
+    curated = [GOLD[0], _row("GENE2", affectedPathway="Pathway A")]
+    assert stale_genes(_measured_round(), curated) == ["GENE2"]
+
+
+def test_a_gold_row_gone_makes_its_change_stale():
+    assert stale_genes(_measured_round(), [GOLD[0]]) == ["GENE2"]
+
+
+def test_a_new_gene_now_in_gold_makes_its_change_stale():
+    assert stale_genes(_measured_round(), [*GOLD, _row("GENE3")]) == ["GENE3"]
+
+
+def test_a_round_with_no_changes_list_is_current():
+    assert stale_genes({"id": "round"}, GOLD) == []
+
+
+def _write_round(target: Path, value: Any) -> bytes:
+    target.mkdir(parents=True, exist_ok=True)
+    raw = (json.dumps(value) + "\n").encode()
+    (target / ROUND_FILE).write_bytes(raw)
+    return raw
+
+
+def test_a_stale_committed_round_is_warned_of_and_left_alone(tmp_path, caplog):
+    raw = _write_round(tmp_path, _measured_round())
+    curated = [GOLD[0], _row("GENE2", affectedPathway="Pathway A"), _row("GENE3")]
+    with caplog.at_level(logging.WARNING):
+        warn_if_round_stale(tmp_path, curated)
+    (record,) = [r for r in caplog.records if r.levelno == logging.WARNING]
+    message = record.getMessage()
+    assert "no longer matches gold for 2 genes (GENE2, GENE3)" in message
+    assert "hides the review area" in message
+    assert "deno task data:preview" in message
+    assert (tmp_path / ROUND_FILE).read_bytes() == raw
+
+
+def test_only_the_first_five_stale_genes_are_named(tmp_path, caplog):
+    genes = [f"GENE{i}" for i in range(1, 8)]
+    round_ = {
+        "changes": [{"gene": g, "kind": "new", "before": None} for g in genes]
+    }
+    _write_round(tmp_path, round_)
+    with caplog.at_level(logging.WARNING):
+        warn_if_round_stale(tmp_path, [_row(g) for g in genes])
+    assert "for 7 genes (GENE1, GENE2, GENE3, GENE4, GENE5, ...)" in caplog.text
+
+
+def test_a_current_round_is_not_warned_of(tmp_path, caplog):
+    raw = _write_round(tmp_path, _measured_round())
+    with caplog.at_level(logging.DEBUG):
+        warn_if_round_stale(tmp_path, GOLD)
+    assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
+    assert (tmp_path / ROUND_FILE).read_bytes() == raw
+
+
+@pytest.mark.parametrize("content", [None, b"null\n", b"{not json", b"[1]\n"])
+def test_no_round_to_compare_is_not_an_error(tmp_path, caplog, content):
+    if content is not None:
+        (tmp_path / ROUND_FILE).write_bytes(content)
+    with caplog.at_level(logging.DEBUG):
+        warn_if_round_stale(tmp_path, GOLD)
+    assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
 
 
 # ---------------------------------------------------------------------------

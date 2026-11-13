@@ -29,7 +29,11 @@ from pipeline.export.lookups import (
 )
 from pipeline.export.omim import read_omim_csv, referenced_omim_rows
 from pipeline.export.publish import publish_atomically
-from pipeline.export.review_round import ROUND_FILE, read_review_round
+from pipeline.export.review_round import (
+    ROUND_FILE,
+    read_review_round,
+    warn_if_round_stale,
+)
 from pipeline.export.tables import clean_gene_row, clean_trial_row
 from pipeline.export.text import is_doi, split_genetic_targets
 from pipeline.export.writer import to_camel, write_rows, write_value
@@ -452,6 +456,13 @@ async def run_export(
             logger.info(
                 "GOLD_ONLY is on; keeping the committed data/pipeline_run.json"
                 f" and data/{ROUND_FILE}"
+            )
+            # A gold edit to a gene the round touches leaves the round stale.
+            # The dashboard hides it by itself; this says so where the edit
+            # is made, and changes nothing on disk.
+            warn_if_round_stale(
+                target,
+                [{to_camel(key): value for key, value in row.items()} for row in genes],
             )
         else:
             write_value(await read_pipeline_run(), stage("pipeline_run.json"))

@@ -329,6 +329,19 @@ test.describe("with a review round", () => {
     expect(logo.width / logo.height).toBeCloseTo(logo.ratio, 2);
   });
 
+  test("above 600px the entered control carries no marker", async ({ page }) => {
+    // The label says "Observer" there, and the amber dot is the navbar's
+    // "recently updated" mark: beside the label it reads as a notification.
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    const marker = page.locator(".navbar .review-button-marker");
+    await expect(controlOut(page)).toBeVisible();
+    await expect(marker).toHaveCount(0);
+    await enterAsObserver(page);
+    await expect(controlIn(page)).toBeVisible();
+    await expect(marker).toBeHidden();
+  });
+
   for (const width of [390, 320]) {
     test(`no review page scrolls sideways on a ${width}px phone`, async ({ page }) => {
       const copy = REVIEW!.copy;

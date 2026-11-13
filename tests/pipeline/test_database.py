@@ -1,6 +1,7 @@
 """Tests for pipeline.database — sequence reset and empty-input short-circuits."""
 
 import logging
+import re
 from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
@@ -1114,6 +1115,44 @@ class TestReferenceSqlPatterns:
         safety."""
         insert_sql, _ = await _merge_sql(mocker)
         assert "ON CONFLICT" in insert_sql
+
+
+def _protein_case(sql: str) -> str:
+    """The `protein = CASE ... END` clause of a merge statement, whitespace
+    collapsed, so the two branches can be compared word for word."""
+    match = re.search(r"protein = CASE(.*?)END", sql, re.DOTALL)
+    assert match is not None, "the statement writes no protein CASE"
+    return " ".join(match.group(1).split())
+
+
+class TestMergeGenesProtein:
+    """A run fills an absent protein and never replaces a stored one.
+
+    The guard used to treat a protein equal to the gene symbol as a
+    placeholder and upgrade it, but the curated gold table names most
+    proteins by their symbol on purpose, and the 12 Nov 2026 preview run
+    rewrote 20 of them. What PostgreSQL computes from the clause is pinned
+    in tests/pipeline/test_database_integration.py; these pin its spelling
+    in both statements.
+    """
+
+    async def test_neither_branch_treats_the_symbol_as_a_placeholder(self, mocker):
+        insert_sql, update_sql = await _merge_sql(mocker)
+        assert "= genes.gene" not in _protein_case(insert_sql)
+        assert "= gene" not in _protein_case(update_sql)
+
+    async def test_both_branches_fill_only_a_null_or_empty_protein(self, mocker):
+        insert_sql, update_sql = await _merge_sql(mocker)
+        assert _protein_case(insert_sql) == (
+            "WHEN genes.protein IS NULL OR genes.protein = '' "
+            "THEN COALESCE(NULLIF(EXCLUDED.protein, ''), genes.protein) "
+            "ELSE genes.protein"
+        )
+        assert _protein_case(update_sql) == (
+            "WHEN protein IS NULL OR protein = '' "
+            "THEN COALESCE(NULLIF($1::text, ''), protein) "
+            "ELSE protein"
+        )
 
 
 # ---------------------------------------------------------------------------

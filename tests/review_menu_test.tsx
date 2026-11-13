@@ -182,7 +182,8 @@ Deno.test("the notice's live region is in the page before anything is sent", () 
 });
 
 Deno.test("entered, the glyph carries a marker the signed-out control lacks", () => {
-  // Below 600px the label is hidden, so the marker is what tells them apart.
+  // Below 600px the label is hidden, so the marker is what tells them apart;
+  // it is rendered whenever entered, and the stylesheet draws it only there.
   assertStringIncludes(
     entered(),
     '<span class="review-button-marker" aria-hidden="true"></span>',

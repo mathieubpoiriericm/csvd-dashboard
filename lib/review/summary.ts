@@ -117,6 +117,7 @@ export function reviewState(
   const byKind = {
     new: emptyRow(),
     claims: emptyRow(),
+    citation_protein: emptyRow(),
     citation: emptyRow(),
   };
   round.changes.forEach((c, i) => byKind[c.kind][reviews[i].standing]++);

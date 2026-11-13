@@ -129,9 +129,18 @@ Moved from the root `CLAUDE.md`, which keeps a one-line summary of each.
   preview export writes it (`deno task data:empty` writes `null` too), and is
   byte-gated like the rest. Its shape is `ReviewRound` in `lib/types.ts`: an id,
   a state, the run's timestamp, a digest of the gold rows (`base`), and one
-  change per gene the run inserted or altered, carrying its kind (`new`,
-  `claims`, `citation`), the gold and preview rows, the differing fields and the
-  findings behind it.
+  change per gene the run inserted or altered, carrying its kind (`new`;
+  `claims` when a GWAS trait, Mendelian randomization or omics differs;
+  `citation_protein` when, short of that, the protein does; `citation`
+  otherwise), the gold and preview rows, the differing fields and the findings
+  behind it. A finding's keys follow the run report's `GeneRecord` order --
+  `pmid`, `confidence`, `gwasTraits`, `proteinName`, `mendelianRandomization`,
+  `omicsEvidence`, `causalEvidenceSummary`, `sourceQuote`, `citationOnly` --
+  then the ledger's `fulltext` and `extractionModel`. `citation_protein`
+  exists because the merge once replaced a curated protein equal to the gene
+  symbol, which a run no longer does (`.claude/rules/pipeline/gene-merge.md`):
+  the 12 Nov 2026 round holds 20 such rewrites, 13 of them beside a citation
+  alone.
 - **Every export query needs an `ORDER BY`.** Without one PostgreSQL returns
   rows in whatever physical order it likes, so the byte-exact contract above
   cannot hold across runs. One unordered `SELECT * FROM clinical_trials`

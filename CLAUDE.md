@@ -214,9 +214,11 @@ the tests that exercise the complete boundary. Consequences worth remembering:
   the About page falls back to the summary card for the null one.
 - **`data/review_round.json` is `null` until a preview export writes it**, and
   `deno task data:empty` and an ordinary export with `GOLD_ONLY` off write it
-  `null`. A committed round must match the committed gold genes:
-  `tests/review_round_run_test.ts` fails when a curation edit leaves it stale,
-  and the `regenerate-data` skill has the two remedies.
+  `null`. A round measured against a gold since curated is stale
+  (`lib/review/stale.ts`) and hides itself: no Review control, every `/review*`
+  page a 404, one server warning, and one export warning while gold-only is on.
+  Nothing goes red, so a gold fix is never blocked; the remedy is a new preview
+  run, and the `regenerate-data` skill has it.
 - **`data/pipeline_syncs.json` is the reference-data refreshes**, one entry per
   sync mode, committed as `[]` until one is recorded — a separate file and table
   from the runs, so nothing feeding the run widget or the About page's date can
