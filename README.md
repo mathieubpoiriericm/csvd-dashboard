@@ -283,8 +283,8 @@ control and every review page is a 404. The three pages are server-rendered with
 no island, so the round never reaches the browser:
 
 - **The review queue** (`/review`) — one row per gene the run changed, filtered
-  by kind of change (new gene, claims changed, citation only) and by standing,
-  with the committee's tally and standing on each
+  by kind of change (new gene, claims changed, citation and protein, citation
+  only) and by standing, with the committee's tally and standing on each
 - **A gene's review** (`/review/gene?g=`) — the change field by field against
   the gold row, the findings behind it, each member's verdict and the history
 - **Committee progress** (`/review/progress`) — settled and conflicted genes,
