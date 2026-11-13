@@ -35,6 +35,8 @@ import {
   previewCookie,
   previewInvitation,
   previewNote,
+  refetchFailedChunks,
+  rememberFailedChunks,
 } from "../lib/pipeline_preview.ts";
 
 interface PipelinePreviewProps {
@@ -84,6 +86,12 @@ export default function PipelinePreview(
     if (!next || initialOn || fetched !== null) return;
     setFetching(true);
     try {
+      // A fetch that failed before the reload is one WebKit still holds
+      // against these chunks; fetching them again first clears it.
+      await refetchFailedChunks(
+        () => sessionStorage,
+        (url) => fetch(url, { cache: "reload" }),
+      );
       const module = await import("./PipelineRun.tsx");
       setFetched({ Widget: module.default });
     } catch (error) {
@@ -91,6 +99,15 @@ export default function PipelinePreview(
       // session that expired. Kept for whoever debugs it: the same catch
       // takes an error thrown while the widget's module evaluates.
       console.error(error);
+      // The bundler's loader left a preload link for every chunk the
+      // import needed; those are the ones to fetch again after a reload.
+      rememberFailedChunks(
+        Array.from(
+          document.querySelectorAll('link[rel="modulepreload"]'),
+          (link) => link.getAttribute("href") ?? "",
+        ),
+        () => sessionStorage,
+      );
       // Switched off again while it was fetching: nothing is claimed, so
       // there is nothing to take back or to say.
       if (wanted.current) {

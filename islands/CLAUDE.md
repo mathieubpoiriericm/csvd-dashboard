@@ -132,6 +132,14 @@ page, an expired session) puts the switch and its cookie back off and says so in
 the notice's second line, which is a live region for that reason. The sentence
 asks for a reload, not another press: the same press imports the same dead
 chunk, and a browser may keep a failed module for the life of the document.
+**The reload alone is not enough in Safari**: WebKit holds a failed module fetch
+against its chunks past the reload, and the next `import()` fails at once with
+no request sent. So a failed press keeps the chunks it asked for in
+`sessionStorage` (the hrefs of the `modulepreload` links the bundler's loader
+left, `rememberFailedChunks`), and the next press fetches them again before it
+imports (`refetchFailedChunks`), which replaces what WebKit held. The e2e config
+runs Chromium only; the About spec passes under WebKit with
+`npx playwright install webkit` and a project for it.
 
 It has two readers. A visiting researcher wants to know whether the data is
 fresh and can be trusted; the maintainer wants to know how the run went. So the

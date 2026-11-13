@@ -64,6 +64,64 @@ export function previewCookie(on: boolean): string {
 export const PREVIEW_LOAD_FAILED =
   "The preview could not be loaded. Reload the page to try again.";
 
+/** Where the chunks of a failed fetch are kept until the next press. */
+const FAILED_CHUNKS_KEY = "svd-preview-failed-chunks";
+
+/** What the two functions below need of `sessionStorage`. */
+type ChunkStore = Pick<Storage, "getItem" | "setItem" | "removeItem">;
+
+/** A path on this site: one leading slash, so never another origin. */
+const ownPath = (url: unknown): url is string =>
+  typeof url === "string" && /^\/(?!\/)/.test(url);
+
+/**
+ * Keep the chunks a failed fetch asked for, so the next press, after the
+ * reload the line asks for, can fetch them again first
+ * (`refetchFailedChunks`). The store is handed over as a function because a
+ * browser that refuses storage throws on reading the property; then nothing
+ * is kept, and the press after a reload behaves as it did before.
+ */
+export function rememberFailedChunks(
+  urls: readonly string[],
+  store: () => ChunkStore,
+): void {
+  const own = [...new Set(urls.filter(ownPath))];
+  if (own.length === 0) return;
+  try {
+    store().setItem(FAILED_CHUNKS_KEY, JSON.stringify(own));
+  } catch {
+    // Storage refused or full: recovery is a convenience, not a claim.
+  }
+}
+
+/**
+ * Fetch the chunks an earlier failed fetch asked for, then forget them.
+ *
+ * WebKit remembers a module whose fetch failed (offline, say) beyond the
+ * document: after a reload `import()` of the same chunk fails again at once
+ * and sends no request, so the reload the line asks for did not help in
+ * Safari. An ordinary `fetch` of the same URL does go to the network and
+ * replaces what WebKit held, and the import after it succeeds. Each fetch
+ * settles alone; one that still fails leaves the import to fail as before.
+ */
+export async function refetchFailedChunks(
+  store: () => ChunkStore,
+  fetcher: (url: string) => Promise<unknown>,
+): Promise<void> {
+  let urls: string[];
+  try {
+    const held = store();
+    const text = held.getItem(FAILED_CHUNKS_KEY);
+    if (text === null) return;
+    held.removeItem(FAILED_CHUNKS_KEY);
+    const parsed: unknown = JSON.parse(text);
+    urls = Array.isArray(parsed) ? parsed.filter(ownPath) : [];
+  } catch {
+    return;
+  }
+  await Promise.allSettled(urls.map((url) => fetcher(url)));
+}
+
 /** The event a press of the switch is announced as. */
 const PREVIEW_EVENT = "pipeline-preview";
 
