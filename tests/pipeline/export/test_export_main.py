@@ -416,7 +416,7 @@ class TestRunExport:
         with caplog.at_level(logging.WARNING):
             await run_export(target_dir=target_dir, gold_only_on=True)
 
-        assert "review round" not in caplog.text
+        assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
         assert (target_dir / ROUND_FILE).read_bytes() == current
 
     async def test_an_export_without_gold_only_writes_the_run_report(

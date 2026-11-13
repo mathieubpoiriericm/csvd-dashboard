@@ -133,9 +133,9 @@ new round: rebuild the preview database from gold, make a new preview run, and
 export it with `deno task data:preview`. Writing `null` to
 `data/review_round.json` (`deno task data:empty` shows the form) is optional
 housekeeping, not a fix: a stale round is already hidden.
-`tests/csvd/review_round_test.ts` pins that today's committed round is current,
-so a curation edit to one of its genes fails that dataset pin, not the generic
-suite.
+No test fails on a stale round, and none may: a curation edit must not turn the
+suite red. The generic `tests/review_round_run_test.ts` pins only the guard --
+a stale round gives no review, a current open one under gold-only does.
 
 ## Two databases, and they are not interchangeable
 
