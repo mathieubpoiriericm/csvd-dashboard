@@ -43,7 +43,12 @@ export function previewNote(daysBack: number | null): string {
   return `Technical preview: a real pipeline run${phrase}. Its findings are not in the other pages.`;
 }
 
-/** The `document.cookie` assignment that switches the preview on or off. */
+/**
+ * The `document.cookie` assignment that switches the preview on or off. On,
+ * it is also the `Set-Cookie` value the About route renews it with
+ * (`previewRenewal`): WebKit keeps a cookie written from script for seven
+ * days at most, whatever `Max-Age` asks for.
+ */
 export function previewCookie(on: boolean): string {
   const value = on ? "1" : "";
   const maxAge = on ? PREVIEW_MAX_AGE : 0;

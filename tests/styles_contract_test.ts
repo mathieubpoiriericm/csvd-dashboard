@@ -1772,6 +1772,14 @@ Deno.test("a rejected finding's row stacks from 900px, with the step rows", () =
   );
 });
 
+Deno.test("a rejected finding's row has no first-child rule of its own", () => {
+  // Every such row is a `.pipeline-record` too, whose later, equally
+  // specific `:first-child` reset decides the first row's top padding. A
+  // rule here asked for 12px and never applied.
+  assertMatch(css, /\.pipeline-record:first-child \{\s*padding-top: 0;/);
+  assert(!/\.pipeline-record-row:first-child/.test(css));
+});
+
 Deno.test("a pill in a record wraps before it pushes the dialog sideways", () => {
   // A status pill is a few words and never wraps. A record's values are
   // whatever the run extracted: an omics entry can run to hundreds of
@@ -2109,6 +2117,67 @@ function tokenValue(name: string, theme: "light" | "dark"): string {
   assert(value !== undefined, `${name} does not resolve in ${theme}`);
   return value.replace(/\s*\/\*.*$/, "");
 }
+
+Deno.test("the switched-on preview switch answers a pointer in both themes", () => {
+  // Its hover was the accent giving way to the primary, two tokens the dark
+  // blocks set to one value: in the dark theme nothing changed.
+  const fill = (selector: string) => {
+    const at = css.indexOf(`${selector} {`);
+    assert(at !== -1, `no rule for ${selector}`);
+    const body = css.slice(at, css.indexOf("}", at));
+    const token = body.match(/background: var\((--svd-[\w-]+)\);/)?.[1];
+    assert(token !== undefined, `${selector} names no background token`);
+    assertMatch(body, new RegExp(`border-color: var\\(${token}\\);`));
+    return token;
+  };
+  const rest = fill('.about-preview-switch[aria-checked="true"]');
+  const hover = fill(
+    '.about-preview-switch[aria-checked="true"]:focus-visible:not(:disabled)',
+  );
+  const thumb = css.match(
+    /\.about-preview-switch\[aria-checked="true"\]::before \{\s*background: var\((--svd-[\w-]+)\);/,
+  )?.[1];
+  assert(thumb !== undefined, "the switched-on thumb names no token");
+  for (const theme of ["light", "dark"] as const) {
+    assert(
+      tokenValue(rest, theme) !== tokenValue(hover, theme),
+      `${theme}: the switched-on switch does not change on hover`,
+    );
+    // WCAG 1.4.11: the thumb is what says which side the switch is on.
+    for (const track of [rest, hover]) {
+      const ratio = contrast(
+        tokenValue(thumb, theme),
+        tokenValue(track, theme),
+      );
+      assert(ratio >= 3, `${theme} thumb on ${track}: ${ratio.toFixed(2)}:1`);
+    }
+  }
+});
+
+Deno.test("the preview switch keeps its state where colours are forced", () => {
+  // Forced colours replace an author's backgrounds, and both of the
+  // switch's cues are backgrounds: on and off drew as one empty pill. A
+  // system colour is kept, so the thumb and the switched-on track name one.
+  const block = mediaBlockContaining(
+    ".about-preview-switch::before {\n    background: ButtonText;",
+  );
+  assertMatch(block, /@media \(forced-colors: active\)/);
+  // Hover and focus are named with the state: their own fills are not
+  // system colours, and would be replaced over the highlight.
+  assertMatch(
+    block,
+    /\.about-preview-switch\[aria-checked="true"\],\s*\.about-preview-switch\[aria-checked="true"\]:hover:not\(:disabled\),\s*\.about-preview-switch\[aria-checked="true"\]:focus-visible:not\(:disabled\) \{\s*border-color: Highlight;\s*background: Highlight;/,
+  );
+  assertMatch(
+    block,
+    /\.about-preview-switch\[aria-checked="true"\]::before \{\s*background: HighlightText;/,
+  );
+  // After the rules it answers, which it does not outrank.
+  assert(
+    css.indexOf("@media (forced-colors: active)") >
+      css.indexOf(".about-preview-switch:disabled {"),
+  );
+});
 
 Deno.test("a form control's edge holds 3:1 against the page in both themes", () => {
   // WCAG 1.4.11: an empty field's box is all that says where the field is,

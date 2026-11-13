@@ -170,8 +170,14 @@ test.describe("the technical preview of a pipeline run", () => {
     await expect(dialog).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(dialog).toBeHidden();
-    const body = await (await page.request.get("/")).text();
-    expect(body).toContain("pipeline-card");
+    const kept = await page.request.get("/");
+    expect(await kept.text()).toContain("pipeline-card");
+    // The route sends the cookie back for its year: one written from script
+    // lasts seven days in Safari. It is the switch's own cookie, so the
+    // presses below still clear it.
+    expect(kept.headers()["set-cookie"]).toMatch(
+      /^pipeline_preview=1; Path=\/; Max-Age=31536000; SameSite=Lax$/,
+    );
 
     // The widget the server drew is another island, and follows the
     // switch all the same: off, on again, and off.
@@ -186,6 +192,9 @@ test.describe("the technical preview of a pipeline run", () => {
     await page.reload();
     await expect(toggle).toHaveAttribute("aria-checked", "false");
     await expect(card).toHaveCount(0);
+    // Switched off, nothing is renewed: the server never turns it on.
+    const off = await page.request.get("/");
+    expect(off.headers()["set-cookie"]).toBeUndefined();
   });
 
   test("fetches the run report only once the preview is switched on", async ({ page }) => {

@@ -2962,10 +2962,12 @@ svg {
   border-color: var(--svd-text-muted);
 }
 
+/* The token the other filled controls light to. The primary is the accent
+   itself in the dark theme, and a hover to it changed nothing there. */
 .about-preview-switch[aria-checked="true"]:hover:not(:disabled),
 .about-preview-switch[aria-checked="true"]:focus-visible:not(:disabled) {
-  border-color: var(--svd-color-primary);
-  background: var(--svd-color-primary);
+  border-color: var(--svd-color-accent-text);
+  background: var(--svd-color-accent-text);
 }
 
 /* Disabled until the island is live, and looking it, as the adapt guide's
@@ -2973,6 +2975,28 @@ svg {
 .about-preview-switch:disabled {
   cursor: progress;
   opacity: 0.6;
+}
+
+/* Forced colours replace every background above, and both of the switch's
+   cues are backgrounds: on and off drew as the same empty pill. A system
+   colour is kept as written, so the thumb is drawn in the button's ink and
+   the switched-on track in the highlight pair. Hover and focus are named
+   with the state because their own fills would be replaced over it. */
+@media (forced-colors: active) {
+  .about-preview-switch::before {
+    background: ButtonText;
+  }
+
+  .about-preview-switch[aria-checked="true"],
+  .about-preview-switch[aria-checked="true"]:hover:not(:disabled),
+  .about-preview-switch[aria-checked="true"]:focus-visible:not(:disabled) {
+    border-color: Highlight;
+    background: Highlight;
+  }
+
+  .about-preview-switch[aria-checked="true"]::before {
+    background: HighlightText;
+  }
 }
 
 /* === ADAPT WIZARD === */
@@ -7630,10 +7654,6 @@ button.adapt-card-head:focus-visible {
   align-items: baseline;
   gap: var(--svd-space-1) var(--svd-space-4);
   font-size: var(--svd-text-sm);
-}
-
-.pipeline-record-row:first-child {
-  padding-top: var(--svd-space-3);
 }
 
 .pipeline-record-why {

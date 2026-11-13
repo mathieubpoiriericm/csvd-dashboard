@@ -315,15 +315,20 @@ export function setupMethod(run: PipelineRun): SetupRow[] {
  * What the run cost in time and tokens, and how its extractions checked
  * out. The two quote numbers stay two: one asks whether the sentence is in
  * the paper, the other whether the model's own citation attested to it.
- * The estimated cost is published and not shown.
+ * The estimated cost is published and not shown. The work under the
+ * duration is left out where it was not measured.
  */
 export function setupUsage(run: PipelineRun): SetupRow[] {
   const { tokens, genes } = run;
+  // The work is the sum of each paper's own time, and a paper nobody timed
+  // adds nothing to it: a run that timed none has no work to state, and a
+  // batch run's sum holds only the papers its fallback rescued.
+  const timed = run.computeSeconds > 0 && run.config.batch !== true;
   const rows = [
     row(
       field("duration").label,
       formatDuration(run.durationSeconds),
-      `${formatDuration(run.computeSeconds)} ${SETUP.work}`,
+      timed ? `${formatDuration(run.computeSeconds)} ${SETUP.work}` : null,
     ),
   ];
   if (tokens.totalTokens > 0) {

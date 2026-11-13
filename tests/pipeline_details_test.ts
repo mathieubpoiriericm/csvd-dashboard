@@ -330,6 +330,25 @@ Deno.test("Setup states the usage and the checks, and never the cost", () => {
   assertEquals(setupUsage(bare).map((r) => r.label), ["Duration"]);
 });
 
+Deno.test("Setup prints the work under the duration only when it was measured", () => {
+  // No paper was timed: a sum of nothing is not "0 ms of work".
+  assertEquals(setupUsage(runWith({ computeSeconds: 0 }))[0], {
+    label: "Duration",
+    value: formatDuration(RUN.durationSeconds),
+    sub: null,
+    code: false,
+  });
+  // A batch entry is never timed, so on a batch run the sum holds only the
+  // papers the fallback rescued, which is not the run's work.
+  const batch = runWith({ config: { ...RUN.config, batch: true } });
+  assertEquals(setupUsage(batch)[0].sub, null);
+  const streamed = runWith({ config: { ...RUN.config, batch: false } });
+  assertEquals(
+    setupUsage(streamed)[0].sub,
+    `${formatDuration(RUN.computeSeconds)} of work, run in parallel`,
+  );
+});
+
 Deno.test("the legend says what the track's marks are, for the floors the run recorded", () => {
   assertEquals(
     floorLegend(RUN.config),

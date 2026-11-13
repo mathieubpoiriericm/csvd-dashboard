@@ -1,4 +1,5 @@
 import type { ComponentChildren } from "preact";
+import { page } from "fresh";
 
 import { define } from "../utils.ts";
 import { Page } from "../components/Page.tsx";
@@ -16,7 +17,10 @@ import { pipelineRun } from "../lib/data/pipeline_run.ts";
 import PipelineRunView from "../islands/PipelineRun.tsx";
 import PipelinePreview from "../islands/PipelinePreview.tsx";
 import PipelinePreviewWidget from "../islands/PipelinePreviewWidget.tsx";
-import { previewRequested } from "../lib/pipeline_preview_request.ts";
+import {
+  previewRenewal,
+  previewRequested,
+} from "../lib/pipeline_preview_request.ts";
 import { PipelineSyncs } from "../components/PipelineSyncs.tsx";
 import { pipelineSyncs } from "../lib/data/pipeline_syncs.ts";
 import {
@@ -449,6 +453,25 @@ export function AboutContent(
     </Page>
   );
 }
+
+/**
+ * A visitor whose cookie has the preview on gets the cookie back as a
+ * header, wherever the page offers the preview. The switch writes it from
+ * script, and a cookie written that way lasts seven days in Safari; the
+ * decision is `previewRenewal`'s.
+ */
+export const handler = define.handlers({
+  GET(ctx) {
+    const renewal = previewRenewal(
+      ctx.req.headers,
+      GOLD_ONLY && pipelineRun !== null,
+    );
+    return page(
+      undefined,
+      renewal === null ? undefined : { headers: { "Set-Cookie": renewal } },
+    );
+  },
+});
 
 export default define.page(function About(ctx) {
   return <AboutContent previewOn={previewRequested(ctx.req.headers)} />;
