@@ -105,6 +105,14 @@ Deno.test("percent is a whole number and zero for an empty whole", () => {
   assertEquals(percent(2, 3), "67%");
   assertEquals(percent(5, 5), "100%");
   assertEquals(percent(0, 0), "0%");
+  assertEquals(percent(0, 300), "0%");
+});
+
+Deno.test("percent shows neither 100% while owed nor 0% once begun", () => {
+  assertEquals(percent(199, 200), "99%");
+  assertEquals(percent(399, 400), "99%");
+  assertEquals(percent(1, 300), "1%");
+  assertEquals(percent(1, 1000), "1%");
 });
 
 Deno.test("every label table is complete and verbatim", () => {

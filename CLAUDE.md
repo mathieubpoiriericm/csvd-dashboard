@@ -56,11 +56,12 @@ as run mode `preview`, and `--preview --export` or `deno task data:preview`
 writes two files, published together or not at all: `data/pipeline_run.json`,
 which the About page offers behind a switch, and `data/review_round.json`, the
 review round, diffed against the gold database it reads read-only. It checks
-that the preview database holds exactly one preview run, that the run's findings
-list is uncapped, that every gold gene is present, that every change is
-explained by a finding, and that no list value was removed; the five refusals
-and the remedy are in `regenerate-data`. A restore skips a preview run's report.
-The `run-long-window` skill has the run and `regenerate-data` the database.
+that the preview database holds exactly one preview run, that the run merged,
+that its findings list is uncapped, that every gold gene is present, that every
+change is explained by a finding, and that no list value was removed; the six
+refusals and the remedy are in `regenerate-data`. A restore skips a preview
+run's report. The `run-long-window` skill has the run and `regenerate-data` the
+database.
 
 Tests never touch the production database: `tests/pipeline/conftest.py` empties
 the `DB_*` credentials (so `load_dotenv` cannot refill them from `.env`) and

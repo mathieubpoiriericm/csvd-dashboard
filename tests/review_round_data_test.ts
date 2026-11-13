@@ -3,6 +3,7 @@
 import { assert, assertEquals } from "@std/assert";
 
 import { normalizeReviewRound } from "../lib/data/review_round.ts";
+import { simulate } from "../lib/review/simulate.ts";
 import {
   sampleChange,
   sampleFinding,
@@ -108,11 +109,34 @@ Deno.test("an unknown field and a non-list addition are dropped", () => {
       before: null,
       after: null,
       added: [],
-      removed: ["TRAIT-B"],
+      removed: [],
     },
     { field: "confidence", before: 0.5, after: 0.7, added: [], removed: [] },
     { field: "protein", before: "P1", after: ["x"], added: [], removed: [] },
   ]);
+});
+
+Deno.test("an addition beside a non-list value is dropped, so the history builds", () => {
+  for (const after of ["TRAIT-A; TRAIT-B", null, 3]) {
+    const change = {
+      ...sampleChange(),
+      fields: [{
+        field: "gwasTrait",
+        before: ["TRAIT-A"],
+        after,
+        added: ["TRAIT-B"],
+        removed: ["TRAIT-C"],
+      }],
+    };
+    const round = normalizeReviewRound({
+      ...sampleRound(1),
+      changes: [change],
+    });
+    assert(round !== null);
+    assertEquals(round.changes[0].fields[0].added, []);
+    assertEquals(round.changes[0].fields[0].removed, []);
+    simulate(round);
+  }
 });
 
 Deno.test("findings default what they lack and never invent a flag", () => {
