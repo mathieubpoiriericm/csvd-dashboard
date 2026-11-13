@@ -397,6 +397,7 @@ def _report(findings: list[dict[str, Any]], *, shown=None, total=None):
     return {
         "runTimestamp": STAMP,
         "runMode": "preview",
+        "database": {"inserted": 0, "updated": 0},
         "acceptedGenes": {
             "shown": len(findings) if shown is None else shown,
             "total": len(findings) if total is None else total,
@@ -448,6 +449,18 @@ async def test_two_preview_runs_are_refused_before_gold_is_read(mocker, runs):
     sql, mode = dbs.preview_conn.fetchval.await_args.args
     assert "FROM pipeline_runs WHERE run_mode = $1" in sql
     assert mode == "preview"
+    assert dbs.gold_opened == 0
+    dbs.genes.assert_not_awaited()
+
+
+async def test_a_run_that_never_merged_is_refused_before_gold_is_read(mocker):
+    # A run that failed before its merge publishes `database: null` and still
+    # lists what it validated; its preview rows equal gold, so the diff would
+    # be an empty open round.
+    dbs = _Databases(mocker, runs=1, gold=GOLD, preview=GOLD)
+    report = {**_report([_finding("GENE1", "7")]), "database": None}
+    with pytest.raises(ReviewRoundError, match="never merged"):
+        await read_review_round(report)
     assert dbs.gold_opened == 0
     dbs.genes.assert_not_awaited()
 

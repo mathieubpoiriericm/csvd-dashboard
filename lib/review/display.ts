@@ -114,7 +114,13 @@ export function geneHref(gene: string): string {
   return "/review/gene?g=" + encodeURIComponent(gene);
 }
 
-/** A whole per cent; zero for an empty whole. */
+/**
+ * A whole per cent; zero for an empty whole. Rounding never reaches 100% while
+ * some of the whole is still owed, nor 0% once any of it is in.
+ */
 export function percent(part: number, whole: number): string {
-  return whole === 0 ? "0%" : `${Math.round((part / whole) * 100)}%`;
+  if (whole === 0) return "0%";
+  const rounded = Math.round((part / whole) * 100);
+  const shown = part < whole ? Math.min(rounded, 99) : rounded;
+  return `${part > 0 ? Math.max(shown, 1) : shown}%`;
 }

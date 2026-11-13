@@ -278,9 +278,11 @@ async def read_review_round(run: Mapping[str, Any]) -> dict[str, Any]:
     Raises:
         ReviewRoundError: Before gold is read, when the preview database
             holds other than one preview run (the report could not say
-            which rows are its own), or when the report capped its
-            accepted genes (a finding left out would leave a change
-            unexplained); and whenever `build_review_round` refuses.
+            which rows are its own), when the run never merged (its
+            report has no database record, so its findings are in no
+            preview row), or when the report capped its accepted genes (a
+            finding left out would leave a change unexplained); and
+            whenever `build_review_round` refuses.
     """
     # Imported here: pipeline.export.main imports this module for the
     # preview export, and read_published_genes is its reader.
@@ -297,6 +299,17 @@ async def read_review_round(run: Mapping[str, Any]) -> dict[str, Any]:
             " built from exactly one, so recreate the preview database from"
             " production as the regenerate-data skill's \"The preview database\""
             " section says, and run the preview again"
+        )
+    if run.get("database") is None:
+        # A run that failed before its merge lists the findings it
+        # validated, but none reached the preview rows, which therefore
+        # equal gold: the diff would publish an open round with nothing in
+        # it, and every finding the run proposed would be dropped unseen.
+        raise ReviewRoundError(
+            "the preview run never merged its findings (its report has no"
+            " database record), so the preview rows cannot show them;"
+            " recreate the preview database from production and run the"
+            " preview again"
         )
     accepted = run["acceptedGenes"]
     if accepted["total"] > accepted["shown"]:

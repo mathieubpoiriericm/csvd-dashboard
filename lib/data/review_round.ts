@@ -45,12 +45,18 @@ function normalizeField(value: unknown): ReviewFieldChange | null {
   const source = record(value);
   const field = nullableText(source.field);
   if (field === null || !GENE_KEYS.has(field)) return null;
+  const before = fieldValue(source.before);
+  const after = fieldValue(source.after);
+  // As the writer does: a value is added or removed only between two lists.
+  // A malformed file's `added` beside a non-list `after` would otherwise reach
+  // code that indexes into `after` as a list and throw at import.
+  const listed = Array.isArray(before) && Array.isArray(after);
   return {
     field: field as keyof Gene,
-    before: fieldValue(source.before),
-    after: fieldValue(source.after),
-    added: textArray(source.added),
-    removed: textArray(source.removed),
+    before,
+    after,
+    added: listed ? textArray(source.added) : [],
+    removed: listed ? textArray(source.removed) : [],
   };
 }
 

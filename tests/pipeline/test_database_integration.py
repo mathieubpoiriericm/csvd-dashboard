@@ -1255,6 +1255,7 @@ async def test_the_round_reads_the_preview_and_its_gold_sibling(
         run = {
             "runTimestamp": "2026-01-01T00:00:00+00:00",
             "runMode": PREVIEW_RUN_MODE,
+            "database": {"inserted": 1, "updated": 1},
             "acceptedGenes": {"shown": 2, "total": 2, "items": findings},
         }
 
