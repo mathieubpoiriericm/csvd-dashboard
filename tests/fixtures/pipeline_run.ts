@@ -36,7 +36,9 @@ export const RUN: PipelineRun = {
     found: 40,
     newlySeen: 16,
     alreadySeen: 24,
-    processed: 15,
+    // The pipeline counts a paper with no retrievable text as processed, so
+    // full text + abstract only + no text is the whole of it.
+    processed: 16,
     fulltext: 10,
     abstractOnly: 5,
     noTextAvailable: 1,

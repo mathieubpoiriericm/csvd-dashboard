@@ -277,9 +277,11 @@ export function simulate(
           outstanding: VOTERS.length - given.length,
         }));
       while (adverse()) {
-        const objection = given.findLast((e) => e.answer === "reject") ??
-          given.findLast((e) => e.answer === "abstain");
-        if (!objection) break;
+        // Each adverse standing needs a reject or an abstention, so there is
+        // one to turn, and turning them all leaves the change accepted.
+        const objection = given.findLast((e) =>
+          e.answer === "reject" || e.answer === "abstain"
+        )!;
         objection.answer = "accept";
         objection.edits = [];
         objection.reason = null;
