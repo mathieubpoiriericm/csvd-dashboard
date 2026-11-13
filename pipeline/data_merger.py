@@ -195,9 +195,13 @@ def _build_combined_gene_data(entries: Sequence[GeneEntry]) -> dict[str, Any]:
     # and two papers writing one study alike should store it once.
     omics = [evidence for entry in entries for evidence in entry.omics_evidence]
     pmids = dedupe_list(entry.pmid for entry in entries if entry.pmid)
+    # Empty when no paper named one, never the gene symbol: neither write in
+    # `merge_genes_transactional` replaces a stored protein, the symbol
+    # included, so a symbol stored here would stand until a curator renamed
+    # it. An empty one is filled by the first later run whose paper names
+    # the protein, and publishes as "(unknown)" until then.
     protein_name = next(
-        (entry.protein_name for entry in entries if entry.protein_name),
-        first.gene_symbol,
+        (entry.protein_name for entry in entries if entry.protein_name), ""
     )
 
     return {
