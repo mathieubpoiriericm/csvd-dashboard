@@ -69,12 +69,13 @@ Deno.test("a member's counts are of their current answers and last event", () =>
 });
 
 Deno.test("a chair's ruling counts as settled and leaves the conflict count", () => {
-  const round = sampleRound(4);
+  const round = sampleRound(8);
   const { summary, reviews } = state(round);
-  // Simulated gene index 3 is a planted conflict that the chair rules accepted.
-  assertEquals(reviews[2].standing, "conflict");
-  assertEquals(reviews[3].voted, "conflict");
-  assertEquals(reviews[3].standing, "accepted");
+  // In a round of eight the second-to-last change is a planted conflict and
+  // the one before it a conflict the chair rules accepted.
+  assertEquals(reviews[6].standing, "conflict");
+  assertEquals(reviews[5].voted, "conflict");
+  assertEquals(reviews[5].standing, "accepted");
   assertEquals(summary.resolvedByChair, 1);
   assertEquals(summary.conflict, 1);
   assertEquals(summary.settled, summary.accepted + summary.rejected);

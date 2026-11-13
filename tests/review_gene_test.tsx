@@ -29,7 +29,8 @@ import {
 } from "../lib/review/display.ts";
 import { reviewGene } from "../lib/review/rules.ts";
 import { reviewState } from "../lib/review/summary.ts";
-import { ACCOUNTS } from "../lib/review/simulate.ts";
+import { ACCOUNTS, plantings } from "../lib/review/simulate.ts";
+import type { Planted } from "../lib/review/simulate.ts";
 import type { AnswerEvent, ReviewEvent } from "../lib/review/events.ts";
 import { PIPELINE_ACTOR } from "../lib/review/events.ts";
 import { simulatedTime } from "../lib/review/time.ts";
@@ -61,6 +62,12 @@ const text = (html: string) =>
 
 const indexOf = (gene: string) =>
   s.round.changes.findIndex((c) => c.gene === gene);
+
+/** The gene the simulator planted a scripted case on. */
+const planted = (kind: Planted): string => {
+  const at = [...plantings(s.round.changes)].find(([, k]) => k === kind)![0];
+  return s.round.changes[at].gene;
+};
 
 Deno.test("the whole stored row is in view, changed fields marked", () => {
   const html = renderToString(<GeneDiff change={sampleChange()} />);
@@ -138,8 +145,7 @@ Deno.test("a changed list keeps its unchanged values and strikes a removed one",
 });
 
 Deno.test("a new gene has no gold column value", () => {
-  const change = s.round.changes[indexOf("GENE1")];
-  assertEquals(change.kind, "new");
+  const change = s.round.changes.find((c) => c.kind === "new")!;
   const all = rows(renderToString(<GeneDiff change={change} />));
   assertEquals(all.length, 12);
   for (const row of all) {
@@ -220,7 +226,7 @@ Deno.test("a finding with nothing known about its paper says nothing of it", () 
 });
 
 Deno.test("each voter's answer is listed and the observer is not", () => {
-  const i = indexOf("GENE2");
+  const i = indexOf(planted("rejected"));
   const review = s.reviews[i];
   const html = renderToString(
     <CommitteeVotes review={review} accounts={s.accounts} />,
@@ -239,7 +245,7 @@ Deno.test("each voter's answer is listed and the observer is not", () => {
   // A gene nobody has answered says "Not yet" for every voter.
   const idle = renderToString(
     <CommitteeVotes
-      review={s.reviews[indexOf("GENE8")]}
+      review={s.reviews[indexOf(planted("not_started"))]}
       accounts={s.accounts}
     />,
   );
@@ -250,7 +256,7 @@ Deno.test("each voter's answer is listed and the observer is not", () => {
 });
 
 Deno.test("an in-review gene says what would settle it", () => {
-  const i = indexOf("GENE7");
+  const i = indexOf(planted("in_review"));
   const review = s.reviews[i];
   assertEquals(review.standing, "in_review");
   const html = renderToString(
@@ -258,7 +264,7 @@ Deno.test("an in-review gene says what would settle it", () => {
   );
   assertStringIncludes(html, settlesWords(review.tally));
   // A settled gene does not.
-  const settled = s.reviews[indexOf("GENE1")];
+  const settled = s.reviews[indexOf(planted("accepted"))];
   assertEquals(settled.standing, "accepted");
   assert(
     !renderToString(
@@ -268,8 +274,8 @@ Deno.test("an in-review gene says what would settle it", () => {
 });
 
 Deno.test("the history is newest first, in simulated days, with edits and reasons", () => {
-  // GENE5: one voter accepts with an edit that drops the trait it added.
-  const review = s.reviews[indexOf("GENE5")];
+  // One voter accepts with an edit that drops the trait it added.
+  const review = s.reviews[indexOf(planted("edits_to_reconcile"))];
   const html = renderToString(
     <History review={review} accounts={s.accounts} runTimestamp={run} />,
   );
@@ -302,7 +308,7 @@ Deno.test("the history is newest first, in simulated days, with edits and reason
 });
 
 Deno.test("a ruling reads as one", () => {
-  const review = s.reviews[indexOf("GENE4")];
+  const review = s.reviews[indexOf(planted("resolved_by_chair"))];
   const html = renderToString(
     <History review={review} accounts={s.accounts} runTimestamp={run} />,
   );
@@ -313,7 +319,7 @@ Deno.test("a ruling reads as one", () => {
 });
 
 Deno.test("a change of mind reads as one", () => {
-  const review = s.reviews[indexOf("GENE2")];
+  const review = s.reviews[indexOf(planted("rejected"))];
   const html = text(renderToString(
     <History review={review} accounts={s.accounts} runTimestamp={run} />,
   ));
