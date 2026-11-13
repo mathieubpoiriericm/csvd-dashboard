@@ -251,6 +251,29 @@ test.describe("the technical preview of a pipeline run", () => {
     await expect(page.locator(".pipeline-card")).toBeVisible();
   });
 
+  test("loads after a reload once the connection is back", async ({ page, context }) => {
+    // WebKit holds a failed module fetch against its chunks past a reload,
+    // so the press after it failed again with no request sent; the switch
+    // fetches the chunks it remembered first. Chromium never needed it.
+    await page.goto("/");
+    await page.waitForSelector(live);
+    const toggle = page.getByRole("switch", {
+      name: "Technical preview of a pipeline run",
+    });
+    await context.setOffline(true);
+    await toggle.click();
+    await expect(page.locator(".about-preview-line")).toHaveText(
+      EXPECTED.previewLoadFailed,
+    );
+    await context.setOffline(false);
+    await page.reload();
+    await page.waitForSelector(live);
+    await toggle.click();
+    await expect(page.locator(".pipeline-card")).toBeVisible();
+    // What it remembered is forgotten once tried.
+    expect(await page.evaluate(() => sessionStorage.length)).toBe(0);
+  });
+
   test("fits a phone, on and off", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 800 });
     await page.goto("/");
