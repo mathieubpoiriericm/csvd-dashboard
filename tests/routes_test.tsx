@@ -8,7 +8,7 @@ import {
 import { h } from "preact";
 import { renderToString } from "preact-render-to-string";
 
-import App from "../routes/_app.tsx";
+import App, { pageTitle, ReviewControl } from "../routes/_app.tsx";
 import AdaptPage, { AdaptTip } from "../routes/adapt.tsx";
 import Genes from "../routes/genes.tsx";
 import About, { AboutContent } from "../routes/index.tsx";
@@ -28,6 +28,14 @@ import { locationsWithTableStatus } from "../lib/trials.ts";
 import { GOLD_ONLY, GOLD_ONLY_NOTICE } from "../lib/gold_only.ts";
 import { filterLocationsByStatus, visibleTrials } from "../lib/filters.ts";
 import type { PipelineRun, SyncRun } from "../lib/types.ts";
+import { LOGIN_PATH } from "../lib/auth.ts";
+import { REVIEW } from "../lib/review/current.ts";
+import {
+  CONTROL as REVIEW_CONTROL,
+  CONTROL_ENTERED as REVIEW_CONTROL_ENTERED,
+} from "../lib/review/copy.ts";
+import { currentReview } from "../lib/review/current.ts";
+import { sampleChange, sampleRound } from "./fixtures/review.ts";
 import { escapeHtml } from "./helpers/html.ts";
 
 const render = (component: unknown) =>
@@ -506,4 +514,102 @@ Deno.test("application shell puts the described adapt link before the tabs", () 
     m[0].match(/href="([^"]*)"/)?.[1]
   );
   assertEquals(hrefs.slice(0, 2), ["/adapt", "/"]);
+});
+
+Deno.test("the navbar's Review control renders exactly when a review is available", () => {
+  // The shell decides with `REVIEW !== null`, which is false in the
+  // committed state, so the decision is tested here both ways.
+  const none = renderToString(
+    <ReviewControl available={false} entered={false} />,
+  );
+  assertEquals(none, "");
+  const offered = renderToString(
+    <ReviewControl available entered={false} />,
+  );
+  assertStringIncludes(offered, 'class="review-control"');
+  assertStringIncludes(offered, `>${escapeHtml(REVIEW_CONTROL)}<`);
+  const entered = renderToString(<ReviewControl available entered />);
+  assertStringIncludes(entered, `>${escapeHtml(REVIEW_CONTROL_ENTERED)}<`);
+});
+
+Deno.test("the shell draws the Review control only while a review exists", () => {
+  const html = renderToString(
+    <Shell Component={() => <p>x</p>} url={new URL("http://localhost/")} />,
+  );
+  assertEquals(html.includes('class="review-control"'), REVIEW !== null);
+});
+
+Deno.test("the login page never draws the Review control", () => {
+  const html = renderToString(
+    <Shell
+      Component={() => <p>x</p>}
+      url={new URL(`http://localhost${LOGIN_PATH}`)}
+    />,
+  );
+  assert(!html.includes("review-control"), html);
+  assert(!html.includes('class="navbar"'), html);
+});
+
+Deno.test("application shell titles the review pages without a tab", () => {
+  for (const path of ["/review", "/review/gene", "/review/progress"]) {
+    const html = renderToString(
+      <Shell
+        Component={() => <p>x</p>}
+        url={new URL(`http://localhost${path}`)}
+      />,
+    );
+    assertStringIncludes(
+      html,
+      `<title>Review | ${escapeHtml(SITE_TITLE)}</title>`,
+    );
+  }
+  // A page whose name only starts with the word is not one of them.
+  const other = renderToString(
+    <Shell
+      Component={() => <p>x</p>}
+      url={new URL("http://localhost/reviewers")}
+    />,
+  );
+  assertStringIncludes(other, `<title>${escapeHtml(SITE_TITLE)}</title>`);
+});
+
+Deno.test("a gene's review page is titled by its gene", () => {
+  const round = sampleRound(3);
+  round.changes.push(sampleChange({ gene: "AB1/2", version: "v9" }));
+  const review = currentReview(true, round)!;
+  const title = (query: string, path = "/review/gene") =>
+    pageTitle(path, new URLSearchParams(query), review);
+  assertEquals(title("g=GENE2"), `GENE2 | Review | ${SITE_TITLE}`);
+  // The key arrives as the queue's link encodes it.
+  assertEquals(title("g=AB1%2F2"), `AB1/2 | Review | ${SITE_TITLE}`);
+  // A gene the round does not hold, or none at all, keeps the plain title.
+  for (const query of ["g=GENE99", "g=", ""]) {
+    assertEquals(title(query), `Review | ${SITE_TITLE}`);
+  }
+  // Without a review no gene is named.
+  assertEquals(
+    pageTitle("/review/gene", new URLSearchParams("g=GENE2"), null),
+    `Review | ${SITE_TITLE}`,
+  );
+  // The other review pages are unchanged, whatever their query says.
+  for (const path of ["/review", "/review/progress"]) {
+    assertEquals(title("g=GENE2", path), `Review | ${SITE_TITLE}`);
+  }
+});
+
+Deno.test("the shell does not echo an unknown gene into the title", () => {
+  // Through the shell with the committed review, round or none: a key no
+  // round holds keeps the plain title, so markup in the query is not echoed.
+  const html = renderToString(
+    <Shell
+      Component={() => <p>x</p>}
+      url={new URL(
+        "http://localhost/review/gene?g=%3C/title%3E%3Cscript%3E",
+      )}
+    />,
+  );
+  assertStringIncludes(
+    html,
+    `<title>Review | ${escapeHtml(SITE_TITLE)}</title>`,
+  );
 });

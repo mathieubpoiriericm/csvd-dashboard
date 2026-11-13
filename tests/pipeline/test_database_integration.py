@@ -30,7 +30,9 @@ from datetime import UTC, datetime
 from typing import Any, Final
 from unittest.mock import AsyncMock
 
+import asyncpg
 import pytest
+from tests.xdist_databases import _drop_statements, quote_identifier
 
 import pipeline.export.main as export_main
 import pipeline.main as pipeline_main
@@ -44,10 +46,12 @@ from pipeline.database import (
     upsert_pubmed_citations_batch,
 )
 from pipeline.export.lookups import read_pipeline_run, read_pipeline_status
+from pipeline.export.review_round import ROUND_FILE, read_review_round
+from pipeline.preview_run import gold_connection, preview_database_name
 from pipeline.pubmed_citations import PubMedCitation
 from pipeline.run_errors import RunError
-from pipeline.run_report import build_run_report
-from pipeline.steps import PIPELINE_STEPS, StepRecorder
+from pipeline.run_report import GeneRecord, build_run_report
+from pipeline.steps import PIPELINE_STEPS, PREVIEW_RUN_MODE, StepRecorder
 
 pytestmark = pytest.mark.usefixtures("database_env")
 
@@ -335,7 +339,11 @@ async def test_export_after_a_run_publishes_from_the_live_pool(
         # rows are never deleted, so an empty read means no refresh has
         # been recorded and `[]` is the true answer.
         "pipeline_syncs.json",
+        # Gold-only is off in this test, and an ordinary export then clears
+        # the review round: there is no review to show without it.
+        ROUND_FILE,
     }
+    assert json.loads((published / ROUND_FILE).read_text()) is None
     # Real writer output, not a stand-in: no test inserts a gene, so the
     # published table is the empty array the writer produces.
     assert json.loads((published / "table1.json").read_text()) == []
@@ -1048,3 +1056,175 @@ async def test_a_cached_ncbi_miss_is_read_back_not_refetched(mocker) -> None:
             await conn.execute(
                 "DELETE FROM ncbi_gene_info WHERE gene_symbol LIKE 'ZZTOP%'"
             )
+
+
+# ---------------------------------------------------------------------------
+# The review round, read from a preview database and its gold sibling
+# ---------------------------------------------------------------------------
+
+# The server's maintenance database. CREATE DATABASE ... TEMPLATE refuses
+# while any session is connected to the template, so the statement cannot
+# be run from a session on the gold database itself; and template1 is the
+# template every other CREATE DATABASE copies, so a session held there
+# would block an xdist worker creating its own database meanwhile.
+_MAINTENANCE_DATABASE: Final = "postgres"
+
+
+async def _connect(settings: dict[str, str], database: str) -> asyncpg.Connection:
+    return await asyncpg.connect(
+        host=settings["DB_HOST"],
+        port=int(settings["DB_PORT"]),
+        user=settings["DB_USER"],
+        password=settings["DB_PASSWORD"],
+        database=database,
+    )
+
+
+async def _admin(settings: dict[str, str], *statements: str) -> None:
+    conn = await _connect(settings, _MAINTENANCE_DATABASE)
+    try:
+        for statement in statements:
+            await conn.execute(statement)
+    finally:
+        await conn.close()
+
+
+async def _database_exists(settings: dict[str, str], database: str) -> bool:
+    conn = await _connect(settings, _MAINTENANCE_DATABASE)
+    try:
+        return bool(
+            await conn.fetchval(
+                "SELECT 1 FROM pg_database WHERE datname = $1", database
+            )
+        )
+    finally:
+        await conn.close()
+
+
+@pytest.fixture
+async def preview_database(database_env):
+    """A `<DB_NAME>_preview` copied from the test database, dropped after.
+
+    The copy is the shape a real preview database has: production's rows,
+    with a preview run merged on top. The pool is closed first because the
+    template must have no session on it, and this role's other sessions on
+    it (an earlier test's, say) are ended too; the pool is closed again at
+    teardown because the test's pool is connected to the copy. Skips, rather
+    than fails, where the role cannot create a database or reach the
+    maintenance database, and where a database of the preview's name
+    already exists: only a database this fixture made is ever dropped
+    (`tests/pipeline/conftest.py` holds the same rule for its own).
+    """
+    gold = database_env["DB_NAME"]
+    preview = preview_database_name(gold)
+    drop = _drop_statements(preview)
+    end_sessions_on_gold, _drop_gold = _drop_statements(gold)
+    await Database.close()
+    try:
+        if await _database_exists(database_env, preview):
+            pytest.skip(f"{preview!r} already exists and this test did not make it")
+        await _admin(
+            database_env,
+            end_sessions_on_gold,
+            f"CREATE DATABASE {quote_identifier(preview)}"
+            f" TEMPLATE {quote_identifier(gold)}",
+        )
+    except (asyncpg.InsufficientPrivilegeError, asyncpg.InvalidCatalogNameError) as exc:
+        pytest.skip(f"cannot create the preview database {preview!r}: {exc}")
+    try:
+        yield preview
+    finally:
+        await Database.close()
+        await _admin(database_env, *drop)
+
+
+async def _seed_gene(conn: asyncpg.Connection, gene: str, *refs: str) -> None:
+    gene_id = await conn.fetchval(
+        "INSERT INTO genes (gene) VALUES ($1) RETURNING id", gene
+    )
+    for ordinal, pmid in enumerate(refs):
+        await conn.execute(
+            "INSERT INTO gene_references (gene_id, ordinal, pmid) VALUES ($1, $2, $3)",
+            gene_id,
+            ordinal,
+            pmid,
+        )
+
+
+async def test_the_round_reads_the_preview_and_its_gold_sibling(
+    database_env, preview_database, monkeypatch
+) -> None:
+    """Both databases, read for real: the preview through the pool, gold
+    through `gold_connection`, the papers from the preview's ledger -- and
+    gold cannot be written through that connection."""
+    gold = await _connect(database_env, database_env["DB_NAME"])
+    try:
+        preview = await _connect(database_env, preview_database)
+    except BaseException:
+        await gold.close()
+        raise
+    try:
+        await gold.execute("DELETE FROM genes WHERE gene IN ('GENE1', 'GENE2')")
+        await preview.execute("DELETE FROM genes WHERE gene IN ('GENE1', 'GENE2')")
+        await preview.execute(
+            "DELETE FROM pipeline_runs WHERE run_mode = $1", PREVIEW_RUN_MODE
+        )
+        await preview.execute("DELETE FROM pubmed_refs WHERE pmid IN ('7', '8')")
+
+        await _seed_gene(gold, "GENE1")
+        # The run cited a paper for the gold gene and admitted a new one.
+        await _seed_gene(preview, "GENE1", "7")
+        await _seed_gene(preview, "GENE2", "8")
+        await preview.execute(
+            "INSERT INTO pipeline_runs (run_timestamp, run_mode) VALUES (now(), $1)",
+            PREVIEW_RUN_MODE,
+        )
+        await preview.execute(
+            "INSERT INTO pubmed_refs (pmid, fulltext_available, extraction_model)"
+            " VALUES ('7', true, 'model-x'), ('8', false, 'model-y')"
+        )
+
+        findings = [
+            GeneRecord(symbol="GENE1", pmid="7", citation_only=True).model_dump(
+                mode="json", by_alias=True
+            ),
+            GeneRecord(symbol="GENE2", pmid="8", confidence=0.9).model_dump(
+                mode="json", by_alias=True
+            ),
+        ]
+        run = {
+            "runTimestamp": "2026-01-01T00:00:00+00:00",
+            "runMode": PREVIEW_RUN_MODE,
+            "acceptedGenes": {"shown": 2, "total": 2, "items": findings},
+        }
+
+        monkeypatch.setenv("DB_NAME", preview_database)
+        round_ = await read_review_round(run)
+
+        changes = {change["gene"]: change for change in round_["changes"]}
+        assert {gene: change["kind"] for gene, change in changes.items()} == {
+            "GENE1": "citation",
+            "GENE2": "new",
+        }
+        assert [
+            (f["pmid"], f["fulltext"], f["extractionModel"])
+            for f in changes["GENE1"]["findings"]
+        ] == [("7", True, "model-x")]
+        assert [
+            (f["pmid"], f["fulltext"], f["extractionModel"])
+            for f in changes["GENE2"]["findings"]
+        ] == [("8", False, "model-y")]
+        assert changes["GENE1"]["before"]["references"] == ["(reference needed)"]
+        assert changes["GENE1"]["after"]["references"] == ["7"]
+
+        with pytest.raises(asyncpg.ReadOnlySQLTransactionError):
+            async with gold_connection() as conn:
+                await conn.execute("INSERT INTO pubmed_refs (pmid) VALUES ('9')")
+        assert (
+            await gold.fetchval("SELECT count(*) FROM pubmed_refs WHERE pmid = '9'")
+            == 0
+        )
+    finally:
+        await gold.execute("DELETE FROM genes WHERE gene IN ('GENE1', 'GENE2')")
+        await gold.close()
+        await preview.close()

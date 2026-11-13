@@ -33,11 +33,13 @@ uv run python -m pipeline.main --pubmed --days-back 365 --preview --export
 
 A run cut short by an exhausted credit balance, or resumed from the checkpoint
 after a crash, is not a clean preview: a retry records a second, smaller run and
-the widget shows the newest, and a resumed run's duration times only the tail.
-Recreate the preview database and run again, or accept it knowingly. Afterwards
-`git status` shows `data/pipeline_run.json` and nothing else under `data/`; dump
-the preview database (`pg_dump -Fc`) and keep it, as it holds the merged genes a
-later review reads.
+the widget shows the newest, and a resumed run's duration times only the tail. A
+second preview run also makes the export refuse to build the review round, which
+needs exactly one preview run in the preview database, so neither file is
+published. Recreate the preview database and run again. Afterwards `git status`
+shows `data/pipeline_run.json` and `data/review_round.json` and nothing else
+under `data/`; dump the preview database (`pg_dump -Fc`) and keep it, as it
+holds the merged genes a later review reads.
 
 `--days-back 365` is one run, and `_merge_processed_batch` is step 5 of 6: genes
 reach the database and `record_processed_pmids_batch` writes the PMIDs only once

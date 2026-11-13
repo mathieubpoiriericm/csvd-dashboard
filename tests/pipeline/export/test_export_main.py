@@ -29,6 +29,7 @@ from pipeline.export.main import (
     main,
     run_export,
 )
+from pipeline.export.review_round import ROUND_FILE, ReviewRoundError
 from pipeline.export.tables import _RENAMES
 from pipeline.export.text import clean_column_name
 from pipeline.export.writer import to_camel
@@ -180,6 +181,7 @@ _STAGED_FILENAMES = (
     "gene_annotations.json",
     "pipeline_run.json",
     "pipeline_syncs.json",
+    ROUND_FILE,
 )
 
 
@@ -276,8 +278,8 @@ class TestRunExport:
 
         await run_export(target_dir=target_dir, gold_only_on=False)
 
-        # Exactly the ten generated files land in target_dir -- no
-        # leftover staging tempdir, no .previous-export backup.
+        # Exactly the generated files land in target_dir, the null round
+        # included -- no leftover staging tempdir, no .previous-export backup.
         assert sorted(p.name for p in target_dir.iterdir()) == sorted(_STAGED_FILENAMES)
 
         table1 = json.loads((target_dir / "table1.json").read_text())
@@ -348,6 +350,35 @@ class TestRunExport:
         assert (target_dir / "table1.json").exists()
         assert "keeping the committed data/pipeline_run.json" in caplog.text
 
+    async def test_an_export_without_gold_only_clears_the_review_round(
+        self, tmp_path: Path, mocker
+    ) -> None:
+        """Outside gold-only there is no review: the round is published as null.
+
+        A fork that merged upstream, or this repository once GOLD_ONLY is off,
+        would otherwise keep this dataset's round in data/ and its bundle.
+        """
+        target_dir = tmp_path / "data"
+        target_dir.mkdir()
+        (target_dir / ROUND_FILE).write_bytes(b'{"id": "round"}\n')
+        _patch_export_dependencies(mocker)
+
+        await run_export(target_dir=target_dir, gold_only_on=False)
+
+        assert (target_dir / ROUND_FILE).read_bytes() == b"null\n"
+
+    async def test_a_gold_only_export_keeps_the_committed_review_round(
+        self, tmp_path: Path, mocker
+    ) -> None:
+        target_dir = tmp_path / "data"
+        target_dir.mkdir()
+        (target_dir / ROUND_FILE).write_bytes(b'{"id": "round"}\n')
+        _patch_export_dependencies(mocker)
+
+        await run_export(target_dir=target_dir, gold_only_on=True)
+
+        assert (target_dir / ROUND_FILE).read_bytes() == b'{"id": "round"}\n'
+
     async def test_an_export_without_gold_only_writes_the_run_report(
         self, tmp_path: Path, mocker
     ) -> None:
@@ -373,7 +404,7 @@ class TestRunExport:
 
         assert (target_dir / "pipeline_run.json").read_bytes() == b'"committed"\n'
 
-    async def test_a_preview_export_writes_the_run_report_alone(
+    async def test_a_preview_export_writes_the_run_report_and_the_round(
         self, tmp_path: Path, mocker
     ) -> None:
         target_dir = tmp_path / "data"
@@ -381,6 +412,11 @@ class TestRunExport:
         (target_dir / "table1.json").write_bytes(b'"curated"\n')
         mocks = _patch_export_dependencies(mocker)
         mocks["run"].return_value = {"runMode": "preview", "status": "completed"}
+        read_round = mocker.patch(
+            "pipeline.export.main.read_review_round",
+            new_callable=AsyncMock,
+            return_value={"id": "round-x", "changes": []},
+        )
         for name in (
             "pipeline.export.main._read_genes_with_lists",
             "pipeline.export.main._read_table",
@@ -395,8 +431,15 @@ class TestRunExport:
 
         await run_export(target_dir=target_dir, preview_run=True, gold_only_on=True)
 
+        assert {p.name for p in target_dir.glob("*.json")} == {
+            "pipeline_run.json",
+            "review_round.json",
+            "table1.json",
+        }
+        # Nothing else is left behind: no staging directory, no backup.
         assert sorted(p.name for p in target_dir.iterdir()) == [
             "pipeline_run.json",
+            "review_round.json",
             "table1.json",
         ]
         assert (target_dir / "table1.json").read_bytes() == b'"curated"\n'
@@ -404,6 +447,33 @@ class TestRunExport:
             "runMode": "preview",
             "status": "completed",
         }
+        assert json.loads((target_dir / "review_round.json").read_text()) == {
+            "id": "round-x",
+            "changes": [],
+        }
+        # The round is built from the very report that is published.
+        read_round.assert_awaited_once_with(
+            {"runMode": "preview", "status": "completed"}
+        )
+
+    async def test_a_refused_round_publishes_neither_file(
+        self, tmp_path: Path, mocker
+    ) -> None:
+        target_dir = tmp_path / "data"
+        target_dir.mkdir()
+        mocks = _patch_export_dependencies(mocker)
+        mocks["run"].return_value = {"runMode": "preview", "status": "completed"}
+        mocker.patch(
+            "pipeline.export.main.read_review_round",
+            new_callable=AsyncMock,
+            side_effect=ReviewRoundError("two preview runs"),
+        )
+
+        with pytest.raises(ValueError, match="two preview runs"):
+            await run_export(target_dir=target_dir, preview_run=True, gold_only_on=True)
+
+        assert list(target_dir.glob("*.json")) == []
+        assert list(target_dir.iterdir()) == []
 
     @pytest.mark.parametrize("stored", [None, {"runMode": "standard"}])
     async def test_a_preview_export_refuses_a_database_with_no_preview_run(

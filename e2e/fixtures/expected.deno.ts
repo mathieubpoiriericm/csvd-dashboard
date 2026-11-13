@@ -47,6 +47,19 @@ import {
   visibleTrials,
 } from "../../lib/filters.ts";
 import { computePhenogramLayout } from "../../lib/phenogram.ts";
+import { REVIEW_COOKIE } from "../../lib/review/access.ts";
+import * as REVIEW_COPY from "../../lib/review/copy.ts";
+import { REVIEW } from "../../lib/review/current.ts";
+import {
+  FIELD_LABELS,
+  geneHref,
+  KIND_LABELS,
+  percent,
+  STANDING_LABELS,
+  tallyWords,
+} from "../../lib/review/display.ts";
+import { votes } from "../../lib/review/events.ts";
+import type { ReviewState } from "../../lib/review/summary.ts";
 import {
   PREVIEW_LOAD_FAILED,
   previewInvitation,
@@ -277,6 +290,62 @@ const trialQuery =
     trialQueries[0] ?? null;
 const distinct = <T>(values: readonly T[]) => new Set(values).size;
 
+// ---------------------------------------------------------------------------
+// The review area
+// ---------------------------------------------------------------------------
+
+/**
+ * What the review pages show for a round, or null when there is no review
+ * (no round committed, or gold-only off): the area then does not exist.
+ */
+function reviewExpectations(state: ReviewState | null) {
+  if (state === null) return null;
+  const { round, reviews, summary, accounts } = state;
+  const kinds = (Object.keys(KIND_LABELS) as (keyof typeof KIND_LABELS)[])
+    .map((key) => ({
+      key,
+      label: KIND_LABELS[key],
+      count: round.changes.filter((c) => c.kind === key).length,
+    }));
+  const first = round.changes[0];
+  const firstReview = reviews[0];
+  const held = new Set(round.changes.map((c) => c.gene));
+  let absent = "not-a-gene-in-this-round";
+  while (held.has(absent)) absent += "-";
+  return {
+    total: summary.total,
+    byKind: Object.fromEntries(kinds.map((k) => [k.key, k.count])) as Record<
+      keyof typeof KIND_LABELS,
+      number
+    >,
+    /** The kind filter's links, in the queue's order. */
+    kinds,
+    settled: summary.settled,
+    conflict: summary.conflict,
+    verdictsIn: percent(summary.answersIn, summary.answersOwed),
+    answersIn: summary.answersIn,
+    answersOwed: summary.answersOwed,
+    /** Rows of the members table: every account, the observer included. */
+    accounts: accounts.length,
+    firstGene: first.gene,
+    /** What the first gene's page shows. */
+    gene: {
+      href: geneHref(first.gene),
+      kind: KIND_LABELS[first.kind],
+      standing: STANDING_LABELS[firstReview.standing],
+      fields: Object.keys(FIELD_LABELS).length,
+      findings: first.findings.length,
+      voters: accounts.filter(votes).length,
+      tally: tallyWords(firstReview.tally),
+      events: firstReview.history.length,
+    },
+    /** A `?g=` the round does not hold: its page is a 404. */
+    absentGeneHref: geneHref(absent),
+    cookie: REVIEW_COOKIE,
+    copy: { ...REVIEW_COPY },
+  };
+}
+
 const expected = {
   ...summarize(genes, trials),
   siteTitle: manifest.site.title,
@@ -438,6 +507,9 @@ const expected = {
   previewInvitation: previewInvitation(pipelineRun?.config.daysBack ?? null),
   previewNote: previewNote(pipelineRun?.config.daysBack ?? null),
   previewLoadFailed: PREVIEW_LOAD_FAILED,
+
+  /** The review area, or null when there is no review round. */
+  review: reviewExpectations(REVIEW),
 };
 
 export type Expected = typeof expected;

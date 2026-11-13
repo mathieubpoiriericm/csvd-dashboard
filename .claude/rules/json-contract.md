@@ -121,6 +121,17 @@ Moved from the root `CLAUDE.md`, which keeps a one-line summary of each.
   the missing `</` → `<\/` escaping (jsonlite escapes a slash only after `<`;
   `json.dumps` never does) would have rewritten every row of `refs.json`.
   `json.loads()`-equality sees none of this.
+- **`data/review_round.json` is the one file whose camelCase keys are written
+  by hand.** The preview export writes it with `write_value`, which renames
+  nothing, so `pipeline/export/review_round.py` builds every key camelCase
+  itself -- the round's, each change's, field entry's and finding's -- and a
+  snake_case key added there would reach the wire as is. It is `null` until a
+  preview export writes it (`deno task data:empty` writes `null` too), and is
+  byte-gated like the rest. Its shape is `ReviewRound` in `lib/types.ts`: an id,
+  a state, the run's timestamp, a digest of the gold rows (`base`), and one
+  change per gene the run inserted or altered, carrying its kind (`new`,
+  `claims`, `citation`), the gold and preview rows, the differing fields and the
+  findings behind it.
 - **Every export query needs an `ORDER BY`.** Without one PostgreSQL returns
   rows in whatever physical order it likes, so the byte-exact contract above
   cannot hold across runs. One unordered `SELECT * FROM clinical_trials`

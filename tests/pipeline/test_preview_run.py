@@ -9,6 +9,8 @@ import pytest
 from pipeline.preview_run import (
     PreviewDatabaseError,
     enter_preview_database,
+    gold_connection,
+    gold_database_name,
     preview_database_name,
     require_preview_database,
 )
@@ -73,3 +75,122 @@ async def test_a_connection_to_another_database_is_refused(mocker) -> None:
     _connection_to(mocker, "dashboard")
     with pytest.raises(PreviewDatabaseError, match="'dashboard'"):
         await require_preview_database()
+
+
+def test_the_gold_database_is_the_preview_name_without_its_suffix() -> None:
+    assert gold_database_name("dashboard_preview") == "dashboard"
+
+
+@pytest.mark.parametrize("name", ["dashboard", "", "_preview", "preview_dashboard"])
+def test_a_name_that_is_not_a_preview_database_has_no_gold(name: str) -> None:
+    with pytest.raises(PreviewDatabaseError, match="_preview"):
+        gold_database_name(name)
+
+
+_PREVIEW_ENV = {
+    "DB_HOST": "db.example",
+    "DB_PORT": "6543",
+    "DB_NAME": "dashboard_preview",
+    "DB_USER": "owner",
+    "DB_PASSWORD": "secret",
+}
+
+
+def _gold_connect(mocker) -> tuple[AsyncMock, AsyncMock, list[str]]:
+    """Patch ``asyncpg.connect`` to a connection that records its lifecycle."""
+    events: list[str] = []
+    conn = AsyncMock()
+    transaction = AsyncMock()
+    transaction.__aenter__ = AsyncMock(
+        side_effect=lambda *_: events.append("begin")
+    )
+    transaction.__aexit__ = AsyncMock(
+        side_effect=lambda *_: events.append("end") or False
+    )
+    conn.transaction = mocker.Mock(return_value=transaction)
+    conn.close = AsyncMock(side_effect=lambda: events.append("close"))
+    connect = mocker.patch(
+        "pipeline.preview_run.asyncpg.connect", new=AsyncMock(return_value=conn)
+    )
+    return connect, conn, events
+
+
+async def test_the_gold_connection_reads_gold_inside_a_read_only_transaction(
+    mocker,
+) -> None:
+    connect, conn, events = _gold_connect(mocker)
+    async with gold_connection(_PREVIEW_ENV) as yielded:
+        assert yielded is conn
+        events.append("body")
+    connect.assert_awaited_once_with(
+        host="db.example",
+        port=6543,
+        user="owner",
+        password="secret",
+        database="dashboard",
+    )
+    # One snapshot: the gene reader's four SELECTs see the same gold.
+    conn.transaction.assert_called_once_with(
+        isolation="repeatable_read", readonly=True
+    )
+    assert events == ["begin", "body", "end", "close"]
+
+
+async def test_the_gold_connection_is_closed_when_the_read_fails(mocker) -> None:
+    _connect, _conn, events = _gold_connect(mocker)
+    with pytest.raises(RuntimeError, match="read failed"):
+        async with gold_connection(_PREVIEW_ENV):
+            raise RuntimeError("read failed")
+    assert events == ["begin", "end", "close"]
+
+
+async def test_the_gold_connection_needs_a_preview_database_name(mocker) -> None:
+    connect, _conn, _events = _gold_connect(mocker)
+    with pytest.raises(PreviewDatabaseError):
+        async with gold_connection({**_PREVIEW_ENV, "DB_NAME": "dashboard"}):
+            pass
+    connect.assert_not_awaited()
+
+
+@pytest.mark.parametrize("missing", ["DB_HOST", "DB_USER", "DB_PASSWORD"])
+async def test_the_gold_connection_needs_every_credential(
+    mocker, missing: str
+) -> None:
+    connect, _conn, _events = _gold_connect(mocker)
+    with pytest.raises(PreviewDatabaseError, match=missing):
+        async with gold_connection({**_PREVIEW_ENV, missing: ""}):
+            pass
+    connect.assert_not_awaited()
+
+
+async def test_the_gold_connection_defaults_the_port(mocker) -> None:
+    env = {k: v for k, v in _PREVIEW_ENV.items() if k != "DB_PORT"}
+    connect, _conn, _events = _gold_connect(mocker)
+    async with gold_connection(env):
+        pass
+    assert connect.await_args is not None
+    assert connect.await_args.kwargs["port"] == 5432
+
+
+@pytest.mark.parametrize(
+    "error",
+    [asyncpg.InvalidCatalogNameError, asyncpg.InsufficientPrivilegeError],
+)
+async def test_a_gold_database_that_cannot_be_read_is_a_refusal(
+    mocker, error: type[Exception]
+) -> None:
+    mocker.patch(
+        "pipeline.preview_run.asyncpg.connect",
+        new=AsyncMock(side_effect=error("no")),
+    )
+    with pytest.raises(PreviewDatabaseError, match="dashboard"):
+        async with gold_connection(_PREVIEW_ENV):
+            pass
+
+
+async def test_the_gold_connection_needs_an_integer_port(mocker) -> None:
+    connect, _conn, _events = _gold_connect(mocker)
+    with pytest.raises(PreviewDatabaseError, match="'not-a-port'"):
+        async with gold_connection({**_PREVIEW_ENV, "DB_PORT": "not-a-port"}):
+            pass
+    connect.assert_not_awaited()

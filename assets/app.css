@@ -1348,6 +1348,133 @@ svg {
   border-color: color-mix(in oklab, var(--svd-nav-ink) 40%, transparent);
 }
 
+/* === REVIEW CONTROL ===
+   The way into the review area, first in the cluster. It is a menu button,
+   not a second Sign out: it carries a glyph and a caret, and the sign-out
+   beside it ends the site's passphrase session, which this never touches.
+   The menu hangs from its right edge, so on a phone it opens leftward over
+   the page rather than past the screen's edge. */
+.review-control {
+  position: relative;
+  display: flex;
+  flex: none;
+}
+
+.review-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--svd-space-2);
+  height: 2.25rem;
+  padding: 0 var(--svd-space-3);
+  border: 1px solid color-mix(in oklab, var(--svd-nav-ink) 34%, transparent);
+  border-radius: var(--svd-radius-xs);
+  background: transparent;
+  color: var(--svd-nav-ink);
+  font: inherit;
+  font-family: var(--svd-font-heading);
+  font-size: var(--svd-text-base);
+  font-weight: var(--svd-weight-semibold);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--svd-transition), border-color
+    var(--svd-transition);
+}
+
+.review-button:hover,
+.review-button:focus-visible {
+  background: color-mix(in oklab, var(--svd-nav-ink) 12%, transparent);
+  border-color: color-mix(in oklab, var(--svd-nav-ink) 40%, transparent);
+}
+
+.review-button[aria-expanded='true'] {
+  background: color-mix(in oklab, var(--svd-nav-ink) 12%, transparent);
+}
+
+/* Disabled only until the island is live: drawn at rest, not greyed. */
+.review-button:disabled {
+  cursor: default;
+}
+
+.review-button .icon {
+  width: 1.1em;
+  height: 1.1em;
+}
+
+.review-button-caret {
+  display: inline-flex;
+}
+
+/* Entered: a dot at the glyph's corner, the adapt link's "recently updated"
+   dot without its pulse. Positioned over the button's padding, so it costs no
+   width and survives the icon-only layout below, where the label that says
+   "Observer" is gone; a shape, not a colour change, tells the states apart. */
+.review-button-marker {
+  position: absolute;
+  top: var(--svd-space-1);
+  right: var(--svd-space-1);
+  width: var(--svd-space-2);
+  height: var(--svd-space-2);
+  border-radius: var(--svd-radius-round);
+  background: var(--svd-nav-flag);
+}
+
+/* At 390px the bar had 62px to spare beside the logo, the toggle and Sign
+   out, and the labelled button is 129px: the label and the caret go, the
+   glyph stays, and the button keeps its name through `aria-label`. */
+@media (max-width: 600px) {
+  .review-button {
+    width: 2.25rem;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .review-button-label,
+  .review-button-caret {
+    display: none;
+  }
+}
+
+/* `hidden` keeps the UA's display: none, since nothing here sets display. */
+.review-menu {
+  position: absolute;
+  top: calc(100% + var(--svd-space-1));
+  right: 0;
+  z-index: var(--svd-z-sticky);
+  min-width: 12rem;
+  margin: 0;
+  padding: var(--svd-space-1);
+  list-style: none;
+  border: 1px solid var(--svd-border);
+  border-radius: var(--svd-radius-sm);
+  background: var(--svd-bg-card);
+  color: var(--svd-text);
+  box-shadow: var(--svd-shadow-md);
+}
+
+.review-menu-item {
+  display: block;
+  width: 100%;
+  padding: var(--svd-space-2) var(--svd-space-3);
+  border: 0;
+  border-radius: var(--svd-radius-xs);
+  background: transparent;
+  color: var(--svd-text);
+  font: inherit;
+  font-size: var(--svd-text-sm);
+  text-align: start;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.review-menu-item:hover,
+.review-menu-item:focus-visible {
+  background: var(--svd-bg-hover-accent);
+  color: var(--svd-text);
+  text-decoration: none;
+}
+
 .nav-link .icon,
 .sidebar-header .icon {
   width: 1.1em;
@@ -1383,6 +1510,7 @@ svg {
 .login-card,
 .map-error,
 .map-container,
+.review-kpi,
 .blueprint-frame {
   position: relative;
   background: var(--svd-tint-base);
@@ -1417,6 +1545,7 @@ svg {
 .login-card::after,
 .map-error::after,
 .map-container::after,
+.review-kpi::after,
 .blueprint-frame::after {
   content: '';
   position: absolute;
@@ -1452,7 +1581,9 @@ svg {
 .pipeline-badge,
 .pipeline-chip,
 .pipeline-count,
-.adapt-pill {
+.adapt-pill,
+.review-badge,
+.review-filter {
   background: color-mix(in oklab, var(--svd-tint) 14%, transparent);
   border: 1px solid color-mix(in oklab, var(--svd-tint) 28%, transparent);
   color: var(--svd-tint-ink);
@@ -1839,6 +1970,9 @@ svg {
 .table-control select,
 .table-control input,
 .pagination button,
+.review-form input,
+.review-form select,
+.review-form textarea,
 .login-form input[type='password'] {
   font-family: inherit;
   font-size: var(--svd-text-base);
@@ -1854,6 +1988,9 @@ svg {
 
 .table-control select:hover,
 .table-control input:hover,
+.review-form input:hover,
+.review-form select:hover,
+.review-form textarea:hover,
 .login-form input[type='password']:hover {
   border-color: var(--svd-text-muted);
 }
@@ -1864,6 +2001,9 @@ svg {
 
 .table-control select:focus-visible,
 .table-control input:focus-visible,
+.review-form input:focus-visible,
+.review-form select:focus-visible,
+.review-form textarea:focus-visible,
 .login-form input[type='password']:focus-visible {
   border-color: var(--svd-color-primary);
 }
@@ -3022,7 +3162,8 @@ svg {
 
 /* The session windows. Native modal dialogs: the browser supplies the top
    layer, the focus trap and Escape, so this is only the box. */
-.adapt-dialog {
+.adapt-dialog,
+.review-dialog {
   width: min(32rem, calc(100vw - 2 * var(--svd-space-4)));
   padding: var(--svd-space-5);
   border: 1px solid var(--svd-border);
@@ -3032,16 +3173,19 @@ svg {
   box-shadow: var(--svd-shadow-md);
 }
 
-.adapt-dialog::backdrop {
+.adapt-dialog::backdrop,
+.review-dialog::backdrop {
   background: color-mix(in oklab, var(--svd-ink) 45%, transparent);
 }
 
-.adapt-dialog-title {
+.adapt-dialog-title,
+.review-dialog-title {
   margin: 0 0 var(--svd-space-3);
   font-size: var(--svd-text-xl);
 }
 
-.adapt-dialog p {
+.adapt-dialog p,
+.review-dialog p {
   margin: 0 0 var(--svd-space-3);
 }
 
@@ -3073,17 +3217,619 @@ svg {
   font-family: var(--svd-font-mono);
 }
 
+/* The account request: a label over each field, in one column. */
+.review-form:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--svd-space-1);
+  margin-bottom: var(--svd-space-3);
+}
+
+.review-form label {
+  margin-top: var(--svd-space-2);
+  font-weight: var(--svd-weight-semibold);
+}
+
+.review-form label:first-child {
+  margin-top: 0;
+}
+
+.review-form textarea {
+  resize: vertical;
+}
+
+/* The demonstration notice is the first thing read: a note, not a panel. */
+.review-dialog .review-demo {
+  padding: var(--svd-space-2) var(--svd-space-3);
+  border-left: 2px solid var(--svd-color-primary);
+  background: color-mix(in oklab, var(--svd-color-primary) 10%, transparent);
+  font-size: var(--svd-text-sm);
+}
+
+/* Kept in the page while empty, so it is a live region before the notice
+   arrives; empty, it has no height and no margin, so it draws no gap. */
+.review-dialog .review-sent:empty {
+  margin: 0;
+}
+
 .adapt-dialog-error {
   margin: 0;
   font-size: var(--svd-text-sm);
   color: var(--svd-danger-text);
 }
 
-.adapt-dialog-actions {
+.adapt-dialog-actions,
+.review-dialog-actions {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: var(--svd-space-2);
+}
+
+/* === REVIEW QUEUE === */
+
+/* The two rows of filter links above the queue: kinds, then standings. They
+   wrap, so a phone stacks them rather than scrolling the page sideways. */
+.review-filter-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--svd-space-3);
+}
+
+.review-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--svd-space-2);
+}
+
+/* A filter is a link drawn as a chip of the shared family, in the accent
+   that marks "this responds to you". The current one is filled one step
+   deeper and says so in `aria-current` as well, so the state is not carried
+   by the wash alone. */
+.review-filter {
+  --svd-tint: var(--svd-color-accent);
+  --svd-tint-ink: var(--svd-color-accent-text);
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--svd-space-2);
+  padding: 2px var(--svd-space-3);
+  border-radius: var(--svd-radius-full);
+  font-size: var(--svd-text-sm);
+  font-weight: var(--svd-weight-medium);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.review-filter:visited {
+  color: var(--svd-tint-ink);
+}
+
+.review-filter:hover,
+.review-filter:focus-visible {
+  background: color-mix(in oklab, var(--svd-tint) 22%, transparent);
+  border-color: color-mix(in oklab, var(--svd-tint) 45%, transparent);
+}
+
+.review-filter[aria-current='true'] {
+  background: color-mix(in oklab, var(--svd-tint) 30%, transparent);
+  border-color: var(--svd-tint);
+  font-weight: var(--svd-weight-semibold);
+}
+
+.review-filter-count {
+  font-family: var(--svd-font-heading);
+  font-variant-numeric: tabular-nums;
+}
+
+.review-queue td.review-kind {
+  white-space: nowrap;
+}
+
+/* The committee column: "N of M" answered over the tally bar. */
+.review-committee {
+  min-width: 7rem;
+}
+
+.review-answered {
+  display: block;
+  font-family: var(--svd-font-heading);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The tally: one segment per answer, each grown by its count (an inline
+   `flex-grow` from components/review/TallyBar.tsx). Its words are its
+   accessible name; the colours repeat them. */
+.review-tally {
+  display: flex;
+  width: 7rem;
+  height: var(--svd-space-2);
+  margin-top: var(--svd-space-1);
+  border: 1px solid var(--svd-border);
+}
+
+.review-tally > span {
+  flex-basis: 0;
+}
+
+.review-tally-accept {
+  background: var(--svd-color-ok);
+}
+
+.review-tally-reject {
+  background: var(--svd-color-danger);
+}
+
+.review-tally-abstain {
+  background: var(--svd-text-muted);
+}
+
+.review-tally-outstanding {
+  background: transparent;
+}
+
+.review-tally-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--svd-space-2) var(--svd-space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--svd-text-sm);
+  color: var(--svd-text-muted);
+}
+
+.review-tally-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--svd-space-2);
+}
+
+.review-tally-swatch {
+  width: var(--svd-space-3);
+  height: var(--svd-space-2);
+  border: 1px solid var(--svd-border);
+}
+
+/* The standing and its flags, as pills that wrap under one another in a
+   narrow cell. */
+.review-badges {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--svd-space-1);
+}
+
+.review-badge {
+  display: inline-flex;
+  padding: 2px var(--svd-space-3);
+  border-radius: var(--svd-radius-full);
+  font-size: var(--svd-text-sm);
+  font-weight: var(--svd-weight-semibold);
+  white-space: nowrap;
+}
+
+/* Each standing re-declares the ink with its own step, as the pipeline's
+   status tints do: the wash is the standing's own hue. Not started and no
+   quorum share the neutral, and their words tell them apart. */
+.review-standing-accepted,
+.review-answer-accept,
+.review-answer-accept_with_edits {
+  --svd-tint: var(--svd-color-ok);
+  --svd-tint-ink: var(--svd-color-ok-ink);
+}
+
+.review-standing-rejected,
+.review-answer-reject {
+  --svd-tint: var(--svd-color-danger);
+  --svd-tint-ink: var(--svd-color-danger-text);
+}
+
+.review-standing-conflict,
+.review-flag-edits {
+  --svd-tint: var(--svd-color-warn);
+  --svd-tint-ink: var(--svd-color-warn-ink);
+}
+
+.review-standing-in_review,
+.review-flag-chair {
+  --svd-tint: var(--svd-color-accent);
+  --svd-tint-ink: var(--svd-color-accent-text);
+}
+
+.review-standing-not_started,
+.review-standing-no_quorum,
+.review-answer-abstain,
+.review-answer-none,
+.review-superseded {
+  --svd-tint: var(--svd-text-muted);
+  --svd-tint-ink: var(--svd-ink);
+}
+
+/* === REVIEW: ONE GENE === */
+
+/* The back link, the gene, then its kind and standing on one wrapping line. */
+.review-back {
+  display: inline-block;
+  margin-bottom: var(--svd-space-2);
+  font-size: var(--svd-text-sm);
+}
+
+.review-gene-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--svd-space-2) var(--svd-space-3);
+  margin-top: var(--svd-space-2);
+}
+
+/* The change and its papers beside the committee and the log; the columns
+   stack once either would fall under 20rem. Each column's floor is 0 so a
+   long value wraps inside it instead of widening the page. */
+.review-gene {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+  gap: var(--svd-space-5);
+  align-items: start;
+}
+
+.review-gene-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--svd-space-5);
+  min-width: 0;
+}
+
+/* The diff: a fixed layout, so a long quote or omics entry wraps inside its
+   column rather than stretching the table past the card. */
+.review-diff {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: var(--svd-text-sm);
+  overflow-wrap: anywhere;
+}
+
+.review-diff th,
+.review-diff td {
+  padding: var(--svd-space-2);
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--svd-border);
+}
+
+.review-diff thead th {
+  color: var(--svd-text-muted);
+  font-family: var(--svd-font-heading);
+  font-size: var(--svd-text-2xs);
+  font-weight: var(--svd-weight-semibold);
+  letter-spacing: var(--svd-tracking-caps);
+  text-transform: uppercase;
+}
+
+.review-diff th.review-diff-label {
+  width: 28%;
+}
+
+.review-diff tbody th {
+  font-weight: var(--svd-weight-semibold);
+}
+
+/* On a phone three columns leave the label a word's width, and a long label
+   broke mid-word. Each row stacks instead: its label across the top, then
+   the gold value beside the value after the run. */
+@media (max-width: 600px) {
+  .review-diff tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    border-bottom: 1px solid var(--svd-border);
+  }
+
+  .review-diff th,
+  .review-diff td {
+    border-bottom: none;
+  }
+
+  .review-diff th.review-diff-label,
+  .review-diff tbody th {
+    grid-column: 1 / -1;
+    width: auto;
+    padding-bottom: 0;
+  }
+}
+
+/* A field the run leaves alone: still in view, one step back. */
+.review-diff-same {
+  color: var(--svd-text-muted);
+}
+
+.review-values,
+.review-edits {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.review-absent {
+  color: var(--svd-text-muted);
+  font-style: italic;
+}
+
+/* Added and removed values. The underline and the strike are the marks; the
+   ink and wash repeat them, so neither depends on colour alone. */
+.review-gene ins {
+  color: var(--svd-color-ok-ink);
+  background: color-mix(in oklab, var(--svd-color-ok) 14%, transparent);
+  text-decoration: underline;
+}
+
+.review-gene del {
+  color: var(--svd-color-danger-text);
+  text-decoration: line-through;
+}
+
+.review-number {
+  font-family: var(--svd-font-heading);
+  font-variant-numeric: tabular-nums;
+}
+
+.review-findings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--svd-space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-wrap: anywhere;
+}
+
+.review-finding + .review-finding {
+  padding-top: var(--svd-space-4);
+  border-top: 1px solid var(--svd-border);
+}
+
+.review-finding-facts {
+  font-size: var(--svd-text-sm);
+  color: var(--svd-text-muted);
+}
+
+/* The paper's own words, as the run's findings panel draws a quote. */
+.review-quote {
+  margin: 0;
+  padding-left: var(--svd-space-2);
+  border-left: 2px solid var(--svd-border);
+  color: var(--svd-text-muted);
+  font-style: italic;
+}
+
+.review-tally-words {
+  margin-bottom: var(--svd-space-1);
+  font-family: var(--svd-font-heading);
+  font-weight: var(--svd-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.review-settles {
+  font-size: var(--svd-text-sm);
+  color: var(--svd-text-muted);
+}
+
+.review-votes {
+  margin: var(--svd-space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.review-votes li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--svd-space-2);
+  padding: var(--svd-space-1) 0;
+  border-bottom: 1px solid var(--svd-border);
+}
+
+.review-role {
+  font-size: var(--svd-text-sm);
+  color: var(--svd-text-muted);
+}
+
+.review-history {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-wrap: anywhere;
+}
+
+.review-event {
+  padding: var(--svd-space-2) 0;
+  border-bottom: 1px solid var(--svd-border);
+}
+
+.review-event-head {
+  margin: 0;
+}
+
+.review-notice p {
+  margin: 0;
+}
+
+.review-notice-run {
+  margin-top: var(--svd-space-1);
+  color: var(--svd-text-muted);
+  font-size: var(--svd-text-sm);
+}
+
+.review-history-time {
+  display: block;
+  font-family: var(--svd-font-heading);
+  font-size: var(--svd-text-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--svd-text-muted);
+}
+
+/* An answer to an earlier version: kept where it happened, one step back,
+   and its badge says why in words. */
+.review-event-stale {
+  color: var(--svd-text-muted);
+}
+
+.review-edits {
+  font-size: var(--svd-text-sm);
+}
+
+.review-edit-field {
+  margin-right: var(--svd-space-1);
+  font-weight: var(--svd-weight-semibold);
+}
+
+.review-edits .review-values {
+  display: inline;
+}
+
+.review-edits .review-values li {
+  display: inline;
+}
+
+.review-edits .review-values li + li::before {
+  content: " ";
+}
+
+.review-reason {
+  margin: var(--svd-space-1) 0 0;
+  font-size: var(--svd-text-sm);
+  color: var(--svd-text-muted);
+}
+
+/* === REVIEW: COMMITTEE PROGRESS === */
+
+/* The four headline figures. Each is a tile of the framed, striped recipe
+   `.value-box` wears, with room for a unit beside the figure and a line
+   under it; they wrap to two, then one, as the page narrows. */
+.review-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: var(--svd-space-4);
+}
+
+.review-kpi {
+  --svd-tint: var(--svd-color-accent);
+  --svd-stripe: inset 4px 0 0 var(--svd-tint);
+  display: flex;
+  flex-direction: column;
+  gap: var(--svd-space-1);
+  min-width: 0;
+  padding: var(--svd-space-4) var(--svd-space-5);
+}
+
+.review-kpi-label {
+  font-family: var(--svd-font-heading);
+  font-size: var(--svd-text-sm);
+  font-weight: var(--svd-weight-semibold);
+  letter-spacing: var(--svd-tracking-caps);
+  text-transform: uppercase;
+  color: var(--svd-text-muted);
+}
+
+.review-kpi-value {
+  font-family: var(--svd-font-heading);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--svd-text-3xl);
+  font-weight: var(--svd-weight-medium);
+  line-height: var(--svd-leading-tight);
+  color: var(--svd-primary);
+}
+
+.review-kpi-unit {
+  margin-left: var(--svd-space-2);
+  font-size: var(--svd-text-base);
+  color: var(--svd-text-muted);
+}
+
+.review-kpi-sub {
+  font-size: var(--svd-text-sm);
+  color: var(--svd-text-muted);
+}
+
+/* One row per kind: its label, its stacked bar, its total. The rows share
+   one grid, so the three bars start and end on the same lines whatever the
+   labels' widths. */
+.review-standing-bars {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr) max-content;
+  align-items: center;
+  gap: var(--svd-space-3) var(--svd-space-4);
+  margin-bottom: var(--svd-space-4);
+}
+
+.review-standing-row {
+  display: contents;
+}
+
+.review-standing-kind {
+  font-size: var(--svd-text-sm);
+}
+
+.review-standing-total {
+  font-family: var(--svd-font-heading);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* A segment per standing, each grown by its count (an inline `flex-grow`
+   from components/review/StandingBars.tsx) and filled with the standing's
+   own tint, the one its badge wears. Not started is hollow, as "not
+   answered yet" is in the tally bar, so it parts from no quorum's neutral
+   by more than the legend's words. */
+.review-standing-bar {
+  display: flex;
+  height: var(--svd-space-3);
+  border: 1px solid var(--svd-border);
+}
+
+.review-standing-bar > span {
+  flex-basis: 0;
+}
+
+.review-standing-bar > span,
+.review-standing-legend .review-tally-swatch {
+  background: var(--svd-tint);
+}
+
+.review-standing-bar > .review-standing-not_started,
+.review-standing-legend .review-tally-swatch.review-standing-not_started {
+  background: transparent;
+}
+
+/* The members: a member's share answered as a thin bar under "N of M", and
+   an observer's row one step back, reading "Read only". */
+.review-members .col-identity,
+.review-role-cell,
+.review-last-active {
+  white-space: nowrap;
+}
+
+.review-member-bar {
+  display: block;
+  width: 7rem;
+  height: var(--svd-space-2);
+  margin-top: var(--svd-space-1);
+  border: 1px solid var(--svd-border);
+}
+
+.review-member-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--svd-color-accent);
+}
+
+.review-read-only {
+  color: var(--svd-text-muted);
+  font-style: italic;
+}
+
+.review-last-active {
+  font-family: var(--svd-font-heading);
+  font-variant-numeric: tabular-nums;
 }
 
 /* The welcome-back screen: what is finished beside what is left. Each panel
@@ -3838,7 +4584,8 @@ button.adapt-card-head:focus-visible {
   gap: var(--svd-space-2);
 }
 
-.adapt-button {
+.adapt-button,
+.review-action {
   font-family: var(--svd-font-heading);
   font-size: var(--svd-text-sm);
   font-weight: var(--svd-weight-semibold);
@@ -3855,11 +4602,14 @@ button.adapt-card-head:focus-visible {
 }
 
 .adapt-button:hover,
-.adapt-button:focus-visible {
+.adapt-button:focus-visible,
+.review-action:hover,
+.review-action:focus-visible {
   border-color: var(--svd-line-strong);
 }
 
-.adapt-button-primary {
+.adapt-button-primary,
+.review-action-primary {
   border-color: var(--svd-color-primary);
   color: var(--svd-color-primary);
 }
@@ -3996,12 +4746,29 @@ button.adapt-card-head:focus-visible {
   }
 
   .navbar-inner {
-    grid-template-columns: 1fr auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     grid-template-rows: auto auto auto;
   }
 
   .navbar-inner > .navbar-brand {
     grid-area: 1 / 1;
+    min-width: 0;
+  }
+
+  /* The logo gives way when the actions leave it too little of the row, as
+     the Review control does at 320px, and never otherwise. The logo's track
+     is what the actions leave (a zero floor, which is safe here because the
+     heading has a row of its own, unlike the mirrored tracks above 1410px),
+     and the logo is capped at that width. Its height is kept, so the bar
+     does not change height, and `contain` draws the mark whole and
+     undistorted, scaled down to the narrower box and set against its start.
+     Where the row has room the box is the logo's own width, as before. Not
+     `height: auto`: a ratio-only SVG then has no width to offer its link,
+     and the logo collapses to nothing. */
+  .navbar-brand .institute-logo {
+    max-width: 100%;
+    object-fit: contain;
+    object-position: left center;
   }
 
   .navbar-inner > .navbar-actions {

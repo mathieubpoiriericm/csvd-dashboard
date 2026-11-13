@@ -89,13 +89,41 @@ Confirm the copy is the gold state: its gene count matches the committed
 `data/table1.json` and `pubmed_refs` is empty.
 
 `--preview --export` at the end of the run, and `deno task data:preview` for a
-re-export without a new run, write `data/pipeline_run.json` from that database
-and nothing else, and skip the lookup-cache refresh. The export refuses when the
-newest run there is not a preview run, or when gold-only is off. The restore
-below leaves a preview run out: `ledger_from_logs` skips its report in
-`logs/json/` and `logs/events.db`, and no `pipeline_runs` row is rebuilt from a
+re-export without a new run, write two files and nothing else, and skip the
+lookup-cache refresh: `data/pipeline_run.json`, the preview run's report, and
+`data/review_round.json`, the round the review committee reads -- one change per
+gene the run inserted or altered, diffed against the gold database. Gold is read
+through a connection of its own inside a read-only transaction
+(`gold_connection` in `pipeline/preview_run.py`), with the preview's
+credentials, and is never written. The two files are staged together and
+published in one atomic step, so a refusal publishes neither. The export refuses
+when gold-only is off and when the newest run there is not a preview run, and
+the round (`pipeline/export/review_round.py`) refuses in five more cases:
+
+| `Preview export refused: …`                                         | What it means                                                                                   |
+| ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `the preview database holds N preview runs`                         | a retry or a second run was recorded there, so the report cannot say which rows are its own     |
+| `the run report lists S of T accepted genes`                        | the report capped its accepted findings below their total, and a change would go unexplained    |
+| `gold gene G is missing from the preview`                           | a gold row is absent from the preview, which a run never does (a run deletes nothing)           |
+| `no finding explains the change to G`                               | a preview row differs from gold with no accepted finding behind it: something else wrote it     |
+| `the preview's G lacks [...] of gold's F: a run never removes …`    | gold was curated after the preview was copied from it, on a row the run also touched            |
+
+Each means the preview database is no longer gold plus one preview run. Do not
+work around it: recreate the preview database from production as above
+(`pg_restore --clean`), confirm it is the gold state, and run the preview again.
+The first two are checked before gold is read. The restore below leaves a
+preview run out: `ledger_from_logs` skips its report in `logs/json/` and
+`logs/events.db`, and no `pipeline_runs` row is rebuilt from a
 `data/pipeline_run.json` whose `runMode` is `preview`, so a restored production
 database never treats the preview's papers as processed.
+
+**A committed round goes stale when gold is curated.**
+`tests/review_round_run_test.ts` checks that every change's gold row equals the
+committed `data/table1.json` row and that no new gene is in it; after a curation
+edit it fails. Two remedies: write `null` to `data/review_round.json`
+(`deno task data:empty` shows the form) and commit it, or rebuild the preview
+database from gold, make a new preview run, and export it with
+`deno task data:preview`.
 
 ## Two databases, and they are not interchangeable
 

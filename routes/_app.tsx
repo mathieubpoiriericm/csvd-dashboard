@@ -5,10 +5,14 @@ import { asset } from "fresh/runtime";
 import { define } from "../utils.ts";
 import { Icon } from "../components/Icon.tsx";
 import { InstituteLogo } from "../components/InstituteLogo.tsx";
+import ReviewMenu from "../islands/ReviewMenu.tsx";
 import ThemeToggle from "../islands/ThemeToggle.tsx";
 import { LOGIN_PATH, LOGOUT_PATH } from "../lib/auth.ts";
 import { SITE_TITLE, TABS } from "../lib/constants.ts";
 import { HEADING, INSTITUTE, META_DESCRIPTION } from "../lib/disease/site.ts";
+import { observerEntered } from "../lib/review/access_request.ts";
+import { REVIEW } from "../lib/review/current.ts";
+import type { ReviewState } from "../lib/review/summary.ts";
 import { THEME_STORAGE_KEY } from "../lib/theme.ts";
 
 // Vite resolves the same assets as CSS in both build environments. Plain Deno
@@ -56,10 +60,10 @@ function isActiveTab(pathname: string, href: string): boolean {
 const ADAPT_PATH = "/adapt";
 
 /** Pages that are not tabs but still deserve a title of their own. */
-const UNTABBED_TITLES: ReadonlyArray<[string, string]> = [[
-  ADAPT_PATH,
-  "Adapt",
-]];
+const UNTABBED_TITLES: ReadonlyArray<[string, string]> = [
+  [ADAPT_PATH, "Adapt"],
+  ["/review", "Review"],
+];
 
 /*
  * The adapt link's description: shown under it on hover and keyboard focus,
@@ -70,8 +74,24 @@ const ADAPT_TIP_ID = "nav-adapt-tip";
 const ADAPT_TIP =
   "Recently updated. A step-by-step guide to building this dashboard for your disease of interest: answer nine questions, have them checked against PubMed, the ontology services and ClinicalTrials.gov, and download the folder for a fork.";
 
-function pageTitle(pathname: string): string {
+/**
+ * The browser title of a page. A gene's review page leads with the gene, so
+ * its tabs and history entries tell genes apart, but only for a gene the
+ * review holds: an unknown `?g=` is a 404 and keeps the plain title, so
+ * nothing arbitrary from the URL is echoed into the page.
+ */
+export function pageTitle(
+  pathname: string,
+  params: URLSearchParams = new URLSearchParams(),
+  review: ReviewState | null = null,
+): string {
   if (pathname === LOGIN_PATH) return `Sign in | ${SITE_TITLE}`;
+  if (pathname === "/review/gene") {
+    const gene = params.get("g");
+    if (review?.round.changes.some((c) => c.gene === gene)) {
+      return `${gene} | Review | ${SITE_TITLE}`;
+    }
+  }
   const tab = TABS.find(({ href }) => isActiveTab(pathname, href));
   if (tab) return `${tab.label} | ${SITE_TITLE}`;
   const untabbed = UNTABBED_TITLES.find(([href]) =>
@@ -80,7 +100,19 @@ function pageTitle(pathname: string): string {
   return untabbed ? `${untabbed[1]} | ${SITE_TITLE}` : SITE_TITLE;
 }
 
-export default define.page(function App({ Component, url, state }) {
+/**
+ * The navbar's way into the review area, drawn only while a review exists.
+ * The shell calls it with `REVIEW !== null`; apart so that both branches are
+ * tested whichever the committed data holds. The island holds no data, only
+ * whether the visitor is in the area already.
+ */
+export function ReviewControl(
+  { available, entered }: { available: boolean; entered: boolean },
+) {
+  return available ? <ReviewMenu entered={entered} /> : null;
+}
+
+export default define.page(function App({ Component, url, state, req }) {
   const year = new Date().getFullYear();
   // The login page is a bare sheet: the tabs would only bounce back to it.
   const login = url.pathname === LOGIN_PATH;
@@ -90,7 +122,7 @@ export default define.page(function App({ Component, url, state }) {
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>{pageTitle(url.pathname)}</title>
+        <title>{pageTitle(url.pathname, url.searchParams, REVIEW)}</title>
         <meta
           name="description"
           content={META_DESCRIPTION}
@@ -247,6 +279,13 @@ export default define.page(function App({ Component, url, state }) {
                 />
 
                 <div class="navbar-actions">
+                  <ReviewControl
+                    available={REVIEW !== null}
+                    entered={observerEntered(
+                      req?.headers ?? new Headers(),
+                      url.pathname,
+                    )}
+                  />
                   <ThemeToggle />
                   {state?.authenticated && (
                     <form method="post" action={LOGOUT_PATH}>
