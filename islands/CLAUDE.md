@@ -103,9 +103,14 @@ switching on shows the widget directly beneath it, marked "Technical preview",
 and writes the cookie `pipeline_preview=1` (one year, `Path=/`, `SameSite=Lax`),
 which `routes/index.tsx` reads (`previewRequested`,
 `lib/pipeline_preview_request.ts`, kept apart so no `@std` import reaches the
-island's bundle) so the next visit renders it already open. With no report the
-notice is the plain line, drawn by the route with no island at all, and the
-widget's own e2e specs skip while `GOLD_ONLY` is on.
+island's bundle) so the next visit renders it already open. **The route renews
+the cookie it honours**: its `GET` handler sends the same assignment back as
+`Set-Cookie` (`previewRenewal`) to a visitor whose cookie is on, because WebKit
+caps a cookie written from script at seven days and one the server sets keeps
+its year. It is not `HttpOnly`, so the switch still clears it, and a request
+without the cookie gets none. With no report the notice is the plain line, drawn
+by the route with no island at all, and the widget's own e2e specs skip while
+`GOLD_ONLY` is on.
 
 **The switch holds no data, and must not import any.** It is on the page for
 every gold-only visitor, and the run report is a protected chunk that is never
@@ -132,8 +137,10 @@ It has two readers. A visiting researcher wants to know whether the data is
 fresh and can be trusted; the maintainer wants to know how the run went. So the
 card is a **verdict over a ledger**: when the run was and whether it completed,
 three figures (papers read, genes written, source quotes verified), then one row
-per step saying what came out of it. Everything else the run recorded is behind
-**Run details**, a dialog.
+per step saying what came out of it. "Papers read" is the papers that had text
+(`processed` less `noTextAvailable`, which the pipeline counts as processed so
+they are not fetched again), so the figure is the sum of its own breakdown.
+Everything else the run recorded is behind **Run details**, a dialog.
 
 The pipeline half is in `.claude/rules/pipeline/run-reporting.md`. On this side:
 
@@ -150,6 +157,8 @@ The pipeline half is in `.claude/rules/pipeline/run-reporting.md`. On this side:
   load-bearing: `formatDuration` prints milliseconds under a second, because a
   step that took 40 ms and one that took 0.9 s are different facts; and it never
   emits `"2m 60s"`, which is what rounding 179.6 the obvious way produces.
+  `formatPercent` says "0%" and "100%" only for none and all, as the review
+  pages' `percent` does.
 - **Every decision is a function in `lib/`, and the components render what it
   returns.** `lib/pipeline_ledger.ts` decides the card (what a step's row says,
   which warnings need a look, the verdict figures, the failed-run note) and
@@ -277,8 +286,9 @@ The pipeline half is in `.claude/rules/pipeline/run-reporting.md`. On this side:
 - **Papers and Services are tables**, with their roles spelled out because the
   phone layout changes their `display`. The run's own notes about its fallback
   model and its unread papers stand above the Papers table, once (`paperNotes`);
-  a row says "Primary", "Fallback" or "Not read", and who declined it as plain
-  text. Nothing in a table is a pill. A cell is never addressed by
+  a row says "Primary", "Fallback" or "Not read" (a paper that errored, or one
+  no text was retrieved for: no model ran on either), and who declined it as
+  plain text. Nothing in a table is a pill. A cell is never addressed by
   `:first-child` (see `.col-identity`); the first cell carries `is-lead`.
   `paperSources` in the encoding is where `PaperResult.source` becomes words,
   and `tests/pipeline_encoding_test.ts` reads the literals out of
@@ -286,7 +296,10 @@ The pipeline half is in `.claude/rules/pipeline/run-reporting.md`. On this side:
 - **Setup holds the method and the usage**: mode, model and effort (and "Batch
   API" when `config.batch === true`), fallback model, prompt version with the
   disease and the whole hash, the two floors; duration, tokens, the two quote
-  numbers. The estimated cost is published and not shown.
+  numbers. The work under the duration is the papers' own times summed, and is
+  left out when none was timed or the run was a batch one, whose sum holds only
+  the papers its fallback rescued. The estimated cost is published and not
+  shown.
 - Detail lists are capped at 200 by the exporter and the UI states the
   truncation. `lib/data/pipeline_run.ts` recomputes `shown` from the items
   actually present rather than trusting the file, so a count that disagrees with

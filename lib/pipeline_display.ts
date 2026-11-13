@@ -273,9 +273,16 @@ export function describeSourceCounts(source: SyncSource): string {
   return parts.length > 0 ? parts.join(" · ") : "nothing to do";
 }
 
-/** A percentage, for the cache hit rate. */
+/**
+ * A percentage, for the cache hit rate. Only none reads "0%" and only all
+ * "100%": a fraction between the two is at least 1% and at most 99%, as
+ * the review pages' `percent` has it.
+ */
 export function formatPercent(fraction: number): string {
-  return Number.isFinite(fraction) ? `${Math.round(fraction * 100)}%` : "—";
+  if (!Number.isFinite(fraction)) return "—";
+  const rounded = Math.round(fraction * 100);
+  const below = fraction < 1 ? Math.min(rounded, 99) : rounded;
+  return `${fraction > 0 ? Math.max(below, 1) : below}%`;
 }
 
 /**

@@ -164,6 +164,15 @@ Deno.test("formatPercent rounds to whole points", () => {
   assertEquals(formatPercent(Number.NaN), "—");
 });
 
+Deno.test("formatPercent says none or all only when it is none or all", () => {
+  // "0% of input served from cache" over a run that read its cache, and
+  // "100%" over one that did not read all of it, are both false.
+  assertEquals(formatPercent(0), "0%");
+  assertEquals(formatPercent(0.004), "1%");
+  assertEquals(formatPercent(0.996), "99%");
+  assertEquals(formatPercent(1), "100%");
+});
+
 Deno.test("formatRunTimestamp states UTC rather than converting", () => {
   // Every pipeline timestamp is UTC; a reader comparing this against a
   // log line needs them to be the same clock.
