@@ -46,7 +46,7 @@ from pipeline.database import (
     upsert_pubmed_citations_batch,
 )
 from pipeline.export.lookups import read_pipeline_run, read_pipeline_status
-from pipeline.export.review_round import read_review_round
+from pipeline.export.review_round import ROUND_FILE, read_review_round
 from pipeline.preview_run import gold_connection, preview_database_name
 from pipeline.pubmed_citations import PubMedCitation
 from pipeline.run_errors import RunError
@@ -339,7 +339,11 @@ async def test_export_after_a_run_publishes_from_the_live_pool(
         # rows are never deleted, so an empty read means no refresh has
         # been recorded and `[]` is the true answer.
         "pipeline_syncs.json",
+        # Gold-only is off in this test, and an ordinary export then clears
+        # the review round: there is no review to show without it.
+        ROUND_FILE,
     }
+    assert json.loads((published / ROUND_FILE).read_text()) is None
     # Real writer output, not a stand-in: no test inserts a gene, so the
     # published table is the empty array the writer produces.
     assert json.loads((published / "table1.json").read_text()) == []
