@@ -45,6 +45,75 @@ async function openRequest(page: Page) {
   return dialog;
 }
 
+interface LogoGeometry {
+  left: number;
+  width: number;
+  height: number;
+  /** The viewport's width, less any scrollbar. */
+  client: number;
+  objectFit: string;
+  /** The image's own width over height: its SVG viewBox, else its pixels. */
+  ratio: number;
+}
+
+/** The navbar logo's box, and the ratio its file is drawn at. */
+function logoGeometry(page: Page): Promise<LogoGeometry> {
+  return page.locator(".navbar .institute-logo").evaluate(
+    async (node) => {
+      const img = node as HTMLImageElement;
+      await img.decode();
+      const box = img.getBoundingClientRect();
+      const source = await (await fetch(img.currentSrc)).text();
+      const viewBox = new DOMParser().parseFromString(source, "image/svg+xml")
+        .documentElement.getAttribute("viewBox")?.trim().split(/[\s,]+/)
+        .map(Number);
+      return {
+        left: box.left,
+        width: box.width,
+        height: box.height,
+        client: document.documentElement.clientWidth,
+        objectFit: getComputedStyle(img).objectFit,
+        ratio: viewBox?.length === 4
+          ? viewBox[2] / viewBox[3]
+          : img.naturalWidth / img.naturalHeight,
+      };
+    },
+  );
+}
+
+/**
+ * The navbar logo is whole, in the viewport and undistorted. Below the
+ * width its row needs it gives way: its box narrows and `contain` draws the
+ * mark scaled down inside it, so the drawn mark keeps the file's ratio
+ * whatever the box's. At 390px it is the size its band gives it where there
+ * is room to spare (`roomy`, at 600px): smaller than at 1280px, which is the
+ * band above with a taller logo, but never squeezed.
+ */
+async function expectLogoWhole(
+  page: Page,
+  at390: LogoGeometry,
+  roomy: LogoGeometry,
+) {
+  expect(at390.width).toBeCloseTo(roomy.width, 1);
+  expect(at390.height).toBeCloseTo(roomy.height, 1);
+  expect(at390.width / at390.height).toBeCloseTo(at390.ratio, 2);
+
+  const logo = await logoGeometry(page);
+  expect(logo.left).toBeGreaterThanOrEqual(0);
+  expect(logo.left + logo.width).toBeLessThanOrEqual(logo.client);
+  expect(logo.width).toBeLessThanOrEqual(at390.width + 0.01);
+  expect(logo.height).toBeCloseTo(at390.height, 1);
+  if (logo.width / logo.height < logo.ratio - 0.01) {
+    // A narrowed box: only `contain` draws the file at its own ratio in it
+    // (the default, `fill`, would stretch it to the box), as the largest
+    // box of that ratio that fits, here the box's whole width.
+    expect(logo.objectFit).toBe("contain");
+    expect(logo.width).toBeGreaterThan(logo.height);
+  } else {
+    expect(logo.width / logo.height).toBeCloseTo(logo.ratio, 2);
+  }
+}
+
 /** What the request test types: recognisable, so a leak is found by value. */
 const TYPED = {
   "Full name": "Typed Name 7f3a",
@@ -194,14 +263,18 @@ test.describe("with a review round", () => {
     expect(requests).toEqual([]);
     await expect(page).toHaveURL("/");
 
-    const stored = await page.evaluate(() => {
+    // Cookies from the context, not document.cookie: an HttpOnly one counts.
+    const cookies = (await page.context().cookies())
+      .map((c) => `${c.name}=${c.value}`).join(";");
+    const storages = await page.evaluate(() => {
       const all = (s: Storage) =>
         Array.from({ length: s.length }, (_, i) => {
           const key = s.key(i)!;
           return `${key}=${s.getItem(key)}`;
         }).join(";");
-      return [document.cookie, all(localStorage), all(sessionStorage)];
+      return [all(localStorage), all(sessionStorage)];
     });
+    const stored = [cookies, ...storages];
     for (const value of Object.values(TYPED)) {
       for (const place of stored) expect(place).not.toContain(value);
     }
@@ -250,7 +323,15 @@ test.describe("with a review round", () => {
   for (const width of [390, 320]) {
     test(`no review page scrolls sideways on a ${width}px phone`, async ({ page }) => {
       const copy = REVIEW!.copy;
+      // The logo where its band has room to spare, then at this width.
+      await page.goto("/");
+      await page.setViewportSize({ width: 600, height: 844 });
+      const roomy = await logoGeometry(page);
+      await page.setViewportSize({ width: 390, height: 844 });
+      const at390 = await logoGeometry(page);
       await page.setViewportSize({ width, height: 844 });
+      await expectLogoWhole(page, at390, roomy);
+
       const noSidewaysScroll = async (where: string) => {
         const [scroll, client] = await page.evaluate(() => [
           document.documentElement.scrollWidth,
@@ -263,6 +344,7 @@ test.describe("with a review round", () => {
         await page.goto(path);
         await expect(page.locator("main")).toBeVisible();
         await noSidewaysScroll(path);
+        await expectLogoWhole(page, at390, roomy);
       }
 
       // The open menu, entered: the area's page links and Leave review.
@@ -275,6 +357,7 @@ test.describe("with a review round", () => {
 
       // The open menu signed out, then the request dialog.
       await noSidewaysScroll("signed out of the review");
+      await expectLogoWhole(page, at390, roomy);
       await controlOut(page).click();
       await expect(page.getByRole("menuitem", { name: copy.MENU_REQUEST }))
         .toBeVisible();

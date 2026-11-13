@@ -558,7 +558,11 @@ chunk reaches a protected one.
   one subscribed a frame late and missed a press that quick.
 - **Below 600px the button is its glyph alone**, named by `aria-label`. At 390px
   the bar had 62px to spare beside the logo, the toggle and Sign out, and the
-  labelled button is 129px. With the glyph the top row is 346px, so below that
-  the bar's gutters give way (`.navbar-inner:has(.review-control)` in the 600px
-  block of `assets/app.css`): 20px from 346px up, 7px at 320px, where the bar
-  fits without scrolling sideways. Without the control the gutters never change.
+  labelled button is 129px. At 320px even the glyph leaves the logo less than
+  its width, and the logo gives way: below 1410px its grid track is what the
+  actions leave, the logo is capped at it, and `object-fit: contain` draws the
+  mark scaled down and undistorted in the narrower box
+  (`.navbar-brand
+  .institute-logo` in `assets/app.css`). Nothing in that rule
+  knows the logo's or the buttons' sizes, so where the row has room, with or
+  without the control, the logo is its full size and the bar is unchanged.

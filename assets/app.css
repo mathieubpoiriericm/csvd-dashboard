@@ -4721,12 +4721,29 @@ button.adapt-card-head:focus-visible {
   }
 
   .navbar-inner {
-    grid-template-columns: 1fr auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     grid-template-rows: auto auto auto;
   }
 
   .navbar-inner > .navbar-brand {
     grid-area: 1 / 1;
+    min-width: 0;
+  }
+
+  /* The logo gives way when the actions leave it too little of the row, as
+     the Review control does at 320px, and never otherwise. The logo's track
+     is what the actions leave (a zero floor, which is safe here because the
+     heading has a row of its own, unlike the mirrored tracks above 1410px),
+     and the logo is capped at that width. Its height is kept, so the bar
+     does not change height, and `contain` draws the mark whole and
+     undistorted, scaled down to the narrower box and set against its start.
+     Where the row has room the box is the logo's own width, as before. Not
+     `height: auto`: a ratio-only SVG then has no width to offer its link,
+     and the logo collapses to nothing. */
+  .navbar-brand .institute-logo {
+    max-width: 100%;
+    object-fit: contain;
+    object-position: left center;
   }
 
   .navbar-inner > .navbar-actions {
@@ -4829,25 +4846,6 @@ button.adapt-card-head:focus-visible {
 
   .navbar-inner {
     gap: var(--svd-space-2) var(--svd-space-3);
-  }
-
-  /* With the Review control, the top row's content is 306px wide: the 140px
-     logo, the 12px column gap above and the 154px action cluster (the
-     control's 36px glyph, the 36px theme toggle, the 66px Sign out and two
-     8px gaps). With the 20px gutters that is 346px, so at 320px the cluster
-     ran 6px past the screen. The gutters give way instead, and only there:
-     half the bar less half the row is 20px or more from 346px up, so every
-     wider phone keeps the gutters it had, and at 320px each is 7px. A
-     percentage, not vw, so a classic scrollbar cannot push the row back
-     out. Fluid rather than one more breakpoint: the set is closed and its
-     narrowest, 480px, holds the 390px phones whose bar must not change.
-     Only with the control: without it the row is 262px and already fits. */
-  .navbar-inner:has(.review-control) {
-    padding-inline: clamp(
-      var(--svd-space-1),
-      calc(50% - 153px),
-      var(--svd-space-5)
-    );
   }
 
   .institute-logo {
