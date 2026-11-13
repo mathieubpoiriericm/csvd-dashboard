@@ -45,7 +45,8 @@ working tree**: nothing is committed, because the curated `genes` table is a
 scientific judgement and the e2e fixtures pin exact row counts. When it runs, is
 refused or skipped, and the lookup-cache refresh before it, are in the
 `regenerate-data` skill. While `GOLD_ONLY` is true an ordinary export leaves the
-committed `data/pipeline_run.json` alone.
+committed `data/pipeline_run.json` and `data/review_round.json` alone; while it
+is false it writes the round `null`, as there is no review to show.
 
 **While `GOLD_ONLY` is true, `pipeline.main` refuses `--pubmed` and
 `--clinical-trials` except as `--pubmed --preview`**, a preview _run_ (not the
@@ -54,11 +55,12 @@ production an admin creates empty and the pipeline never creates. It is recorded
 as run mode `preview`, and `--preview --export` or `deno task data:preview`
 writes two files, published together or not at all: `data/pipeline_run.json`,
 which the About page offers behind a switch, and `data/review_round.json`, the
-review round, diffed against the gold database it reads read-only. It refuses
-unless the preview database is gold plus exactly one preview run; the four
-refusals and the remedy are in `regenerate-data`. A restore skips a preview
-run's report. The `run-long-window` skill has the run and `regenerate-data` the
-database.
+review round, diffed against the gold database it reads read-only. It checks
+that the preview database holds exactly one preview run, that the run's findings
+list is uncapped, that every gold gene is present, that every change is
+explained by a finding, and that no list value was removed; the five refusals
+and the remedy are in `regenerate-data`. A restore skips a preview run's report.
+The `run-long-window` skill has the run and `regenerate-data` the database.
 
 Tests never touch the production database: `tests/pipeline/conftest.py` empties
 the `DB_*` credentials (so `load_dotenv` cannot refill them from `.env`) and
@@ -211,7 +213,10 @@ the tests that exercise the complete boundary. Consequences worth remembering:
   report, exactly as `data/pipeline_status.json` was. Both states are covered;
   the About page falls back to the summary card for the null one.
 - **`data/review_round.json` is `null` until a preview export writes it**, and
-  `deno task data:empty` writes it `null`.
+  `deno task data:empty` and an ordinary export with `GOLD_ONLY` off write it
+  `null`. A committed round must match the committed gold genes:
+  `tests/review_round_run_test.ts` fails when a curation edit leaves it stale,
+  and the `regenerate-data` skill has the two remedies.
 - **`data/pipeline_syncs.json` is the reference-data refreshes**, one entry per
   sync mode, committed as `[]` until one is recorded — a separate file and table
   from the runs, so nothing feeding the run widget or the About page's date can

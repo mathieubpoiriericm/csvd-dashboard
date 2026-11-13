@@ -74,6 +74,11 @@ Deno.test("the checklist substitutes the key into every command and lists the gu
     "deno task screenshots",
     "run the checks again",
   ]);
+  // The three review screenshots cannot be retaken: a fork has no review area.
+  assertStringIncludes(
+    text,
+    "Your fork has no review area, so delete the three `docs/screenshots/review-*.webp` and their rows in the README",
+  );
   // The upstream recall cassettes would be replayed in place of this
   // disease's recording, so they go with the test trees.
   assertStringIncludes(

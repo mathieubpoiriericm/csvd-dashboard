@@ -556,13 +556,14 @@ chunk reaches a protected one.
   (`useEscapeKey`, focus back to the button), on Tab and on a press outside. The
   outside-press listener and both focus moves run in layout effects: a passive
   one subscribed a frame late and missed a press that quick.
-- **Below 600px the button is its glyph alone**, named by `aria-label`. At 390px
-  the bar had 62px to spare beside the logo, the toggle and Sign out, and the
-  labelled button is 129px. At 320px even the glyph leaves the logo less than
-  its width, and the logo gives way: below 1410px its grid track is what the
-  actions leave, the logo is capped at it, and `object-fit: contain` draws the
-  mark scaled down and undistorted in the narrower box
-  (`.navbar-brand
-  .institute-logo` in `assets/app.css`). Nothing in that rule
+- **Below 600px the button is its glyph alone**, named by `aria-label`; entered,
+  a dot on the glyph's corner (`.review-button-marker`, positioned over the
+  padding so it costs no width) is what tells it from the signed-out control. At
+  390px the bar had 62px to spare beside the logo, the toggle and Sign out, and
+  the labelled button is 129px. At 320px even the glyph leaves the logo less
+  than its width, and the logo gives way: below 1410px its grid track is what
+  the actions leave, the logo is capped at it, and `object-fit: contain` draws
+  the mark scaled down and undistorted in the narrower box
+  (`.navbar-brand .institute-logo` in `assets/app.css`). Nothing in that rule
   knows the logo's or the buttons' sizes, so where the row has room, with or
   without the control, the logo is its full size and the bar is unchanged.
