@@ -21,7 +21,7 @@ when a task spans topics or touches a module none of them names.
 | `retrieval`       | the recall harness, the `edat` window, PMC papers with no genes                                                                                                  |
 | `not-proven`      | what the recall tests pin and what they can't, the two confidence floors                                                                                         |
 | `clinical-trials` | the condition gate, retries, curator-owned columns, the population re-curation                                                                                   |
-| `gene-merge`      | quote and confidence written as one pair, placeholders on newly admitted genes                                                                                   |
+| `gene-merge`      | quote and confidence written as one pair, placeholders on newly admitted genes, a stored protein never replaced                                                  |
 | `database-tests`  | test isolation from production credentials, `database_env`, `CSVD_TEST_DB_URL`, one database per xdist worker                                                    |
 | `long-windows`    | the preview flags, the token reservation, the pointer to `run-long-window`                                                                                       |
 | `migrations`      | revision 009's collision, Alembic rather than Atlas                                                                                                              |

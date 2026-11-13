@@ -254,6 +254,12 @@ async def merge_genes_transactional(
     If any operation fails, the entire batch is rolled back, preventing
     inconsistent state from partial writes.
 
+    Both branches write ``protein`` only where the stored value is NULL or
+    empty, and never replace a stored one -- not even one equal to the gene
+    symbol. The curated table names most proteins by their symbol on
+    purpose, and the 12 Nov 2026 preview run, under the rule that read a
+    symbol as a placeholder, rewrote 20 of them.
+
     Args:
         to_insert: List of gene data dictionaries to insert.
         to_update: List of gene data dictionaries to update.
@@ -274,10 +280,12 @@ async def merge_genes_transactional(
                         brain_cell_types, affected_pathway, source_quote, confidence
                     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
                     ON CONFLICT (gene) DO UPDATE SET
+                        -- A stored protein is never replaced, the gene's
+                        -- own symbol included: the curated table names
+                        -- most proteins by their symbol on purpose.
                         protein = CASE
                             WHEN genes.protein IS NULL
                               OR genes.protein = ''
-                              OR genes.protein = genes.gene
                             THEN COALESCE(NULLIF(EXCLUDED.protein, ''), genes.protein)
                             ELSE genes.protein
                         END,
@@ -354,8 +362,10 @@ async def merge_genes_transactional(
             await conn.executemany(
                 """
                     UPDATE genes SET
+                        -- As in the ON CONFLICT branch: only an absent
+                        -- protein is filled.
                         protein = CASE
-                            WHEN protein IS NULL OR protein = '' OR protein = gene
+                            WHEN protein IS NULL OR protein = ''
                             THEN COALESCE(NULLIF($1::text, ''), protein)
                             ELSE protein
                         END,

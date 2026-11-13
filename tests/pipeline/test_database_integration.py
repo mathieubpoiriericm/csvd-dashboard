@@ -656,6 +656,66 @@ async def test_a_score_without_a_quote_is_never_stored_alone(scratch_gene) -> No
 
     assert await _provenance() == (None, None)
 
+
+async def _stored_protein() -> str | None:
+    async with Database.connection() as conn:
+        return await conn.fetchval(
+            "SELECT protein FROM genes WHERE UPPER(gene) = $1", _MERGE_GENE
+        )
+
+
+async def _set_stored_protein(value: str | None) -> None:
+    async with Database.connection() as conn:
+        await conn.execute(
+            "UPDATE genes SET protein = $1 WHERE UPPER(gene) = $2", value, _MERGE_GENE
+        )
+
+
+async def test_a_new_gene_is_inserted_with_its_protein(scratch_gene) -> None:
+    await merge_genes_transactional([_gene_row(protein="Extracted protein")], [])
+
+    assert await _stored_protein() == "Extracted protein"
+
+
+@pytest.mark.parametrize("branch", ["update", "on_conflict"])
+@pytest.mark.parametrize("stored", [_MERGE_GENE, "Curated protein"])
+async def test_a_run_never_replaces_a_stored_protein(
+    scratch_gene, branch: str, stored: str
+) -> None:
+    """A stored protein is kept, the gene's own symbol included.
+
+    The curated gold table names most proteins by their symbol on purpose,
+    and the 12 Nov 2026 preview run rewrote 20 of them when the merge still
+    read a symbol as a placeholder.
+    """
+    await merge_genes_transactional([_gene_row(protein=stored)], [])
+    assert await _stored_protein() == stored
+
+    row = _gene_row(protein="Extracted protein")
+    if branch == "update":
+        await merge_genes_transactional([], [row])
+    else:
+        await merge_genes_transactional([row], [])
+
+    assert await _stored_protein() == stored
+
+
+@pytest.mark.parametrize("branch", ["update", "on_conflict"])
+@pytest.mark.parametrize("stored", [None, ""])
+async def test_a_run_fills_an_absent_protein(
+    scratch_gene, branch: str, stored: str | None
+) -> None:
+    await merge_genes_transactional([_gene_row()], [])
+    await _set_stored_protein(stored)
+
+    row = _gene_row(protein="Extracted protein")
+    if branch == "update":
+        await merge_genes_transactional([], [row])
+    else:
+        await merge_genes_transactional([row], [])
+
+    assert await _stored_protein() == "Extracted protein"
+
 # The clinical-trials upsert, against real SQL
 # ---------------------------------------------------------------------------
 
