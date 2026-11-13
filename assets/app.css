@@ -1406,10 +1406,13 @@ svg {
 }
 
 /* Entered: a dot at the glyph's corner, the adapt link's "recently updated"
-   dot without its pulse. Positioned over the button's padding, so it costs no
-   width and survives the icon-only layout below, where the label that says
-   "Observer" is gone; a shape, not a colour change, tells the states apart. */
+   dot without its pulse. Drawn only in the icon-only layout below, where the
+   label that says "Observer" is gone; above it the label says so, and the
+   same amber dot beside it read as a notification. Positioned over the
+   button's padding, so it costs no width; a shape, not a colour change, tells
+   the states apart. */
 .review-button-marker {
+  display: none;
   position: absolute;
   top: var(--svd-space-1);
   right: var(--svd-space-1);
@@ -1432,6 +1435,10 @@ svg {
   .review-button-label,
   .review-button-caret {
     display: none;
+  }
+
+  .review-button-marker {
+    display: block;
   }
 }
 
