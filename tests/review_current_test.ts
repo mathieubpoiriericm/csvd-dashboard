@@ -13,6 +13,12 @@ Deno.test("there is a review only under gold-only with a round", () => {
   assertEquals(currentReview(true, sampleRound(3))?.reviews.length, 3);
 });
 
+Deno.test("only an open round is shown", () => {
+  for (const state of ["promoted", "closed"] as const) {
+    assertEquals(currentReview(true, { ...sampleRound(3), state }), null);
+  }
+});
+
 Deno.test("the current review is the simulated committee's state", () => {
   const round = sampleRound(5);
   assertEquals(

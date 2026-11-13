@@ -10,12 +10,15 @@ import { reviewState } from "./summary.ts";
 import type { ReviewState } from "./summary.ts";
 import { ACCOUNTS, simulate } from "./simulate.ts";
 
-/** There is a review only while gold-only holds and a round exists. */
+/**
+ * There is a review only while gold-only holds and an open round exists:
+ * stage 1 has no page for a promoted or closed round.
+ */
 export function currentReview(
   goldOnly: boolean,
   round: ReviewRound | null,
 ): ReviewState | null {
-  if (!goldOnly || round === null) return null;
+  if (!goldOnly || round === null || round.state !== "open") return null;
   return reviewState(round, ACCOUNTS, simulate(round));
 }
 

@@ -97,11 +97,19 @@ function memberProgress(
   return progress;
 }
 
+/**
+ * The state of one round. Answers belong to the round they were given in: a
+ * log that outlives a round holds the same gene and version in the next, so
+ * the events are filtered to this round before anything counts them, and
+ * `reviewGene`, which matches on gene and version, only ever sees this
+ * round's.
+ */
 export function reviewState(
   round: ReviewRound,
   accounts: readonly Account[],
-  events: readonly ReviewEvent[],
+  log: readonly ReviewEvent[],
 ): ReviewState {
+  const events = log.filter((e) => e.roundId === round.id);
   const reviews = round.changes.map((c) => reviewGene(c, accounts, events));
   const total = reviews.length;
   const count = (standing: Standing) =>

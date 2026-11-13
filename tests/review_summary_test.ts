@@ -120,3 +120,33 @@ Deno.test("only the proposal events leave a member never active", () => {
   assertEquals(s.members.every((m) => m.lastActive === null), true);
   assertEquals(s.notStarted, 1);
 });
+
+Deno.test("an answer of another round counts nowhere and is not in the state", () => {
+  const round = sampleRound(1);
+  const change = round.changes[0];
+  const answer = (id: string, roundId: string): ReviewEvent => ({
+    id,
+    at: "2026-01-07T10:00:00Z",
+    roundId,
+    gene: change.gene,
+    version: change.version,
+    actor: "r02",
+    type: "answer",
+    answer: "reject",
+    edits: [],
+    reason: "Given in a closed round.",
+  });
+  const other = answer("e1", "round-0");
+  const state = reviewState(round, ACCOUNTS, [other]);
+  assertEquals(state.events, []);
+  assertEquals(state.reviews[0].answers.size, 0);
+  assertEquals(state.reviews[0].history, []);
+  assertEquals(state.summary.notStarted, 1);
+  assertEquals(state.summary.answersIn, 0);
+  assertEquals(state.summary.members[1].lastActive, null);
+  // The same answer in this round counts.
+  const mine = answer("e2", round.id);
+  const both = reviewState(round, ACCOUNTS, [other, mine]);
+  assertEquals(both.events, [mine]);
+  assertEquals(both.reviews[0].tally.reject, 1);
+});
