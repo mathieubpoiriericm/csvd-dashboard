@@ -1352,8 +1352,10 @@ svg {
    The way into the review area, first in the cluster. It is a menu button,
    not a second Sign out: it carries a glyph and a caret, and the sign-out
    beside it ends the site's passphrase session, which this never touches.
-   The menu hangs from its right edge, so on a phone it opens leftward over
-   the page rather than past the screen's edge. */
+   The menu hangs from its right edge and opens leftward over the page.
+   Below 600px it hangs from the cluster's right edge instead: the glyph
+   button there has the toggle and Sign out to its right, and at 320px the
+   menu is wider than the room to the button's left. */
 .review-control {
   position: relative;
   display: flex;
@@ -1426,6 +1428,16 @@ svg {
    out, and the labelled button is 129px: the label and the caret go, the
    glyph stays, and the button keeps its name through `aria-label`. */
 @media (max-width: 600px) {
+  /* The menu's containing block becomes the cluster, whose children are the
+     button's height, so only its right edge moves. */
+  .navbar-actions {
+    position: relative;
+  }
+
+  .review-control {
+    position: static;
+  }
+
   .review-button {
     width: 2.25rem;
     justify-content: center;

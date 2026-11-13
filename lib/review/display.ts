@@ -57,7 +57,8 @@ const LIST_NOUNS: Partial<Record<keyof Gene, [string, string]>> = {
   references: ["reference", "references"],
 };
 
-const plural = (n: number, one: string, many: string): string =>
+/** A count with its noun, singular for exactly one. */
+export const plural = (n: number, one: string, many: string): string =>
   `${n} ${n === 1 ? one : many}`;
 
 /** Described together by the one sentence for a paper already cited. */

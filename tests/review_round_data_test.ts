@@ -31,6 +31,24 @@ Deno.test("a round without its identity is no round", () => {
   );
 });
 
+Deno.test("a round whose timestamp is not a date is no round", () => {
+  // The simulated history is dated from the stamp, and an invalid date throws
+  // where the app imports the review.
+  for (const runTimestamp of ["garbage", "2026-13-45"]) {
+    assertEquals(
+      normalizeReviewRound({ ...sampleRound(1), runTimestamp }),
+      null,
+    );
+  }
+  const round = normalizeReviewRound({
+    ...sampleRound(1),
+    runTimestamp: "2026-01-05T10:00:00+00:00",
+  });
+  assertEquals(round?.runTimestamp, "2026-01-05T10:00:00+00:00");
+  assert(round !== null);
+  simulate(round);
+});
+
 Deno.test("a sound round survives unchanged", () => {
   const round = sampleRound(3);
   assertEquals(normalizeReviewRound(viaJson(round)), round);

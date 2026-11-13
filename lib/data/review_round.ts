@@ -110,7 +110,9 @@ function normalizeChange(value: unknown): ReviewChange | null {
  *
  * All-or-nothing on the four fields that identify a round, like
  * `normalizePipelineRun`: a page with no id, state or base has nothing to
- * say which round it shows. A change that cannot be displayed is dropped
+ * say which round it shows. The timestamp must also parse as a date: the
+ * simulated history is dated from it, and an invalid date would throw where
+ * the app imports the review. A change that cannot be displayed is dropped
  * rather than thrown on, so one bad row does not hide the rest.
  */
 export function normalizeReviewRound(value: unknown): ReviewRound | null {
@@ -122,7 +124,7 @@ export function normalizeReviewRound(value: unknown): ReviewRound | null {
   const state = nullableText(source.state);
   if (
     id === null || runTimestamp === null || base === null || state === null ||
-    !STATES.has(state)
+    !STATES.has(state) || Number.isNaN(Date.parse(runTimestamp))
   ) return null;
   return {
     id,
