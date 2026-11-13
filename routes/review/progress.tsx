@@ -16,7 +16,7 @@ export function ReviewProgressContent({ state }: { state: ReviewState }) {
       title="Committee progress"
       description="The state of the whole review, where the genes stand by kind of change, and each member's progress."
     >
-      <ReviewNotice />
+      <ReviewNotice runTimestamp={state.round.runTimestamp} />
       <ProgressKpis summary={state.summary} />
       <StandingBars summary={state.summary} />
       <MembersTable

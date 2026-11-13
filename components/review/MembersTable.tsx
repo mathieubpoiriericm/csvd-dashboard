@@ -13,7 +13,8 @@ const ROLE_LABELS: Record<Role, string> = {
  * Each account's progress, one row each in the accounts' order: how many of
  * the answers it owes are in, how they split, and when it last acted, on the
  * committee's simulated clock. An observer owes nothing, so its row says
- * "Read only" rather than "0 of 0" and four zeros that would read as a
+ * "Read only", once across the answered cell and the four counts, rather
+ * than "0 of 0" and four zeros that would read as a
  * member who has not started.
  */
 export function MembersTable(
@@ -49,12 +50,9 @@ export function MembersTable(
                     </td>
                     {readOnly
                       ? (
-                        <>
-                          <td class="review-read-only">Read only</td>
-                          <td class="review-read-only" colSpan={4}>
-                            Read only
-                          </td>
-                        </>
+                        <td class="review-read-only" colSpan={5}>
+                          Read only
+                        </td>
                       )
                       : (
                         <>

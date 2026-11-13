@@ -43,7 +43,7 @@ export function ReviewGeneContent(
         </div>
       }
     >
-      <ReviewNotice />
+      <ReviewNotice runTimestamp={state.round.runTimestamp} />
       <div class="review-gene">
         <div class="review-gene-column">
           <GeneDiff change={change} />

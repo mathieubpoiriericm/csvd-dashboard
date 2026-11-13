@@ -182,7 +182,11 @@ export default function ReviewMenu({ entered }: ReviewMenuProps) {
         onClick={() => setOpen((was) => !was)}
       >
         <Icon name="checkBadge" />
-        {/* Below 600px the bar has room for the glyph alone. */}
+        {
+          /* Entered, a dot on the glyph says so where the label is gone:
+            below 600px the bar has room for the glyph alone. */
+        }
+        {entered && <span class="review-button-marker" aria-hidden="true" />}
         <span class="review-button-label">{label}</span>
         <span class="review-button-caret">
           <Icon name="chevronDown" />

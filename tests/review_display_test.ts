@@ -67,10 +67,7 @@ Deno.test("a change is described by what it adds", () => {
 Deno.test("a change with nothing added says what it carries", () => {
   assertEquals(
     proposalLine(sampleChange({
-      fields: [
-        field("gwasTrait", []),
-        { ...field("sourceQuote", []), before: "a", after: "b" },
-      ],
+      fields: [{ ...field("sourceQuote", []), before: "a", after: "b" }],
     })),
     "Quote and confidence for a paper already cited",
   );
@@ -177,5 +174,64 @@ Deno.test("the fixed copy is exported verbatim", () => {
   assertEquals(
     copy.SIMULATED_NOTE,
     "Simulated review: the changes come from a real pipeline run, the committee and its verdicts are simulated, and none of it is in the other pages.",
+  );
+});
+
+Deno.test("every changed field is named, the quote and confidence aside", () => {
+  const scalar = (name: string) => ({
+    ...field(name, []),
+    before: "a",
+    after: "b",
+  });
+  assertEquals(
+    proposalLine(sampleChange({
+      fields: [scalar("protein"), scalar("sourceQuote"), scalar("confidence")],
+    })),
+    "Protein changed",
+  );
+  assertEquals(
+    proposalLine(sampleChange({
+      fields: [scalar("protein"), field("references", ["1"])],
+    })),
+    "+1 reference · Protein changed",
+  );
+  assertEquals(
+    proposalLine(sampleChange({
+      fields: [
+        field("references", ["1"]),
+        scalar("sourceQuote"),
+        scalar("confidence"),
+      ],
+    })),
+    "+1 reference",
+  );
+  assertEquals(
+    proposalLine(sampleChange({
+      fields: [scalar("sourceQuote"), scalar("confidence")],
+    })),
+    "Quote and confidence for a paper already cited",
+  );
+  assertEquals(
+    proposalLine(sampleChange({ fields: [scalar("confidence")] })),
+    "Quote and confidence for a paper already cited",
+  );
+  // A list that only lost or reordered values is named as changed.
+  assertEquals(
+    proposalLine(sampleChange({
+      fields: [{ ...field("gwasTrait", []), before: ["A"], removed: ["A"] }],
+    })),
+    "GWAS traits changed",
+  );
+  // In the change's field order, after the additions and the randomization.
+  assertEquals(
+    proposalLine(sampleChange({
+      fields: [
+        scalar("protein"),
+        scalar("chromosomalLocation"),
+        scalar("mendelianRandomization"),
+        field("gwasTrait", ["A"]),
+      ],
+    })),
+    "+1 GWAS trait · Mendelian randomization changed · Protein changed · Chromosomal location changed",
   );
 });

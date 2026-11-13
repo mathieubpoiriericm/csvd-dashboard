@@ -88,11 +88,17 @@ Deno.test("the cards read off the summary", () => {
   assertEquals(all.length, 4);
   assertEquals(all, [
     `Settled ${summary.settled} of ${summary.total} genes ${summary.accepted} accepted · ${summary.rejected} rejected`,
-    `In conflict ${summary.conflict} Waiting on the chair's ruling`,
+    `In conflict ${summary.conflict} ${
+      summary.conflict === 0 ? "None" : "Waiting on the chair's ruling"
+    }`,
     `Verdicts in ${
       percent(summary.answersIn, summary.answersOwed)
     } ${summary.answersIn} of ${summary.answersOwed}`,
-    `Edits to reconcile ${summary.editsToReconcile} Accepted, but the edits asked for differ`,
+    `Edits to reconcile ${summary.editsToReconcile} ${
+      summary.editsToReconcile === 0
+        ? "None"
+        : "Accepted, but the edits asked for differ"
+    }`,
   ]);
 });
 
@@ -213,10 +219,10 @@ Deno.test("every account has a row and the observer's is read only", () => {
         m.account.name,
         "Observer",
         "Read only",
-        "Read only",
         last,
       ]);
-      assertStringIncludes(row, 'colspan="4"');
+      // Once, across the answered cell and the four counts.
+      assertStringIncludes(row, 'colspan="5"');
       assert(!row.includes(" of 0"), row);
     } else {
       assertEquals(td, [
@@ -264,9 +270,9 @@ Deno.test("an empty round renders zeros, not NaN", () => {
   assertNotMatch(html, /NaN|undefined|Infinity/);
   assertEquals(cards(html).map(text), [
     "Settled 0 of 0 genes 0 accepted · 0 rejected",
-    "In conflict 0 Waiting on the chair's ruling",
+    "In conflict 0 None",
     "Verdicts in 0% 0 of 0",
-    "Edits to reconcile 0 Accepted, but the edits asked for differ",
+    "Edits to reconcile 0 None",
   ]);
   // No kind holds a gene, so no bar is drawn and none divides by zero.
   assertEquals(bars(html).length, 0);

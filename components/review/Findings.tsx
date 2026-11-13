@@ -1,3 +1,4 @@
+import { isDoi } from "../../lib/citations.ts";
 import { PUBMED_BASE_URL } from "../../lib/constants.ts";
 import type { ReviewFinding } from "../../lib/types.ts";
 
@@ -17,9 +18,12 @@ function Finding({ finding }: { finding: ReviewFinding }) {
   const facts = [
     finding.pmid !== null && (
       <>
-        PMID{" "}
+        {/* A preprint is cited by its DOI, which PubMed does not know. */}
+        {isDoi(finding.pmid) ? "DOI" : "PMID"}{" "}
         <a
-          href={`${PUBMED_BASE_URL}${finding.pmid}/`}
+          href={isDoi(finding.pmid)
+            ? `https://doi.org/${encodeURI(finding.pmid)}`
+            : `${PUBMED_BASE_URL}${finding.pmid}/`}
           target="_blank"
           rel="noopener noreferrer"
         >

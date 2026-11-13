@@ -180,3 +180,17 @@ Deno.test("the notice's live region is in the page before anything is sent", () 
   assertStringIncludes(region[1], 'tabindex="-1"');
   assertEquals(region[2], "");
 });
+
+Deno.test("entered, the glyph carries a marker the signed-out control lacks", () => {
+  // Below 600px the label is hidden, so the marker is what tells them apart.
+  assertStringIncludes(
+    entered(),
+    '<span class="review-button-marker" aria-hidden="true"></span>',
+  );
+  assert(!signedOut().includes("review-button-marker"));
+  // The accessible name is still the copy string.
+  assertStringIncludes(
+    entered(),
+    `aria-label="${escapeHtml(CONTROL_ENTERED)}"`,
+  );
+});

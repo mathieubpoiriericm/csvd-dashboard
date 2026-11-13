@@ -284,9 +284,14 @@ Deno.test("the history is newest first, in simulated days, with edits and reason
   review.history.forEach((event, k) => {
     assertStringIncludes(
       entries[k],
-      `<time datetime="${event.at}">${simulatedTime(event.at, run)}</time>`,
+      `<span class="review-history-time">${
+        simulatedTime(event.at, run)
+      }</span>`,
     );
   });
+  // A simulated time is never given as a calendar date.
+  assert(!html.includes("<time"), "a <time> element");
+  assert(!html.includes("datetime="), "a datetime attribute");
   const times = review.history.map((e) => Date.parse(e.at));
   assertEquals(times, [...times].sort((a, b) => b - a));
   // The oldest is the run's proposal.
@@ -428,4 +433,37 @@ Deno.test("the route is not found without a gene it knows", () => {
       ), HttpError);
     assertEquals(err.status, 404);
   }
+});
+
+Deno.test("a finding cited by DOI is labelled and linked as a DOI", () => {
+  const html = renderToString(
+    <Findings findings={[sampleFinding({ pmid: "10.1000/xyz123" })]} />,
+  );
+  const [only] = items(html, "review-findings");
+  assertStringIncludes(text(only), "DOI 10.1000/xyz123");
+  assertStringIncludes(only, 'href="https://doi.org/10.1000/xyz123"');
+  assert(!only.includes("PMID"), only);
+  assert(!only.includes("pubmed"), only);
+});
+
+Deno.test("omics entries print as the Genes page prints them", () => {
+  const change = sampleChange({
+    before: sampleGene({ evidenceFromOtherOmicsStudies: ["TWAS;tissue-a"] }),
+    after: sampleGene({
+      evidenceFromOtherOmicsStudies: ["TWAS;tissue-a", "PWAS;tissue-b"],
+    }),
+    fields: [{
+      field: "evidenceFromOtherOmicsStudies",
+      before: ["TWAS;tissue-a"],
+      after: ["TWAS;tissue-a", "PWAS;tissue-b"],
+      added: ["PWAS;tissue-b"],
+      removed: [],
+    }],
+  });
+  const all = rows(renderToString(<GeneDiff change={change} />));
+  const omics =
+    all[Object.keys(FIELD_LABELS).indexOf("evidenceFromOtherOmicsStudies")];
+  assertStringIncludes(omics, ">TWAS (tissue-a)</li>");
+  assertStringIncludes(omics, "<ins>PWAS (tissue-b)</ins>");
+  assert(!omics.includes(";"), omics);
 });

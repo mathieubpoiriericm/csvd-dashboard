@@ -27,6 +27,7 @@ import {
   tallyWords,
 } from "../lib/review/display.ts";
 import { SIMULATED_NOTE } from "../lib/review/copy.ts";
+import { formatLongDate } from "../lib/constants.ts";
 import type { ReviewState } from "../lib/review/summary.ts";
 import type { GeneReview, Standing } from "../lib/review/rules.ts";
 import type { ReviewKind } from "../lib/types.ts";
@@ -166,6 +167,13 @@ Deno.test("the page says the committee is simulated", () => {
   );
   assertStringIncludes(html, escapeHtml(SIMULATED_NOTE));
   assertStringIncludes(html, "<h1>Review queue</h1>");
+  // The run the round comes from, which is day 0 of the simulated clock.
+  assertStringIncludes(
+    html,
+    `<p class="review-notice-run">Pipeline run of ${
+      formatLongDate(s.round.runTimestamp)
+    }</p>`,
+  );
 });
 
 Deno.test("an empty round renders an empty queue", () => {

@@ -52,6 +52,7 @@ function Edits({ edits }: { edits: readonly Edit[] }) {
         <li key={edit.field}>
           <span class="review-edit-field">{FIELD_LABELS[edit.field]}:</span>
           <Moved
+            field={edit.field}
             before={edit.before}
             after={edit.after}
             added={without(edit.after, edit.before)}
@@ -93,9 +94,10 @@ export function History(
                   : "review-event"}
               >
                 <p class="review-event-head">
-                  <time datetime={event.at}>
+                  {/* Not a `<time>`: a simulated time is never a date. */}
+                  <span class="review-history-time">
                     {simulatedTime(event.at, runTimestamp)}
-                  </time>{" "}
+                  </span>{" "}
                   <b>
                     {event.actor === PIPELINE_ACTOR
                       ? "Pipeline run"

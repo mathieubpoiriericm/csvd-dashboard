@@ -320,6 +320,15 @@ test.describe("with a review round", () => {
       .toHaveCount(0);
   });
 
+  test("between the breakpoints the navbar logo keeps its own ratio", async ({ page }) => {
+    // 601 to 1410px had no measurement: at 1024px the row has room, so the
+    // logo's box is drawn at the file's ratio, neither squeezed nor stretched.
+    await page.setViewportSize({ width: 1024, height: 800 });
+    await enterAsObserver(page);
+    const logo = await logoGeometry(page);
+    expect(logo.width / logo.height).toBeCloseTo(logo.ratio, 2);
+  });
+
   for (const width of [390, 320]) {
     test(`no review page scrolls sideways on a ${width}px phone`, async ({ page }) => {
       const copy = REVIEW!.copy;
@@ -331,6 +340,10 @@ test.describe("with a review round", () => {
       const at390 = await logoGeometry(page);
       await page.setViewportSize({ width, height: 844 });
       await expectLogoWhole(page, at390, roomy);
+      // Signed out, the icon-only control carries no marker.
+      const marker = page.locator(".navbar .review-button-marker");
+      await expect(controlOut(page)).toBeVisible();
+      await expect(marker).toHaveCount(0);
 
       const noSidewaysScroll = async (where: string) => {
         const [scroll, client] = await page.evaluate(() => [
@@ -345,6 +358,8 @@ test.describe("with a review round", () => {
         await expect(page.locator("main")).toBeVisible();
         await noSidewaysScroll(path);
         await expectLogoWhole(page, at390, roomy);
+        // Entered, the label is gone at this width and the marker says so.
+        await expect(marker).toBeVisible();
       }
 
       // The open menu, entered: the area's page links and Leave review.

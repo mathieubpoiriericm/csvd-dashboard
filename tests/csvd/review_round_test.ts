@@ -7,6 +7,9 @@
 import { assert, assertEquals } from "@std/assert";
 
 import { reviewRound } from "../../lib/data/review_round.ts";
+import { FIELD_LABELS, proposalLine } from "../../lib/review/display.ts";
+import { ACCOUNTS, simulate } from "../../lib/review/simulate.ts";
+import { reviewState } from "../../lib/review/summary.ts";
 import type { ReviewKind } from "../../lib/types.ts";
 
 const count = (kind: ReviewKind) =>
@@ -20,4 +23,38 @@ Deno.test("the 12 Nov 2026 round", () => {
   assertEquals(count("claims"), 23);
   assertEquals(count("citation"), 42);
   assertEquals(reviewRound.changes[0].gene, "STN1");
+});
+
+Deno.test("the queue's line names every changed field of the round", () => {
+  for (const change of reviewRound!.changes) {
+    const line = proposalLine(change).toLowerCase();
+    for (const f of change.fields) {
+      if (f.field === "sourceQuote" || f.field === "confidence") continue;
+      const label = FIELD_LABELS[f.field].toLowerCase();
+      const added = `+${f.added.length} ${label.slice(0, 4)}`;
+      assert(
+        line.includes(`${label} changed`) ||
+          (f.added.length > 0 && line.includes(added)),
+        `${change.gene}: "${proposalLine(change)}" omits ${label}`,
+      );
+    }
+  }
+});
+
+Deno.test("the simulated review of the round is about half settled", () => {
+  const round = reviewRound!;
+  const s = reviewState(round, ACCOUNTS, simulate(round)).summary;
+  assertEquals(
+    [
+      s.accepted,
+      s.rejected,
+      s.conflict,
+      s.inReview,
+      s.notStarted,
+      s.noQuorum,
+      s.editsToReconcile,
+      s.resolvedByChair,
+    ],
+    [35, 1, 1, 41, 1, 1, 6, 1],
+  );
 });

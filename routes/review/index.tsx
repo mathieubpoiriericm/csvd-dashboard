@@ -41,7 +41,7 @@ export function ReviewQueueContent(
       title="Review queue"
       description="Every gene the pipeline run changed, one row each, with the committee's standing on it."
     >
-      <ReviewNotice />
+      <ReviewNotice runTimestamp={state.round.runTimestamp} />
       <ReviewQueue state={state} kind={kind} standing={standing} />
     </Page>
   );

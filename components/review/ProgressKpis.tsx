@@ -43,7 +43,7 @@ export function ProgressKpis({ summary }: { summary: ReviewSummary }) {
       <Kpi
         label="In conflict"
         value={summary.conflict}
-        sub="Waiting on the chair's ruling"
+        sub={summary.conflict === 0 ? "None" : "Waiting on the chair's ruling"}
       />
       <Kpi
         label="Verdicts in"
@@ -53,7 +53,9 @@ export function ProgressKpis({ summary }: { summary: ReviewSummary }) {
       <Kpi
         label="Edits to reconcile"
         value={summary.editsToReconcile}
-        sub="Accepted, but the edits asked for differ"
+        sub={summary.editsToReconcile === 0
+          ? "None"
+          : "Accepted, but the edits asked for differ"}
       />
     </section>
   );

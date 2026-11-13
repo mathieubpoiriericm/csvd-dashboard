@@ -59,20 +59,40 @@ const LIST_NOUNS: Partial<Record<keyof Gene, [string, string]>> = {
 const plural = (n: number, one: string, many: string): string =>
   `${n} ${n === 1 ? one : many}`;
 
-/** What a change adds, in a line: its additions, else what kind of change. */
+/** Described together by the one sentence for a paper already cited. */
+const QUOTE_FIELDS: ReadonlySet<keyof Gene> = new Set([
+  "sourceQuote",
+  "confidence",
+]);
+
+/**
+ * What a change does, in a line. Every change from gold is reviewed, so every
+ * changed field is named: first what the lists gain, then "Mendelian
+ * randomization changed", then "<Field> changed" for each other field in the
+ * change's order. The quote and confidence are the exception: they come with
+ * every finding, so they are described only when they are all that changed.
+ */
 export function proposalLine(change: ReviewChange): string {
   if (change.kind === "new") {
     return plural(change.findings.length, "finding", "findings");
   }
   const parts: string[] = [];
+  const named = new Set<keyof Gene>(QUOTE_FIELDS);
   for (const field of change.fields) {
     const nouns = LIST_NOUNS[field.field];
     if (nouns && field.added.length > 0) {
       parts.push(`+${plural(field.added.length, nouns[0], nouns[1])}`);
+      named.add(field.field);
     }
   }
   if (change.fields.some((f) => f.field === "mendelianRandomization")) {
-    parts.push("Mendelian randomization changed");
+    parts.push(`${FIELD_LABELS.mendelianRandomization} changed`);
+    named.add("mendelianRandomization");
+  }
+  for (const field of change.fields) {
+    if (!named.has(field.field)) {
+      parts.push(`${FIELD_LABELS[field.field]} changed`);
+    }
   }
   return parts.length > 0
     ? parts.join(" · ")

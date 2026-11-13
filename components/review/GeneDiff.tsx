@@ -1,6 +1,7 @@
 import type { ComponentChildren } from "preact";
 
 import { Absent } from "../Absent.tsx";
+import { formatOmicsValue } from "../../lib/filters.ts";
 import { FIELD_LABELS } from "../../lib/review/display.ts";
 import { isAbsent } from "../../lib/sentinels.ts";
 import type { Gene, ReviewChange, ReviewFieldValue } from "../../lib/types.ts";
@@ -29,6 +30,17 @@ function Marked(
     : <del>{String(value)}</del>;
 }
 
+/**
+ * A list value as the Genes page prints it: an omics entry in its wire form
+ * `Type;detail` reads `Type (detail)`. Only the printing changes; what was
+ * added or removed is still worked out on the wire values.
+ */
+function shown(field: keyof Gene | undefined, value: string): string {
+  return field === "evidenceFromOtherOmicsStudies" && !isAbsent(value)
+    ? formatOmicsValue(value)
+    : value;
+}
+
 /** A list as one item per value, so a long omics entry wraps on its own. */
 function ValueList({ items }: { items: ComponentChildren[] }) {
   return (
@@ -39,9 +51,11 @@ function ValueList({ items }: { items: ComponentChildren[] }) {
 }
 
 /** A value with nothing marked: the gold column, and an unchanged field. */
-export function Plain({ value }: { value: ReviewFieldValue }) {
+export function Plain(
+  { value, field }: { value: ReviewFieldValue; field?: keyof Gene },
+) {
   return Array.isArray(value)
-    ? <ValueList items={value} />
+    ? <ValueList items={value.map((v) => shown(field, v))} />
     : <Scalar value={value} />;
 }
 
@@ -52,7 +66,9 @@ export function Plain({ value }: { value: ReviewFieldValue }) {
  * history, so the two cannot draw a change two ways.
  */
 export function Moved(
-  { before, after, added, removed, keep = true }: {
+  { field, before, after, added, removed, keep = true }: {
+    /** Which field moved, so its values print as the Genes page prints them. */
+    field?: keyof Gene;
     before: ReviewFieldValue;
     after: ReviewFieldValue;
     added: readonly string[];
@@ -67,13 +83,13 @@ export function Moved(
     return (
       <ValueList
         items={[
-          ...kept,
+          ...kept.map((v) => shown(field, v)),
           ...[...fresh].map((v) => (
-            <Marked key={`+${v}`} value={v} mark="ins" />
+            <Marked key={`+${v}`} value={shown(field, v)} mark="ins" />
           )),
-          ...removed.filter((v) =>
-            !isAbsent(v)
-          ).map((v) => <Marked key={`-${v}`} value={v} mark="del" />),
+          ...removed.filter((v) => !isAbsent(v)).map((v) => (
+            <Marked key={`-${v}`} value={shown(field, v)} mark="del" />
+          )),
         ]}
       />
     );
@@ -125,12 +141,12 @@ export function GeneDiff({ change }: { change: ReviewChange }) {
                   <td>
                     {change.before === null
                       ? <span class="review-absent">Not in the gold data</span>
-                      : <Plain value={change.before[field]} />}
+                      : <Plain field={field} value={change.before[field]} />}
                   </td>
                   <td>
                     {delta
                       ? <Moved {...delta} />
-                      : <Plain value={change.after[field]} />}
+                      : <Plain field={field} value={change.after[field]} />}
                   </td>
                 </tr>
               );
