@@ -186,3 +186,11 @@ async def test_a_gold_database_that_cannot_be_read_is_a_refusal(
     with pytest.raises(PreviewDatabaseError, match="dashboard"):
         async with gold_connection(_PREVIEW_ENV):
             pass
+
+
+async def test_the_gold_connection_needs_an_integer_port(mocker) -> None:
+    connect, _conn, _events = _gold_connect(mocker)
+    with pytest.raises(PreviewDatabaseError, match="'not-a-port'"):
+        async with gold_connection({**_PREVIEW_ENV, "DB_PORT": "not-a-port"}):
+            pass
+    connect.assert_not_awaited()
