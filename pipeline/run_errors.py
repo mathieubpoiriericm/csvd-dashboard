@@ -13,6 +13,7 @@ tail rides along as ``detail`` -- but it is never the headline.
 
 import asyncio
 import re
+from pathlib import Path
 from typing import Final, Literal
 
 from pydantic import Field
@@ -165,6 +166,73 @@ _TIMEOUT_PATTERN: Final[re.Pattern[str]] = re.compile(r"\btime(?:d)? ?out\b")
 _CHAIN_DEPTH: Final[int] = 5
 
 
+# Credential query parameters, as a URL in a log line or an exception's text
+# carries them. NCBI takes its key this way (see config.add_api_key). `email=`
+# is deliberately absent: Unpaywall and NCBI require a contact address by
+# policy, and it is not a secret. pipeline/main.py's log filter uses this
+# same pattern, so the log and the report redact one set of names.
+SECRET_QUERY_PARAM: Final[re.Pattern[str]] = re.compile(
+    r"(?i)\b(api_key|apikey|access_token|token|password|secret)=[^&\s\"']+"
+)
+
+# A socket address as asyncio writes it into an OSError: "Connect call
+# failed ('10.0.0.5', 5432)", or the four-part IPv6 form.
+_SOCKET_ADDRESS: Final[re.Pattern[str]] = re.compile(
+    r"\(\s*'[^']*'\s*,\s*\d+(?:\s*,\s*\d+\s*,\s*\d+)?\s*\)"
+)
+
+# Long enough for a service's whole error sentence, short enough that a
+# response body does not become the committed file.
+_PUBLISHED_TEXT_CAP: Final[int] = 500
+
+_REPO_ROOT: Final[Path] = Path(__file__).resolve().parent.parent
+
+# SQLSTATE classes whose message names the role or the database rather than
+# the query: 08 connection exception, 28 invalid authorization, 3D invalid
+# catalog name.
+_LOGIN_SQLSTATE_CLASSES: Final[tuple[str, ...]] = ("08", "28", "3D")
+
+
+def publishable_text(text: str | None) -> str | None:
+    """Exception text made fit for the published report.
+
+    A failure's own words are stored in ``pipeline_runs.report`` and
+    exported to ``data/pipeline_run.json``, which is committed and served.
+    The log has a redacting filter; this is the report's. It removes what
+    such text is known to carry and the reader has no use for -- a
+    credential in a URL, the checkout and home directory of whoever ran
+    the pipeline, the database's socket address -- and caps the length,
+    keeping the start, where a message says what happened. Ordinary short
+    text comes back unchanged. The raw text stays in the log file.
+    """
+    if not text:
+        return text
+    text = SECRET_QUERY_PARAM.sub(r"\1=<redacted>", text)
+    text = _SOCKET_ADDRESS.sub("(<address>)", text)
+    text = text.replace(str(_REPO_ROOT), "<repo>")
+    home = Path.home()
+    if len(home.parts) > 1:
+        text = text.replace(str(home), "~")
+    if len(text) > _PUBLISHED_TEXT_CAP:
+        text = text[: _PUBLISHED_TEXT_CAP - 1] + "…"
+    return text
+
+
+def _is_timeout(exc: BaseException) -> bool:
+    """Whether *exc* is a timeout by type, without importing any client.
+
+    ``TimeoutException`` is the base of every httpx timeout, and of the
+    ``httpx2`` ones the Anthropic SDK streams over. None of them subclasses
+    the builtin ``TimeoutError`` and their message is normally empty, so a
+    read timeout was published as an unexpected ``ReadTimeout``. A base
+    class is matched by its exact name, which is not the phrase matching
+    the note above rules out.
+    """
+    return isinstance(exc, TimeoutError) or any(
+        cls.__name__ == "TimeoutException" for cls in type(exc).__mro__
+    )
+
+
 def _own_status_code(exc: BaseException) -> int | None:
     """HTTP status carried by *this* exception, without importing any client.
 
@@ -240,7 +308,7 @@ def classify(exc: BaseException, *, subject: str | None = None) -> RunError:
         return RunError(
             kind="no_paper_processed",
             title=str(exc),
-            detail=exc.detail,
+            detail=publishable_text(exc.detail),
             subject=subject,
         )
 
@@ -251,7 +319,7 @@ def classify(exc: BaseException, *, subject: str | None = None) -> RunError:
     if status == 429 or _RATE_LIMIT_PATTERN.search(text):
         kind: ErrorKind = "rate_limited"
         title = "The service asked us to slow down"
-    elif isinstance(exc, TimeoutError) or _TIMEOUT_PATTERN.search(text):
+    elif _is_timeout(exc) or _TIMEOUT_PATTERN.search(text):
         kind = "timeout"
         title = "The request timed out"
     elif status is not None:
@@ -266,6 +334,10 @@ def classify(exc: BaseException, *, subject: str | None = None) -> RunError:
     elif hasattr(exc, "sqlstate") or type(exc).__module__.startswith("asyncpg"):
         kind = "database_error"
         title = f"The database rejected the query ({type(exc).__name__})"
+        # A refused login names the role and the database; a rejected query
+        # names the missing column, which is what the maintainer needs.
+        if str(getattr(exc, "sqlstate", "")).startswith(_LOGIN_SQLSTATE_CLASSES):
+            message = ""
 
     # A PostgreSQL that is not listening surfaces from asyncpg as a bare
     # ConnectionRefusedError, and missing DB_* configuration as the
@@ -275,6 +347,8 @@ def classify(exc: BaseException, *, subject: str | None = None) -> RunError:
     elif isinstance(exc, ConnectionRefusedError):
         kind = "database_error"
         title = f"The database could not be reached ({type(exc).__name__})"
+        # Its text is the host and port, and the title has said the rest.
+        message = ""
     elif type(exc).__module__ == "pipeline.database":
         kind = "database_error"
         title = f"The database is not configured ({type(exc).__name__})"
@@ -282,4 +356,9 @@ def classify(exc: BaseException, *, subject: str | None = None) -> RunError:
         kind = "unknown"
         title = f"An unexpected {type(exc).__name__} stopped the step"
 
-    return RunError(kind=kind, title=title, detail=message or None, subject=subject)
+    return RunError(
+        kind=kind,
+        title=title,
+        detail=publishable_text(message) or None,
+        subject=subject,
+    )

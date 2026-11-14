@@ -3,7 +3,7 @@
 import json
 import logging
 from pathlib import Path
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import httpx
 import pytest
@@ -535,6 +535,22 @@ class TestMapStudyToRecords:
 
         assert r.estimated_completion_date == "12/2026"
 
+    def test_two_arms_of_one_agent_emit_one_record(self):
+        """Two doses normalise to one drug, which is one row under the
+        (registry_id, drug) key -- two records counted one discovery twice."""
+        study = _make_study(
+            interventions=[
+                {"type": "DRUG", "name": "Atorvastatin 40 mg"},
+                {"type": "DRUG", "name": "Atorvastatin 20 mg"},
+                {"type": "DRUG", "name": "aspirin"},
+            ]
+        )
+
+        assert [r.drug for r in _map_study_to_records(study)] == [
+            "Atorvastatin",
+            "Aspirin",
+        ]
+
     def test_an_observational_study_yields_no_trial_rows(self):
         """A DRUG intervention on an observational study is not a trial."""
         study = _make_study(
@@ -711,6 +727,10 @@ class TestIsDiseaseStudy:
         """The absence is CT.gov's, not evidence the trial is off-topic."""
         assert is_disease_study({"protocolSection": {}})
         assert is_disease_study(self._study())
+        # A record with no protocol section, or one that is not an object,
+        # states none either.
+        assert is_disease_study({})
+        assert is_disease_study({"protocolSection": "withheld"})
 
 
 class TestFetchCSVDStudies:
@@ -739,6 +759,45 @@ class TestFetchCSVDStudies:
         assert errors == []
         # One HTTP GET per term when there's no pagination
         assert mock_client.get.call_count == 1
+
+    async def test_a_study_stating_another_condition_is_dropped_and_counted(
+        self, mocker, monkeypatch, caplog
+    ):
+        import pipeline.clinical_trials_fetch as fetch
+
+        monkeypatch.setattr(fetch, "_FOLDED_CONDITIONS", ("alpha",))
+        monkeypatch.setattr(fetch, "_FOLDED_PAIRS", ())
+        on_topic = _make_study(nct_id="NCT1")
+        on_topic["protocolSection"]["conditionsModule"] = {
+            "conditions": ["Alpha Disorder"]
+        }
+        off_topic = _make_study(nct_id="NCT2")
+        off_topic["protocolSection"]["conditionsModule"] = {
+            "conditions": ["Common Cold"]
+        }
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(
+            return_value=_mock_http_response({"studies": [on_topic, off_topic]})
+        )
+        mocker.patch(
+            "pipeline.clinical_trials_fetch._client_manager.get",
+            return_value=mock_client,
+        )
+
+        with caplog.at_level(logging.INFO, logger="pipeline.clinical_trials_fetch"):
+            studies, errors = await fetch_disease_studies(
+                search_terms=("example condition",),
+                page_size=100,
+                max_retries=0,
+            )
+
+        assert [
+            _get_path(s, "protocolSection", "identificationModule", "nctId")
+            for s in studies
+        ] == ["NCT1"]
+        # Dropping an off-topic study is the gate working, not an error.
+        assert errors == []
+        assert "CTG: 1/2 studies state no" in caplog.text
 
     async def test_pagination_follows_next_page_token(self, mocker):
         page1 = {
@@ -1305,6 +1364,18 @@ class TestFetchTrialStatuses:
         assert statuses == {}
         assert errors == []
 
+    async def test_an_entry_that_is_not_a_study_is_passed_over(self, mocker):
+        page = _status_page(("NCT00000001", "COMPLETED"))
+        page["studies"] = [None, "NCT00000002", *page["studies"]]
+        mocker.patch(
+            "pipeline.clinical_trials_fetch._fetch_page_with_retry",
+            AsyncMock(return_value=page),
+        )
+
+        statuses, _errors = await fetch_trial_statuses(["NCT00000001"], 0)
+
+        assert statuses == {"NCT00000001": "COMPLETED"}
+
     async def test_duplicate_ids_are_asked_about_once(self, mocker):
         mocker.patch(
             "pipeline.clinical_trials_fetch._fetch_page_with_retry",
@@ -1739,6 +1810,8 @@ class TestUpsertClinicalTrialsBatchSQL:
 
         mock_conn = AsyncMock()
         mock_conn.executemany = fake_executemany
+        # Sync, as asyncpg's is: the upsert is one transaction.
+        mock_conn.transaction = MagicMock(return_value=AsyncMock())
         mock_ctx = AsyncMock()
         mock_ctx.__aenter__ = AsyncMock(return_value=mock_conn)
         mock_ctx.__aexit__ = AsyncMock(return_value=None)
@@ -1794,6 +1867,8 @@ class TestUpsertClinicalTrialsBatchSQL:
 
         mock_conn = AsyncMock()
         mock_conn.executemany = fake_executemany
+        # Sync, as asyncpg's is: the upsert is one transaction.
+        mock_conn.transaction = MagicMock(return_value=AsyncMock())
         mock_ctx = AsyncMock()
         mock_ctx.__aenter__ = AsyncMock(return_value=mock_conn)
         mock_ctx.__aexit__ = AsyncMock(return_value=None)
@@ -1819,6 +1894,8 @@ class TestUpsertClinicalTrialsBatchSQL:
         mock_conn = AsyncMock()
         mock_conn.executemany = AsyncMock()
         mock_conn.fetch = AsyncMock(return_value=[])
+        # Sync, as asyncpg's is: the upsert is one transaction.
+        mock_conn.transaction = MagicMock(return_value=AsyncMock())
         mock_ctx = AsyncMock()
         mock_ctx.__aenter__ = AsyncMock(return_value=mock_conn)
         mock_ctx.__aexit__ = AsyncMock(return_value=None)

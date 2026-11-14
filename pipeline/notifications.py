@@ -158,11 +158,20 @@ def _render_markdown(run_data: PipelineRunData) -> str:
 def _make_send_notification(
     config: PipelineConfig,
 ) -> Callable[[str, str, NotifyType], None]:
-    """Return a Tenacity-wrapped sender function bound to *config*."""
+    """Return a sender bound to *config* that retries each channel alone.
+
+    Every URL is added under a tag of its own and notified by that tag.
+    One ``notify`` across all of them answers False when any one service
+    failed, so the retry re-ran the whole call and a channel that had
+    already delivered was sent the digest again, once per attempt.
+    """
     ap = apprise.Apprise()
+    tags: list[str] = []
     for url in map(str.strip, config.notify_urls.split(",")):
         if url:
-            ap.add(url)
+            tag = f"channel-{len(tags) + 1}"
+            ap.add(url, tag=tag)
+            tags.append(tag)
 
     @retry(
         stop=stop_after_attempt(config.notify_max_retries),
@@ -172,10 +181,12 @@ def _make_send_notification(
         ),
         reraise=True,
     )
-    def _send(title: str, body_text: str, notify_type: NotifyType) -> None:
+    def _send_one(
+        tag: str, title: str, body_text: str, notify_type: NotifyType
+    ) -> None:
         # Apprise reports failure through its return value, not an
-        # exception: False when any service failed, None when no service
-        # could be loaded from the URLs. Tenacity retries on exceptions
+        # exception: False when the service failed, None when no service
+        # could be loaded from the URL. Tenacity retries on exceptions
         # only, so without raising here the configured retries were dead
         # and the caller logged success over an undelivered digest.
         delivered = ap.notify(
@@ -183,9 +194,28 @@ def _make_send_notification(
             body=body_text,
             body_format=NotifyFormat.MARKDOWN,
             notify_type=notify_type,
+            tag=tag,
         )
         if delivered is not True:
             raise RuntimeError("Apprise reported a delivery failure")
+
+    def _send(title: str, body_text: str, notify_type: NotifyType) -> None:
+        # A channel is named by its position in PIPELINE_NOTIFY_URLS, never
+        # by its URL, which holds its token.
+        if not tags:
+            raise RuntimeError("PIPELINE_NOTIFY_URLS names no channel")
+        failed: list[int] = []
+        for position, tag in enumerate(tags, start=1):
+            try:
+                _send_one(tag, title, body_text, notify_type)
+            except Exception:
+                failed.append(position)
+        if failed:
+            names = ", ".join(str(position) for position in failed)
+            raise RuntimeError(
+                f"Apprise reported a delivery failure on channel {names} "
+                f"of {len(tags)}"
+            )
 
     return _send
 

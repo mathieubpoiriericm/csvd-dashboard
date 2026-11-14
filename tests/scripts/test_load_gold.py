@@ -411,6 +411,7 @@ def test_the_plan_attaches_st1_references_in_position_order(tmp_path: Path) -> N
         ({"trials": [_trial_row(estimated_completion="July 2028")]}, "YYYY-MM"),
         ({"trials": [_trial_row(estimated_completion="2028-13")]}, "YYYY-MM"),
         ({"trials": [_trial_row(target_n="about 100")]}, "target_n"),
+        ({"trials": [_trial_row(agent="  ")]}, "trial REG-0001: no agent"),
         ({"populations": [{"registry_id": "REG-0001", "population": ""}]},
          f"{_POPULATIONS_FILE} line 2: registry_id and population"),
         ({"populations": [{"registry_id": "", "population": _GROUPS["REG-0001"]}]},

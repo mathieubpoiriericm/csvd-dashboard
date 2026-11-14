@@ -25,7 +25,12 @@ from scripts.reset_to_baseline import (
     reset_database,
     run,
 )
-from scripts.restore_from_json import build_plan, write_plan
+from scripts.restore_from_json import (
+    build_plan,
+    ledger_emptied_at,
+    pipeline_logs_dir,
+    write_plan,
+)
 
 from pipeline.database import Database, merge_window, record_processed_pmids_batch
 from pipeline.export.main import read_published_genes, run_export
@@ -185,6 +190,37 @@ async def test_reset_empties_the_ledger_and_the_removed_genes_annotations(
     assert counts["genes"] == len(BASELINE)
     assert await _symbols("gene_annotations") == ["ABC1"]
     assert await _symbols("gene_annotation_status") == ["ABC1"]
+
+
+async def test_the_reset_records_that_it_emptied_the_ledger(tmp_path: Path) -> None:
+    """So a restore from the run reports leaves out the runs before it."""
+    await _seed_current(tmp_path)
+    assert ledger_emptied_at(pipeline_logs_dir()) is None
+
+    await _reset()
+
+    assert ledger_emptied_at(pipeline_logs_dir()) is not None
+
+
+async def test_a_reset_to_todays_table_keeps_a_symbol_named_protein(
+    tmp_path: Path,
+) -> None:
+    """The curated table names most proteins by their gene symbol. A reset to
+    it used to store NULL for each, and the export then published
+    "(unknown)"."""
+    await _seed_current(tmp_path)
+    async with Database.connection() as conn:
+        await conn.execute("DELETE FROM genes WHERE gene = 'XYZ9'")
+        await conn.execute(
+            "UPDATE genes SET protein = gene, source_quote = NULL, "
+            "confidence = NULL"
+        )
+    curated = await read_published_genes()
+
+    await reset_database(curated)
+
+    assert await read_published_genes() == curated
+    assert [row["protein"] for row in curated] == ["ABC1", "DEF2"]
 
 
 async def test_the_next_gene_after_a_reset_takes_the_next_id(tmp_path: Path) -> None:

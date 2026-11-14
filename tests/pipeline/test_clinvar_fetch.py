@@ -57,6 +57,13 @@ def _record(
     }
 
 
+def _echo_summaries(_url: str, *, data: dict[str, str]) -> httpx.Response:
+    """An esummary answer listing every uid posted, each a record naming no gene."""
+    ids = data["id"].split(",")
+    result: dict[str, Any] = {"uids": ids, **{uid: {"uid": uid} for uid in ids}}
+    return httpx.Response(200, text=json.dumps({"result": result}))
+
+
 _DISEASE_A_XREFS = [
     ("Orphanet", "199354"),
     ("MedGen", "C6022615"),
@@ -389,12 +396,9 @@ class TestFetchClinVarDiseases:
             200,
             text=json.dumps({"esearchresult": {"count": "450", "idlist": uids}}),
         )
-        summary = httpx.Response(
-            200, text=json.dumps({"result": {"uids": []}})
-        )
         mock_client = AsyncMock()
         mock_client.get = AsyncMock(return_value=search)
-        mock_client.post = AsyncMock(return_value=summary)
+        mock_client.post = AsyncMock(side_effect=_echo_summaries)
         mocker.patch(
             "pipeline.clinvar_fetch._client_manager.get", return_value=mock_client
         )
@@ -418,9 +422,7 @@ class TestFetchClinVarDiseases:
         )
         mock_client = AsyncMock()
         mock_client.get = AsyncMock(return_value=search)
-        mock_client.post = AsyncMock(
-            return_value=httpx.Response(200, text=json.dumps({"result": {"uids": []}}))
-        )
+        mock_client.post = AsyncMock(side_effect=_echo_summaries)
         mocker.patch(
             "pipeline.clinvar_fetch._client_manager.get", return_value=mock_client
         )
@@ -537,6 +539,81 @@ class TestTransportFailureModes:
         mock_client = AsyncMock()
         mock_client.get = AsyncMock(
             return_value=httpx.Response(200, text=json.dumps({"header": {}}))
+        )
+        mocker.patch(
+            "pipeline.clinvar_fetch._client_manager.get", return_value=mock_client
+        )
+
+        assert await fetch_clinvar_diseases("GENE1") is None
+
+    @pytest.mark.parametrize(
+        "body",
+        [
+            {"esearchresult": {"ERROR": "Search Backend failed: read timeout"}},
+            {"esearchresult": {"idlist": []}},
+            {"esearchresult": {"count": "0"}},
+            {"esearchresult": {"count": "1", "idlist": "1"}},
+            {"esearchresult": ["unexpected"]},
+        ],
+        ids=[
+            "in-band-error",
+            "no-count",
+            "no-idlist",
+            "idlist-not-a-list",
+            "not-a-dict",
+        ],
+    )
+    async def test_a_search_200_that_is_not_an_answer_is_a_transient_miss(
+        self, mocker, body
+    ) -> None:
+        """NCBI reports a backend failure in-band, as a 200 with no count.
+
+        Read leniently it was zero records: an empty result, a zero-count
+        status row, and the gene's diseases deleted for DB_CACHE_TTL_DAYS.
+        """
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(
+            return_value=httpx.Response(200, text=json.dumps(body))
+        )
+        mock_client.post = AsyncMock()
+        mocker.patch(
+            "pipeline.clinvar_fetch._client_manager.get", return_value=mock_client
+        )
+
+        assert await fetch_clinvar_diseases("GENE1") is None
+        mock_client.post.assert_not_awaited()
+
+    @pytest.mark.parametrize(
+        "body",
+        [
+            {"esummaryresult": ["Unable to obtain query #1"]},
+            {"error": "backend failure"},
+            {"result": ["unexpected"]},
+            ["unexpected"],
+            {"result": {"uids": ["1"], "1": {"uid": "1"}}},
+            {"result": {"uids": ["1", "2"], "1": {"uid": "1"}}},
+        ],
+        ids=[
+            "in-band-error",
+            "error-document",
+            "result-not-a-dict",
+            "payload-not-a-dict",
+            "fewer-uids-than-asked",
+            "a-listed-uid-with-no-record",
+        ],
+    )
+    async def test_a_summary_200_that_does_not_cover_the_batch_fails_the_gene(
+        self, mocker, body
+    ) -> None:
+        """A 200 without every record asked for is not a complete answer."""
+        search = httpx.Response(
+            200,
+            text=json.dumps({"esearchresult": {"count": "2", "idlist": ["1", "2"]}}),
+        )
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=search)
+        mock_client.post = AsyncMock(
+            return_value=httpx.Response(200, text=json.dumps(body))
         )
         mocker.patch(
             "pipeline.clinvar_fetch._client_manager.get", return_value=mock_client
@@ -1020,3 +1097,52 @@ class TestTraitsCollidingOnOneDiseaseGroup:
         }
 
         assert names == {"Gamma"}
+
+
+class TestAliasMembersCollidingOnOneRow:
+    async def test_two_members_sharing_a_disease_write_one_row(
+        self, mocker, gene_aliases, caplog
+    ) -> None:
+        """Both members' rows are filed under the curated key, so a disease
+        both carry is one UNIQUE key. Left as two rows the second written
+        won, by fetch order, and the status counted rows that do not exist.
+        """
+        from pipeline.clinvar_fetch import ClinVarDisease, ClinVarGeneResult
+
+        def disease(count: int, classification: str) -> ClinVarDisease:
+            return ClinVarDisease(
+                trait_name="Disease A syndrome",
+                group_key="MONDO:0010829",
+                xrefs=("MONDO:0010829", "OMIM:600142"),
+                classification=classification,
+                record_count=count,
+            )
+
+        mocker.patch(
+            "pipeline.database.get_annotation_statuses", AsyncMock(return_value={})
+        )
+        replace = mocker.patch(
+            "pipeline.database.replace_gene_annotations", AsyncMock(return_value=2)
+        )
+        mocker.patch(
+            "pipeline.clinvar_fetch.fetch_clinvar_diseases",
+            AsyncMock(
+                side_effect=[
+                    ClinVarGeneResult("GENEA", (disease(12, "Pathogenic"),)),
+                    ClinVarGeneResult("GENEB", (disease(3, "Likely pathogenic"),)),
+                ]
+            ),
+        )
+
+        with caplog.at_level(logging.INFO, logger="pipeline.clinvar_fetch"):
+            await sync_clinvar_annotations(["GENEA/B"])
+
+        rows, statuses = replace.await_args.args
+        assert [(r.gene_symbol, r.object_id) for r in rows] == [
+            ("GENEA/B", "MONDO:0010829"),
+            ("GENEA/B", "OMIM:600142"),
+        ]
+        assert {r.evidence_count for r in rows} == {12}
+        assert {r.qualifier for r in rows} == {"Pathogenic"}
+        assert [(s.gene_symbol, s.row_count) for s in statuses] == [("GENEA/B", 2)]
+        assert "GENEA/B" in caplog.text

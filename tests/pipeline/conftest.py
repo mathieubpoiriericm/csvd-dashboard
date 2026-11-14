@@ -20,10 +20,12 @@ if _project_root not in sys.path:
 # Before anything imports the pipeline, which loads .env: see tests/hermetic_env.py.
 from tests.hermetic_env import (  # noqa: E402
     DATABASE_CREDENTIALS,
+    keep_pipeline_logs_out_of_the_project,
     shut_out_dotenv_database_credentials,
 )
 
 shut_out_dotenv_database_credentials()
+keep_pipeline_logs_out_of_the_project()
 
 from collections.abc import Iterator  # noqa: E402
 from dataclasses import dataclass  # noqa: E402
@@ -699,6 +701,30 @@ def _isolate_pipeline_progress_file(_isolate_credentials, tmp_path, monkeypatch)
     monkeypatch.setenv(
         "PIPELINE_PROGRESS_FILE", str(tmp_path / "pipeline_progress.json")
     )
+
+
+@pytest.fixture(autouse=True)
+def _isolate_log_dir(_isolate_credentials, tmp_path_factory, monkeypatch):
+    """Point the pipeline's log directory at a temp one for every test.
+
+    `_emit_report` writes each run's report to `pipeline.main.LOG_DIR / "json"`,
+    and that global is bound once, at import -- an environment variable set
+    here cannot move it. A test that drove `run_pipeline` without mocking the
+    report left 69 synthetic reports in the developer's `logs/json/`, which
+    `scripts.restore_from_json` reads back as production history. The module
+    attribute is patched when the pipeline is loaded, and the variable is set
+    for a subprocess or a first import inside the test; the session-wide
+    default comes from `keep_pipeline_logs_out_of_the_project`. Takes
+    `_isolate_credentials` for the ordering reason recorded on
+    `_isolate_checkpoint`. The directory is a fresh one of its own rather
+    than `tmp_path / "logs"`, so a test that lists its `tmp_path` finds only
+    the files it wrote there.
+    """
+    log_dir = tmp_path_factory.mktemp("logs")
+    monkeypatch.setenv("PIPELINE_LOG_DIR", str(log_dir))
+    main = sys.modules.get("pipeline.main")
+    if main is not None:
+        monkeypatch.setattr(main, "LOG_DIR", log_dir)
 
 
 @pytest.fixture(autouse=True)

@@ -193,3 +193,40 @@ def test_the_tracked_traits_are_the_vocabularys_traits_and_nothing_else() -> Non
     for entry in vocabulary["untracked"]:
         assert entry["term"] in CANONICAL_TRAITS
         assert entry["term"] not in TRACKED_TRAITS
+
+
+class TestAValueThePipelineIgnoresCannotFailThePaper:
+    """The tool is not strict, so its schema only advises. `pmid` is
+    overwritten with the caller's value after validation, and a number
+    there (a PMID is one) used to fail the whole paper into a paid retry.
+    """
+
+    _ENTRY = {
+        "gene_symbol": "GENE1",
+        "confidence": 0.5,
+        "source_quote": "GENE1 was associated with trait A.",
+    }
+
+    @pytest.mark.parametrize("pmid", [33293549, None, ["1"]])
+    def test_a_pmid_that_is_not_a_string_validates(self, pmid) -> None:
+        from pipeline.anthropic_client import _merge_tool_blocks
+
+        block = type("B", (), {"input": {"genes": [{**self._ENTRY, "pmid": pmid}]}})()
+
+        genes = _merge_tool_blocks([block], pmid="12345678", model=None)
+
+        assert [gene.pmid for gene in genes] == ["12345678"]
+
+    def test_a_null_in_a_field_with_a_default_is_the_default(self) -> None:
+        entry = GeneEntry.model_validate(
+            {
+                **self._ENTRY,
+                "gwas_trait": None,
+                "omics_evidence": None,
+                "mendelian_randomization": None,
+            }
+        )
+
+        assert entry.gwas_trait == []
+        assert entry.omics_evidence == []
+        assert entry.mendelian_randomization is False

@@ -23,7 +23,7 @@ identity.
 
 import asyncio
 import logging
-from collections import OrderedDict
+from collections import Counter, OrderedDict
 from dataclasses import dataclass, replace
 from typing import Any, Final
 
@@ -32,6 +32,7 @@ import httpx
 from pipeline.annotations import (
     AnnotationRow,
     AnnotationStatus,
+    collapse_colliding_rows,
     expand_lookup_symbols,
 )
 from pipeline.cache_utils import (
@@ -443,14 +444,36 @@ async def sync_opentargets_annotations(
         if target.ensembl_id is None:
             unresolved.append(symbol)
 
+    # As in the ClinVar sync: a term two members of one alias key share is
+    # one UNIQUE key under the curated key. The higher score is kept, a row
+    # with none ranking last.
+    rows = collapse_colliding_rows(
+        rows,
+        lambda row: (
+            row.score is None,
+            -(row.score or 0.0),
+            -(row.evidence_count or 0),
+            row.qualifier or "",
+            row.object_label or "",
+        ),
+    )
+    stored = Counter(row.gene_symbol for row in rows)
+    for curated, fetched in row_counts.items():
+        if fetched > stored[curated]:
+            logger.info(
+                f"Open Targets: {fetched - stored[curated]} row(s) for {curated} "
+                f"named a term another of its symbols also carries; one row "
+                f"kept for each"
+            )
+
     statuses = [
         AnnotationStatus(
             gene_symbol=curated,
             source=SOURCE,
-            row_count=count,
+            row_count=stored[curated],
             source_version=versions.get(curated),
         )
-        for curated, count in row_counts.items()
+        for curated in row_counts
         if curated not in failed_curated
     ]
     written = {status.gene_symbol for status in statuses}

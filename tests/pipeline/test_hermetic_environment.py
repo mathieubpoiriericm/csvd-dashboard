@@ -11,7 +11,7 @@ in production's `sync_runs`, which the export publishes as the newest refresh.
 
 import os
 
-import pipeline.main  # noqa: F401 -- loads .env, the way every suite run does
+import pipeline.main  # loads .env, the way every suite run does
 
 _CREDENTIALS = ("DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD")
 # Read at collection, outside any test, where the fixture cannot help.
@@ -44,3 +44,29 @@ def test_a_dotenv_load_inside_a_test_cannot_restore_the_credentials() -> None:
     load_dotenv(PROJECT_ROOT / ".env")
     leaked = sorted(name for name in _CREDENTIALS if os.environ.get(name))
     assert leaked == [], f"{', '.join(leaked)} refilled from .env inside a test"
+
+
+def test_the_import_time_log_file_is_outside_the_project() -> None:
+    """`pipeline.main` opens its log file at import, in `PIPELINE_LOG_DIR`
+    or the project's `logs/`; the conftest sets the variable first, so a
+    suite run leaves no log file beside the real runs'."""
+    from pipeline.config import PROJECT_ROOT
+
+    project_logs = (PROJECT_ROOT / "logs").resolve()
+    assert not pipeline.main.LOG_FILE.resolve().is_relative_to(project_logs)
+
+
+def test_run_reports_go_to_the_test_s_own_directory(tmp_path) -> None:
+    """`_emit_report` writes to `LOG_DIR / "json"`, read at call time: a test
+    that runs the pipeline unmocked left synthetic reports in `logs/json/`,
+    which `scripts.restore_from_json` reads back as production history. The
+    directory is the test's own, and not inside its `tmp_path`, which a test
+    may list."""
+    from pipeline.config import PROJECT_ROOT
+
+    log_dir = pipeline.main.LOG_DIR
+    assert os.environ["PIPELINE_LOG_DIR"] == str(log_dir)
+    assert log_dir.is_dir()
+    assert not log_dir.resolve().is_relative_to(PROJECT_ROOT.resolve())
+    assert not log_dir.resolve().is_relative_to(tmp_path.resolve())
+    assert list(tmp_path.iterdir()) == []

@@ -237,6 +237,34 @@ class TestPipelineConfigDefaults:
         assert cfg.db_pool_min_size == 2
         assert cfg.db_pool_max_size == 10
 
+    def test_a_pool_of_one_connection_is_refused(self):
+        """The merge window holds one pooled connection for its advisory
+        lock while the merge acquires a second, and acquisition has no
+        timeout: a pool of one hung the run at the merge, after every
+        extraction was paid for, with no error."""
+        with pytest.raises(ValueError, match="db_pool_max_size.*merge window"):
+            PipelineConfig(db_pool_min_size=1, db_pool_max_size=1)
+
+    def test_a_pool_of_two_connections_is_accepted(self):
+        cfg = PipelineConfig(db_pool_min_size=0, db_pool_max_size=2)
+        assert (cfg.db_pool_min_size, cfg.db_pool_max_size) == (0, 2)
+
+    def test_a_pool_minimum_above_its_maximum_is_refused(self):
+        with pytest.raises(ValueError, match="db_pool_min_size"):
+            PipelineConfig(db_pool_min_size=5, db_pool_max_size=4)
+
+    def test_a_negative_pool_minimum_is_refused(self):
+        with pytest.raises(ValueError, match="db_pool_min_size"):
+            PipelineConfig(db_pool_min_size=-1)
+
+    def test_the_pool_size_is_checked_when_read_from_the_environment(
+        self, monkeypatch
+    ):
+        monkeypatch.setenv("PIPELINE_DB_POOL_MIN", "1")
+        monkeypatch.setenv("PIPELINE_DB_POOL_MAX", "1")
+        with pytest.raises(ValueError, match="db_pool_max_size"):
+            PipelineConfig()
+
     def test_days_back_range(self):
         cfg = PipelineConfig()
         assert cfg.min_days_back == 1

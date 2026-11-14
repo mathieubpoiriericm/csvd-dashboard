@@ -25,8 +25,8 @@ naming each row, for:
   one, a registry ID it lists twice or that no gold trial has, or a group
   the manifest's `populations` do not list, or two trials with one
   (registry ID, drug);
-- a value longer than its column, a completion date that is not YYYY-MM or a
-  target size that is not a count;
+- a value longer than its column, a completion date that is not YYYY-MM, a
+  target size that is not a count or a trial with no agent;
 - a GWAS trait that is not a vocabulary key once the synonyms are folded;
 - a protein, band, cell-type string, pathway, omics entry, trait, monogenic
   link or reference the export would not publish exactly as built here --
@@ -55,7 +55,10 @@ How a gold cell becomes a stored value:
 
 Three ST1 columns are deliberately not loaded: tier, the GPS druggability
 score and the drug-repositioning candidate. The run history, the refreshes
-and the lookup caches are left alone.
+and the lookup caches are left alone, but the ClinVar/Orphadata annotations
+of every gene outside the gold are deleted with it, as
+`scripts/reset_to_baseline.py` does: they are keyed by symbol, so the cascade
+misses them, and the export publishes that table whole.
 
 Run it as a module, not as a path: `uv run scripts/...` puts scripts/ on
 sys.path rather than the repo root, and the pipeline imports below would not
@@ -84,10 +87,12 @@ from scripts.restore_from_json import (
     _insert,
     export_gene,
     insert_genes,
+    pipeline_logs_dir,
+    record_ledger_emptied,
     stored_omics,
 )
 
-from pipeline.database import Database
+from pipeline.database import MERGE_WINDOW_LOCK, Database
 from pipeline.disease import VOCABULARY_PATH, load_disease
 from pipeline.export.tables import (
     clean_omics_value,
@@ -417,8 +422,13 @@ def trial_from_gold(
     target_n = _blank(row["target_n"])
     if target_n is not None and not (target_n.isascii() and target_n.isdigit()):
         raise GoldRefused(f"trial {registry_id}: target_n {target_n!r} is not a count")
+    # clinical_trials.drug is NOT NULL, and the export would publish a blank
+    # one as "(unknown)", so the plan passed and the INSERT failed.
+    drug = _blank(row["agent"])
+    if drug is None:
+        raise GoldRefused(f"trial {registry_id}: no agent")
     return {
-        "drug": _blank(row["agent"]),
+        "drug": drug,
         "mechanism_of_action": _blank(row["mechanism_of_action"]),
         "genetic_target": _blank(row["genetic_target"]),
         "genetic_evidence": _blank(row["genetic_evidence"]),
@@ -519,6 +529,9 @@ def build_gold_plan(gold_dir: Path, populations_path: Path) -> GoldPlan:
 
 # What write_gold_plan replaces. The list tables cascade from genes.
 _REPLACED_TABLES: Final = ("genes", "clinical_trials", "pubmed_refs")
+# Rows keyed by gene symbol rather than by genes.id, so the cascade misses
+# them; the rows of every gene outside the plan are deleted by hand.
+_ANNOTATION_TABLES: Final = ("gene_annotations", "gene_annotation_status")
 _COUNTED_TABLES: Final = (
     "genes",
     "gene_gwas_traits",
@@ -526,6 +539,7 @@ _COUNTED_TABLES: Final = (
     "gene_references",
     "clinical_trials",
     "pubmed_refs",
+    *_ANNOTATION_TABLES,
 )
 
 
@@ -542,8 +556,28 @@ async def write_gold_plan(plan: GoldPlan) -> dict[str, int]:
     TERMINATED or WITHDRAWN keeps that status too, so the export withholds
     it exactly as it would after the next refresh; the tests that every gold
     trial is published check the plan, not the export.
+
+    **It first waits out any run inside its merge window**, as
+    `reset_to_baseline.reset_database` does: a run merges its genes and
+    records their papers in two transactions under `merge_window`, and a
+    load landing between them would delete the merged genes and let the
+    run then mark their papers processed. The advisory lock comes first,
+    before any table is touched, so waiting on it holds nothing a run's
+    merge needs. The table lock after it is the reset's too: it blocks every
+    other INSERT, UPDATE and DELETE on the genes and its list tables until
+    the load commits, so no writer outside a run -- a curator's session --
+    can add a row the load neither deleted nor numbered around.
+
+    Once it has committed, the ledger wipe is recorded in
+    logs/ledger_emptied.json, so a later `scripts.restore_from_json` does
+    not rebuild the ledger from the runs before it.
     """
     async with Database.connection() as conn, conn.transaction():
+        await conn.execute("SELECT pg_advisory_xact_lock($1)", MERGE_WINDOW_LOCK)
+        await conn.execute(
+            "LOCK TABLE genes, gene_references, gene_gwas_traits, "
+            "gene_monogenic_links IN SHARE ROW EXCLUSIVE MODE"
+        )
         statuses = await conn.fetch(
             "SELECT DISTINCT ON (registry_id) registry_id, overall_status "
             "FROM clinical_trials "
@@ -554,6 +588,11 @@ async def write_gold_plan(plan: GoldPlan) -> dict[str, int]:
             # Interpolating is safe: every name is a module constant.
             await conn.execute(f"DELETE FROM {table}")
         await insert_genes(conn, plan.genes)
+        keep = [gene.columns["gene"] for gene in plan.genes]
+        for table in _ANNOTATION_TABLES:
+            await conn.execute(
+                f"DELETE FROM {table} WHERE gene_symbol <> ALL($1::text[])", keep
+            )
         await conn.executemany(
             _insert("clinical_trials", ["id", *_TRIAL_COLUMNS]),
             [
@@ -567,10 +606,12 @@ async def write_gold_plan(plan: GoldPlan) -> dict[str, int]:
             "WHERE registry_id = $1 AND overall_status IS NULL",
             [(row["registry_id"], row["overall_status"]) for row in statuses],
         )
-        return {
+        counts = {
             table: await conn.fetchval(f"SELECT count(*) FROM {table}")
             for table in _COUNTED_TABLES
         }
+    record_ledger_emptied(pipeline_logs_dir())
+    return counts
 
 
 def main(argv: list[str] | None = None) -> None:

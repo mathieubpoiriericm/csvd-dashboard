@@ -5,9 +5,11 @@ Requires ENTREZ_EMAIL environment variable (NCBI policy).
 """
 
 import asyncio
+import functools
 import logging
 import os
 import time
+import urllib.request
 import warnings
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
@@ -23,6 +25,27 @@ logger = logging.getLogger(__name__)
 
 # --- Configuration ---
 _entrez_configured: bool = False
+
+# Biopython's `_open` calls its module global `urlopen(request)` with no
+# timeout, so a connection NCBI accepted and then stopped answering blocked
+# the worker thread in `recv` for good: the run sat at step 1 with no
+# failure row and no exit. Rebinding that global is the one seam `_open`
+# offers; the timeout stays on the socket for the body `Entrez.read` reads.
+# Not `socket.setdefaulttimeout`, which is process-wide. Expiry is an
+# `OSError` (`URLError` on connect, `TimeoutError` on read), so it is
+# already one of `_ENTREZ_FAILURES`.
+_ENTREZ_TIMEOUT_S: Final[float] = 60.0
+setattr(  # noqa: B010 -- the stub types the global as the bare function
+    Entrez,
+    "urlopen",
+    functools.partial(urllib.request.urlopen, timeout=_ENTREZ_TIMEOUT_S),
+)
+# The backstop for a body that trickles, each read inside the socket
+# timeout: every try Biopython makes, its sleeps between them, and the read.
+_ENTREZ_DEADLINE_S: float = (
+    _ENTREZ_TIMEOUT_S * (Entrez.max_tries + 1)
+    + Entrez.sleep_between_tries * Entrez.max_tries
+)
 
 
 class _EntrezConfiguration(Protocol):
@@ -160,12 +183,17 @@ async def _run_entrez_search(**params: Any) -> _EntrezSearchResult:
     """
     started = time.monotonic()
     status = 200
-    try:
+
+    async def search() -> _EntrezSearchResult:
         handle = await asyncio.to_thread(Entrez.esearch, **params)
         return cast(
             _EntrezSearchResult,
             await asyncio.to_thread(Entrez.read, handle),
         )
+
+    try:
+        # TimeoutError is an OSError, so the clause below records it.
+        return await asyncio.wait_for(search(), timeout=_ENTREZ_DEADLINE_S)
     except _ENTREZ_FAILURES as e:
         # A failed call is a call. urllib's HTTPError carries the status;
         # a transport failure carries none, and is recorded as 0 so the

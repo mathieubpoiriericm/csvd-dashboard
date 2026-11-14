@@ -10,20 +10,39 @@ in tests/pipeline/conftest.py. Skips unless `CSVD_TEST_DB_URL` (or the
 container runtime) provides a throwaway database.
 """
 
+import asyncio
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
 from scripts.load_gold import GoldPlan, write_gold_plan
-from scripts.restore_from_json import GeneRestore, stored_omics
+from scripts.restore_from_json import (
+    GeneRestore,
+    ledger_emptied_at,
+    pipeline_logs_dir,
+    stored_omics,
+)
 
 from pipeline.data_merger import format_omics
-from pipeline.database import Database, merge_genes_transactional
+from pipeline.database import (
+    Database,
+    merge_genes_transactional,
+    merge_window,
+    record_processed_pmids_batch,
+)
 from pipeline.export.main import read_published_genes
 from pipeline.omics import OmicsEvidence, OmicsItem
 
 pytestmark = pytest.mark.usefixtures("database_env")
 
-_TABLES = ("genes", "clinical_trials", "pubmed_refs", "pipeline_runs")
+_TABLES = (
+    "genes",
+    "clinical_trials",
+    "pubmed_refs",
+    "pipeline_runs",
+    "gene_annotations",
+    "gene_annotation_status",
+)
 
 _ENTRIES = ["TWAS;TRAIT-A: tissue one*, (age>65): tissue two_x", "Proteomics"]
 
@@ -109,6 +128,8 @@ async def test_the_gold_rows_replace_what_was_there() -> None:
         "gene_references": 2,
         "clinical_trials": 1,
         "pubmed_refs": 0,
+        "gene_annotations": 0,
+        "gene_annotation_status": 0,
     }
     async with Database.connection() as conn:
         assert await conn.fetchval("SELECT count(*) FROM pipeline_runs") == 1
@@ -119,6 +140,79 @@ async def test_the_gold_rows_replace_what_was_there() -> None:
             "INSERT INTO clinical_trials (drug) VALUES ('Drug B') RETURNING id"
         )
     assert (new_gene, new_trial) == (2, 2)
+
+
+async def test_the_annotations_of_a_gene_outside_the_gold_go_with_it() -> None:
+    """Annotations are keyed by symbol, so the genes cascade misses them, and
+    the export publishes the table whole: a removed gene's ClinVar rows would
+    be published beside a table1 that no longer has the gene."""
+    async with Database.connection() as conn:
+        for symbol in ("ABC1", "OLD1"):
+            await conn.execute(
+                "INSERT INTO gene_annotations (gene_symbol, source, relation, "
+                "object_id) VALUES ($1, 'clinvar', 'disease', 'OMIM:100000')",
+                symbol,
+            )
+            await conn.execute(
+                "INSERT INTO gene_annotation_status (gene_symbol, source, "
+                "row_count) VALUES ($1, 'clinvar', 1)",
+                symbol,
+            )
+
+    counts = await write_gold_plan(_plan())
+
+    assert counts["gene_annotations"] == 1
+    assert counts["gene_annotation_status"] == 1
+    async with Database.connection() as conn:
+        for table in ("gene_annotations", "gene_annotation_status"):
+            assert await conn.fetchval(f"SELECT gene_symbol FROM {table}") == "ABC1"
+
+
+async def test_the_load_waits_for_a_run_between_its_merge_and_its_ledger() -> None:
+    """A run's merge and its ledger write are two transactions; a load
+    landing between them would delete the merged genes and the run would
+    then record their papers as processed, so no later run retried them."""
+    async with merge_window():
+        load = asyncio.create_task(write_gold_plan(_plan()))
+        await asyncio.sleep(0.5)
+        assert not load.done(), "the load ran inside the run's merge window"
+        await record_processed_pmids_batch(
+            [("55555555", True, "europepmc", 1, "claude-opus-5-5")]
+        )
+    counts = await asyncio.wait_for(load, timeout=10)
+
+    assert counts["pubmed_refs"] == 0
+
+
+async def test_no_other_writer_adds_a_gene_while_the_load_replaces_them() -> None:
+    """The load holds the reset's table lock: a gene another session inserts
+    while it runs would otherwise survive the replacement, or take an id the
+    load is about to write."""
+    async with Database.connection() as other:
+        writer = other.transaction()
+        await writer.start()
+        await other.execute("INSERT INTO genes (gene) VALUES ('XYZ9')")
+        load = asyncio.create_task(write_gold_plan(_plan()))
+        await asyncio.sleep(0.5)
+        waited = not load.done()
+        await writer.commit()
+    counts = await asyncio.wait_for(load, timeout=10)
+
+    assert waited, "the load did not wait for the other writer"
+    assert counts["genes"] == 1
+    assert [row["gene"] for row in await read_published_genes()] == ["ABC1"]
+
+
+async def test_the_load_records_that_it_emptied_the_ledger() -> None:
+    """So a restore from the run reports leaves out the runs before it."""
+    assert ledger_emptied_at(pipeline_logs_dir()) is None
+    before = datetime.now(tz=UTC)
+
+    await write_gold_plan(_plan())
+
+    emptied = ledger_emptied_at(pipeline_logs_dir())
+    assert emptied is not None
+    assert before <= emptied <= datetime.now(tz=UTC)
 
 
 async def test_a_reload_keeps_the_registry_status_a_refresh_filled_in() -> None:

@@ -31,6 +31,7 @@ from typing import Any, Final
 from pydantic import Field
 
 from pipeline.api_telemetry import ApiServiceRecord
+from pipeline.run_errors import publishable_text
 from pipeline.run_report import CappedList, RunStatus
 from pipeline.wire_model import WireModel
 
@@ -259,7 +260,10 @@ def build_sync_report(
         The record, ready to store and to publish.
     """
     metrics = summary.get("metrics") or {}
-    errors = [str(error) for error in summary.get("errors") or []]
+    # Published in data/pipeline_syncs.json, so sanitised as a run's are.
+    errors = [
+        publishable_text(str(error)) or "" for error in summary.get("errors") or []
+    ]
     # No counts at all is a refresh that stopped before it could report --
     # an exception or the timeout, through `_failure_summary` -- and a
     # source built from nothing is 0/0/0, which the page words as "nothing

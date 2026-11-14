@@ -780,3 +780,25 @@ def test_a_study_stored_as_both_array_and_prose_publishes_once() -> None:
 
 def test_omics_prose_that_merely_starts_with_a_bracket_is_prose() -> None:
     assert clean_omics_value("[TWAS]") == ["(none found)"]
+
+
+@pytest.mark.parametrize(
+    "bracketed",
+    [
+        # An array with something after it.
+        '["Proteomics"] and more',
+        # Entries that are not text, or are blank.
+        '["Proteomics", 3]',
+        '["Proteomics", " "]',
+        # Never closed.
+        '["Proteomics"',
+    ],
+)
+def test_a_bracketed_value_that_is_not_an_array_of_entries_is_prose(
+    bracketed: str,
+) -> None:
+    """Only a whole JSON array of non-empty strings skips the chain. Anything
+    less is prose: it publishes nothing of its own, and what the merge stored
+    after it is still cleaned."""
+    assert clean_omics_value(bracketed) == ["(none found)"]
+    assert clean_omics_value(f"{bracketed};PWAS:brain*") == ["PWAS;brain"]

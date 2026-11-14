@@ -2,6 +2,7 @@
 
 import asyncio
 from email.message import Message
+from pathlib import Path
 from unittest.mock import MagicMock
 from urllib.error import HTTPError
 
@@ -15,6 +16,7 @@ from pipeline.run_errors import (
     RunWarning,
     classifier_phrase,
     classify,
+    publishable_text,
     refusal_category,
 )
 
@@ -275,3 +277,136 @@ def test_a_run_with_no_paper_processed_keeps_its_own_sentence() -> None:
     assert error.kind == "no_paper_processed"
     assert error.title == "None of the 3 new papers could be processed"
     assert error.detail == "PMID 111: The request timed out"
+
+
+class TestATransportTimeoutIsATimeout:
+    """httpx's timeouts do not subclass ``TimeoutError`` and say nothing.
+
+    The message comes from the transport's own exception and is normally
+    empty, so neither the type test nor the phrase test saw one: a read
+    timeout while a batch's results streamed was published as "an
+    unexpected ReadTimeout", with no detail.
+    """
+
+    def test_an_httpx_timeout_with_no_message(self) -> None:
+        error = classify(httpx.ReadTimeout(""))
+        assert error.kind == "timeout"
+        assert error.title == "The request timed out"
+
+    def test_the_sdks_transport_timeout_with_no_message(self) -> None:
+        httpx2 = pytest.importorskip("httpx2")
+        assert classify(httpx2.ReadTimeout("")).kind == "timeout"
+
+    def test_a_class_merely_named_like_one_is_not(self) -> None:
+        class TimeoutSettingsError(Exception):
+            pass
+
+        assert classify(TimeoutSettingsError("bad value")).kind == "unknown"
+
+
+class TestWhatIsPublishedIsSanitised:
+    """`detail` reaches data/pipeline_run.json, which is public.
+
+    The log has `_RedactSecrets`; the report had nothing, so an exception's
+    own text -- a credential in a URL, the operator's home directory, the
+    database's address -- was stored and exported as written.
+    """
+
+    def test_a_credential_in_a_url_is_redacted(self) -> None:
+        error = classify(
+            RuntimeError("GET https://example.org/x?db=gene&api_key=s3cr3t&id=1")
+        )
+        assert error.detail == (
+            "GET https://example.org/x?db=gene&api_key=<redacted>&id=1"
+        )
+
+    def test_the_checkout_and_home_directory_are_not_named(self) -> None:
+        import pipeline
+
+        repo = Path(pipeline.__file__).resolve().parent.parent
+        inside = repo / "logs" / "json" / "report.json"
+        beside = Path.home() / "elsewhere" / "file.txt"
+        error = classify(
+            OSError(28, f"No space left on device: '{inside}' (and '{beside}')")
+        )
+        assert error.detail is not None
+        assert "'<repo>/logs/json/report.json'" in error.detail
+        assert str(repo) not in error.detail
+        if len(Path.home().parts) > 1:
+            assert "'~/elsewhere/file.txt'" in error.detail
+            assert str(Path.home()) not in error.detail
+
+    def test_a_home_directory_that_is_the_root_is_not_rewritten(
+        self, monkeypatch
+    ) -> None:
+        # A container's user can have "/" for a home; replacing it would
+        # turn every path and URL in the text into "~".
+        monkeypatch.setattr(Path, "home", classmethod(lambda cls: Path("/")))
+        assert publishable_text("GET https://example.org/a/b failed") == (
+            "GET https://example.org/a/b failed"
+        )
+
+    def test_an_over_long_message_is_capped(self) -> None:
+        error = classify(RuntimeError("Error code: 500 - " + "x" * 5000))
+        assert error.detail is not None
+        assert len(error.detail) <= 500
+        assert error.detail.startswith("Error code: 500 - ")
+        assert error.detail.endswith("…")
+
+    def test_ordinary_text_is_left_as_written(self) -> None:
+        assert publishable_text("Error processing PMID 34291234") == (
+            "Error processing PMID 34291234"
+        )
+        assert publishable_text(None) is None
+        assert publishable_text("") == ""
+
+    def test_a_refused_connection_publishes_no_address(self) -> None:
+        error = classify(
+            ConnectionRefusedError(
+                111, "Connect call failed ('10.1.2.3', 5432)"
+            )
+        )
+        assert error.kind == "database_error"
+        assert error.detail is None
+
+    def test_an_address_in_any_other_error_is_withheld(self) -> None:
+        error = classify(
+            OSError(
+                "Multiple exceptions: [Errno 111] Connect call failed "
+                "('::1', 5432, 0, 0), [Errno 111] Connect call failed "
+                "('127.0.0.1', 5432)"
+            )
+        )
+        assert error.detail is not None
+        assert "5432" not in error.detail
+        assert "127.0.0.1" not in error.detail
+
+    @pytest.mark.parametrize("sqlstate", ["28P01", "28000", "3D000", "08006"])
+    def test_a_login_failure_names_no_role_or_database(self, sqlstate: str) -> None:
+        class Rejected(Exception):
+            def __init__(self, message: str, code: str) -> None:
+                super().__init__(message)
+                self.sqlstate = code
+
+        error = classify(
+            Rejected('password authentication failed for user "someone"', sqlstate)
+        )
+        assert error.kind == "database_error"
+        assert error.detail is None
+
+    def test_a_rejected_query_keeps_its_message(self) -> None:
+        import asyncpg
+
+        error = classify(
+            asyncpg.exceptions.UndefinedColumnError('column "x" does not exist')
+        )
+        assert error.detail == 'column "x" does not exist'
+
+    def test_a_run_with_no_paper_processed_sanitises_the_papers_error(self) -> None:
+        error = classify(
+            NoPaperProcessedError(
+                "None of the 3 new papers could be processed",
+                detail="PMID 111: https://example.org/?api_key=s3cr3t",
+            )
+        )
+        assert error.detail == "PMID 111: https://example.org/?api_key=<redacted>"

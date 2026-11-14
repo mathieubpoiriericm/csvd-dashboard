@@ -156,6 +156,36 @@ class TestReadPipelineRun:
         assert result is not None
         assert result["papersDetail"]["items"][0]["geneCount"] == 2
 
+    async def test_an_accepted_gene_naming_no_paper_leaves_the_counts_alone(
+        self, mocker
+    ) -> None:
+        # One gene with no PMID could be either paper's, so no paper's
+        # share can be told from the list, even for the gene that names one.
+        paper = {"pmid": "1", "source": "abstract", "geneCount": 2, "rejectedCount": 0}
+        stored = _stored(
+            database={"inserted": 0, "updated": 2},
+            papersDetail={
+                "shown": 2,
+                "total": 2,
+                "items": [paper, {**paper, "pmid": "2"}],
+            },
+            acceptedGenes={
+                "shown": 2,
+                "total": 2,
+                "items": [{"symbol": "GENE3", "pmid": "2"}, {"symbol": "GENE4"}],
+            },
+        )
+        _connection(mocker, {"report": json.dumps(stored)})
+
+        result = await read_pipeline_run()
+
+        assert result is not None
+        counts = [
+            (p["pmid"], p["geneCount"], p["rejectedCount"])
+            for p in result["papersDetail"]["items"]
+        ]
+        assert counts == [("1", 2, 0), ("2", 2, 0)]
+
     async def test_an_empty_table_is_none_not_an_error(self, mocker) -> None:
         _connection(mocker, None)
         assert await read_pipeline_run() is None

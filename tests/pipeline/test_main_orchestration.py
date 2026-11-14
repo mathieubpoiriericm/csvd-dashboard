@@ -1261,6 +1261,8 @@ class TestCheckpointResume:
             return stream()
 
         client = MagicMock()
+        # The create is sent through `with_options(max_retries=0)`.
+        client.with_options.return_value = client
         client.messages.batches.create = AsyncMock(
             return_value=MagicMock(id="msgbatch_1")
         )
@@ -1508,7 +1510,10 @@ class TestCheckpointResume:
 
 
 class TestDiscoveryAndCompletion:
-    async def test_missing_pubmed_table_is_treated_as_first_run(self, mocker) -> None:
+    @pytest.mark.parametrize("mode", ["dry_run", "test_mode"])
+    async def test_a_preview_treats_a_missing_pubmed_table_as_empty(
+        self, mocker, mode: str
+    ) -> None:
         progress = MagicMock()
         mocker.patch(
             "pipeline.main.search_recent_papers",
@@ -1520,11 +1525,41 @@ class TestDiscoveryAndCompletion:
         )
 
         all_pmids, new_pmids = await pipeline_main._discover_new_pmids(
-            7, dry_run=False, test_mode=False, progress=progress
+            7,
+            dry_run=mode == "dry_run",
+            test_mode=mode == "test_mode",
+            progress=progress,
         )
 
         assert all_pmids == ["123"]
         assert new_pmids == ["123"]
+
+    async def test_a_live_run_stops_on_a_missing_pubmed_table(
+        self, mocker, caplog
+    ) -> None:
+        # The pipeline never creates its schema, so a missing ledger on a
+        # live run means the merge's tables are missing too. Treating it as
+        # a first run extracted the whole window at full price before step
+        # 5 failed, where a filled database would have deduplicated most of
+        # it for nothing.
+        mocker.patch(
+            "pipeline.main.search_recent_papers",
+            new=AsyncMock(return_value=["123"]),
+        )
+        mocker.patch(
+            "pipeline.main.get_existing_pmids",
+            new=AsyncMock(side_effect=asyncpg.UndefinedTableError("missing")),
+        )
+
+        with (
+            caplog.at_level(logging.ERROR),
+            pytest.raises(asyncpg.UndefinedTableError),
+        ):
+            await pipeline_main._discover_new_pmids(
+                7, dry_run=False, test_mode=False, progress=MagicMock()
+            )
+
+        assert "alembic upgrade head" in caplog.text
 
     @pytest.mark.parametrize("mode", ["dry_run", "test_mode"])
     async def test_a_preview_filters_already_processed_papers(
@@ -2204,6 +2239,53 @@ class TestMainCli:
         run.assert_awaited_once()
         assert run.await_args.kwargs["pmid_file"] == pmids
         assert run.await_args.kwargs["skip_validation"] is True
+
+    @pytest.mark.parametrize("days", ["0", "5000"])
+    def test_an_out_of_range_window_is_refused_before_anything_runs(
+        self, monkeypatch, mocker, capsys, days: str
+    ) -> None:
+        # The only check sat inside run_pipeline, whose ValueError the
+        # dispatcher records as a failed PubMed run: a typo was notified as
+        # a failure, the other selected modes ran and --export published.
+        run = mocker.patch(
+            "pipeline.main._run_selected_pipelines", new=AsyncMock(return_value=0)
+        )
+        monkeypatch.setattr(
+            pipeline_main.sys,
+            "argv",
+            [
+                "pipeline",
+                "--pubmed",
+                "--days-back",
+                days,
+                "--clinical-trials",
+                "--export",
+            ],
+        )
+
+        with pytest.raises(SystemExit) as exc_info:
+            pipeline_main.main()
+
+        assert exc_info.value.code == 2
+        assert "--days-back must be between" in capsys.readouterr().err
+        run.assert_not_awaited()
+
+    def test_a_window_the_run_will_ignore_is_not_refused(
+        self, monkeypatch, mocker
+    ) -> None:
+        # Without --pubmed the flag is ignored with a warning, as before.
+        run = mocker.patch(
+            "pipeline.main._run_selected_pipelines", new=AsyncMock(return_value=0)
+        )
+        monkeypatch.setattr(
+            pipeline_main.sys,
+            "argv",
+            ["pipeline", "--clinical-trials", "--days-back", "0"],
+        )
+
+        pipeline_main.main()
+
+        run.assert_awaited_once()
 
     def test_online_failure_uses_nonzero_exit(self, monkeypatch, mocker) -> None:
         mocker.patch(
@@ -2936,6 +3018,100 @@ class TestExportOnRun:
         refresh.assert_awaited_once_with(["FOO"], ["42999999"], config=config)
         dispatcher.assert_awaited_once()
 
+    async def test_a_run_that_failed_after_its_merge_still_refreshes_the_caches(
+        self, dispatcher, mocker
+    ) -> None:
+        # The merge commits before the run is done, and the export runs
+        # despite the failure, so the genes it merged were published with
+        # null lookups and nothing said the refresh had been skipped.
+        error = RuntimeError("ledger write failed")
+        setattr(error, pipeline_main._MERGED_KEYS_ATTR, (["FOO"], ["42999999"]))
+        mocker.patch("pipeline.main.run_pipeline", new=AsyncMock(side_effect=error))
+        refresh = mocker.patch(
+            "pipeline.external_data_sync.sync_external_data_for",
+            new=AsyncMock(return_value=ExternalDataSyncResult()),
+        )
+        order = MagicMock()
+        order.attach_mock(refresh, "refresh")
+        order.attach_mock(dispatcher, "export")
+        config = PipelineConfig()
+
+        exit_code = await pipeline_main._run_selected_pipelines(
+            _dispatcher_args(pubmed=True, export=True), config
+        )
+
+        assert exit_code == 1
+        refresh.assert_awaited_once_with(["FOO"], ["42999999"], config=config)
+        assert [call[0] for call in order.mock_calls] == ["refresh", "export"]
+
+    async def test_a_run_that_failed_before_its_merge_refreshes_nothing(
+        self, dispatcher, mocker
+    ) -> None:
+        mocker.patch(
+            "pipeline.main.run_pipeline",
+            new=AsyncMock(side_effect=RuntimeError("search failed")),
+        )
+        refresh = mocker.patch(
+            "pipeline.external_data_sync.sync_external_data_for", new=AsyncMock()
+        )
+
+        await pipeline_main._run_selected_pipelines(
+            _dispatcher_args(pubmed=True, export=True), PipelineConfig()
+        )
+
+        refresh.assert_not_awaited()
+        dispatcher.assert_awaited_once()
+
+    async def test_a_run_that_raises_after_its_merge_carries_what_it_merged(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        _mock_pubmed_cleanup(mocker)
+        mocker.patch(
+            "pipeline.main._install_termination_handlers",
+            return_value=(MagicMock(), []),
+        )
+        mocker.patch("pipeline.main._remove_signal_handlers")
+        mocker.patch(
+            "pipeline.main._discover_new_pmids",
+            new=AsyncMock(return_value=(["111", "222", "333"], ["111", "222", "333"])),
+        )
+        results = [
+            PaperResult(
+                pmid="111",
+                genes=[
+                    GeneEntry(
+                        gene_symbol="GENE1", confidence=0.9, source_quote="q"
+                    )
+                ],
+            ),
+            # Yielded nothing, so it attached no reference.
+            PaperResult(pmid="222"),
+            PaperResult(pmid="333", error="boom"),
+        ]
+        mocker.patch(
+            "pipeline.main._process_new_pmids",
+            new=AsyncMock(return_value=_ProcessedBatch(results=results, warnings=[])),
+        )
+
+        async def merge(batch, progress, config, *, on_merged):
+            on_merged(cast(pipeline_main.MergeResult, {"inserted": 1, "updated": 0}))
+            raise RuntimeError("ledger write failed")
+
+        mocker.patch("pipeline.main._merge_processed_batch", new=merge)
+        mocker.patch("pipeline.main._record_failed_run", new=AsyncMock())
+        config = PipelineConfig(
+            progress_file=str(tmp_path / "progress.json"),
+            checkpoint_file=str(tmp_path / "checkpoint.jsonl"),
+        )
+
+        with pytest.raises(RuntimeError, match="ledger write failed") as exc_info:
+            await pipeline_main.run_pipeline(config=config, manage_lifecycle=False)
+
+        assert getattr(exc_info.value, pipeline_main._MERGED_KEYS_ATTR) == (
+            ["GENE1"],
+            ["111"],
+        )
+
     async def test_the_curated_key_is_what_gets_cached(
         self, dispatcher, mocker, gene_aliases
     ) -> None:
@@ -3564,6 +3740,91 @@ class TestTheServingModelAndTheRefusal:
         )
         assert [r["result"]["pmid"] for r in records] == ["111"]
 
+    async def test_a_rescue_that_errors_before_any_tokens_counts_none(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        # Not an extraction failure, so it carries no usage to count: the
+        # paper fails with the error's own words and the batch is kept.
+        extract = AsyncMock(side_effect=RuntimeError("no route to host"))
+        config = self._refused_batch(mocker, tmp_path, extract)
+        metrics = PipelineMetrics()
+
+        batch = await pipeline_main._process_new_pmids_via_batch(
+            ["111", "222"],
+            metrics,
+            config,
+            pipeline_main._ProgressReporter(config),
+        )
+
+        failed = next(r for r in batch.results if r.pmid == "222")
+        other = next(r for r in batch.results if r.pmid == "111")
+        assert other.succeeded and not failed.succeeded
+        assert failed.error == "no route to host"
+        assert metrics.token_usage.output_tokens == 0
+        assert metrics.streamed_token_usage.output_tokens == 0
+
+    async def test_a_rescue_the_fallback_never_answered_stays_on_the_batch_record(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        # The request failed, not the paper. The batch's refusal can be
+        # collected again for nothing; off the record, the next run paid for
+        # a new entry the primary model declines again before rescuing.
+        extract = AsyncMock(side_effect=ExtractionFailedError("overloaded"))
+        config = self._refused_batch(mocker, tmp_path, extract)
+        forget = mocker.spy(pipeline_main.batch_state, "forget")
+
+        await pipeline_main._process_new_pmids_via_batch(
+            ["111", "222"],
+            PipelineMetrics(),
+            config,
+            pipeline_main._ProgressReporter(config),
+        )
+
+        assert list(forget.call_args.args[2]) == ["111"]
+
+    async def test_a_paper_declined_twice_comes_off_the_batch_record(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        extract = AsyncMock(
+            side_effect=ExtractionRefusedError("x", TokenUsage(), category="cyber")
+        )
+        config = self._refused_batch(mocker, tmp_path, extract)
+        forget = mocker.spy(pipeline_main.batch_state, "forget")
+
+        await pipeline_main._process_new_pmids_via_batch(
+            ["111", "222"],
+            PipelineMetrics(),
+            config,
+            pipeline_main._ProgressReporter(config),
+        )
+
+        assert list(forget.call_args.args[2]) == ["111", "222"]
+
+    async def test_a_paper_the_checkpoint_could_not_take_stays_on_the_batch_record(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        # The append is best effort, and the merge is still a step away:
+        # with the paper off the batch record as well, a failure there left
+        # no durable copy and the next run paid for the whole batch again.
+        extract = AsyncMock(
+            side_effect=ExtractionRefusedError("x", TokenUsage(), category="cyber")
+        )
+        config = self._refused_batch(mocker, tmp_path, extract)
+        mocker.patch(
+            "pipeline.main.checkpoint.append", side_effect=OSError("read-only")
+        )
+        forget = mocker.spy(pipeline_main.batch_state, "forget")
+
+        batch = await pipeline_main._process_new_pmids_via_batch(
+            ["111", "222"],
+            PipelineMetrics(),
+            config,
+            pipeline_main._ProgressReporter(config),
+        )
+
+        assert next(r for r in batch.results if r.pmid == "111").succeeded
+        assert list(forget.call_args.args[2]) == ["222"]
+
     async def test_a_rescued_paper_that_fails_validation_is_paid_for_not_kept(
         self, mocker, tmp_path: Path
     ) -> None:
@@ -3643,7 +3904,12 @@ class TestTheServingModelAndTheRefusal:
         )
 
         assert seen == [True]
-        assert not Path(config.batch_state_file).exists()
+        # 111 is stored and comes off. 222's rescue got no answer, so its
+        # refusal stays on record for the next run to collect for nothing.
+        (kept,) = batch_state.load(
+            config.batch_state_file, checkpoint.fingerprint(config)
+        )
+        assert set(kept.document_sha256) == {"222"}
 
 
 class TestARescueNcbiDidNotValidate:
@@ -4571,6 +4837,26 @@ class TestPreviewRun:
         pipeline_main.main()
 
         assert order == ["enter", "run"]
+
+    def test_a_preview_database_that_cannot_be_named_ends_the_run_before_it_starts(
+        self, monkeypatch, mocker, caplog
+    ) -> None:
+        mocker.patch(
+            "pipeline.main.enter_preview_database",
+            side_effect=ValueError("DB_NAME is not set"),
+        )
+        run = mocker.patch("pipeline.main._run_selected_pipelines", new=AsyncMock())
+        monkeypatch.setattr(pipeline_main, "gold_only", lambda: True)
+        monkeypatch.setattr(
+            pipeline_main.sys, "argv", ["pipeline", "--preview", "--test-mode"]
+        )
+
+        with caplog.at_level(logging.ERROR), pytest.raises(SystemExit) as exit_info:
+            pipeline_main.main()
+
+        assert exit_info.value.code == 1
+        assert "Invalid argument: DB_NAME is not set" in caplog.text
+        run.assert_not_awaited()
 
     async def test_the_run_checks_the_preview_database_before_extracting(
         self, mocker

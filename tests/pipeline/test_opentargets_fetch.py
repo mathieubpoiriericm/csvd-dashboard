@@ -532,6 +532,58 @@ class TestSyncOpenTargetsAnnotations:
         assert result.fetched == 2
         assert result.failed == 1
 
+    async def test_two_alias_members_sharing_a_term_write_one_row(
+        self, mocker, gene_aliases
+    ) -> None:
+        """Filed under one curated key, a term both members carry is one
+        UNIQUE key: the higher score is kept whichever member came first, and
+        the status counts the rows stored."""
+        from pipeline.opentargets_fetch import OpenTargetsTarget
+
+        mocker.patch(
+            "pipeline.database.get_annotation_statuses", AsyncMock(return_value={})
+        )
+        replace = mocker.patch(
+            "pipeline.database.replace_gene_annotations", AsyncMock(return_value=1)
+        )
+        mocker.patch(
+            "pipeline.opentargets_fetch.fetch_data_version",
+            AsyncMock(return_value="26.06"),
+        )
+
+        def target(symbol: str, score: float | None) -> OpenTargetsTarget:
+            row = AnnotationRow(
+                gene_symbol=symbol,
+                source="opentargets",
+                relation="disease_association",
+                group_key="",
+                object_id="MONDO:0010829",
+                object_label="Disease A syndrome",
+                qualifier=None,
+                score=score,
+                evidence_count=None,
+                source_version="26.06",
+            )
+            return OpenTargetsTarget(
+                gene_symbol=symbol,
+                ensembl_id=f"ENSG-{symbol}",
+                rows=(row,),
+                data_version="26.06",
+            )
+
+        mocker.patch(
+            "pipeline.opentargets_fetch.fetch_opentargets_target",
+            AsyncMock(side_effect=[target("GENEA", 0.9), target("GENEB", 0.4)]),
+        )
+
+        await sync_opentargets_annotations(["GENEA/B"])
+
+        rows, statuses = replace.await_args.args
+        assert [(r.gene_symbol, r.object_id, r.score) for r in rows] == [
+            ("GENEA/B", "MONDO:0010829", 0.9)
+        ]
+        assert [(s.gene_symbol, s.row_count) for s in statuses] == [("GENEA/B", 1)]
+
     async def test_a_failed_meta_query_is_not_retried_per_gene(self, mocker) -> None:
         """The sync passes its result through even when that result is None.
 

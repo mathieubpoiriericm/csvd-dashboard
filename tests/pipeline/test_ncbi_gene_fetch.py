@@ -4,6 +4,7 @@ import logging
 from unittest.mock import AsyncMock
 
 import httpx
+import pytest
 
 from pipeline import ncbi_http
 from pipeline.ncbi_gene_fetch import (
@@ -254,6 +255,43 @@ class TestSelectUid:
         client = _summary_client(resp)
 
         assert await ncbi_http.select_gene_uid(client, "ARSB", ["57152", "411"]) is None
+
+    @pytest.mark.parametrize(
+        "body",
+        [
+            {"error": "Backend failed"},
+            {"esummaryresult": ["Backend failed"]},
+            ["unexpected"],
+            {"result": ["unexpected"]},
+        ],
+    )
+    async def test_an_error_inside_a_200_refuses_to_guess(self, body):
+        """E-utilities reports a backend failure in a 200 with no `result`.
+
+        Read as "NCBI described none of these", it took the first-hit
+        fallback, and validation renamed the gene to an unverified record.
+        """
+        client = _summary_client(httpx.Response(200, json=body))
+
+        assert await ncbi_http.select_gene_uid(client, "ARSB", ["57152", "411"]) is None
+
+    async def test_a_uid_ncbi_could_not_describe_is_not_a_summary(self):
+        client = _summary_client(
+            httpx.Response(
+                200,
+                json={
+                    "result": {
+                        "uids": ["57152", "411"],
+                        "57152": {"uid": "57152", "error": "cannot get document"},
+                        "411": {"uid": "411", "name": "ARSB"},
+                    }
+                },
+            ),
+        )
+
+        summaries = await ncbi_http.fetch_gene_summaries(client, ["57152", "411"])
+
+        assert summaries == {"411": {"uid": "411", "name": "ARSB"}}
 
     async def test_summaries_describing_none_of_the_uids_still_falls_back(self):
         """An answer naming no candidate is not the same as no answer.

@@ -50,6 +50,7 @@ import httpx
 from pipeline.annotations import (
     AnnotationRow,
     AnnotationStatus,
+    collapse_colliding_rows,
     expand_lookup_symbols,
     group_key_for,
 )
@@ -504,6 +505,17 @@ async def _search_uids(
             )
             return None
         result = resp.json()["esearchresult"]
+        # A backend failure is reported in-band too, as a 200 whose
+        # esearchresult is {"ERROR": "Search Backend failed: ..."} and names
+        # neither a count nor an idlist. Read leniently that was zero
+        # records: a zero-count status row, and the gene's diseases deleted
+        # for DB_CACHE_TTL_DAYS.
+        if not isinstance(result, dict) or "ERROR" in result:
+            error = result.get("ERROR") if isinstance(result, dict) else result
+            logger.warning(
+                f"ClinVar esearch reported an error for {gene_symbol}: {error!r}"
+            )
+            return None
         # A phrase esearch could not parse is reported in-band, as a 200
         # with count "0" and errorlist.phrasesnotfound. The property token
         # is a frozen literal, so its failing to parse is NCBI's side, and
@@ -519,13 +531,19 @@ async def _search_uids(
                 f"{gene_symbol}: {unparsed}"
             )
             return None
-        return list(result.get("idlist") or []), int(result.get("count") or 0)
+        # Read strictly: an answer missing either key is not an answer.
+        idlist = result["idlist"]
+        if not isinstance(idlist, list):
+            raise TypeError(f"idlist is {type(idlist).__name__}, not a list")
+        return [str(uid) for uid in idlist], int(result["count"])
     except httpx.TimeoutException:
         logger.warning(f"Timeout querying ClinVar for {gene_symbol}")
     except httpx.RequestError as e:
         logger.warning(f"Request error querying ClinVar for {gene_symbol}: {e}")
-    except (KeyError, ValueError) as e:
-        logger.warning(f"Unexpected ClinVar esearch response for {gene_symbol}: {e}")
+    except (KeyError, TypeError, ValueError) as e:
+        logger.warning(
+            f"Unexpected ClinVar esearch response for {gene_symbol}: {e!r}"
+        )
     return None
 
 
@@ -564,7 +582,7 @@ async def _fetch_summaries(
                     f"ClinVar esummary failed for {gene_symbol}: {resp.status_code}"
                 )
                 return None
-            result = resp.json().get("result", {})
+            payload = resp.json()
         except httpx.TimeoutException:
             logger.warning(f"Timeout fetching ClinVar summaries for {gene_symbol}")
             return None
@@ -574,7 +592,26 @@ async def _fetch_summaries(
         except ValueError as e:
             logger.warning(f"Failed to parse ClinVar summaries for {gene_symbol}: {e}")
             return None
-        for uid in result.get("uids") or []:
+        # A 200 is not yet an answer. NCBI reports a failed batch in-band,
+        # as {"esummaryresult": [...]} or {"error": ...} with no "result",
+        # and a result naming fewer uids than were asked for is a partial
+        # one; either read as complete truncates the gene's disease set.
+        result = payload.get("result") if isinstance(payload, dict) else None
+        if not isinstance(result, dict):
+            logger.warning(f"ClinVar esummary for {gene_symbol} carried no result")
+            return None
+        listed = result.get("uids")
+        returned = [str(uid) for uid in listed] if isinstance(listed, list) else []
+        missing = {
+            uid for uid in chunk if uid not in returned or uid not in result
+        }
+        if missing:
+            logger.warning(
+                f"ClinVar esummary for {gene_symbol} left out {len(missing)} of "
+                f"{len(chunk)} records"
+            )
+            return None
+        for uid in returned:
             record = result.get(uid)
             if not isinstance(record, dict):
                 continue
@@ -694,14 +731,35 @@ async def sync_clinvar_annotations(
         rows.extend(gene_rows)
         row_counts[curated] = row_counts.get(curated, 0) + len(gene_rows)
 
+    # Two members of one alias key can both carry a disease, and filed under
+    # the curated key those rows are one UNIQUE key. The better-evidenced
+    # member's row is kept; the counts are not summed, because a record
+    # naming both genes is returned by each member's search.
+    rows = collapse_colliding_rows(
+        rows,
+        lambda row: (
+            -(row.evidence_count or 0),
+            row.qualifier or "",
+            row.object_label or "",
+        ),
+    )
+    stored = Counter(row.gene_symbol for row in rows)
+    for curated, fetched in row_counts.items():
+        if fetched > stored[curated]:
+            logger.info(
+                f"ClinVar: {fetched - stored[curated]} row(s) for {curated} "
+                f"named a disease another of its symbols also carries; one "
+                f"row kept for each"
+            )
+
     statuses = [
         AnnotationStatus(
             gene_symbol=curated,
             source=SOURCE,
-            row_count=count,
+            row_count=stored[curated],
             source_version=None,
         )
-        for curated, count in row_counts.items()
+        for curated in row_counts
         if curated not in failed_curated
     ]
     written = {status.gene_symbol for status in statuses}

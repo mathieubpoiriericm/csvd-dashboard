@@ -174,3 +174,44 @@ def test_the_parser_refuses_a_symbol_filed_under_two_aliases() -> None:
         "GENEA/B": ("GENEA", "GENEB"),
         "GENEC/D": ("GENEC",),
     }
+
+
+def test_the_parser_refuses_a_text_that_is_blank_or_not_a_string() -> None:
+    for blank in ("   ", 7):
+        manifest_raw = copy.deepcopy(_MANIFEST_RAW)
+        manifest_raw["populations"][0]["key"] = blank
+        with pytest.raises(ValueError, match="key must be a non-empty string"):
+            disease_module._parse_manifest(manifest_raw, _PIPELINE_RAW)
+
+
+@pytest.mark.parametrize(
+    "pairs", ["one two", [["one"]], [["one", "two", "three"]], [["one", 2]]]
+)
+def test_the_parser_refuses_a_condition_pair_that_is_not_two_strings(pairs) -> None:
+    pipeline_raw = copy.deepcopy(_PIPELINE_RAW)
+    pipeline_raw["search"]["clinicalTrials"]["conditionPairs"] = pairs
+    with pytest.raises(ValueError, match="conditionPairs must be a list of two-string"):
+        disease_module._parse_manifest(_MANIFEST_RAW, pipeline_raw)
+
+
+def test_the_parser_refuses_gene_aliases_that_are_not_an_object() -> None:
+    pipeline_raw = copy.deepcopy(_PIPELINE_RAW)
+    pipeline_raw["geneAliases"] = [["GENEA", "GENEB"]]
+    with pytest.raises(ValueError, match="geneAliases must be an object"):
+        disease_module._parse_manifest(_MANIFEST_RAW, pipeline_raw)
+
+
+@pytest.mark.parametrize("populations", [[], {"key": "one"}])
+def test_the_parser_refuses_a_manifest_with_no_population_list(populations) -> None:
+    manifest_raw = copy.deepcopy(_MANIFEST_RAW)
+    manifest_raw["populations"] = populations
+    with pytest.raises(ValueError, match="populations must be a non-empty list"):
+        disease_module._parse_manifest(manifest_raw, _PIPELINE_RAW)
+
+
+@pytest.mark.parametrize("cap", [0, -3, 2.5, "12"])
+def test_the_parser_refuses_a_gene_cap_that_is_not_a_positive_integer(cap) -> None:
+    pipeline_raw = copy.deepcopy(_PIPELINE_RAW)
+    pipeline_raw["pipeline"]["maxGenesPerPaper"] = cap
+    with pytest.raises(ValueError, match="maxGenesPerPaper must be a positive integer"):
+        disease_module._parse_manifest(_MANIFEST_RAW, pipeline_raw)

@@ -24,6 +24,38 @@ class TestDoseAndForm:
     def test_the_agent_survives_its_packaging(self, raw, expected):
         assert normalize_drug_name(raw) == expected
 
+    @pytest.mark.parametrize(
+        ("raw", "expected"),
+        [
+            ("Tenecteplase 0.25 mg/kg", "Tenecteplase"),
+            ("Nimodipine 0.2 mg/ml", "Nimodipine"),
+            ("Aspirin 100mg/day", "Aspirin"),
+            ("Vitamin D 2000 IU/day", "Vitamin D"),
+            ("Hypertonic saline 3%", "Hypertonic saline"),
+        ],
+    )
+    def test_a_per_unit_dose_leaves_no_denominator_behind(self, raw, expected):
+        """The slash of "mg/kg" is part of the dose, not a combination: split
+        first, it left "kg" standing as a second agent."""
+        assert normalize_drug_name(raw) == expected
+
+    def test_a_slash_between_two_dosed_agents_still_splits(self):
+        assert (
+            normalize_drug_name("Aspirin 100 mg/dipyridamole 200 mg")
+            == "Aspirin and dipyridamole"
+        )
+
+    def test_a_form_word_that_is_the_agent_s_name_is_kept(self):
+        """A registration naming the fixed-dose pill itself, not its parts."""
+        assert normalize_drug_name("Triple Pill") == "Triple Pill"
+
+    def test_for_injection_leaves_no_dangling_preposition(self):
+        assert (
+            normalize_drug_name("Samplitong (lyophilized) for injection")
+            == "Samplitong (lyophilized)"
+        )
+        assert normalize_drug_name("SaiLuoTong capsule") == "SaiLuoTong"
+
     def test_an_arm_label_wrapping_the_agent_is_removed(self):
         assert (
             normalize_drug_name("high dose group of SaiLuoTong capsule") == "SaiLuoTong"
@@ -35,6 +67,15 @@ class TestCapitalisation:
     def test_a_lower_case_name_gains_its_capital(self):
         assert normalize_drug_name("aspirin") == "Aspirin"
         assert normalize_drug_name("samplinib") == "Samplinib"
+
+    def test_a_later_agent_with_an_interior_capital_keeps_its_spelling(self):
+        """A combination lower-cases the agents after the first, but not one
+        whose capitals are its name."""
+        assert (
+            normalize_drug_name("aspirin and SaiLuoTong capsule")
+            == "Aspirin and SaiLuoTong"
+        )
+        assert normalize_drug_name("Aspirin and Samplinib") == "Aspirin and samplinib"
 
     def test_a_name_carrying_its_own_capital_is_left_alone(self):
         """rt-PA is not Rt-PA, and SaiLuoTong is not Sailuotong."""

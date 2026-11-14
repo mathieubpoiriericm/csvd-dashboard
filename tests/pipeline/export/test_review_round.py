@@ -120,6 +120,71 @@ def test_a_removed_list_value_is_refused_as_gold_drift():
         build(preview, findings=[_finding("GENE1", "7")], gold=gold)
 
 
+@pytest.mark.parametrize(
+    ("field", "gold_value", "preview_value"),
+    [
+        # A run never writes these three on an existing row.
+        ("brainCellTypes", "Cell type A", "(unknown)"),
+        ("affectedPathway", "Pathway A (curated)", "pathway a"),
+        ("affectedPathway", "(unknown)", "Pathway A"),
+        ("linkToMonogenicDisease", ["(none found)"], ["123456"]),
+        # A run only fills an empty band.
+        ("chromosomalLocation", "1p1", "2q2"),
+        # A run only ORs Mendelian randomization towards true.
+        ("mendelianRandomization", "Yes", "No"),
+        # The quote and its confidence are filled only where no quote is stored.
+        ("sourceQuote", "the curated sentence", "another sentence"),
+        ("sourceQuote", "the curated sentence", "(not yet extracted)"),
+    ],
+)
+def test_a_difference_no_run_can_write_is_refused_as_gold_drift(
+    field, gold_value, preview_value
+):
+    """Gold curated after the copy, on a field the merge cannot have moved.
+
+    Published, the change would ask the committee to approve reverting the
+    curator's edit, presented as something the run found.
+    """
+    gold = [_row("GENE1", references=["1"], **{field: gold_value})]
+    preview = [_row("GENE1", references=["1", "7"], **{field: preview_value})]
+    with pytest.raises(ReviewRoundError, match=rf"GENE1.*{field}.*gold changed"):
+        build(preview, findings=[_finding("GENE1", "7")], gold=gold)
+
+
+def test_a_confidence_beside_a_stored_quote_is_refused_as_gold_drift():
+    gold = [_row("GENE1", references=["1"], sourceQuote="q", confidence=0.9)]
+    preview = [_row("GENE1", references=["1", "7"], sourceQuote="q", confidence=0.5)]
+    with pytest.raises(ReviewRoundError, match=r"GENE1.*confidence.*gold changed"):
+        build(preview, findings=[_finding("GENE1", "7")], gold=gold)
+
+
+def test_an_empty_band_filled_by_the_run_is_a_change():
+    gold = [_row("GENE1", references=["1"])]
+    preview = [_row("GENE1", references=["1", "7"], chromosomalLocation="1p1")]
+    (change,) = build(preview, findings=[_finding("GENE1", "7")], gold=gold)["changes"]
+    assert [f["field"] for f in change["fields"]] == [
+        "chromosomalLocation",
+        "references",
+    ]
+
+
+def test_a_confidence_with_no_quote_beside_it_is_replaced_with_the_pair():
+    """The merge keys both columns on the stored quote alone."""
+    gold = [_row("GENE1", references=["1"], confidence=0.4)]
+    preview = [_row("GENE1", references=["1"], sourceQuote="q", confidence=0.9)]
+    (change,) = build(
+        preview, findings=[_finding("GENE1", "1", citationOnly=True)], gold=gold
+    )["changes"]
+    assert [f["field"] for f in change["fields"]] == ["sourceQuote", "confidence"]
+
+
+def test_mendelian_randomization_turned_on_is_a_change():
+    gold = [_row("GENE1", mendelianRandomization="No")]
+    preview = [_row("GENE1", mendelianRandomization="Yes")]
+    (change,) = build(preview, findings=[_finding("GENE1", "7")], gold=gold)["changes"]
+    assert change["kind"] == "claims"
+
+
 def test_a_scalar_field_has_no_added_or_removed():
     gold = [_row("GENE1", mendelianRandomization="no")]
     preview = [_row("GENE1", mendelianRandomization="yes")]
@@ -339,6 +404,28 @@ def test_a_round_with_no_changes_list_is_current():
     assert stale_genes({"id": "round"}, GOLD) == []
 
 
+@pytest.mark.parametrize(
+    "changes",
+    [
+        ["not a change"],
+        [None, 3, ["GENE2"]],
+        [{"kind": "citation"}],
+        [{"kind": "citation", "gene": None, "before": None}],
+        [{"kind": "new", "gene": ["GENE1"]}],
+    ],
+)
+def test_a_malformed_change_never_raises(changes):
+    """A hand-edited or badly merged round: entries that are not changes are
+    skipped, and a stale one with no usable name is still named as text."""
+    stale = stale_genes({"changes": changes}, GOLD)
+    assert all(isinstance(name, str) for name in stale)
+
+
+def test_a_change_with_no_gene_is_stale_and_named_as_text():
+    assert stale_genes({"changes": [{"kind": "citation"}]}, GOLD) == ["None"]
+    assert stale_genes({"changes": ["x", {"kind": "new"}]}, GOLD) == []
+
+
 def _write_round(target: Path, value: Any) -> bytes:
     target.mkdir(parents=True, exist_ok=True)
     raw = (json.dumps(value) + "\n").encode()
@@ -385,6 +472,19 @@ def test_no_round_to_compare_is_not_an_error(tmp_path, caplog, content):
     with caplog.at_level(logging.DEBUG):
         warn_if_round_stale(tmp_path, GOLD)
     assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
+
+
+@pytest.mark.parametrize(
+    "changes", [["x"], [{"kind": "citation"}], [{"kind": "citation", "gene": 7}]]
+)
+def test_a_malformed_committed_round_does_not_stop_the_export(
+    tmp_path, caplog, changes
+):
+    """The warning is advisory: it must never abort the gold export."""
+    raw = _write_round(tmp_path, {"changes": changes})
+    with caplog.at_level(logging.DEBUG):
+        warn_if_round_stale(tmp_path, GOLD)
+    assert (tmp_path / ROUND_FILE).read_bytes() == raw
 
 
 # ---------------------------------------------------------------------------

@@ -263,8 +263,6 @@ def _stored_array(piece: str) -> list[str] | None:
     """One `;`-separated piece read as a JSON array of wire-form entries, or
     None when it is prose."""
     piece = piece.strip()
-    if not piece.startswith("["):
-        return None
     try:
         array, end = _JSON_DECODER.raw_decode(piece)
     except json.JSONDecodeError:

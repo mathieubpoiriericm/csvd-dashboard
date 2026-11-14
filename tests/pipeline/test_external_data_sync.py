@@ -169,6 +169,48 @@ class TestGetTable2GeneSymbols:
 
         assert await get_table2_gene_symbols() == ["APP", "PDE3A"]
 
+    async def test_splits_a_target_as_the_export_does(self, mocker):
+        """The export expands the pair shorthand and asks for both members;
+        split on the slash alone, the sync fetched the first and the second
+        published with a null record."""
+        mock_conn = AsyncMock()
+        mock_conn.fetch.return_value = [
+            {"genetic_target": "GENEX1/2"},
+            {"genetic_target": "N/A"},
+            {"genetic_target": "GENE1/GENE2; GENE3"},
+        ]
+        mock_ctx = AsyncMock()
+        mock_ctx.__aenter__.return_value = mock_conn
+        mocker.patch(
+            "pipeline.external_data_sync.Database.connection", return_value=mock_ctx
+        )
+
+        from pipeline.export.text import split_genetic_targets
+
+        result = await get_table2_gene_symbols()
+
+        assert result == ["GENE1", "GENE2", "GENE3", "GENEX1", "GENEX2"]
+        assert result == sorted(
+            split_genetic_targets(["GENEX1/2", "N/A", "GENE1/GENE2; GENE3"])
+        )
+
+    async def test_a_placeholder_shaped_like_a_symbol_is_not_looked_up(
+        self, mocker
+    ):
+        # "NONE" and "Unknown" pass the symbol shape, and the splitter's own
+        # sentinels do not list them.
+        mock_conn = AsyncMock()
+        mock_conn.fetch.return_value = [
+            {"genetic_target": "GENE1, None, Unknown; NULL, --"}
+        ]
+        mock_ctx = AsyncMock()
+        mock_ctx.__aenter__.return_value = mock_conn
+        mocker.patch(
+            "pipeline.external_data_sync.Database.connection", return_value=mock_ctx
+        )
+
+        assert await get_table2_gene_symbols() == ["GENE1"]
+
     async def test_skips_non_gene_shaped_token(self, mocker, caplog):
         caplog.set_level(logging.DEBUG, logger="pipeline.external_data_sync")
         mock_conn = AsyncMock()
@@ -217,6 +259,27 @@ class TestGetAllPmids:
         self._mock_rows(mocker, [{"pmid": None}, {"pmid": "12345678"}])
 
         assert await get_all_pmids() == ["12345678"]
+
+    async def test_a_short_pmid_is_kept_and_junk_is_not(self, mocker):
+        """One value per row: a wholly numeric one is a PMID whatever its
+        length. The seven-digit floor is for free text, and applied here it
+        dropped every paper indexed before about 1976 without a word."""
+        self._mock_rows(
+            mocker,
+            [
+                {"pmid": "999999"},
+                {"pmid": " 12345678 "},
+                {"pmid": "10.1101/2024.01.01.123456"},
+                {"pmid": "see notes"},
+                {"pmid": "0"},
+            ],
+        )
+
+        assert await get_all_pmids() == [
+            "10.1101/2024.01.01.123456",
+            "12345678",
+            "999999",
+        ]
 
     async def test_reads_the_join_table_not_the_dropped_column(self, mocker):
         """Migration 006 dropped genes."references".
@@ -300,6 +363,44 @@ class TestSyncAllExternalData:
         mock_ncbi.assert_called_once_with(["GENE2", "GENE1"], config=config)
         mock_uniprot.assert_called_once_with(["GENE2"], config=config)
         mock_pubmed.assert_called_once_with(["12345678"], config=config)
+
+    async def test_missing_bands_are_filled_after_ncbi_and_the_count_logged(
+        self, mocker, caplog
+    ):
+        """The fill copies the band out of the cache the NCBI step has just
+        refreshed, so it runs after that step and not before."""
+        order: list[str] = []
+        _mod = "pipeline.external_data_sync"
+        mocker.patch(f"{_mod}.get_table1_gene_symbols", return_value=["GENE2"])
+        mocker.patch(f"{_mod}.get_table2_gene_symbols", return_value=[])
+        mocker.patch(f"{_mod}.get_all_pmids", return_value=[])
+
+        async def ncbi(genes, config=None):
+            order.append("ncbi")
+            return NCBISyncResult(fetched=1, cached=0, failed=0, errors=[])
+
+        async def fill():
+            order.append("fill")
+            return 3
+
+        async def uniprot(genes, config=None):
+            order.append("uniprot")
+            return UniProtSyncResult(fetched=0, cached=0, failed=0, errors=[])
+
+        mocker.patch(f"{_mod}.sync_ncbi_gene_info", new=ncbi)
+        mocker.patch(f"{_mod}.sync_uniprot_info", new=uniprot)
+        mocker.patch(
+            f"{_mod}.sync_pubmed_citations",
+            return_value=PubMedSyncResult(fetched=0, cached=0, failed=0, errors=[]),
+        )
+        _mock_cleanup(mocker)
+        mocker.patch(f"{_mod}.fill_missing_chromosomal_locations", new=fill)
+
+        with caplog.at_level(logging.INFO, logger=_mod):
+            await sync_all_external_data()
+
+        assert order == ["ncbi", "fill", "uniprot"]
+        assert "Filled 3 chromosomal location(s) from NCBI" in caplog.text
 
     async def test_deduplicates_genes(self, mocker):
         mocker.patch(

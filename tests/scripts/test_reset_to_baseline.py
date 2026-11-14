@@ -55,6 +55,26 @@ def test_current_format_maps_only_an_exact_symbol_placeholder() -> None:
     assert current_format(_august(protein="Abc1"))["protein"] == "Abc1"
 
 
+def test_current_format_keeps_a_symbol_named_protein_of_todays_format() -> None:
+    """Only the 31-August export published a missing protein as the symbol.
+    A row that carries the provenance columns is in today's format, where a
+    protein equal to the symbol is the curators' own name for it."""
+    assert current_format(_today(protein="ABC1"))["protein"] == "ABC1"
+
+
+def test_build_reset_keeps_a_curated_protein_equal_to_its_symbol() -> None:
+    """A reset to today's curated table used to store NULL for every such
+    protein, unrefused, and the next run filled it with the model's wording."""
+    rows = [_today(protein="ABC1")]
+    (gene,) = build_reset(rows, rows)
+    assert gene.columns["protein"] == "ABC1"
+
+
+def test_build_reset_refuses_a_symbol_named_protein_that_was_renamed() -> None:
+    with pytest.raises(ResetRefused, match="ABC1: changed: protein"):
+        build_reset([_today(protein="ABC1")], [_today(protein="A protein")])
+
+
 def test_current_format_is_idempotent() -> None:
     once = current_format(_august())
     assert current_format(once) == once

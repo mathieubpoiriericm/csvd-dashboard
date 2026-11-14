@@ -496,6 +496,63 @@ class TestRunExport:
             {"runMode": "preview", "status": "completed"}
         )
 
+    @pytest.mark.parametrize(
+        ("committed", "warned"),
+        [
+            # The committed gold rows differ from what the round was measured on.
+            ([{"gene": "GENE1", "references": ["1"]}], True),
+            ([], True),
+            # They match, or there is nothing usable to compare with.
+            ([{"gene": "GENE1", "references": ["1", "2"]}], False),
+            (None, False),
+            ("curated", False),
+            ([{"gene": None}], False),
+        ],
+    )
+    async def test_a_preview_export_says_when_the_dashboard_will_hide_its_round(
+        self, tmp_path: Path, mocker, caplog, committed, warned
+    ) -> None:
+        """The dashboard compares the round with data/table1.json, not with
+        the gold database the round was measured against."""
+        target_dir = tmp_path / "data"
+        target_dir.mkdir()
+        if committed is not None:
+            (target_dir / "table1.json").write_text(json.dumps(committed) + "\n")
+        mocks = _patch_export_dependencies(mocker)
+        mocks["run"].return_value = {"runMode": "preview", "status": "completed"}
+        round_ = {
+            "id": "round-x",
+            "changes": [
+                {
+                    "gene": "GENE1",
+                    "kind": "citation",
+                    "before": {"gene": "GENE1", "references": ["1", "2"]},
+                }
+            ],
+        }
+        mocker.patch(
+            "pipeline.export.main.read_review_round",
+            new_callable=AsyncMock,
+            return_value=round_,
+        )
+
+        with caplog.at_level(logging.WARNING):
+            await run_export(target_dir=target_dir, preview_run=True, gold_only_on=True)
+
+        # Published either way: the warning never blocks the round.
+        assert json.loads((target_dir / "review_round.json").read_text()) == round_
+        assert (target_dir / "pipeline_run.json").exists()
+        warnings = [
+            r.getMessage() for r in caplog.records if r.levelno == logging.WARNING
+        ]
+        if warned:
+            (message,) = warnings
+            assert "table1.json" in message
+            assert "1 gene (GENE1)" in message
+            assert "deno task data" in message
+        else:
+            assert warnings == []
+
     async def test_a_refused_round_publishes_neither_file(
         self, tmp_path: Path, mocker
     ) -> None:

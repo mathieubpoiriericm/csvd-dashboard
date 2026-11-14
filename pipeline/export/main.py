@@ -5,6 +5,7 @@ Replaces data-prep/export.R. Run with:  uv run python -m pipeline.export.main
 
 import argparse
 import asyncio
+import json
 import logging
 import sys
 import tempfile
@@ -32,6 +33,7 @@ from pipeline.export.publish import publish_atomically
 from pipeline.export.review_round import (
     ROUND_FILE,
     read_review_round,
+    stale_genes,
     warn_if_round_stale,
 )
 from pipeline.export.tables import clean_gene_row, clean_trial_row
@@ -296,6 +298,40 @@ async def _read_curated_trials() -> list[dict[str, object]]:
     return running
 
 
+def _warn_if_round_hidden(round_: Mapping[str, Any], target: Path) -> None:
+    """Warn when the round just published is one the dashboard will hide.
+
+    The round is measured against the gold database, but the dashboard
+    judges staleness against the committed data/table1.json, which a
+    preview export neither reads nor writes: gold edited in the database
+    since the last `deno task data` hides the new round with nothing here
+    saying so. It never raises; a table1.json that is missing or is not a
+    list of gene rows is nothing to compare.
+    """
+    try:
+        rows = json.loads((target / "table1.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        logger.debug("No committed gene rows to compare the round with: %s", exc)
+        return
+    if not isinstance(rows, list) or not all(
+        isinstance(row, dict) and isinstance(row.get("gene"), str) for row in rows
+    ):
+        return
+    stale = stale_genes(round_, rows)
+    if not stale:
+        return
+    named = ", ".join(stale[:5]) + (", ..." if len(stale) > 5 else "")
+    logger.warning(
+        "data/%s was measured against gold rows that data/table1.json does not"
+        " hold for %d %s (%s): the dashboard hides the review area until"
+        " `deno task data` regenerates table1.json from the same gold",
+        ROUND_FILE,
+        len(stale),
+        "gene" if len(stale) == 1 else "genes",
+        named,
+    )
+
+
 async def _export_preview_run(target: Path) -> None:
     """Publish the preview run's report and its review round, and nothing else.
 
@@ -325,6 +361,7 @@ async def _export_preview_run(target: Path) -> None:
         write_value(run, staged["pipeline_run.json"])
         write_value(round_, staged[ROUND_FILE])
         publish_atomically(staged, target)
+    _warn_if_round_hidden(round_, target)
     logger.info(
         f"Preview export complete: data/pipeline_run.json and data/{ROUND_FILE}"
         " only."

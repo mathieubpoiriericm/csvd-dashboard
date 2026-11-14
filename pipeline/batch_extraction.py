@@ -7,12 +7,14 @@ manual so the latency costs nothing. Caching uses the 1-hour TTL: the
 
 import asyncio
 import hashlib
+import json
 import logging
 import time
 from datetime import datetime
 from typing import Any, cast
 
 import anthropic
+import httpx2
 from anthropic.types.messages import batch_create_params
 
 from pipeline import batch_state, checkpoint
@@ -32,6 +34,7 @@ from pipeline.citations import collect_spans, paper_scope, report_provenance
 from pipeline.config import EXTRACTION_TOOL_NAME, PipelineConfig
 from pipeline.extraction_models import ExtractionFailedError, GeneEntry
 from pipeline.quality_metrics import TokenUsage, accumulate_usage
+from pipeline.rate_limiter import compute_backoff
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +46,111 @@ _POLL_SECONDS = 30
 # will not happen, so the loop gives up there instead of running forever on
 # an unattended machine.
 _MAX_WAIT_SECONDS = 24 * 60 * 60
+
+# The Message Batches API takes at most 256 MB or 100,000 requests in one
+# batch, whichever comes first, and answers more with a 413. Every request
+# repeats the system prompt and the tool schema beside its paper, so a long
+# window passes the size limit long before the count. The byte ceiling
+# leaves room for what the measure below does not see (the envelope, and
+# any difference in how the SDK serializes).
+_MAX_BATCH_BYTES = 200 * 1024 * 1024
+_MAX_BATCH_REQUESTS = 100_000
+
+# A create the API refused outright (429, 529) made no batch, so it is sent
+# again, this many times in all, backing off from this many seconds.
+_CREATE_ATTEMPTS = 4
+_CREATE_RETRY_SECONDS = 5.0
+
+# How often the results of an ended batch are read again from the start
+# when the read breaks off, and the pause between two reads.
+_FETCH_ATTEMPTS = 3
+_FETCH_RETRY_SECONDS = 5.0
+
+
+def _is_transient(error: BaseException) -> bool:
+    """Whether *error* is the API being out of reach rather than a verdict.
+
+    A connection that failed or timed out, a read that broke off (raw
+    `httpx2`, see `AnthropicClient.extract`), a 5xx, a 408 or a 429. A 404,
+    an authentication failure and every other 4xx say something about the
+    request, and waiting does not change them.
+    """
+    if isinstance(error, (anthropic.APIConnectionError, httpx2.TransportError)):
+        return True
+    if isinstance(error, anthropic.APIStatusError):
+        return error.status_code >= 500 or error.status_code in (408, 429)
+    return False
+
+
+def _chunk_requests(requests: list[dict[str, Any]]) -> list[list[dict[str, Any]]]:
+    """*requests* in order, split into batches the API will accept.
+
+    Each holds at most `_MAX_BATCH_BYTES` of serialized requests and
+    `_MAX_BATCH_REQUESTS` of them, and at least one: a single request over
+    the ceiling is sent alone, for the API to judge. The size is measured
+    with ASCII escapes, an upper bound on any UTF-8 encoding of it.
+    """
+    chunks: list[list[dict[str, Any]]] = []
+    current: list[dict[str, Any]] = []
+    size = 0
+    for request in requests:
+        request_size = len(json.dumps(request))
+        if current and (
+            size + request_size > _MAX_BATCH_BYTES
+            or len(current) >= _MAX_BATCH_REQUESTS
+        ):
+            chunks.append(current)
+            current, size = [], 0
+        current.append(request)
+        size += request_size
+    if current:
+        chunks.append(current)
+    return chunks
+
+
+async def _create_batch(client: Any, requests: list[dict[str, Any]]) -> Any:
+    """Submit one batch, never twice.
+
+    Creating a batch is not idempotent and the SDK sends no idempotency
+    key, so its own retries are turned off for this one call: when the API
+    accepted the batch and the answer was lost (a timeout or a reset while
+    a body of tens of megabytes was acknowledged, a gateway's 5xx), the
+    SDK sent it again, and the first batch ran and was billed with its id
+    recorded nowhere. A 429 or a 529 is the API saying it took nothing, so
+    those are sent again here. Any other failure whose outcome is unknown
+    raises ExtractionFailedError, for a person to look before paying twice.
+    A 4xx is the request's own fault and is raised as it is.
+    """
+    attempt = 0
+    while True:
+        attempt += 1
+        try:
+            return await client.with_options(max_retries=0).messages.batches.create(
+                requests=cast(list[batch_create_params.Request], requests)
+            )
+        except (anthropic.RateLimitError, anthropic.OverloadedError) as error:
+            if attempt >= _CREATE_ATTEMPTS:
+                raise
+            delay = compute_backoff(_CREATE_RETRY_SECONDS, attempt)
+            logger.warning(
+                "The API did not take the batch (%s); submitting it again in "
+                "%.1fs (attempt %d/%d)",
+                type(error).__name__,
+                delay,
+                attempt + 1,
+                _CREATE_ATTEMPTS,
+            )
+            await asyncio.sleep(delay)
+        except (anthropic.APIConnectionError, anthropic.APIStatusError) as error:
+            if not _is_transient(error):
+                raise
+            raise ExtractionFailedError(
+                f"Submitting a batch of {len(requests)} papers failed with no "
+                f"answer from the API ({type(error).__name__}). The batch may "
+                "have been created, and is billed if it was: look for one "
+                "submitted at this time in the Console's batch list before "
+                "re-running, since a re-run submits these papers again."
+            ) from error
 
 
 def _error_detail(result: Any) -> str:
@@ -285,10 +393,34 @@ async def _poll_until_ended(client: Any, batch_id: str, *, recorded: bool) -> An
     collects it; without one, the id is all there is.
     """
     deadline = time.monotonic() + _MAX_WAIT_SECONDS
+    # The last status the API gave, and the error of the poll just made
+    # when it could not be reached. The wait is for something already paid
+    # for, so an outage is waited out like a batch still running: the SDK's
+    # two retries span a few seconds, and a router restart used to end a
+    # run that had a day to wait.
+    status = "unconfirmed (the API could not be reached)"
     while True:
-        current = await client.messages.batches.retrieve(batch_id)
-        if current.processing_status == "ended":
-            return current
+        outage: Exception | None = None
+        try:
+            current = await client.messages.batches.retrieve(batch_id)
+        except (
+            anthropic.APIConnectionError,
+            anthropic.APIStatusError,
+            httpx2.TransportError,
+        ) as error:
+            if not _is_transient(error):
+                raise
+            outage = error
+            logger.warning(
+                "Could not poll batch %s (%r); trying again in %ds",
+                batch_id,
+                error,
+                _POLL_SECONDS,
+            )
+        else:
+            if current.processing_status == "ended":
+                return current
+            status = current.processing_status
         if time.monotonic() >= deadline:
             advice = (
                 "re-run the same command to collect it once it finishes."
@@ -297,10 +429,11 @@ async def _poll_until_ended(client: Any, batch_id: str, *, recorded: bool) -> An
             )
             raise ExtractionFailedError(
                 f"Batch {batch_id} is still "
-                f"{current.processing_status} after "
+                f"{status} after "
                 f"{_MAX_WAIT_SECONDS // 3600}h. It was not cancelled; {advice}"
-            )
-        logger.info("Batch %s: %s", batch_id, current.processing_status)
+            ) from outage
+        if outage is None:
+            logger.info("Batch %s: %s", batch_id, status)
         await asyncio.sleep(_POLL_SECONDS)
 
 
@@ -312,8 +445,35 @@ async def _fetch_entries(
     A recorded batch can hold papers this run no longer wants; their
     entries are dropped here, before ``results_by_custom_id`` would count
     their tokens or check their quotes.
+
+    A read that breaks off is made again from the start, `_FETCH_ATTEMPTS`
+    times in all, so no entry is kept twice; the batch has ended and is
+    paid for, and its results are a download of every paper's answer.
     """
-    entries = [r async for r in await client.messages.batches.results(batch_id)]
+    attempt = 0
+    while True:
+        attempt += 1
+        try:
+            entries = [
+                r async for r in await client.messages.batches.results(batch_id)
+            ]
+            break
+        except (
+            anthropic.APIConnectionError,
+            anthropic.APIStatusError,
+            httpx2.TransportError,
+        ) as error:
+            if not _is_transient(error) or attempt >= _FETCH_ATTEMPTS:
+                raise
+            logger.warning(
+                "Reading the results of batch %s broke off (%r); reading "
+                "them again (attempt %d/%d)",
+                batch_id,
+                error,
+                attempt + 1,
+                _FETCH_ATTEMPTS,
+            )
+            await asyncio.sleep(_FETCH_RETRY_SECONDS)
     if pmids is None:
         return entries
     return [entry for entry in entries if entry.custom_id in pmids]
@@ -354,7 +514,13 @@ async def submit_and_collect(
     state_path: str | None = None,
     reused: set[str] | None = None,
 ) -> dict[str, list[GeneEntry]]:
-    """Submit every paper as one batch and poll until it ends.
+    """Submit every paper by batch and poll until every batch ends.
+
+    One batch for an ordinary window; a window over the API's limits for
+    one batch is split (``_chunk_requests``), and each batch is recorded as
+    it is accepted, so a later one failing leaves the earlier on record.
+    Each is submitted once (``_create_batch``): a submission whose outcome
+    is unknown raises ExtractionFailedError rather than being sent again.
 
     Raises ExtractionFailedError without a key, and again if the batch is
     still running after _MAX_WAIT_SECONDS -- the batch itself is not
@@ -411,9 +577,9 @@ async def submit_and_collect(
         # with the papers it is collected for (None: all of them).
         entries: list[Any] = []
         to_poll: list[tuple[str, set[str] | None]] = []
-        # Whether the new batch, if any, made it into the state file; a
-        # recorded batch being polled is in it by definition.
-        new_batch_recorded = False
+        # The batches this call submitted that made it into the state
+        # file; a recorded batch being polled is in it by definition.
+        newly_recorded: set[str] = set()
         # Recorded batches with nothing left to retrieve: the API no longer
         # knows them, or their results have expired. Only these are left
         # out when the file is written back; every other record, claimed by
@@ -450,42 +616,47 @@ async def submit_and_collect(
         if reused is not None:
             reused |= covered
         remainder = [r for r in requests if r["custom_id"] not in covered]
-        if remainder:
-            batch = await client.messages.batches.create(
-                requests=cast(list[batch_create_params.Request], remainder)
-            )
-            logger.info("Submitted batch %s (%d papers)", batch.id, len(remainder))
-            if state_path is not None:
-                # Before the first poll: a crash from here on has paid for
-                # this batch, and the next run must find it.
-                submitted = PendingBatch(
+        kept = [p for p in recorded if p.batch_id not in gone]
+        submitted: list[PendingBatch] = []
+        for chunk in _chunk_requests(remainder):
+            batch = await _create_batch(client, chunk)
+            logger.info("Submitted batch %s (%d papers)", batch.id, len(chunk))
+            to_poll.append((batch.id, None))
+            if state_path is None:
+                continue
+            # Before the first poll, and before the next batch is created:
+            # a crash or a failed submission from here on has paid for this
+            # batch, and the next run must find it.
+            submitted.append(
+                PendingBatch(
                     batch_id=batch.id,
                     document_sha256={
                         r["custom_id"]: _document_sha256(documents[r["custom_id"]])
-                        for r in remainder
+                        for r in chunk
                     },
                     submitted_at=_created_at(batch),
                 )
-                kept = [p for p in recorded if p.batch_id not in gone]
-                try:
-                    batch_state.save(state_path, run_fingerprint, [*kept, submitted])
-                    new_batch_recorded = True
-                except OSError:
-                    # The batch is already paid for; ending the run here
-                    # would lose it as surely as the crash this guards
-                    # against, so it is polled unrecorded, as the
-                    # checkpoint hook carries on past an unwritable file.
-                    logger.warning(
-                        "Could not record batch %s; a crash before its "
-                        "results are collected will lose it",
-                        batch.id,
-                        exc_info=True,
-                    )
-            to_poll.append((batch.id, None))
+            )
+            try:
+                batch_state.save(state_path, run_fingerprint, [*kept, *submitted])
+                newly_recorded = {p.batch_id for p in submitted}
+            except OSError:
+                # The batch is already paid for; ending the run here
+                # would lose it as surely as the crash this guards
+                # against, so it is polled unrecorded, as the
+                # checkpoint hook carries on past an unwritable file.
+                logger.warning(
+                    "Could not record batch %s; a crash before its "
+                    "results are collected will lose it",
+                    batch.id,
+                    exc_info=True,
+                )
 
         for batch_id, pmids in to_poll:
             ended = await _poll_until_ended(
-                client, batch_id, recorded=pmids is not None or new_batch_recorded
+                client,
+                batch_id,
+                recorded=pmids is not None or batch_id in newly_recorded,
             )
             if pmids is None:
                 entries.extend(await _fetch_entries(client, batch_id, None))

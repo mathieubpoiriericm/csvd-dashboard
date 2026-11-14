@@ -17,7 +17,9 @@ dataset, `a5915b4:data/table1.json` in the pre-squash history the
 regenerate-data skill describes. It is converted to today's wire format first:
 the provenance columns (published since) are appended at their sentinels, and a
 protein the export of the day published as the gene symbol becomes
-"(unknown)".
+"(unknown)". Only a row without the provenance columns is in that format. A
+row that has them is today's, where a protein equal to the symbol is the
+curators' own name for it and is restored as written.
 
 **Nothing is written unless two checks hold for every baseline row.**
 
@@ -43,7 +45,9 @@ under a lock on the genes and its three list tables, so nothing can land
 between the check and the write: every genes row is deleted (the three list
 tables cascade) and the baseline inserted with the restore's own
 `insert_genes`; pubmed_refs is emptied, so the next run treats every paper in
-its window as new; and the annotation rows and fetch statuses of every gene
+its window as new (and the wipe is recorded in logs/ledger_emptied.json, so a
+later `scripts.restore_from_json` does not rebuild the ledger from the runs
+before it); and the annotation rows and fetch statuses of every gene
 symbol outside the baseline are deleted, because `--sync-annotations` replaces
 only the genes it fetches and the export publishes the table whole. Trials, the
 lookup caches, the annotations of the kept genes and the run and refresh
@@ -73,6 +77,8 @@ from scripts.restore_from_json import (
     export_gene,
     gene_from_wire,
     insert_genes,
+    pipeline_logs_dir,
+    record_ledger_emptied,
     row_differences,
 )
 
@@ -108,13 +114,21 @@ class ResetRefused(Exception):
 
 
 def current_format(row: Mapping[str, Any]) -> dict[str, Any]:
-    """A 31-August table1.json row in today's wire format.
+    """A 31-August table1.json row in today's wire format; a row already in
+    it is returned as it is.
 
-    Exact equality for the placeholder, as `clean_gene_row` uses: a curated
-    name that differs from the symbol only in case is a real name.
+    The 31-August export published a missing protein as the gene symbol, and
+    had no provenance columns, so a row without `sourceQuote` is one of its
+    rows and its symbol-named protein is that placeholder -- exact equality,
+    as the export of the day used: a name that differs from the symbol only
+    in case is a real name. A row that carries `sourceQuote` was written
+    since, by an export that publishes the protein as stored, and the curated
+    gold table names most proteins by their symbol on purpose: converting
+    those too stored NULL for each of them, unrefused, and the next run
+    filled them with the model's wording.
     """
     converted = dict(row)
-    if converted.get("protein") == converted["gene"]:
+    if "sourceQuote" not in row and converted.get("protein") == converted["gene"]:
         converted["protein"] = "(unknown)"
     converted.setdefault("sourceQuote", _NOT_EXTRACTED)
     converted.setdefault("confidence", None)
@@ -254,10 +268,15 @@ async def reset_database(baseline: list[dict[str, Any]]) -> dict[str, int]:
             await conn.execute(
                 f"DELETE FROM {table} WHERE gene_symbol <> ALL($1::text[])", keep
             )
-        return {
+        counts = {
             table: await conn.fetchval(f"SELECT count(*) FROM {table}")
             for table in _RESET_TABLES
         }
+    # Committed. Recorded where `scripts.restore_from_json` reads the run
+    # reports, so a later restore does not replay the runs this ledger wipe
+    # was meant to forget.
+    record_ledger_emptied(pipeline_logs_dir())
+    return counts
 
 
 async def run(baseline: Path, *, write: bool) -> None:

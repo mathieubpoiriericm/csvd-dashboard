@@ -202,7 +202,7 @@ import logging
 import re
 import time
 import traceback
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Awaitable, Callable, Iterable, Sequence
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from typing import Any, Final, Literal, cast
@@ -298,6 +298,7 @@ from pipeline.report import (
     write_comprehensive_report,
 )
 from pipeline.run_errors import (
+    SECRET_QUERY_PARAM,
     NoPaperProcessedError,
     RunWarning,
     classifier_phrase,
@@ -363,9 +364,9 @@ from rich.logging import RichHandler
 # how the retrieval cascade is actually traced. `email=` is deliberately not
 # redacted: Unpaywall and NCBI require a contact address by policy, and it is
 # not a secret.
-_SECRET_QUERY_PARAM: Final[re.Pattern[str]] = re.compile(
-    r"(?i)\b(api_key|apikey|access_token|token|password|secret)=[^&\s\"']+"
-)
+# The pattern lives in pipeline.run_errors, which redacts the published
+# report with it: one list of names for the log and the report.
+_SECRET_QUERY_PARAM: Final[re.Pattern[str]] = SECRET_QUERY_PARAM
 
 
 class _RedactSecrets(logging.Filter):
@@ -1741,8 +1742,19 @@ async def _discover_new_pmids(
     try:
         existing_pmids: set[str] = await get_existing_pmids()
     except asyncpg.UndefinedTableError:
-        # A missing table is expected only on the first run.
-        logger.warning("  pubmed_refs table missing; treating as empty (first run?)")
+        # The pipeline never creates its schema, so on a live run a missing
+        # ledger is never a workable first run: the merge's tables are
+        # missing too, and treating the ledger as empty paid for the whole
+        # window before step 5 failed on them. A preview flag writes nothing
+        # and may still count the window against a database not yet built.
+        if not (dry_run or test_mode):
+            logger.error(
+                "  pubmed_refs table missing: the database has no schema. Run"
+                " `cd pipeline && uv run alembic upgrade head`, or fill the"
+                " preview database, before a live run."
+            )
+            raise
+        logger.warning("  pubmed_refs table missing; treating as empty")
         existing_pmids = set()
     except _PREVIEW_DB_FAILURES:
         # A preview is still required to work with no database at all; a live
@@ -1977,8 +1989,12 @@ class _StoredAnswers:
         """
         return self.by_pmid.get(pmid, {}).get(_document_sha256(text))
 
-    def keep(self, answer: _UnvalidatedPaper) -> None:
-        """Append *answer* for the next run, best effort as the hook's append is."""
+    def keep(self, answer: _UnvalidatedPaper) -> bool:
+        """Append *answer* for the next run, best effort as the hook's append is.
+
+        False when the append failed, so the ``--batch`` path can leave the
+        paper on the batch record instead.
+        """
         try:
             checkpoint.append(
                 self.config.checkpoint_file,
@@ -1992,6 +2008,8 @@ class _StoredAnswers:
                 answer.pmid,
                 exc_info=True,
             )
+            return False
+        return True
 
     @staticmethod
     def replay(answer: _UnvalidatedPaper) -> ServedBy:
@@ -2194,8 +2212,13 @@ def _paper_finished_hook(
     collected: list[PaperResult],
     *,
     checkpointing: bool,
+    unsaved: set[str] | None = None,
 ) -> Callable[[PaperResult, PipelineMetrics], None]:
     """Hand each finished paper to the run, then checkpoint it.
+
+    *unsaved*, when given, collects the PMIDs whose checkpoint append
+    failed: the ``--batch`` path keeps those on the batch record, the only
+    other durable copy of what they cost.
 
     *collected* is owned by ``run_pipeline`` and is what a failed run
     reports when step 3 never returned. ``batch`` is assigned only when
@@ -2238,6 +2261,8 @@ def _paper_finished_hook(
                 result.pmid,
                 exc_info=True,
             )
+            if unsaved is not None:
+                unsaved.add(result.pmid)
 
     return on_complete
 
@@ -2408,7 +2433,7 @@ async def _rescue_refused_batch_paper(
     text_meta: tuple[bool, str, bool],
     paper_metrics: PipelineMetrics,
     config: PipelineConfig,
-) -> tuple[PaperResult, _UnvalidatedPaper | None]:
+) -> tuple[PaperResult, _UnvalidatedPaper | None, bool]:
     """Send a paper the batch's model declined straight to the fallback model.
 
     The Batches API rejects `fallbacks`, so the server-side hand-over the
@@ -2426,6 +2451,12 @@ async def _rescue_refused_batch_paper(
     checkpoint: it says nothing against the answer, which would otherwise
     be lost with the run. Read here because the paper's quote counts are
     still in the tally, and the caller discards them from it.
+
+    The third element is True when the fallback neither answered nor
+    declined -- the request itself failed (overload, connection, a
+    truncated response) -- which says nothing about the paper, so the
+    caller leaves the batch's refusal on record for the next run to
+    collect again at no cost.
     """
     try:
         genes, token_usage, served = await extract_from_paper(
@@ -2450,12 +2481,12 @@ async def _rescue_refused_batch_paper(
                 f"declined: {exc.category})"
             ),
             refusal=category,
-        ), None
+        ), None, False
     except Exception as exc:
         logger.exception(f"Error extracting refused PMID {pmid} on the fallback")
         if isinstance(exc, ExtractionFailedError):
             _count_streamed(paper_metrics, exc.token_usage)
-        return PaperResult(pmid=pmid, error=str(exc)), None
+        return PaperResult(pmid=pmid, error=str(exc)), None, True
 
     _count_streamed(paper_metrics, token_usage)
     for gene in genes:
@@ -2467,8 +2498,8 @@ async def _rescue_refused_batch_paper(
     # yields no genes, so it cannot reach the outage, and has no answer to
     # keep if it did.
     if not ncbi_outage or served is None:
-        return result, None
-    return result, _UnvalidatedPaper.answered(pmid, text, genes, served)
+        return result, None, False
+    return result, _UnvalidatedPaper.answered(pmid, text, genes, served), False
 
 
 def _count_streamed(metrics: PipelineMetrics, usage: TokenUsage | None) -> None:
@@ -2528,7 +2559,13 @@ async def _process_new_pmids_via_batch(
             pmids, metrics, config, progress, batched=True, unvalidated=stored.by_pmid
         )
     collected.extend(restored)
-    on_complete = _paper_finished_hook(config, collected, checkpointing=use_checkpoint)
+    # Papers whose checkpoint append failed. Nothing durable holds them
+    # but the batch record, so they stay on it until a later run stores
+    # them or the merge retires them.
+    unsaved: set[str] = set()
+    on_complete = _paper_finished_hook(
+        config, collected, checkpointing=use_checkpoint, unsaved=unsaved
+    )
 
     semaphore = asyncio.Semaphore(config.max_concurrent_papers)
     fetched = await asyncio.gather(
@@ -2541,8 +2578,10 @@ async def _process_new_pmids_via_batch(
     # Papers validated from a stored answer rather than submitted.
     replays: dict[str, _UnvalidatedPaper] = {}
     # Papers whose batch answer is still good and which this run did not
-    # store, because something outside the answer failed: a fetch, or NCBI
-    # not answering during validation. They stay on the batch record for the
+    # store, because something outside the answer failed: a fetch, NCBI
+    # not answering during validation, or a rescue whose request to the
+    # fallback model failed, leaving the batch's refusal the thing to
+    # collect again. They stay on the batch record for the
     # next run. A paper whose validation failed any other way is not here:
     # the same answer would fail the same way on every run until the batch
     # expired, so it comes off and is submitted afresh, as the streaming
@@ -2656,7 +2695,7 @@ async def _process_new_pmids_via_batch(
         # Its quotes are tallied under its own PMID, as every paper's are.
         with paper_scope(pmid):
             async with rescue_slots:
-                result, unvalidated = await _rescue_refused_batch_paper(
+                result, unvalidated, no_answer = await _rescue_refused_batch_paper(
                     pmid,
                     papers[pmid],
                     refusals[pmid],
@@ -2675,6 +2714,11 @@ async def _process_new_pmids_via_batch(
         metrics.streamed_token_usage += paper_metrics.streamed_token_usage
         current_tally().discard(pmid)
         collected.append(result)
+        if no_answer:
+            # The request failed, not the paper: the batch's refusal is
+            # still retrievable for nothing, and off the record the next
+            # run would pay for a new entry the primary declines again.
+            still_owed.add(pmid)
         if unvalidated is None or not use_checkpoint:
             return
         # The fallback answered and NCBI did not, so the answer is kept for
@@ -2682,7 +2726,8 @@ async def _process_new_pmids_via_batch(
         # refusal, and without the record the next run would pay for a new
         # entry the primary model declines again and then for this rescue a
         # second time.
-        stored.keep(unvalidated)
+        if not stored.keep(unvalidated):
+            unsaved.add(pmid)
 
     async def replay_one(pmid: str) -> None:
         # An answer an earlier run paid for and could not validate, on
@@ -2730,14 +2775,18 @@ async def _process_new_pmids_via_batch(
     # one of those would fail it again for 29 days instead of resubmitting
     # it -- and a paper whose validation failed for any reason but an NCBI
     # outage, for the same reason. Kept: the papers in `still_owed` (a fetch
-    # failure or an NCBI outage in a batch answer's validation), and every
+    # failure, an NCBI outage in a batch answer's validation, or a rescue
+    # the fallback model neither answered nor declined), the papers whose
+    # checkpoint append failed (`unsaved`), which are stored nowhere else
+    # until the merge, and every
     # paper of another window's batch, which is still paid for. A dry run
     # leaves a real run's record alone, as it leaves its checkpoint.
     if use_checkpoint:
+        kept = still_owed | unsaved
         batch_state.forget(
             config.batch_state_file,
             checkpoint.fingerprint(config),
-            [pmid for pmid in pmids if pmid not in still_owed],
+            [pmid for pmid in pmids if pmid not in kept],
         )
     for pmid in papers:
         if pmid in genes_by_pmid or pmid in refusals:
@@ -3382,6 +3431,12 @@ async def run_pipeline(
     except BaseException as exc:
         # Include cancellation and Ctrl+C so they also write a terminal state.
         progress.fail(exc)
+        if gene_result is not None and batch is not None:
+            # The merge committed, so `--export` ships these rows although
+            # the run failed; the dispatcher reads the keys off the
+            # exception to refresh the lookup caches as a completed run's
+            # report would have let it.
+            setattr(exc, _MERGED_KEYS_ATTR, _merged_lookup_keys(batch.results))
         await _record_failed_run(
             metrics,
             progress,
@@ -3827,6 +3882,41 @@ async def _run_summary_pipeline(
     return summary
 
 
+# Where a `run_pipeline` that raised after its merge leaves the lookup keys
+# of what it merged, for `_run_selected_pipelines`.
+_MERGED_KEYS_ATTR: Final = "merged_lookup_keys"
+
+
+def _merged_lookup_keys(results: list[PaperResult]) -> tuple[list[str], list[str]]:
+    """`_published_lookup_keys` for a run that raised after its merge.
+
+    Such a run returns no report, so the keys are read from its papers
+    instead, by the same rule: the successful papers that yielded a gene.
+    """
+    return _lookup_keys(
+        (result.pmid, [gene.gene_symbol for gene in result.genes])
+        for result in results
+        if result.succeeded
+    )
+
+
+def _lookup_keys(
+    papers: Iterable[tuple[str, list[str]]],
+) -> tuple[list[str], list[str]]:
+    """The canonical gene keys and PMIDs of the papers that yielded a gene."""
+    symbols: list[str] = []
+    pmids: list[str] = []
+    for pmid, genes in papers:
+        if not genes:
+            continue
+        pmids.append(pmid)
+        symbols.extend(canonical_gene_symbol(gene) for gene in genes)
+    return (
+        [symbol for symbol in dict.fromkeys(symbols) if symbol],
+        [pmid for pmid in dict.fromkeys(pmids) if pmid],
+    )
+
+
 def _published_lookup_keys(run_data: PipelineRunData) -> tuple[list[str], list[str]]:
     """The gene keys and PMIDs a PubMed run added, in first-seen order.
 
@@ -3845,19 +3935,12 @@ def _published_lookup_keys(run_data: PipelineRunData) -> tuple[list[str], list[s
     on a later paper; reading the held list back to exclude it would trade
     that for a second way of deciding which genes the run is about.
     """
-    symbols: list[str] = []
-    pmids: list[str] = []
-    for paper in run_data.get("papers_detail", []):
-        genes = paper.get("genes") or []
-        if not genes:
-            continue
-        pmids.append(paper.get("pmid") or "")
-        symbols.extend(
-            canonical_gene_symbol(str(gene.get("gene_symbol") or "")) for gene in genes
+    return _lookup_keys(
+        (
+            paper.get("pmid") or "",
+            [str(gene.get("gene_symbol") or "") for gene in paper.get("genes") or []],
         )
-    return (
-        [symbol for symbol in dict.fromkeys(symbols) if symbol],
-        [pmid for pmid in dict.fromkeys(pmids) if pmid],
+        for paper in run_data.get("papers_detail", [])
     )
 
 
@@ -3874,9 +3957,21 @@ async def _refresh_lookup_caches(
     `--sync-external-data` ran in the same invocation, which covers every
     row in the database including these.
     """
+    await _refresh_lookup_keys(*_published_lookup_keys(run_data), config)
+
+
+async def _refresh_lookup_keys(
+    symbols: list[str],
+    pmids: list[str],
+    config: PipelineConfig,
+) -> None:
+    """`_refresh_lookup_caches`'s work, for keys already in hand.
+
+    Called directly for a run that raised after its merge: it returned no
+    report, and the export publishes what it merged all the same.
+    """
     from pipeline.external_data_sync import sync_external_data_for
 
-    symbols, pmids = _published_lookup_keys(run_data)
     if not symbols:
         logger.info("No new genes for the lookup caches before the export")
         return
@@ -3961,6 +4056,8 @@ async def _run_selected_pipelines(
     """
     summaries: list[dict[str, Any]] = []
     pubmed_run_data: PipelineRunData | None = None
+    # The lookup keys of a run that raised after its merge had committed.
+    pubmed_merged_keys: tuple[list[str], list[str]] | None = None
     pubmed_early_exit = False
     invocation_started = time.monotonic()
 
@@ -3999,6 +4096,7 @@ async def _run_selected_pipelines(
             except Exception as e:
                 logger.exception("PubMed pipeline failed")
                 summaries.append(_failure_summary("pubmed", e))
+                pubmed_merged_keys = getattr(e, _MERGED_KEYS_ATTR, None)
 
         summary_pipelines = (
             (
@@ -4067,13 +4165,14 @@ async def _run_selected_pipelines(
                 )
             else:
                 # A preview run's lookups never reach the published files, so
-                # its caches are not refreshed.
-                if (
-                    pubmed_run_data is not None
-                    and not args.sync_external_data
-                    and not args.preview
-                ):
-                    await _refresh_lookup_caches(pubmed_run_data, config)
+                # its caches are not refreshed. A run that raised after its
+                # merge is refreshed like one that returned: the export
+                # ships the rows it merged.
+                if not args.sync_external_data and not args.preview:
+                    if pubmed_run_data is not None:
+                        await _refresh_lookup_caches(pubmed_run_data, config)
+                    elif pubmed_merged_keys is not None:
+                        await _refresh_lookup_keys(*pubmed_merged_keys, config)
                 export_failed = await _publish_export(
                     summaries, preview_run=args.preview
                 )
@@ -4210,6 +4309,17 @@ def main() -> None:
             sys.exit(1)
 
     config = PipelineConfig()
+    # Checked before anything is dispatched. `run_pipeline` checks it too,
+    # but the dispatcher catches that ValueError as a failed PubMed run: a
+    # typo sent a failure notification, ran the other selected modes and
+    # exported.
+    if args.pubmed and not (
+        config.min_days_back <= args.days_back <= config.max_days_back
+    ):
+        parser.error(
+            f"--days-back must be between {config.min_days_back} and "
+            f"{config.max_days_back}, got {args.days_back}"
+        )
     # Inert unless the run goes through `deno task tracy:run`.
     profiling.start("pipeline", " ".join(sys.argv[1:]))
 

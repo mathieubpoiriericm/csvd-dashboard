@@ -36,15 +36,25 @@ from types import MappingProxyType
 from typing import Final
 
 # Dose ("40 Mg", "2.5mg", "5.8mg"), including the bare unit left behind when a
-# sponsor writes the number and unit apart.
+# sponsor writes the number and unit apart, and the denominator of a per-unit
+# dose ("0.25 mg/kg", "100mg/day"). The unit ends on `(?!\w)` rather than
+# `\b`, which can never match after "%". The denominators are spelled-out
+# units only: a single letter ("l", "d", "h") would eat the start of a second
+# agent's name in "20 mg/L-arginine".
 _DOSE: Final[re.Pattern[str]] = re.compile(
-    r"\b\d+(?:\.\d+)?\s*(?:mg|mcg|µg|ug|g|ml|iu|%)\b", re.IGNORECASE
+    r"\b\d+(?:\.\d+)?\s*(?:mg|mcg|µg|ug|g|ml|iu|%)(?!\w)"
+    r"(?:\s*/\s*(?:\d+(?:\.\d+)?\s*)?(?:kg|ml|dl|day|hr|hour|dose|m2)\b)?",
+    re.IGNORECASE,
 )
 
-# Dose form, route and administration frequency. None of them name the agent.
+# Dose form, route and administration frequency. None of them name the agent
+# -- except in "Triple Pill", where the form word is half of the name a
+# registration gives the fixed-dose combination, and "Triple" alone names
+# nothing. "for injection" goes as one phrase, so no "for" is left dangling.
 _FORM: Final[re.Pattern[str]] = re.compile(
-    r"\b(?:soft\s+)?(?:capsules?|tablets?|pills?|granules?|gel|ointment|"
-    r"oral|sublingual|intravenous|iv|injections?|solutions?|suspensions?|"
+    r"\b(?:soft\s+)?(?:capsules?|tablets?|(?<!triple )pills?|granules?|gel|"
+    r"ointment|oral|sublingual|intravenous|iv|(?:for\s+)?injections?|"
+    r"solutions?|suspensions?|"
     r"sustained-release|extended-release|dropping|prescription|"
     r"daily|once\s+daily|qd|bid|tid|xl|cr|sr|tabs?)\b",
     re.IGNORECASE,
@@ -226,7 +236,9 @@ def normalize_drug_name(raw: str | None) -> str | None:
     """
     if raw is None:
         return None
-    text = _TRAILING.sub("", raw)
+    # Doses go before the split: the slash of "0.25 mg/kg" belongs to the
+    # dose, and split first it left "kg" standing as a second agent.
+    text = _TRAILING.sub("", _DOSE.sub(" ", raw))
     if not text:
         return None
 

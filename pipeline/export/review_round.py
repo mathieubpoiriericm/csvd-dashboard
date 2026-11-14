@@ -40,6 +40,12 @@ _SENTINELS: Final[frozenset[str]] = frozenset(
     }
 )
 
+# What a run never writes on a row that already exists: the extraction does
+# not produce them, so any difference means gold moved after the copy.
+_RUN_NEVER_WRITES: Final[frozenset[str]] = frozenset(
+    {"brainCellTypes", "affectedPathway", "linkToMonogenicDisease"}
+)
+
 # A finding's keys, in the run report's own order (`GeneRecord`); `_finding`
 # appends the ledger's `fulltext` and `extractionModel` after them.
 _FINDING_KEYS: Final[tuple[str, ...]] = (
@@ -96,6 +102,40 @@ def _differing_fields(
     ]
 
 
+def _gold_drift(field: Mapping[str, Any], before_row: Mapping[str, Any]) -> str | None:
+    """Why *field*'s difference cannot be a run's doing, or None when it can.
+
+    The rules are the merge's own (`merge_genes_transactional`): on a row
+    that exists it appends to lists, turns Mendelian randomization on, fills
+    the quote and its confidence only where no quote is stored, and leaves
+    the rest alone; the sync beside it fills an empty band. The protein is
+    not judged here: a run once replaced one, and the `citation_protein`
+    kind exists to show it.
+    """
+    name, before, after = field["field"], field["before"], field["after"]
+    if field["removed"]:
+        return (
+            f"lacks {field['removed']} of gold's {name}: a run never removes a"
+            " list value"
+        )
+    if name in _RUN_NEVER_WRITES:
+        return f"differs from gold's {name}: a run never writes it on an existing row"
+    if name == "chromosomalLocation" and before not in _SENTINELS:
+        return f"differs from gold's {name}: a run only fills an empty one"
+    if name == "mendelianRandomization" and before == "Yes" and after != "Yes":
+        return f"turns off gold's {name}: a run only turns it on"
+    if (
+        name in ("sourceQuote", "confidence")
+        and before_row.get("sourceQuote") not in _SENTINELS
+        and before_row.get("sourceQuote") is not None
+    ):
+        return (
+            f"differs from gold's {name}: a run fills the quote and its"
+            " confidence only where gold has no quote"
+        )
+    return None
+
+
 def _finding(
     raw: Mapping[str, Any], papers: Mapping[str, Mapping[str, Any]]
 ) -> dict[str, Any]:
@@ -130,10 +170,12 @@ def build_review_round(
     """The round a preview run proposes against the gold rows.
 
     Raises ReviewRoundError when a gold gene is missing from the preview
-    rows (a run never deletes a row), when a field of a change lost a list
-    value (a run never removes one, so gold was curated after the preview
-    was copied from it, on a row the run also touched), or when a change has
-    no finding to explain it.
+    rows (a run never deletes a row), when a field of a change differs in a
+    way no run can produce (`_gold_drift`: a list value removed, a field a
+    run never writes, a band or a quote replaced rather than filled,
+    Mendelian randomization turned off -- so gold was curated after the
+    preview was copied from it, on a row the run also touched), or when a
+    change has no finding to explain it.
     """
     gold = {_key(row["gene"]): row for row in gold_rows}
     preview_keys = {_key(row["gene"]) for row in preview_rows}
@@ -153,11 +195,11 @@ def build_review_round(
             if not fields:
                 continue
             for field in fields:
-                if field["removed"]:
+                drift = _gold_drift(field, before)
+                if drift is not None:
                     raise ReviewRoundError(
-                        f"the preview's {after['gene']} lacks {field['removed']}"
-                        f" of gold's {field['field']}: a run never removes a list"
-                        " value, so gold changed after the preview was copied"
+                        f"the preview's {after['gene']} {drift}, so gold changed"
+                        " after the preview was copied"
                     )
             kind = _kind(fields)
         changes.append(
@@ -208,18 +250,25 @@ def stale_genes(
     ``before`` differs from the row of the same gene, that row is gone, or
     a ``new`` gene is now present. The same rule as `staleChanges` in
     lib/review/stale.ts, which hides such a round from the dashboard.
+
+    Total over a malformed round (a hand edit, a bad merge resolution): an
+    entry that is not a change is skipped, and a change without a usable
+    gene matches no row and is named as text.
     """
     gold = {row["gene"]: row for row in rows}
     changes = round_.get("changes")
     stale: list[str] = []
     for change in changes if isinstance(changes, list) else []:
-        row = gold.get(change.get("gene"))
+        if not isinstance(change, Mapping):
+            continue
+        name = change.get("gene")
+        row = gold.get(name) if isinstance(name, str) else None
         if change.get("kind") == "new":
             gone_stale = row is not None
         else:
             gone_stale = row is None or change.get("before") != row
         if gone_stale:
-            stale.append(change.get("gene"))
+            stale.append(str(name))
     return stale
 
 

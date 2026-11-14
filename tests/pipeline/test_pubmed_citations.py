@@ -9,6 +9,7 @@ from pipeline.config import PipelineConfig
 from pipeline.pubmed_citations import (
     PubMedCitation,
     SyncResult,
+    _europepmc_authors,
     _fetch_preprint_uncached,
     _fetch_pubmed_uncached,
     _format_authors,
@@ -170,6 +171,15 @@ class TestFormatCitation:
         assert "<i>Levels &lt;40 &amp; rising</i>" in result
         assert "J &lt;i&gt;Rare&lt;/i&gt; (2024)" in result
 
+    def test_doi_and_date_are_html_escaped(self):
+        # An old SICI DOI holds `<...>`, and a MedlineDate is free text.
+        result = _format_citation(
+            "A", "T", "J", "2019 Nov & Dec", "10.1002/61:1<1::AID-X1>3.0.CO;2-#"
+        )
+
+        assert "J (2019 Nov &amp; Dec)" in result
+        assert "DOI: 10.1002/61:1&lt;1::AID-X1&gt;3.0.CO;2-#" in result
+
 
 # ---------------------------------------------------------------------------
 # _parse_pubmed_xml
@@ -282,6 +292,39 @@ class TestParsePubmedXml:
         assert result is not None
         assert result.doi is None
         assert "10.9999" not in result.formatted_ref
+
+    def test_a_collective_only_author_list_names_the_group(self):
+        # A group author is <Author><CollectiveName>, with no LastName.
+        xml = b"""<PubmedArticleSet><PubmedArticle><MedlineCitation><Article>
+        <ArticleTitle>T</ArticleTitle><Journal><Title>J</Title></Journal>
+        <AuthorList><Author>
+          <CollectiveName>Example Genetics Consortium</CollectiveName>
+        </Author></AuthorList>
+        </Article></MedlineCitation></PubmedArticle></PubmedArticleSet>"""
+
+        result = _parse_pubmed_xml("1", xml)
+
+        assert result is not None
+        assert result.authors == "Example Genetics Consortium"
+        assert result.formatted_ref.startswith("<b>Example Genetics Consortium</b>")
+
+    def test_a_collective_author_keeps_its_place_among_the_people(self):
+        xml = b"""<PubmedArticleSet><PubmedArticle><MedlineCitation><Article>
+        <ArticleTitle>T</ArticleTitle><Journal><Title>J</Title></Journal>
+        <AuthorList>
+          <Author><LastName>Smith</LastName><Initials>J</Initials></Author>
+          <Author><CollectiveName> Example Consortium </CollectiveName></Author>
+          <Author><LastName>Doe</LastName><Initials>A</Initials></Author>
+          <Author><LastName>Roe</LastName><Initials>B</Initials></Author>
+        </AuthorList>
+        </Article></MedlineCitation></PubmedArticle></PubmedArticleSet>"""
+
+        result = _parse_pubmed_xml("1", xml)
+
+        assert result is not None
+        assert result.authors is not None
+        assert result.authors.startswith("Smith J, Example Consortium, Doe A")
+        assert "Roe" not in result.authors
 
     def test_the_articles_own_doi_wins_over_a_references(self):
         xml = b"""<PubmedArticleSet><PubmedArticle><MedlineCitation><Article>
@@ -804,3 +847,19 @@ class TestSyncPubmedCitations:
 
         upsert.assert_not_called()
         assert result.failed == 1
+
+
+def test_a_europepmc_author_with_no_name_at_all_is_left_out() -> None:
+    """An entry carrying only an affiliation or an ORCID names nobody; the
+    people around it keep their order."""
+    record = {
+        "authorList": {
+            "author": [
+                {"lastName": "First", "initials": "A"},
+                {"initials": "B"},
+                {"collectiveName": "  "},
+                {"lastName": "Last", "initials": "C"},
+            ]
+        }
+    }
+    assert _europepmc_authors(record) == ["First A", "Last C"]

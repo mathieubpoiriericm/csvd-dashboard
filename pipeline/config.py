@@ -709,6 +709,23 @@ class PipelineConfig:
         if self.ct_max_retries < 0:
             raise ValueError(f"ct_max_retries must be >= 0, got {self.ct_max_retries}")
 
+        # `merge_window` in pipeline/database.py holds one pooled connection
+        # for its advisory lock while the merge and the PMID ledger each
+        # acquire another, and acquisition has no timeout: a pool capped at
+        # one connection hung the run at the merge, after every extraction
+        # was paid for, with no error and the lock held.
+        if self.db_pool_max_size < 2:
+            raise ValueError(
+                f"db_pool_max_size must be >= 2, got {self.db_pool_max_size}: "
+                "the merge window holds one connection for its advisory lock "
+                "while the merge takes a second"
+            )
+        if not 0 <= self.db_pool_min_size <= self.db_pool_max_size:
+            raise ValueError(
+                f"db_pool_min_size must be in [0, {self.db_pool_max_size}] "
+                f"(db_pool_max_size), got {self.db_pool_min_size}"
+            )
+
         # The annotation clients build their semaphores the same way, so the
         # same Semaphore(0) hang applies to each of them. clinvar_rate_limit is
         # also a divisor in _throttle.

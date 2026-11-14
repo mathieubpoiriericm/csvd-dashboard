@@ -14,6 +14,7 @@ from pydantic import (
     ConfigDict,
     Field,
     WithJsonSchema,
+    field_validator,
 )
 
 from pipeline.disease import VOCABULARY_PATH
@@ -143,6 +144,33 @@ class GeneEntry(BaseModel):
     # returns citation spans, and pipeline/citations.py checks this field
     # against them, so the quote is verified rather than merely requested.
     source_quote: str = Field(min_length=1)
+
+    # Both validators run before the field's own, and neither changes the
+    # annotation, so the tool schema generated from this model is the one
+    # every recorded extraction was sent under. The tool is not strict:
+    # its schema advises, and what the model sends is validated here.
+
+    @field_validator("pmid", mode="before")
+    @classmethod
+    def _pmid_is_ignored(cls, value: object) -> object:
+        """The caller overwrites `pmid` (`_merge_tool_blocks`), so no value
+        of it may fail the paper. A PMID reads as a number, and one sent as
+        an integer was refused: a paid retry on the streaming path, a
+        dropped entry on the batch path, over a field nothing keeps."""
+        return value if isinstance(value, str) else ""
+
+    @field_validator("gwas_trait", "omics_evidence", mode="before")
+    @classmethod
+    def _a_null_list_is_empty(cls, value: object) -> object:
+        """A `null` where the model had nothing to list is the empty
+        default, not a failed paper."""
+        return [] if value is None else value
+
+    @field_validator("mendelian_randomization", mode="before")
+    @classmethod
+    def _a_null_flag_is_false(cls, value: object) -> object:
+        """`null` for the flag is "not reported", the field's default."""
+        return False if value is None else value
 
 
 class ExtractionResult(BaseModel):
