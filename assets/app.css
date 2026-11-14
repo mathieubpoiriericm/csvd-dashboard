@@ -1024,6 +1024,61 @@ svg {
   margin-inline-end: var(--svd-space-2);
 }
 
+/*
+ * The previews hub: one card per feature, stacked on a narrow screen and
+ * sharing one row from 900px. One implicit column per card, so one, two or
+ * three cards fill the row alike; `repeat(auto-fit, minmax(0, 1fr))` has no
+ * minimum to fit to and made a track a pixel wide in the run widget's
+ * verdict. The cards of a row stretch to one height and each card's actions
+ * sit at its foot, so the buttons of a row line up whatever the summaries'
+ * lengths.
+ */
+.preview-cards {
+  display: grid;
+  gap: var(--svd-space-5);
+}
+
+@media (min-width: 900px) {
+  .preview-cards {
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+  }
+}
+
+.preview-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.preview-card > .card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.preview-card .card-title {
+  display: flex;
+  align-items: center;
+  gap: var(--svd-space-2);
+}
+
+.preview-card .card-title > .icon {
+  color: var(--svd-primary);
+  opacity: 0.75;
+}
+
+.preview-card-text {
+  margin: 0 0 var(--svd-space-5);
+  line-height: var(--svd-leading-normal);
+}
+
+.preview-card-actions {
+  margin-top: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--svd-space-2);
+}
+
 .layout-sidebar {
   display: grid;
   grid-template-columns: minmax(240px, 20rem) minmax(0, 1fr);
@@ -2937,8 +2992,10 @@ svg {
    the notice's heavier one: a hairline, a 2px rail, a 10% wash of the note's
    own colour and the small type, under an eyebrow (`.note-label`). They keep
    the full width, which a tip does not: the gold-only note holds the preview
-   switch. The note that heads every review page is one of them. `.notice`
-   itself is unchanged -- the adapt guide's alerts wear it. */
+   switch. The note that heads every review page is one of them, and so is
+   the one that heads the pipeline run's preview page. `.notice` itself is
+   unchanged -- the adapt guide's alerts wear it. */
+.preview-note,
 .about-warning,
 .about-gold-notice,
 .review-notice {
@@ -4741,6 +4798,23 @@ button.adapt-card-head:focus-visible {
 .adapt-button-primary,
 .review-action-primary {
   border-color: var(--svd-color-primary);
+  color: var(--svd-color-primary);
+}
+
+/* An action that leads to a page is a link drawn as the button beside it:
+   the button's own box and line height, no underline, and no visited
+   colour, which would outrank the action's own. */
+a.review-action {
+  display: inline-block;
+  line-height: normal;
+  text-decoration: none;
+}
+
+a.review-action:visited {
+  color: var(--svd-text);
+}
+
+a.review-action-primary:visited {
   color: var(--svd-color-primary);
 }
 

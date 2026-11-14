@@ -1151,10 +1151,13 @@ function weightDeclarations(): Array<
 Deno.test("every line-height is on the leading scale", () => {
   // `line-height: 1` stays exempt: it is the "no leading" case on the
   // drawer-close button's single glyph (.timeline-drawer-close,
-  // .pipeline-drawer-close), not a step.
-  const off = leadingDeclarations().filter(({ value }) =>
+  // .pipeline-drawer-close), not a step. `normal` is exempt on the one link
+  // drawn as a button, `a.review-action`: it is the leading the browser
+  // gives the buttons beside it, so the two stand the same height.
+  const off = leadingDeclarations().filter(({ selector, value }) =>
     !/var\(--svd-leading-/.test(value) && value.trim() !== "1" &&
-    value.trim() !== "inherit"
+    value.trim() !== "inherit" &&
+    !(selector === "a.review-action" && value.trim() === "normal")
   );
   assertEquals(off.map((d) => `${d.line}: ${d.selector} { ${d.value} }`), []);
 });
@@ -1650,17 +1653,18 @@ Deno.test("a confidence fills in one colour taken from a red-to-green scale", ()
 Deno.test("the About and review notes wear the tip box's grammar", () => {
   // The two notes that head the About page are notes like the tips that
   // head the others: a hairline, a 2px rail, a 10% wash, the small type and
-  // an eyebrow label, and so is the note that heads every review page.
-  // `.notice` itself is left alone -- the adapt guide's alerts wear it too.
+  // an eyebrow label, and so are the notes that head every review page and
+  // the pipeline run's preview page. `.notice` itself is left alone -- the
+  // adapt guide's alerts wear it too.
   const flat = (text: string) => text.replace(/\s+/g, " ").trim();
   const body = flat(
     css.match(
-      /\.about-warning,\s*\.about-gold-notice,\s*\.review-notice\s*\{([^}]*)\}/,
+      /\.preview-note,\s*\.about-warning,\s*\.about-gold-notice,\s*\.review-notice\s*\{([^}]*)\}/,
     )?.[1] ?? "",
   );
   assert(
     body !== "",
-    "no `.about-warning, .about-gold-notice, .review-notice` rule found",
+    "no `.preview-note, .about-warning, .about-gold-notice, .review-notice` rule found",
   );
   const colour = "var(--svd-notice-color, var(--svd-color-danger))";
   for (
@@ -2331,4 +2335,18 @@ Deno.test("the request notice's empty live region stays in the page without a ga
   );
   assertEquals(rules, []);
   assertMatch(css, /\.review-dialog \.review-sent:empty \{\s*margin: 0;\s*\}/);
+});
+
+Deno.test("the previews hub's cards share a row without a track a pixel wide", () => {
+  // `repeat(auto-fit, minmax(0, 1fr))` has no minimum to fit to, and made a
+  // track a pixel wide in the run widget's verdict (islands/CLAUDE.md). One
+  // implicit column per card shares the row however many cards there are.
+  const rules = [...css.matchAll(/\.preview-cards\s*\{([^}]*)\}/g)]
+    .map((m) => m[1]);
+  assert(rules.length > 0, "no `.preview-cards` rule found");
+  assert(
+    rules.some((body) => /grid-auto-columns:\s*minmax\(0, 1fr\);/.test(body)),
+    "`.preview-cards` names no `grid-auto-columns: minmax(0, 1fr)`",
+  );
+  for (const body of rules) assertNotMatch(body, /repeat\(auto-fit/);
 });

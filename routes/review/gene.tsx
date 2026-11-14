@@ -1,13 +1,16 @@
 import { HttpError } from "fresh";
+import type { ComponentChildren } from "preact";
 
 import { define } from "../../utils.ts";
 import { Page } from "../../components/Page.tsx";
+import { PreviewSwitcher } from "../../components/PreviewSwitcher.tsx";
 import { CommitteeVotes } from "../../components/review/CommitteeVotes.tsx";
 import { Findings } from "../../components/review/Findings.tsx";
 import { GeneDiff } from "../../components/review/GeneDiff.tsx";
 import { History } from "../../components/review/History.tsx";
 import { ReviewNotice } from "../../components/review/ReviewNotice.tsx";
 import { StandingBadge } from "../../components/review/StandingBadge.tsx";
+import { PREVIEWS } from "../../lib/previews_current.ts";
 import { REVIEW } from "../../lib/review/current.ts";
 import { KIND_LABELS } from "../../lib/review/display.ts";
 import type { ReviewState } from "../../lib/review/summary.ts";
@@ -15,10 +18,15 @@ import type { ReviewState } from "../../lib/review/summary.ts";
 /**
  * One gene's page, from a review and the gene's key. The key is matched
  * exactly, so a symbol holding a slash is found as the queue linked it; a key
- * the round does not hold is a 404, not an empty page.
+ * the round does not hold is a 404, not an empty page. `before` is the
+ * previews' strip.
  */
 export function ReviewGeneContent(
-  { state, gene }: { state: ReviewState; gene: string | null },
+  { state, gene, before }: {
+    state: ReviewState;
+    gene: string | null;
+    before?: ComponentChildren;
+  },
 ) {
   const i = state.round.changes.findIndex((c) => c.gene === gene);
   if (i < 0) throw new HttpError(404);
@@ -26,6 +34,7 @@ export function ReviewGeneContent(
   const review = state.reviews[i];
   return (
     <Page
+      before={before}
       header={
         <div class="page-header">
           {
@@ -72,6 +81,7 @@ export default define.page(function ReviewGenePage(ctx) {
     <ReviewGeneContent
       state={REVIEW}
       gene={ctx.url.searchParams.get("g")}
+      before={<PreviewSwitcher features={PREVIEWS} pathname="/review/gene" />}
     />
   );
 });
