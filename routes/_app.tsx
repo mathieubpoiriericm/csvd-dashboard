@@ -14,8 +14,9 @@ import {
   PIPELINE_PREVIEW_PATH,
   PREVIEWS_LABEL,
   PREVIEWS_PATH,
-  PREVIEWS_TIP,
+  previewsTip,
 } from "../lib/previews.ts";
+import { PREVIEWS } from "../lib/previews_current.ts";
 import { REVIEW } from "../lib/review/current.ts";
 import type { ReviewState } from "../lib/review/summary.ts";
 import { THEME_STORAGE_KEY } from "../lib/theme.ts";
@@ -78,7 +79,7 @@ const UNTABBED_TITLES: ReadonlyArray<[string, string]> = [
  * focus, and read out after its name through aria-describedby. Its first word
  * is what the green dot means, so the dot is never the only thing saying it.
  */
-const PREVIEWS_TIP_ID = "nav-previews-tip";
+const NAV_TIP_ID = "nav-previews-tip";
 
 /**
  * The browser title of a page. A gene's review page leads with the gene, so
@@ -214,7 +215,7 @@ export default define.page(function App({ Component, url, state }) {
                       <a
                         class="nav-link nav-link-previews"
                         href={PREVIEWS_PATH}
-                        aria-describedby={PREVIEWS_TIP_ID}
+                        aria-describedby={NAV_TIP_ID}
                         aria-current={isPreviewPath(url.pathname)
                           ? "page"
                           : undefined}
@@ -225,10 +226,10 @@ export default define.page(function App({ Component, url, state }) {
                       </a>
                       <span
                         class="nav-previews-tip"
-                        id={PREVIEWS_TIP_ID}
+                        id={NAV_TIP_ID}
                         role="tooltip"
                       >
-                        {PREVIEWS_TIP}
+                        {previewsTip(PREVIEWS)}
                       </span>
                     </li>
                     {TABS.map((tab) => {

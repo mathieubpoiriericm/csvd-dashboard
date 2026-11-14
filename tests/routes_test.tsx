@@ -32,6 +32,8 @@ import { GOLD_ONLY, GOLD_ONLY_NOTICE } from "../lib/gold_only.ts";
 import { filterLocationsByStatus, visibleTrials } from "../lib/filters.ts";
 import type { PipelineRun, SyncRun } from "../lib/types.ts";
 import { LOGIN_PATH } from "../lib/auth.ts";
+import { previewsTip } from "../lib/previews.ts";
+import { PREVIEWS } from "../lib/previews_current.ts";
 import { currentReview } from "../lib/review/current.ts";
 import { goldOf, sampleChange, sampleRound } from "./fixtures/review.ts";
 import { escapeHtml } from "./helpers/html.ts";
@@ -559,10 +561,11 @@ Deno.test("application shell puts the described previews entry before the tabs",
   assert(dot >= 0, body);
   assert(dot < body.indexOf("<svg"), body);
   assertStringIncludes(body, "New Feature Previews");
-  assertMatch(
-    html,
-    /<span[^>]*id="nav-previews-tip"[^>]*>New\. Three features in preview/,
-  );
+  // The tip names the features this dataset offers, so no count is pinned.
+  const tip = html.match(/<span[^>]*id="nav-previews-tip"[^>]*>([^<]*)</)
+    ?.[1];
+  assertEquals(tip, escapeHtml(previewsTip(PREVIEWS)));
+  assert(tip?.startsWith("New. "), tip);
   // First in the row, so it sits to the left of About.
   const hrefs = [...html.matchAll(/<a [^>]*class="nav-link[^>]*>/g)].map((m) =>
     m[0].match(/href="([^"]*)"/)?.[1]

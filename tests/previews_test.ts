@@ -6,7 +6,7 @@ import {
   previewFeatures,
   previewNote,
   PREVIEWS_LABEL,
-  PREVIEWS_TIP,
+  previewsTip,
 } from "../lib/previews.ts";
 
 Deno.test("the guide is always offered; the run and the review only when they exist", () => {
@@ -107,5 +107,25 @@ Deno.test("a page says which feature it belongs to; the hub belongs to none", ()
 Deno.test("the fixed copy is exported verbatim", () => {
   assertEquals(PREVIEWS_LABEL, "New Feature Previews");
   assertEquals(PREVIEW_NOTE_LABEL, "Technical preview:");
-  assert(PREVIEWS_TIP.startsWith("New. "));
+});
+
+Deno.test("the navbar tip names only the features on offer", () => {
+  const tip = (pipeline: boolean, review: boolean) =>
+    previewsTip(previewFeatures({ pipeline, review }, 365));
+  assertEquals(
+    tip(true, true),
+    "New. Three features in preview: the pipeline run, the disease adaptation guide and the scientific review committee.",
+  );
+  assertEquals(
+    tip(true, false),
+    "New. Two features in preview: the pipeline run and the disease adaptation guide.",
+  );
+  assertEquals(
+    tip(false, true),
+    "New. Two features in preview: the disease adaptation guide and the scientific review committee.",
+  );
+  assertEquals(
+    tip(false, false),
+    "New. One feature in preview: the disease adaptation guide.",
+  );
 });

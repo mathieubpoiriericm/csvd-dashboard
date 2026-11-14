@@ -32,9 +32,33 @@ export const PIPELINE_PREVIEW_PATH = "/previews/pipeline";
 export const PREVIEWS_LABEL = "New Feature Previews";
 export const PREVIEWS_LEAD =
   "Features that work today and are still in preview. Pick one to open it.";
-export const PREVIEWS_TIP =
-  "New. Three features in preview: the pipeline run, the disease adaptation guide and the scientific review committee.";
 export const PREVIEW_NOTE_LABEL = "Technical preview:";
+
+/** Each feature as the navbar's tip names it. */
+const TIP_PHRASES: Record<PreviewKey, string> = {
+  pipeline: "the pipeline run",
+  adapt: "the disease adaptation guide",
+  review: "the scientific review committee",
+};
+
+const COUNT_WORDS = ["One", "Two", "Three"] as const;
+
+/**
+ * The navbar entry's description, naming only the features on offer: a
+ * dataset without a run or a review offers fewer, and the tip must not
+ * promise them. Its first word is what the green dot means.
+ */
+export function previewsTip(
+  features: readonly Pick<PreviewFeature, "key">[],
+): string {
+  const phrases = features.map(({ key }) => TIP_PHRASES[key]);
+  const last = phrases[phrases.length - 1];
+  const list = phrases.length === 1
+    ? last
+    : `${phrases.slice(0, -1).join(", ")} and ${last}`;
+  const noun = phrases.length === 1 ? "feature" : "features";
+  return `New. ${COUNT_WORDS[phrases.length - 1]} ${noun} in preview: ${list}.`;
+}
 
 const ADAPT_PATH = "/adapt";
 const REVIEW_PATH = "/review";

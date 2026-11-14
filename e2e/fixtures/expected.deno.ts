@@ -65,7 +65,7 @@ import {
   previewInvitation,
   previewNote,
 } from "../../lib/pipeline_preview.ts";
-import { PREVIEWS_LABEL, PREVIEWS_TIP } from "../../lib/previews.ts";
+import { PREVIEWS_LABEL, previewsTip } from "../../lib/previews.ts";
 import { PREVIEWS } from "../../lib/previews_current.ts";
 import { chromosomeOf } from "../../lib/sorting.ts";
 import { locationsWithTableStatus, phaseBarLabel } from "../../lib/trials.ts";
@@ -513,7 +513,7 @@ const expected = {
 
   /** The navbar's previews entry, and the features its hub offers. */
   previewsLabel: PREVIEWS_LABEL,
-  previewsTip: PREVIEWS_TIP,
+  previewsTip: previewsTip(PREVIEWS),
   previews: PREVIEWS.map(({ key, href, name, title }) => ({
     key,
     href,
