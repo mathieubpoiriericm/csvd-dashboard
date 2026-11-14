@@ -1316,11 +1316,11 @@ svg {
 
 /*
  * The previews entry. It is not a tab -- it leads to the features still in
- * preview, outside the dashboard's own pages -- so it is outlined at rest,
- * where a tab is bare until hovered, and stands well clear of About, seven
- * times the gap between two tabs. Declared before the current-page rule on
- * purpose: on the hub and every page behind it, it takes the same fill a tab
- * does.
+ * preview, outside the dashboard's own pages -- so it is drawn in the accent
+ * at rest, bare like a tab, and stands well clear of About, seven times the
+ * gap between two tabs. Its box appears on hover and focus, in the accent,
+ * and on the current page. Declared before the current-page rule on purpose:
+ * on the hub and every page behind it, it takes the same fill a tab does.
  */
 .nav-previews {
   position: relative;
@@ -1329,8 +1329,6 @@ svg {
 
 .nav-link.nav-link-previews,
 .nav-link.nav-link-previews:visited {
-  border-color: var(--svd-nav-accent);
-  background: color-mix(in oklab, var(--svd-nav-accent) 10%, transparent);
   color: var(--svd-nav-accent);
 }
 
@@ -2704,14 +2702,6 @@ svg {
   align-items: center;
   gap: var(--svd-space-2);
   font-size: var(--svd-text-md);
-}
-
-/* The adaptation card sits outside the grid but leads with a glyph too, so
-   it takes the same gap; its heading keeps the full card-title size. */
-.about-adapt-title {
-  display: flex;
-  align-items: center;
-  gap: var(--svd-space-2);
 }
 
 .about-row {

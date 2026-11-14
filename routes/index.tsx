@@ -400,25 +400,6 @@ export function AboutContent(
           </div>
         </div>
       </div>
-
-      <div class="card">
-        <div class="card-body">
-          <h2 class="card-title about-adapt-title">
-            <Icon name="arrowsRightLeft" />
-            Reuse this dashboard for another disease
-          </h2>
-          <p class="about-sources-note">
-            The code is disease-neutral; everything that names this disease
-            lives in one folder. A step-by-step page collects the answers,
-            checks them against PubMed, the ontology services and
-            ClinicalTrials.gov, and downloads that folder for a fork.
-          </p>
-          <a class="about-contact" href="/adapt">
-            <Icon name="documentText" />
-            Open the adaptation guide
-          </a>
-        </div>
-      </div>
     </Page>
   );
 }

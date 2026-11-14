@@ -116,7 +116,7 @@ export function previewFeatures(
     name: "Adaptation guide",
     title: "Disease adaptation guide",
     summary:
-      "Build this dashboard for another disease: answer nine questions, have them checked against PubMed, the ontology services and ClinicalTrials.gov, and download the folder for a fork.",
+      "The code is disease-neutral; everything that names this disease lives in one folder. A step-by-step page collects the answers, checks them against PubMed, the ontology services and ClinicalTrials.gov, and downloads that folder for a fork.",
     icon: "arrowsRightLeft",
     subpages: [],
   });

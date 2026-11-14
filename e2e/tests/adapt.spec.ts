@@ -235,9 +235,9 @@ test.beforeEach(async ({ page }) => {
   await openAdapt(page);
 });
 
-test("the About page links here and the page carries its own title", async ({ page }) => {
+test("the previews hub links here and the page carries its own title", async ({ page }) => {
   await expect(page).toHaveTitle(/^Adapt \| /);
-  await page.goto("/");
+  await page.goto("/previews");
   await page.getByRole("link", { name: "Open the adaptation guide" }).click();
   await expect(page).toHaveURL("/adapt");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
