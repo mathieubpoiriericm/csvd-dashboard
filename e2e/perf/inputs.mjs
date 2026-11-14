@@ -47,6 +47,18 @@ export function deriveInputs(expected) {
  */
 export const DERIVED_INPUTS = deriveInputs(EXPECTED);
 
+/**
+ * The page that draws the run widget: its own previews page when the hub
+ * offers the run (gold-only on, a report recorded), else the About page,
+ * which draws it whenever a report is recorded and gold-only is off.
+ */
+export function runWidgetRoute(expected) {
+  return expected.previews.find((p) => p.key === "pipeline")?.href ?? "/";
+}
+
+/** The run widget's page for the committed data. */
+export const RUN_WIDGET_ROUTE = runWidgetRoute(EXPECTED);
+
 /** Which derived input each data-derived scenario needs, and why it is skipped without it. */
 export const SCENARIO_INPUTS = {
   "genes/search": "geneSearch",

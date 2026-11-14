@@ -800,6 +800,10 @@ README's screenshots, which still show our disease:
 deno task screenshots
 ```
 
+That recaptures the six tabs and the previews hub. As section 9 says, delete the
+three `review-*.webp` and their rows in the README, and reword the hub's caption
+and alt text to what your hub holds.
+
 Run the checks again, and commit.
 
 A weekly cron of the first command with the default seven-day window is how the

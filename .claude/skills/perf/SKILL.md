@@ -24,10 +24,13 @@ so does a failed conversion;
 `node e2e/perf/run.mjs --no-trace` records the in-page metrics alone. Each run
 writes its numbers to a timestamped directory under `e2e/perf/artifacts/`,
 gitignored too. A scenario that `needs` an element the page does not render is
-reported as skipped, with the reason, rather than failed on a timeout: while
-`GOLD_ONLY` is on the About page shows the notice and no run widget, so
-`about/toggle-step` and `about/drawer` (lifecycle included) skip with "the About
-page shows no run while GOLD_ONLY is on" and the run still exits 0. A scenario
+reported as skipped, with the reason, rather than failed on a timeout. The run
+widget's two interactions, `pipeline/toggle-step` and `pipeline/drawer`
+(lifecycle included), are measured on the page that draws the widget
+(`RUN_WIDGET_ROUTE` in `e2e/perf/inputs.mjs`): `/previews/pipeline` while
+`GOLD_ONLY` is on and a run is recorded, the About page otherwise. Where no
+report is recorded neither page draws it, so they skip with "no run report is
+recorded" and the run still exits 0. A scenario
 whose input the data cannot supply carries `unavailable` instead and is skipped
 the same way without a page load: on the empty export, the two searches of a
 table with no query and the genes filter-toggle with no trait.

@@ -6,10 +6,23 @@ import {
   availability,
   DERIVED_INPUTS,
   deriveInputs,
+  RUN_WIDGET_ROUTE,
+  runWidgetRoute,
   SCENARIO_INPUTS,
   skipReason,
   unavailableReason,
 } from "./inputs.mjs";
+
+test("the run widget is measured where the data draws it", () => {
+  // Its own page when the previews hub offers the run; else the About page,
+  // which draws it whenever a report is recorded and gold-only is off.
+  const guide = { key: "adapt", href: "/adapt" };
+  const run = { key: "pipeline", href: "/previews/pipeline" };
+  assert.equal(runWidgetRoute({ previews: [run, guide] }), "/previews/pipeline");
+  assert.equal(runWidgetRoute({ previews: [guide] }), "/");
+  // The loaded route is one of the two, whatever the committed data holds.
+  assert.ok(["/", "/previews/pipeline"].includes(RUN_WIDGET_ROUTE));
+});
 
 /** A page whose every locator counts `count` and that records each lookup. */
 function fakePage(count) {

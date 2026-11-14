@@ -2318,16 +2318,23 @@ Deno.test("the request notice's empty live region stays in the page without a ga
   assertMatch(css, /\.review-dialog \.review-sent:empty \{\s*margin: 0;\s*\}/);
 });
 
-Deno.test("the previews hub's cards share a row without a track a pixel wide", () => {
-  // `repeat(auto-fit, minmax(0, 1fr))` has no minimum to fit to, and made a
-  // track a pixel wide in the run widget's verdict (islands/CLAUDE.md). One
-  // implicit column per card shares the row however many cards there are.
+Deno.test("the previews hub's cards keep a third of the row each, however many there are", () => {
+  // Three fixed tracks, so a hub that offers one feature draws one card a
+  // third of the row wide, where one implicit column a card stretched it
+  // across the page. Never `repeat(auto-fit, minmax(0, 1fr))`: it has no
+  // minimum to fit to, and made a track a pixel wide in the run widget's
+  // verdict (islands/CLAUDE.md).
   const rules = [...css.matchAll(/\.preview-cards\s*\{([^}]*)\}/g)]
     .map((m) => m[1]);
   assert(rules.length > 0, "no `.preview-cards` rule found");
   assert(
-    rules.some((body) => /grid-auto-columns:\s*minmax\(0, 1fr\);/.test(body)),
-    "`.preview-cards` names no `grid-auto-columns: minmax(0, 1fr)`",
+    rules.some((body) =>
+      /grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\);/.test(body)
+    ),
+    "`.preview-cards` names no `grid-template-columns: repeat(3, minmax(0, 1fr))`",
   );
-  for (const body of rules) assertNotMatch(body, /repeat\(auto-fit/);
+  for (const body of rules) {
+    assertNotMatch(body, /repeat\(auto-fit/);
+    assertNotMatch(body, /grid-auto-flow:\s*column/);
+  }
 });
