@@ -28,7 +28,7 @@ import {
   previewFeatures,
   previewNote,
   PREVIEWS_LABEL,
-  PREVIEWS_LEAD,
+  previewsLead,
 } from "../lib/previews.ts";
 import {
   offeredPreviews,
@@ -66,7 +66,7 @@ const action = (href: string, text: string) => {
 Deno.test("the hub draws one card per feature, each with its way in", () => {
   const html = renderToString(<PreviewsHub features={ALL} />);
   assertStringIncludes(html, `<h1>${PREVIEWS_LABEL}</h1>`);
-  assertStringIncludes(html, escapeHtml(PREVIEWS_LEAD));
+  assertStringIncludes(html, `<p>${escapeHtml(previewsLead(3))}</p>`);
   assertEquals(cardIds(html), ["pipeline", "adapt", "review"]);
   for (const f of ALL) assertStringIncludes(html, escapeHtml(f.summary));
   assertMatch(html, action("/previews/pipeline", "Open the pipeline run"));
@@ -84,6 +84,9 @@ Deno.test("the hub offers only what exists, down to the guide alone", () => {
     />,
   );
   assertEquals(cardIds(html), ["adapt"]);
+  // One card, so the lead speaks of one feature and offers no choice.
+  assertStringIncludes(html, `<p>${escapeHtml(previewsLead(1))}</p>`);
+  assert(!html.includes("Pick one"), html);
   assert(!html.includes('href="/review"'));
   assert(!html.includes('href="/previews/pipeline"'));
   assert(!html.includes("<dialog"));

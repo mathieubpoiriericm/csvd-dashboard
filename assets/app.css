@@ -1038,12 +1038,13 @@ svg {
 
 /*
  * The previews hub: one card per feature, stacked on a narrow screen and
- * sharing one row from 900px. One implicit column per card, so one, two or
- * three cards fill the row alike; `repeat(auto-fit, minmax(0, 1fr))` has no
- * minimum to fit to and made a track a pixel wide in the run widget's
- * verdict. The cards of a row stretch to one height and each card's actions
- * sit at its foot, so the buttons of a row line up whatever the summaries'
- * lengths.
+ * sharing one row from 900px. Three fixed tracks, so a card is a third of
+ * the row however many there are: a hub that offers the guide alone draws
+ * one card at that width, where one implicit column a card stretched it
+ * across the page. `repeat(auto-fit, minmax(0, 1fr))` has no minimum to fit
+ * to and made a track a pixel wide in the run widget's verdict. The cards
+ * of a row stretch to one height and each card's actions sit at its foot,
+ * so the buttons of a row line up whatever the summaries' lengths.
  */
 .preview-cards {
   display: grid;
@@ -1052,8 +1053,7 @@ svg {
 
 @media (min-width: 900px) {
   .preview-cards {
-    grid-auto-flow: column;
-    grid-auto-columns: minmax(0, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -6839,9 +6839,10 @@ a.review-action-primary:visited {
 
 /* === PIPELINE RUN WIDGET ===
 
-   The About page's run report: a card that is a verdict over a ledger of
-   steps, and the dialog behind "Run details". The card is the one framed
-   surface here; nothing inside it is. A pill, a note and a track say what
+   The run report, on its own previews page while GOLD_ONLY is on and on the
+   About page otherwise: a card that is a verdict over a ledger of steps, and
+   the dialog behind "Run details". The card is the one framed surface here;
+   nothing inside it is. A pill, a note and a track say what
    they are by re-declaring --svd-tint, and each of the four status tints
    resolves through a semantic token the dark blocks already override, so
    none of it needs a dark counterpart.

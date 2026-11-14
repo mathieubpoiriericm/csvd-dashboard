@@ -30,8 +30,6 @@ export interface PreviewFeature {
 export const PREVIEWS_PATH = "/previews";
 export const PIPELINE_PREVIEW_PATH = "/previews/pipeline";
 export const PREVIEWS_LABEL = "New Feature Previews";
-export const PREVIEWS_LEAD =
-  "Features that work today and are still in preview. Pick one to open it.";
 export const PREVIEW_NOTE_LABEL = "Technical preview:";
 
 /** Each feature as the navbar's tip names it. */
@@ -60,6 +58,17 @@ export function previewsTip(
   const noun = phrases.length === 1 ? "feature" : "features";
   const count = COUNT_WORDS[phrases.length - 1] ?? String(phrases.length);
   return `New. ${count} ${noun} in preview: ${list}.`;
+}
+
+/**
+ * The hub's lead, for the number of features on offer. Where a dataset
+ * offers the guide alone there is nothing to pick between, so the lead
+ * speaks of one feature and drops the invitation to choose.
+ */
+export function previewsLead(count: number): string {
+  return count === 1
+    ? "A feature that works today and is still in preview."
+    : "Features that work today and are still in preview. Pick one to open it.";
 }
 
 const ADAPT_PATH = "/adapt";

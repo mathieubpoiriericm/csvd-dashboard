@@ -2,7 +2,7 @@ import { define } from "../../utils.ts";
 import { Icon } from "../../components/Icon.tsx";
 import { Page } from "../../components/Page.tsx";
 import ReviewRequest from "../../islands/ReviewRequest.tsx";
-import { PREVIEWS_LABEL, PREVIEWS_LEAD } from "../../lib/previews.ts";
+import { PREVIEWS_LABEL, previewsLead } from "../../lib/previews.ts";
 import type { PreviewFeature } from "../../lib/previews.ts";
 import { PREVIEWS } from "../../lib/previews_current.ts";
 import { ENTER_OBSERVER } from "../../lib/review/copy.ts";
@@ -46,7 +46,11 @@ export function PreviewsHub(
   { features }: { features: readonly PreviewFeature[] },
 ) {
   return (
-    <Page contained title={PREVIEWS_LABEL} description={PREVIEWS_LEAD}>
+    <Page
+      contained
+      title={PREVIEWS_LABEL}
+      description={previewsLead(features.length)}
+    >
       <div class="preview-cards">
         {features.map((f) => (
           <section

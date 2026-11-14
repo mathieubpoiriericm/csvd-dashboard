@@ -6,6 +6,7 @@ import {
   previewFeatures,
   previewNote,
   PREVIEWS_LABEL,
+  previewsLead,
   previewsTip,
 } from "../lib/previews.ts";
 
@@ -149,4 +150,19 @@ Deno.test("the run's card names its window", () => {
     previewFeatures({ pipeline: true, review: false }, 365)[0].summary,
     "A real run of the literature pipeline over the last 365 days of publications: what it read, what it proposed and how each step went. Its findings are not in the other pages.",
   );
+});
+
+Deno.test("the hub's lead speaks of one feature where one is offered", () => {
+  // A dataset without a run or a review offers the guide alone, and a lead
+  // that said "pick one" of one card would read as a card missing.
+  assertEquals(
+    previewsLead(1),
+    "A feature that works today and is still in preview.",
+  );
+  for (const count of [2, 3]) {
+    assertEquals(
+      previewsLead(count),
+      "Features that work today and are still in preview. Pick one to open it.",
+    );
+  }
 });
