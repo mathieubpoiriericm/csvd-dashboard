@@ -180,9 +180,12 @@ Deno.test("the fixed copy is exported verbatim", () => {
     copy.REQUEST_NOTICE,
     "Nothing was sent. Once the committee is formed, a request like this will be evaluated by the administrator and answered within a few working days.",
   );
+  // The note's eyebrow and its sentence: together they read as the one line
+  // they were.
+  assertEquals(copy.SIMULATED_LABEL, "Simulated review:");
   assertEquals(
     copy.SIMULATED_NOTE,
-    "Simulated review: the changes come from a real pipeline run, the committee and its verdicts are simulated, and none of it is in the other pages.",
+    "The changes come from a real pipeline run, the committee and its verdicts are simulated, and none of it is in the other pages.",
   );
 });
 

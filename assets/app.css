@@ -2885,10 +2885,11 @@ svg {
    the notice's heavier one: a hairline, a 2px rail, a 10% wash of the note's
    own colour and the small type, under an eyebrow (`.note-label`). They keep
    the full width, which a tip does not: the gold-only note holds the preview
-   switch. `.notice` itself is unchanged -- the adapt guide's alerts and the
-   review notice wear it. */
+   switch. The note that heads every review page is one of them. `.notice`
+   itself is unchanged -- the adapt guide's alerts wear it. */
 .about-warning,
-.about-gold-notice {
+.about-gold-notice,
+.review-notice {
   border: 1px solid
     color-mix(
     in oklab,

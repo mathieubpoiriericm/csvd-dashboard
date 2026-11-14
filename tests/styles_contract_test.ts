@@ -1647,17 +1647,21 @@ Deno.test("a confidence fills in one colour taken from a red-to-green scale", ()
   );
 });
 
-Deno.test("the About notes wear the tip box's grammar", () => {
+Deno.test("the About and review notes wear the tip box's grammar", () => {
   // The two notes that head the About page are notes like the tips that
   // head the others: a hairline, a 2px rail, a 10% wash, the small type and
-  // an eyebrow label. `.notice` itself is left alone -- the adapt guide's
-  // alerts and the review notice wear it too.
+  // an eyebrow label, and so is the note that heads every review page.
+  // `.notice` itself is left alone -- the adapt guide's alerts wear it too.
   const flat = (text: string) => text.replace(/\s+/g, " ").trim();
   const body = flat(
-    css.match(/\.about-warning,\s*\.about-gold-notice\s*\{([^}]*)\}/)?.[1] ??
-      "",
+    css.match(
+      /\.about-warning,\s*\.about-gold-notice,\s*\.review-notice\s*\{([^}]*)\}/,
+    )?.[1] ?? "",
   );
-  assert(body !== "", "no `.about-warning, .about-gold-notice` rule found");
+  assert(
+    body !== "",
+    "no `.about-warning, .about-gold-notice, .review-notice` rule found",
+  );
   const colour = "var(--svd-notice-color, var(--svd-color-danger))";
   for (
     const declaration of [
