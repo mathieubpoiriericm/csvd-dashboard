@@ -778,6 +778,9 @@ function TrialDrawer({ layout, marker, closeRef, onClose }: TrialDrawerProps) {
  */
 function TrialDialog({ layout, marker, closeRef, onClose }: TrialDrawerProps) {
   const ref = useModal(marker !== null, onClose);
+  /** Whether the press now in progress began, and then ended, on the
+   * backdrop. */
+  const pressedBackdrop = useRef(false);
   return (
     <dialog
       ref={ref}
@@ -790,10 +793,21 @@ function TrialDialog({ layout, marker, closeRef, onClose }: TrialDrawerProps) {
         event.preventDefault();
         onClose();
       }}
-      onClick={(event) => {
+      onPointerDown={(event) => {
+        pressedBackdrop.current = event.target === event.currentTarget;
+      }}
+      onPointerUp={(event) => {
+        pressedBackdrop.current &&= event.target === event.currentTarget;
+      }}
+      onClick={() => {
         // The dialog has no padding of its own, so a press whose target is
-        // the dialog itself landed on the backdrop.
-        if (event.target === event.currentTarget) onClose();
+        // the dialog itself landed on the backdrop. Both ends of it must,
+        // and the click's own target cannot say so: a drag from the record
+        // to the backdrop (selecting a value to copy) or back is clicked on
+        // the dialog too, as the two ends' common ancestor.
+        const onBackdrop = pressedBackdrop.current;
+        pressedBackdrop.current = false;
+        if (onBackdrop) onClose();
       }}
     >
       {marker && (

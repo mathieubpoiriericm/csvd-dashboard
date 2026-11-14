@@ -150,6 +150,9 @@ test("an open record survives a live resize to the list and back", async ({ page
   await expect(dialog).toBeVisible();
   await expect(dialog.locator("h2")).toHaveText(drug);
   await expect(drawer).toBeHidden();
+  // Focus follows the record to its new close button, both ways.
+  const closeButton = page.getByRole("button", { name: "Close trial details" });
+  await expect(closeButton).toBeFocused();
   const expanded = page.locator(`${LIST_ROWS}[aria-expanded="true"]`);
   await expect(expanded).toHaveCount(1);
   await expect(expanded).toContainText(drug);
@@ -165,6 +168,7 @@ test("an open record survives a live resize to the list and back", async ({ page
   await expect(drawer).toBeVisible();
   await expect(drawer.locator("h2")).toHaveText(drug);
   await expect(dialog).toBeHidden();
+  await expect(closeButton).toBeFocused();
   const marker = page.locator(
     'svg.timeline-figure g.drug[aria-expanded="true"]',
   );
@@ -184,6 +188,23 @@ test("a tap outside the window closes it, a tap inside does not", async ({ page 
 
   await dialog.locator("h2").click();
   await dialog.locator(".timeline-drawer-fields dd").first().click();
+  await expect(dialog).toBeVisible();
+
+  // A drag that starts on the record and ends outside it -- selecting a
+  // registry ID to copy, say -- is not a press on the backdrop, though the
+  // browser reports its click on the dialog, the two ends' common ancestor.
+  const value = (await dialog.locator(".timeline-drawer-fields dd").first()
+    .boundingBox())!;
+  await page.mouse.move(value.x + 4, value.y + value.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(5, 5, { steps: 4 });
+  await page.mouse.up();
+  await expect(dialog).toBeVisible();
+  // Nor is one that starts outside and ends on the record.
+  await page.mouse.move(5, 5);
+  await page.mouse.down();
+  await page.mouse.move(value.x + 4, value.y + value.height / 2, { steps: 4 });
+  await page.mouse.up();
   await expect(dialog).toBeVisible();
 
   // The backdrop: the corner of the viewport, outside the window's box.
