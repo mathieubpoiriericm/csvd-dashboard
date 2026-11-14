@@ -1,4 +1,5 @@
 import {
+  assert,
   assertEquals,
   assertMatch,
   assertNotMatch,
@@ -12,6 +13,7 @@ import Shell from "../routes/_app.tsx";
 import { requireLogin } from "../routes/_middleware.ts";
 import {
   handler as loginHandler,
+  LOGIN_BODY_LIMIT,
   LoginCard,
   safeLoginNext,
 } from "../routes/login.tsx";
@@ -350,5 +352,69 @@ Deno.test("login POST answers a body that is not a form with 400, not 500", asyn
       assertNoStore(response);
       await response.body?.cancel();
     }
+  });
+});
+
+Deno.test("login POST refuses a declared or streamed body over its limit with 413", async () => {
+  await withLoginEnv(CONFIGURED, async () => {
+    const declared = new Request("http://localhost/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Content-Length": String(LOGIN_BODY_LIMIT + 1),
+      },
+      body: "passphrase=x",
+    });
+    const refused = await loginHandler.POST(
+      { req: declared, url: new URL(declared.url) } as never,
+    ) as Response;
+    assertEquals(refused.status, 413);
+    assertNoStore(refused);
+    await refused.body?.cancel();
+
+    // An endless body with no Content-Length: the route stops reading just
+    // past the limit and cancels the stream instead of buffering it all.
+    let pulled = 0;
+    let cancelled = false;
+    const chunk = new TextEncoder().encode("passphrase=" + "x".repeat(1013));
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulled += chunk.length;
+        controller.enqueue(chunk);
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+    const streamedReq = new Request("http://localhost/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: stream,
+    });
+    const streamed = await loginHandler.POST(
+      { req: streamedReq, url: new URL(streamedReq.url) } as never,
+    ) as Response;
+    assertEquals(streamed.status, 413);
+    assertNoStore(streamed);
+    await streamed.body?.cancel();
+    assert(cancelled);
+    assert(pulled <= LOGIN_BODY_LIMIT + 2 * chunk.length);
+  });
+});
+
+Deno.test("login POST still parses a multipart form within its limit", async () => {
+  await withLoginEnv(CONFIGURED, async () => {
+    const form = new FormData();
+    form.set("passphrase", "incorrect");
+    form.set("next", "/genes");
+    const req = new Request("http://localhost/login", {
+      method: "POST",
+      body: form,
+    });
+    const result = await loginHandler.POST(
+      { req, url: new URL(req.url) } as never,
+    ) as { data: { next: string; error: boolean }; status: number };
+    assertEquals(result.data, { next: "/genes", error: true });
+    assertEquals(result.status, 401);
   });
 });

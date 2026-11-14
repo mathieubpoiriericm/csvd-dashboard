@@ -478,6 +478,20 @@ Deno.test("spaced waits with a real timer by default", async () => {
   assert(Date.now() - started >= 4);
 });
 
+Deno.test("spaced keeps requests that arrive together one gap apart", async () => {
+  const waits: number[] = [];
+  const f: Fetch = () => Promise.resolve(new Response("ok"));
+  const paced = spaced(f, "eutils.example", () => 350, (delay) => {
+    waits.push(delay);
+    return Promise.resolve();
+  }, () => 0);
+  await Promise.all(
+    ["a", "b", "c", "d"].map((p) => paced(`https://eutils.example/${p}`)),
+  );
+  // The first leaves at once; each later one a gap after the one before.
+  assertEquals(waits, [350, 700, 1050]);
+});
+
 Deno.test("spaced waits at most one gap when the clock is set back", async () => {
   let clock = 10_000_000;
   const waits: number[] = [];

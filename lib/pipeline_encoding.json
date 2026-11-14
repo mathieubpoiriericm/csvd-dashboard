@@ -126,7 +126,7 @@
     "read": "read",
     "fullText": "full text",
     "abstractOnly": "abstract only",
-    "noText": "no text",
+    "noText": "had no text",
     "failed": "failed",
     "extracted": "extracted",
     "passedValidation": "passed validation",
@@ -221,7 +221,7 @@
     "paper_retrieval_failed": {
       "icon": "documentMinus",
       "review": true,
-      "flag": ["paper failed", "papers failed"]
+      "flag": ["paper not read", "papers not read"]
     },
     "genes_rejected": {
       "icon": "funnel",

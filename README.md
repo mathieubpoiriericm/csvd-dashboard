@@ -48,7 +48,8 @@ The dashboard provides up-to-date and standardized information on:
 - Putative causal genes for the disease `disease/` describes, with the genetic
   and omics evidence behind each one
 - Drugs tested in clinical trials for it — planned and ongoing ones by default,
-  completed ones a filter away
+  completed ones a filter away (while `GOLD_ONLY` in `lib/gold_only.ts` is on,
+  every trial is shown at first)
 
 It is a port of an R Shiny application to a TypeScript web app on Deno + Fresh,
 and its data preparation was ported too: a Python pipeline searches PubMed,
@@ -157,8 +158,8 @@ Interactivity lives in nine Preact islands.
 - The four totals: genes, drugs, trials and publications
 - **Pipeline run report** (`islands/PipelineRun.tsx`) — six timed steps with
   status badges, the funnel from papers fetched to genes accepted, the external
-  services the run called, the tokens it used, and a drawer holding everything
-  it wrote
+  services the run called, the tokens it used, and a Run details dialog holding
+  everything it wrote
 - **Reference-data refreshes** (`components/PipelineSyncs.tsx`) — one entry per
   sync mode (`--clinical-trials`, `--sync-external-data`, `--sync-annotations`),
   read from `data/pipeline_syncs.json`
@@ -178,7 +179,9 @@ Filters:
 
 - Mendelian randomization performed (Yes / No)
 - GWAS traits — the canonical phenotypes declared in `disease/vocabulary.json`,
-  one filter choice and one phenogram pill each
+  one filter choice each and a family-tinted pill on the phenogram. While
+  `GOLD_ONLY` is on, the filter offers only the traits some curated row carries,
+  and the phenogram key drops the untracked traits and any family left empty
 - Evidence from other omics studies (EWAS, TWAS, PWAS, Proteomics, WES/WGS,
   MENTR)
 
@@ -215,7 +218,8 @@ Filters:
 - Study status — every status but Completed, Suspended and Unknown is selected
   at first, so those trials start hidden; the radar and the map share this
   default. Unknown also covers a trial with no ClinicalTrials.gov record, so the
-  ISRCTN, ANZCTR and ChiCTR trials start hidden too
+  ISRCTN, ANZCTR and ChiCTR trials start hidden too. While `GOLD_ONLY` is on,
+  Study status starts at Show All instead, so every trial is shown at first
 
 ### Trials Radar (`/timeline`)
 
@@ -493,7 +497,7 @@ the data or a page changes, and in a fork after its first live run.
 │   ├── adapting-to-your-disease.md  the researcher's guide to a fork
 │   └── screenshots/            the README's screenshots, lossless WebP
 ├── .claude/                    Claude Code guidance: rules/ loads by path,
-│                               skills/ holds the nine operational recipes
+│                               skills/ holds the operational recipes
 ├── pipeline/                   Python: ingest, extraction, sync, export
 │   ├── alembic/versions/       the only definition of the schema
 │   ├── export/                 PostgreSQL → data/*.json (main.py), the map
@@ -720,16 +724,17 @@ client installed, and `pipeline/profiling.py` does nothing. Read a capture with
 
 ### Continuous integration
 
-`.github/workflows/ci.yml` runs five test jobs on every push to `main` and every
-pull request -- two of them matrices, twelve jobs in all:
+`.github/workflows/ci.yml` runs six test jobs on every push to `main` and every
+pull request -- three of them matrices, fourteen jobs in all:
 
-| Job          | Steps                                                                                                                                                                                                           |
-| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `check`      | `deno install`, `deno task check`, `deno task test:coverage`, `deno task test:perf`                                                                                                                             |
-| `python`     | `uv sync --locked`, Ruff, ty, pytest with branch coverage against PostgreSQL (a `postgres:18` service on GitHub's runners, the machine's own on a self-hosted one), then `tests/scripts` in a step of its own   |
-| `e2e`        | Playwright against the production build, report uploaded                                                                                                                                                        |
-| `empty-data` | three jobs, one per gate family (Deno, Python, e2e): `deno task data:empty`, `git rm` of the four `csvd/` trees, then that family's gates — the proof that a fork for another disease starts green              |
-| `adapt-fork` | six jobs, one per wizard bundle and gate family: `scripts/adapt_fork_check.ts --e2e --shard=K/2 --only=<family>` unpacks the bundle over a copy of the tree, follows the checklist and runs that family's gates |
+| Job           | Steps                                                                                                                                                                                                           |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `check`       | `deno install`, `deno task check`, `deno task test:coverage`, `deno task test:perf`                                                                                                                             |
+| `python`      | `uv sync --locked`, Ruff, ty, pytest with branch coverage against PostgreSQL (a `postgres:18` service on GitHub's runners, the machine's own on a self-hosted one), then `tests/scripts` in a step of its own   |
+| `e2e`         | Playwright against the production build on Chromium, report uploaded                                                                                                                                            |
+| `e2e-engines` | two jobs, WebKit and Firefox: the same Playwright suite with `E2E_BROWSERS` set to that engine                                                                                                                  |
+| `empty-data`  | three jobs, one per gate family (Deno, Python, e2e): `deno task data:empty`, `git rm` of the four `csvd/` trees, then that family's gates — the proof that a fork for another disease starts green              |
+| `adapt-fork`  | six jobs, one per wizard bundle and gate family: `scripts/adapt_fork_check.ts --e2e --shard=K/2 --only=<family>` unpacks the bundle over a copy of the tree, follows the checklist and runs that family's gates |
 
 They run on `ubuntu-latest` unless the repository sets a `CI_RUNNER` variable
 naming a self-hosted runner label, which is how this project's private
@@ -737,8 +742,9 @@ repository sends them to a machine of its own (the `ci-runner` skill,
 `.claude/skills/ci-runner/SKILL.md`). A fork sets nothing and needs nothing.
 
 `uv sync --locked` fails the build if `uv.lock` has drifted from
-`pyproject.toml` rather than silently re-resolving. CI does not gate the deploy
-(see below).
+`pyproject.toml` rather than silently re-resolving. CI gates the deploy: the
+`deploy` job needs every test job and the `container` job (see
+[Deployment](#deployment)).
 
 ---
 
@@ -908,8 +914,9 @@ Some of these behave differently from the rest:
   check the curated OMIM links against ClinVar's. It is also the one file
   **skipped rather than emptied** when its table has no rows.
 - **`pipeline_run.json` and `pipeline_status.json` are `null` until a run
-  records them.** The About page shows the run report when there is one, and
-  otherwise the four counts from `pipeline_status.json`.
+  records them.** While `GOLD_ONLY` is off, the About page shows the run report
+  when there is one, and otherwise the four counts from `pipeline_status.json`;
+  while it is on, the report is shown only at `/previews/pipeline`.
 - **`review_round.json` is `null` until a preview export writes it**, beside the
   preview run's report and only with it: one change per gene the preview run
   inserted or altered, against the gold database, with the findings behind each.
@@ -1245,9 +1252,10 @@ green CI says nothing about extraction recall.
 needed, and no database, since the data is bundled at build time. It also logs
 in itself: the server is started with the suite's own passphrase, a `setup`
 project signs in once, and every other spec starts from the saved session.
-Outside CI it reuses a server already listening on port 8000, which then has to
-have been started with those credentials — stop `deno task start` first, or set
-`E2E_PORT` to a free port.
+Outside CI it reuses a server already listening on its port, which then has to
+have been started with those credentials. The port is `E2E_PORT` when set, and
+otherwise one derived from the checkout's path, so two worktrees never share a
+server and `deno task start` on 8000 is never mistaken for the suite's.
 
 Tests never touch the database `.env` names: `tests/pipeline/conftest.py` clears
 the `DB_*` variables and the whole `PIPELINE_*` namespace. A test needing real

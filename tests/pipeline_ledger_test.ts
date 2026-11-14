@@ -96,7 +96,11 @@ Deno.test("each known step reads out the run's own counts", () => {
     [seg("16", "new"), seg("24", "seen before")],
   ]);
   assertEquals(stepOutcome(RUN, at("processing_papers")).lines, [
-    [seg("16", "read"), seg(null, "10 full text, 5 abstract only, 1 no text")],
+    [
+      seg("15", "read"),
+      seg(null, "10 full text, 5 abstract only"),
+      seg(null, "1 had no text"),
+    ],
     [
       seg("50", "findings extracted"),
       seg(null, "26 passed validation, 24 rejected"),
@@ -111,16 +115,36 @@ Deno.test("each known step reads out the run's own counts", () => {
   ]);
 });
 
-Deno.test("failed papers are a part of the row, and zero parts are left out", () => {
+Deno.test("unread papers stand apart from the read ones, and zero parts are left out", () => {
+  // processed counts successes only, so a failed paper is not in it.
   const run = runWith({
-    papers: { ...RUN.papers, noTextAvailable: 0, failed: 1 },
+    papers: { ...RUN.papers, processed: 15, noTextAvailable: 0, failed: 1 },
     genes: { ...RUN.genes, rejectedAtInsertFloor: 0 },
     database: { inserted: 1, updated: 0 },
   });
-  assertEquals(
-    stepOutcome(run, at("processing_papers")).lines[0][1].text,
-    "10 full text, 5 abstract only, 1 failed",
-  );
+  assertEquals(stepOutcome(run, at("processing_papers")).lines[0], [
+    seg("15", "read"),
+    seg(null, "10 full text, 5 abstract only"),
+    seg(null, "1 failed"),
+  ]);
+  const both = runWith({
+    papers: { ...RUN.papers, processed: 15, noTextAvailable: 2, failed: 1 },
+  });
+  assertEquals(stepOutcome(both, at("processing_papers")).lines[0], [
+    seg("13", "read"),
+    seg(null, "10 full text, 5 abstract only"),
+    seg(null, "2 had no text, 1 failed"),
+  ]);
+  // The row and the verdict give the same figure.
+  assertEquals(verdictFigures(both)[0].value, "13");
+  // With every paper read, the unread clause is left out entirely.
+  const allRead = runWith({
+    papers: { ...RUN.papers, processed: 15, noTextAvailable: 0, failed: 0 },
+  });
+  assertEquals(stepOutcome(allRead, at("processing_papers")).lines[0], [
+    seg("15", "read"),
+    seg(null, "10 full text, 5 abstract only"),
+  ]);
   assertEquals(stepOutcome(run, at("merging_database")).lines, [
     [seg("1", "gene added"), seg("0", "updated")],
   ]);

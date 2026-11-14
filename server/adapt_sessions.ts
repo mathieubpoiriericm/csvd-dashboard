@@ -40,9 +40,10 @@ export const SESSIONS_DIR_VAR = "ADAPT_SESSIONS_DIR";
  * not a lock on the directory, so creates in flight at once can each see
  * room for one more and overshoot either bound by the number in flight. That
  * number is bounded by the session limiter's pending reservations
- * (server/adapt_session_limiter.ts), which stay under its global limit and,
- * per connection, under its per-client limit (10 unless
- * ADAPT_SESSION_PER_CLIENT_LIMIT raises it).
+ * (server/adapt_session_limiter.ts): a create's stay under its global limit
+ * and, per connection, under its per-client limit (10 unless
+ * ADAPT_SESSION_PER_CLIENT_LIMIT raises it); a save's (a revival's) only
+ * under the per-client one.
  */
 export const SESSION_CAP = 500;
 /**
@@ -73,6 +74,18 @@ export const SESSION_BYTES_BUDGET = 750_000_000;
  * per-client limit (10 unless ADAPT_SESSION_PER_CLIENT_LIMIT raises it).
  */
 export const SESSION_PER_CLIENT_CAP = 50;
+/**
+ * How many bytes of session files one connection may hold at once, counted
+ * like SESSION_PER_CLIENT_CAP from the markers (each joined to its session's
+ * size from the listing the byte budget already stats) and refused the same
+ * way, as "quota", on a create or a revival only. The count alone does not
+ * protect the budget: 50 sessions with two 1 MB logos each are about 135 MB,
+ * so a handful of addresses could fill SESSION_BYTES_BUDGET. At this
+ * allowance it takes 30 connections (an IPv6 client is one per /64,
+ * server/login_post_limiter.ts's addressKey). Typical sessions are under
+ * 100 KB, so it binds only on sessions that carry logos: about nine of those.
+ */
+export const SESSION_PER_CLIENT_BYTES = 25_000_000;
 export const SWEEP_INTERVAL_MS = 60 * 60 * 1000;
 
 export interface SessionMeta {
@@ -86,8 +99,13 @@ export type SaveResult =
   | (SessionMeta & { revived: boolean })
   | { error: "conflict"; savedAt: number }
   | { error: "full" | "quota" | "failed" };
+/**
+ * "unreadable" is a file that holds no session this guide can read (damaged,
+ * or from another version); "failed" is a file that could not be read this
+ * time (an I/O error on the volume), which a retry may get past.
+ */
 export type LoadResult = (SessionMeta & { text: string }) | {
-  error: "unknown" | "unreadable";
+  error: "unknown" | "unreadable" | "failed";
   message?: string;
 };
 /**
@@ -132,6 +150,8 @@ interface StoreOptions {
   parse?: (text: string) => Imported;
   cap?: number;
   budget?: number;
+  /** SESSION_PER_CLIENT_BYTES unless a test sets a smaller one. */
+  ownerBudget?: number;
 }
 
 const FILE_VERSION = 1;
@@ -232,6 +252,7 @@ class FileSessionStore implements SessionStore {
   readonly #now: () => number;
   readonly #cap: number;
   readonly #budget: number;
+  readonly #ownerBudget: number;
   readonly #parse: (text: string) => Imported;
   readonly #chains = new Map<string, Promise<void>>();
   #lastSweep: number;
@@ -241,6 +262,7 @@ class FileSessionStore implements SessionStore {
     this.#now = options.now ?? Date.now;
     this.#cap = options.cap ?? SESSION_CAP;
     this.#budget = options.budget ?? SESSION_BYTES_BUDGET;
+    this.#ownerBudget = options.ownerBudget ?? SESSION_PER_CLIENT_BYTES;
     this.#parse = options.parse ?? parseExport;
     this.#lastSweep = this.#now();
     this.#sweepSync(this.#lastSweep);
@@ -355,9 +377,11 @@ class FileSessionStore implements SessionStore {
     const normalised = normaliseCode(code);
     if (normalised === null) return { error: "unknown" };
     const stored = await this.#read(await fileName(normalised));
-    if (stored === null || stored.kind === "damaged") {
-      return { error: "unreadable" };
-    }
+    // A read that failed says nothing about the session itself: it is not
+    // reported as one this version cannot read, which would send the visitor
+    // away from a session a retry may well reach.
+    if (stored === null) return { error: "failed" };
+    if (stored.kind === "damaged") return { error: "unreadable" };
     // An expired file the sweep has not reached yet answers exactly as a
     // deleted one, and as one that never existed.
     if (stored.kind === "absent" || this.#expired(stored, this.#now())) {
@@ -533,7 +557,8 @@ class FileSessionStore implements SessionStore {
   /**
    * Why writing `body` as the file `name` is refused, or null when it is not:
    * "quota" when `owner` already holds SESSION_PER_CLIENT_CAP live sessions
-   * other than this one, "full" when it would take the directory past the
+   * other than this one, or when those sessions and `body` together pass
+   * SESSION_PER_CLIENT_BYTES, "full" when it would take the directory past the
    * file cap or the byte budget. `owner` is given only for a write that makes
    * the session the owner's (a create or a revival). `adds` says the write
    * makes a new file, which the cap counts. A write over an existing file is
@@ -582,14 +607,23 @@ class FileSessionStore implements SessionStore {
         return 0;
       }
     }));
+    const ownedSet = new Set(owned);
+    const bodyBytes = new TextEncoder().encode(body).byteLength;
     let total = 0;
     let own = 0;
+    let ownerBytes = 0;
     names.forEach((entry, i) => {
       total += sizes[i];
       if (entry === name) own = sizes[i];
+      if (ownedSet.has(entry)) ownerBytes += sizes[i];
     });
+    if (
+      owner !== undefined && ownerBytes + bodyBytes > this.#ownerBudget
+    ) {
+      return "quota";
+    }
     if (adds && names.length >= this.#cap) return "full";
-    const after = total - own + new TextEncoder().encode(body).byteLength;
+    const after = total - own + bodyBytes;
     return after > this.#budget && after > total ? "full" : null;
   }
 

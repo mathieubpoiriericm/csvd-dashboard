@@ -1,5 +1,5 @@
 /*
- * cSVD Dashboard stylesheet.
+ * The dashboard's stylesheet.
  *
  * Design tokens, tip boxes, tooltip theming, map popups and the
  * motion rules are carried over from the Shiny app's www/custom.css. The
@@ -137,6 +137,11 @@
      themes, so neither has a dark override. */
   --svd-nav-accent: var(--svd-steel-300);
   --svd-nav-new: var(--svd-green-400);
+
+  /* A modal's backdrop. It dims the page, so it is near-black in both
+     themes: read from --svd-ink it flipped to light grey in dark mode and
+     lit the page up behind the dialog. No dark override. */
+  --svd-backdrop: color-mix(in oklab, var(--svd-slate-950) 45%, transparent);
 
   --svd-ink: var(--svd-slate-950);
   --svd-ink-muted: var(--svd-slate-700);
@@ -520,9 +525,13 @@
 
 /* === DARK THEME ===
  * Overrides tier 2 only. Keep the two blocks below byte-identical in their
- * declarations; tests/styles_contract_test.ts enforces it. */
+ * declarations; tests/styles_contract_test.ts enforces it. Both are
+ * screen-only: browsers evaluate prefers-color-scheme for print too, and the
+ * toggle's attribute stays on <html>, so a dark reader's printout came out as
+ * light ink on paper (or a near-black sheet). Print always takes the light
+ * :root. */
 
-@media (prefers-color-scheme: dark) {
+@media screen and (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     color-scheme: dark;
 
@@ -588,68 +597,70 @@
   }
 }
 
-:root[data-theme='dark'] {
-  color-scheme: dark;
+@media screen {
+  :root[data-theme='dark'] {
+    color-scheme: dark;
 
-  --svd-ground: var(--svd-steel-950);
-  --svd-surface: var(--svd-steel-925);
-  --svd-nav: var(--svd-steel-950);
-  --svd-nav-ink: var(--svd-slate-200);
+    --svd-ground: var(--svd-steel-950);
+    --svd-surface: var(--svd-steel-925);
+    --svd-nav: var(--svd-steel-950);
+    --svd-nav-ink: var(--svd-slate-200);
 
-  --svd-ink: var(--svd-slate-200);
-  --svd-ink-muted: var(--svd-slate-500);
-  --svd-line: var(--svd-slate-800);
-  --svd-line-strong: var(--svd-slate-700);
+    --svd-ink: var(--svd-slate-200);
+    --svd-ink-muted: var(--svd-slate-500);
+    --svd-line: var(--svd-slate-800);
+    --svd-line-strong: var(--svd-slate-700);
 
-  --svd-color-primary: var(--svd-steel-400);
-  --svd-color-accent: var(--svd-steel-400);
-  --svd-color-accent-text: var(--svd-steel-300);
-  --svd-notice-neutral-wash: color-mix(
-    in oklab,
-    var(--svd-steel-400) 6%,
-    var(--svd-steel-925)
-  );
-  --svd-color-ok: var(--svd-green-400);
-  --svd-color-danger: var(--svd-red-400);
-  --svd-color-danger-text: var(--svd-red-300);
-  --svd-color-ok-hover: var(--svd-green-300);
-  --svd-color-ok-ink: var(--svd-green-400);
-  --svd-color-warn: var(--svd-amber-300);
-  --svd-color-warn-ink: var(--svd-amber-300);
-  --svd-color-highlight: var(--svd-amber-500);
-  --svd-highlight-wash: 36%;
+    --svd-color-primary: var(--svd-steel-400);
+    --svd-color-accent: var(--svd-steel-400);
+    --svd-color-accent-text: var(--svd-steel-300);
+    --svd-notice-neutral-wash: color-mix(
+      in oklab,
+      var(--svd-steel-400) 6%,
+      var(--svd-steel-925)
+    );
+    --svd-color-ok: var(--svd-green-400);
+    --svd-color-danger: var(--svd-red-400);
+    --svd-color-danger-text: var(--svd-red-300);
+    --svd-color-ok-hover: var(--svd-green-300);
+    --svd-color-ok-ink: var(--svd-green-400);
+    --svd-color-warn: var(--svd-amber-300);
+    --svd-color-warn-ink: var(--svd-amber-300);
+    --svd-color-highlight: var(--svd-amber-500);
+    --svd-highlight-wash: 36%;
 
-  --svd-on-primary: var(--svd-steel-950);
-  --svd-on-ok: var(--svd-steel-950);
+    --svd-on-primary: var(--svd-steel-950);
+    --svd-on-ok: var(--svd-steel-950);
 
-  --svd-tooltip-ink: var(--svd-ink);
+    --svd-tooltip-ink: var(--svd-ink);
 
-  --svd-tile-filter: invert(1) hue-rotate(180deg) brightness(0.92)
-    contrast(0.9) saturate(0.85);
-  --svd-shadow-xs: 0 1px 2px
-    color-mix(in oklab, var(--svd-slate-950) 45%, transparent);
-  --svd-shadow-sm: 0 1px 4px
-    color-mix(in oklab, var(--svd-slate-950) 50%, transparent);
-  --svd-shadow-md: 0 3px 10px
-    color-mix(in oklab, var(--svd-slate-950) 55%, transparent);
-  --svd-shadow-lg: 0 12px 32px
-    color-mix(in oklab, var(--svd-slate-950) 62%, transparent);
+    --svd-tile-filter: invert(1) hue-rotate(180deg) brightness(0.92)
+      contrast(0.9) saturate(0.85);
+    --svd-shadow-xs: 0 1px 2px
+      color-mix(in oklab, var(--svd-slate-950) 45%, transparent);
+    --svd-shadow-sm: 0 1px 4px
+      color-mix(in oklab, var(--svd-slate-950) 50%, transparent);
+    --svd-shadow-md: 0 3px 10px
+      color-mix(in oklab, var(--svd-slate-950) 55%, transparent);
+    --svd-shadow-lg: 0 12px 32px
+      color-mix(in oklab, var(--svd-slate-950) 62%, transparent);
 
-  --svd-status-recruiting-bg: var(--svd-green-950);
-  --svd-status-recruiting-text: var(--svd-green-300);
-  --svd-status-recruiting-border: var(--svd-green-900);
-  --svd-status-active-bg: var(--svd-amber-950);
-  --svd-status-active-text: var(--svd-amber-300);
-  --svd-status-active-border: var(--svd-amber-900);
-  --svd-status-completed-bg: var(--svd-steel-950);
-  --svd-status-completed-text: var(--svd-steel-300);
-  --svd-status-completed-border: var(--svd-steel-800);
-  --svd-status-terminated-bg: var(--svd-red-950);
-  --svd-status-terminated-text: var(--svd-red-300);
-  --svd-status-terminated-border: var(--svd-red-900);
-  --svd-status-unknown-bg: transparent;
-  --svd-status-unknown-text: var(--svd-ink-muted);
-  --svd-status-unknown-border: var(--svd-line-strong);
+    --svd-status-recruiting-bg: var(--svd-green-950);
+    --svd-status-recruiting-text: var(--svd-green-300);
+    --svd-status-recruiting-border: var(--svd-green-900);
+    --svd-status-active-bg: var(--svd-amber-950);
+    --svd-status-active-text: var(--svd-amber-300);
+    --svd-status-active-border: var(--svd-amber-900);
+    --svd-status-completed-bg: var(--svd-steel-950);
+    --svd-status-completed-text: var(--svd-steel-300);
+    --svd-status-completed-border: var(--svd-steel-800);
+    --svd-status-terminated-bg: var(--svd-red-950);
+    --svd-status-terminated-text: var(--svd-red-300);
+    --svd-status-terminated-border: var(--svd-red-900);
+    --svd-status-unknown-bg: transparent;
+    --svd-status-unknown-text: var(--svd-ink-muted);
+    --svd-status-unknown-border: var(--svd-line-strong);
+  }
 }
 
 /* === @FONT-FACE === */
@@ -1118,6 +1129,11 @@ svg {
   background: var(--svd-nav);
   color: var(--svd-nav-ink);
   border-bottom: 1px solid var(--svd-border);
+  /* The bar is dark in both themes, so the theme's focus colour -- dark
+     steel in light mode -- measured 1.42:1 on it. The ring reads the bar's
+     own accent here, the way the figures re-scope it for their white plate;
+     nothing focusable inside the bar sits on a light surface. */
+  --svd-focus-color: var(--svd-nav-accent);
 }
 
 /*
@@ -1214,13 +1230,14 @@ svg {
  * tokens above, the swap is declared twice — the media query for the system
  * default, [data-theme='dark'] for the toggle — because `light-dark()` needs
  * Firefox 120 and the build targets 114. Neither block declares a token, so
- * neither is part of the pair tests/styles_contract_test.ts compares.
+ * neither is part of the pair tests/styles_contract_test.ts compares. Both
+ * are screen-only, like the dark tokens: print is always the light theme.
  */
 .institute-logo-dark {
   display: none;
 }
 
-@media (prefers-color-scheme: dark) {
+@media screen and (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) .institute-logo-light {
     display: none;
   }
@@ -1230,12 +1247,14 @@ svg {
   }
 }
 
-:root[data-theme='dark'] .institute-logo-light {
-  display: none;
-}
+@media screen {
+  :root[data-theme='dark'] .institute-logo-light {
+    display: none;
+  }
 
-:root[data-theme='dark'] .institute-logo-dark {
-  display: block;
+  :root[data-theme='dark'] .institute-logo-dark {
+    display: block;
+  }
 }
 
 /* The opacity the design draws this at is expressed as a mix on the bar's
@@ -1361,10 +1380,14 @@ svg {
 }
 
 /*
- * The link's description, drawn like the tooltip panels. CSS alone: the bar
- * is server-rendered on every page and the text is fixed, so there is nothing
- * for an island to do. It takes no pointer events, so it cannot hold itself
- * open or cover a tab.
+ * The link's description, drawn like the tooltip panels. The bar is
+ * server-rendered on every page and the text is fixed, so there is no island:
+ * CSS shows it, and the small inline script after the bar in routes/_app.tsx
+ * lets Escape dismiss it (WCAG 1.4.13) by setting data-dismissed on the li
+ * until the pointer leaves or focus moves on. It takes pointer events, and
+ * its ::before bridges the gap under the link, so a pointer can move onto the
+ * panel without losing it (1.4.13 "hoverable"). While hidden it is
+ * visibility: hidden, which takes none, so it cannot cover a tab.
  */
 .nav-previews-tip {
   position: absolute;
@@ -1384,14 +1407,22 @@ svg {
   line-height: var(--svd-leading-normal);
   white-space: normal;
   text-align: left;
-  pointer-events: none;
   visibility: hidden;
   opacity: 0;
   transition: opacity var(--svd-transition), visibility var(--svd-transition);
 }
 
-.nav-previews:hover > .nav-previews-tip,
-.nav-link-previews:focus-visible + .nav-previews-tip {
+.nav-previews-tip::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  height: var(--svd-space-2);
+}
+
+.nav-previews:not([data-dismissed]):hover > .nav-previews-tip,
+.nav-previews:not([data-dismissed]) > .nav-link-previews:focus-visible + .nav-previews-tip {
   visibility: visible;
   opacity: 1;
 }
@@ -2296,13 +2327,13 @@ svg {
    instead -- ReferenceCitations (islands/GenesView.tsx) and GeneticTargets
    (islands/TrialsView.tsx) both render their list inside one, so this is the
    only rule needed for both. Sized to the 90th-percentile reference count
-   (7, on the committed genes data) so a typical row never scrolls; NOTCH3's
-   34 references and Colchicine's 15 genetic targets are the rows it exists
-   for. overflow-y (not -x) because the column's own min-width/max-width
-   above already bounds width -- only height needs a ceiling here. Popover
-   tooltips render in the top layer regardless (components/Tooltip.tsx), so
-   this cannot clip one, the same way .table-scroll's overflow-x already
-   doesn't. */
+   (7, on the committed genes data) so a typical row never scrolls; the gene
+   with the most references and the trial with the most genetic targets are
+   the rows it exists for. overflow-y (not -x) because the column's own
+   min-width/max-width above already bounds width -- only height needs a
+   ceiling here. Popover tooltips render in the top layer regardless
+   (components/Tooltip.tsx), so this cannot clip one, the same way
+   .table-scroll's overflow-x already doesn't. */
 .data-table td .cell-scroll {
   display: block;
   max-height: 11rem;
@@ -2451,7 +2482,7 @@ svg {
     var(--svd-transition), border-color var(--svd-transition);
 }
 
-.pagination button:hover:not(:disabled) {
+.pagination button:hover:not(:disabled, [aria-disabled='true']) {
   background: var(--svd-bg-hover-accent);
   color: var(--svd-color-accent-text);
   border-color: color-mix(in oklab, var(--svd-tint) 40%, transparent);
@@ -2465,7 +2496,8 @@ svg {
   color: var(--svd-on-primary);
 }
 
-.pagination button:disabled {
+.pagination button:disabled,
+.pagination button[aria-disabled='true'] {
   color: var(--svd-ink-muted);
   border-color: color-mix(in oklab, var(--svd-tint) 24%, transparent);
   cursor: default;
@@ -3106,7 +3138,7 @@ svg {
 
 .adapt-dialog::backdrop,
 .review-dialog::backdrop {
-  background: color-mix(in oklab, var(--svd-ink) 45%, transparent);
+  background: var(--svd-backdrop);
 }
 
 .adapt-dialog-title,
@@ -4473,6 +4505,26 @@ button.adapt-card-head:focus-visible {
   resize: vertical;
 }
 
+/* iOS Safari zooms the page onto any focused field drawn under 16px, and
+   leaves it zoomed -- panning sideways -- after the field blurs. On a touch
+   screen every editable field is drawn at the 1rem step instead. A pointer
+   query, not a width one: an iPad in landscape is wide, and a narrow desktop
+   window has no reason to grow. Never `maximum-scale` in the viewport meta,
+   which would take pinch-zoom from everyone. */
+@media (pointer: coarse) {
+  .table-control select,
+  .table-control input,
+  .review-form input,
+  .review-form select,
+  .review-form textarea,
+  .login-form input[type='password'],
+  .adapt-input,
+  .adapt-textarea,
+  .adapt-select {
+    font-size: var(--svd-text-md);
+  }
+}
+
 /* A row of fields, e.g. a trait's key, label and family side by side.
    Aligned by their tops: each field ends in a hint or a message of its
    own height, so aligned by their feet the inputs sat at different
@@ -4791,7 +4843,15 @@ a.review-action-primary:visited {
     overflow-x: auto;
     scrollbar-width: thin;
     scroll-snap-type: x proximity;
-    padding-bottom: var(--svd-space-1);
+    /* A scroller clips at its padding box, and overflow-x: auto makes
+       overflow-y auto as well, so a focused tab's ring -- 2px wide, 2px
+       out -- lost its top edge, and the first tab its left one. The padding
+       is the ring's reach (plus the old room for the thin scrollbar at the
+       bottom); the negative margin keeps the row where it was, as
+       .adapt-stepper does. */
+    padding: var(--svd-space-1) var(--svd-space-1)
+      calc(var(--svd-space-1) * 2);
+    margin: calc(var(--svd-space-1) * -1);
   }
 
   .navbar-nav > li {
@@ -6200,7 +6260,7 @@ a.review-action-primary:visited {
 }
 
 .timeline-dialog::backdrop {
-  background: color-mix(in oklab, var(--svd-ink) 45%, transparent);
+  background: var(--svd-backdrop);
 }
 
 .timeline-dialog-body {
@@ -6637,18 +6697,22 @@ a.review-action-primary:visited {
 
 /* The legend's sample pill illustrates the shape, not a real trait, so it
    takes no family colour -- a neutral fill and the design system's strong
-   border instead of one of the seven family hues. */
+   border instead of one of the seven family hues. The fill is the plate's
+   fixed white, not the transparent base: the key sits on the themed page,
+   and the pill's fixed figure ink measured 1.1:1 on the dark ground. */
 .phenogram-pill-sample {
-  background: var(--svd-tint-base);
+  background: var(--svd-figure-plate);
   border-color: var(--svd-border-section);
 }
 
 /* The legend pill is a control (it opens a tooltip); the ones drawn inside
    the figure are not, and are reached through .phenogram-genes instead. The
    figure's pills carry data colour, so the hover cannot be a tint -- it is
-   the frame the rest of the system uses, drawn in the figure's own ink. */
+   the frame the rest of the system uses. It sits 1px outside the pill, on
+   the themed page rather than the plate, so it is drawn in the page's ink:
+   the figure's fixed ink vanished on the dark ground. */
 .phenogram-legend .tooltip-box:hover .phenogram-pill {
-  outline: 1px solid var(--svd-figure-ink);
+  outline: 1px solid var(--svd-ink);
   outline-offset: 1px;
 }
 
@@ -7428,7 +7492,7 @@ a.review-action-primary:visited {
 }
 
 .pipeline-details::backdrop {
-  background: color-mix(in oklab, var(--svd-ink) 45%, transparent);
+  background: var(--svd-backdrop);
 }
 
 .pipeline-details-head {
@@ -7912,7 +7976,7 @@ details.pipeline-apis:not([open]) > table {
 .pipeline-sync-errors {
   margin: 0;
   padding-left: var(--svd-space-4);
-  color: var(--svd-color-danger);
+  color: var(--svd-color-danger-text);
   font-size: var(--svd-text-sm);
 }
 

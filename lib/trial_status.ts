@@ -31,8 +31,9 @@ export const TRIAL_STATUSES: Readonly<Record<string, TrialStatus>> = {
     "recruiting",
   ),
   // Parenthesised rather than CT.gov's own "Active, not recruiting": these
-  // labels are joined with ", " into the `Active Filters:` line, where a
-  // comma inside one made six selected choices read as eight.
+  // labels were once joined with ", " into the `Active Filters:` line, where
+  // a comma inside one made six selected choices read as eight. The line now
+  // joins with `FILTER_VALUE_SEPARATOR`, but the label stays as users know it.
   ACTIVE_NOT_RECRUITING: defineStatus("Active (not recruiting)", "active"),
   NOT_YET_RECRUITING: defineStatus("Not Yet Recruiting", "active"),
   COMPLETED: defineStatus("Completed", "completed"),

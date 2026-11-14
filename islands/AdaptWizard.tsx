@@ -224,6 +224,10 @@ export default function AdaptWizard(
     {},
   );
   const status = statuses[current] ?? "";
+  // The welcome screen's line: what was said there last, the session or an
+  // Import pressed from the bar above it. No step is showing, so a step's
+  // own line would say it out of sight.
+  const [welcomeLine, setWelcomeLine] = useState("");
   // Whether the last save was refused. It is kept apart from the status
   // line, which every lookup rewrites when it finishes -- in the same tick
   // as the save its result triggers -- so a warning there would vanish
@@ -582,10 +586,17 @@ export default function AdaptWizard(
   const latest = useRef(answers);
   latest.current = answers;
   const importAnswers = (file: File) => {
+    // Said on the step it was pressed from, and over the welcome screen too
+    // while that is up, where the step's line is not shown.
+    const say = (on: ScreenId, text: string) => {
+      setStatusOf(on)(text);
+      if (sessionRef.current.screen === "welcome") setWelcomeLine(text);
+    };
     // Two logos at their cap make an export of about 2.7 MB; a file far
     // larger is no export, and reading it whole would only stall the tab.
     if (file.size > IMPORT_BYTE_LIMIT) {
-      setStatusOf(screen.current)(
+      say(
+        screen.current,
         `${file.name} is larger than any answers export, so it was not read.`,
       );
       return;
@@ -593,7 +604,7 @@ export default function AdaptWizard(
     file.text().then((text) => {
       const imported = importText(text, latest.current);
       if ("error" in imported) {
-        setStatusOf(screen.current)(imported.error);
+        say(screen.current, imported.error);
         return;
       }
       // Every answer goes at once, as with Start over, and the export
@@ -605,7 +616,8 @@ export default function AdaptWizard(
           `Replace every answer here with the answers in ${file.name}? Export them first to keep them.`,
         )
       ) {
-        setStatusOf(screen.current)(
+        say(
+          screen.current,
           `Kept the answers here; ${file.name} was not imported.`,
         );
         return;
@@ -617,14 +629,13 @@ export default function AdaptWizard(
       setOpenCard(on === "review" ? null : entryCard(imported.answers, on));
       // Said, and so also clearing a failure left by an earlier attempt.
       const lost = imported.dropped.length;
-      setStatusOf(on)(
+      say(
+        on,
         lost === 0
           ? `Imported the answers in ${file.name}.`
           : `Imported the answers in ${file.name}${droppedNote(lost)}`,
       );
-    }).catch(() =>
-      setStatusOf(screen.current)(`${file.name} could not be read.`)
-    );
+    }).catch(() => say(screen.current, `${file.name} could not be read.`));
   };
 
   // What the session has to say lands on the current step's status line.
@@ -635,6 +646,7 @@ export default function AdaptWizard(
   useEffect(() => {
     const text = session.message;
     const on = screen.current;
+    setWelcomeLine(text);
     if (text !== "") {
       setStatusOf(on)(text);
     } else if (said.current !== "") {
@@ -714,11 +726,7 @@ export default function AdaptWizard(
       exportText(result.answers) !== exportText(latest.current) &&
       !globalThis.confirm(SESSION_COPY.replaceDraft)
     ) {
-      dispatch({
-        type: "resume-failed",
-        message: "Kept the answers here; the session was not resumed.",
-        epoch,
-      });
+      dispatch({ type: "resume-declined", epoch });
       return;
     }
     // The fresh link is stored before the draft, so another tab adopting
@@ -726,6 +734,7 @@ export default function AdaptWizard(
     storeLink(result.link);
     replace(result.answers);
     dispatch({ type: "resumed", link: result.link, epoch });
+    setWelcomeLine("");
     const lost = result.dropped.length;
     resumeNote.current = lost === 0
       ? ""
@@ -734,6 +743,7 @@ export default function AdaptWizard(
 
   const leaveWelcome = (to: ScreenId) => {
     dispatch({ type: "welcome-left" });
+    setWelcomeLine("");
     // "left" reveals what the step still lacks and focuses the first of it;
     // for Review it is a plain move.
     show(to, "left");
@@ -1064,13 +1074,14 @@ export default function AdaptWizard(
             {
               /* The refused-save alert stays over the welcome screen. A
               step's status line belongs to a step, and none is showing, so
-              there the line says what the session last said: a Save pressed
-              from the welcome screen still answers where it was pressed. The
+              there the line says what was last said there: a Save or an
+              Import pressed from the welcome screen still answers where it
+              was pressed. The
               live region stays in the page, so what it says on leaving the
               welcome screen is announced too. */
             }
             <p class="adapt-status" role="status">
-              {welcome ? session.message : status}
+              {welcome ? welcomeLine : status}
             </p>
           </div>
         </div>

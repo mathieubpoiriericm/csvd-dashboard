@@ -93,6 +93,9 @@ Deno.test("the checklist substitutes the key into every command and lists the gu
     text,
     "git rm -r tests/pipeline/cassettes/test_query_recall_gold",
   );
+  // Upstream's curated gold workbook and tables sit in disease/, which the
+  // archive overwrites but never empties, and scripts.load_gold reads them.
+  assertStringIncludes(text, "git rm -r -q disease/gold");
   assertStringIncludes(text, 'app = "exampleitis-dashboard"');
   assertStringIncludes(text, "docs/adapting-to-your-disease.md");
   assert(!text.includes("<key>"), "every placeholder is substituted");

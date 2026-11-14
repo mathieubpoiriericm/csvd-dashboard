@@ -3,6 +3,7 @@ import { assert, assertEquals, assertMatch } from "@std/assert";
 import {
   formatTrialPlace,
   locationsWithTableStatus,
+  pairShorthandKeys,
   phaseBarLabel,
   registryLink,
   registryOf,
@@ -176,4 +177,15 @@ Deno.test("map facilities take their trial's table status only under gold-only",
     locationsWithTableStatus(locations, table, true).map((l) => l.nctId),
     locations.map((l) => l.nctId),
   );
+});
+
+Deno.test("pairShorthandKeys keys a pair's bare second member by its full symbol", () => {
+  // "ABC1/2" is the export's ABC1 and ABC2 (`_PAIR_SHORTHAND`): the digits
+  // after the slash, at offset 5, are looked up as ABC2.
+  assertEquals([...pairShorthandKeys("ABC1/2")], [[5, "ABC2"]]);
+  assertEquals([...pairShorthandKeys("XYZ9, ABC1/2")], [[11, "ABC2"]]);
+  // Neither the N/A sentinel nor a slash between two whole symbols is a pair.
+  assertEquals(pairShorthandKeys("N/A").size, 0);
+  assertEquals(pairShorthandKeys("ABC1/DEF2").size, 0);
+  assertEquals(pairShorthandKeys("ABC1/ 2").size, 0);
 });

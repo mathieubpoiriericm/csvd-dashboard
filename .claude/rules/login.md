@@ -62,11 +62,18 @@ forgiving would let a client alternate guesses with a resume of its own code
 and never be limited. The per-client limit is 10 a minute;
 `ADAPT_SESSION_PER_CLIENT_LIMIT` raises it for the e2e server alone, and a
 malformed value stops the start. A refusal for the session quota below settles
-as uncounted, so a refused create does not spend the rate budget as well.
+as uncounted, so a refused create does not spend the rate budget as well. A
+save is held to its own client's limit alone: the global and tracked-client
+limits fill with other clients' creates and wrong codes, and must not refuse a
+visitor's save to the session they hold. Creates and resumes stay under all
+three, the global one being the defence against guessing codes from many
+addresses.
 
 The limiter bounds only the rate, so the store also bounds how many sessions
 one connection holds: 50 live ones (`SESSION_PER_CLIENT_CAP` in
-`server/adapt_sessions.ts`). A create or a revival past it answers 429
+`server/adapt_sessions.ts`), and at most 25,000,000 bytes of them
+(`SESSION_PER_CLIENT_BYTES`, so a few addresses cannot fill the byte budget;
+an IPv6 client is one per /64). A create or a revival past either answers 429
 `{"error":"quota"}` without `Retry-After`, which the guide words as "This
 connection already holds as many saved sessions as the server keeps for one
 connection"; a save to an existing session is never refused by it. The
@@ -84,6 +91,25 @@ gone, and a session without one counts toward nobody's cap.
 (`postLimiter()`), the ledger and `clientKeyOf()`;
 `server/adapt_session_limiter.ts` is only the session routes' configuration of
 it.
+
+`clientKeyOf()` groups an IPv6 address on its canonical /64 (`addressKey()`),
+so one host cannot mint a client per request; everyone in a /64 shares one
+login budget and one session cap, and the change of key orphaned the owner
+tags written before it, which then count toward nobody. The login's global
+limit (64 attempts a minute) and its tracked-client cap (64 clients) refuse
+everyone once they are full, whatever the requester's own history: that is
+what stops guesses spread over many addresses, and exempting a client with no
+failures would undo it, since each such guess comes from a fresh address. The
+price is that a sender with many real addresses can hold both at their limit
+and every new sign-in then gets 429 while existing cookies keep working; the
+quick remedy is `fly machine restart` (the ledger is in-process), the lasting
+one a rate limit at the edge.
+
+Every write reads its body through `readCappedBytes()` in
+`server/request_body.ts`, counted as it streams in: `POST /login` takes at
+most `LOGIN_BODY_LIMIT` (8 KB) and answers 413 past it, which settles as
+"other", not a wrong guess. An unbounded `formData()` on the one 512 MB machine
+let a single anonymous request take the site down.
 
 `_app.tsx` renders `/login` as a bare sheet (no navbar) and, for a verified
 session, a "Sign out" form beside the theme toggle; the flag it reads is

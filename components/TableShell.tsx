@@ -180,6 +180,17 @@ function SearchInput({ label, initialValue, onCommit, resetRef }: {
     inputRef.current?.focus({ preventScroll: true });
   };
   useEffect(() => search.cancel, []);
+  // Text typed into the server's HTML before the island hydrated is on screen
+  // but in no state: hydration does not reconcile `value`, so the table would
+  // stay unfiltered under a box that reads as a search. Adopt it on mount and
+  // apply it at once (the typing already happened; nothing is left to wait
+  // out).
+  useLayoutEffect(() => {
+    const typed = inputRef.current?.value ?? "";
+    if (typed === initialValue) return;
+    setDraft(typed);
+    commit.current(typed);
+  }, []);
   return (
     <label class="table-control">
       <span class="visually-hidden">{label}</span>
@@ -523,10 +534,17 @@ export function TableShell<TData extends RowData>({
         </span>
 
         <div class="pagination-buttons">
+          {
+            /* `aria-disabled`, not `disabled`: pressing Next onto the last page
+              (or Previous onto the first) would otherwise disable the focused
+              button, and the browser drops its focus to <body>. */
+          }
           <button
             type="button"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
+            onClick={() => {
+              if (table.getCanPreviousPage()) table.previousPage();
+            }}
+            aria-disabled={table.getCanPreviousPage() ? undefined : "true"}
           >
             <Icon name="chevronLeft" />
             Previous
@@ -544,8 +562,10 @@ export function TableShell<TData extends RowData>({
           ))}
           <button
             type="button"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
+            onClick={() => {
+              if (table.getCanNextPage()) table.nextPage();
+            }}
+            aria-disabled={table.getCanNextPage() ? undefined : "true"}
           >
             Next
             <Icon name="chevronRight" />

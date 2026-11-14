@@ -44,6 +44,7 @@ import { filterTrials, normalize } from "../lib/filters.ts";
 import { isAbsent } from "../lib/sentinels.ts";
 import { registryTooltip, trialGeneTooltip } from "../lib/trial_tooltips.ts";
 import {
+  pairShorthandKeys,
   phaseBarLabel,
   resolveTrialStatus,
   splitTargetQualifier,
@@ -93,20 +94,27 @@ export function GeneticTargets({ value }: { value: string }) {
   if (isAbsent(value)) return <Absent />;
 
   const pieces = value.split(/([,;/]\s*)/);
+  // The pair shorthand's second member prints as its bare digits but is
+  // looked up by the full symbol the export expanded it to.
+  const pairKeys = pairShorthandKeys(value);
+  let offset = 0;
 
   return (
     <div class="cell-scroll">
       {pieces.map((piece, index) => {
+        const start = offset;
+        offset += piece.length;
         if (index % 2 === 1) return piece;
         // A leading label ("GWAS for ischemic stroke: ") prints as plain
         // text beside the symbol; only the symbol is looked up and italic.
         const { qualifier, symbol: labelled } = splitTargetQualifier(piece);
         const symbol = labelled.trim();
         if (!symbol) return piece;
+        const key = pairKeys.get(start + qualifier.length) ?? symbol;
         return (
           <Fragment key={`${symbol}-${index}`}>
             {qualifier}
-            <Tooltip content={trialGeneTooltip(symbol)} italic>
+            <Tooltip content={trialGeneTooltip(key)} italic>
               {labelled}
             </Tooltip>
           </Fragment>
@@ -388,10 +396,12 @@ export default function TrialsView({ rows = trials }: TrialsViewProps = {}) {
       ))}
     >
       <DensityReadout
-        axisLabel="Trials by phase"
+        axisLabel="Rows by phase"
         stats={[
           {
-            label: "Trials shown",
+            // A row is one drug in one trial, and a trial testing two drugs
+            // has two, so this counts rows rather than distinct trials.
+            label: "Rows shown",
             value: visibleTrials.length,
             of: rows.length,
           },

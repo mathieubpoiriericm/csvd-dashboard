@@ -70,6 +70,14 @@ export interface Issue {
 
 export const KEY = /^[a-z][a-z0-9_]*$/;
 /**
+ * The longest disease key. It is written into PostgreSQL identifiers, the
+ * longest `${key}_dashboard_preview` (18 characters past it), and into the
+ * Fly host label `${key}-dashboard`; PostgreSQL truncates an identifier at
+ * 63 bytes and DNS refuses a longer label, so past 45 the preview database
+ * would be the production one. 40 leaves headroom.
+ */
+export const KEY_MAX = 40;
+/**
  * A PubMed or OMIM number as written. A leading zero is refused: PubMed
  * answers "0123" as 123, so the lookups could never confirm it, and the
  * recall measurement compares PMIDs as strings.
@@ -82,12 +90,12 @@ export const PMID = /^[1-9][0-9]*$/;
  */
 export const MIM = /^[1-9][0-9]{5}$/;
 /**
- * What clinical_trials_fetch.py leaves of a stated condition before it
- * looks for a substring: lower case, and every run of anything but a
- * letter, a digit or a space turned into a space. A substring outside
- * this alphabet can therefore never match, and the fetch would quietly
- * keep no discovered trial at all; nor can one holding two spaces in a row,
- * which the fold never leaves.
+ * What clinical_trials_fetch.py leaves of a stated condition, and of each
+ * configured term, before it looks for a substring: unaccented lower case,
+ * and every run of anything but a letter, a digit or a space turned into
+ * a single space. A term is asked for in that folded form, so what
+ * pipeline.json holds is what the fetch compares; the wizard offers the
+ * folded form of anything else.
  */
 export const CONDITION = /^[a-z0-9 ]+$/;
 export const conditionOk = (value: string): boolean =>
@@ -135,7 +143,8 @@ const lower = (s: string) => clean(s).toLowerCase();
  * answer is held to no line break apart (`hasBreak`).
  */
 export const hiddenChar = (c: string): boolean =>
-  c !== "\n" && c !== "\t" && /^[\p{Cc}\p{Cf}\u2028\u2029]$/u.test(c);
+  c !== "\n" && c !== "\t" &&
+  /^[\p{Cc}\p{Cf}\p{Cs}\u2028\u2029]$/u.test(c);
 const hasHidden = (s: string) => [...trim(s)].some(hiddenChar);
 /** A line break inside the value: one at either end is trimmed off it. */
 const hasBreak = (s: string) => trim(s).includes("\n");
@@ -183,7 +192,7 @@ export function ctgovTermRefused(term: string): boolean {
  * than with one pattern, whose overlapping repeats backtracked on a long
  * value.
  */
-export const EMAIL_REFUSED = /[\s@<>()[\],;:"\p{Cc}\p{Cf}]/u;
+export const EMAIL_REFUSED = /[\s@<>()[\],;:"\p{Cc}\p{Cf}\p{Cs}]/u;
 export function emailOk(value: string): boolean {
   const at = value.indexOf("@");
   if (at <= 0 || at !== value.lastIndexOf("@")) return false;
@@ -405,7 +414,8 @@ function svgRoot(text: string): string | null {
     return at;
   };
   let at = pastSpace(0);
-  if (opens("<?xml", at)) {
+  // The declaration only: "<?xml-stylesheet" is a processing instruction.
+  if (opens("<?xml", at) && /\s/.test(text[at + 5] ?? "")) {
     const end = text.indexOf(">", at);
     if (end !== -1 && text[end - 1] === "?") at = pastSpace(end + 1);
   }
@@ -459,6 +469,13 @@ function judgeLogo(logo: LogoFile): string | null {
   }
   if (/<!ENTITY/i.test(text) || declaresSubset(text)) {
     return "This SVG declares entities, which can hide active content; export a plain SVG, or upload a PNG.";
+  }
+  // An XSLT stylesheet can write a script without spelling one.
+  if (
+    /<\?xml-stylesheet/i.test(text) ||
+    text.includes("http://www.w3.org/1999/XSL/Transform")
+  ) {
+    return "This SVG carries a stylesheet transform, which can write active content; export a plain SVG, or upload a PNG.";
   }
   const root = svgRoot(text);
   if (root === null || !SVG_NAMESPACE.test(root)) {
@@ -526,7 +543,8 @@ function publicText(
   field: string,
   value: string,
 ) {
-  const found = finder?.exec(value);
+  // The files hold the NFC text, as the finder's own symbols are.
+  const found = finder?.exec(clean(value));
   if (found) {
     c.add(
       field,
@@ -556,6 +574,12 @@ function identityIssues(a: Answers): Issue[] {
     c.add(
       "disease.key",
       "The key must be lower-case letters, digits and underscores, starting with a letter; it names the database and the Fly app.",
+      "wrong",
+    );
+  } else if (clean(disease.key).length > KEY_MAX) {
+    c.add(
+      "disease.key",
+      `The key can be at most ${KEY_MAX} characters; it names the database and the Fly app.`,
       "wrong",
     );
   }
@@ -809,7 +833,7 @@ function vocabularyIssues(a: Answers): Issue[] {
     } else if (dupFamilies.has(i)) {
       c.add(row, `Family "${f.key}" is listed twice.`, "wrong");
     } else if (!traits.some((t) => clean(t.family) === clean(f.key))) {
-      c.add(row, `Family "${f.label}" has no trait.`, "missing");
+      c.add(row, `Family "${f.key}" has no trait.`, "missing");
     } else c.hidden(row, f.key);
     if (blank(f.label)) {
       c.add(`${row}.label`, "Each family needs a label.", "missing");
@@ -875,6 +899,13 @@ function vocabularyIssues(a: Answers): Issue[] {
         "wrong",
       );
     }
+    if (clean(t.label).includes(";")) {
+      c.add(
+        `traits[${i}].label`,
+        `Leave ";" out of the label: the Active Filters line separates selected traits with it.`,
+        "wrong",
+      );
+    }
     if (!blank(t.label) && dupLabels.has(i)) {
       c.add(
         `traits[${i}].label`,
@@ -901,6 +932,7 @@ function vocabularyIssues(a: Answers): Issue[] {
         "missing",
       );
     } else c.hidden(`traits[${i}].xrefNote`, t.xrefNote);
+    if (t.xref !== null) c.hidden(`traits[${i}].xref`, t.xref);
     // Every string of vocabulary.json ships before login with the filter
     // choices: the definition and the ontology note as much as the key.
     for (
@@ -1056,7 +1088,7 @@ function trialsIssues(a: Answers): Issue[] {
       s,
       "A condition substring cannot be empty.",
       (word) =>
-        `"${word}" can never match: conditions are compared as unaccented letters, digits and single spaces only.`,
+        `"${word}" is not in the folded form the fetch compares: unaccented letters, digits and single spaces; write it in that form.`,
     );
   });
   // Each word's fault is filed under its own control: the first word's on
@@ -1069,7 +1101,7 @@ function trialsIssues(a: Answers): Issue[] {
         word,
         "Both words of a pair are required.",
         () =>
-          "A pair word can hold only unaccented letters, digits and single spaces, or it never matches.",
+          "A pair word is compared in a folded form: unaccented letters, digits and single spaces; write it in that form.",
       );
     });
   });
@@ -1082,7 +1114,7 @@ function trialsIssues(a: Answers): Issue[] {
     } else if (dupFam.has(i)) {
       c.add(row, `Family "${f.key}" is listed twice.`, "wrong");
     } else if (!t.mechanisms.some((m) => clean(m.family) === clean(f.key))) {
-      c.add(row, `Family "${f.label}" has no mechanism.`, "missing");
+      c.add(row, `Family "${f.key}" has no mechanism.`, "missing");
     } else c.hidden(row, f.key);
     if (blank(f.label)) {
       c.add(`${row}.label`, "Each mechanism family needs a label.", "missing");
@@ -1113,7 +1145,7 @@ function trialsIssues(a: Answers): Issue[] {
     } else if (reserved(m.name)) {
       c.add(
         name,
-        `"${m.name}" is the value a trial with no mechanism carries; name the mechanism.`,
+        `"${m.name}" is a value the filters keep for themselves; name the mechanism differently.`,
         "wrong",
       );
     } else if (objectKey(m.name)) {

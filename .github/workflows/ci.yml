@@ -53,7 +53,7 @@ jobs:
 
       - uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: v2.9.8
 
       # nodeModulesDir is "manual", so node_modules must be populated
       # explicitly before anything type-checks.
@@ -178,7 +178,7 @@ jobs:
 
       - uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: v2.9.8
 
       # Playwright's runner is a Node program and lives in e2e/ with its own
       # package.json, deliberately isolated from the Deno-managed node_modules
@@ -239,7 +239,7 @@ jobs:
 
       - uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: v2.9.8
 
       # Playwright's runner is a Node program and lives in e2e/ with its own
       # package.json, deliberately isolated from the Deno-managed node_modules
@@ -322,7 +322,7 @@ jobs:
 
       - uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: v2.9.8
 
       - uses: astral-sh/setup-uv@v10.3.3
         with:
@@ -451,7 +451,7 @@ jobs:
 
       - uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: v2.9.8
 
       - uses: astral-sh/setup-uv@v10.3.3
         with:
@@ -526,11 +526,23 @@ jobs:
             -e DASHBOARD_PASSPHRASE="$SMOKE_PASSPHRASE" \
             -e DASHBOARD_SESSION_SECRET=ci-smoke-session-secret \
             dashboard
+          # /login answers on all three, the unconfigured one included: the
+          # gate exempts it before it reads the login secrets. A port that
+          # never answers fails here, so a server that cannot start is not
+          # mistaken for the unconfigured one's expected smoke failure.
           for port in 8000 8001 8002; do
+            up=
             for _ in $(seq 1 30); do
-              curl -fsS -o /dev/null "http://localhost:$port/login" && break
+              if curl -fsS -o /dev/null "http://localhost:$port/login"; then
+                up=1
+                break
+              fi
               sleep 1
             done
+            if [ -z "$up" ]; then
+              echo "::error::port $port never answered GET /login"
+              exit 1
+            fi
           done
 
       - name: Smoke test the configured image
@@ -569,10 +581,12 @@ jobs:
 
       - name: The smoke test fails an image missing its secrets
         run: |
-          if SMOKE_PASSPHRASE= scripts/smoke_deploy.sh http://localhost:8001; then
+          if SMOKE_PASSPHRASE= scripts/smoke_deploy.sh http://localhost:8001 2>"$RUNNER_TEMP/unconf.err"; then
             echo "::error::the smoke test passed a server with no login secrets"
             exit 1
           fi
+          cat "$RUNNER_TEMP/unconf.err"
+          grep -q 'GET / answered 503' "$RUNNER_TEMP/unconf.err"
 
       # Root must not create the directory on the container's own filesystem,
       # where sessions would report as on and vanish at every restart: with no
@@ -661,9 +675,21 @@ jobs:
       - uses: superfly/flyctl-actions/setup-flyctl@1.6
         if: env.FLY_API_TOKEN != ''
 
+      # A run that finishes after a newer commit's -- a rerun of an older
+      # commit's failed jobs, or one that queued behind a busy runner -- must
+      # not roll the live site back: only the tip of main deploys. The
+      # fly-deploy group above serialises deploys, so the tip cannot move
+      # between this check and the release.
       - name: Deploy
+        id: deploy
         if: env.FLY_API_TOKEN != ''
         run: |
+          git fetch --depth=1 origin main
+          if [ "$(git rev-parse FETCH_HEAD)" != "$GITHUB_SHA" ]; then
+            echo "::notice::$GITHUB_SHA is no longer the tip of main; not deployed."
+            echo "skip=1" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           app=$(sed -n 's/^app = "\(.*\)"$/\1/p' fly.toml)
           flyctl deploy --image "registry.fly.io/$app:$GITHUB_SHA" --ha=false
 
@@ -680,7 +706,7 @@ jobs:
       # was skipped in a notice. A fork that removed either line keeps its
       # smoke test as it was.
       - name: Smoke test the live site
-        if: env.FLY_API_TOKEN != ''
+        if: env.FLY_API_TOKEN != '' && steps.deploy.outputs.skip != '1'
         env:
           SMOKE_PASSPHRASE: ${{ secrets.SMOKE_PASSPHRASE }}
         run: |

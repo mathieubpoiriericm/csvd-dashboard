@@ -7,7 +7,8 @@
  * comment naming "the SVD rim" is reworded rather than listed.
  *
  * Two scans for the manifest's terms. The web code (lib/, routes/, islands/,
- * components/) is scanned everywhere. The tests -- tests/ and the whole e2e/ tree, its
+ * components/, and the stylesheets under assets/, which every page loads)
+ * is scanned everywhere. The tests -- tests/ and the whole e2e/ tree, its
  * helpers, config, screenshot and perf scripts included -- are scanned only
  * where the csvd/ trees are: that scan exists to keep the upstream disease's
  * tests inside them. A fork has deleted those trees, and the generic tests it
@@ -42,6 +43,10 @@ import { manifest } from "../lib/disease.ts";
 
 // The web code, scanned for the manifest's terms everywhere.
 const ROOTS = ["lib", "routes", "islands", "components"];
+// The stylesheets every page loads, scanned with the web code. static/ is
+// not: a fork's own institute logos live there and may carry its name.
+const STYLE_ROOTS = ["assets"];
+const STYLE_EXTS = [".css"];
 // The upstream-only code (see the header): these directories, walked whole,
 // and the .ts and .tsx files at the root (main.ts, utils.ts, ...), which are
 // not.
@@ -332,29 +337,33 @@ Deno.test("a population's key and label are scanned for as written", () => {
 });
 
 /**
- * Every .ts and .tsx file under `roots`, sorted so a hit prints at the same
- * place every run -- walk() yields in directory order, which the filesystem
- * decides.
+ * Every file under `roots` with one of `exts` (.ts and .tsx unless given),
+ * sorted so a hit prints at the same place every run -- walk() yields in
+ * directory order, which the filesystem decides.
  */
 async function codeFiles(
   roots: readonly string[],
-  { rootLevel = false } = {},
+  { rootLevel = false, exts = CODE_EXTS } = {},
 ): Promise<string[]> {
   const entries = rootLevel
     ? await Array.fromAsync(
-      walk(".", { maxDepth: 1, exts: CODE_EXTS, includeDirs: false }),
+      walk(".", { maxDepth: 1, exts, includeDirs: false }),
     )
     : [];
   for (const root of roots) {
     entries.push(
       ...await Array.fromAsync(
-        walk(root, { exts: CODE_EXTS, includeDirs: false }),
+        walk(root, { exts, includeDirs: false }),
       ),
     );
   }
   return entries.map((entry) => entry.path).sort((a, b) => a.localeCompare(b));
 }
-const webCodeFiles = () => codeFiles(ROOTS);
+const webCodeFiles = async () =>
+  [
+    ...await codeFiles(ROOTS),
+    ...await codeFiles(STYLE_ROOTS, { exts: STYLE_EXTS }),
+  ].sort((a, b) => a.localeCompare(b));
 const upstreamCodeFiles = () => codeFiles(UPSTREAM_ROOTS, { rootLevel: true });
 
 /** Every generic test file, sorted as `webCodeFiles` sorts. */
@@ -391,7 +400,7 @@ async function hitsIn(
   return hits;
 }
 
-Deno.test("no disease literal remains in lib/, routes/, islands/ or components/", async () => {
+Deno.test("no disease literal remains in lib/, routes/, islands/, components/ or assets/", async () => {
   const hits = await hitsIn(await webCodeFiles(), namesTerm);
   assertEquals(
     hits,
@@ -405,7 +414,7 @@ Deno.test("no disease literal remains in lib/, routes/, islands/ or components/"
 
 Deno.test({
   name:
-    "no trait of the vocabulary or trial population remains in lib/, routes/, islands/ or components/",
+    "no trait of the vocabulary or trial population remains in lib/, routes/, islands/, components/ or assets/",
   ignore: !HAS_CSVD_TREE,
   fn: async () => {
     assertEquals(

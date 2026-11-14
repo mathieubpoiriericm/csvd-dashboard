@@ -10,7 +10,7 @@
 
 import { assert, assertEquals } from "@std/assert";
 
-import { isDoi, shortCitation, toCitation } from "../lib/citations.ts";
+import { doiHref, isDoi, shortCitation, toCitation } from "../lib/citations.ts";
 import { referenceByPmid } from "../lib/data.ts";
 import type { Reference } from "../lib/types.ts";
 import doiCases from "./fixtures/doi_cases.json" with { type: "json" };
@@ -64,6 +64,39 @@ Deno.test("a one-token author is used as it stands", () => {
   assertEquals(shortCitation(row), "MEGASTROKE");
 });
 
+Deno.test("a name that does not end in initials is used whole", () => {
+  // Europe PMC hands a collective name over verbatim, and a PubMed surname
+  // with no initials is stored bare: neither ends in an initial to take.
+  const consortium = reference({
+    authors: "MEGASTROKE Consortium, Smith A",
+    publicationDate: "2024",
+  });
+  assertEquals(
+    shortCitation(consortium),
+    "MEGASTROKE Consortium, et al. (2024)",
+  );
+  const bare = reference({ authors: "De Silva", publicationDate: "2024" });
+  assertEquals(shortCitation(bare), "De Silva (2024)");
+
+  // Initials still read as initials, dotted, hyphenated or non-ASCII.
+  assertEquals(
+    toCitation(reference({ authors: "Le Grand Q" })).author,
+    "Le Grand, Q.",
+  );
+  assertEquals(
+    toCitation(reference({ authors: "Dupont J-P" })).author,
+    "Dupont, J.",
+  );
+  assertEquals(
+    toCitation(reference({ authors: "Smith J.A." })).author,
+    "Smith, J.",
+  );
+  assertEquals(
+    toCitation(reference({ authors: "Ångström Å" })).author,
+    "Ångström, Å.",
+  );
+});
+
 Deno.test("a missing year drops the parenthesis rather than emptying it", () => {
   const row = reference({ authors: "Mishra A, Malik R" });
   assertEquals(shortCitation(row), "Mishra, A., et al.");
@@ -112,4 +145,29 @@ Deno.test("a DOI is told apart from a PMID, by the rule the pipeline uses", () =
   // The same cases tests/pipeline/test_doi_references.py runs is_doi over.
   for (const value of doiCases.doi) assert(isDoi(value), value);
   for (const value of doiCases.notDoi) assert(!isDoi(value), value);
+});
+
+Deno.test("a DOI link keeps every character of the suffix in the path", () => {
+  // `encodeURI` would leave `#` and `?` bare, cutting the suffix into a
+  // fragment or a query string that doi.org never sees.
+  const sici = "10.1002/(SICI)1097-4636(199601)30:1<1::AID-JBM1>3.0.CO;2-#";
+  assert(isDoi(sici));
+  const href = doiHref(sici);
+  assertEquals(new URL(href).hash, "");
+  assertEquals(decodeURIComponent(new URL(href).pathname.slice(1)), sici);
+
+  const query = "10.1000/what?is=this&x";
+  const url = new URL(doiHref(query));
+  assertEquals(url.search, "");
+  assertEquals(decodeURIComponent(url.pathname.slice(1)), query);
+
+  // The separators stay, and `%` and non-ASCII are encoded as before.
+  assertEquals(
+    doiHref("10.1000/50%-é"),
+    "https://doi.org/10.1000/50%25-%C3%A9",
+  );
+  assertEquals(
+    doiHref("10.21203/rs.3.rs-5926137/v1"),
+    "https://doi.org/10.21203/rs.3.rs-5926137/v1",
+  );
 });

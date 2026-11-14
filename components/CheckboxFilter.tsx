@@ -1,3 +1,4 @@
+import { useLayoutEffect, useState } from "preact/hooks";
 import { SHOW_ALL } from "../lib/constants.ts";
 import { type FilterMode, isFilterActive } from "../lib/filters.ts";
 import type { FilterChoice } from "../lib/types.ts";
@@ -68,9 +69,16 @@ export function CheckboxFilter(
 ) {
   const showingAll = !isFilterActive(selected, mode);
   const activeCount = selected.filter((v) => v !== SHOW_ALL).length;
+  // Disabled until the island has hydrated: a box ticked in the server's HTML
+  // would show its tick while the selection, and so the rows, stayed as they
+  // were, since hydration does not reconcile `checked`. It must be state, not
+  // a static attribute -- hydration does not diff `disabled` either, so only
+  // this post-mount rerender removes it.
+  const [live, setLive] = useState(false);
+  useLayoutEffect(() => setLive(true), []);
 
   return (
-    <fieldset class="filter-group">
+    <fieldset class="filter-group" disabled={!live}>
       <legend class="filter-group-header">
         <span class="filter-group-label">{label}</span>
         {!showingAll && (

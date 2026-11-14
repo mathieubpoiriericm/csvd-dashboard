@@ -541,12 +541,19 @@ design. Everything outside them holds for any disease.
 ```bash
 git rm -r tests/csvd e2e/tests/csvd tests/pipeline/csvd tests/scripts/csvd
 git rm -r tests/pipeline/cassettes/test_query_recall_gold
+git rm -r -q disease/gold
 ```
 
 The second line removes our recall measurement's recorded network responses.
 They sit beside the generic replay test rather than in a `csvd/` tree, and step
 8 records yours: one of ours left in place would be replayed instead of
 recorded, and the recall test would fail against it.
+
+The third removes `disease/gold/`, our curators' workbook and the cSVD gene and
+trial tables cleaned out of it. Unpacking the archive overwrites files in
+`disease/` but never deletes one, so it would stay in your disease seam, and
+`scripts.load_gold` reads it: run that script only after replacing the folder
+with your own curated tables.
 
 ---
 
@@ -873,19 +880,20 @@ Then one resolution per location. The first six are where your content lives;
 the last five are the edits sections 7 to 13 had you make in files we go on
 changing, so a merge can meet them again:
 
-| Location                                           | Resolution                                                               |
-| -------------------------------------------------- | ------------------------------------------------------------------------ |
-| `data/`                                            | Keep yours                                                               |
-| `disease/`                                         | Keep yours; then diff the two schemas for any new key                    |
-| The four `csvd/` test trees                        | Keep them deleted                                                        |
-| `README.md` first line                             | Keep yours                                                               |
-| `fly.toml`                                         | Keep your `app` and `primary_region`; take the rest (section 14 below)   |
-| `docs/screenshots/`                                | Recapture with `deno task screenshots`, once `data/` is yours            |
-| `tests/pipeline/cassettes/test_query_recall_gold/` | Keep yours; delete ours again if you have not recorded your own          |
-| `lib/gold_only.ts`                                 | Keep `GOLD_ONLY = false`; take the rest                                  |
-| `tests/pipeline/test_prompt_vocabulary.py`         | Keep `_ADMITTED_UNASKED = {}`; take the rest                             |
-| `server/protected_data_build.ts`                   | Keep your `PROTECTED_DATA_SENTINELS`; take the rest                      |
-| `e2e/package.json`                                 | Keep your `name` and `description`; take the rest, our versions included |
+| Location                                           | Resolution                                                                  |
+| -------------------------------------------------- | --------------------------------------------------------------------------- |
+| `data/`                                            | Keep yours                                                                  |
+| `disease/`                                         | Keep yours; then diff the two schemas for any new key                       |
+| The four `csvd/` test trees                        | Keep them deleted                                                           |
+| `README.md` first line                             | Keep yours                                                                  |
+| `fly.toml`                                         | Keep your `app` and `primary_region`; take the rest (section 14 below)      |
+| `docs/screenshots/`                                | Recapture with `deno task screenshots`, once `data/` is yours               |
+| `tests/pipeline/cassettes/test_query_recall_gold/` | Keep yours; delete ours again if you have not recorded your own             |
+| `disease/gold/`                                    | Keep it deleted (or yours): `git rm -r -q -f --ignore-unmatch disease/gold` |
+| `lib/gold_only.ts`                                 | Keep `GOLD_ONLY = false`; take the rest                                     |
+| `tests/pipeline/test_prompt_vocabulary.py`         | Keep `_ADMITTED_UNASKED = {}`; take the rest                                |
+| `server/protected_data_build.ts`                   | Keep your `PROTECTED_DATA_SENTINELS`; take the rest                         |
+| `e2e/package.json`                                 | Keep your `name` and `description`; take the rest, our versions included    |
 
 `lib/gold_only.ts` needs a look even when the merge is clean: if we switched
 gold-only on after you forked, our line arrives without a conflict, and
@@ -997,6 +1005,7 @@ Europe PMC and PDF traps and what each looks like in the run log.
 [ ] GOLD_ONLY = false in lib/gold_only.ts
 [ ] git rm -r tests/csvd e2e/tests/csvd tests/pipeline/csvd tests/scripts/csvd
 [ ] git rm -r tests/pipeline/cassettes/test_query_recall_gold
+[ ] git rm -r -q disease/gold
 [ ] _ADMITTED_UNASKED = {}, e2e/package.json, logos
 [ ] CSVD_TEST_DB_URL names a throwaway test database
 [ ] All seven checks green

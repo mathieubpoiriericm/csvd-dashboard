@@ -468,6 +468,10 @@ test("Escape twice on the resume window leaves it able to open again, empty", as
     }
     await window.getByRole("button", { name: "Cancel" }).click();
     await expect(window).toBeHidden();
+    // showModal() hid the panel holding the trigger; focus goes back to the
+    // panel's own toggle, not to the top of the page.
+    await expect(page.getByRole("button", { name: "Session", exact: true }))
+      .toBeFocused();
   }
   await page.context().close();
 });

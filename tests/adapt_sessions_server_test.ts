@@ -13,6 +13,7 @@ import {
   openSessionStore,
   SESSION_BYTES_BUDGET,
   SESSION_CAP,
+  SESSION_PER_CLIENT_BYTES,
   SESSION_PER_CLIENT_CAP,
   type SessionStore,
   SWEEP_INTERVAL_MS,
@@ -621,7 +622,9 @@ Deno.test({
       await Deno.chmod(path, 0o000);
       try {
         const lines = await loggedErrors(async () => {
-          assertEquals(await store.load(code), { error: "unreadable" });
+          // A read that failed is not a session this version cannot read:
+          // a retry may reach it.
+          assertEquals(await store.load(code), { error: "failed" });
         });
         assertEquals(lines.length, 1, lines.join("\n"));
         const [line] = lines;
@@ -829,6 +832,59 @@ Deno.test("the 51st create from one connection is refused, another's passes", as
     // A caller with no connection is not held to the rule.
     created(await store.create(VALID));
   });
+});
+
+Deno.test("one connection holds at most 25 MB of sessions", () => {
+  assertEquals(SESSION_PER_CLIENT_BYTES, 25_000_000);
+  // Several connections are needed to fill the byte budget, not a handful.
+  assert(SESSION_BYTES_BUDGET / SESSION_PER_CLIENT_BYTES >= 30);
+});
+
+Deno.test("a create past a connection's byte allowance is refused, another's passes", async () => {
+  const dir = await Deno.makeTempDir({ prefix: "adapt-sessions-" });
+  try {
+    const size = new TextEncoder().encode(
+      JSON.stringify({
+        version: 1,
+        revision: 1,
+        savedAt: T0,
+        answers: JSON.parse(VALID),
+      }),
+    ).byteLength;
+    // Room for two sessions of this size, not three.
+    const store = openSessionStore(dir, {
+      now: () => T0,
+      ownerBudget: size * 2 + 1,
+    });
+    assert(store !== null);
+    const [first] = await createMany(store, OWNER, 2);
+    assertEquals(await store.create(VALID, OWNER), { error: "quota" });
+    created(await store.create(VALID, OTHER));
+    created(await store.create(VALID));
+    // A save to a session the connection holds is never refused by it, even
+    // one that grows past the allowance.
+    const saved = await store.save(
+      first,
+      { revision: 1, savedAt: T0 },
+      VALID2,
+      false,
+      OWNER,
+    );
+    assert("revision" in saved && !saved.revived, JSON.stringify(saved));
+    // A revival is held to it.
+    assertEquals(
+      await store.save(
+        UNUSED,
+        { revision: 1, savedAt: T0 },
+        VALID,
+        false,
+        OWNER,
+      ),
+      { error: "quota" },
+    );
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
 });
 
 Deno.test("at its cap a connection still saves an existing session, and is refused a revival", async () => {

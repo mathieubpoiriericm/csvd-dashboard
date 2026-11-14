@@ -29,6 +29,13 @@ const XMLNS_INKSCAPE = "http://www.inkscape.org/namespaces/inkscape";
 // deno-lint-ignore no-control-regex
 const XML_ILLEGAL = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\ufffe\uffff]/g;
 
+/**
+ * XML 1.0 also forbids `]]>` in character data, and the renderer escapes `<`
+ * but not `>`. It never writes a CDATA section, so the sequence can only come
+ * from a label, and `&gt;` is valid in text and attributes alike.
+ */
+const CDATA_END = /]]>/g;
+
 /** JSX cannot name a namespaced attribute, so it goes in through a spread. */
 const label = (text: string) => ({ "inkscape:label": text });
 
@@ -188,6 +195,6 @@ export function phenogramSvg(
     </svg>
   );
   return `<?xml version="1.0" encoding="UTF-8"?>\n${
-    renderToString(svg).replace(XML_ILLEGAL, "")
+    renderToString(svg).replace(XML_ILLEGAL, "").replace(CDATA_END, "]]&gt;")
   }`;
 }

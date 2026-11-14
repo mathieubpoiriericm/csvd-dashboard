@@ -351,16 +351,22 @@ test("attributes the three machine-fetched annotation sources", async ({ page })
 });
 
 /**
- * The reference-data refreshes. Committed as `[]` until a refresh records
- * one, so this skips the same way the drawer tests do -- and starts
- * covering the block the day the first `--sync-annotations` run lands.
+ * The reference-data refreshes. The skips read the committed data, never the
+ * page: while gold-only is on the About page draws the notice in place of
+ * the run and the refreshes alike, and with no refresh recorded
+ * (`data/pipeline_syncs.json` is `[]`) there is nothing to draw. Otherwise a
+ * missing block fails.
  */
 test("a recorded refresh names its providers on the page", async ({ page }) => {
-  const block = page.locator(".pipeline-sync");
   test.skip(
-    await block.count() === 0,
+    EXPECTED.goldOnly,
+    "gold-only: the About page shows the notice in place of the refreshes",
+  );
+  test.skip(
+    !EXPECTED.hasPipelineSyncs,
     "no refresh recorded (data/pipeline_syncs.json is empty)",
   );
+  const block = page.locator(".pipeline-sync");
 
   // It is a sibling of the run widget, not a replacement for it.
   await expect(page.getByText("Reference Data Refreshes")).toBeVisible();

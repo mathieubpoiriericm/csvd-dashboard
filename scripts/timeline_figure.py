@@ -505,8 +505,12 @@ def separate_labels(
 
     if not movable:
         return shifts
-    heights = sorted(box[3] for box in movable)
-    height = heights[len(heights) // 2]
+    # Degenerate measurements (an empty label measures zero high) must not
+    # create a zero-step search loop; lib/timeline.ts filters the same way.
+    heights = sorted(
+        h for _, _, _, h in movable if math.isfinite(h) and 1e-6 <= h <= 1e100
+    )
+    height = heights[len(heights) // 2] if heights else 1.0
     candidates = _placement_candidates(height, bool(outward))
 
     for _ in range(PLACEMENT_ROUNDS):

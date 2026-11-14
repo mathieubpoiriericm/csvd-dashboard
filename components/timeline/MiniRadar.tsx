@@ -35,8 +35,18 @@ export function MiniRadar({ layout, activeIndex, scale }: MiniRadarProps) {
     scale,
     markerGrowthCap(layout.markers, EVIDENCE_RING_RADIUS),
   );
-  const populations = new Set(layout.markers.map((m) => m.population)).size;
+  // Count what the list under the figure names: the trials on a phase ring,
+  // and the populations they belong to. A sector's `drugCount` also counts
+  // trials whose phase has no ring, which the list leaves out, so the legend
+  // keys the same populations the summary counts.
+  const onRing = new Set(layout.markers.map((m) => m.population));
+  const legend = layout.sectors.filter((s) => onRing.has(s.key));
   const n = layout.markers.length;
+  const summary = n === 0
+    ? "No selected trial sits on a phase ring"
+    : `${count(n, "trial")} across ${
+      count(onRing.size, "population")
+    }; the list below names each one`;
   return (
     <div class="timeline-mini">
       <svg
@@ -44,9 +54,7 @@ export function MiniRadar({ layout, activeIndex, scale }: MiniRadarProps) {
         viewBox={`0 0 ${CANVAS.width} ${CANVAS.height}`}
         style={{ "--radar-k": String(k) }}
         role="img"
-        aria-label={`${count(n, "trial")} across ${
-          count(populations, "population")
-        }; the list below names each one`}
+        aria-label={summary}
       >
         <rect
           class="plate"
@@ -139,18 +147,20 @@ export function MiniRadar({ layout, activeIndex, scale }: MiniRadarProps) {
           );
         })}
       </svg>
-      <ul class="timeline-mini-legend">
-        {layout.sectors.filter((s) => s.drugCount > 0).map((sector) => (
-          <li key={sector.key}>
-            <span
-              class="timeline-mini-swatch"
-              style={{ background: sector.band }}
-              aria-hidden="true"
-            />
-            {sector.label.join(" ")}
-          </li>
-        ))}
-      </ul>
+      {legend.length > 0 && (
+        <ul class="timeline-mini-legend">
+          {legend.map((sector) => (
+            <li key={sector.key}>
+              <span
+                class="timeline-mini-swatch"
+                style={{ background: sector.band }}
+                aria-hidden="true"
+              />
+              {sector.label.join(" ")}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

@@ -30,6 +30,9 @@ export interface Citation {
 
 const YEAR = /\b(1[89]\d{2}|20\d{2})\b/;
 
+/** `J`, `AB`, `J-P`: the unpunctuated initials the pipeline stores. */
+const INITIALS = /^\p{Lu}{1,4}(-\p{Lu}{1,2})?$/u;
+
 /**
  * The first author as `Last, F.`
  *
@@ -47,9 +50,14 @@ function firstAuthor(authors: string): string {
   const parts = first.split(/\s+/);
   if (parts.length < 2) return first;
 
-  const initial = parts[parts.length - 1][0];
+  // Only a last token that reads as initials is one: a collective author
+  // ("MEGASTROKE Consortium") or a surname stored without initials
+  // ("De Silva") is printed whole rather than as "MEGASTROKE, C.".
+  const last = parts[parts.length - 1];
+  if (!INITIALS.test(last.replace(/\./g, ""))) return first;
+
   const surname = parts.slice(0, -1).join(" ");
-  return `${surname}, ${initial}.`;
+  return `${surname}, ${last[0]}.`;
 }
 
 /**
@@ -104,4 +112,16 @@ const DOI = /^10\.[0-9]{4,9}\/\S+$/;
  */
 export function isDoi(reference: string): boolean {
   return DOI.test(reference.trim());
+}
+
+/**
+ * The doi.org link for a DOI. A suffix may hold any printable character, and
+ * `encodeURI` would leave `#`, `?`, `;` and `&` bare -- a SICI DOI ending in
+ * `2-#` would lose its last character to an empty fragment -- so each segment
+ * is encoded on its own and the `/` separators kept.
+ */
+export function doiHref(doi: string): string {
+  return `https://doi.org/${
+    doi.trim().split("/").map(encodeURIComponent).join("/")
+  }`;
 }

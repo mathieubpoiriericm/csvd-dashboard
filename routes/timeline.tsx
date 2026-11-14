@@ -30,9 +30,9 @@ export default define.page(function Timeline() {
           Fig. 1 in Cummings, J.{" "}
           <em>et al.</em>, Alzheimer's disease drug development pipeline: 2023,
           {" "}
-          <em>Alzheimer's Dement.</em> (May 2023){" "}
+          <em>Alzheimer's Dement. (N Y)</em> (May 2023){" "}
           <a
-            href="https://pubmed.ncbi.nlm.nih.gov/37251912/"
+            href="https://doi.org/10.1002/trc2.12385"
             target="_blank"
             rel="noopener noreferrer"
           >

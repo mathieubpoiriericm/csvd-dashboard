@@ -19,6 +19,7 @@ import { normaliseCode } from "../lib/adapt/session_code.ts";
 import { loginConfig } from "../lib/auth.ts";
 import { type Holder, replayToHolder } from "./adapt_session_holder.ts";
 import type { SessionStore } from "./adapt_sessions.ts";
+import { readCappedText } from "./request_body.ts";
 
 /** Set to "created" on a response that made a new session file. */
 export const CREATED_HEADER = "X-Adapt-Session";
@@ -61,43 +62,9 @@ const tooLarge = () => reply(413, { error: "too-large" });
 const invalid = (message = NOT_A_REQUEST) =>
   reply(400, { error: "invalid", message });
 
-/**
- * The body as text, or null once it is past SESSION_BODY_LIMIT. Counted as it
- * arrives, so neither a false Content-Length nor a body without one makes
- * the server hold more than the limit.
- */
-async function readCapped(req: Request): Promise<string | null> {
-  const declared = Number(req.headers.get("content-length"));
-  if (declared > SESSION_BODY_LIMIT) {
-    await req.body?.cancel();
-    return null;
-  }
-  if (req.body === null) return "";
-  const reader = req.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    total += value.byteLength;
-    if (total > SESSION_BODY_LIMIT) {
-      await reader.cancel();
-      return null;
-    }
-    chunks.push(value);
-  }
-  const bytes = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return new TextDecoder().decode(bytes);
-}
-
 /** The body as a JSON object, or the response that refuses it. */
 async function readJson(req: Request): Promise<Body | Response> {
-  const text = await readCapped(req);
+  const text = await readCappedText(req, SESSION_BODY_LIMIT);
   if (text === null) return tooLarge();
   let body: unknown;
   try {
@@ -269,5 +236,6 @@ export async function handleResume(
   // One body for a code that never existed and one whose session was
   // deleted or has expired: the caller cannot tell them apart.
   if (result.error === "unknown") return reply(404, { error: "unknown" });
+  if (result.error === "failed") return unavailable("failed");
   return reply(422, { error: "unreadable", message: result.message });
 }

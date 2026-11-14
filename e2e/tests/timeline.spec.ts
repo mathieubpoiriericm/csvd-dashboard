@@ -641,7 +641,7 @@ test("the timeline names its affordances and credits its source", async ({ page 
   await expect(citation.locator("strong")).toHaveText("Visually-inspired by:");
   await expect(citation.getByRole("link", { name: /^DOI:/ })).toHaveAttribute(
     "href",
-    "https://pubmed.ncbi.nlm.nih.gov/37251912/",
+    "https://doi.org/10.1002/trc2.12385",
   );
 });
 

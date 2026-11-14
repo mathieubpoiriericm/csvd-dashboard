@@ -151,6 +151,19 @@ const sentence = (text: string): StepOutcome => ({
   quiet: true,
 });
 
+/**
+ * How many papers the run read: the verdict's figure and the Processing
+ * row's, from one place so the two cannot disagree.
+ *
+ * A paper with no retrievable text is counted as processed, so that no
+ * later run fetches it again, and nobody read it: the figure is the papers
+ * that had text, which is what its breakdown adds up to. A failed paper is
+ * not counted as processed at all.
+ */
+function papersRead(papers: PipelineRun["papers"]): number {
+  return Math.max(0, papers.processed - papers.noTextAvailable);
+}
+
 /** A count and a label, kept only when the count is above zero. */
 const present = (parts: Array<[number, string]>) =>
   parts.filter(([count]) => count > 0);
@@ -194,18 +207,23 @@ function readout(run: PipelineRun, key: string): Segment[][] | null {
         figure(papers.newlySeen, OUTCOMES.new),
         figure(papers.alreadySeen, OUTCOMES.seenBefore),
       ]];
-    case "processing_papers":
+    case "processing_papers": {
+      // The papers nobody read stand in a clause of their own: a paper with
+      // no text is counted as processed and a failed one is not, so neither
+      // is a part of "read", and listing them under it made the row add up
+      // to more than its figure, and the figure disagree with the verdict's.
+      const unread = present([
+        [papers.noTextAvailable, OUTCOMES.noText],
+        [papers.failed, OUTCOMES.failed],
+      ]);
       return [
         [
-          figure(papers.processed, OUTCOMES.read),
+          figure(papersRead(papers), OUTCOMES.read),
           clause([
             [papers.fulltext, OUTCOMES.fullText],
             [papers.abstractOnly, OUTCOMES.abstractOnly],
-            ...present([
-              [papers.noTextAvailable, OUTCOMES.noText],
-              [papers.failed, OUTCOMES.failed],
-            ]),
           ]),
+          ...(unread.length > 0 ? [clause(unread)] : []),
         ],
         [
           figure(
@@ -218,6 +236,7 @@ function readout(run: PipelineRun, key: string): Segment[][] | null {
           ]),
         ],
       ];
+    }
     case "batch_validation":
       return [[
         figure(
@@ -320,10 +339,7 @@ export interface Figure {
 export function verdictFigures(run: PipelineRun): Figure[] {
   const { papers, genes, database } = run;
   const figures: Figure[] = [];
-  // A paper with no retrievable text is counted as processed, so that no
-  // later run fetches it again, and nobody read it: the figure is the
-  // papers that had text, which is what its breakdown adds up to.
-  const readCount = Math.max(0, papers.processed - papers.noTextAvailable);
+  const readCount = papersRead(papers);
   // The noun stands after the denominator when there is one: "1 of 38 new
   // papers read".
   const read = `${

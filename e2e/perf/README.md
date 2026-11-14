@@ -24,10 +24,11 @@ node e2e/perf/run.mjs --no-trace --reps 5 --throttle 4
 
 `PERF_BASE_URL` selects the server address (default `http://localhost:8000`). An
 existing server is reused and must have the E2E credentials and the build being
-measured. Use a free local port for an isolated worktree. The correctness suite
-likewise accepts `E2E_PORT`, for example `E2E_PORT=8128 deno task test:e2e`. Do
-not run correctness suites, builds, or other profiling jobs during timing
-measurements.
+measured; the report then records `serverReused: true` and leaves `buildSha256`
+and `commit` null, since it cannot tell which build that server holds. Use a
+free local port for an isolated worktree. The correctness suite likewise accepts
+`E2E_PORT`, for example `E2E_PORT=8128 deno task test:e2e`. Do not run
+correctness suites, builds, or other profiling jobs during timing measurements.
 
 Five untraced repetitions produce each timing median. One additional trace is
 for attribution only and is excluded from medians. `--reps` changes only the

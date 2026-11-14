@@ -11,7 +11,7 @@
 
 import { acronymTooltip, COLOCALIZATION_LABEL } from "./acronyms.ts";
 import { CELL_TYPE_NAMES, PUBMED_BASE_URL } from "./constants.ts";
-import { isDoi, toCitation } from "./citations.ts";
+import { doiHref, isDoi, toCitation } from "./citations.ts";
 import { geneInfoByName } from "./data/gene_info.ts";
 import { omimByNumber } from "./data/omim.ts";
 import { proteinInfoByGene } from "./data/protein_info.ts";
@@ -188,7 +188,7 @@ export function referenceTooltip(
 
   // A preprint cited by DOI has no PubMed record to link to.
   const link = isDoi(id)
-    ? { href: `https://doi.org/${encodeURI(id)}`, label: "View on doi.org" }
+    ? { href: doiHref(id), label: "View on doi.org" }
     : { href: `${PUBMED_BASE_URL}${id}`, label: "View on PubMed" };
   return { rows: referenceRows(reference), links: [link] };
 }

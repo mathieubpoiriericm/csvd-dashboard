@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { blockTiles } from "../helpers.ts";
+import { blockTiles, choice } from "../helpers.ts";
 import { EXPECTED } from "../fixtures/expected-data.ts";
 
 /**
@@ -396,28 +396,42 @@ test("Space activates a map cluster and keeps keyboard focus on the map", async 
   await expect(page.locator(".trials-map")).toBeFocused();
 });
 
-test("the study-status group hides completed sites by default and shows them on request", async ({ page }) => {
-  // The checkbox click below needs the island hydrated -- .map-controls-count
+test("the study-status group starts on its default, narrows to one status and returns on Show All", async ({ page }) => {
+  // The checkbox clicks below need the island hydrated -- .map-controls-count
   // itself is server-rendered and would pass with a check that only flips the
   // native checkbox, leaving Preact's state (and so the cluster) untouched.
   await expect(page.locator(".trials-map.leaflet-container")).toBeVisible();
 
   const count = page.locator(".map-controls-count");
-  await expect(count).toContainText(
-    `Showing ${EXPECTED.map.sitesShown} of ${EXPECTED.map.sites} ${
+  const hiddenSites = page.locator(".visually-hidden li");
+  const showing = (shown: number) =>
+    `Showing ${shown} of ${EXPECTED.map.sites} ${
       EXPECTED.map.sites === 1 ? "site" : "sites"
-    }`,
-  );
-  await page.getByRole("group", { name: /^Study status/ })
-    .getByRole("checkbox", { name: /^Show All/ }).check();
-  await expect(count).toContainText(
-    `Showing ${EXPECTED.map.sites} of ${EXPECTED.map.sites} ${
-      EXPECTED.map.sites === 1 ? "site" : "sites"
-    }`,
-  );
-  await expect(page.locator(".visually-hidden li")).toHaveCount(
-    EXPECTED.map.sites,
-  );
+    }`;
+
+  // The default selection (Show All under gold-only, every status but
+  // Completed, Suspended and Unknown otherwise).
+  await expect(count).toContainText(showing(EXPECTED.map.sitesShown));
+  await expect(hiddenSites).toHaveCount(EXPECTED.map.sitesShown);
+
+  // Show All reveals every site. Under gold-only it is already the default
+  // and nothing changes, so the narrowing step after it is what proves the
+  // filter reaches the island: from Show All, ticking a single status
+  // replaces Show All with that status alone.
+  const showAll = choice(page, "Study status", "Show All");
+  await showAll.check();
+  await expect(count).toContainText(showing(EXPECTED.map.sites));
+  await expect(hiddenSites).toHaveCount(EXPECTED.map.sites);
+
+  const narrow = EXPECTED.map.narrowStatus;
+  test.skip(narrow === null, "no status leaves some sites but not all");
+  await choice(page, "Study status", narrow!.label).check();
+  await expect(count).toContainText(showing(narrow!.sites));
+  await expect(hiddenSites).toHaveCount(narrow!.sites);
+
+  await showAll.check();
+  await expect(count).toContainText(showing(EXPECTED.map.sites));
+  await expect(hiddenSites).toHaveCount(EXPECTED.map.sites);
 });
 
 /**

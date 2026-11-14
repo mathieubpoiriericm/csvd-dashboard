@@ -2,6 +2,7 @@
 
 import { getCookies } from "@std/http/cookie";
 import type { Middleware } from "fresh";
+import { posix } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
@@ -26,8 +27,51 @@ const PRIVATE_NO_STORE = "private, no-store";
 const normalizeFileSystemPath = (value: string) =>
   value.replaceAll("\\", "/").replace(/\/+$/, "");
 
+/**
+ * `@fresh/plugin-vite` wraps a module as `\0deno::<type>::<specifier>`, and
+ * its loader reads the specifier as a file URL in any of three spellings:
+ * `file:///abs`, the one-slash `file:/abs`, and a bare absolute path. All
+ * three must resolve to the same file here, or a spelling the guard does not
+ * know reaches the loader unguarded.
+ */
+const DENO_MODULE_ID = /^\0?deno::[^:]*::(.*)$/s;
+const ABSOLUTE_PATH = /^(?:\/|[A-Za-z]:[\\/])/;
+
+/** The file a Deno-wrapped id loads, null when it names no file, or "unparseable". */
+function denoModuleFilePath(
+  moduleId: string,
+): string | null | "unparseable" | undefined {
+  const match = moduleId.match(DENO_MODULE_ID);
+  if (!match) return undefined;
+  const specifier = match[1];
+  if (ABSOLUTE_PATH.test(specifier)) {
+    return specifier.startsWith("/") ? posix.normalize(specifier) : specifier;
+  }
+  if (!/^file:/i.test(specifier)) return null;
+  try {
+    // WHATWG URL parsing turns `file:/abs` into `file:///abs`.
+    return fileURLToPath(new URL(specifier));
+  } catch {
+    return "unparseable";
+  }
+}
+
+/**
+ * Whether a Deno-wrapped id names a file specifier this module cannot turn
+ * into a path. The dev guard denies such an id rather than call it public.
+ */
+export function isUnparseableDenoFileModuleId(moduleId: string): boolean {
+  return denoModuleFilePath(moduleId.split("?", 1)[0]) === "unparseable";
+}
+
 function moduleFilePath(moduleId: string): string | null {
   let id = moduleId.split("?", 1)[0];
+  const denoPath = denoModuleFilePath(id);
+  if (denoPath !== undefined) {
+    return typeof denoPath === "string" && denoPath !== "unparseable"
+      ? normalizeFileSystemPath(denoPath)
+      : null;
+  }
   const fileUrlStart = id.lastIndexOf("file://");
   if (fileUrlStart >= 0) {
     try {

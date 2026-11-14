@@ -113,6 +113,28 @@ Deno.test("the small radar's summary counts in the singular and the plural", () 
   );
 });
 
+Deno.test("the small radar promises no list when no trial sits on a ring", () => {
+  const html = mini(null, empty);
+  assertStringIncludes(
+    html,
+    'aria-label="No selected trial sits on a phase ring"',
+  );
+  assert(!html.includes("the list below"));
+  assert(!html.includes("<ul"));
+});
+
+Deno.test("the small radar counts only the populations with a trial on a ring", () => {
+  // POP_B's only trial has a phase no ring draws, so the list never names it.
+  const offRing = computeTimelineLayout([
+    trial("A", P_OUTER),
+    trial("B", "II/III", POP_B),
+  ], TWO_POPULATIONS);
+  assert(offRing.sectors.find((s) => s.key === POP_B)!.drugCount > 0);
+  const html = mini(null, offRing);
+  assertStringIncludes(html, 'aria-label="1 trial across 1 population;');
+  assertEquals(html.match(/<li[ >]/g)?.length, 1);
+});
+
 Deno.test("the small radar marks the active trial only", () => {
   const html = mini(layout.markers[0].index);
   assertEquals(html.match(/class="marker active"/g)?.length, 1);

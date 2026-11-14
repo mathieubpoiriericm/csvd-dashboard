@@ -621,6 +621,8 @@ interface TrialDrawerProps {
   marker: Marker | null;
   closeRef: Ref<HTMLButtonElement>;
   onClose: () => void;
+  /** Whether the drawer sits above the plate, which lifts its height cap. */
+  stacked?: boolean;
 }
 
 /**
@@ -724,11 +726,16 @@ function TrialRecord(
   );
 }
 
-function TrialDrawer({ layout, marker, closeRef, onClose }: TrialDrawerProps) {
+function TrialDrawer(
+  { layout, marker, closeRef, onClose, stacked }: TrialDrawerProps,
+) {
   const drawerRef = useRef<HTMLElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
 
   // A layout effect, so the record is never painted at the wrong size first.
+  // `stacked` is a dependency because stacking lifts the drawer's cap and the
+  // island decides it after a settled label solve, not on a window resize:
+  // the resize listener has already fitted against the old cap by then.
   useLayoutEffect(() => {
     const drawer = drawerRef.current;
     const body = bodyRef.current;
@@ -737,7 +744,7 @@ function TrialDrawer({ layout, marker, closeRef, onClose }: TrialDrawerProps) {
     fit();
     globalThis.addEventListener("resize", fit);
     return () => globalThis.removeEventListener("resize", fit);
-  }, [marker]);
+  }, [marker, stacked]);
 
   return (
     <aside
@@ -1761,6 +1768,7 @@ export default function TrialsTimeline(
           marker={radar.mode === "phone" ? null : activeMarker}
           closeRef={closeRef}
           onClose={close}
+          stacked={radar.stacked}
         />
         <TrialDialog
           layout={layout}

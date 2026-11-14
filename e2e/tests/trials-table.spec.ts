@@ -273,9 +273,14 @@ test("global search matches the formatted completion date, not the raw M/YYYY va
 
   const search = page.getByRole("searchbox", { name: "Search trials" });
   await search.fill(formatted);
+  // Wait for the debounced search to commit before reading rows: until it
+  // does, the first row is still the one `formatted` was read from, and every
+  // check below would pass on the unfiltered table. The empty state is a
+  // tbody row too, so a row count cannot tell "matched" from "matched none".
+  await expect(banner(page)).toContainText(`Search: “${formatted}”`);
+  await expect(page.locator(".empty-state")).toHaveCount(0);
   await expect(rows(page).locator("td:nth-child(12)").first())
     .toHaveText(formatted, { useInnerText: true });
-  expect(await rows(page).count()).toBeGreaterThanOrEqual(1);
 });
 
 test("the sticky treatment stays on Drug through a merged block, and stays opaque scrolled right", async ({ page }) => {

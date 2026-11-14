@@ -68,7 +68,7 @@ asyncio.run(go())'
 ```
 
 To attach late to a client that is already running, wait for its port first:
-`until nc -z -G 1 127.0.0.1 8086; do sleep 0.1; done; .tracy/bin/tracy-capture -o x.tracy`.
+`until nc -z -w 1 127.0.0.1 8086; do sleep 0.1; done; .tracy/bin/tracy-capture -o x.tracy`.
 Without `TRACY_ON_DEMAND`, the client keeps everything since start-up until a
 capture connects.
 

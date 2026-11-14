@@ -13,49 +13,56 @@ pipeline and the tests outside the four `csvd/` trees hold for any disease.
 
 | File                    | Rows             | Source                              |
 | ----------------------- | ---------------- | ----------------------------------- |
-| `table1.json`           | 88 genes         | `genes` table (+ three join tables) |
-| `table2.json`           | 102 trial rows   | `clinical_trials` table (curated)   |
-| `gene_info.json`        | 88               | `ncbi_gene_info` cache              |
-| `gene_info_table2.json` | 26               | `ncbi_gene_info` cache              |
-| `protein_info.json`     | 88               | `uniprot_info` cache                |
-| `refs.json`             | 168 citations    | `pubmed_citations` cache            |
-| `omim_info.json`        | 49               | `disease/omim_info.csv`             |
-| `gene_annotations.json` | 160              | `gene_annotations` table (pivoted)  |
+| `table1.json`           | 115 genes        | `genes` table (+ three join tables) |
+| `table2.json`           | 16 trial rows    | `clinical_trials` table (curated)   |
+| `gene_info.json`        | 116              | `ncbi_gene_info` cache              |
+| `gene_info_table2.json` | 24               | `ncbi_gene_info` cache              |
+| `protein_info.json`     | 116              | `uniprot_info` cache                |
+| `refs.json`             | 49 citations     | `pubmed_citations` cache            |
+| `omim_info.json`        | 76               | `disease/omim_info.csv`             |
+| `gene_annotations.json` | 174              | `gene_annotations` table (pivoted)  |
 | `pipeline_syncs.json`   | 3 (one per mode) | `sync_runs` table                   |
-| `geocoded_trials.json`  | 378 sites        | ClinicalTrials.gov                  |
+| `geocoded_trials.json`  | 70 sites         | ClinicalTrials.gov                  |
 | `cytobands_hg38.json`   | 862 bands        | UCSC Genome Browser                 |
 
-The 102 curated trial rows are 65 drugs across 82 registered trials, 77 of them
-on ClinicalTrials.gov, which is where the 378 map sites in 23 countries come
-from. `timeline.json` names 51 curated mechanisms of action grouped into 14
-families; the rows themselves use 46 of the mechanisms. The karyogram draws the
-21 chromosomes that carry a gene.
+The 16 curated trial rows are 11 drugs across 13 registered trials, 8 of them on
+ClinicalTrials.gov, which is where the 70 map sites in 10 countries come from.
+`timeline.json` names 54 curated mechanisms of action grouped into 14 families;
+the rows themselves use 11 of the mechanisms. The karyogram draws the 22
+chromosomes (21 autosomes and X) that carry a gene.
 
 ### Traits
 
-The 16 canonical phenotypes in `vocabulary.json`, by family. Each carries its
-STRIVE-2 definition, an ontology cross-reference (or an explicit `null` with the
-reason), and synonyms; nine more prompt terms are listed as deliberately
+The 21 canonical phenotypes in `vocabulary.json`, by family. Each carries an
+ontology cross-reference (or an explicit `null` with the reason); the four
+STRIVE-2 standard ones (`WMH`, `BG-PVS`, `CMB`, `lacunes`) also carry their
+definition, and five keep the curated gold table's own wording. Synonyms map
+other spellings onto them, and nine more prompt terms are listed as deliberately
 untracked.
 
-| Key              | Name                                                        | Family      |
-| ---------------- | ----------------------------------------------------------- | ----------- |
-| `WMH`            | White matter hyperintensities (of presumed vascular origin) | `wmh`       |
-| `PVWMH`          | Periventricular white matter hyperintensities               | `wmh`       |
-| `DWMH`           | Deep white matter hyperintensities                          | `wmh`       |
-| `BG-PVS`         | Basal ganglia perivascular spaces                           | `pvs`       |
-| `WM-PVS`         | White matter perivascular spaces                            | `pvs`       |
-| `HIP-PVS`        | Hippocampal perivascular spaces                             | `pvs`       |
-| `PSMD`           | Peak width of skeletonized mean diffusivity                 | `diffusion` |
-| `FA`             | Fractional anisotropy                                       | `diffusion` |
-| `MD`             | Mean diffusivity                                            | `diffusion` |
-| `NODDI`          | Neurite orientation dispersion and density imaging          | `diffusion` |
-| `extreme-cSVD`   | Extreme cerebral small vessel disease                       | `extreme`   |
-| `SVS`            | Small vessel stroke                                         | `stroke`    |
-| `stroke`         | Stroke                                                      | `stroke`    |
-| `lacunar stroke` | Lacunar stroke                                              | `stroke`    |
-| `CMB`            | Cerebral microbleeds                                        | `cmb`       |
-| `lacunes`        | Lacunes (of presumed vascular origin)                       | `lacunes`   |
+| Key                                    | Name                                                        | Family      |
+| -------------------------------------- | ----------------------------------------------------------- | ----------- |
+| `WMH`                                  | White matter hyperintensities (of presumed vascular origin) | `wmh`       |
+| `PVWMH`                                | Periventricular white matter hyperintensities               | `wmh`       |
+| `DWMH`                                 | Deep white matter hyperintensities                          | `wmh`       |
+| `BG-PVS`                               | Basal ganglia perivascular spaces                           | `pvs`       |
+| `WM-PVS`                               | White matter perivascular spaces                            | `pvs`       |
+| `HIP-PVS`                              | Hippocampal perivascular spaces                             | `pvs`       |
+| `PSMD`                                 | Peak width of skeletonized mean diffusivity                 | `diffusion` |
+| `FA`                                   | Fractional anisotropy                                       | `diffusion` |
+| `MD`                                   | Mean diffusivity                                            | `diffusion` |
+| `NODDI`                                | Neurite orientation dispersion and density imaging          | `diffusion` |
+| `extreme-cSVD`                         | Extreme cerebral small vessel disease                       | `extreme`   |
+| `MTAG (all ICH, SVS, WMH, FA, MD, AD)` | MTAG (all ICH, SVS, WMH, FA, MD, AD)                        | `extreme`   |
+| `SVS`                                  | Small vessel stroke                                         | `stroke`    |
+| `stroke`                               | Stroke                                                      | `stroke`    |
+| `lacunar stroke`                       | Lacunar stroke                                              | `stroke`    |
+| `CMB`                                  | Cerebral microbleeds                                        | `cmb`       |
+| `lacunes`                              | Lacunes (of presumed vascular origin)                       | `lacunes`   |
+| `lacunes (suggestive significance)`    | lacunes (suggestive significance)                           | `lacunes`   |
+| `ICH`                                  | ICH                                                         | `ich`       |
+| `non-lobar ICH`                        | non-lobar ICH                                               | `ich`       |
+| `All ICH & lobar ICH only`             | All ICH & lobar ICH only                                    | `ich`       |
 
 ### Populations
 

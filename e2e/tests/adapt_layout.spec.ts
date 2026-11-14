@@ -290,8 +290,9 @@ test("a long unbroken value wraps rather than widening the page", async ({ page 
   await page.setViewportSize(NARROW);
   await openWizard(page);
   // A key typed from a long dashed name: its fix button echoes it whole.
+  // Forty characters, the longest key: past it the fix is not offered.
   await page.getByLabel("Key", { exact: true }).fill(
-    "a-very-long-dashed-disease-name-that-keeps-on-going-past-the-edge",
+    "a-very-long-dashed-disease-name-going-on",
   );
   await expect(page.locator(".adapt-fix").first()).toBeVisible();
   expect(await overflow(page), "the key's fix").toBeLessThanOrEqual(0);

@@ -28,7 +28,7 @@ import {
 } from "../lib/constants.ts";
 import { CELL_TYPES_LABEL } from "../lib/disease/cell_types.ts";
 import { countBy } from "../lib/collections.ts";
-import { isDoi, shortCitation, toCitation } from "../lib/citations.ts";
+import { doiHref, isDoi, shortCitation, toCitation } from "../lib/citations.ts";
 import { referenceByPmid } from "../lib/data/references.ts";
 import { genes } from "../lib/data/genes.ts";
 import {
@@ -258,12 +258,12 @@ function hasCitation(id: string): boolean {
  * reads as a link to the resolver rather than as a PMID whose citation failed
  * to resolve.
  * A DOI suffix may hold any printable character, so the link encodes it
- * (`%` and non-ASCII above all) while the text shows it as written.
+ * (`doiHref`) while the text shows it as written.
  */
 function DoiReference({ doi }: { doi: string }) {
   return (
     <a
-      href={`https://doi.org/${encodeURI(doi)}`}
+      href={doiHref(doi)}
       target="_blank"
       rel="noopener noreferrer"
     >

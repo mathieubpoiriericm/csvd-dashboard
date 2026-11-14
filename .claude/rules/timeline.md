@@ -258,7 +258,11 @@ their reasons:
 - **Markers grow to keep their size, up to a cap.** `markerGrowth(scale, cap)`
   is `max(1, min(1/scale, cap))`, `cap = markerGrowthCap()` is half the
   closest pair's centre distance over the evidence ring's radius, so two
-  markers never touch however far the plate shrinks. The factor `k` multiplies
+  markers never touch however far the plate shrinks. The cap does not count
+  the ring's stroke or the obstacle squares' 1-unit pad, so at full growth
+  the closest pair's squares can overlap; a pre-launch fix that counted them
+  (Chebyshev distance, about 1.87 instead of 2 here) hung WebKit's main
+  thread on `/timeline` at 900x240, and was reverted. The factor `k` multiplies
   marker, ring and gap radii and is published as `--radar-k` on the svg; the
   hover lift is `calc(12px * var(--radar-k, 1))`, so a test reads the lifted
   radius divided by `--radar-k`. The drug-label offset grows with it

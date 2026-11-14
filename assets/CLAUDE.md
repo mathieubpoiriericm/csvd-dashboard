@@ -124,7 +124,9 @@ Six things are load-bearing:
   white plate in both themes, and dark mode's light-steel focus colour measured
   1.99:1 there — but every `:focus-visible` rule underneath still resolves
   `var(--svd-focus-color)` unchanged, so this is a scoped parameter rather than
-  a second exception.
+  a second exception. `.navbar` does the same with `--svd-nav-accent`: the bar
+  is dark in both themes, and light mode's dark-steel ring measured 1.42:1 on
+  it.
 
 No `backdrop-filter` anywhere, deliberately. The navbar and the timeline drawer
 are translucent, but a blur of a flat field returns that same flat field — over

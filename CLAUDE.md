@@ -117,6 +117,8 @@ island that will not hydrate. It is not.
 - `deno install` once per worktree, and `npm ci --prefix e2e` for Playwright.
   The whole suite runs from the repo root:
   `npx --prefix e2e playwright test -c e2e/playwright.config.ts [tests/x.spec.ts]`.
+  Without `E2E_PORT` its server's port is derived from the checkout's path, so
+  worktrees never reuse one another's server.
 - Copy `.env` in before `deno task data` or a live run; it is gitignored.
 - Set `TRACY_DIR=<main checkout>/.tracy/bin` for `deno task perf` and
   `deno task tracy:run`, rather than building Tracy again; init the
@@ -141,31 +143,34 @@ live in `disease/pipeline.json` and why each schema's
 `additionalProperties: false` is enforced by a test on both sides of the seam.
 **Three more files ship before login the same way** — `vocabulary.json` (the
 filter choices, which the login route imports), `timeline.json` and
-`phenogram.json` — so none of the four may name a gene: `PUBLIC_DISEASE_FILES`
-in `tests/helpers/public_symbols.ts` lists them,
-`tests/disease_manifest_test.ts` fails on a symbol of `pipeline.json` in any,
-and the wizard's `validate()` refuses the same strings. `disease/prompt.md` is
-the disease half of the extraction prompt (the methodology is the v8 template in
-`pipeline/prompts.py`); it is excluded from `deno fmt` in `deno.json` because
-`deno fmt` rewraps Markdown prose and every inserted newline would reach the
-model; `tests/pipeline/csvd/test_csvd_prompt_assembly.py` pins the cSVD
-rendering byte-identical to the v6 literals but for the omics lines v8 changed.
-TypeScript reads the manifest through the narrow modules under `lib/disease/`,
-and Python through `pipeline/disease.py`, which is stdlib-only so `config.py`
-and `extraction_models.py` can both import it.
-`tests/no_disease_literals_test.ts` and
-`tests/pipeline/test_no_disease_literals.py` scan the code for the manifest's
-own terms and fail on any hit outside a reasoned allow-list, whose entries
-excuse less than a file: a line pattern in the TypeScript one, and in the Python
-one a term in the file's comments and docstrings (`_prose`) or inside one named
-assignment (`_declared`). Each scans the tests outside the `csvd/` trees the
-same way, wherever those trees exist: a fork has deleted them, and the generic
-tests it inherits name their own example disease, the one `adapt-fork` builds
-its fork for, so there that scan is skipped. Where the trees exist both also
-scan, code and tests, for the trait vocabulary (`vocabulary.json`: keys, labels,
-synonyms, untracked terms and the spelled-out names of several words) and the
-manifest's trial populations, leaving out a single lower-case word such as the
-trait keyed `stroke`, which is also an SVG attribute; a fork's traits and
+`phenogram.json` — so none of the four may name a gene symbol of `pipeline.json`
+(its monogenic genes and aliases): `PUBLIC_DISEASE_FILES` in
+`tests/helpers/public_symbols.ts` lists them, `tests/disease_manifest_test.ts`
+fails on such a symbol in any, and the wizard's `validate()` refuses the same
+strings. A trial mechanism that names its drug's public target (timeline.json's
+`APP mRNA reduction …`) is allowed: it is a key `data/table2.json` must match
+byte for byte, and it says nothing about the gated gene table.
+`disease/prompt.md` is the disease half of the extraction prompt (the
+methodology is the v8 template in `pipeline/prompts.py`); it is excluded from
+`deno fmt` in `deno.json` because `deno fmt` rewraps Markdown prose and every
+inserted newline would reach the model;
+`tests/pipeline/csvd/test_csvd_prompt_assembly.py` pins the cSVD rendering
+byte-identical to the v6 literals but for the omics lines v8 changed. TypeScript
+reads the manifest through the narrow modules under `lib/disease/`, and Python
+through `pipeline/disease.py`, which is stdlib-only so `config.py` and
+`extraction_models.py` can both import it. `tests/no_disease_literals_test.ts`
+and `tests/pipeline/test_no_disease_literals.py` scan the code for the
+manifest's own terms and fail on any hit outside a reasoned allow-list, whose
+entries excuse less than a file: a line pattern in the TypeScript one, and in
+the Python one a term in the file's comments and docstrings (`_prose`) or inside
+one named assignment (`_declared`). Each scans the tests outside the `csvd/`
+trees the same way, wherever those trees exist: a fork has deleted them, and the
+generic tests it inherits name their own example disease, the one `adapt-fork`
+builds its fork for, so there that scan is skipped. Where the trees exist both
+also scan, code and tests, for the trait vocabulary (`vocabulary.json`: keys,
+labels, synonyms, untracked terms and the spelled-out names of several words)
+and the manifest's trial populations, leaving out a single lower-case word such
+as the trait keyed `stroke`, which is also an SVG attribute; a fork's traits and
 populations are free text and may be ordinary words, so its code is not scanned
 for them. `server/`, `scripts/*.ts` and the root-level files are scanned
 upstream only too: the fork check's own script names the disease it builds, and

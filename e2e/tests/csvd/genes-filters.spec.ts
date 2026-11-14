@@ -39,7 +39,7 @@ test("WMH and PSMD union", async ({ page }) => {
 
   await choice(page, GWAS, "PSMD").check();
   await expectRowCount(page, 23, GENE_TOTAL);
-  await expectSummary(page, "GWAS Traits: WMH, PSMD");
+  await expectSummary(page, "GWAS Traits: WMH; PSMD");
   await expect(filterCount(page, GWAS)).toHaveText("2");
 });
 

@@ -97,7 +97,10 @@ const median = (values) => {
  *
  * `deno task perf` builds first, so `_fresh/server.js` is current. The two
  * secrets are the e2e suite's, so a server it left running is reused rather
- * than fought over -- and neither is a real credential.
+ * than fought over -- and neither is a real credential. A reused server may
+ * serve an older build than the one just made, so the report then records
+ * `serverReused` and leaves `buildSha256` and `commit` null rather than
+ * claiming a provenance it cannot vouch for.
  */
 async function startServer() {
   const reachable = async () => {
@@ -541,6 +544,8 @@ const metadata = {
   throttle,
   tracing: useTrace,
   only: only ?? null,
+  /** True when an already-running server was measured; see startServer. */
+  serverReused: false,
   /** The queries and trait derived from the data; see e2e/perf/README.md. */
   derivedInputs: DERIVED_INPUTS,
   buildSha256: createHash("sha256").update(
@@ -580,6 +585,15 @@ let server;
 let browser;
 try {
   server = await startServer();
+  if (server === null) {
+    metadata.serverReused = true;
+    metadata.buildSha256 = null;
+    metadata.commit = null;
+    console.warn(
+      `Reusing the server already on ${BASE}: it may not serve this build, ` +
+        "so the report records no build hash or commit. Stop it for a measured build.",
+    );
+  }
   browser = await chromium.launch();
   metadata.chromium = browser.version();
   const storageState = await signIn(browser);

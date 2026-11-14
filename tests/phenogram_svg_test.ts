@@ -34,7 +34,7 @@ const css = await Deno.readTextFile(
 // The light theme is the first `:root` block, ending before the dark query.
 const light = css.slice(
   css.indexOf(":root {"),
-  css.indexOf("@media (prefers-color-scheme: dark)"),
+  css.indexOf("prefers-color-scheme: dark)"),
 );
 const lines = light.split("\n").map((l) => l.trim());
 

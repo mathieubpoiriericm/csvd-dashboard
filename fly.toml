@@ -32,6 +32,15 @@ primary_region = "cdg"
   auto_start_machines = true
   min_machines_running = 1
 
+  # With one machine the proxy has no other candidate, so Fly's default
+  # limits (20/25 connections) would queue and then refuse visitors long
+  # before one Deno process serving pre-bundled pages is busy. Counted in
+  # requests; raise after a load test, within the shared-cpu-1x VM.
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 100
+    hard_limit = 150
+
   # Liveness only. Fly's checks pass on a 2xx and follow no redirect, and
   # /login is the one page that answers 200 without a session, because the
   # gate exempts it before reading the secrets: it answers 200 even with a

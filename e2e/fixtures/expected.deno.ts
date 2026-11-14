@@ -30,6 +30,7 @@ import { genes } from "../../lib/data/genes.ts";
 import { trialLocations } from "../../lib/data/locations.ts";
 import { pipelineStatus } from "../../lib/data/pipeline.ts";
 import { pipelineRun } from "../../lib/data/pipeline_run.ts";
+import { pipelineSyncs } from "../../lib/data/pipeline_syncs.ts";
 import { summarize } from "../../lib/data/summary.ts";
 import { trials } from "../../lib/data/trials.ts";
 import { manifest } from "../../lib/disease.ts";
@@ -39,6 +40,7 @@ import {
   GOLD_ONLY_NOTICE,
 } from "../../lib/gold_only.ts";
 import {
+  FILTER_VALUE_SEPARATOR,
   filterGenes,
   filterLocationsByStatus,
   filterTrials,
@@ -115,7 +117,11 @@ const traits = traitChoices.map((c) => ({
   label: c.label,
   count: countGenes({ gwasTraits: [c.value] }),
 }));
-const traitsWithRows = [...traits].sort((a, b) => b.count - a.count);
+// Only traits a gene carries: with GOLD_ONLY off every vocabulary trait is
+// offered, and a zero-row trait would satisfy the specs' "a gene carries it"
+// skip guards without exercising anything.
+const traitsWithRows = traits.filter((t) => t.count > 0)
+  .sort((a, b) => b.count - a.count);
 const omics = choices(OMICS_CHOICES).map((c) => ({
   label: c.label,
   value: c.value,
@@ -225,6 +231,16 @@ const shownLocations = filterLocationsByStatus(
   DEFAULT_TRIAL_STATUSES,
 );
 const nctKey = (value: string) => value.trim().toUpperCase();
+// One status that, ticked alone, leaves some sites but not all of them: what
+// the map test ticks to see the filter narrow the cluster and come back. Null
+// when no status splits the sites (an empty export, say).
+const mapNarrowStatus = STATUS_CHOICES
+  .filter((choice) => choice.value !== SHOW_ALL)
+  .map((choice) => ({
+    label: choice.label,
+    sites: filterLocationsByStatus(mapLocations, [choice.value]).length,
+  }))
+  .find(({ sites }) => sites > 0 && sites < mapLocations.length) ?? null;
 
 // ---------------------------------------------------------------------------
 // The two figures
@@ -360,7 +376,7 @@ const expected = {
   trialRows: trials.length,
   trialRowsShown: shownTrials.length,
   statusSummary: statusLabels.length > 0
-    ? `Study status: ${statusLabels.join(", ")}`
+    ? `Study status: ${statusLabels.join(FILTER_VALUE_SEPARATOR)}`
     : null,
   defaultStatusLabels: statusLabels,
   statusChoiceCount: STATUS_CHOICES.length,
@@ -427,6 +443,8 @@ const expected = {
   map: {
     sites: trialLocations.length,
     sitesShown: shownLocations.length,
+    /** A status ticked alone that leaves some sites but not all, or null. */
+    narrowStatus: mapNarrowStatus,
     /** Sites whose popup carries a status badge (a stated status). */
     sitesWithStatus: mapLocations.filter((l) => l.status !== null).length,
     countries: uniqueCount(
@@ -497,6 +515,7 @@ const expected = {
 
   hasPipelineStatus: pipelineStatus !== null,
   hasPipelineRun: pipelineRun !== null,
+  hasPipelineSyncs: pipelineSyncs.length > 0,
 
   /** The gold-only switch, and what the About page says while it is on. */
   goldOnly: GOLD_ONLY,

@@ -28,9 +28,9 @@ export function meshHeadings(
 }
 
 /**
- * A condition as clinical_trials_fetch.py compares one: it lower-cases the
- * trial's stated condition before looking for the substring, so a
- * substring written with a capital could never match.
+ * A condition lower-cased, as validate() accepts one with a capital:
+ * clinical_trials_fetch.py folds the configured terms too, so this only
+ * writes pipeline.json in the form the fetch compares.
  */
 const condition = (value: string): string => clean(value).toLowerCase();
 

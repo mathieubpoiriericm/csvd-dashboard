@@ -35,6 +35,15 @@ Deno.test("dev classifier covers Vite paths, queries, encoding, and source maps"
     "/lib/data/%2E%2E/data/genes.ts",
     "/@fs//repo/data/../data/table1.json",
     "/@id/__x00__deno::1::file:///repo/data/../data/table1.json?import",
+    // The plugin also loads a one-slash file URL and a bare absolute path.
+    "/@id/__x00__deno::1::file:/repo/data/table1.json?import",
+    "/@id/__x00__deno::1::/repo/data/table1.json?import",
+    "/@id/__x00__deno::0::file:/repo/lib/data/locations.ts",
+    "/@id/__x00__deno::0::/repo/lib/data.ts",
+    "/@id/__x00__deno::1::/repo/islands/../data/table1.json",
+    "/@id/__x00__deno::1::FILE:/REPO/DATA/table1.json",
+    // A file specifier the guard cannot read is denied, not called public.
+    "/@id/__x00__deno::1::file://host/repo/data/table1.json",
     "/ui/lib/data/genes.ts",
   ];
   for (const path of protectedPaths) {
@@ -64,6 +73,10 @@ Deno.test("dev classifier leaves public modules and their source maps public", (
       "/data/readme.csv",
       "/data/table1.json.map.map",
       "/@id/__x00__deno::1::file:///repo/lib/theme.ts",
+      "/@id/__x00__deno::0::file:/repo/lib/theme.ts",
+      "/@id/__x00__deno::0::/repo/lib/theme.ts",
+      "/@id/__x00__deno::0::jsr:@std/http/cookie",
+      "/@id/__x00__vite/preload-helper.js",
     ]
   ) {
     assertEquals(classifyProtectedDevRequest(path, ROOT), "public", path);

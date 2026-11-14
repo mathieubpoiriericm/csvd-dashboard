@@ -319,10 +319,10 @@ export function xrefAnswer(
   return {
     xref: hits[0].id,
     xrefNote: `OLS4 top hit: ${
-      genes?.test(hits[0].label) ? hits[0].id : hits[0].label
+      genes?.test(clean(hits[0].label)) ? hits[0].id : hits[0].label
     }; alternatives: ${
       hits.slice(1).map((h) =>
-        genes?.test(h.label) ? h.id : `${h.id} ${h.label}`
+        genes?.test(clean(h.label)) ? h.id : `${h.id} ${h.label}`
       ).join("; ") || "none"
     }`,
   };
@@ -615,9 +615,11 @@ const pause = (delay: number) =>
  * and one more for each 200 pathogenic records it has past the first),
  * so the spacing is held here -- across the requests of one lookup's loop,
  * its retries, and lookups started back to back -- rather than in each
- * loop. The clock is monotonic, and the next start is
- * never further off than one gap, so a clock set back cannot hold every
- * request until it catches up.
+ * loop. Each start is reserved one gap after the previous one, so
+ * requests that arrive together leave one after another rather than in a
+ * burst. The default clock is monotonic; an injected clock set back moves
+ * the reserved starts back with it, so it cannot hold every request until
+ * it catches up.
  */
 export function spaced(
   f: Fetch,
@@ -626,16 +628,17 @@ export function spaced(
   wait: (delay: number) => Promise<void> = pause,
   now: () => number = () => performance.now(),
 ): Fetch {
-  let next = 0;
-  // The gap the next start was set with, which bounds how far off it is.
-  let held = 0;
+  let next = -Infinity;
+  // The clock when the previous start was reserved, to see it set back.
+  let last = -Infinity;
   return (input, init) => {
     const url = input instanceof Request ? input.url : String(input);
     if (new URL(url).host !== host) return f(input, init);
     const at = now();
-    const start = Math.max(at, Math.min(next, at + held));
-    held = gap();
-    next = start + held;
+    if (at < last) next -= last - at;
+    last = at;
+    const start = Math.max(at, next);
+    next = start + gap();
     const delay = start - at;
     return (delay > 0 ? wait(delay) : Promise.resolve()).then(() =>
       f(input, init)

@@ -24,7 +24,11 @@
       "required": ["key", "name", "short", "abbreviation", "adjective"],
       "additionalProperties": false,
       "properties": {
-        "key": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "key": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "maxLength": 40
+        },
         "name": { "type": "string", "minLength": 1 },
         "short": { "type": "string", "minLength": 1 },
         "abbreviation": { "type": "string", "minLength": 1 },

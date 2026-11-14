@@ -73,6 +73,21 @@ Deno.test("identity rules", () => {
     withChange((a) => a.identity.disease.key = "Bad Key"),
     "identity:disease.key",
   );
+  // The key names `${key}_dashboard_preview` and the Fly host label, both
+  // cut at 63 characters.
+  has(
+    withChange((a) => a.identity.disease.key = "a".repeat(41)),
+    "identity:disease.key",
+  );
+  lacks(
+    withChange((a) => a.identity.disease.key = "a".repeat(40)),
+    "identity:disease.key",
+  );
+  // An unpaired surrogate, which only an imported draft can carry.
+  has(
+    withChange((a) => a.identity.institute.name = "Inst\ud800"),
+    "identity:institute.name",
+  );
   has(
     withChange((a) => a.identity.disease.name = " "),
     "identity:disease.name",
@@ -498,6 +513,11 @@ Deno.test("a key the filters keep for themselves is refused", () => {
     withChange((a) => a.trials.mechanisms[0].name = UNKNOWN),
     "trials:mechanisms[0].name",
   );
+  // "All" is the filters' Show All choice, not a missing mechanism.
+  const all = validate(
+    withChange((a) => a.trials.mechanisms[0].name = "All"),
+  ).find((i) => i.field === "mechanisms[0].name");
+  assert(all?.message.includes("the filters keep for themselves"));
   lacks(
     withChange((a) => a.trials.populations[0].key = "All ages"),
     "trials:populations[0].key",
@@ -852,7 +872,19 @@ Deno.test("search: every phrase must be checked, at least one must have a headin
   );
 });
 
-Deno.test("trials: a condition outside the fetch's alphabet can never match", () => {
+Deno.test("a family no trait or mechanism points at is named by its key", () => {
+  const messages = validate(withChange((a) => {
+    a.vocabulary.families.push({ key: "fam_new", label: "" });
+    a.trials.mechanismFamilies.push({ key: "mech_new", label: "" });
+  })).map((i) => i.message);
+  assert(
+    messages.includes('Family "fam_new" has no trait.'),
+    messages.join("\n"),
+  );
+  assert(messages.includes('Family "mech_new" has no mechanism.'));
+});
+
+Deno.test("trials: a condition must be written in the fetch's folded form", () => {
   lacks(
     withChange((a) => a.trials.conditions = ["Exampleitis", "type 2"]),
     "trials:conditions[0]",
@@ -1227,6 +1259,20 @@ Deno.test("a trait label fits the karyogram's label column", () => {
   );
 });
 
+// The Active Filters line joins selected choices with "; " (a comma inside
+// a label made two selected traits read as several), so a label holding it
+// would bring the same ambiguity back.
+Deno.test("a trait label leaves out the filter summary's separator", () => {
+  has(
+    withChange((a) => a.vocabulary.traits[0].label = "A; B"),
+    "vocabulary:traits[0].label",
+  );
+  lacks(
+    withChange((a) => a.vocabulary.traits[0].label = "A, B"),
+    "vocabulary:traits[0].label",
+  );
+});
+
 Deno.test("two traits cannot share one label", () => {
   // The label is the text of the filter choice and of the karyogram pill:
   // two traits with one label cannot be told apart on the page, and the
@@ -1281,6 +1327,14 @@ Deno.test("a logo's bytes are what its name says, and inert", () => {
       // comments closed with "-->" and a DOCTYPE closed with ">"; a comment
       // ends at its first "-->".
       svg(`<?xml version="1.0"><svg ${NS}/>`),
+      // A declaration cut off where its name ends opens no root at all.
+      svg("<?xml"),
+      // An xml-stylesheet instruction is no declaration, and an XSLT
+      // transform can write a script without spelling one.
+      svg(
+        `<?xml-stylesheet type="text/xsl" href="#x"?><svg ${NS} xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:stylesheet id="x" version="1.0"><xsl:template match="/"><xsl:element name="script">alert(1)</xsl:element></xsl:template></xsl:stylesheet></svg>`,
+      ),
+      svg(`<?xml version="1.0"?><svg ${NS}/><?xml-stylesheet href="#x"?>`),
       svg(`<!-- never closed <svg ${NS}/>`),
       svg(`<!-- one --> stray --><svg ${NS}/>`),
       svg(`<!DOCTYPE svg <svg ${NS}/`),
@@ -1412,6 +1466,15 @@ Deno.test("a gene symbol cannot reach any string the public files hold", () => {
   has(
     withChange((a) => a.identity.institute.url = "https://example.org/GENEA"),
     "identity:institute.url",
+  );
+  // The files hold NFC text, so a decomposed spelling of an alias is found
+  // as the fork's leak test will find it.
+  has(
+    withChange((a) => {
+      a.monogenic.aliases.push({ alias: "Caf\u00e9X", symbols: ["GENEA"] });
+      a.identity.site.aboutLede = "About Cafe\u0301X.";
+    }),
+    "identity:site.aboutLede",
   );
   has(
     withChange((a) => a.identity.maintainer.name = "GENEA lab"),
@@ -1731,6 +1794,7 @@ Deno.test("an answer typed on one line holds no line break", () => {
       "vocabulary:traits[0].xrefNote",
       (a, t) => a.vocabulary.traits[0].xrefNote = t,
     ],
+    ["vocabulary:traits[0].xref", (a, t) => a.vocabulary.traits[0].xref = t],
     ["vocabulary:citationStandard.name", (a, t) => standard(a).name = t],
     ["vocabulary:citationStandard.label", (a, t) => standard(a).label = t],
     [
