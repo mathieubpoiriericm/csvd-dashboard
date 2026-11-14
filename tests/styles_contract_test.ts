@@ -2098,6 +2098,7 @@ Deno.test("every control that lights on hover lights on focus-visible too", () =
     ".adapt-stepper-item",
     "button.adapt-card-head",
     ".adapt-link-button",
+    ".preview-switcher-link",
   ];
   for (const selector of selectors) {
     const escaped = selector.replace(

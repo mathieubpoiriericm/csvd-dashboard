@@ -972,6 +972,58 @@ svg {
   margin-inline: auto;
 }
 
+/*
+ * The previews' strip, above a feature page's header. Its rows wrap rather than
+ * scroll, so a narrow screen never gains a sideways scroll. It carries no outer
+ * margin: the shell's gap spaces it. The current link differs by weight and an
+ * underline rule as well as colour.
+ */
+.preview-switcher {
+  display: flex;
+  flex-direction: column;
+  gap: var(--svd-space-2);
+}
+
+.preview-switcher-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--svd-space-1) var(--svd-space-3);
+}
+
+.preview-switcher-sub {
+  padding-top: var(--svd-space-2);
+  border-top: 1px solid var(--svd-border);
+}
+
+.preview-switcher-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--svd-space-1);
+  padding: var(--svd-space-1) 0;
+  border-bottom: 2px solid transparent;
+  color: var(--svd-text-muted);
+  font-size: var(--svd-text-sm);
+  font-weight: var(--svd-weight-medium);
+  text-decoration: none;
+}
+
+.preview-switcher-link:hover,
+.preview-switcher-link:focus-visible {
+  color: var(--svd-color-accent-text);
+  border-bottom-color: var(--svd-border);
+}
+
+.preview-switcher-link.is-current {
+  color: var(--svd-color-accent-text);
+  border-bottom-color: var(--svd-color-accent-text);
+  font-weight: var(--svd-weight-semibold);
+}
+
+.preview-switcher-back {
+  margin-inline-end: var(--svd-space-2);
+}
+
 .layout-sidebar {
   display: grid;
   grid-template-columns: minmax(240px, 20rem) minmax(0, 1fr);
