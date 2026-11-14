@@ -293,7 +293,9 @@ its cost, the recall figure and every missed PMID by title, whether the prompt
 has examples or the `none yet` marker, the test-side edits made, and that the
 first live run's export moves the recall denominator, with the three commands
 that measure it again, and leaves the README's cSVD screenshots for
-`deno task screenshots` to replace, all but the three `review-*.webp`, which a
-fork has no review area to retake and deletes with their README rows. If
+`deno task screenshots` to replace: the six tabs and the previews hub, whose
+caption and alt text the fork rewords to what its hub holds, the adaptation
+guide alone. The three `review-*.webp` are not retaken: a fork has no review
+area, and deletes them with their README rows. If
 anything was skipped — a lookup that failed, a question the researcher deferred
 — it is named there, not left for the next run to find.

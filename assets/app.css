@@ -133,10 +133,10 @@
   --svd-surface-translucent: color-mix(in oklab, var(--svd-surface) 84%, transparent);
   --svd-nav: var(--svd-steel-900);
   --svd-nav-ink: var(--svd-slate-100);
-  /* The adapt link's outline and its "recently updated" dot. The bar is dark
-     in both themes, so neither has a dark override. */
+  /* The previews entry's outline and its "new" dot. The bar is dark in both
+     themes, so neither has a dark override. */
   --svd-nav-accent: var(--svd-steel-300);
-  --svd-nav-flag: var(--svd-amber-300);
+  --svd-nav-new: var(--svd-green-400);
 
   --svd-ink: var(--svd-slate-950);
   --svd-ink-muted: var(--svd-slate-700);
@@ -972,6 +972,125 @@ svg {
   margin-inline: auto;
 }
 
+/*
+ * The previews' strip, above a feature page's header. Its rows wrap rather than
+ * scroll, so a narrow screen never gains a sideways scroll. It carries no outer
+ * margin: the shell's gap spaces it. The current link differs by weight and an
+ * underline rule as well as colour.
+ */
+.preview-switcher {
+  display: flex;
+  flex-direction: column;
+  gap: var(--svd-space-2);
+}
+
+.preview-switcher-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--svd-space-1) var(--svd-space-3);
+}
+
+.preview-switcher-sub {
+  padding-top: var(--svd-space-2);
+  border-top: 1px solid var(--svd-border);
+}
+
+.preview-switcher-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--svd-space-1);
+  padding: var(--svd-space-1) 0;
+  border-bottom: 2px solid transparent;
+  color: var(--svd-text-muted);
+  font-size: var(--svd-text-sm);
+  font-weight: var(--svd-weight-medium);
+  text-decoration: none;
+}
+
+.preview-switcher-link:hover,
+.preview-switcher-link:focus-visible {
+  color: var(--svd-color-accent-text);
+  border-bottom-color: var(--svd-border);
+}
+
+.preview-switcher-link.is-current {
+  color: var(--svd-color-accent-text);
+  border-bottom-color: var(--svd-color-accent-text);
+  font-weight: var(--svd-weight-semibold);
+}
+
+/* Forced colours paint the transparent underline every link carries, so
+   there the current link takes the highlight and the others the canvas. */
+@media (forced-colors: active) {
+  .preview-switcher-link {
+    border-bottom-color: Canvas;
+  }
+
+  .preview-switcher-link.is-current {
+    border-bottom-color: Highlight;
+  }
+}
+
+.preview-switcher-back {
+  margin-inline-end: var(--svd-space-2);
+}
+
+/*
+ * The previews hub: one card per feature, stacked on a narrow screen and
+ * sharing one row from 900px. One implicit column per card, so one, two or
+ * three cards fill the row alike; `repeat(auto-fit, minmax(0, 1fr))` has no
+ * minimum to fit to and made a track a pixel wide in the run widget's
+ * verdict. The cards of a row stretch to one height and each card's actions
+ * sit at its foot, so the buttons of a row line up whatever the summaries'
+ * lengths.
+ */
+.preview-cards {
+  display: grid;
+  gap: var(--svd-space-5);
+}
+
+@media (min-width: 900px) {
+  .preview-cards {
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+  }
+}
+
+.preview-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.preview-card > .card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.preview-card .card-title {
+  display: flex;
+  align-items: center;
+  gap: var(--svd-space-2);
+}
+
+.preview-card .card-title > .icon {
+  color: var(--svd-primary);
+  opacity: 0.75;
+}
+
+.preview-card-text {
+  margin: 0 0 var(--svd-space-5);
+  line-height: var(--svd-leading-normal);
+}
+
+.preview-card-actions {
+  margin-top: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--svd-space-2);
+}
+
 .layout-sidebar {
   display: grid;
   grid-template-columns: minmax(240px, 20rem) minmax(0, 1fr);
@@ -1177,40 +1296,41 @@ svg {
 }
 
 /*
- * The adapt guide's link. It is not a tab -- it leads out of the dashboard's
- * own pages -- so it is outlined at rest, where a tab is bare until hovered,
- * and stands well clear of About, seven times the gap between two tabs.
- * Declared before the current-page rule on purpose: on /adapt it takes the
- * same fill a tab does.
+ * The previews entry. It is not a tab -- it leads to the features still in
+ * preview, outside the dashboard's own pages -- so it is outlined at rest,
+ * where a tab is bare until hovered, and stands well clear of About, seven
+ * times the gap between two tabs. Declared before the current-page rule on
+ * purpose: on the hub and every page behind it, it takes the same fill a tab
+ * does.
  */
-.nav-adapt {
+.nav-previews {
   position: relative;
   margin-right: var(--svd-space-6);
 }
 
-.nav-link.nav-link-adapt,
-.nav-link.nav-link-adapt:visited {
+.nav-link.nav-link-previews,
+.nav-link.nav-link-previews:visited {
   border-color: var(--svd-nav-accent);
   background: color-mix(in oklab, var(--svd-nav-accent) 10%, transparent);
   color: var(--svd-nav-accent);
 }
 
-.nav-link.nav-link-adapt:not([aria-current]):hover,
-.nav-link.nav-link-adapt:not([aria-current]):focus-visible {
+.nav-link.nav-link-previews:not([aria-current]):hover,
+.nav-link.nav-link-previews:not([aria-current]):focus-visible {
   border-color: var(--svd-nav-accent);
   background: color-mix(in oklab, var(--svd-nav-accent) 22%, transparent);
   color: var(--svd-nav-ink);
 }
 
-/* "Recently updated". The tooltip's first sentence says so in words. */
-.nav-adapt-dot {
+/* "New". The tooltip's first word says so in words. */
+.nav-previews-dot {
   position: relative;
   flex: none;
   width: var(--svd-space-2);
   height: var(--svd-space-2);
   border-radius: var(--svd-radius-round);
-  background: var(--svd-nav-flag);
-  box-shadow: 0 0 0 3px color-mix(in oklab, var(--svd-nav-flag) 25%,
+  background: var(--svd-nav-new);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--svd-nav-new) 25%,
     transparent);
 }
 
@@ -1218,17 +1338,17 @@ svg {
    transform and opacity alone and never repaints the bar. Under
    prefers-reduced-motion the global rule ends it at once and the static ring
    above is what remains. */
-.nav-adapt-dot::after {
+.nav-previews-dot::after {
   content: '';
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: var(--svd-nav-flag);
+  background: var(--svd-nav-new);
   opacity: 0;
-  animation: nav-adapt-pulse 1.8s ease-out infinite;
+  animation: nav-previews-pulse 1.8s ease-out infinite;
 }
 
-@keyframes nav-adapt-pulse {
+@keyframes nav-previews-pulse {
   from {
     transform: scale(1);
     opacity: 0.7;
@@ -1246,7 +1366,7 @@ svg {
  * for an island to do. It takes no pointer events, so it cannot hold itself
  * open or cover a tab.
  */
-.nav-adapt-tip {
+.nav-previews-tip {
   position: absolute;
   top: calc(100% + var(--svd-space-2));
   left: 0;
@@ -1270,8 +1390,8 @@ svg {
   transition: opacity var(--svd-transition), visibility var(--svd-transition);
 }
 
-.nav-adapt:hover > .nav-adapt-tip,
-.nav-link-adapt:focus-visible + .nav-adapt-tip {
+.nav-previews:hover > .nav-previews-tip,
+.nav-link-previews:focus-visible + .nav-previews-tip {
   visibility: visible;
   opacity: 1;
 }
@@ -1346,152 +1466,6 @@ svg {
 .navbar-signout:focus-visible {
   background: color-mix(in oklab, var(--svd-nav-ink) 12%, transparent);
   border-color: color-mix(in oklab, var(--svd-nav-ink) 40%, transparent);
-}
-
-/* === REVIEW CONTROL ===
-   The way into the review area, first in the cluster. It is a menu button,
-   not a second Sign out: it carries a glyph and a caret, and the sign-out
-   beside it ends the site's passphrase session, which this never touches.
-   The menu hangs from its right edge and opens leftward over the page.
-   Below 600px it hangs from the cluster's right edge instead: the glyph
-   button there has the toggle and Sign out to its right, and at 320px the
-   menu is wider than the room to the button's left. */
-.review-control {
-  position: relative;
-  display: flex;
-  flex: none;
-}
-
-.review-button {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--svd-space-2);
-  height: 2.25rem;
-  padding: 0 var(--svd-space-3);
-  border: 1px solid color-mix(in oklab, var(--svd-nav-ink) 34%, transparent);
-  border-radius: var(--svd-radius-xs);
-  background: transparent;
-  color: var(--svd-nav-ink);
-  font: inherit;
-  font-family: var(--svd-font-heading);
-  font-size: var(--svd-text-base);
-  font-weight: var(--svd-weight-semibold);
-  white-space: nowrap;
-  cursor: pointer;
-  transition: background-color var(--svd-transition), border-color
-    var(--svd-transition);
-}
-
-.review-button:hover,
-.review-button:focus-visible {
-  background: color-mix(in oklab, var(--svd-nav-ink) 12%, transparent);
-  border-color: color-mix(in oklab, var(--svd-nav-ink) 40%, transparent);
-}
-
-.review-button[aria-expanded='true'] {
-  background: color-mix(in oklab, var(--svd-nav-ink) 12%, transparent);
-}
-
-/* Disabled only until the island is live: drawn at rest, not greyed. */
-.review-button:disabled {
-  cursor: default;
-}
-
-.review-button .icon {
-  width: 1.1em;
-  height: 1.1em;
-}
-
-.review-button-caret {
-  display: inline-flex;
-}
-
-/* Entered: a dot at the glyph's corner, the adapt link's "recently updated"
-   dot without its pulse. Drawn only in the icon-only layout below, where the
-   label that says "Observer" is gone; above it the label says so, and the
-   same amber dot beside it read as a notification. Positioned over the
-   button's padding, so it costs no width; a shape, not a colour change, tells
-   the states apart. */
-.review-button-marker {
-  display: none;
-  position: absolute;
-  top: var(--svd-space-1);
-  right: var(--svd-space-1);
-  width: var(--svd-space-2);
-  height: var(--svd-space-2);
-  border-radius: var(--svd-radius-round);
-  background: var(--svd-nav-flag);
-}
-
-/* At 390px the bar had 62px to spare beside the logo, the toggle and Sign
-   out, and the labelled button is 129px: the label and the caret go, the
-   glyph stays, and the button keeps its name through `aria-label`. */
-@media (max-width: 600px) {
-  /* The menu's containing block becomes the cluster, whose children are the
-     button's height, so only its right edge moves. */
-  .navbar-actions {
-    position: relative;
-  }
-
-  .review-control {
-    position: static;
-  }
-
-  .review-button {
-    width: 2.25rem;
-    justify-content: center;
-    padding: 0;
-  }
-
-  .review-button-label,
-  .review-button-caret {
-    display: none;
-  }
-
-  .review-button-marker {
-    display: block;
-  }
-}
-
-/* `hidden` keeps the UA's display: none, since nothing here sets display. */
-.review-menu {
-  position: absolute;
-  top: calc(100% + var(--svd-space-1));
-  right: 0;
-  z-index: var(--svd-z-sticky);
-  min-width: 12rem;
-  margin: 0;
-  padding: var(--svd-space-1);
-  list-style: none;
-  border: 1px solid var(--svd-border);
-  border-radius: var(--svd-radius-sm);
-  background: var(--svd-bg-card);
-  color: var(--svd-text);
-  box-shadow: var(--svd-shadow-md);
-}
-
-.review-menu-item {
-  display: block;
-  width: 100%;
-  padding: var(--svd-space-2) var(--svd-space-3);
-  border: 0;
-  border-radius: var(--svd-radius-xs);
-  background: transparent;
-  color: var(--svd-text);
-  font: inherit;
-  font-size: var(--svd-text-sm);
-  text-align: start;
-  text-decoration: none;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.review-menu-item:hover,
-.review-menu-item:focus-visible {
-  background: var(--svd-bg-hover-accent);
-  color: var(--svd-text);
-  text-decoration: none;
 }
 
 .nav-link .icon,
@@ -2884,9 +2858,11 @@ svg {
 /* The two notes that head the About page wear the tip box's grammar, not
    the notice's heavier one: a hairline, a 2px rail, a 10% wash of the note's
    own colour and the small type, under an eyebrow (`.note-label`). They keep
-   the full width, which a tip does not: the gold-only note holds the preview
-   switch. The note that heads every review page is one of them. `.notice`
-   itself is unchanged -- the adapt guide's alerts wear it. */
+   the full width, which a tip does not: each heads its page and spans its
+   column. The note that heads every review page is one of them, and so is
+   the one that heads the pipeline run's preview page. `.notice` itself is
+   unchanged -- the adapt guide's alerts wear it. */
+.preview-note,
 .about-warning,
 .about-gold-notice,
 .review-notice {
@@ -2909,123 +2885,6 @@ svg {
 
 .about-warning .note-label {
   color: var(--svd-color-danger-text);
-}
-
-/* The gold-only notice with its technical-preview switch
-   (islands/PipelinePreview.tsx): the two sentences, and the switch at the
-   right edge. The text's flex basis is what wraps the switch under it on a
-   phone, so no breakpoint is needed; it stays at the right edge there too. */
-.about-gold-notice.has-preview {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--svd-space-3) var(--svd-space-4);
-}
-
-.about-gold-text {
-  display: flex;
-  flex: 1 1 18rem;
-  flex-direction: column;
-  gap: var(--svd-space-1);
-  min-width: 0;
-}
-
-.about-gold-text > p {
-  margin: 0;
-}
-
-.about-preview-line {
-  font-size: var(--svd-text-sm);
-  color: var(--svd-text-muted);
-}
-
-/* A track and a thumb. The state is the thumb's side as well as the
-   track's fill, so it never rests on colour alone. Off, the track is a
-   form control's edge round the surface and the thumb is that edge's
-   colour; on, the track fills with the accent and the thumb takes the
-   surface, as the notice's own stripe does. */
-.about-preview-switch {
-  --about-switch-thumb: 1rem;
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  flex: none;
-  width: 2.75rem;
-  height: 1.5rem;
-  padding: 0 var(--svd-space-1);
-  border: 1px solid var(--svd-line-control);
-  border-radius: var(--svd-radius-full);
-  background: var(--svd-surface);
-  cursor: pointer;
-  transition: background-color var(--svd-transition), border-color
-    var(--svd-transition);
-}
-
-.about-preview-switch::before {
-  content: "";
-  width: var(--about-switch-thumb);
-  height: var(--about-switch-thumb);
-  border-radius: var(--svd-radius-round);
-  background: var(--svd-line-control);
-  transition: transform var(--svd-transition), background-color
-    var(--svd-transition);
-}
-
-.about-preview-switch[aria-checked="true"] {
-  border-color: var(--svd-color-accent);
-  background: var(--svd-color-accent);
-}
-
-/* Across the track's inner width: the box less its two borders, its two
-   paddings and the thumb. */
-.about-preview-switch[aria-checked="true"]::before {
-  background: var(--svd-surface);
-  transform: translateX(
-    calc(2.75rem - 2px - 2 * var(--svd-space-1) - var(--about-switch-thumb))
-  );
-}
-
-.about-preview-switch:hover:not(:disabled),
-.about-preview-switch:focus-visible:not(:disabled) {
-  border-color: var(--svd-text-muted);
-}
-
-/* The token the other filled controls light to. The primary is the accent
-   itself in the dark theme, and a hover to it changed nothing there. */
-.about-preview-switch[aria-checked="true"]:hover:not(:disabled),
-.about-preview-switch[aria-checked="true"]:focus-visible:not(:disabled) {
-  border-color: var(--svd-color-accent-text);
-  background: var(--svd-color-accent-text);
-}
-
-/* Disabled until the island is live, and looking it, as the adapt guide's
-   form does: drawn at full strength it read as ready and ignored a press. */
-.about-preview-switch:disabled {
-  cursor: progress;
-  opacity: 0.6;
-}
-
-/* Forced colours replace every background above, and both of the switch's
-   cues are backgrounds: on and off drew as the same empty pill. A system
-   colour is kept as written, so the thumb is drawn in the button's ink and
-   the switched-on track in the highlight pair. Hover and focus are named
-   with the state because their own fills would be replaced over it. */
-@media (forced-colors: active) {
-  .about-preview-switch::before {
-    background: ButtonText;
-  }
-
-  .about-preview-switch[aria-checked="true"],
-  .about-preview-switch[aria-checked="true"]:hover:not(:disabled),
-  .about-preview-switch[aria-checked="true"]:focus-visible:not(:disabled) {
-    border-color: Highlight;
-    background: Highlight;
-  }
-
-  .about-preview-switch[aria-checked="true"]::before {
-    background: HighlightText;
-  }
 }
 
 /* === ADAPT WIZARD === */
@@ -4692,15 +4551,37 @@ button.adapt-card-head:focus-visible {
   color: var(--svd-color-primary);
 }
 
+/* An action that leads to a page is a link drawn as the button beside it:
+   the button's own box and line height, no underline, and no visited
+   colour, which would outrank the action's own. */
+a.review-action {
+  display: inline-block;
+  line-height: normal;
+  text-decoration: none;
+}
+
+a.review-action:visited {
+  color: var(--svd-text);
+}
+
+a.review-action-primary:visited {
+  color: var(--svd-color-primary);
+}
+
 /* A lookup's button is aria-disabled while another lookup runs, so it
    stays focusable and says why when pressed; it looks as disabled as a
-   :disabled one, hovered and focused too. */
+   :disabled one, hovered and focused too. The hub's request button is
+   disabled until its island is live, and for good without JavaScript, so a
+   disabled review action looks the same. */
 .adapt-button:disabled,
 .adapt-button[aria-disabled="true"],
 .adapt-button:disabled:hover,
 .adapt-button:disabled:focus-visible,
 .adapt-button[aria-disabled="true"]:hover,
-.adapt-button[aria-disabled="true"]:focus-visible {
+.adapt-button[aria-disabled="true"]:focus-visible,
+.review-action:disabled,
+.review-action:disabled:hover,
+.review-action:disabled:focus-visible {
   cursor: not-allowed;
   border-color: var(--svd-border);
   color: var(--svd-text-muted);
@@ -4833,16 +4714,15 @@ button.adapt-card-head:focus-visible {
     min-width: 0;
   }
 
-  /* The logo gives way when the actions leave it too little of the row, as
-     the Review control does at 320px, and never otherwise. The logo's track
-     is what the actions leave (a zero floor, which is safe here because the
-     heading has a row of its own, unlike the mirrored tracks above 1410px),
-     and the logo is capped at that width. Its height is kept, so the bar
-     does not change height, and `contain` draws the mark whole and
-     undistorted, scaled down to the narrower box and set against its start.
-     Where the row has room the box is the logo's own width, as before. Not
-     `height: auto`: a ratio-only SVG then has no width to offer its link,
-     and the logo collapses to nothing. */
+  /* The logo gives way when the actions leave it too little of the row, and
+     never otherwise. The logo's track is what the actions leave (a zero
+     floor, which is safe here because the heading has a row of its own,
+     unlike the mirrored tracks above 1410px), and the logo is capped at that
+     width. Its height is kept, so the bar does not change height, and
+     `contain` draws the mark whole and undistorted, scaled down to the
+     narrower box and set against its start. Where the row has room the box is
+     the logo's own width, as before. Not `height: auto`: a ratio-only SVG
+     then has no width to offer its link, and the logo collapses to nothing. */
   .navbar-brand .institute-logo {
     max-width: 100%;
     object-fit: contain;
@@ -4921,7 +4801,7 @@ button.adapt-card-head:focus-visible {
 
   /* The tab row is a scroll container here and would clip the panel. The
      element stays in the tree, so the link keeps its description. */
-  .nav-adapt-tip {
+  .nav-previews-tip {
     display: none;
   }
 }

@@ -8,13 +8,10 @@ import {
 import { h } from "preact";
 import { renderToString } from "preact-render-to-string";
 
-import App, { pageTitle, ReviewControl } from "../routes/_app.tsx";
+import App, { pageTitle } from "../routes/_app.tsx";
 import AdaptPage, { AdaptTip } from "../routes/adapt.tsx";
 import Genes from "../routes/genes.tsx";
-import About, {
-  AboutContent,
-  handler as aboutHandler,
-} from "../routes/index.tsx";
+import About, { AboutContent } from "../routes/index.tsx";
 import MapPage from "../routes/map.tsx";
 import PhenogramPage from "../routes/phenogram.tsx";
 import TimelinePage from "../routes/timeline.tsx";
@@ -22,8 +19,6 @@ import Trials from "../routes/trials.tsx";
 import { DEFAULT_PAGE_SIZE } from "../components/TableShell.tsx";
 import { genes, trialLocations, trials } from "../lib/data.ts";
 import { pipelineStatus } from "../lib/data/pipeline.ts";
-import { pipelineRun } from "../lib/data/pipeline_run.ts";
-import { previewCookie } from "../lib/pipeline_preview.ts";
 import { MAINTAINER, RADAR_TITLE, SITE_TITLE } from "../lib/disease.ts";
 import { DEFAULT_TRIAL_STATUSES } from "../lib/constants.ts";
 import { placeGene } from "../lib/cytobands.ts";
@@ -32,11 +27,8 @@ import { GOLD_ONLY, GOLD_ONLY_NOTICE } from "../lib/gold_only.ts";
 import { filterLocationsByStatus, visibleTrials } from "../lib/filters.ts";
 import type { PipelineRun, SyncRun } from "../lib/types.ts";
 import { LOGIN_PATH } from "../lib/auth.ts";
-import { REVIEW } from "../lib/review/current.ts";
-import {
-  CONTROL as REVIEW_CONTROL,
-  CONTROL_ENTERED as REVIEW_CONTROL_ENTERED,
-} from "../lib/review/copy.ts";
+import { previewsTip } from "../lib/previews.ts";
+import { PREVIEWS } from "../lib/previews_current.ts";
 import { currentReview } from "../lib/review/current.ts";
 import { goldOf, sampleChange, sampleRound } from "./fixtures/review.ts";
 import { escapeHtml } from "./helpers/html.ts";
@@ -51,23 +43,9 @@ interface AppProps {
   url: URL;
 }
 
-/**
- * The About route, rendered for a request: it reads the preview cookie off
- * the request's headers, so it is given one, with `cookie` when the test
- * needs it.
- */
-const renderAbout = (cookie?: string) =>
-  renderToString(
-    h(
-      About as unknown as preact.ComponentType<{ req: Request }>,
-      {
-        req: new Request(
-          "http://localhost/",
-          cookie ? { headers: { cookie } } : {},
-        ),
-      },
-    ),
-  );
+/** The About route, rendered: it takes no request. */
+const renderAbout = () =>
+  renderToString(h(About as unknown as preact.ComponentType, {}));
 
 const Shell = App as unknown as preact.ComponentType<AppProps>;
 
@@ -204,55 +182,9 @@ Deno.test("About route renders its warning, totals, and the gold-only notice", (
   }
 });
 
-Deno.test("the About route draws the preview the visitor's cookie asked for", () => {
-  // The cookie is honoured only where there is something to preview: the
-  // notice is gold-only's, and the widget needs a recorded run.
-  const on = renderAbout(previewCookie(true).split(";")[0]);
-  const off = renderAbout();
-  if (GOLD_ONLY) {
-    // Under gold-only the widget is the preview's alone, so without the
-    // cookie there is none.
-    assertNotMatch(off, /pipeline-card/);
-    if (pipelineRun !== null) {
-      assertStringIncludes(on, "pipeline-card");
-      assertStringIncludes(on, 'aria-checked="true"');
-      assertStringIncludes(off, 'aria-checked="false"');
-    } else {
-      assertNotMatch(on, /pipeline-card|about-preview-switch/);
-    }
-  } else {
-    // The run branch renders its own widget whenever a run is recorded, and
-    // the cookie changes nothing.
-    assertEquals(on, off);
-  }
-});
-
-Deno.test("the About route renews the preview cookie it drew the preview for", () => {
-  // The switch writes its cookie from script, which WebKit keeps for seven
-  // days at most; the route that honours it sends it back as a header, so
-  // it lasts the year the switch asked for.
-  const get = (cookie?: string) =>
-    new Headers(
-      (aboutHandler.GET({
-        req: new Request(
-          "http://localhost/",
-          cookie ? { headers: { cookie } } : {},
-        ),
-      } as never) as { headers?: HeadersInit }).headers,
-    ).get("set-cookie");
-  const on = get(previewCookie(true).split(";")[0]);
-  if (GOLD_ONLY && pipelineRun !== null) {
-    assertEquals(
-      on,
-      "pipeline_preview=1; Path=/; Max-Age=31536000; SameSite=Lax",
-    );
-  } else {
-    // No preview is offered, so there is no cookie to keep.
-    assertEquals(on, null);
-  }
-  // The server never switches the preview on by itself.
-  assertEquals(get(), null);
-  assertEquals(get("other=1"), null);
+Deno.test("the About route has no handler, so an old preview cookie changes nothing", async () => {
+  const route = await import("../routes/index.tsx");
+  assertEquals("handler" in route, false);
 });
 
 Deno.test("About content reports an unavailable date when no run is recorded", () => {
@@ -511,74 +443,92 @@ Deno.test("the About page links to the adapt page", () => {
   assertStringIncludes(html, "Reuse this dashboard for another disease");
 });
 
-Deno.test("application shell titles the adapt page without a tab", () => {
-  const html = renderToString(
+/** The shell around an empty page at `path`. */
+const shellAt = (path: string) =>
+  renderToString(
     <Shell
       Component={() => <p>x</p>}
-      url={new URL("http://localhost/adapt")}
+      url={new URL(`http://localhost${path}`)}
     />,
   );
-  assertStringIncludes(
-    html,
-    `<title>Adapt | ${escapeHtml(SITE_TITLE)}</title>`,
+
+/**
+ * The navbar's previews link on a page: its opening tag's attributes and its
+ * contents. Each attribute is matched on its own, as the order they render in
+ * is not fixed.
+ */
+const previewsLink = (html: string) => {
+  const match = html.match(
+    /<a\b([^>]*\bhref="\/previews"[^>]*)>([\s\S]*?)<\/a>/,
   );
-  // The adapt link is in the bar without being a tab, and is the one link
-  // marked current here.
-  const current = html.match(/<a [^>]*aria-current="page"[^>]*>/g) ?? [];
-  assertEquals(current.length, 1);
-  assertStringIncludes(current[0] ?? "", 'href="/adapt"');
+  return { tag: match?.[1] ?? "", body: match?.[2] ?? "" };
+};
+
+Deno.test("application shell lights the previews entry on every preview page", () => {
+  const titles: ReadonlyArray<[string, string]> = [
+    ["/previews", "New Feature Previews"],
+    ["/previews/pipeline", "Pipeline Run"],
+    ["/adapt", "Adapt"],
+    ["/review", "Review"],
+    ["/review/gene", "Review"],
+    ["/review/progress", "Review"],
+  ];
+  for (const [path, title] of titles) {
+    const html = shellAt(path);
+    assertStringIncludes(
+      html,
+      `<title>${title} | ${escapeHtml(SITE_TITLE)}</title>`,
+    );
+    // None of them is a tab: the one entry for all of them is the one link
+    // marked current.
+    const current = html.match(/<a\b[^>]*\baria-current="page"[^>]*>/g) ?? [];
+    assertEquals(current.length, 1, path);
+    assertStringIncludes(current[0] ?? "", 'href="/previews"', path);
+  }
 });
 
-Deno.test("application shell puts the described adapt link before the tabs", () => {
-  const html = renderToString(
-    <Shell Component={() => <p>x</p>} url={new URL("http://localhost/")} />,
-  );
-  const link = html.match(/<a [^>]*href="\/adapt"[^>]*>/)?.[0] ?? "";
-  assertStringIncludes(link, 'aria-describedby="nav-adapt-tip"');
-  assert(!link.includes("aria-current"), link);
-  assertMatch(
-    html,
-    /<span[^>]*id="nav-adapt-tip"[^>]*>Recently updated\. A step-by-step guide/,
-  );
+Deno.test("application shell puts the described previews entry before the tabs", () => {
+  const html = shellAt("/");
+  const { tag, body } = previewsLink(html);
+  assertStringIncludes(tag, 'aria-describedby="nav-previews-tip"');
+  assert(!tag.includes("aria-current"), tag);
+  const dot = body.indexOf('class="nav-previews-dot" aria-hidden="true"');
+  assert(dot >= 0, body);
+  assert(dot < body.indexOf("<svg"), body);
+  assertStringIncludes(body, "New Feature Previews");
+  // The tip names the features this dataset offers, so no count is pinned.
+  const tip = html.match(/<span[^>]*id="nav-previews-tip"[^>]*>([^<]*)</)
+    ?.[1];
+  assertEquals(tip, escapeHtml(previewsTip(PREVIEWS)));
+  assert(tip?.startsWith("New. "), tip);
   // First in the row, so it sits to the left of About.
   const hrefs = [...html.matchAll(/<a [^>]*class="nav-link[^>]*>/g)].map((m) =>
     m[0].match(/href="([^"]*)"/)?.[1]
   );
-  assertEquals(hrefs.slice(0, 2), ["/adapt", "/"]);
+  assertEquals(hrefs.slice(0, 2), ["/previews", "/"]);
+  // The guide is reached through the hub, not from the bar.
+  const nav = html.match(/<ul class="navbar-nav">[\s\S]*?<\/ul>/)?.[0] ?? "";
+  assert(nav.length > 0, html);
+  assert(!nav.includes('href="/adapt"'), nav);
+  assert(!html.includes("Build Your Own"), html);
 });
 
-Deno.test("the navbar's Review control renders exactly when a review is available", () => {
-  // The shell decides with `REVIEW !== null`, which is false in the
-  // committed state, so the decision is tested here both ways.
-  const none = renderToString(
-    <ReviewControl available={false} entered={false} />,
-  );
-  assertEquals(none, "");
-  const offered = renderToString(
-    <ReviewControl available entered={false} />,
-  );
-  assertStringIncludes(offered, 'class="review-control"');
-  assertStringIncludes(offered, `>${escapeHtml(REVIEW_CONTROL)}<`);
-  const entered = renderToString(<ReviewControl available entered />);
-  assertStringIncludes(entered, `>${escapeHtml(REVIEW_CONTROL_ENTERED)}<`);
+Deno.test("the previews entry is not current off the preview pages", () => {
+  // `/previewsx` and `/reviewers` only start with a preview root's name.
+  for (const path of ["/genes", "/previewsx", "/reviewers"]) {
+    const { tag } = previewsLink(shellAt(path));
+    assert(tag.length > 0, path);
+    assert(!tag.includes("aria-current"), `${path}: ${tag}`);
+  }
 });
 
-Deno.test("the shell draws the Review control only while a review exists", () => {
-  const html = renderToString(
-    <Shell Component={() => <p>x</p>} url={new URL("http://localhost/")} />,
-  );
-  assertEquals(html.includes('class="review-control"'), REVIEW !== null);
-});
-
-Deno.test("the login page never draws the Review control", () => {
-  const html = renderToString(
-    <Shell
-      Component={() => <p>x</p>}
-      url={new URL(`http://localhost${LOGIN_PATH}`)}
-    />,
-  );
-  assert(!html.includes("review-control"), html);
-  assert(!html.includes('class="navbar"'), html);
+Deno.test("the shell draws no Review control, signed in or on the login page", () => {
+  for (const path of ["/", LOGIN_PATH]) {
+    const html = shellAt(path);
+    assert(!html.includes("review-control"), path);
+    assert(!html.includes("review-button"), path);
+  }
+  assert(!shellAt(LOGIN_PATH).includes('class="navbar"'));
 });
 
 Deno.test("application shell titles the review pages without a tab", () => {

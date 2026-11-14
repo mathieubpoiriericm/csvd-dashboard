@@ -145,7 +145,7 @@ export function renderChecklist(answers: Answers): string {
     "    rm -r tests/pipeline/cassettes/test_query_recall_gold",
     "    uv run pytest tests/pipeline/test_query_recall_gold.py --record-mode=once",
     "",
-    "Then replace the seven strings in `PROTECTED_DATA_SENTINELS` (`server/protected_data_build.ts`) with strings that exist only in your new `data/`, and recapture the README's screenshots, which still show the upstream disease (this needs libwebp's `cwebp`: `brew install webp`, or the `webp` package on Debian and Ubuntu). Your fork has no review area, so delete the three `docs/screenshots/review-*.webp` and their rows in the README rather than recapture them:",
+    "Then replace the seven strings in `PROTECTED_DATA_SENTINELS` (`server/protected_data_build.ts`) with strings that exist only in your new `data/`, and recapture the README's screenshots, the six tabs and the previews hub, which still show the upstream disease (this needs libwebp's `cwebp`: `brew install webp`, or the `webp` package on Debian and Ubuntu). Your fork has no review area, so delete the three `docs/screenshots/review-*.webp` and their rows in the README rather than recapture them, and reword the hub's caption and alt text to what your hub holds, the adaptation guide alone:",
     "",
     "    deno task screenshots",
     "",

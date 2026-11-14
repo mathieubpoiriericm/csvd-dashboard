@@ -1,5 +1,4 @@
 import type { ComponentChildren } from "preact";
-import { page } from "fresh";
 
 import { define } from "../utils.ts";
 import { Page } from "../components/Page.tsx";
@@ -15,12 +14,6 @@ import {
 import { pipelineStatus } from "../lib/data/pipeline.ts";
 import { pipelineRun } from "../lib/data/pipeline_run.ts";
 import PipelineRunView from "../islands/PipelineRun.tsx";
-import PipelinePreview from "../islands/PipelinePreview.tsx";
-import PipelinePreviewWidget from "../islands/PipelinePreviewWidget.tsx";
-import {
-  previewRenewal,
-  previewRequested,
-} from "../lib/pipeline_preview_request.ts";
 import { PipelineSyncs } from "../components/PipelineSyncs.tsx";
 import { pipelineSyncs } from "../lib/data/pipeline_syncs.ts";
 import {
@@ -192,11 +185,8 @@ const KPIS: ReadonlyArray<{ icon: IconName; label: string; value: number }> = [
 interface AboutContentProps {
   status?: PipelineStatus | null;
   /**
-   * The run report. The run branch renders it. Under gold-only it decides
-   * whether there is a run to preview and gives the notice its window, and
-   * that is all: no report crosses island props, so the widget reads the
-   * committed one from `lib/data/pipeline_run.ts` itself, which is the same
-   * report whenever the route is what renders this.
+   * The run report. The run branch renders it; under gold-only the page
+   * shows none of it.
    */
   run?: PipelineRun | null;
   syncs?: SyncRun[];
@@ -208,13 +198,6 @@ interface AboutContentProps {
    * branch.
    */
   goldOnly?: boolean;
-  /**
-   * Whether the visitor's cookie switched the technical preview on, so the
-   * server draws the run widget under the gold-only notice rather than the
-   * page flashing it open once the island is live. Read only while
-   * `goldOnly` is on: the preview is the notice's.
-   */
-  previewOn?: boolean;
 }
 
 type PipelineCount = Exclude<keyof PipelineStatus, "runTimestamp">;
@@ -279,7 +262,6 @@ export function AboutContent(
     run = pipelineRun,
     syncs = pipelineSyncs,
     goldOnly = GOLD_ONLY,
-    previewOn = false,
   }: AboutContentProps,
 ) {
   const dataDateLabel = formatLongDate(
@@ -299,27 +281,13 @@ export function AboutContent(
           {
             /* No run fed what the page shows, so neither account of one, nor
               the refreshes, belongs on the page: the notice says so, under
-              the preview warning. With a run recorded it also offers the
-              run widget as a technical preview beneath it. The switch is an
-              island that holds no data, and the widget is drawn here, as an
-              island of its own, only for a visitor whose cookie has the
-              preview on: the report is an uncacheable chunk, and either
-              island importing it for every visitor would put it on every
-              visit to this page. */
+              the preview warning. The run's report has a page of its own
+              under New Feature Previews. */
           }
-          {goldOnly && run === null && (
+          {goldOnly && (
             <p class="notice notice-neutral about-gold-notice">
               <strong class="note-label">Data:</strong> {GOLD_ONLY_NOTICE}
             </p>
-          )}
-          {goldOnly && run !== null && (
-            <>
-              <PipelinePreview
-                initialOn={previewOn}
-                daysBack={run.config.daysBack}
-              />
-              {previewOn && <PipelinePreviewWidget />}
-            </>
           )}
 
           <div class="card about-hero">
@@ -455,25 +423,6 @@ export function AboutContent(
   );
 }
 
-/**
- * A visitor whose cookie has the preview on gets the cookie back as a
- * header, wherever the page offers the preview. The switch writes it from
- * script, and a cookie written that way lasts seven days in Safari; the
- * decision is `previewRenewal`'s.
- */
-export const handler = define.handlers({
-  GET(ctx) {
-    const renewal = previewRenewal(
-      ctx.req.headers,
-      GOLD_ONLY && pipelineRun !== null,
-    );
-    return page(
-      undefined,
-      renewal === null ? undefined : { headers: { "Set-Cookie": renewal } },
-    );
-  },
-});
-
-export default define.page(function About(ctx) {
-  return <AboutContent previewOn={previewRequested(ctx.req.headers)} />;
+export default define.page(function About() {
+  return <AboutContent />;
 });

@@ -7,6 +7,7 @@ const ROUTES = [
   "/trials",
   "/timeline",
   "/map",
+  "/previews",
   "/adapt",
 ];
 

@@ -96,215 +96,9 @@ test("says only the hand-curated data is shown, in place of the run", async ({ p
   await expect(page.locator(".pipeline-card")).toHaveCount(0);
   await expect(page.locator(".pipeline-status-timestamp")).toHaveCount(0);
   await expect(page.locator(".pipeline-sync")).toHaveCount(0);
-});
-
-/**
- * The technical preview: a switch in the gold-only notice that shows the
- * run widget beneath it. Off by default, and remembered in a cookie the
- * route reads, so the server draws the page the visitor left.
- *
- * The widget reaches the page two ways, and both are walked here: fetched
- * by the switch when it is pressed, and drawn by the server, as an island
- * of its own, for a visitor whose cookie already has it on.
- */
-test.describe("the technical preview of a pipeline run", () => {
-  test.skip(
-    !(EXPECTED.goldOnly && EXPECTED.hasPipelineRun),
-    "the preview needs gold-only on and a recorded run",
-  );
-
-  const notice = ".about-gold-notice";
-  const live = '.about-preview-switch:not([disabled])';
-  // The run report's chunk and the widget's: neither belongs on a page
-  // whose preview is off.
-  const report = /protected-data-pipeline_run|fresh-island__PipelineRun/;
-
-  test("is off at first, and only invites", async ({ page }) => {
-    const toggle = page.getByRole("switch", {
-      name: "Technical preview of a pipeline run",
-    });
-    await expect(toggle).toHaveAttribute("aria-checked", "false");
-    await expect(page.locator(".about-preview-line")).toHaveText(
-      EXPECTED.previewInvitation,
-    );
-    await expect(page.locator(".pipeline-card")).toHaveCount(0);
-  });
-
-  test("switches the widget on beneath the notice, keeps it on a reload, and off again", async ({ page }) => {
-    const toggle = page.getByRole("switch", {
-      name: "Technical preview of a pipeline run",
-    });
-    await page.waitForSelector(live);
-    await toggle.click();
-
-    await expect(toggle).toHaveAttribute("aria-checked", "true");
-    await expect(page.locator(".about-preview-line")).toHaveText(
-      EXPECTED.previewNote,
-    );
-    const card = page.locator(".pipeline-card");
-    await expect(card).toBeVisible();
-    // Directly beneath the notice, above the welcome card.
-    expect(
-      await page.locator(notice).evaluate((el) =>
-        el.nextElementSibling?.classList.contains("pipeline-card") ?? false
-      ),
-    ).toBe(true);
-    await expect(card.locator(".pipeline-preview-mark")).toHaveText(
-      "Technical preview",
-    );
-
-    // The widget the switch fetched is live: its dialog opens and Escape
-    // closes it.
-    const dialog = page.getByRole("dialog", { name: "Run details" });
-    await page.getByRole("button", { name: "Run details" }).click();
-    await expect(dialog).toBeVisible();
-    await page.keyboard.press("Escape");
-    await expect(dialog).toBeHidden();
-
-    // The cookie brings it back drawn by the server, and live again.
-    await page.reload();
-    await expect(card).toBeVisible();
-    await expect(toggle).toHaveAttribute("aria-checked", "true");
-    await page.waitForSelector(live);
-    await page.getByRole("button", { name: "Run details" }).click();
-    await expect(dialog).toBeVisible();
-    await page.keyboard.press("Escape");
-    await expect(dialog).toBeHidden();
-    const kept = await page.request.get("/");
-    expect(await kept.text()).toContain("pipeline-card");
-    // The route sends the cookie back for its year: one written from script
-    // lasts seven days in Safari. It is the switch's own cookie, so the
-    // presses below still clear it.
-    expect(kept.headers()["set-cookie"]).toMatch(
-      /^pipeline_preview=1; Path=\/; Max-Age=31536000; SameSite=Lax$/,
-    );
-
-    // The widget the server drew is another island, and follows the
-    // switch all the same: off, on again, and off.
-    await toggle.click();
-    await expect(toggle).toHaveAttribute("aria-checked", "false");
-    await expect(card).toHaveCount(0);
-    await toggle.click();
-    await expect(card).toHaveCount(1);
-    await expect(card).toBeVisible();
-    await toggle.click();
-    await expect(card).toHaveCount(0);
-    await page.reload();
-    await expect(toggle).toHaveAttribute("aria-checked", "false");
-    await expect(card).toHaveCount(0);
-    // Switched off, nothing is renewed: the server never turns it on.
-    const off = await page.request.get("/");
-    expect(off.headers()["set-cookie"]).toBeUndefined();
-  });
-
-  test("fetches the run report only once the preview is switched on", async ({ page }) => {
-    const fetched: string[] = [];
-    page.on("request", (request) => {
-      fetched.push(new URL(request.url()).pathname);
-    });
-    await page.goto("/");
-    await page.waitForSelector(live);
-    await page.waitForLoadState("networkidle");
-    expect(fetched.filter((path) => report.test(path))).toEqual([]);
-
-    const toggle = page.getByRole("switch", {
-      name: "Technical preview of a pipeline run",
-    });
-    const card = page.locator(".pipeline-card");
-    await toggle.click();
-    await expect(card).toBeVisible();
-    const afterFirst = fetched.filter((path) => report.test(path));
-    expect(afterFirst.some((path) => path.includes("pipeline_run"))).toBe(true);
-
-    // Off and on again draws the widget it already has.
-    await toggle.click();
-    await expect(card).toHaveCount(0);
-    await toggle.click();
-    await expect(card).toBeVisible();
-    expect(fetched.filter((path) => report.test(path))).toEqual(afterFirst);
-  });
-
-  test("says so, and stays off, when the widget cannot be fetched", async ({ page }) => {
-    await page.route(report, (route) => route.abort());
-    await page.goto("/");
-    await page.waitForSelector(live);
-    const toggle = page.getByRole("switch", {
-      name: "Technical preview of a pipeline run",
-    });
-    await toggle.click();
-    await expect(page.locator(".about-preview-line")).toHaveText(
-      EXPECTED.previewLoadFailed,
-    );
-    await expect(toggle).toHaveAttribute("aria-checked", "false");
-    await expect(page.locator(".pipeline-card")).toHaveCount(0);
-
-    // The cookie went back off with the switch: a reload does not claim a
-    // preview, and with the chunk reachable again the same press works.
-    await page.unroute(report);
-    await page.reload();
-    await page.waitForSelector(live);
-    await expect(toggle).toHaveAttribute("aria-checked", "false");
-    await expect(page.locator(".about-preview-line")).toHaveText(
-      EXPECTED.previewInvitation,
-    );
-    await toggle.click();
-    await expect(page.locator(".pipeline-card")).toBeVisible();
-  });
-
-  test("loads after a reload once the connection is back", async ({ page, context }) => {
-    // WebKit holds a failed module fetch against its chunks past a reload,
-    // so the press after it failed again with no request sent; the switch
-    // fetches the chunks it remembered first. Chromium never needed it.
-    await page.goto("/");
-    await page.waitForSelector(live);
-    const toggle = page.getByRole("switch", {
-      name: "Technical preview of a pipeline run",
-    });
-    await context.setOffline(true);
-    await toggle.click();
-    await expect(page.locator(".about-preview-line")).toHaveText(
-      EXPECTED.previewLoadFailed,
-    );
-    await context.setOffline(false);
-    await page.reload();
-    await page.waitForSelector(live);
-    await toggle.click();
-    await expect(page.locator(".pipeline-card")).toBeVisible();
-    // What it remembered is forgotten once tried.
-    expect(await page.evaluate(() => sessionStorage.length)).toBe(0);
-  });
-
-  test("fits a phone, on and off", async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 800 });
-    await page.goto("/");
-    const toggle = page.getByRole("switch", {
-      name: "Technical preview of a pipeline run",
-    });
-    await page.waitForSelector(live);
-    for (const state of ["false", "true"]) {
-      await expect(toggle).toHaveAttribute("aria-checked", state);
-      await expect(toggle).toBeVisible();
-      // The widget is fetched on the press: measure it, not the page before it.
-      if (state === "true") {
-        await expect(page.locator(".pipeline-card")).toBeVisible();
-      }
-      const overflow = await page.evaluate(() => {
-        const de = document.documentElement;
-        return de.scrollWidth - de.clientWidth;
-      });
-      expect(overflow, `sideways scroll, aria-checked=${state}`)
-        .toBeLessThanOrEqual(0);
-      if (state === "false") await toggle.click();
-    }
-  });
-});
-
-test("offers no preview when no run is recorded", async ({ page }) => {
-  test.skip(
-    !(EXPECTED.goldOnly && !EXPECTED.hasPipelineRun),
-    "a run is recorded, or gold-only is off",
-  );
-  await expect(page.locator(".about-preview-switch")).toHaveCount(0);
+  // The run is a preview of its own, reached from the previews hub: the
+  // notice carries no switch to show it here.
+  await expect(page.locator('[role="switch"]')).toHaveCount(0);
 });
 
 /**
@@ -351,17 +145,16 @@ test("reports the last run exactly once", async ({ page }) => {
 /**
  * The widget's interactions, exercised whenever a run has recorded a report;
  * `data/pipeline_run.json` is a bare `null` until one does, and these skip
- * then. Under gold-only the widget is behind the technical-preview switch, so
- * `showWidget` sets the switch's cookie and reloads first. The skip reads the
- * committed data, never the page: a widget missing from a page that should
- * draw it fails.
+ * then. Under gold-only the About page shows the notice in place of the run
+ * and the widget lives on the run preview's own page (`WIDGET_PAGE`), so
+ * `showWidget` goes there; with gold-only off the About page draws it and is
+ * already open. The skip reads the committed data, never the page: a widget
+ * missing from a page that should draw it fails.
  */
+const WIDGET_PAGE = EXPECTED.goldOnly ? "/previews/pipeline" : "/";
+
 async function showWidget(page: Page): Promise<void> {
-  if (!EXPECTED.goldOnly) return;
-  await page.context().addCookies([
-    { name: EXPECTED.previewCookie, value: "1", url: page.url() },
-  ]);
-  await page.goto("/");
+  if (EXPECTED.goldOnly) await page.goto(WIDGET_PAGE);
 }
 
 const NO_RUN = "no run report recorded (data/pipeline_run.json is null)";
@@ -410,10 +203,9 @@ test("the run details open as a dialog, walk their tabs, and close on Escape", a
  */
 test("an opened step never scrolls the page sideways, down to 320px", async ({ page }) => {
   test.skip(!EXPECTED.hasPipelineRun, NO_RUN);
-  await showWidget(page);
   for (const width of [390, 320]) {
     await page.setViewportSize({ width, height: 700 });
-    await page.goto("/");
+    await page.goto(WIDGET_PAGE);
     await page.waitForSelector('.pipeline-card[data-hydrated="true"]');
     const closed = page.locator('.pipeline-step-head[aria-expanded="false"]');
     // Each click opens the first closed row, so the locator's first match
@@ -432,12 +224,11 @@ test("an opened step never scrolls the page sideways, down to 320px", async ({ p
 
 test("the open run details never scroll sideways, down to 320px", async ({ page }) => {
   test.skip(!EXPECTED.hasPipelineRun, NO_RUN);
-  await showWidget(page);
   // 601 is the first width past the phone layout, where a row has the
   // least room for the columns it still sets side by side.
   for (const width of [601, 390, 320]) {
     await page.setViewportSize({ width, height: 700 });
-    await page.goto("/");
+    await page.goto(WIDGET_PAGE);
     await page.waitForSelector('.pipeline-card[data-hydrated="true"]');
     await page.getByRole("button", { name: "Run details" }).click();
     const dialog = page.getByRole("dialog", { name: "Run details" });

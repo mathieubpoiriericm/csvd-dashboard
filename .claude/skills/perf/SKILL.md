@@ -25,10 +25,9 @@ so does a failed conversion;
 writes its numbers to a timestamped directory under `e2e/perf/artifacts/`,
 gitignored too. A scenario that `needs` an element the page does not render is
 reported as skipped, with the reason, rather than failed on a timeout: while
-`GOLD_ONLY` is on the About page has no run widget by default (the preview
-cookie unset), and the perf harness's fresh browser context never sets it, so
-`about/toggle-step` and `about/drawer` (lifecycle included) skip and the run
-still exits 0. A scenario
+`GOLD_ONLY` is on the About page shows the notice and no run widget, so
+`about/toggle-step` and `about/drawer` (lifecycle included) skip with "the About
+page shows no run while GOLD_ONLY is on" and the run still exits 0. A scenario
 whose input the data cannot supply carries `unavailable` instead and is skipped
 the same way without a page load: on the empty export, the two searches of a
 table with no query and the genes filter-toggle with no trait.

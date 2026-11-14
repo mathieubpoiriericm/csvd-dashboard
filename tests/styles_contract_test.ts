@@ -1151,10 +1151,13 @@ function weightDeclarations(): Array<
 Deno.test("every line-height is on the leading scale", () => {
   // `line-height: 1` stays exempt: it is the "no leading" case on the
   // drawer-close button's single glyph (.timeline-drawer-close,
-  // .pipeline-drawer-close), not a step.
-  const off = leadingDeclarations().filter(({ value }) =>
+  // .pipeline-drawer-close), not a step. `normal` is exempt on the one link
+  // drawn as a button, `a.review-action`: it is the leading the browser
+  // gives the buttons beside it, so the two stand the same height.
+  const off = leadingDeclarations().filter(({ selector, value }) =>
     !/var\(--svd-leading-/.test(value) && value.trim() !== "1" &&
-    value.trim() !== "inherit"
+    value.trim() !== "inherit" &&
+    !(selector === "a.review-action" && value.trim() === "normal")
   );
   assertEquals(off.map((d) => `${d.line}: ${d.selector} { ${d.value} }`), []);
 });
@@ -1650,17 +1653,18 @@ Deno.test("a confidence fills in one colour taken from a red-to-green scale", ()
 Deno.test("the About and review notes wear the tip box's grammar", () => {
   // The two notes that head the About page are notes like the tips that
   // head the others: a hairline, a 2px rail, a 10% wash, the small type and
-  // an eyebrow label, and so is the note that heads every review page.
-  // `.notice` itself is left alone -- the adapt guide's alerts wear it too.
+  // an eyebrow label, and so are the notes that head every review page and
+  // the pipeline run's preview page. `.notice` itself is left alone -- the
+  // adapt guide's alerts wear it too.
   const flat = (text: string) => text.replace(/\s+/g, " ").trim();
   const body = flat(
     css.match(
-      /\.about-warning,\s*\.about-gold-notice,\s*\.review-notice\s*\{([^}]*)\}/,
+      /\.preview-note,\s*\.about-warning,\s*\.about-gold-notice,\s*\.review-notice\s*\{([^}]*)\}/,
     )?.[1] ?? "",
   );
   assert(
     body !== "",
-    "no `.about-warning, .about-gold-notice, .review-notice` rule found",
+    "no `.preview-note, .about-warning, .about-gold-notice, .review-notice` rule found",
   );
   const colour = "var(--svd-notice-color, var(--svd-color-danger))";
   for (
@@ -1678,7 +1682,7 @@ Deno.test("the About and review notes wear the tip box's grammar", () => {
       declaration,
     );
   }
-  // Full width: the gold-only note holds the preview switch.
+  // Full width: each note heads its page and spans its column.
   assert(!/max-width/.test(body), "the notes take no width cap");
   // One eyebrow, shared with the tip box, in the warning's own red there.
   assertMatch(css, /\.tip-box > strong,\s*\.note-label\s*\{/);
@@ -2084,8 +2088,6 @@ Deno.test("every control that lights on hover lights on focus-visible too", () =
   const selectors = [
     ".theme-toggle",
     ".navbar-signout",
-    ".review-button",
-    ".review-menu-item",
     ".review-filter",
     ".sidebar-toggle",
     ".filter-option",
@@ -2098,6 +2100,7 @@ Deno.test("every control that lights on hover lights on focus-visible too", () =
     ".adapt-stepper-item",
     "button.adapt-card-head",
     ".adapt-link-button",
+    ".preview-switcher-link",
   ];
   for (const selector of selectors) {
     const escaped = selector.replace(
@@ -2132,18 +2135,6 @@ Deno.test("every control that lights on hover lights on focus-visible too", () =
     css,
     /\.pipeline-step-head:hover:not\(:disabled\),\s*\.pipeline-step-head:focus-visible:not\(:disabled\)\s*\{/,
     ".pipeline-step-head lights on hover alone",
-  );
-  // The preview switch is disabled until its island is live, so its pairs
-  // carry the same qualifier, on and off.
-  assertMatch(
-    css,
-    /\.about-preview-switch:hover:not\(:disabled\),\s*\.about-preview-switch:focus-visible:not\(:disabled\)\s*\{/,
-    ".about-preview-switch lights on hover alone",
-  );
-  assertMatch(
-    css,
-    /\.about-preview-switch\[aria-checked="true"\]:hover:not\(:disabled\),\s*\.about-preview-switch\[aria-checked="true"\]:focus-visible:not\(:disabled\)\s*\{/,
-    "the switched-on .about-preview-switch lights on hover alone",
   );
   assertMatch(
     css,
@@ -2205,65 +2196,21 @@ function tokenValue(name: string, theme: "light" | "dark"): string {
   return value.replace(/\s*\/\*.*$/, "");
 }
 
-Deno.test("the switched-on preview switch answers a pointer in both themes", () => {
-  // Its hover was the accent giving way to the primary, two tokens the dark
-  // blocks set to one value: in the dark theme nothing changed.
-  const fill = (selector: string) => {
-    const at = css.indexOf(`${selector} {`);
-    assert(at !== -1, `no rule for ${selector}`);
-    const body = css.slice(at, css.indexOf("}", at));
-    const token = body.match(/background: var\((--svd-[\w-]+)\);/)?.[1];
-    assert(token !== undefined, `${selector} names no background token`);
-    assertMatch(body, new RegExp(`border-color: var\\(${token}\\);`));
-    return token;
-  };
-  const rest = fill('.about-preview-switch[aria-checked="true"]');
-  const hover = fill(
-    '.about-preview-switch[aria-checked="true"]:focus-visible:not(:disabled)',
-  );
-  const thumb = css.match(
-    /\.about-preview-switch\[aria-checked="true"\]::before \{\s*background: var\((--svd-[\w-]+)\);/,
-  )?.[1];
-  assert(thumb !== undefined, "the switched-on thumb names no token");
+Deno.test("the new-feature dot stands out from the navbar in both themes", () => {
+  // WCAG 1.4.11: the dot is a graphic that carries meaning.
   for (const theme of ["light", "dark"] as const) {
-    assert(
-      tokenValue(rest, theme) !== tokenValue(hover, theme),
-      `${theme}: the switched-on switch does not change on hover`,
+    const ratio = contrast(
+      tokenValue("--svd-nav-new", theme),
+      tokenValue("--svd-nav", theme),
     );
-    // WCAG 1.4.11: the thumb is what says which side the switch is on.
-    for (const track of [rest, hover]) {
-      const ratio = contrast(
-        tokenValue(thumb, theme),
-        tokenValue(track, theme),
-      );
-      assert(ratio >= 3, `${theme} thumb on ${track}: ${ratio.toFixed(2)}:1`);
-    }
+    assert(ratio >= 3, `${theme}: ${ratio.toFixed(2)}:1`);
   }
+  assert(!css.includes("--svd-nav-flag"));
+  assert(!css.includes("nav-adapt"));
 });
 
-Deno.test("the preview switch keeps its state where colours are forced", () => {
-  // Forced colours replace an author's backgrounds, and both of the
-  // switch's cues are backgrounds: on and off drew as one empty pill. A
-  // system colour is kept, so the thumb and the switched-on track name one.
-  const block = mediaBlockContaining(
-    ".about-preview-switch::before {\n    background: ButtonText;",
-  );
-  assertMatch(block, /@media \(forced-colors: active\)/);
-  // Hover and focus are named with the state: their own fills are not
-  // system colours, and would be replaced over the highlight.
-  assertMatch(
-    block,
-    /\.about-preview-switch\[aria-checked="true"\],\s*\.about-preview-switch\[aria-checked="true"\]:hover:not\(:disabled\),\s*\.about-preview-switch\[aria-checked="true"\]:focus-visible:not\(:disabled\) \{\s*border-color: Highlight;\s*background: Highlight;/,
-  );
-  assertMatch(
-    block,
-    /\.about-preview-switch\[aria-checked="true"\]::before \{\s*background: HighlightText;/,
-  );
-  // After the rules it answers, which it does not outrank.
-  assert(
-    css.indexOf("@media (forced-colors: active)") >
-      css.indexOf(".about-preview-switch:disabled {"),
-  );
+Deno.test("the About page's preview switch left no style behind", () => {
+  assert(!css.includes("about-preview"));
 });
 
 Deno.test("a form control's edge holds 3:1 against the page in both themes", () => {
@@ -2300,10 +2247,49 @@ Deno.test("the wizard looks inert until it is live, and a lookup's held button l
   assertMatch(css, /\.adapt:disabled \* \{\s*cursor: progress;/);
   assertMatch(
     css,
-    /\.adapt-button\[aria-disabled="true"\]:focus-visible \{\s*cursor: not-allowed;/,
+    /\.adapt-button\[aria-disabled="true"\]:focus-visible[,\s][^{}]*\{\s*cursor: not-allowed;/,
   );
   // Spaced by gaps: a status paragraph keeps no global margin.
   assertMatch(css, /\.adapt-status \{\s*margin: 0;/);
+});
+
+Deno.test("a disabled review action looks as disabled as a disabled adapt button", () => {
+  // The hub's request button is disabled until its island is live, and for
+  // good without JavaScript; it shares the adapt button's disabled rule, so
+  // it never draws at full strength, lights or offers a pointer while inert.
+  const text = ruleRegion.join("\n");
+  const start = text.indexOf(".adapt-button:disabled,");
+  assert(start > -1, "no `.adapt-button:disabled` rule found");
+  const selectors = text.slice(start, text.indexOf("{", start));
+  for (
+    const selector of [
+      ".review-action:disabled",
+      ".review-action:disabled:hover",
+      ".review-action:disabled:focus-visible",
+    ]
+  ) {
+    assert(
+      selectors.split(",").some((s) => s.trim() === selector),
+      `${selector} is not in the adapt button's disabled rule`,
+    );
+  }
+  assertMatch(text.slice(start), /^[^}]*cursor: not-allowed;/);
+});
+
+Deno.test("the strip's current link stays distinct in forced colours", () => {
+  // Forced colours paint the transparent underline every link carries, so
+  // the current one is told apart with system colours there.
+  // Indented, so the marker is the rule inside a block, not the base rule.
+  const block = mediaBlockContaining("  .preview-switcher-link.is-current {");
+  assertMatch(block, /^@media \(forced-colors: active\)/);
+  assertMatch(
+    block,
+    /\.preview-switcher-link \{\s*border-bottom-color: Canvas;\s*\}/,
+  );
+  assertMatch(
+    block,
+    /\.preview-switcher-link\.is-current \{\s*border-bottom-color: Highlight;\s*\}/,
+  );
 });
 
 Deno.test("the tooltip triggers draw no underline", () => {
@@ -2330,4 +2316,18 @@ Deno.test("the request notice's empty live region stays in the page without a ga
   );
   assertEquals(rules, []);
   assertMatch(css, /\.review-dialog \.review-sent:empty \{\s*margin: 0;\s*\}/);
+});
+
+Deno.test("the previews hub's cards share a row without a track a pixel wide", () => {
+  // `repeat(auto-fit, minmax(0, 1fr))` has no minimum to fit to, and made a
+  // track a pixel wide in the run widget's verdict (islands/CLAUDE.md). One
+  // implicit column per card shares the row however many cards there are.
+  const rules = [...css.matchAll(/\.preview-cards\s*\{([^}]*)\}/g)]
+    .map((m) => m[1]);
+  assert(rules.length > 0, "no `.preview-cards` rule found");
+  assert(
+    rules.some((body) => /grid-auto-columns:\s*minmax\(0, 1fr\);/.test(body)),
+    "`.preview-cards` names no `grid-auto-columns: minmax(0, 1fr)`",
+  );
+  for (const body of rules) assertNotMatch(body, /repeat\(auto-fit/);
 });

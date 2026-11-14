@@ -54,14 +54,13 @@ is false it writes the round `null`, as there is no review to show.
 production an admin creates empty and the pipeline never creates. It is recorded
 as run mode `preview`, and `--preview --export` or `deno task data:preview`
 writes two files, published together or not at all: `data/pipeline_run.json`,
-which the About page offers behind a switch, and `data/review_round.json`, the
-review round, diffed against the gold database it reads read-only. It checks
-that the preview database holds exactly one preview run, that the run merged,
-that its findings list is uncapped, that every gold gene is present, that every
-change is explained by a finding, and that no list value was removed; the six
-refusals and the remedy are in `regenerate-data`. A restore skips a preview
-run's report. The `run-long-window` skill has the run and `regenerate-data` the
-database.
+shown at `/previews/pipeline`, and `data/review_round.json`, the review round,
+diffed against the gold database it reads read-only. It checks that the preview
+database holds exactly one preview run, that the run merged, that its findings
+list is uncapped, that every gold gene is present, that every change is
+explained by a finding, and that no list value was removed; the six refusals and
+the remedy are in `regenerate-data`. A restore skips a preview run's report. The
+`run-long-window` skill has the run and `regenerate-data` the database.
 
 Tests never touch the production database: `tests/pipeline/conftest.py` empties
 the `DB_*` credentials (so `load_dotenv` cannot refill them from `.env`) and
@@ -216,7 +215,7 @@ the tests that exercise the complete boundary. Consequences worth remembering:
 - **`data/review_round.json` is `null` until a preview export writes it**, and
   `deno task data:empty` and an ordinary export with `GOLD_ONLY` off write it
   `null`. A round measured against a gold since curated is stale
-  (`lib/review/stale.ts`) and hides itself: no Review control, every `/review*`
+  (`lib/review/stale.ts`) and hides itself: no review card, every `/review*`
   page a 404, one server warning, and one export warning while gold-only is on.
   Nothing goes red, so a gold fix is never blocked; the remedy is a new preview
   run, and the `regenerate-data` skill has it.
@@ -276,22 +275,27 @@ carry no outer margin.
 Theme state, events and observers live in `lib/theme.ts` so no other island
 depends on `ThemeToggle`.
 
-`routes/adapt.tsx` and the review area are the pages that are not tabs; their
-titles come from `UNTABBED_TITLES` in `routes/_app.tsx`.
+`routes/adapt.tsx`, the review area and the two previews routes
+(`routes/previews/`) are the pages that are not tabs; their titles come from
+`UNTABBED_TITLES` in `routes/_app.tsx`. The navbar's one New Feature Previews
+entry is lit on all of them through `isPreviewPath` (`lib/previews.ts`), which
+is also where the hub and the strip above each page get their one list of
+features: `lib/previews_current.ts` (server-only) is that list for the committed
+data, so neither can offer a page that is a 404.
 
 ### Review area
 
 `/review`, `/review/gene?g=` and `/review/progress` exist only while `GOLD_ONLY`
 is on and a round is committed (`REVIEW` in `lib/review/current.ts`); otherwise
-each is a 404 and no page shows the Review control. They are server-rendered
-with no island of their own, the one place a dataset is read without shipping to
-the browser. The committee's rules live in `lib/review/`, and every number on
-the pages is computed there, from a simulated committee's history that
-`lib/review/simulate.ts` generates from the round and a fixed seed. The navbar's
-Review control (`islands/ReviewMenu.tsx`) is on every signed-in page while a
-review exists, and holds no data: `DATA_FREE_ISLANDS` in
+each is a 404 and the hub offers no review card. They are entered from that card
+and server-rendered with no island of their own, the one place a dataset is read
+without shipping to the browser. The committee's rules live in `lib/review/`,
+and every number on the pages is computed there, from a simulated committee's
+history that `lib/review/simulate.ts` generates from the round and a fixed seed.
+The hub's review card draws `islands/ReviewRequest.tsx`, the demonstration
+account request; it holds no data: `DATA_FREE_ISLANDS` in
 `server/protected_data_build.ts` fails the build if its chunk reaches a
-protected one. `islands/CLAUDE.md` has the control.
+protected one. `islands/CLAUDE.md` has it.
 
 ### Login
 

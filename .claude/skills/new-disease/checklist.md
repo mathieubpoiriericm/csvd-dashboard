@@ -72,11 +72,15 @@ judgement the fork's owner makes once:
       facility name, an OMIM phenotype, a DOI, a UniProt accession) and
       replace the list.
 - [ ] `e2e/package.json` — `name` and `description` name the cSVD dashboard.
-- [ ] `docs/screenshots/` — the README's six screenshots, of the cSVD
-      dashboard. Like the sentinels this waits for the first regenerated
-      `data/`; then `deno task screenshots` (libwebp's `cwebp` on the `PATH`)
-      recaptures all six from the fork's build. Named in the hand-off while
-      the live run is still ahead.
+- [ ] `docs/screenshots/` — the README's screenshots of the cSVD
+      dashboard: the six tabs, the previews hub and the three review pages.
+      Like the sentinels this waits for the first regenerated `data/`; then
+      `deno task screenshots` (libwebp's `cwebp` on the `PATH`) recaptures
+      the six tabs and the hub from the fork's build. The fork has no review
+      area, so the three `review-*.webp` and their README rows are deleted,
+      and the hub's caption and alt text are reworded to what the fork's hub
+      holds, the adaptation guide alone. Named in the hand-off while the live
+      run is still ahead.
 - [ ] `tests/pipeline/conftest.py` — the throwaway container
       `csvd-pg-pytest` and the `csvd_pytest` database, user and password, if
       the fork prefers its own names. Cosmetic; the container is destroyed

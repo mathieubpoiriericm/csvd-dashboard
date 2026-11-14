@@ -1,7 +1,9 @@
 import { define } from "../utils.ts";
 import { Page } from "../components/Page.tsx";
+import { PreviewSwitcher } from "../components/PreviewSwitcher.tsx";
 import { TipBox } from "../components/TipBox.tsx";
 import AdaptWizard from "../islands/AdaptWizard.tsx";
+import { PREVIEWS } from "../lib/previews_current.ts";
 import {
   designatedMachine,
   sessionHolder,
@@ -76,6 +78,7 @@ export default define.page(function AdaptPage() {
   return (
     <Page
       contained
+      before={<PreviewSwitcher features={PREVIEWS} pathname="/adapt" />}
       title="Adapt this dashboard to another disease"
       description="Answer the interview below and download a ready disease/ folder for your fork. Every word that names the disease lives in that folder; the code, the pipeline and the tests hold for any disease of this class."
     >

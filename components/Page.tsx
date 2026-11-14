@@ -12,6 +12,11 @@ interface PageProps {
    * card, which carries the heading, the lead and the totals on one surface.
    */
   header?: ComponentChildren;
+  /**
+   * Drawn above the header, whether default or custom: the previews'
+   * navigation strip, which belongs to the page's frame rather than its body.
+   */
+  before?: ComponentChildren;
   /** Constrain the shell to a fixed measure rather than the full width. */
   contained?: boolean;
   children: ComponentChildren;
@@ -27,10 +32,12 @@ interface PageProps {
  * outer margin of their own.
  */
 export function Page(
-  { title, description, header, contained = false, children }: PageProps,
+  { title, description, header, before, contained = false, children }:
+    PageProps,
 ) {
   return (
     <div class={`page-shell${contained ? " page-shell-contained" : ""}`}>
+      {before}
       {header ?? (
         <div class="page-header">
           <h1>{title}</h1>

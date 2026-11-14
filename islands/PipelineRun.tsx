@@ -1,6 +1,7 @@
 import { useHydratedRef } from "../components/useHydratedRef.ts";
 /**
- * The About page's pipeline-run widget.
+ * The pipeline-run widget: drawn at `/previews/pipeline` while gold-only is
+ * on, and on the About page while it is off.
  *
  * Renders the last recorded run from `data/pipeline_run.json` as a verdict
  * over a ledger: when it ran and whether it completed, three figures a
@@ -65,11 +66,9 @@ interface PipelineRunViewProps {
    */
   run?: PipelineRun | null;
   /**
-   * Whether the card is shown as the About page's technical preview, by
-   * the switch that fetched it (`islands/PipelinePreview.tsx`) or by the
-   * island the route draws for a preview left on
-   * (`islands/PipelinePreviewWidget.tsx`): a pill after the heading says
-   * so, and nothing else changes.
+   * Whether the card is shown as a preview, as the run's own page under New
+   * Feature Previews draws it: a pill after the heading says so, and
+   * nothing else changes.
    */
   preview?: boolean;
 }

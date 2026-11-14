@@ -1,13 +1,16 @@
 import { HttpError } from "fresh";
+import type { ComponentChildren } from "preact";
 
 import { define } from "../../utils.ts";
 import { Page } from "../../components/Page.tsx";
+import { PreviewSwitcher } from "../../components/PreviewSwitcher.tsx";
 import { ReviewNotice } from "../../components/review/ReviewNotice.tsx";
 import {
   KINDS,
   ReviewQueue,
   STANDINGS,
 } from "../../components/review/ReviewQueue.tsx";
+import { PREVIEWS } from "../../lib/previews_current.ts";
 import { REVIEW } from "../../lib/review/current.ts";
 import type { Standing } from "../../lib/review/rules.ts";
 import type { ReviewState } from "../../lib/review/summary.ts";
@@ -32,12 +35,18 @@ export function queueFilters(params: URLSearchParams): QueueFilters {
   };
 }
 
-/** The queue page itself, from a review and the two filters. */
+/**
+ * The queue page itself, from a review and the two filters; `before` is the
+ * previews' strip, which the route draws above the header.
+ */
 export function ReviewQueueContent(
-  { state, kind, standing }: { state: ReviewState } & QueueFilters,
+  { state, kind, standing, before }:
+    & { state: ReviewState; before?: ComponentChildren }
+    & QueueFilters,
 ) {
   return (
     <Page
+      before={before}
       title="Review queue"
       description="Every gene the pipeline run changed, one row each, with the committee's standing on it."
     >
@@ -58,6 +67,7 @@ export default define.page(function ReviewQueuePage(ctx) {
     <ReviewQueueContent
       state={REVIEW}
       {...queueFilters(ctx.url.searchParams)}
+      before={<PreviewSwitcher features={PREVIEWS} pathname="/review" />}
     />
   );
 });

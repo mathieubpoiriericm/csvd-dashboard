@@ -17,22 +17,18 @@ import { renderToString } from "preact-render-to-string";
 
 import { AboutContent } from "../routes/index.tsx";
 import GenesView, { BrainCellTypesCell } from "../islands/GenesView.tsx";
-import { pipelineRun } from "../lib/data/pipeline_run.ts";
 import { GOLD_DATA_DATE, GOLD_ONLY_NOTICE } from "../lib/gold_only.ts";
 import { formatLongDate } from "../lib/constants.ts";
-import { previewInvitation, previewNote } from "../lib/pipeline_preview.ts";
 import { splitCellTypes } from "../lib/tooltips.ts";
 import type { PipelineRun, SyncRun } from "../lib/types.ts";
-import { RUN, runWith } from "./fixtures/pipeline_run.ts";
+import { RUN } from "./fixtures/pipeline_run.ts";
 import { sampleGene } from "./fixtures/rows.ts";
-import { escapeHtml } from "./helpers/html.ts";
 
 const DATA_LABEL = '<strong class="note-label">Data:</strong>';
 
-// A run that searched a year: the notice reads its window off the report.
-const RECORDED_RUN: PipelineRun = runWith({
-  config: { ...RUN.config, daysBack: 365 },
-});
+// A recorded run, so the About page has one to ignore: the plain notice stands
+// in its place whatever the run holds.
+const RECORDED_RUN: PipelineRun = RUN;
 
 const RECORDED_REFRESH = {
   runTimestamp: "2026-09-02T03:00:00Z",
@@ -68,12 +64,21 @@ Deno.test("gold-only About shows the notice and the curated date, and no run", (
     />,
   );
   assertStringIncludes(html, GOLD_ONLY_NOTICE);
-  // It informs, so it wears the neutral notice, not the warning's red. With
-  // a run recorded it also offers the preview, in the run's own window.
+  // It informs, so it wears the neutral notice, not the warning's red, and
+  // it is one plain line: the run's report has a page of its own.
   assertStringIncludes(
     html,
-    '<div class="notice notice-neutral about-gold-notice has-preview">',
+    `<p class="notice notice-neutral about-gold-notice">${DATA_LABEL} ${GOLD_ONLY_NOTICE}</p>`,
   );
+  for (
+    const gone of [
+      "has-preview",
+      "about-preview-switch",
+      'role="switch"',
+      "Curious what the pipeline can do",
+      "pipeline-card",
+    ]
+  ) assertNotMatch(html, new RegExp(gone));
   // Each note opens on its eyebrow, as a tip box does.
   assertStringIncludes(
     html,
@@ -81,11 +86,6 @@ Deno.test("gold-only About shows the notice and the curated date, and no run", (
       '<strong class="note-label">Preview:</strong> This is a preview of a ' +
       "dashboard that is still a work in progress.</p>",
   );
-  assertStringIncludes(
-    html,
-    `<div class="about-gold-text"><p>${DATA_LABEL} ${GOLD_ONLY_NOTICE}</p>`,
-  );
-  assertStringIncludes(html, escapeHtml(previewInvitation(365)));
   // It sits directly under the preview warning, above the hero.
   const warning = html.indexOf("about-warning");
   const notice = html.indexOf("about-gold-notice");
@@ -110,52 +110,11 @@ Deno.test("gold-only About keeps its date and notice with no pipeline data", () 
   assertNotMatch(html, /Data update date unavailable/);
 });
 
-Deno.test("with no run to preview the notice is the plain line, whatever the cookie said", () => {
-  for (const previewOn of [false, true]) {
-    const html = renderToString(
-      <AboutContent goldOnly run={null} previewOn={previewOn} />,
-    );
-    assertStringIncludes(
-      html,
-      `<p class="notice notice-neutral about-gold-notice">${DATA_LABEL} ${GOLD_ONLY_NOTICE}</p>`,
-    );
-    assertNotMatch(html, /about-preview-switch/);
-    assertNotMatch(html, /pipeline-card/);
-  }
-});
-
-Deno.test("the preview switch belongs to the notice, so the run branch has neither", () => {
+Deno.test("a fork with gold-only off has no data notice", () => {
   const html = renderToString(
-    <AboutContent goldOnly={false} previewOn run={null} status={STATUS} />,
+    <AboutContent goldOnly={false} run={RECORDED_RUN} status={STATUS} />,
   );
-  assertNotMatch(html, /about-preview-switch/);
   assertNotMatch(html, /about-gold-notice/);
-});
-
-Deno.test("a preview switched on reads as on, and adds nothing else to the page", () => {
-  const html = renderToString(
-    <AboutContent goldOnly previewOn run={RECORDED_RUN} />,
-  );
-  assertStringIncludes(html, 'aria-checked="true"');
-  assertStringIncludes(html, escapeHtml(previewNote(365)));
-  // The hero keeps the curated date, and the run branch's date and
-  // refreshes stay out.
-  assertStringIncludes(html, "Hand-curated data as of");
-  assertNotMatch(html, /Up to date as of/);
-  assertNotMatch(html, /Reference Data Refreshes/);
-});
-
-Deno.test("a preview switched on opens the widget between the notice and the hero", () => {
-  // The widget reads the committed run, not the `run` above (no report
-  // crosses island props); with none committed it draws nothing.
-  if (pipelineRun === null) return;
-  const html = renderToString(
-    <AboutContent goldOnly previewOn run={RECORDED_RUN} />,
-  );
-  const notice = html.indexOf("about-gold-notice");
-  const card = html.indexOf("pipeline-card");
-  assert(notice !== -1 && notice < card, "the widget follows the notice");
-  assert(card < html.indexOf("about-hero"), "the widget precedes the hero");
 });
 
 Deno.test("the run branch carries no notice", () => {

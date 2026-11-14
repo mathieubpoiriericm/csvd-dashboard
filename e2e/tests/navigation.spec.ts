@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import {
   ABOUT_HEADING,
+  EXPECTED,
   INSTITUTE_COPYRIGHT,
   SITE_TITLE,
 } from "../fixtures/expected-data.ts";
@@ -22,8 +23,8 @@ const ROUTES = [
   { href: "/map", label: "Trials Map", heading: "Trials Map" },
 ] as const;
 
-/** The adapt guide's link: in the bar, left of the tabs, and not one of them. */
-const ADAPT_LABEL = "Build Your Own";
+/** The previews entry: in the bar, left of the tabs, and not one of them. */
+const PREVIEWS_LABEL = EXPECTED.previewsLabel;
 
 for (const route of ROUTES) {
   test(`${route.href} renders its heading and marks its nav link active`, async ({ page }) => {
@@ -43,22 +44,23 @@ for (const route of ROUTES) {
   });
 }
 
-test("the nav lists the adapt link, then all six tabs in TABS order", async ({ page }) => {
+test("the nav lists the previews entry, then all six tabs in TABS order", async ({ page }) => {
   await page.goto("/");
   const links = page.getByRole("navigation", { name: "Main" }).getByRole(
     "link",
   );
-  await expect(links).toHaveText([ADAPT_LABEL, ...ROUTES.map((r) => r.label)]);
+  await expect(links).toHaveText([PREVIEWS_LABEL, ...ROUTES.map((r) => r.label)]);
 });
 
-test("the adapt link describes the guide on hover and opens it", async ({ page }) => {
+test("the previews entry describes the features on hover and opens the hub", async ({ page }) => {
   await page.goto("/");
   const link = page.getByRole("navigation", { name: "Main" }).getByRole(
     "link",
-    { name: ADAPT_LABEL, exact: true },
+    { name: PREVIEWS_LABEL, exact: true },
   );
-  const tip = page.locator("#nav-adapt-tip");
-  await expect(link).toHaveAccessibleDescription(/^Recently updated\./);
+  const tip = page.locator("#nav-previews-tip");
+  await expect(link).toHaveAccessibleDescription(/^New\./);
+  await expect(tip).toHaveText(EXPECTED.previewsTip);
   await expect(tip).toBeHidden();
 
   await link.hover();
@@ -79,7 +81,7 @@ test("the adapt link describes the guide on hover and opens it", async ({ page }
   expect(gap(boxes[0], boxes[1])).toBeGreaterThan(gap(boxes[1], boxes[2]));
 
   await link.click();
-  await expect(page).toHaveURL(/\/adapt$/);
+  await expect(page).toHaveURL(/\/previews$/);
   await expect(link).toHaveAttribute("aria-current", "page");
 });
 

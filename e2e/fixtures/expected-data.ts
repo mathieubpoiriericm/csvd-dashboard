@@ -55,6 +55,12 @@ export const withStatusSummary = (summary: string): string =>
 export const pagesFor = (rows: number): number => Math.ceil(rows / 10);
 
 /**
+ * The features the previews hub offers, in the strip's order: the guide
+ * always, the run and the review only when their data is committed.
+ */
+export const PREVIEWS: Expected["previews"] = EXPECTED.previews;
+
+/**
  * The review area's figures and copy, or null when there is no review round
  * (none committed, or gold-only off): the area then does not exist at all.
  */

@@ -1,13 +1,13 @@
 /**
  * The README's screenshots.
  *
- * Captures the six tabs, and the review area's three pages while the build
- * has one, into `docs/screenshots/` from the *production* build, the one
- * `e2e/playwright.config.ts` and the perf harness drive: 1440 CSS px wide at
- * device scale 2, light theme, signed in. Each image is cropped to what
- * its README caption describes and written as lossless WebP by libwebp's
- * `cwebp`. Chromium's own encoder is no substitute: its lossless output holds
- * the same pixels in two to seven times the bytes.
+ * Captures the six tabs, the previews hub, and the review area's three pages
+ * while the build has one, into `docs/screenshots/` from the *production*
+ * build, the one `e2e/playwright.config.ts` and the perf harness drive: 1440
+ * CSS px wide at device scale 2, light theme, signed in. Each image is
+ * cropped to what its README caption describes and written as lossless WebP by
+ * libwebp's `cwebp`. Chromium's own encoder is no substitute: its lossless
+ * output holds the same pixels in two to seven times the bytes.
  *
  * The server is this script's own, on a free port, behind a passphrase and a
  * session secret made up for the run. Unlike the perf harness it never reuses a
@@ -97,14 +97,21 @@ function belowMergedBlock(page) {
 
 /**
  * The About page hydrates its run report, and renders none -- only a status
- * card -- while `data/pipeline_run.json` is `null`. Under gold-only with the
- * preview cookie unset there is no card, only the preview switch, which is
- * disabled until its island is live.
+ * card -- while `data/pipeline_run.json` is `null`. Under gold-only it draws
+ * neither, only the notice.
  */
 async function aboutReady(page) {
   if (await page.$(".pipeline-card")) await READY.get("/")(page);
-  if (await page.$(".about-preview-switch")) {
-    await page.waitForSelector(".about-preview-switch:not([disabled])");
+}
+
+/**
+ * The hub's cards are server-rendered. The review card's request button is
+ * disabled until its island is live, so wait for it when the card is there.
+ */
+async function previewsReady(page) {
+  await page.waitForSelector(".preview-cards");
+  if (await page.$("button.review-action")) {
+    await page.waitForSelector("button.review-action:not([disabled])");
   }
 }
 
@@ -142,7 +149,7 @@ async function firstRoundGene() {
 
 const reviewGene = await firstRoundGene();
 
-/** A server-rendered review page: its only island is the navbar's control. */
+/** A server-rendered review page, with no island to wait for. */
 async function reviewReady(page) {
   await page.waitForSelector(".page-header");
 }
@@ -193,6 +200,17 @@ const SHOTS = [
       const map = await extent(page, ".map-container");
       if (!map) throw new Error("no .map-container to crop to");
       return { top: 0, bottom: map.bottom + MARGIN };
+    },
+  },
+  {
+    name: "previews",
+    route: "/previews",
+    ready: previewsReady,
+    // The heading and the cards under it.
+    crop: async (page) => {
+      const cards = await extent(page, ".preview-cards");
+      if (!cards) throw new Error("no .preview-cards to crop to");
+      return { top: 0, bottom: cards.bottom + MARGIN };
     },
   },
   // The review area exists only under gold-only with a round (a fork, or an

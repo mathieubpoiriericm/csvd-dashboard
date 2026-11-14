@@ -4,8 +4,8 @@
  * While it is on, the dashboard publishes only the hand-curated tables, and the
  * pages say so: the About page dates the data from the curated release rather
  * than from a pipeline run, shows `GOLD_ONLY_NOTICE` where the run report
- * would be (with a switch that opens a technical preview of the last run's
- * report, when one is recorded), the Genes table drops the
+ * would be (the last run's report is offered on its own page under New
+ * Feature Previews), the Genes table drops the
  * extraction-provenance columns, which only a pipeline extraction fills, and
  * the trait filter and the phenogram's key list only the traits a curated
  * gene carries. `pipeline.main` reads this same line (`pipeline/gold_only.py`)
