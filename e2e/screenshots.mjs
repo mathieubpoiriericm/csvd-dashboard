@@ -1,13 +1,13 @@
 /**
  * The README's screenshots.
  *
- * Captures the six tabs, and the review area's three pages while the build
- * has one, into `docs/screenshots/` from the *production* build, the one
- * `e2e/playwright.config.ts` and the perf harness drive: 1440 CSS px wide at
- * device scale 2, light theme, signed in. Each image is cropped to what
- * its README caption describes and written as lossless WebP by libwebp's
- * `cwebp`. Chromium's own encoder is no substitute: its lossless output holds
- * the same pixels in two to seven times the bytes.
+ * Captures the six tabs, the previews hub, and the review area's three pages
+ * while the build has one, into `docs/screenshots/` from the *production*
+ * build, the one `e2e/playwright.config.ts` and the perf harness drive: 1440
+ * CSS px wide at device scale 2, light theme, signed in. Each image is
+ * cropped to what its README caption describes and written as lossless WebP by
+ * libwebp's `cwebp`. Chromium's own encoder is no substitute: its lossless
+ * output holds the same pixels in two to seven times the bytes.
  *
  * The server is this script's own, on a free port, behind a passphrase and a
  * session secret made up for the run. Unlike the perf harness it never reuses a
