@@ -2,6 +2,7 @@ import { expect } from "@playwright/test";
 import {
   availability,
   DERIVED_INPUTS,
+  RUN_WIDGET_ROUTE,
   SCENARIO_INPUTS,
   skipReason,
   unavailableReason,
@@ -18,11 +19,20 @@ const timelineReady = ready('.timeline-layout[data-hydrated="true"]');
 const aboutReady = ready(
   '.pipeline-card[data-hydrated="true"], .about-gold-notice',
 );
-/** What the run widget's interactions need, and why it can be missing. */
+/**
+ * Where the run widget's interactions are measured, what they need, and why
+ * it can be missing. The widget is on its own previews page while GOLD_ONLY
+ * is on and on the About page otherwise (`RUN_WIDGET_ROUTE`); with no report
+ * recorded neither page draws it.
+ */
 const RUN_WIDGET = {
+  route: RUN_WIDGET_ROUTE,
   needs: ".pipeline-card",
-  missingBecause: "the About page shows no run while GOLD_ONLY is on",
+  missingBecause: "no run report is recorded",
 };
+const runWidgetReady = RUN_WIDGET_ROUTE === "/"
+  ? aboutReady
+  : ready('.pipeline-card[data-hydrated="true"]');
 
 const phenogramReady = ready('.phenogram-layout[data-hydrated="true"]');
 const mapReady = ready(".leaflet-container .leaflet-marker-icon");
@@ -114,7 +124,7 @@ export const LOAD_SCENARIOS = [
 const interaction = (id, ready, act, extra = {}) => ({
   id,
   label: id,
-  route: `/${id.split("/")[0] === "about" ? "" : id.split("/")[0]}`,
+  route: `/${id.split("/")[0]}`,
   kind: "interaction",
   ready,
   act,
@@ -257,7 +267,7 @@ export const INTERACTION_SCENARIOS = [
     // The drawer is visible a moment before focus moves into it. Escape sent
     // in between lands on the marker, which ignores it, so the drawer stays
     // open; the lifecycle run hit that on every second cycle. Wait for the
-    // focus, as about/drawer does and e2e/tests/timeline.spec.ts explains.
+    // focus, as pipeline/drawer does and e2e/tests/timeline.spec.ts explains.
     await expect(page.locator(".timeline-drawer-close")).toBeFocused();
     await page.keyboard.press("Escape");
     await expect(page.locator("#timeline-drawer")).toBeHidden();
@@ -339,7 +349,7 @@ export const INTERACTION_SCENARIOS = [
       await expect(tip(page)).toBeVisible();
     }
   }),
-  interaction("about/toggle-step", aboutReady, async (page) => {
+  interaction("pipeline/toggle-step", runWidgetReady, async (page) => {
     // A step that failed starts open, so the click may close it: what is
     // measured is the toggle, whichever way it goes.
     const button = page.locator(".pipeline-step-head:not([disabled])").first();
@@ -350,7 +360,7 @@ export const INTERACTION_SCENARIOS = [
       before === "true" ? "false" : "true",
     );
   }, RUN_WIDGET),
-  interaction("about/drawer", aboutReady, async (page) => {
+  interaction("pipeline/drawer", runWidgetReady, async (page) => {
     await page.getByRole("button", { name: "Run details" }).click();
     const details = page.getByRole("dialog", { name: "Run details" });
     await expect(details).toBeVisible();

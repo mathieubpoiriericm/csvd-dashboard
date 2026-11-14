@@ -18,7 +18,7 @@ export async function runLifecycle(
     "genes/tooltip-hover",
     "phenogram/hover-gene",
     "timeline/open-drawer",
-    "about/drawer",
+    "pipeline/drawer",
   ];
   const scenarios = ids.map((id) =>
     INTERACTION_SCENARIOS.find((s) => s.id === id)
