@@ -20,7 +20,9 @@ from scripts.restore_from_json import (
     RestoreRefused,
     build_plan,
     gene_from_wire,
+    ledger_emptied_at,
     ledger_from_logs,
+    record_ledger_emptied,
     stored_omics,
     trial_from_wire,
 )
@@ -626,3 +628,84 @@ def test_a_report_from_before_the_fallback_names_the_model_it_ran(
         "10000002": None,
         "10000003": None,
     }
+
+
+def test_a_doi_fallback_citation_is_not_restored_as_a_cached_one(
+    tmp_path: Path,
+) -> None:
+    """The export labels a missing citation by its key's kind, "DOI: ..." for
+    a preprint. Stored, that placeholder would count as cached for ever --
+    the citation cache has no TTL -- and the preprint would never be fetched
+    once it is indexed."""
+    doi = "10.21203/rs.3.rs-0000000/v1"
+    data = _write_export(
+        tmp_path / "data",
+        refs=[
+            {
+                "pmid": doi,
+                "authors": None,
+                "title": None,
+                "journal": None,
+                "publicationDate": None,
+                "doi": None,
+                "formattedRef": f"DOI: {doi} (citation not available)",
+            },
+        ],
+    )
+
+    assert build_plan(data, tmp_path / "logs").citations == []
+
+
+def _two_runs(logs: Path) -> None:
+    (logs / "json").mkdir(parents=True)
+    for name, stamp, pmid in (
+        ("a", "2026-01-01T00:00:00+00:00", "10000001"),
+        ("b", "2026-01-03T00:00:00+00:00", "10000002"),
+    ):
+        report = _report(stamp, [_paper(pmid)], dry_run=False)
+        (logs / "json" / f"pipeline_report_{name}.json").write_text(json.dumps(report))
+
+
+def test_the_ledger_leaves_out_the_runs_from_before_it_was_emptied(
+    tmp_path: Path,
+) -> None:
+    """The gold load and a reset empty pubmed_refs so that the next run reads
+    every paper again. Replaying the runs from before that wipe would mark
+    those papers processed, and no run would read them against the new genes."""
+    logs = tmp_path / "logs"
+    _two_runs(logs)
+
+    since = datetime(2026, 1, 2, tzinfo=UTC)
+    assert [row[0] for row in ledger_from_logs(logs, since=since)] == ["10000002"]
+    # A run stamped at the wipe itself finished before it committed.
+    at_the_run = datetime(2026, 1, 3, tzinfo=UTC)
+    assert ledger_from_logs(logs, since=at_the_run) == []
+
+
+def test_the_ledger_cut_off_defaults_to_the_recorded_wipe(tmp_path: Path) -> None:
+    logs = tmp_path / "logs"
+    _two_runs(logs)
+    assert ledger_emptied_at(logs) is None
+    assert len(ledger_from_logs(logs)) == 2
+
+    record_ledger_emptied(logs, datetime(2026, 1, 2, tzinfo=UTC))
+
+    assert ledger_emptied_at(logs) == datetime(2026, 1, 2, tzinfo=UTC)
+    assert [row[0] for row in ledger_from_logs(logs)] == ["10000002"]
+    # An explicit cut-off overrides the record, in either direction.
+    earlier = datetime(2025, 1, 1, tzinfo=UTC)
+    assert len(ledger_from_logs(logs, since=earlier)) == 2
+    assert len(build_plan(_write_export(tmp_path / "data"), logs).ledger) == 1
+    assert (
+        len(build_plan(tmp_path / "data", logs, ledger_since=earlier).ledger) == 2
+    )
+
+
+def test_recording_a_wipe_keeps_the_newest_and_makes_the_directory(
+    tmp_path: Path,
+) -> None:
+    logs = tmp_path / "absent" / "logs"
+    record_ledger_emptied(logs, datetime(2026, 1, 5, tzinfo=UTC))
+    record_ledger_emptied(logs, datetime(2026, 1, 2, tzinfo=UTC))
+    assert ledger_emptied_at(logs) == datetime(2026, 1, 5, tzinfo=UTC)
+    assert [path.name for path in logs.iterdir()] == ["ledger_emptied.json"]

@@ -138,6 +138,27 @@ class TestRejection:
 
         assert checkpoint.load(path, fp) == [{"pmid": "1"}]
 
+    def test_a_record_appended_after_a_torn_line_is_not_lost_with_it(
+        self, tmp_path: Path
+    ) -> None:
+        # `load` drops the torn line in memory and leaves it in the file,
+        # so the resumed run's first append used to land on the same line
+        # and be dropped with it by every later load.
+        path = _path(tmp_path)
+        fp = checkpoint.fingerprint(PipelineConfig())
+        checkpoint.append(path, fp, {"pmid": "1"})
+        with open(path, "a") as handle:
+            handle.write('{"pmid": "2", "gen')
+
+        checkpoint.append(path, fp, {"pmid": "3"})
+        checkpoint.append(path, fp, {"pmid": "4"})
+
+        assert checkpoint.load(path, fp) == [
+            {"pmid": "1"},
+            {"pmid": "3"},
+            {"pmid": "4"},
+        ]
+
     def test_a_file_that_cannot_be_read_loads_as_nothing(
         self, tmp_path: Path
     ) -> None:

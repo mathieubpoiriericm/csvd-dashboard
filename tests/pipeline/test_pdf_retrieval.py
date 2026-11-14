@@ -39,6 +39,13 @@ class TestValidateDoi:
     def test_valid_doi(self):
         assert _validate_doi("10.1234/test.123") == "10.1234/test.123"
 
+    @pytest.mark.parametrize("doi", ["10.1234/../../x", "10.1234/a/./b"])
+    def test_dot_segments_raise(self, doi):
+        # A URL normalises `..` away, so the lookup would leave the DOI's
+        # own path; percent-encoding does not stop that.
+        with pytest.raises(ValueError, match="Invalid DOI"):
+            _validate_doi(doi)
+
     def test_strips_whitespace(self):
         assert _validate_doi("  10.1234/test  ") == "10.1234/test"
 
@@ -242,6 +249,40 @@ class TestCheckUnpaywall:
 
         result = await check_unpaywall("10.1234/test")
         assert result == "https://example.com/paper.pdf"
+
+    @pytest.mark.parametrize(
+        ("doi", "path"),
+        [
+            ("10.1234/a?b=c", "/v2/10.1234/a%3Fb%3Dc"),
+            (
+                "10.1002/(SICI)1096(1996)61:1<1::AID-X1>3.0.CO;2-#",
+                "/v2/10.1002/%28SICI%291096%281996%2961%3A1%3C1%3A%3AAID-X1%3E3.0.CO%3B2-%23",
+            ),
+        ],
+    )
+    async def test_the_doi_is_percent_encoded_into_the_path(self, mocker, doi, path):
+        # Interpolated raw, `?` began the query string (and `params=` then
+        # replaced it) and `#` began the fragment, so a shorter, different
+        # DOI was looked up and its PDF filed under this paper's PMID.
+        from pipeline.api_telemetry import normalize_path
+
+        mocker.patch("pipeline.pdf_retrieval.UNPAYWALL_EMAIL", "test@test.com")
+        mock_resp = MagicMock()
+        mock_resp.status_code = 404
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mocker.patch(
+            "pipeline.pdf_retrieval._client_manager.get",
+            return_value=mock_client,
+        )
+
+        assert await check_unpaywall(doi) is None
+
+        url = mock_client.get.call_args.args[0]
+        sent = httpx.Request("GET", url, params={"email": "a@b.c"}).url
+        assert sent.raw_path.decode().split("?")[0] == path
+        assert sent.fragment == ""
+        assert normalize_path(sent.path) == "/v2/:id"
 
     async def test_a_preprint_is_not_the_articles_full_text(self, mocker, caplog):
         """Unpaywall's best copy is a preprint only when nothing better exists.
@@ -541,6 +582,66 @@ class TestXmlParsers:
 
         assert text is not None
         assert text.count("GENE1 was associated (p=1e-9).") == 1
+
+    def test_pmc_table_rows_reach_the_text_one_line_each(self):
+        # A JATS cell is not wrapped in <p>, so `.//body//p` saw no table
+        # at all: the associations a paper states only in its table were
+        # absent from a text recorded as `source: "pmc", fulltext: True`.
+        xml = (
+            b"<article><body><sec><p>Loci are in Table 1.</p>"
+            b"<table-wrap><table><thead><tr><th>Gene</th><th>P</th></tr></thead>"
+            b"<tbody><tr><td>GENE1</td><td>1e-9</td></tr>"
+            b"<tr><td><p>GENE2</p></td><td/></tr></tbody></table></table-wrap>"
+            b"<p>Text after.</p></sec></body></article>"
+        )
+
+        text = _parse_pmc_xml(xml)
+
+        assert text is not None
+        assert text.split("\n\n") == [
+            "Loci are in Table 1.",
+            "Gene | P",
+            "GENE1 | 1e-9",
+            "GENE2 | ",
+            "Text after.",
+        ]
+
+    def test_pmc_floats_group_tables_are_read_after_the_body(self):
+        # JATS lets <table-wrap> sit in a <floats-group> beside <body>.
+        xml = (
+            b"<article><body><sec><p>See Table 1.</p></sec></body>"
+            b"<floats-group><table-wrap><caption><p>Table 1. Loci.</p></caption>"
+            b"<table><tr><td>GENE1</td><td>2e-8</td></tr></table>"
+            b"</table-wrap></floats-group></article>"
+        )
+
+        assert _parse_pmc_xml(xml) == (
+            "See Table 1.\n\nTable 1. Loci.\n\nGENE1 | 2e-8"
+        )
+
+    def test_pmc_table_cells_drop_bibliographic_markers(self):
+        xml = (
+            b"<article><body><sec><p>See Table 1.</p><table><tr>"
+            b'<td>GENE2<xref ref-type="bibr" rid="B12">12</xref></td>'
+            b"<td>3</td></tr></table></sec></body></article>"
+        )
+
+        text = _parse_pmc_xml(xml)
+
+        assert text is not None
+        assert "GENE2 | 3" in text
+        assert "GENE212" not in text
+
+    def test_pmc_reference_list_in_the_body_is_not_article_text(self):
+        # Publishers render the bibliography inside <body>; a cited title
+        # names genes the paper never studied.
+        xml = (
+            b"<article><body><sec><p>GENE1 variant.</p></sec>"
+            b"<ref-list><ref><p>Cited paper about GENE9.</p></ref></ref-list>"
+            b"</body></article>"
+        )
+
+        assert _parse_pmc_xml(xml) == "GENE1 variant."
 
     def test_abstract_ignores_other_abstract_sections(self):
         # <OtherAbstract> holds a publisher's translation or a plain-language

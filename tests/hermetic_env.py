@@ -19,7 +19,10 @@ production credential exported by hand is the same hazard as one loaded from
 nothing can connect anyway.
 """
 
+import atexit
 import os
+import shutil
+import tempfile
 
 DATABASE_CREDENTIALS = ("DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD")
 
@@ -27,3 +30,24 @@ DATABASE_CREDENTIALS = ("DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD")
 def shut_out_dotenv_database_credentials() -> None:
     for name in DATABASE_CREDENTIALS:
         os.environ.setdefault(name, "")
+
+
+def keep_pipeline_logs_out_of_the_project() -> None:
+    """Send `pipeline/main.py`'s log directory to a temp directory.
+
+    `pipeline.main` reads `PIPELINE_LOG_DIR` once, at import, falling back to
+    the project's `logs/`, opens a log file in `logs/log/` there, and writes
+    every run report into `logs/json/`. A test that drove `run_pipeline`
+    without mocking `_emit_report` left a report in the developer's
+    `logs/json/` -- 69 of them by 2026-11-13 -- that
+    `scripts.restore_from_json.ledger_from_logs` reads as production history,
+    and each test process left a log file beside the real runs'. Set before
+    anything imports the pipeline, so the import-time log file lands here too;
+    `_isolate_log_dir` then points each test at its own `tmp_path`.
+    As above, a value exported in the shell is kept.
+    """
+    if "PIPELINE_LOG_DIR" in os.environ:
+        return
+    log_dir = tempfile.mkdtemp(prefix="csvd-test-logs-")
+    atexit.register(shutil.rmtree, log_dir, ignore_errors=True)
+    os.environ["PIPELINE_LOG_DIR"] = log_dir

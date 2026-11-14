@@ -19,8 +19,9 @@ from pydantic import Field
 
 from pipeline.api_telemetry import ApiServiceRecord
 from pipeline.citations import ProvenanceTally
-from pipeline.data_merger import canonical_gene_symbol
+from pipeline.data_merger import canonical_gene_symbol, stored_traits
 from pipeline.omics import wire_strings
+from pipeline.run_errors import publishable_text
 from pipeline.steps import PREVIEW_RUN_MODE, StepRecord
 from pipeline.wire_model import WireModel
 
@@ -515,6 +516,7 @@ def _gene_records(
     papers_detail: list[dict[str, Any]],
     held: set[str],
     citation_only: set[str],
+    claim_floor: float | None = None,
 ) -> list[GeneRecord]:
     """Every gene the run accepted, in paper order.
 
@@ -534,19 +536,37 @@ def _gene_records(
     and Mendelian randomization fields are empty, as the row's
     contribution is, and the flag says why. They used to carry what the
     model extracted, so the drawer showed claims the table never took.
+
+    So is a record scoring below *claim_floor*, the insert floor of a run
+    that merged, whatever its gene's best score: the merge takes the claims
+    paper by paper (`_build_combined_gene_data`), so a paper below the
+    floor gave the row its PMID alone even where another paper of the same
+    run cleared the floor for the gene. The holds are already excluded, so
+    every record left below the floor is one of these.
+
+    By the same rule a record's traits are the ones the merge stores
+    (`stored_traits`): a prompt spelling under its key, and no term the
+    dashboard does not track.
     """
     records: list[GeneRecord] = []
     for paper in papers_detail:
         for gene in paper.get("genes", []):
             if _is_held(gene, held):
                 continue
-            cited = _merge_key(gene) in citation_only
+            confidence = gene.get("confidence")
+            cited = _merge_key(gene) in citation_only or (
+                claim_floor is not None
+                and isinstance(confidence, int | float)
+                and confidence < claim_floor
+            )
             records.append(
                 GeneRecord(
                     symbol=gene.get("gene_symbol", ""),
                     pmid=gene.get("pmid"),
                     confidence=gene.get("confidence"),
-                    gwas_traits=[] if cited else list(gene.get("gwas_trait") or []),
+                    gwas_traits=(
+                        [] if cited else stored_traits(gene.get("gwas_trait") or [])
+                    ),
                     protein_name=gene.get("protein_name"),
                     mendelian_randomization=(
                         None if cited else gene.get("mendelian_randomization")
@@ -709,7 +729,8 @@ def _paper_records(
                 processing_seconds=_optional_seconds(
                     paper.get("processing_time") or None
                 ),
-                error=paper.get("error"),
+                # Exception text, and public once exported.
+                error=publishable_text(paper.get("error")),
                 extraction_model=paper.get("extraction_model"),
                 refusal=paper.get("refusal"),
             )
@@ -764,7 +785,16 @@ def build_run_report(
         for key in (cited if isinstance(cited, list) else [])
     }
     provenance = provenance or ProvenanceTally()
-    accepted = _gene_records(papers_detail, held_keys, citation_only)
+    accepted = _gene_records(
+        papers_detail,
+        held_keys,
+        citation_only,
+        # Only a run that merged withheld anything: one that failed before
+        # its merge lists what its papers validated, claims included.
+        insert_floor
+        if isinstance(database, dict) and isinstance(insert_floor, int | float)
+        else None,
+    )
 
     return PipelineRunReport(
         run_timestamp=run_data.get("timestamp", ""),

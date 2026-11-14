@@ -6,6 +6,10 @@ here ran with the developer's production database credentials in
 `os.environ`. See tests/hermetic_env.py.
 """
 
-from tests.hermetic_env import shut_out_dotenv_database_credentials
+from tests.hermetic_env import (
+    keep_pipeline_logs_out_of_the_project,
+    shut_out_dotenv_database_credentials,
+)
 
 shut_out_dotenv_database_credentials()
+keep_pipeline_logs_out_of_the_project()

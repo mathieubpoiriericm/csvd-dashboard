@@ -205,6 +205,15 @@ a window that is never re-run does not leave its record behind for ever. A
 record written before that field is dated, the first time it is read, from the
 file's last write -- the latest its batch can have been created -- and ages from
 there like the rest.
+A window too large for one batch (the API takes 256 MB or 100,000 requests) is
+split by `_chunk_requests`, and each batch is recorded as it is created. Each is
+submitted once: the SDK's retries are off for `batches.create`, which is not
+idempotent, so a 429 or 529 is sent again but a timeout or 5xx stops the run
+with "The batch may have been created" -- look in the Console's batch list
+before re-running, because that batch's id was never recorded and a re-run
+submits its papers again. An API outage during the poll is waited out like a
+batch still running, and a results download that breaks off is read again from
+the start.
 Which report holds a resumed batch's tokens depends on where the first run
 stopped. After a crash in the poll the batch was never collected, so its tokens
 are counted only by the run that collects it. After a crash in validation or in

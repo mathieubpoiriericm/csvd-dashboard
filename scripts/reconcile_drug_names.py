@@ -37,6 +37,7 @@ from dotenv import load_dotenv
 
 from pipeline.database import Database
 from pipeline.drug_names import normalize_drug_name
+from pipeline.gold_only import gold_only
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
@@ -119,6 +120,18 @@ async def stored_drugs() -> list[str]:
     return [row["drug"] for row in rows]
 
 
+def _unclean_heading(gold_only_on: bool) -> str:
+    """While gold-only is on the stored names are the curators' spellings,
+    and scripts.normalize_drug_names refuses to rewrite them."""
+    if gold_only_on:
+        return (
+            "Not in normal form, but curated -- GOLD_ONLY is true, so these "
+            "are the gold spellings and scripts.normalize_drug_names refuses "
+            "to rewrite them; a change is a curator's:"
+        )
+    return "Not in normal form -- run scripts.normalize_drug_names:"
+
+
 async def main() -> int:
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     names = await stored_drugs()
@@ -149,7 +162,7 @@ async def main() -> int:
     )
 
     if unclean:
-        logger.info("\nNot in normal form -- run scripts.normalize_drug_names:")
+        logger.info("\n%s", _unclean_heading(gold_only()))
         for name, tidy in unclean:
             logger.info("  %-46r -> %r", name, tidy)
 

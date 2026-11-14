@@ -3,7 +3,7 @@
 import json
 import logging
 from pathlib import Path
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import httpx
 import pytest
@@ -534,6 +534,22 @@ class TestMapStudyToRecords:
         (r,) = _map_study_to_records(study)
 
         assert r.estimated_completion_date == "12/2026"
+
+    def test_two_arms_of_one_agent_emit_one_record(self):
+        """Two doses normalise to one drug, which is one row under the
+        (registry_id, drug) key -- two records counted one discovery twice."""
+        study = _make_study(
+            interventions=[
+                {"type": "DRUG", "name": "Atorvastatin 40 mg"},
+                {"type": "DRUG", "name": "Atorvastatin 20 mg"},
+                {"type": "DRUG", "name": "aspirin"},
+            ]
+        )
+
+        assert [r.drug for r in _map_study_to_records(study)] == [
+            "Atorvastatin",
+            "Aspirin",
+        ]
 
     def test_an_observational_study_yields_no_trial_rows(self):
         """A DRUG intervention on an observational study is not a trial."""
@@ -1739,6 +1755,8 @@ class TestUpsertClinicalTrialsBatchSQL:
 
         mock_conn = AsyncMock()
         mock_conn.executemany = fake_executemany
+        # Sync, as asyncpg's is: the upsert is one transaction.
+        mock_conn.transaction = MagicMock(return_value=AsyncMock())
         mock_ctx = AsyncMock()
         mock_ctx.__aenter__ = AsyncMock(return_value=mock_conn)
         mock_ctx.__aexit__ = AsyncMock(return_value=None)
@@ -1794,6 +1812,8 @@ class TestUpsertClinicalTrialsBatchSQL:
 
         mock_conn = AsyncMock()
         mock_conn.executemany = fake_executemany
+        # Sync, as asyncpg's is: the upsert is one transaction.
+        mock_conn.transaction = MagicMock(return_value=AsyncMock())
         mock_ctx = AsyncMock()
         mock_ctx.__aenter__ = AsyncMock(return_value=mock_conn)
         mock_ctx.__aexit__ = AsyncMock(return_value=None)
@@ -1819,6 +1839,8 @@ class TestUpsertClinicalTrialsBatchSQL:
         mock_conn = AsyncMock()
         mock_conn.executemany = AsyncMock()
         mock_conn.fetch = AsyncMock(return_value=[])
+        # Sync, as asyncpg's is: the upsert is one transaction.
+        mock_conn.transaction = MagicMock(return_value=AsyncMock())
         mock_ctx = AsyncMock()
         mock_ctx.__aenter__ = AsyncMock(return_value=mock_conn)
         mock_ctx.__aexit__ = AsyncMock(return_value=None)

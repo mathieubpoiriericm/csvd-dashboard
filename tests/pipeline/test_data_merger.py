@@ -4,6 +4,8 @@ import json
 import logging
 from pathlib import Path
 
+import pytest
+
 from pipeline.data_merger import (
     _CANONICAL_GENE_SYMBOLS,
     _build_combined_gene_data,
@@ -20,9 +22,18 @@ TWAS = {"study_type": "TWAS"}
 PWAS = {"study_type": "PWAS"}
 
 
+def _combine(entries, claim_floor=0.0):
+    """Test helper: the combined row, every entry's claims admitted.
+
+    The floor is `merge_gene_entries`' to supply; the tests of the other
+    fields pass none, and the ones about the floor name it.
+    """
+    return _build_combined_gene_data(entries, claim_floor)
+
+
 def _build_gene_data(entry):
     """Test helper: build DB row for a single entry."""
-    return _build_combined_gene_data([entry])
+    return _combine([entry])
 
 
 # ---------------------------------------------------------------------------
@@ -119,7 +130,7 @@ class TestBuildGeneData:
                 source_quote="Second paper's GENE1 quote.",
             ),
         ]
-        data = _build_combined_gene_data(entries)
+        data = _combine(entries)
         assert data["source_quote"] == "First paper's GENE1 quote."
 
     def test_confidence_carried_through(self, make_gene_entry):
@@ -153,7 +164,7 @@ class TestBuildGeneData:
                 source_quote="The deciding paper's GENE1 sentence.",
             ),
         ]
-        data = _build_combined_gene_data(entries)
+        data = _combine(entries)
         assert data["confidence"] == 0.80
         assert data["source_quote"] == "The deciding paper's GENE1 sentence."
         # The other fields still merge across every entry, and the curated
@@ -173,12 +184,39 @@ class TestBuildGeneData:
             make_gene_entry(protein_name=None, pmid="111"),
             make_gene_entry(protein_name="Protein 1", pmid="222"),
         ]
-        assert _build_combined_gene_data(entries)["protein"] == "Protein 1"
+        assert _combine(entries)["protein"] == "Protein 1"
+
+    def test_a_protein_name_the_column_cannot_hold_is_skipped(
+        self, make_gene_entry, caplog
+    ):
+        """genes.protein is VARCHAR(255) and the merge is one transaction, so
+        one over-long name rolled back every gene of the run -- and the
+        checkpoint replayed it on each resume. Skipped, not clipped: the
+        next paper's name is used, and the skip is logged."""
+        entries = [
+            make_gene_entry(protein_name="word " * 60, pmid="111"),
+            make_gene_entry(protein_name="Protein  1\n", pmid="222"),
+        ]
+        with caplog.at_level(logging.WARNING):
+            data = _combine(entries)
+        assert data["protein"] == "Protein 1"
+        assert "GENE1" in caplog.text
+        assert "111" in caplog.text
+
+    def test_only_an_over_long_protein_name_stores_the_placeholder(
+        self, make_gene_entry
+    ):
+        data = _combine([make_gene_entry(protein_name="x" * 256)])
+        assert data["protein"] == ""
+
+    def test_a_protein_name_at_the_column_width_is_kept(self, make_gene_entry):
+        data = _combine([make_gene_entry(protein_name="x" * 255)])
+        assert data["protein"] == "x" * 255
 
     def test_gwas_trait_is_a_deduped_list(self, make_gene_entry, trait_vocabulary):
         """The join table takes one row per trait, so the merge stops joining."""
         a, b, c = trait_vocabulary.tracked
-        data = _build_combined_gene_data(
+        data = _combine(
             [
                 make_gene_entry(gwas_trait=[a, b]),
                 make_gene_entry(gwas_trait=[b, c]),
@@ -201,7 +239,7 @@ class TestBuildGeneData:
         caplog.set_level(logging.INFO)
         tracked = trait_vocabulary.tracked[0]
         first, second = trait_vocabulary.untracked
-        data = _build_combined_gene_data(
+        data = _combine(
             [
                 make_gene_entry(gene_symbol="GENEA", gwas_trait=[first, tracked]),
                 make_gene_entry(gene_symbol="GENEA", gwas_trait=[second, tracked]),
@@ -217,7 +255,7 @@ class TestBuildGeneData:
     ):
         caplog.set_level(logging.INFO)
         a, b, _ = trait_vocabulary.tracked
-        data = _build_combined_gene_data([make_gene_entry(gwas_trait=[a, b])])
+        data = _combine([make_gene_entry(gwas_trait=[a, b])])
         assert data["gwas_trait"] == [a, b]
         assert "untracked" not in caplog.text
 
@@ -235,7 +273,7 @@ class TestBuildGeneData:
         """
         ((spelling, target),) = trait_vocabulary.synonyms.items()
         other = trait_vocabulary.tracked[1]
-        data = _build_combined_gene_data(
+        data = _combine(
             [
                 make_gene_entry(gwas_trait=[spelling, other]),
                 make_gene_entry(gwas_trait=[target]),
@@ -400,6 +438,94 @@ class TestMergeGeneEntries:
         assert row["mendelian_randomization"] is True
         assert row["gwas_trait"] == [tracked_traits[0]]
         assert row["evidence_from_other_omics_studies"] == '["TWAS"]'
+
+    @pytest.mark.parametrize("existing", [{"GENE1"}, set()], ids=["update", "insert"])
+    async def test_a_sub_floor_paper_claims_nothing_beside_a_confident_one(
+        self, make_gene_entry, mocker, tracked_traits, existing
+    ):
+        """The floor is per paper, not per group.
+
+        The claims were withheld only when the group's best score sat below
+        the insert floor, so a 0.50 extraction's Mendelian randomization,
+        trait and omics study were written -- none of them can be withdrawn
+        -- whenever another paper in the same run scored the gene above it.
+        The same two papers in two runs wrote the citation alone, so the
+        published row depended on how the papers were batched.
+        """
+        mocker.patch("pipeline.data_merger.get_existing_genes", return_value=existing)
+        transactional = mocker.patch(
+            "pipeline.data_merger.merge_genes_transactional",
+            return_value=(0, 1),
+        )
+        confident = make_gene_entry(
+            gene_symbol="GENE1",
+            pmid="111",
+            confidence=0.90,
+            source_quote="The confident paper's GENE1 quote.",
+        )
+        weak = make_gene_entry(
+            gene_symbol="GENE1",
+            pmid="222",
+            confidence=0.50,
+            mendelian_randomization=True,
+            gwas_trait=[tracked_traits[0]],
+            omics_evidence=[TWAS],
+            source_quote="The weak paper's GENE1 quote.",
+        )
+
+        # Either order: the withholding must not depend on which came first.
+        for entries in ([confident, weak], [weak, confident]):
+            result = await merge_gene_entries(entries)
+
+            to_insert, to_update = transactional.call_args[0]
+            (row,) = to_update if existing else to_insert
+            assert row["mendelian_randomization"] is False
+            assert row["gwas_trait"] == []
+            assert row["evidence_from_other_omics_studies"] == ""
+            assert sorted(row["references"]) == ["111", "222"]
+            assert row["confidence"] == 0.90
+            assert row["source_quote"] == "The confident paper's GENE1 quote."
+            # The group cleared the floor, so the gene is not a
+            # citation-only update: the run report marks the weak paper's
+            # own record instead.
+            assert result.get("citation_only") == []
+
+    async def test_a_confident_paper_keeps_its_claims_beside_a_sub_floor_one(
+        self, make_gene_entry, mocker, tracked_traits
+    ):
+        a, b = tracked_traits[:2]
+        mocker.patch(
+            "pipeline.data_merger.get_existing_genes", return_value={"GENE1"}
+        )
+        transactional = mocker.patch(
+            "pipeline.data_merger.merge_genes_transactional",
+            return_value=(0, 1),
+        )
+
+        await merge_gene_entries(
+            [
+                make_gene_entry(
+                    pmid="111",
+                    confidence=0.50,
+                    gwas_trait=[a],
+                    omics_evidence=[TWAS],
+                ),
+                make_gene_entry(
+                    pmid="222",
+                    confidence=0.65,
+                    mendelian_randomization=True,
+                    gwas_trait=[b],
+                    omics_evidence=[PWAS],
+                ),
+            ]
+        )
+
+        (_, to_update) = transactional.call_args[0]
+        (row,) = to_update
+        assert row["mendelian_randomization"] is True
+        assert row["gwas_trait"] == [b]
+        assert row["evidence_from_other_omics_studies"] == '["PWAS"]'
+        assert row["references"] == ["111", "222"]
 
     async def test_a_low_confidence_entry_does_not_create_a_new_gene(
         self, make_gene_entry, mocker, caplog
@@ -577,7 +703,9 @@ class TestMergeGeneEntries:
                 gwas_trait=[a],
                 omics_evidence=[TWAS],
                 source_quote="First paper's GENE1 quote.",
-                confidence=0.60,
+                # At the insert floor: this test is about the collapse, and
+                # a paper below the floor contributes no claim to union.
+                confidence=0.65,
             ),
             make_gene_entry(
                 gene_symbol="GENE1",
@@ -707,7 +835,7 @@ class TestCanonicalGeneSymbol:
     def test_the_stored_row_carries_the_curated_key(
         self, make_gene_entry, gene_aliases
     ):
-        data = _build_combined_gene_data([make_gene_entry(gene_symbol="GENEA")])
+        data = _combine([make_gene_entry(gene_symbol="GENEA")])
         assert data["gene"] == "GENEA/B"
 
     async def test_both_members_in_one_batch_collapse_into_one_row(

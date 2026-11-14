@@ -881,6 +881,19 @@ async def get_cached_pubmed_citations(pmids: list[str]) -> dict[str, dict[str, A
         )
 
 
+# pubmed_citations.publication_date and .doi, with their widths (migration
+# 001). The other text columns are TEXT, and `pmid` is the key.
+_CITATION_WIDTHS: Final[tuple[tuple[str, int], ...]] = (
+    ("publication_date", 50),
+    ("doi", 100),
+)
+
+
+def _fits(value: str | None, width: int) -> str | None:
+    """*value*, or None when it is longer than its column."""
+    return value if value is None or len(value) <= width else None
+
+
 async def upsert_pubmed_citations_batch(citations: list[Any]) -> int:
     """Batch upsert PubMed citations.
 
@@ -890,6 +903,22 @@ async def upsert_pubmed_citations_batch(citations: list[Any]) -> int:
     Returns:
         Number of citations upserted.
     """
+    # One statement writes the batch, so one value over its column's width
+    # failed every citation of the refresh, and failed it again on each
+    # run. The field is left out and the citation kept: `formatted_ref`,
+    # which is what the export publishes, is TEXT and unaffected.
+    for citation in citations:
+        for column, width in _CITATION_WIDTHS:
+            value = getattr(citation, column)
+            if value is not None and len(value) > width:
+                logger.warning(
+                    "Citation %s: %s of %d characters left out; the column "
+                    "holds %d",
+                    citation.pmid,
+                    column,
+                    len(value),
+                    width,
+                )
     return await _execute_many(
         """
         INSERT INTO pubmed_citations (
@@ -910,8 +939,8 @@ async def upsert_pubmed_citations_batch(citations: list[Any]) -> int:
                 citation.authors,
                 citation.title,
                 citation.journal,
-                citation.publication_date,
-                citation.doi,
+                _fits(citation.publication_date, _CITATION_WIDTHS[0][1]),
+                _fits(citation.doi, _CITATION_WIDTHS[1][1]),
                 citation.formatted_ref,
             )
             for citation in citations
@@ -1168,9 +1197,8 @@ _REFRESH_TRIAL_SQL: Final[str] = f"""
             ELSE COALESCE($5, clinical_trials.primary_outcome)
         END,
         sponsor_type = COALESCE(clinical_trials.sponsor_type, $6),
-        overall_status = COALESCE($7, clinical_trials.overall_status),
         updated_at = CURRENT_TIMESTAMP
-    WHERE registry_id = $8
+    WHERE registry_id = $7
 """
 
 _INSERT_TRIAL_SQL: Final[str] = f"""
@@ -1242,6 +1270,13 @@ async def upsert_clinical_trials_batch(trials: list[Any]) -> TrialUpsertResult:
     name beside it ("Industry (Ever Neuro Pharma GmbH)"). The existing
     value wins whenever there is one.
 
+    ``overall_status`` is written on INSERT only. On a stored trial it
+    belongs to ``update_trial_statuses``, which reads the stored value
+    first and logs each transition. A refresh that also set it ran before
+    that sweep, so the sweep read CT.gov's answer back as the stored one
+    and a trial the search reached changed status -- and could leave
+    Table 2 -- with nothing logged and nothing counted.
+
     Args:
         trials: List of ClinicalTrialRecord objects (from
             ``pipeline.clinical_trials_fetch``).
@@ -1268,7 +1303,9 @@ async def upsert_clinical_trials_batch(trials: list[Any]) -> TrialUpsertResult:
         return TrialUpsertResult()
 
     registry_ids = list(dict.fromkeys(t.registry_id for t in filtered))
-    async with Database.connection() as conn:
+    # One transaction: the refresh and the insert are two statements, and
+    # the sync reports a failure here as having written nothing.
+    async with Database.connection() as conn, conn.transaction():
         existing = await conn.fetch(
             "SELECT registry_id, drug, target_population FROM clinical_trials "
             "WHERE registry_id = ANY($1::text[])",
@@ -1317,7 +1354,6 @@ async def upsert_clinical_trials_batch(trials: list[Any]) -> TrialUpsertResult:
                         trial.estimated_completion_date,
                         trial.primary_outcome,
                         trial.sponsor_type,
-                        trial.overall_status,
                         trial.registry_id,
                     )
                 )

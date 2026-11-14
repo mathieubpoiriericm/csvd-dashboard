@@ -2758,3 +2758,153 @@ class TestPrewarmCache:
             assert await prewarm_cache(PipelineConfig()) == TokenUsage()
 
         assert "warm" in caplog.text.lower()
+
+
+def _stream_cm(*, response=None, error=None):
+    """One streamed call: its final message, or the error reading it raises."""
+    stream = AsyncMock()
+    stream.get_final_message = (
+        AsyncMock(side_effect=error)
+        if error is not None
+        else AsyncMock(return_value=response)
+    )
+    cm = MagicMock()
+    cm.__aenter__ = AsyncMock(return_value=stream)
+    cm.__aexit__ = AsyncMock(return_value=False)
+    return cm
+
+
+class TestTheAuditLogCannotFailAPaper:
+    """The reasoning trace is an audit artifact nothing reads. Its write
+    sits after the response was received, billed and parsed, so a SQLite
+    refusal there (a missing directory, a read-only disk, a lock held by
+    an overlapping run) used to throw the paid genes away.
+    """
+
+    def test_a_refused_write_is_logged_and_swallowed(self, mocker, caplog) -> None:
+        import sqlite3
+
+        mocker.patch(
+            "pipeline.anthropic_client.EventLog",
+            side_effect=sqlite3.OperationalError("database is locked"),
+        )
+
+        with caplog.at_level(logging.WARNING):
+            _record_thinking_trace(
+                PipelineConfig(),
+                pmid="12345678",
+                thinking="some private reasoning",
+                attempt=1,
+                accepted=True,
+            )
+
+        assert "Could not record the reasoning trace for PMID 12345678" in caplog.text
+        assert "some private reasoning" not in caplog.text
+
+    async def test_an_unwritable_event_log_still_returns_the_genes(
+        self, mocker, mock_anthropic_response, tmp_path
+    ) -> None:
+        response = mock_anthropic_response(
+            genes={
+                "genes": [
+                    {
+                        "gene_symbol": "GENE1",
+                        "confidence": 0.9,
+                        "source_quote": "GENE1 was associated with trait A.",
+                    }
+                ]
+            },
+            include_thinking=True,
+        )
+        client = AnthropicClient()
+        mocker.patch.object(
+            client, "_get_client", return_value=_make_mock_client(response)
+        )
+        config = PipelineConfig(event_db_path=str(tmp_path / "missing" / "events.db"))
+
+        genes, _, _served = await client.extract("Paper text", "12345678", config, None)
+
+        assert [gene.gene_symbol for gene in genes] == ["GENE1"]
+
+
+class TestAnSdkValueErrorWhileStreaming:
+    """The SDK raises a plain ValueError from `get_final_message` when the
+    tool input it accumulated is not JSON: before the call is recorded or
+    its token reservation settled, and with the whole partial input in the
+    message.
+    """
+
+    _SDK_ERROR = (
+        "Unable to parse tool parameter JSON from model. Please retry your "
+        "request or adjust your prompt. Error: EOF. JSON: "
+    )
+
+    async def test_the_reservation_is_released_and_the_call_recorded(
+        self, mocker, mock_anthropic_response
+    ) -> None:
+        reset_recorder()
+        mock_client = MagicMock()
+        mock_client.beta.messages.stream.side_effect = [
+            _stream_cm(error=ValueError(self._SDK_ERROR + '{"genes": [')),
+            _stream_cm(response=mock_anthropic_response()),
+        ]
+        client = AnthropicClient()
+        mocker.patch.object(client, "_get_client", return_value=mock_client)
+        limiter = MagicMock()
+        limiter.acquire = AsyncMock(side_effect=[1, 2])
+        limiter.record_actual_usage = AsyncMock()
+
+        await client.extract(
+            "Paper text", "12345678", PipelineConfig(max_retries=1), limiter
+        )
+
+        # The failed call's reservation is given back; the second call's
+        # is settled with what it really used, never zeroed.
+        settled = [call.args for call in limiter.record_actual_usage.await_args_list]
+        assert settled[0] == (1, 0)
+        assert [request_id for request_id, _ in settled] == [1, 2]
+        row = next(r for r in current_recorder().records() if r.service == "anthropic")
+        assert (row.calls, row.errors) == (2, 1)
+
+    async def test_the_partial_tool_input_stays_out_of_the_paper_s_error(
+        self, mocker
+    ) -> None:
+        """`PaperResult.error` is published in the run report, so the
+        model's partial output, quoted sentences included, must not ride
+        into it on the exception's text.
+        """
+        partial = '{"genes": [{"source_quote": "PRIVATE SENTENCE ' + "x" * 50_000
+        mock_client = MagicMock()
+        mock_client.beta.messages.stream.side_effect = [
+            _stream_cm(error=ValueError(self._SDK_ERROR + partial)),
+            _stream_cm(error=ValueError(self._SDK_ERROR + partial)),
+        ]
+        client = AnthropicClient()
+        mocker.patch.object(client, "_get_client", return_value=mock_client)
+
+        with pytest.raises(
+            ExtractionFailedError, match="Validation retries exhausted"
+        ) as raised:
+            await client.extract(
+                "Paper text", "12345678", PipelineConfig(max_retries=1), None
+            )
+
+        message = str(raised.value)
+        assert "PRIVATE SENTENCE" not in message
+        assert "Unable to parse tool parameter JSON" in message
+        assert len(message) < 500
+
+    async def test_an_unexpected_error_s_text_is_capped_too(self, mocker) -> None:
+        mock_client = MagicMock()
+        mock_client.beta.messages.stream.side_effect = [
+            _stream_cm(error=RuntimeError("boom\n" + "y" * 50_000)),
+        ]
+        client = AnthropicClient()
+        mocker.patch.object(client, "_get_client", return_value=mock_client)
+
+        with pytest.raises(ExtractionFailedError, match="Extraction failed") as raised:
+            await client.extract("Paper text", "12345678", PipelineConfig(), None)
+
+        message = str(raised.value)
+        assert "\n" not in message
+        assert len(message) < 500

@@ -520,7 +520,13 @@ def _map_study_to_records(study: dict[str, Any]) -> list[ClinicalTrialRecord]:
     # holds "Atorvastatin 40 Mg Oral Tablet" beside "Atorvastatin" -- the
     # column is what a Table 2 row is about, and the radar's sector spans
     # count unique drugs. A name that resolves to no agent (a comparator the
-    # type filter missed, a bare arm label) yields no record.
+    # type filter missed, a bare arm label) yields no record, and two names
+    # that resolve to one agent ("Atorvastatin 40 mg", "Atorvastatin 20 mg")
+    # yield one: they are one row under the (registry_id, drug) key, and two
+    # records counted that row twice in `discovered`.
+    agents = dict.fromkeys(
+        drug for drug in (normalize_drug_name(name) for name in drugs) if drug
+    )
     return [
         ClinicalTrialRecord(
             drug=drug,
@@ -533,8 +539,7 @@ def _map_study_to_records(study: dict[str, Any]) -> list[ClinicalTrialRecord]:
             sponsor_type=_sponsor_label(sponsor_type),
             overall_status=overall_status,
         )
-        for drug in (normalize_drug_name(name) for name in drugs)
-        if drug
+        for drug in agents
     ]
 
 
@@ -979,7 +984,7 @@ async def sync_clinical_trials(config: PipelineConfig) -> ClinicalTrialSyncResul
     except Exception as e:
         logger.exception("CTG upsert failed")
         errors.append(f"CTG upsert: {e}")
-        # One statement writes every record, so a failure here wrote none
+        # One transaction writes every record, so a failure here wrote none
         # of them: the refresh is red, not amber.
         return ClinicalTrialSyncResult(
             fetched=len(studies),

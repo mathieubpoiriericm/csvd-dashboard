@@ -17,7 +17,7 @@ from pipeline.clinvar_fetch import (
 )
 from pipeline.config import PipelineConfig
 from pipeline.database import Database, fill_missing_chromosomal_locations
-from pipeline.export.text import is_doi, strip_target_qualifier
+from pipeline.export.text import is_doi, split_genetic_targets
 from pipeline.ncbi_gene_fetch import (
     clear_ncbi_cache,
     close_ncbi_client,
@@ -106,8 +106,12 @@ async def get_table2_gene_symbols() -> list[str]:
     """Get unique gene symbols from the clinical_trials table (Table 2).
 
     The genetic_target column may contain comma/semicolon/slash-separated
-    gene lists. Tokens that don't look like gene symbols are skipped to
-    avoid polluting downstream NCBI lookups.
+    gene lists. They are split by the export's own `split_genetic_targets`,
+    so the symbols fetched here are the ones the export asks for: a pair
+    shorthand split on its slash alone fetched the first member only, and
+    the export published the second with a null record. Tokens that don't
+    look like gene symbols are skipped to avoid polluting downstream NCBI
+    lookups.
     """
     async with Database.connection() as conn:
         rows = await conn.fetch(
@@ -117,21 +121,21 @@ async def get_table2_gene_symbols() -> list[str]:
         )
 
     all_genes: set[str] = set()
-    for row in rows:
-        target = row["genetic_target"]
-        if not target:
+    # "GWAS for ischemic stroke: PDE3A" is looked up as PDE3A: the splitter
+    # drops the label as well.
+    for gene in split_genetic_targets(row["genetic_target"] for row in rows):
+        if gene.upper() in _GENE_SKIP_TOKENS:
             continue
-        for raw in re.split(r"[,;/]", target):
-            # "GWAS for ischemic stroke: PDE3A" is looked up as PDE3A.
-            gene = strip_target_qualifier(raw)
-            if gene.upper() in _GENE_SKIP_TOKENS:
-                continue
-            if _GENE_SHAPE.fullmatch(gene):
-                all_genes.add(gene)
-            else:
-                logger.debug(f"Skipping non-gene-shaped token: {gene!r}")
+        if _GENE_SHAPE.fullmatch(gene):
+            all_genes.add(gene)
+        else:
+            logger.debug(f"Skipping non-gene-shaped token: {gene!r}")
 
     return sorted(all_genes)
+
+
+# One PMID and nothing else: up to nine digits, no leading zero.
+_SINGLE_PMID = re.compile(r"[1-9]\d{0,8}")
 
 
 async def get_all_pmids() -> list[str]:
@@ -145,8 +149,12 @@ async def get_all_pmids() -> list[str]:
     catch it because it mocks the connection.
 
     The values are one PMID per row rather than a delimited string now, so
-    they need no parsing; they are still filtered, because a row reaching this
-    table from an older backfill can carry anything.
+    a wholly numeric one is taken as it stands -- the test the export applies
+    to a reference -- whatever its length: the seven-digit floor of
+    `extract_pmids_from_text` is for free text, and applied here it left out
+    every paper indexed before about 1976 with nothing logged. Anything else
+    is still scanned, because a row reaching this table from an older
+    backfill can carry anything.
     """
     async with Database.connection() as conn:
         rows = await conn.fetch(
@@ -161,10 +169,11 @@ async def get_all_pmids() -> list[str]:
         # A DOI is kept whole: the citation sync reads a preprint's from
         # Europe PMC under it. Scanned for PMIDs, its digits ("5926137")
         # were once mistaken for one.
-        if is_doi(str(pmid)):
-            all_pmids.add(str(pmid).strip())
+        value = str(pmid).strip()
+        if is_doi(value) or _SINGLE_PMID.fullmatch(value):
+            all_pmids.add(value)
         else:
-            all_pmids.update(extract_pmids_from_text(str(pmid)))
+            all_pmids.update(extract_pmids_from_text(value))
 
     return sorted(all_pmids)
 

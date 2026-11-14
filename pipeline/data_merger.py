@@ -21,6 +21,12 @@ from pipeline.omics import OmicsEvidence, omics_array, to_wire
 
 logger = logging.getLogger(__name__)
 
+# genes.protein is VARCHAR(255) (migration 001). The extraction's
+# protein_name is unbounded model text, and the merge writes every gene of a
+# run in one transaction, so one value over the width rolled back the whole
+# merge -- and the checkpoint replayed the same answer on every resume.
+_PROTEIN_WIDTH: Final[int] = 255
+
 # The curated dataset records some gene groups (a collagen heterotrimer
 # pair, say) under one combined symbol, and NCBI has retired some symbols
 # the curated table keeps the literature's name for. `geneAliases` in
@@ -156,15 +162,66 @@ def deciding_entry(entries: Sequence[GeneEntry]) -> GeneEntry:
     return max(entries, key=lambda entry: entry.confidence)
 
 
-def _build_combined_gene_data(entries: Sequence[GeneEntry]) -> dict[str, Any]:
+def _protein_name(entries: Sequence[GeneEntry]) -> str:
+    """The first protein name any entry gives that the column can hold.
+
+    Whitespace is collapsed, since the name is one line of a table. A name
+    over `_PROTEIN_WIDTH` is skipped rather than clipped: a sentence cut at
+    255 characters is not a protein name, and the next entry's name, or the
+    empty placeholder a later run fills, is the better row. Not a schema
+    `max_length`, which would turn the same answer into a paid retry.
+    """
+    for entry in entries:
+        name = " ".join((entry.protein_name or "").split())
+        if not name:
+            continue
+        if len(name) > _PROTEIN_WIDTH:
+            logger.warning(
+                f"  {entry.gene_symbol}: skipped a protein name of "
+                f"{len(name)} characters from PMID {entry.pmid}; the column "
+                f"holds {_PROTEIN_WIDTH}"
+            )
+            continue
+        return name
+    return ""
+
+
+def _folded_traits(traits: Iterable[str]) -> list[str]:
+    """Each trait under its tracked key where it is a synonym, once."""
+    return dedupe_list(TRAIT_SYNONYMS.get(trait, trait) for trait in traits)
+
+
+def stored_traits(traits: Iterable[str]) -> list[str]:
+    """The traits of an extraction that the merge stores.
+
+    The fold and the tracked filter of `_build_combined_gene_data`, for the
+    run report: an accepted gene's record lists what its row took, not what
+    the model wrote.
+    """
+    return [trait for trait in _folded_traits(traits) if trait in TRACKED_TRAITS]
+
+
+def _build_combined_gene_data(
+    entries: Sequence[GeneEntry], claim_floor: float
+) -> dict[str, Any]:
     """Combine one or more entries for the same gene into a single DB row.
 
     When a batch contains multiple entries for the same gene (e.g. mentions
     in several papers), the per-field values are merged/deduped rather than
     overwriting one another.
+
+    **The claims are taken per entry, not per group.** Only an entry scoring
+    at or above *claim_floor* (the insert floor) contributes its traits, its
+    Mendelian randomization flag and its omics studies; every entry
+    contributes its PMID. The floor used to be read off the group's best
+    score alone, so a 0.50 extraction's claims were written -- irreversibly,
+    see `_citation_only` -- whenever a second paper in the same run scored
+    the gene above the floor, and not when the two papers arrived in
+    separate runs.
     """
     first = entries[0]
     deciding = deciding_entry(entries)
+    claiming = [entry for entry in entries if entry.confidence >= claim_floor]
     # The schema admits the prompt's own spellings of a tracked trait (a
     # spelled-out form beside the tracked short key) so the model can obey
     # the instruction it was given; disease/vocabulary.json says what each
@@ -172,10 +229,8 @@ def _build_combined_gene_data(entries: Sequence[GeneEntry]) -> dict[str, Any]:
     # for curated prose, and a substring fold rewrites a short term inside a
     # longer one that contains it (.claude/rules/phenogram.md). Before the
     # tracked filter, or the spelling would be dropped as untracked.
-    gwas_traits = dedupe_list(
-        TRAIT_SYNONYMS.get(trait, trait)
-        for entry in entries
-        for trait in entry.gwas_trait
+    gwas_traits = _folded_traits(
+        trait for entry in claiming for trait in entry.gwas_trait
     )
     # The schema admits the `untracked` vocabulary terms so the model can
     # name a phenotype the dashboard does not carry; this is where they are
@@ -193,16 +248,14 @@ def _build_combined_gene_data(entries: Sequence[GeneEntry]) -> dict[str, Any]:
     tracked_traits = [trait for trait in gwas_traits if trait in TRACKED_TRAITS]
     # format_omics de-duplicates by wire form: the models are not hashable,
     # and two papers writing one study alike should store it once.
-    omics = [evidence for entry in entries for evidence in entry.omics_evidence]
+    omics = [evidence for entry in claiming for evidence in entry.omics_evidence]
     pmids = dedupe_list(entry.pmid for entry in entries if entry.pmid)
     # Empty when no paper named one, never the gene symbol: neither write in
     # `merge_genes_transactional` replaces a stored protein, the symbol
     # included, so a symbol stored here would stand until a curator renamed
     # it. An empty one is filled by the first later run whose paper names
     # the protein, and publishes as "(unknown)" until then.
-    protein_name = next(
-        (entry.protein_name for entry in entries if entry.protein_name), ""
-    )
+    protein_name = _protein_name(entries)
 
     return {
         "protein": protein_name,
@@ -210,7 +263,7 @@ def _build_combined_gene_data(entries: Sequence[GeneEntry]) -> dict[str, Any]:
         "chromosomal_location": "",
         "gwas_trait": tracked_traits,
         "mendelian_randomization": any(
-            entry.mendelian_randomization for entry in entries
+            entry.mendelian_randomization for entry in claiming
         ),
         "evidence_from_other_omics_studies": format_omics(omics),
         "brain_cell_types": "",
@@ -303,7 +356,9 @@ async def merge_gene_entries(
     claims_withheld: list[str] = []
 
     for gene_upper, entries_for_gene in grouped.items():
-        gene_data = _build_combined_gene_data(entries_for_gene)
+        gene_data = _build_combined_gene_data(
+            entries_for_gene, config.confidence_threshold_insert
+        )
         # The score read here is the one `_build_combined_gene_data` put in
         # the row, because both go through `deciding_entry`. Computing the
         # maximum here independently is what let the gate and the published

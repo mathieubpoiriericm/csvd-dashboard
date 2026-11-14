@@ -452,11 +452,10 @@ class TestRunPipeline:
         mock_record_pmids.assert_not_awaited()
 
     async def test_a_database_error_during_deduplication_propagates(self, mocker):
-        # Only a missing pubmed_refs table is treated as "first run"; any
-        # other database failure must stop the run rather than silently
-        # reprocess every paper. The old version of this test ran in
-        # test_mode, which never calls get_existing_pmids, and so asserted
-        # the opposite of the code without exercising it.
+        # A database failure during deduplication must stop a live run
+        # rather than silently reprocess every paper. The old version of
+        # this test ran in test_mode, which never calls get_existing_pmids,
+        # and so asserted the opposite of the code without exercising it.
         mocker.patch(
             "pipeline.main.search_recent_papers",
             return_value=["111"],

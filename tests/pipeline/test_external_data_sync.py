@@ -169,6 +169,31 @@ class TestGetTable2GeneSymbols:
 
         assert await get_table2_gene_symbols() == ["APP", "PDE3A"]
 
+    async def test_splits_a_target_as_the_export_does(self, mocker):
+        """The export expands the pair shorthand and asks for both members;
+        split on the slash alone, the sync fetched the first and the second
+        published with a null record."""
+        mock_conn = AsyncMock()
+        mock_conn.fetch.return_value = [
+            {"genetic_target": "GENEX1/2"},
+            {"genetic_target": "N/A"},
+            {"genetic_target": "GENE1/GENE2; GENE3"},
+        ]
+        mock_ctx = AsyncMock()
+        mock_ctx.__aenter__.return_value = mock_conn
+        mocker.patch(
+            "pipeline.external_data_sync.Database.connection", return_value=mock_ctx
+        )
+
+        from pipeline.export.text import split_genetic_targets
+
+        result = await get_table2_gene_symbols()
+
+        assert result == ["GENE1", "GENE2", "GENE3", "GENEX1", "GENEX2"]
+        assert result == sorted(
+            split_genetic_targets(["GENEX1/2", "N/A", "GENE1/GENE2; GENE3"])
+        )
+
     async def test_skips_non_gene_shaped_token(self, mocker, caplog):
         caplog.set_level(logging.DEBUG, logger="pipeline.external_data_sync")
         mock_conn = AsyncMock()
@@ -217,6 +242,27 @@ class TestGetAllPmids:
         self._mock_rows(mocker, [{"pmid": None}, {"pmid": "12345678"}])
 
         assert await get_all_pmids() == ["12345678"]
+
+    async def test_a_short_pmid_is_kept_and_junk_is_not(self, mocker):
+        """One value per row: a wholly numeric one is a PMID whatever its
+        length. The seven-digit floor is for free text, and applied here it
+        dropped every paper indexed before about 1976 without a word."""
+        self._mock_rows(
+            mocker,
+            [
+                {"pmid": "999999"},
+                {"pmid": " 12345678 "},
+                {"pmid": "10.1101/2024.01.01.123456"},
+                {"pmid": "see notes"},
+                {"pmid": "0"},
+            ],
+        )
+
+        assert await get_all_pmids() == [
+            "10.1101/2024.01.01.123456",
+            "12345678",
+            "999999",
+        ]
 
     async def test_reads_the_join_table_not_the_dropped_column(self, mocker):
         """Migration 006 dropped genes."references".

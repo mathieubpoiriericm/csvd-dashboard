@@ -20,6 +20,10 @@ from pipeline.run_report import (
 )
 from pipeline.steps import PREVIEW_RUN_MODE, StepRecorder
 
+# `_gene` names a synthetic trait, and an accepted record lists only what
+# the merge stores, so the synthetic vocabulary stands in for the disease's.
+pytestmark = pytest.mark.usefixtures("trait_vocabulary")
+
 
 def _gene(symbol: str, confidence: float = 0.9) -> dict[str, Any]:
     return {
@@ -593,6 +597,81 @@ class TestDetail:
         assert cited.confidence == 0.8
         assert claimed.citation_only is False
         assert claimed.gwas_traits == ["TRAIT-A"]
+
+    def test_a_sub_floor_paper_shows_no_claim_beside_a_confident_one(self) -> None:
+        # The merge takes the claims paper by paper, so a paper below the
+        # insert floor gives the row its PMID alone even when another paper
+        # of the run cleared the floor for the same gene. The gene is then
+        # absent from `citation_only`, and the weak paper's record showed a
+        # trait and an omics study the row never took.
+        weak = {**_gene("GENE1", 0.5), "pmid": "2"}
+        report = _report(
+            papers_detail=[
+                {"pmid": "1", "genes": [_gene("GENE1", 0.9)]},
+                {"pmid": "2", "genes": [weak]},
+            ],
+            database={
+                "inserted": 0,
+                "updated": 1,
+                "held_below_insert_floor": [],
+                "citation_only": [],
+            },
+        )
+        confident, cited = report.accepted_genes.items
+        assert confident.citation_only is False
+        assert confident.gwas_traits == ["TRAIT-A"]
+        assert cited.pmid == "2"
+        assert cited.citation_only is True
+        assert cited.gwas_traits == []
+        assert cited.omics_evidence == []
+        assert cited.mendelian_randomization is None
+        assert cited.confidence == 0.5
+
+    def test_a_run_that_never_merged_withholds_nothing(self) -> None:
+        # No merge, so no floor was applied: the genes its papers validated
+        # are listed as extracted.
+        report = _report(
+            papers_detail=[{"pmid": "1", "genes": [_gene("GENE1", 0.5)]}],
+            database=None,
+        )
+        (gene,) = report.accepted_genes.items
+        assert gene.citation_only is False
+        assert gene.gwas_traits == ["TRAIT-A"]
+
+    def test_a_papers_error_is_sanitised_before_it_is_published(self) -> None:
+        # `PaperResult.error` is `str(exception)`, kept raw for the log and
+        # the checkpoint; the record is exported to a public file.
+        report = _report(
+            papers_detail=[
+                {
+                    "pmid": "1",
+                    "source": "unknown",
+                    "error": "GET https://example.org/x?api_key=s3cr3t failed",
+                    "genes": [],
+                },
+                {"pmid": "2", "source": "unknown", "error": "boom", "genes": []},
+            ]
+        )
+        first, second = report.papers_detail.items
+        assert first.error == "GET https://example.org/x?api_key=<redacted> failed"
+        assert second.error == "boom"
+
+    def test_an_accepted_gene_lists_the_traits_the_merge_stores(
+        self, trait_vocabulary
+    ) -> None:
+        # The merge folds a prompt spelling onto its key and drops a term
+        # the dashboard does not track. The record carried the extraction
+        # as the model wrote it, so the run details (and a review round's
+        # finding) named traits the row never took.
+        tracked = trait_vocabulary.tracked[0]
+        (spelling,) = [s for s, t in trait_vocabulary.synonyms.items() if t == tracked]
+        gene = {
+            **_gene("GENE1"),
+            "gwas_trait": [spelling, trait_vocabulary.untracked[0], tracked],
+        }
+        report = _report(papers_detail=[{"pmid": "1", "genes": [gene]}])
+        (record,) = report.accepted_genes.items
+        assert record.gwas_traits == [tracked]
 
     def test_the_report_says_how_it_was_run_and_what_it_cached(self) -> None:
         # `--batch` halves the cost and cache writes are billed above

@@ -43,7 +43,14 @@ What comes back, and from where:
   processed by a run older than every surviving report is missing, and the
   next window that covers it re-extracts it -- unless a later run's skipped
   count says how many there were and its query names them (the
-  regenerate-data skill).
+  regenerate-data skill). **A run from before the ledger was last emptied is
+  left out**: `scripts.load_gold` and `scripts.reset_to_baseline` empty
+  pubmed_refs so that the next run reads every paper again, and each records
+  when in logs/ledger_emptied.json. A wipe made before that record existed
+  (the 2026-11-03 reset, the first gold load), or on another machine, is not
+  in it: pass `--ledger-since TIMESTAMP` with the time of the wipe, or the
+  restore marks every paper of the earlier runs processed and no later run
+  reads them against the genes that replaced theirs.
 
 What does not: ids and timestamps (rows are renumbered in file order, which
 is the order the export reads them in), gene_annotations (empty until
@@ -60,6 +67,7 @@ resolve.
 import argparse
 import asyncio
 import json
+import os
 import re
 import sqlite3
 import sys
@@ -74,7 +82,7 @@ from dotenv import load_dotenv
 
 from pipeline.database import Database
 from pipeline.export.tables import clean_gene_row, clean_omics_value, clean_trial_row
-from pipeline.export.text import clean_column_name
+from pipeline.export.text import clean_column_name, is_doi
 from pipeline.export.writer import to_camel
 from pipeline.omics import omics_array
 from pipeline.steps import PREVIEW_RUN_MODE
@@ -284,7 +292,69 @@ def _extraction_model(paper: dict[str, Any], config: dict[str, Any]) -> str | No
     return model if isinstance(model, str) and model else None
 
 
-def ledger_from_logs(logs_dir: Path) -> list[LedgerRow]:
+# Written under the gitignored logs/, beside the run reports it qualifies.
+_LEDGER_EMPTIED_FILE: Final = "ledger_emptied.json"
+
+
+def pipeline_logs_dir() -> Path:
+    """Where the pipeline keeps its run reports: `PIPELINE_LOG_DIR`, as
+    `pipeline.main` reads it, or the project's logs/. Read at call time, so
+    the scripts that record a ledger wipe and the restore that reads it agree
+    on one directory -- and a test's is never the project's."""
+    return Path(os.environ.get("PIPELINE_LOG_DIR") or _ROOT / "logs")
+
+
+def ledger_emptied_at(logs_dir: Path) -> datetime | None:
+    """When pubmed_refs was last emptied on purpose, as *logs_dir* records
+    it; None when it holds no record."""
+    try:
+        text = (logs_dir / _LEDGER_EMPTIED_FILE).read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return None
+    return _utc(json.loads(text)["emptied_at"])
+
+
+def record_ledger_emptied(logs_dir: Path, when: datetime | None = None) -> None:
+    """Record in *logs_dir* that pubmed_refs was emptied at *when* (now).
+
+    For the scripts that empty the ledger so the next run reads every paper
+    again: without the record, `ledger_from_logs` replays the runs from
+    before the wipe and a restore marks their papers processed. The newest
+    wipe is kept, and the file is replaced whole, so a crash leaves the old
+    record or the new one.
+    """
+    when = when or datetime.now(tz=UTC)
+    known = ledger_emptied_at(logs_dir)
+    if known is not None and known >= when:
+        return
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    path = logs_dir / _LEDGER_EMPTIED_FILE
+    scratch = path.with_name(f"{path.name}.{os.getpid()}.tmp")
+    scratch.write_text(
+        json.dumps({"emptied_at": when.astimezone(UTC).isoformat()}) + "\n",
+        encoding="utf-8",
+    )
+    scratch.replace(path)
+
+
+def _merged_runs(
+    logs_dir: Path,
+) -> dict[datetime, tuple[dict[str, Any], list[dict[str, Any]]]]:
+    """Every surviving run that wrote production's ledger, by its timestamp."""
+    runs: dict[datetime, tuple[dict[str, Any], list[dict[str, Any]]]] = {}
+    for report in _reports(logs_dir):
+        config = report.get("pipeline_config") or {}
+        if "database" not in report or config.get("dry_run") or config.get("test_mode"):
+            continue
+        if config.get("mode") == PREVIEW_RUN_MODE:
+            continue
+        runs.setdefault(
+            _utc(report["timestamp"]), (config, report.get("papers_detail") or [])
+        )
+    return runs
+
+
+def ledger_from_logs(logs_dir: Path, since: datetime | None = None) -> list[LedgerRow]:
     """pubmed_refs as the surviving run reports leave it.
 
     Only a run that reached the merge wrote it -- its report has a
@@ -296,19 +366,20 @@ def ledger_from_logs(logs_dir: Path) -> list[LedgerRow]:
     `record_processed_pmids_batch` upserts, so runs are replayed oldest
     first and the last one to process a paper wins. The same run recorded
     both as a report file and as an event is counted once.
+
+    A run stamped at or before *since* is left out: the ledger was emptied
+    then, on purpose, so what those runs wrote was no longer in it. A report
+    is stamped when its run ends, after its last ledger write. Without
+    *since*, the wipe *logs_dir* records (`ledger_emptied_at`) is the
+    cut-off, and with neither every run is replayed.
     """
-    runs: dict[datetime, tuple[dict[str, Any], list[dict[str, Any]]]] = {}
-    for report in _reports(logs_dir):
-        config = report.get("pipeline_config") or {}
-        if "database" not in report or config.get("dry_run") or config.get("test_mode"):
-            continue
-        if config.get("mode") == PREVIEW_RUN_MODE:
-            continue
-        runs.setdefault(
-            _utc(report["timestamp"]), (config, report.get("papers_detail") or [])
-        )
+    if since is None:
+        since = ledger_emptied_at(logs_dir)
+    runs = _merged_runs(logs_dir)
     ledger: dict[str, LedgerRow] = {}
     for when in sorted(runs):
+        if since is not None and when <= since:
+            continue
         config, papers = runs[when]
         for paper in papers:
             if paper.get("error"):
@@ -383,12 +454,18 @@ def _lookup_symbol(row: Mapping[str, Any], key_field: str) -> str:
 
 
 def _is_fallback_citation(row: Mapping[str, Any]) -> bool:
-    return row["formattedRef"] == f"PMID: {row['pmid']} (citation not available)"
+    """Whether *row* is the placeholder `read_pubmed_refs` publishes for a
+    key the citation cache does not hold, labelled by the key's kind."""
+    label = "DOI" if is_doi(row["pmid"]) else "PMID"
+    return row["formattedRef"] == f"{label}: {row['pmid']} (citation not available)"
 
 
-def build_plan(data_dir: Path, logs_dir: Path) -> RestorePlan:
+def build_plan(
+    data_dir: Path, logs_dir: Path, ledger_since: datetime | None = None
+) -> RestorePlan:
     """Every row to write, or RestoreRefused naming those that would not
-    export back to their committed JSON."""
+    export back to their committed JSON. *ledger_since* is
+    `ledger_from_logs`'s cut-off."""
 
     def read(name: str) -> Any:
         return json.loads((data_dir / name).read_text(encoding="utf-8"))
@@ -457,7 +534,7 @@ def build_plan(data_dir: Path, logs_dir: Path) -> RestorePlan:
             for row in read("refs.json")
             if not _is_fallback_citation(row)
         ],
-        ledger=ledger_from_logs(logs_dir),
+        ledger=ledger_from_logs(logs_dir, ledger_since),
         runs=_run_rows(read("pipeline_run.json"), read("pipeline_status.json")),
         syncs=read("pipeline_syncs.json"),
     )
@@ -638,12 +715,33 @@ def main(argv: list[str] | None = None) -> None:
         action="store_true",
         help="write into the database .env names (default: check only)",
     )
+    parser.add_argument(
+        "--ledger-since",
+        type=_utc,
+        metavar="TIMESTAMP",
+        help="leave out of the processed-PMID ledger every run that ended at "
+        "or before this ISO 8601 time (UTC unless it carries an offset): the "
+        "time pubmed_refs was last emptied on purpose, by a gold load or a "
+        "reset. Default: the time logs/ledger_emptied.json records, if any",
+    )
     args = parser.parse_args(argv)
 
+    # Loaded here rather than at import, so importing this module -- as the
+    # tests do -- never puts the real .env's credentials in the environment.
+    # Before the plan: .env may name the log directory.
+    load_dotenv(_ROOT / ".env")
+    logs_dir = pipeline_logs_dir()
     try:
-        plan = build_plan(_ROOT / "data", _ROOT / "logs")
+        plan = build_plan(_ROOT / "data", logs_dir, args.ledger_since)
     except RestoreRefused as exc:
         sys.exit(str(exc))
+    since = args.ledger_since or ledger_emptied_at(logs_dir)
+    if since is not None:
+        dropped = sum(when <= since for when in _merged_runs(logs_dir))
+        print(
+            f"Ledger: {dropped} run(s) that ended by {since.isoformat()} left "
+            "out; the ledger was emptied then."
+        )
     print(
         f"{len(plan.genes)} genes, {len(plan.trials)} trials, "
         f"{len(plan.ledger)} processed PMIDs, {len(plan.runs)} run rows, "
@@ -652,10 +750,6 @@ def main(argv: list[str] | None = None) -> None:
     if not args.write:
         print("Nothing written; pass --write to restore.")
         return
-
-    # Loaded here rather than at import, so importing this module -- as the
-    # tests do -- never puts the real .env's credentials in the environment.
-    load_dotenv(_ROOT / ".env")
 
     async def _write() -> dict[str, int]:
         try:

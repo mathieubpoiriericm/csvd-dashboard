@@ -196,8 +196,24 @@ async def fetch_gene_summaries(
         )
         if resp is None or resp.status_code != 200:
             return None
-        result = resp.json().get("result", {})
-        return {k: v for k, v in result.items() if isinstance(v, dict)}
+        payload = resp.json()
+        result = payload.get("result") if isinstance(payload, dict) else None
+        # E-utilities reports a backend failure inside a 200, as
+        # `{"error": ...}` or `{"esummaryresult": [...]}` with no `result`.
+        # That is "we never heard back", not "NCBI described none of
+        # these": read as the second, `select_gene_uid` fell back to the
+        # unverified first hit.
+        if not isinstance(result, dict) or "error" in payload:
+            logger.warning(
+                "NCBI esummary answered 200 without a usable result for "
+                f"{len(gene_ids)} candidate uids"
+            )
+            return None
+        # A uid NCBI could not describe comes back as `{"uid", "error"}`;
+        # it is not a record with no name.
+        return {
+            k: v for k, v in result.items() if isinstance(v, dict) and "error" not in v
+        }
     except ValueError as e:
         logger.warning(f"Failed to parse NCBI candidate summaries: {e}")
         return None

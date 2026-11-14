@@ -7,9 +7,9 @@ writes SQL and the database layer never learns an API's envelope.
 """
 
 import logging
-from collections.abc import Collection, Mapping
+from collections.abc import Callable, Collection, Iterable, Mapping
 from dataclasses import dataclass
-from typing import Final
+from typing import Any, Final
 
 from pipeline.disease import load_disease
 
@@ -170,6 +170,28 @@ class AnnotationRow:
             row.group_key,
             row.object_id,
         )
+
+
+def collapse_colliding_rows(
+    rows: Iterable[AnnotationRow],
+    rank: Callable[[AnnotationRow], tuple[Any, ...]],
+) -> list[AnnotationRow]:
+    """Keep one row per UNIQUE key: the one `rank` orders first.
+
+    An alias key's members are filed under the one curated key, so a disease
+    or a GO term both members carry arrives as two rows on one key. Written
+    as they are, `replace_gene_annotations`' ON CONFLICT keeps whichever was
+    inserted last -- fetch order -- and the status row counts both. `rank`
+    must be total over the fields that can differ, so the survivor is the
+    same whichever member answered first. Order of first appearance is kept.
+    """
+    kept: dict[tuple[str, ...], AnnotationRow] = {}
+    for row in rows:
+        key = AnnotationRow.sort_key(row)
+        held = kept.get(key)
+        if held is None or rank(row) < rank(held):
+            kept[key] = row
+    return list(kept.values())
 
 
 @dataclass(slots=True)

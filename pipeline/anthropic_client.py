@@ -258,19 +258,33 @@ def _record_thinking_trace(
     if not thinking:
         return
     thinking_chars = len(thinking)
-    with EventLog(config.event_db_path) as event_log:
-        event_log.record(
-            "paper_extraction_thinking",
-            {
-                "pmid": pmid,
-                "thinking": thinking[:_MAX_THINKING_CHARS_LOGGED],
-                "thinking_chars": thinking_chars,
-                "truncated": thinking_chars > _MAX_THINKING_CHARS_LOGGED,
-                "attempt": attempt,
-                "accepted": accepted,
-                # Under the fallback this is Opus 4.8's reasoning, not 5.5's.
-                "model": model,
-            },
+    # Best-effort, constructor included: SQLite can refuse the write (a
+    # missing directory, a read-only or full disk, a lock an overlapping
+    # run holds past the busy timeout), and this runs after the response
+    # was received and billed. Raised from here it threw a paid paper's
+    # genes away on the streaming path and ended the collection of a whole
+    # batch on the other, for a trace nothing reads.
+    try:
+        with EventLog(config.event_db_path) as event_log:
+            event_log.record(
+                "paper_extraction_thinking",
+                {
+                    "pmid": pmid,
+                    "thinking": thinking[:_MAX_THINKING_CHARS_LOGGED],
+                    "thinking_chars": thinking_chars,
+                    "truncated": thinking_chars > _MAX_THINKING_CHARS_LOGGED,
+                    "attempt": attempt,
+                    "accepted": accepted,
+                    # Under the fallback this is Opus 4.8's reasoning, not
+                    # 5.5's.
+                    "model": model,
+                },
+            )
+    except Exception:
+        logger.warning(
+            "Could not record the reasoning trace for PMID %s in the event log",
+            pmid,
+            exc_info=True,
         )
 
 
@@ -474,10 +488,23 @@ async def _stream_and_parse(
         if calls.direct
         else {"betas": [FALLBACK_BETA], "fallbacks": [{"model": config.fallback_model}]}
     )
-    async with client.beta.messages.stream(
-        **stream_kwargs, **fallback_kwargs
-    ) as stream:
-        response = await stream.get_final_message()
+    try:
+        async with client.beta.messages.stream(
+            **stream_kwargs, **fallback_kwargs
+        ) as stream:
+            response = await stream.get_final_message()
+    except ValueError:
+        # The SDK's own, raised while it accumulates a tool input that is
+        # not JSON -- before anything below has recorded the call or
+        # settled its reservation. It goes on to `extract`'s validation
+        # retry like a schema failure, whose branch releases nothing
+        # because every ValueError raised further down is of a call
+        # already settled.
+        record_service_failure(
+            _ANTHROPIC_SERVICE, endpoint=_MESSAGES_ENDPOINT, method="POST"
+        )
+        await _release_reservation(rate_limiter, request_id)
+        raise
     stream_elapsed = time.monotonic() - stream_start
     # The SDK owns its own transport, so no event hook fires for it. Without
     # this the External services panel omitted the extraction calls
@@ -830,6 +857,29 @@ async def _retry_connection(
     return retry_count
 
 
+# How much of an exception's text a paper's published error may carry.
+_MAX_ERROR_CHARS: Final[int] = 300
+
+
+def _brief(error: BaseException, limit: int = _MAX_ERROR_CHARS) -> str:
+    """An exception's text, short enough and safe enough to publish.
+
+    The message of an `ExtractionFailedError` becomes `PaperResult.error`,
+    which the run report stores and the run widget renders. The SDK's
+    ValueError for an unparseable tool input ends in ` JSON: ` and the
+    whole partial input -- the model's summaries and the paper's quoted
+    sentences -- and a Pydantic error runs to three lines per bad gene.
+    Whitespace is collapsed rather than the first line taken: a Pydantic
+    error's first line says only how many errors follow. The full text
+    stays in the log line beside it.
+    """
+    text = " ".join(str(error).split())
+    text = text.split(" JSON: ", 1)[0]
+    if len(text) > limit:
+        text = text[:limit].rstrip() + "…"
+    return text
+
+
 def _retry_validation(
     error: Exception,
     retry_count: int,
@@ -846,7 +896,7 @@ def _retry_validation(
             f"({retry_count}/{config.max_retries}): {error}"
         )
         raise ExtractionFailedError(
-            f"Validation retries exhausted for PMID {pmid}: {error}", usage
+            f"Validation retries exhausted for PMID {pmid}: {_brief(error)}", usage
         ) from error
     logger.warning(
         f"Validation retry {retry_count}/{config.max_retries} for PMID {pmid}: {error}"
@@ -887,11 +937,14 @@ def build_async_client() -> anthropic.AsyncAnthropic:
     and it is not done because the pipeline's own retry paths do not cover
     the same ground: `_is_retryable_status_error` retries only 529 and the
     mid-stream 200, so a 500 or 503 would become fatal on the first
-    attempt, and `messages.batches.retrieve` -- polled for up to 24 hours
-    with no retry wrapper at all -- would abort a submitted batch on one
-    transient 502. Buying exact telemetry with lost papers is the wrong
-    trade; the undercount is documented instead, in
-    `.claude/rules/pipeline/api-telemetry.md`.
+    attempt, and the first `messages.batches.retrieve` of a recorded batch
+    would fail the run on one transient 502 (the 24-hour poll now waits an
+    outage out itself, `_poll_until_ended`). Buying exact telemetry with
+    lost papers is the wrong trade; the undercount is documented instead,
+    in `.claude/rules/pipeline/api-telemetry.md`. The one call sent with
+    the retries off is `messages.batches.create` (`_create_batch` in
+    `batch_extraction.py`): it is not idempotent, and a retry of a create
+    whose answer was lost is a second batch, billed and recorded nowhere.
     """
     if not os.getenv("ANTHROPIC_API_KEY"):
         raise ExtractionFailedError(
@@ -1294,5 +1347,5 @@ class AnthropicClient:
                 await _release_reservation(rate_limiter, request_id)
                 logger.error(f"Extraction failed for PMID {pmid}: {e}")
                 raise ExtractionFailedError(
-                    f"Extraction failed for PMID {pmid}: {e}", usage
+                    f"Extraction failed for PMID {pmid}: {_brief(e)}", usage
                 ) from e

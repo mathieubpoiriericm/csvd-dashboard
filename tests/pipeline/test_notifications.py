@@ -365,3 +365,49 @@ def test_a_failed_invocation_is_sent_as_a_failure(mock_apprise_cls):
 
     sent = [call.kwargs["notify_type"] for call in mock_instance.notify.call_args_list]
     assert sent == [NotifyType.FAILURE, NotifyType.INFO]
+
+
+@patch("tenacity.nap.time.sleep")
+@patch("pipeline.notifications.apprise.Apprise")
+def test_a_channel_that_delivered_is_not_sent_the_digest_again(
+    mock_apprise_cls, mock_sleep, caplog
+):
+    """One channel down must not multiply the digest on the others.
+
+    Apprise answers False when any one service failed, and the retry
+    re-ran the whole ``notify``: with two channels and one of them down,
+    the healthy one received the same digest once per attempt.
+    """
+    mock_instance = MagicMock()
+    tags: list[str] = []
+    mock_instance.add.side_effect = lambda url, tag="": tags.append(tag) or True
+    # The first channel is down; the second delivers.
+    mock_instance.notify.side_effect = lambda **kwargs: kwargs["tag"] != tags[0]
+    mock_apprise_cls.return_value = mock_instance
+
+    config = _make_config(
+        notify_urls="json://down/?token=s3cr3t,json://up", notify_max_retries=3
+    )
+    with caplog.at_level(logging.INFO):
+        send_pipeline_notification(_make_run_data(), config)
+
+    assert len(set(tags)) == 2
+    sent_to = [call.kwargs["tag"] for call in mock_instance.notify.call_args_list]
+    assert sent_to.count(tags[1]) == 1
+    assert sent_to.count(tags[0]) == 3
+    assert "Failed to send pipeline notification" in caplog.text
+    assert "Pipeline notification sent successfully" not in caplog.text
+    # A channel's URL carries its token, so the failure names its position.
+    assert "s3cr3t" not in caplog.text
+    assert "channel 1 of 2" in caplog.text
+
+
+
+@patch("pipeline.notifications.apprise.Apprise")
+def test_urls_that_name_no_channel_are_a_failure(mock_apprise_cls, caplog):
+    mock_apprise_cls.return_value = MagicMock()
+    with caplog.at_level(logging.INFO):
+        send_pipeline_notification(_make_run_data(), _make_config(notify_urls=" , "))
+
+    assert "Failed to send pipeline notification" in caplog.text
+    assert "Pipeline notification sent successfully" not in caplog.text

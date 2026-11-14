@@ -18,6 +18,11 @@ Population, mechanism, genetic target and genetic evidence are a curator's
 judgement; two rows that disagree on any of them are two different records
 whatever their drug says, so the script reports them and changes neither.
 
+**Refused while `GOLD_ONLY` is true** (lib/gold_only.ts), except as
+`--dry-run`: the stored drugs are then the curated gold spellings
+`scripts/load_gold.py` wrote, research codes included ("Butylphthalide
+(NBP)"), and rewriting them would publish names the curators did not write.
+
 Run as a module, as `scripts/backfill_gene_lists.py` is:
 
     uv run python -m scripts.normalize_drug_names --dry-run
@@ -27,6 +32,7 @@ Run as a module, as `scripts/backfill_gene_lists.py` is:
 import argparse
 import asyncio
 import logging
+import os
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
@@ -35,6 +41,7 @@ from dotenv import load_dotenv
 
 from pipeline.database import Database
 from pipeline.drug_names import fold_case_variants, normalize_drug_name
+from pipeline.gold_only import gold_only
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
@@ -101,12 +108,28 @@ def plan(rows: list[dict[str, Any]]) -> tuple[
     return sorted(renames), sorted(delete), conflicts
 
 
-async def main() -> int:
+def refuse_while_gold_only(
+    parser: argparse.ArgumentParser, dry_run: bool, gold_only_on: bool
+) -> None:
+    """Refuse a write while the dashboard is gold-only: the stored drugs are
+    the curators' spellings then. A dry run writes nothing and stays allowed."""
+    if gold_only_on and not dry_run:
+        parser.error(
+            "refused: GOLD_ONLY is true in lib/gold_only.ts, so the stored "
+            "drugs are the curated gold spellings scripts.load_gold wrote, and "
+            "renaming them would publish names the curators did not write. "
+            "--dry-run still reports the plan."
+        )
+
+
+async def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--dry-run", action="store_true", help="report the plan and write nothing"
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
+    # A gold_only() ValueError propagates and fails closed.
+    refuse_while_gold_only(parser, args.dry_run, gold_only())
     logging.basicConfig(level=logging.INFO, format="%(message)s")
 
     db = Database()
@@ -136,6 +159,12 @@ async def main() -> int:
         logger.info("nothing to do")
         return 0
 
+    logger.info(
+        "writing into %s on %s:%s",
+        os.getenv("DB_NAME") or "(DB_NAME unset)",
+        os.getenv("DB_HOST") or "(DB_HOST unset)",
+        os.getenv("DB_PORT", "5432"),
+    )
     async with db.connection() as conn, conn.transaction():
         if delete:
             await conn.execute(

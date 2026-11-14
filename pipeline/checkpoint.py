@@ -17,7 +17,8 @@ validates the stored genes instead of paying for the extraction again. Four
 properties matter:
 
 - **Append-only.** A record is one `write` of one line, so a process killed
-  mid-append can corrupt only the final line, and `load` drops it. Rewriting
+  mid-append can corrupt only the final line, and `load` drops it; the next
+  `append` ends that line first, so its own record is not lost with it. Rewriting
   the whole file per paper could instead lose every earlier one.
 - **Fingerprinted.** A checkpoint is only reusable by a run extracting the
   same way. Restoring a paper the previous run extracted under a different
@@ -112,15 +113,30 @@ def append(path: str, run_fingerprint: dict[str, Any], record: dict[str, Any]) -
     target = Path(path)
     with _locked(target):
         new_file = not target.exists() or target.stat().st_size == 0
+        torn_tail = not new_file and not _ends_with_newline(target)
         with target.open("a", encoding="utf-8") as handle:
             if new_file:
                 handle.write(json.dumps({_HEADER_KEY: run_fingerprint}) + "\n")
+            elif torn_tail:
+                # A process killed mid-append left a line with no newline.
+                # `load` drops that fragment but leaves it in the file, so
+                # this record would be glued onto it and dropped with it by
+                # every later load. Ending the fragment's line keeps it the
+                # only one lost.
+                handle.write("\n")
             handle.write(json.dumps(record) + "\n")
             # The point of the file is to survive a process that stops
             # existing, so a record is not "written" while it sits in a
             # buffer.
             handle.flush()
             os.fsync(handle.fileno())
+
+
+def _ends_with_newline(target: Path) -> bool:
+    """Whether a non-empty file's last byte is a newline."""
+    with target.open("rb") as handle:
+        handle.seek(-1, os.SEEK_END)
+        return handle.read(1) == b"\n"
 
 
 def load(path: str, run_fingerprint: dict[str, Any]) -> list[dict[str, Any]]:

@@ -11,6 +11,7 @@ import json
 import logging
 import os
 import re
+import urllib.parse
 from pathlib import Path
 from typing import Any, Final, Literal
 
@@ -203,6 +204,10 @@ def _validate_doi(doi: str) -> str:
     doi = doi.strip()
     if not DOI_PATTERN.fullmatch(doi):
         raise ValueError(f"Invalid DOI format: {doi!r}")
+    # A URL normalises `.` and `..` segments away, so such a DOI would be
+    # looked up outside its own path; percent-encoding does not stop that.
+    if any(segment in {".", ".."} for segment in doi.split("/")):
+        raise ValueError(f"Invalid DOI format: {doi!r}")
     return doi
 
 
@@ -233,8 +238,30 @@ def _drop_citation_markers(paragraph: Any) -> None:
         parent.remove(xref)
 
 
+def _is_row(element: Any) -> bool:
+    return etree.QName(element).localname == "tr"
+
+
+def _row_text(row: Any) -> str:
+    """A table row on one line, cells separated by ``" | "``.
+
+    Empty cells are kept so the columns still line up with the header row;
+    a row with no text at all is ``""``.
+    """
+    cells = [
+        " ".join(_element_text(cell).split())
+        for cell in row.iterchildren("{*}th", "{*}td")
+    ]
+    return " | ".join(cells) if any(cells) else ""
+
+
 def _parse_pmc_xml(content: bytes) -> str | None:
-    """Extract body paragraphs from a PMC JATS document.
+    """Extract body paragraphs and table rows from a PMC JATS document.
+
+    A table row is one line, as in ``europepmc.parse_jats``: a JATS cell is
+    not wrapped in ``<p>`` and a ``<floats-group>`` sits beside ``<body>``,
+    so reading the body's paragraphs alone sent a paper to the model with
+    none of its tables while it was recorded as full text.
 
     Returns None for PMC's "does not allow downloading" notice and for a
     front-mattered article with no sections and almost no body, so the
@@ -242,20 +269,38 @@ def _parse_pmc_xml(content: bytes) -> str | None:
     notice as the paper.
     """
     root = etree.fromstring(content, parser=SAFE_XML_PARSER)
-    paragraphs = root.findall(".//{*}body//{*}p") or root.findall(".//{*}sec//{*}p")
+    containers = [*root.findall(".//{*}body"), *root.findall(".//{*}floats-group")]
+    # Publishers render the bibliography inside <body>, and a cited title
+    # names genes the paper never studied (see europepmc.parse_jats).
+    for container in containers:
+        for ref_list in container.findall(".//{*}ref-list"):
+            parent = ref_list.getparent()
+            if parent is not None:
+                parent.remove(ref_list)
+    # Document order within the body, then each floats-group after it.
+    blocks: list[Any] = []
+    for body in root.findall(".//{*}body"):
+        blocks.extend(body.iter("{*}p", "{*}tr"))
+    if not blocks:
+        blocks = root.findall(".//{*}sec//{*}p")
+    for floats_group in root.findall(".//{*}floats-group"):
+        blocks.extend(floats_group.iter("{*}p", "{*}tr"))
     text_parts: list[str] = []
-    # `.//body//p` matches a paragraph nested inside another (a list item's,
-    # a boxed text's) as well as the outer one, and itertext() on the outer
-    # already carries the inner, so the same prose reached the model twice.
-    # Document order guarantees an ancestor is seen before its descendant.
+    # The walk matches a paragraph nested inside another (a list item's,
+    # a boxed text's, a table cell's) as well as the outer block, and
+    # itertext() on the outer already carries the inner, so the same prose
+    # reached the model twice. Document order guarantees an ancestor is
+    # seen before its descendant; a nested <body> (a sub-article's) is
+    # walked twice, hence the check on the block itself.
     emitted: set[Any] = set()
-    for paragraph in paragraphs:
-        if not emitted.isdisjoint(paragraph.iterancestors()):
+    for block in blocks:
+        if block in emitted or not emitted.isdisjoint(block.iterancestors()):
             continue
-        _drop_citation_markers(paragraph)
-        if text := _element_text(paragraph).strip():
+        _drop_citation_markers(block)
+        text = _row_text(block) if _is_row(block) else _element_text(block).strip()
+        if text:
             text_parts.append(text)
-            emitted.add(paragraph)
+            emitted.add(block)
     if not text_parts:
         return None
     joined = "\n\n".join(text_parts)
@@ -368,8 +413,8 @@ async def get_fulltext(pmid: str, doi: str | None) -> FulltextResult:
     """Attempt full-text retrieval from multiple sources.
 
     Order: Europe PMC (JATS XML, tables preserved) -> PMC -> Unpaywall PDF
-    -> abstract. Europe PMC leads because it is the only source that keeps
-    table structure, and it covers ~85% of this corpus.
+    -> abstract. Europe PMC leads because it keeps table structure and
+    section titles, and it covers ~85% of this corpus.
 
     Args:
         pmid: PubMed ID of the paper.
@@ -422,7 +467,10 @@ async def check_unpaywall(doi: str) -> str | None:
         logger.warning("UNPAYWALL_EMAIL not set, skipping Unpaywall lookup")
         return None
 
-    url = f"https://api.unpaywall.org/v2/{doi}"
+    # A DOI may hold `?`, `#`, `<` and `;`. Interpolated raw, `?` began the
+    # query string and `#` the fragment, so a shorter, different DOI was
+    # queried. `/` stays: the DOI is the rest of the path.
+    url = f"https://api.unpaywall.org/v2/{urllib.parse.quote(doi, safe='/')}"
     params = {"email": UNPAYWALL_EMAIL}
 
     try:

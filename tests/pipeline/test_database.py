@@ -790,6 +790,46 @@ class TestCacheOperations:
 
         assert result["123"] == {k: v for k, v in row.items() if k != "pmid"}
 
+    async def test_a_citation_field_the_column_cannot_hold_is_left_out(
+        self, mocker, caplog
+    ):
+        """`doi` is VARCHAR(100) and `publication_date` VARCHAR(50), and the
+        batch is one statement: one over-long value failed every citation
+        of the refresh, on every run. The field is dropped, the row kept."""
+        conn = _mock_plain_connection(mocker)
+        long_doi = "10.1234/" + "x" * 100
+        citations = [
+            SimpleNamespace(
+                pmid="123",
+                authors="Smith J",
+                title="Title",
+                journal="Journal",
+                publication_date="2025 " + "y" * 50,
+                doi=long_doi,
+                formatted_ref="Smith J. Title.",
+            ),
+            SimpleNamespace(
+                pmid="456",
+                authors=None,
+                title=None,
+                journal=None,
+                publication_date="y" * 50,
+                doi="d" * 100,
+                formatted_ref=None,
+            ),
+        ]
+
+        assert await upsert_pubmed_citations_batch(citations) == 2
+
+        rows = conn.executemany.await_args.args[1]
+        assert rows[0] == (
+            "123", "Smith J", "Title", "Journal", None, None, "Smith J. Title."
+        )
+        # At the width a value is stored as it is.
+        assert rows[1][4:6] == ("y" * 50, "d" * 100)
+        assert "123" in caplog.text
+        assert "456" not in caplog.text
+
     async def test_upsert_pubmed_citations(self, mocker):
         conn = _mock_plain_connection(mocker)
         citation = SimpleNamespace(
@@ -853,7 +893,7 @@ class TestClinicalTrialUpsert:
     async def test_skips_missing_registry_ids_and_inserts_valid_rows(
         self, mocker, caplog
     ):
-        conn = _mock_plain_connection(mocker)
+        conn = _mock_merge_connection(mocker)
         conn.fetch.return_value = []
 
         result = await upsert_clinical_trials_batch(
@@ -873,7 +913,7 @@ class TestClinicalTrialUpsert:
         connection.assert_not_called()
 
     async def test_valid_rows_need_no_skip_warning(self, mocker, caplog):
-        conn = _mock_plain_connection(mocker)
+        conn = _mock_merge_connection(mocker)
         conn.fetch.return_value = []
 
         result = await upsert_clinical_trials_batch([self._trial("NCT123")])
@@ -892,7 +932,7 @@ class TestClinicalTrialUpsert:
         keying the write on (registry_id, drug) inserted a second, wholly
         uncurated row per trial and refreshed the curated one never.
         """
-        conn = _mock_plain_connection(mocker)
+        conn = _mock_merge_connection(mocker)
         conn.fetch.return_value = [
             _stored("Exemplisiran (ABC-XYZ)"),
             _stored("Second curated arm"),
@@ -918,15 +958,72 @@ class TestClinicalTrialUpsert:
                 "2027-01-01",
                 "Trait A volume",
                 "Academic",
-                "RECRUITING",
                 "NCT123",
             )
         ]
         assert "another drug name" in caplog.text
 
+    async def test_a_refresh_never_writes_the_status(self, mocker):
+        """The status sweep is the one writer of a stored trial's status.
+
+        The refresh used to set it too, before the sweep ran, so the sweep
+        read CT.gov's answer back as the stored value: a trial the search
+        reached could move to TERMINATED -- and leave Table 2 on the next
+        export -- with no transition logged and `status_refreshed` at 0.
+        """
+        conn = _mock_merge_connection(mocker)
+        conn.fetch.return_value = [_stored("Drug A")]
+
+        await upsert_clinical_trials_batch([self._trial("NCT123")])
+
+        statement, rows = conn.executemany.await_args.args
+        assert statement.lstrip().startswith("UPDATE clinical_trials")
+        assert "overall_status" not in statement
+        assert "WHERE registry_id = $7" in statement
+        assert all("RECRUITING" not in row for row in rows)
+
+    async def test_a_discovery_is_inserted_with_its_status(self, mocker):
+        """A new row has no earlier status to move from, so the insert
+        carries the registry's."""
+        conn = _mock_merge_connection(mocker)
+        conn.fetch.return_value = []
+
+        await upsert_clinical_trials_batch([self._trial("NCT999")])
+
+        statement, rows = conn.executemany.await_args.args
+        assert statement.lstrip().startswith("INSERT INTO clinical_trials")
+        assert rows[0][-1] == "RECRUITING"
+
+    async def test_the_refresh_and_the_insert_are_one_transaction(self, mocker):
+        """The sync reports a failed write as having written nothing, which
+        holds only if a failed insert rolls the refresh back with it."""
+        conn = _mock_merge_connection(mocker)
+        conn.fetch.return_value = [_stored("Drug A")]
+        inside: list[bool] = []
+        transaction = conn.transaction.return_value
+        entered = {"now": False}
+
+        async def enter():
+            entered["now"] = True
+
+        async def leave(*_exc):
+            entered["now"] = False
+            return False
+
+        transaction.__aenter__.side_effect = enter
+        transaction.__aexit__.side_effect = leave
+        conn.executemany.side_effect = lambda *_: inside.append(entered["now"])
+
+        await upsert_clinical_trials_batch(
+            [self._trial("NCT123"), self._trial("NCT999")]
+        )
+
+        conn.transaction.assert_called_once_with()
+        assert inside == [True, True]
+
     async def test_one_refresh_statement_per_registry_id(self, mocker):
         """The API columns are the study's, identical across its arms."""
-        conn = _mock_plain_connection(mocker)
+        conn = _mock_merge_connection(mocker)
         conn.fetch.return_value = [_stored("Drug A")]
 
         result = await upsert_clinical_trials_batch(
@@ -941,7 +1038,7 @@ class TestClinicalTrialUpsert:
         assert len(rows) == 1
 
     async def test_a_matching_drug_name_raises_no_warning(self, mocker, caplog):
-        conn = _mock_plain_connection(mocker)
+        conn = _mock_merge_connection(mocker)
         conn.fetch.return_value = [_stored("Drug A")]
 
         await upsert_clinical_trials_batch([self._trial("NCT123")])
@@ -949,7 +1046,7 @@ class TestClinicalTrialUpsert:
         assert "another drug name" not in caplog.text
 
     async def test_known_and_new_registries_take_both_statements(self, mocker):
-        conn = _mock_plain_connection(mocker)
+        conn = _mock_merge_connection(mocker)
         conn.fetch.return_value = [_stored("Drug A")]
 
         result = await upsert_clinical_trials_batch(
@@ -967,7 +1064,7 @@ class TestClinicalTrialUpsert:
         self, mocker
     ):
         """"Completed (unpublished)" is a curated fact CT.gov cannot express."""
-        conn = _mock_plain_connection(mocker)
+        conn = _mock_merge_connection(mocker)
         conn.fetch.return_value = [_stored("Drug A")]
 
         await upsert_clinical_trials_batch([self._trial("NCT123")])
@@ -984,7 +1081,7 @@ class TestClinicalTrialUpsert:
     async def test_a_refresh_never_erases_a_column_the_registry_stopped_stating(
         self, mocker
     ):
-        conn = _mock_plain_connection(mocker)
+        conn = _mock_merge_connection(mocker)
         conn.fetch.return_value = [_stored("Drug A")]
 
         await upsert_clinical_trials_batch([self._trial("NCT123")])

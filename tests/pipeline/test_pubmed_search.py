@@ -1,5 +1,8 @@
 """Tests for pipeline.pubmed_search — query building, filtering, search."""
 
+import functools
+import urllib.request
+from typing import cast
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -151,6 +154,44 @@ class TestSearchRecentPapers:
         )
         with pytest.raises(PubMedSearchError, match="Entrez API"):
             await search_recent_papers(7)
+
+    def test_biopython_opens_its_requests_with_a_socket_timeout(self):
+        # Biopython's `_open` calls its module global `urlopen(request)`
+        # with no timeout, so a connection NCBI accepted and then stalled
+        # blocked the worker thread, and the run, for good.
+        from Bio import Entrez
+
+        from pipeline import pubmed_search
+
+        opener = cast("functools.partial[object]", Entrez.urlopen)
+        assert opener.func is urllib.request.urlopen
+        assert opener.keywords == {"timeout": pubmed_search._ENTREZ_TIMEOUT_S}
+        assert 0 < pubmed_search._ENTREZ_TIMEOUT_S <= 120
+
+    async def test_a_socket_timeout_raises_pubmed_search_error(self, mocker):
+        mocker.patch(
+            "pipeline.pubmed_search.Entrez.esearch",
+            side_effect=TimeoutError("The read operation timed out"),
+        )
+        with pytest.raises(PubMedSearchError, match="Entrez API"):
+            await search_recent_papers(7)
+
+    async def test_a_search_that_never_answers_is_abandoned(self, mocker):
+        # The backstop for a body that trickles: each read beats the socket
+        # timeout, so only an overall bound ends the wait.
+        import threading
+
+        release = threading.Event()
+        mocker.patch("pipeline.pubmed_search._ENTREZ_DEADLINE_S", 0.05)
+        mocker.patch(
+            "pipeline.pubmed_search.Entrez.esearch",
+            side_effect=lambda **_: release.wait(5),
+        )
+        try:
+            with pytest.raises(PubMedSearchError, match="Entrez API"):
+                await search_recent_papers(7)
+        finally:
+            release.set()
 
     async def test_html_on_a_200_raises_pubmed_search_error(self, mocker):
         # An NCBI maintenance page arrives as a 200 whose body is not XML.

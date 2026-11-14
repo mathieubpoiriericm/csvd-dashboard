@@ -258,6 +258,8 @@ async def test_submit_and_collect_handles_scrambled_sdk_result_order(
         yield _fake_batch_entry("A", _GENE1_GENES)
 
     mock_client = MagicMock()
+    # The create is sent through `with_options(max_retries=0)`.
+    mock_client.with_options.return_value = mock_client
     mock_client.messages.batches.create = AsyncMock(return_value=_FakeBatch())
     mock_client.messages.batches.retrieve = AsyncMock(return_value=_FakeStatus())
     mock_client.messages.batches.results = AsyncMock(
@@ -290,6 +292,8 @@ async def test_submit_and_collect_polls_until_batch_ends(mocker, monkeypatch) ->
             yield None
 
     mock_client = MagicMock()
+    # The create is sent through `with_options(max_retries=0)`.
+    mock_client.with_options.return_value = mock_client
     mock_client.messages.batches.create = AsyncMock(return_value=batch)
     mock_client.messages.batches.retrieve = AsyncMock(
         side_effect=[in_progress, ended]
@@ -341,6 +345,8 @@ async def test_submit_and_collect_gives_up_after_the_max_wait(
         processing_status = "in_progress"
 
     mock_client = MagicMock()
+    # The create is sent through `with_options(max_retries=0)`.
+    mock_client.with_options.return_value = mock_client
     mock_client.messages.batches.create = AsyncMock(return_value=_FakeBatch())
     mock_client.messages.batches.retrieve = AsyncMock(return_value=_FakeStatus())
     mock_client.close = AsyncMock()
@@ -678,6 +684,8 @@ class TestBatchProvenance:
             yield _fake_batch_entry("A", _GENE1_GENES)
 
         mock_client = MagicMock()
+        # The create is sent through `with_options(max_retries=0)`.
+        mock_client.with_options.return_value = mock_client
         mock_client.messages.batches.create = AsyncMock(return_value=_FakeBatch())
         mock_client.messages.batches.retrieve = AsyncMock(return_value=_FakeStatus())
         mock_client.messages.batches.results = AsyncMock(
@@ -761,6 +769,8 @@ class TestAPendingBatchIsResumed:
         # reads the same stamp back off the client.
         created = datetime.now(UTC) - timedelta(hours=1)
         client.created_ts = created.timestamp()
+        # The create is sent through `with_options(max_retries=0)`.
+        client.with_options.return_value = client
         client.messages.batches.create = AsyncMock(
             return_value=MagicMock(id="msgbatch_new", created_at=created)
         )
@@ -1161,3 +1171,308 @@ class TestAPendingBatchIsResumed:
 
         assert list(tmp_path.iterdir()) == []
         assert client.messages.batches.retrieve.call_count == 1
+
+
+def test_an_unwritable_event_log_does_not_abort_the_collection(tmp_path) -> None:
+    """The reasoning trace is an audit artifact; a SQLite refusal writing
+    it used to raise out of the loop and lose every entry of a paid batch.
+    """
+    config = PipelineConfig(event_db_path=str(tmp_path / "missing" / "events.db"))
+    entries = [
+        _fake_batch_entry("A", _GENE1_GENES, thinking="reasoning about A"),
+        _fake_batch_entry("B", _EMPTY_GENES, thinking="reasoning about B"),
+    ]
+
+    out = results_by_custom_id(entries, config=config)
+
+    assert set(out) == {"A", "B"}
+    assert out["A"][0].gene_symbol == "GENE1"
+
+
+def _status_error(cls: type, status: int) -> Any:
+    return cls(
+        f"status {status}",
+        response=httpx2.Response(
+            status, request=httpx2.Request("POST", "https://api.test")
+        ),
+        body=None,
+    )
+
+
+def _connection_error() -> anthropic.APIConnectionError:
+    return anthropic.APIConnectionError(
+        request=httpx2.Request("POST", "https://api.test")
+    )
+
+
+def _batch_client(mocker, monkeypatch, *, results: dict[str, list[Any]]) -> MagicMock:
+    """A client whose every batch has ended, creating msgbatch_1, _2, ...
+
+    ``results`` maps a batch id to the entries it returns.
+    """
+    made = iter(range(1, 100))
+
+    async def create(**_kwargs: Any) -> Any:
+        return SimpleNamespace(id=f"msgbatch_{next(made)}")
+
+    async def results_for(batch_id: str) -> Any:
+        async def stream():
+            for entry in results.get(batch_id, []):
+                yield entry
+
+        return stream()
+
+    client = MagicMock()
+    client.with_options.return_value = client
+    client.messages.batches.create = AsyncMock(side_effect=create)
+    client.messages.batches.retrieve = AsyncMock(
+        side_effect=lambda batch_id: MagicMock(id=batch_id, processing_status="ended")
+    )
+    client.messages.batches.results = AsyncMock(side_effect=results_for)
+    client.close = AsyncMock()
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+    mocker.patch("pipeline.batch_extraction.build_async_client", return_value=client)
+    mocker.patch("pipeline.batch_extraction.asyncio.sleep", AsyncMock())
+    return client
+
+
+class TestABatchIsNeverSubmittedTwice:
+    """Creating a batch is not idempotent and the SDK sends no idempotency
+    key, so its own retry of a create whose answer was lost submitted, and
+    paid for, a second batch that nothing recorded.
+    """
+
+    async def test_the_create_is_sent_with_the_sdk_s_retries_off(
+        self, mocker, monkeypatch
+    ) -> None:
+        client = _batch_client(mocker, monkeypatch, results={})
+
+        await submit_and_collect({"A": "paper"}, PipelineConfig())
+
+        client.with_options.assert_called_once_with(max_retries=0)
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            _connection_error(),
+            anthropic.APITimeoutError(
+                request=httpx2.Request("POST", "https://api.test")
+            ),
+            _status_error(anthropic.InternalServerError, 502),
+        ],
+    )
+    async def test_an_unknown_outcome_is_not_submitted_again(
+        self, error, mocker, monkeypatch
+    ) -> None:
+        client = _batch_client(mocker, monkeypatch, results={})
+        client.messages.batches.create.side_effect = error
+
+        with pytest.raises(ExtractionFailedError, match="may have been created"):
+            await submit_and_collect({"A": "paper"}, PipelineConfig())
+
+        assert client.messages.batches.create.await_count == 1
+        client.close.assert_awaited_once()
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            _status_error(anthropic.RateLimitError, 429),
+            _status_error(anthropic.OverloadedError, 529),
+        ],
+    )
+    async def test_a_refusal_that_created_nothing_is_retried(
+        self, error, mocker, monkeypatch
+    ) -> None:
+        client = _batch_client(
+            mocker,
+            monkeypatch,
+            results={"msgbatch_1": [_fake_batch_entry("A", _GENE1_GENES)]},
+        )
+        client.messages.batches.create.side_effect = [
+            error,
+            SimpleNamespace(id="msgbatch_1"),
+        ]
+
+        out = await submit_and_collect({"A": "paper"}, PipelineConfig())
+
+        assert client.messages.batches.create.await_count == 2
+        assert out["A"][0].gene_symbol == "GENE1"
+
+    async def test_a_rejected_request_is_raised_as_it_is(
+        self, mocker, monkeypatch
+    ) -> None:
+        client = _batch_client(mocker, monkeypatch, results={})
+        client.messages.batches.create.side_effect = _status_error(
+            anthropic.BadRequestError, 400
+        )
+
+        with pytest.raises(anthropic.BadRequestError):
+            await submit_and_collect({"A": "paper"}, PipelineConfig())
+
+        assert client.messages.batches.create.await_count == 1
+
+
+class TestALargeWindowIsSplitIntoSeveralBatches:
+    """One batch holds at most 256 MB or 100,000 requests, and each request
+    repeats the prompt beside its paper, so a long window was a 413 on
+    every re-run, after every paper's text had been fetched.
+    """
+
+    async def test_each_batch_is_recorded_and_all_are_collected(
+        self, tmp_path, mocker, monkeypatch
+    ) -> None:
+        config = PipelineConfig()
+        path = str(tmp_path / "pending.json")
+        client = _batch_client(
+            mocker,
+            monkeypatch,
+            results={
+                "msgbatch_1": [_fake_batch_entry("A", _GENE1_GENES)],
+                "msgbatch_2": [_fake_batch_entry("B", _EMPTY_GENES)],
+            },
+        )
+        # Room for one request and not for two.
+        monkeypatch.setattr("pipeline.batch_extraction._MAX_BATCH_BYTES", 1)
+        seen: list[list[str]] = []
+        retrieve = client.messages.batches.retrieve.side_effect
+
+        def recording_retrieve(batch_id: str) -> Any:
+            seen.append(
+                [
+                    pending.batch_id
+                    for pending in batch_state.load(
+                        path, checkpoint.fingerprint(config)
+                    )
+                ]
+            )
+            return retrieve(batch_id)
+
+        client.messages.batches.retrieve.side_effect = recording_retrieve
+
+        out = await submit_and_collect(
+            {"A": "paper A", "B": "paper B"}, config, state_path=path
+        )
+
+        sent = [
+            [r["custom_id"] for r in call.kwargs["requests"]]
+            for call in client.messages.batches.create.await_args_list
+        ]
+        assert sent == [["A"], ["B"]]
+        # Both were on record before the first poll.
+        assert seen[0] == ["msgbatch_1", "msgbatch_2"]
+        assert set(out) == {"A", "B"}
+        assert out["A"][0].gene_symbol == "GENE1"
+
+    async def test_a_failed_later_create_leaves_the_earlier_batch_on_record(
+        self, tmp_path, mocker, monkeypatch
+    ) -> None:
+        config = PipelineConfig()
+        path = str(tmp_path / "pending.json")
+        client = _batch_client(mocker, monkeypatch, results={})
+        monkeypatch.setattr("pipeline.batch_extraction._MAX_BATCH_BYTES", 1)
+        client.messages.batches.create.side_effect = [
+            SimpleNamespace(id="msgbatch_1"),
+            _connection_error(),
+        ]
+
+        with pytest.raises(ExtractionFailedError, match="may have been created"):
+            await submit_and_collect(
+                {"A": "paper A", "B": "paper B"}, config, state_path=path
+            )
+
+        recorded = batch_state.load(path, checkpoint.fingerprint(config))
+        assert [(p.batch_id, set(p.document_sha256)) for p in recorded] == [
+            ("msgbatch_1", {"A"})
+        ]
+
+    async def test_an_ordinary_window_is_one_batch(self, mocker, monkeypatch) -> None:
+        client = _batch_client(mocker, monkeypatch, results={})
+
+        await submit_and_collect({"A": "paper A", "B": "paper B"}, PipelineConfig())
+
+        assert client.messages.batches.create.await_count == 1
+
+
+class TestAnOutageDoesNotEndTheWait:
+    """The poll waits up to 24 hours on a batch that is already paid for;
+    a network gap longer than the SDK's two quick retries used to end the
+    run there.
+    """
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            _connection_error(),
+            _status_error(anthropic.InternalServerError, 503),
+            _status_error(anthropic.RateLimitError, 429),
+        ],
+    )
+    async def test_a_poll_that_cannot_reach_the_api_is_tried_again(
+        self, error, mocker, monkeypatch, caplog
+    ) -> None:
+        client = _batch_client(
+            mocker,
+            monkeypatch,
+            results={"msgbatch_1": [_fake_batch_entry("A", _GENE1_GENES)]},
+        )
+        client.messages.batches.retrieve.side_effect = [
+            error,
+            error,
+            MagicMock(id="msgbatch_1", processing_status="ended"),
+        ]
+
+        with caplog.at_level(logging.WARNING):
+            out = await submit_and_collect({"A": "paper"}, PipelineConfig())
+
+        assert out["A"][0].gene_symbol == "GENE1"
+        assert client.messages.batches.retrieve.await_count == 3
+        assert "msgbatch_1" in caplog.text
+
+    async def test_an_outage_to_the_deadline_names_the_batch(
+        self, mocker, monkeypatch
+    ) -> None:
+        client = _batch_client(mocker, monkeypatch, results={})
+        client.messages.batches.retrieve.side_effect = _connection_error()
+        monkeypatch.setattr("pipeline.batch_extraction._MAX_WAIT_SECONDS", 0)
+
+        with pytest.raises(ExtractionFailedError, match="msgbatch_1") as raised:
+            await submit_and_collect({"A": "paper"}, PipelineConfig())
+
+        assert isinstance(raised.value.__cause__, anthropic.APIConnectionError)
+
+    async def test_an_error_that_is_a_verdict_still_ends_it(
+        self, mocker, monkeypatch
+    ) -> None:
+        client = _batch_client(mocker, monkeypatch, results={})
+        client.messages.batches.retrieve.side_effect = _status_error(
+            anthropic.AuthenticationError, 401
+        )
+
+        with pytest.raises(anthropic.AuthenticationError):
+            await submit_and_collect({"A": "paper"}, PipelineConfig())
+
+        assert client.messages.batches.retrieve.await_count == 1
+
+    async def test_results_that_break_off_are_fetched_again_from_the_start(
+        self, mocker, monkeypatch
+    ) -> None:
+        client = _batch_client(mocker, monkeypatch, results={})
+
+        async def broken():
+            yield _fake_batch_entry("A", _GENE1_GENES)
+            raise httpx2.ReadError("connection reset")
+
+        async def whole():
+            yield _fake_batch_entry("A", _GENE1_GENES)
+            yield _fake_batch_entry("B", _EMPTY_GENES)
+
+        client.messages.batches.results.side_effect = [broken(), whole()]
+        usage = TokenUsage()
+
+        out = await submit_and_collect(
+            {"A": "paper A", "B": "paper B"}, PipelineConfig(), usage=usage
+        )
+
+        assert set(out) == {"A", "B"}
+        # No entry twice: A's from the broken read was thrown away.
+        assert len(out["A"]) == 1

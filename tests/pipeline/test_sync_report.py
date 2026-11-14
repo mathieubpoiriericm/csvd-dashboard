@@ -113,6 +113,21 @@ class TestTheRefreshStatusEndToEnd:
         clinvar = next(s for s in report.sources if s.key == "clinvar")
         assert (clinvar.fetched, clinvar.failed) == (62, 1)
 
+    def test_an_error_is_sanitised_before_it_is_published(self) -> None:
+        # The list is exported to data/pipeline_syncs.json as written, and
+        # an error string is an exception's own text.
+        report = self._report(
+            AnnotationSyncResult(
+                clinvar_fetched=62,
+                clinvar_failed=1,
+                errors=["GENE1: GET https://example.org/x?api_key=s3cr3t failed"],
+            )
+        )
+
+        assert report.errors.items == [
+            "GENE1: GET https://example.org/x?api_key=<redacted> failed"
+        ]
+
     def test_a_clean_refresh_is_still_green(self) -> None:
         assert self._report(AnnotationSyncResult(clinvar_fetched=63)).status == (
             "completed"

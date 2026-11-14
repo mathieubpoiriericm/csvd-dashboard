@@ -6,6 +6,7 @@ from pipeline.annotations import (
     AnnotationRow,
     AnnotationStatus,
     DrugAnnotationRow,
+    collapse_colliding_rows,
     expand_lookup_symbols,
     group_key_for,
     lookup_symbols,
@@ -152,3 +153,34 @@ class TestLookupAliases:
             curated: tuple(member.upper() for member in members)
             for curated, members in _LOOKUP_ALIASES.items()
         }
+
+
+class TestCollapseCollidingRows:
+    @staticmethod
+    def _row(object_id: str, evidence: int, label: str = "x") -> AnnotationRow:
+        return AnnotationRow(
+            gene_symbol="GENEA/B",
+            source="clinvar",
+            relation="disease",
+            group_key="MONDO:1",
+            object_id=object_id,
+            object_label=label,
+            qualifier=None,
+            score=None,
+            evidence_count=evidence,
+            source_version=None,
+        )
+
+    def test_the_preferred_row_wins_in_either_order(self) -> None:
+        strong, weak = self._row("OMIM:1", 12), self._row("OMIM:1", 3)
+
+        def rank(row: AnnotationRow) -> tuple[int]:
+            return (-(row.evidence_count or 0),)
+
+        assert collapse_colliding_rows([strong, weak], rank) == [strong]
+        assert collapse_colliding_rows([weak, strong], rank) == [strong]
+
+    def test_rows_on_different_keys_are_all_kept_in_order(self) -> None:
+        rows = [self._row("OMIM:2", 1), self._row("OMIM:1", 1)]
+
+        assert collapse_colliding_rows(rows, lambda row: ()) == rows

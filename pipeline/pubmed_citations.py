@@ -174,10 +174,11 @@ def _format_citation(
 
     if journal:
         journal = html.escape(journal, quote=False)
-        parts.append(f"{journal} ({pub_date})" if pub_date else journal)
+        date = html.escape(pub_date, quote=False) if pub_date else ""
+        parts.append(f"{journal} ({date})" if date else journal)
 
     if doi:
-        parts.append(f"DOI: {doi}")
+        parts.append(f"DOI: {html.escape(doi, quote=False)}")
 
     return "<br>".join(parts)
 
@@ -341,13 +342,19 @@ def _joined_text(parent: Any, path: str) -> str:
 
 
 def _author_names(authors: list[Any]) -> list[str]:
-    """``LastName Initials`` for each author element that has a last name."""
+    """``LastName Initials`` for each author, or a group author's name.
+
+    A consortium is ``<Author><CollectiveName>`` with no LastName, as
+    ``_europepmc_authors`` reads ``collectiveName``.
+    """
     names: list[str] = []
     for author in authors:
         last_name = author.findtext("LastName", "")
         initials = author.findtext("Initials", "")
         if last_name:
             names.append(f"{last_name} {initials}".strip())
+        elif collective := " ".join((author.findtext("CollectiveName") or "").split()):
+            names.append(collective)
     return names
 
 
