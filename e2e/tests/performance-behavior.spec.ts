@@ -49,15 +49,9 @@ test("a rapid search burst commits the final text on a large table", async ({ pa
 
 test("pipeline details mount on first opening and survive close and step changes", async ({ page }) => {
   test.skip(!EXPECTED.hasPipelineRun, "no pipeline run recorded");
-  if (EXPECTED.goldOnly) {
-    // Under gold-only the widget is behind the technical-preview switch.
-    await page.context().addCookies([{
-      name: EXPECTED.previewCookie,
-      value: "1",
-      url: test.info().project.use.baseURL!,
-    }]);
-  }
-  await page.goto("/");
+  // Under gold-only the widget is the run preview's own page, not the About
+  // page's.
+  await page.goto(EXPECTED.goldOnly ? "/previews/pipeline" : "/");
   await page.waitForSelector('.pipeline-card[data-hydrated="true"]');
   const drawer = page.getByRole("dialog", { name: "Run details" });
   await expect(page.locator(".pipeline-record")).toHaveCount(0);

@@ -2,8 +2,10 @@ import { expect, type Page, test } from "@playwright/test";
 import { REVIEW } from "../fixtures/expected-data.ts";
 
 /**
- * The scientific review area, end to end: the navbar's Review control, its
- * log-in and account-request dialogs, and the three server-rendered pages.
+ * The scientific review area, end to end: the way in from the previews hub's
+ * review card (enter as an observer, or the demonstration account request)
+ * and the three server-rendered pages. The strip that moves between them is
+ * previews.spec.ts's.
  *
  * Every number and string comes from `REVIEW` (`EXPECTED.review`), derived
  * under Deno from the committed round and the area's own copy, so the spec
@@ -11,34 +13,25 @@ import { REVIEW } from "../fixtures/expected-data.ts";
  * null, the area does not exist, and only the round-less test runs.
  */
 
-/** The navbar control while signed out of the area. */
-const controlOut = (page: Page) =>
-  page.getByRole("button", { name: REVIEW!.copy.CONTROL, exact: true });
-
-/** The navbar control after entering as an observer. */
-const controlIn = (page: Page) =>
-  page.getByRole("button", { name: REVIEW!.copy.CONTROL_ENTERED, exact: true });
-
 const queueRows = (page: Page) => page.locator("table.review-queue tbody tr");
 
-/** Enter as an observer through the menu and the log-in dialog. */
+/** Enter as an observer from the review's card on the previews hub. */
 async function enterAsObserver(page: Page) {
-  const copy = REVIEW!.copy;
-  await page.goto("/");
-  await controlOut(page).click();
-  await page.getByRole("menuitem", { name: copy.MENU_LOG_IN }).click();
-  const dialog = page.getByRole("dialog", { name: copy.LOGIN_TITLE });
-  await expect(dialog).toBeVisible();
-  await expect(dialog).toContainText(copy.LOGIN_BODY);
-  await dialog.getByRole("button", { name: copy.ENTER_OBSERVER }).click();
+  await page.goto("/previews");
+  await page.getByRole("link", { name: REVIEW!.copy.ENTER_OBSERVER }).click();
   await expect(page).toHaveURL("/review");
 }
 
-/** Open the account-request dialog from the signed-out menu. */
+/**
+ * Open the account-request dialog from the review's card on the hub. The
+ * button is disabled until its island is live, so the wait is for that.
+ */
 async function openRequest(page: Page) {
   const copy = REVIEW!.copy;
-  await controlOut(page).click();
-  await page.getByRole("menuitem", { name: copy.MENU_REQUEST }).click();
+  await page.goto("/previews");
+  const button = page.getByRole("button", { name: copy.REQUEST_OPEN });
+  await expect(button).toBeEnabled();
+  await button.click();
   const dialog = page.getByRole("dialog", { name: copy.REQUEST_TITLE });
   await expect(dialog).toBeVisible();
   await expect(dialog).toContainText(copy.REQUEST_DEMO);
@@ -130,14 +123,6 @@ test.describe("with a review round", () => {
     await enterAsObserver(page);
     await expect(page.getByText(REVIEW!.copy.SIMULATED_NOTE)).toBeVisible();
     await expect(queueRows(page)).toHaveCount(REVIEW!.total);
-    await expect(controlIn(page)).toBeVisible();
-    await expect(controlOut(page)).toHaveCount(0);
-
-    // The control says so on a page outside the area too: the cookie holds.
-    await page.goto("/");
-    await expect(controlIn(page)).toBeVisible();
-    const cookies = await page.context().cookies();
-    expect(cookies.find((c) => c.name === REVIEW!.cookie)?.value).toBe("1");
   });
 
   test("the kind filter shows that kind's count", async ({ page }) => {
@@ -243,7 +228,6 @@ test.describe("with a review round", () => {
 
   test("the request form collects nothing", async ({ page }) => {
     const copy = REVIEW!.copy;
-    await page.goto("/");
     const dialog = await openRequest(page);
     for (const [label, value] of Object.entries(TYPED)) {
       await dialog.getByLabel(label, { exact: true }).fill(value);
@@ -261,7 +245,7 @@ test.describe("with a review round", () => {
     await expect(dialog.getByRole("button", { name: copy.REQUEST_SUBMIT }))
       .toHaveCount(0);
     expect(requests).toEqual([]);
-    await expect(page).toHaveURL("/");
+    await expect(page).toHaveURL("/previews");
 
     // Cookies from the context, not document.cookie: an HttpOnly one counts.
     const cookies = (await page.context().cookies())
@@ -282,7 +266,6 @@ test.describe("with a review round", () => {
 
   test("an empty required field stops the request", async ({ page }) => {
     const copy = REVIEW!.copy;
-    await page.goto("/");
     const dialog = await openRequest(page);
     for (const [label, value] of Object.entries(TYPED)) {
       if (label !== "Affiliation") {
@@ -299,25 +282,7 @@ test.describe("with a review round", () => {
     await expect(dialog.locator("form")).toBeVisible();
     await expect(dialog.getByRole("button", { name: copy.REQUEST_SUBMIT }))
       .toBeVisible();
-  });
-
-  test("leaving restores the signed-out control", async ({ page }) => {
-    const copy = REVIEW!.copy;
-    await enterAsObserver(page);
-    await controlIn(page).click();
-    await page.getByRole("menuitem", { name: copy.MENU_LEAVE }).click();
-    await expect(page).toHaveURL("/");
-    await expect(controlOut(page)).toBeVisible();
-    await expect(controlIn(page)).toHaveCount(0);
-    const cookies = await page.context().cookies();
-    expect(cookies.find((c) => c.name === REVIEW!.cookie)).toBeUndefined();
-
-    // Signed out again, the menu offers the way in, not the area.
-    await controlOut(page).click();
-    await expect(page.getByRole("menuitem", { name: copy.MENU_LOG_IN }))
-      .toBeVisible();
-    await expect(page.getByRole("menuitem", { name: copy.MENU_QUEUE }))
-      .toHaveCount(0);
+    await expect(page).toHaveURL("/previews");
   });
 
   test("between the breakpoints the navbar logo keeps its own ratio", async ({ page }) => {
@@ -329,22 +294,8 @@ test.describe("with a review round", () => {
     expect(logo.width / logo.height).toBeCloseTo(logo.ratio, 2);
   });
 
-  test("above 600px the entered control carries no marker", async ({ page }) => {
-    // The label says "Observer" there, and the amber dot is the navbar's
-    // "recently updated" mark: beside the label it reads as a notification.
-    await page.setViewportSize({ width: 1280, height: 800 });
-    await page.goto("/");
-    const marker = page.locator(".navbar .review-button-marker");
-    await expect(controlOut(page)).toBeVisible();
-    await expect(marker).toHaveCount(0);
-    await enterAsObserver(page);
-    await expect(controlIn(page)).toBeVisible();
-    await expect(marker).toBeHidden();
-  });
-
   for (const width of [390, 320]) {
     test(`no review page scrolls sideways on a ${width}px phone`, async ({ page }) => {
-      const copy = REVIEW!.copy;
       // The logo where its band has room to spare, then at this width.
       await page.goto("/");
       await page.setViewportSize({ width: 600, height: 844 });
@@ -353,30 +304,6 @@ test.describe("with a review round", () => {
       const at390 = await logoGeometry(page);
       await page.setViewportSize({ width, height: 844 });
       await expectLogoWhole(page, at390, roomy);
-      // Signed out, the icon-only control carries no marker.
-      const marker = page.locator(".navbar .review-button-marker");
-      await expect(controlOut(page)).toBeVisible();
-      await expect(marker).toHaveCount(0);
-
-      // Overflow to the left adds no scroll width, so the menu's own box is
-      // measured: whole on the screen, and hanging below its button.
-      const menuOnScreen = async (where: string) => {
-        const box = await page.evaluate(() => {
-          const rect = (selector: string) =>
-            document.querySelector(selector)!.getBoundingClientRect();
-          const menu = rect(".navbar .review-menu");
-          return {
-            left: menu.left,
-            right: menu.right,
-            top: menu.top,
-            buttonBottom: rect(".navbar .review-button").bottom,
-            client: document.documentElement.clientWidth,
-          };
-        });
-        expect(box.left, where).toBeGreaterThanOrEqual(0);
-        expect(box.right, where).toBeLessThanOrEqual(box.client);
-        expect(box.top, where).toBeGreaterThanOrEqual(box.buttonBottom);
-      };
 
       const noSidewaysScroll = async (where: string) => {
         const [scroll, client] = await page.evaluate(() => [
@@ -391,30 +318,10 @@ test.describe("with a review round", () => {
         await expect(page.locator("main")).toBeVisible();
         await noSidewaysScroll(path);
         await expectLogoWhole(page, at390, roomy);
-        // Entered, the label is gone at this width and the marker says so.
-        await expect(marker).toBeVisible();
       }
 
-      // The open menu, entered: the area's page links and Leave review.
-      await controlIn(page).click();
-      await expect(page.getByRole("menuitem", { name: copy.MENU_LEAVE }))
-        .toBeVisible();
-      await noSidewaysScroll("the entered menu");
-      await menuOnScreen("the entered menu");
-      await page.getByRole("menuitem", { name: copy.MENU_LEAVE }).click();
-      await expect(page).toHaveURL("/");
-
-      // The open menu signed out, then the request dialog.
-      await noSidewaysScroll("signed out of the review");
-      await expectLogoWhole(page, at390, roomy);
-      await controlOut(page).click();
-      await expect(page.getByRole("menuitem", { name: copy.MENU_REQUEST }))
-        .toBeVisible();
-      await noSidewaysScroll("the signed-out menu");
-      await menuOnScreen("the signed-out menu");
-      await page.getByRole("menuitem", { name: copy.MENU_REQUEST }).click();
-      await expect(page.getByRole("dialog", { name: copy.REQUEST_TITLE }))
-        .toBeVisible();
+      // The request dialog, opened from the hub.
+      await openRequest(page);
       await noSidewaysScroll("the request dialog");
     });
   }
@@ -423,20 +330,17 @@ test.describe("with a review round", () => {
 test.describe("signed out of the dashboard", () => {
   test.use({ storageState: { cookies: [], origins: [] } });
 
-  test("the review area is behind the gate, and the login page has no Review control", async ({ page }) => {
+  test("the review area is behind the gate", async ({ page }) => {
     await page.goto("/review");
     await expect(page).toHaveURL("/login?next=%2Freview");
-    // Whatever the round, the control's name begins with its plain label.
-    await expect(page.getByRole("button", { name: /^Review/ })).toHaveCount(0);
-    await expect(page.locator(".review-control")).toHaveCount(0);
   });
 });
 
-test("with no review round, there is no Review control and no review page", async ({ page }) => {
+test("with no review round, the hub offers no review and there is no review page", async ({ page }) => {
   test.skip(REVIEW !== null, "a review round is committed");
-  await page.goto("/");
-  await expect(page.getByRole("navigation", { name: "Main" })).toBeVisible();
-  await expect(page.locator(".review-control")).toHaveCount(0);
+  await page.goto("/previews");
+  await expect(page.locator(".preview-card").first()).toBeVisible();
+  await expect(page.locator("#preview-card-review")).toHaveCount(0);
   for (const path of ["/review", "/review/progress"]) {
     const response = await page.goto(path);
     expect(response?.status(), path).toBe(404);
