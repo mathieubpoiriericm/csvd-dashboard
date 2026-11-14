@@ -161,6 +161,7 @@ Deno.test("the fixed copy is exported verbatim", () => {
   assertEquals(copy.CONTROL_ENTERED, "Review · Observer");
   assertEquals(copy.MENU_LOG_IN, "Log in");
   assertEquals(copy.MENU_REQUEST, "Request an account");
+  assertEquals(copy.REQUEST_OPEN, "Request an account");
   assertEquals(copy.MENU_QUEUE, "Review queue");
   assertEquals(copy.MENU_PROGRESS, "Committee progress");
   assertEquals(copy.MENU_LEAVE, "Leave review");

@@ -20,6 +20,7 @@ const TOGGLE = "assets/fresh-island__ThemeToggle-Public4.js";
 const PREVIEW = "assets/fresh-island__PipelinePreview-Public6.js";
 const WIDGET = "assets/fresh-island__PipelineRun-Public7.js";
 const REVIEW_MENU = "assets/fresh-island__ReviewMenu-Public8.js";
+const REVIEW_REQUEST = "assets/fresh-island__ReviewRequest-Public9.js";
 
 /**
  * A chunk whose listed modules each render code; `typeOnly` modules render
@@ -84,6 +85,12 @@ function bundle(
     chunk(REVIEW_MENU, "review menu", ["/repo/islands/ReviewMenu.tsx"], {
       name: "fresh-island__ReviewMenu",
     }),
+    chunk(
+      REVIEW_REQUEST,
+      "review request",
+      ["/repo/islands/ReviewRequest.tsx"],
+      { name: "fresh-island__ReviewRequest" },
+    ),
     // The preview switch reaches the run report only through the widget it
     // loads when switched on.
     chunk(WIDGET, "widget", ["/repo/islands/PipelineRun.tsx"], {
@@ -239,6 +246,18 @@ Deno.test("build guard rejects a Review control that reaches the protected chunk
       ),
     Error,
     `Data-free island ReviewMenu loads a protected data chunk: ${REVIEW_MENU} -> ${PROTECTED}`,
+  );
+});
+
+Deno.test("build guard rejects an account request that reaches the protected chunk", () => {
+  assertThrows(
+    () =>
+      assertProtectedDataBundle(
+        withImports(bundle(), REVIEW_REQUEST, { imports: [PROTECTED] }),
+        ROOT,
+      ),
+    Error,
+    `Data-free island ReviewRequest loads a protected data chunk: ${REVIEW_REQUEST} -> ${PROTECTED}`,
   );
 });
 

@@ -33,6 +33,7 @@ export const DATA_FREE_ISLANDS = [
   "AdaptWizard",
   "ThemeToggle",
   "ReviewMenu",
+  "ReviewRequest",
 ] as const;
 
 /**

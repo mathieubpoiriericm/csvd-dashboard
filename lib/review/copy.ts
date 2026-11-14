@@ -7,6 +7,7 @@ export const CONTROL = "Review";
 export const CONTROL_ENTERED = "Review · Observer";
 export const MENU_LOG_IN = "Log in";
 export const MENU_REQUEST = "Request an account";
+export const REQUEST_OPEN = "Request an account";
 export const MENU_QUEUE = "Review queue";
 export const MENU_PROGRESS = "Committee progress";
 export const MENU_LEAVE = "Leave review";
