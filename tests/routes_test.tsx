@@ -8,7 +8,7 @@ import {
 import { h } from "preact";
 import { renderToString } from "preact-render-to-string";
 
-import App, { pageTitle, ReviewControl } from "../routes/_app.tsx";
+import App, { pageTitle } from "../routes/_app.tsx";
 import AdaptPage, { AdaptTip } from "../routes/adapt.tsx";
 import Genes from "../routes/genes.tsx";
 import About, {
@@ -32,11 +32,6 @@ import { GOLD_ONLY, GOLD_ONLY_NOTICE } from "../lib/gold_only.ts";
 import { filterLocationsByStatus, visibleTrials } from "../lib/filters.ts";
 import type { PipelineRun, SyncRun } from "../lib/types.ts";
 import { LOGIN_PATH } from "../lib/auth.ts";
-import { REVIEW } from "../lib/review/current.ts";
-import {
-  CONTROL as REVIEW_CONTROL,
-  CONTROL_ENTERED as REVIEW_CONTROL_ENTERED,
-} from "../lib/review/copy.ts";
 import { currentReview } from "../lib/review/current.ts";
 import { goldOf, sampleChange, sampleRound } from "./fixtures/review.ts";
 import { escapeHtml } from "./helpers/html.ts";
@@ -511,74 +506,91 @@ Deno.test("the About page links to the adapt page", () => {
   assertStringIncludes(html, "Reuse this dashboard for another disease");
 });
 
-Deno.test("application shell titles the adapt page without a tab", () => {
-  const html = renderToString(
+/** The shell around an empty page at `path`. */
+const shellAt = (path: string) =>
+  renderToString(
     <Shell
       Component={() => <p>x</p>}
-      url={new URL("http://localhost/adapt")}
+      url={new URL(`http://localhost${path}`)}
     />,
   );
-  assertStringIncludes(
-    html,
-    `<title>Adapt | ${escapeHtml(SITE_TITLE)}</title>`,
+
+/**
+ * The navbar's previews link on a page: its opening tag's attributes and its
+ * contents. Each attribute is matched on its own, as the order they render in
+ * is not fixed.
+ */
+const previewsLink = (html: string) => {
+  const match = html.match(
+    /<a\b([^>]*\bhref="\/previews"[^>]*)>([\s\S]*?)<\/a>/,
   );
-  // The adapt link is in the bar without being a tab, and is the one link
-  // marked current here.
-  const current = html.match(/<a [^>]*aria-current="page"[^>]*>/g) ?? [];
-  assertEquals(current.length, 1);
-  assertStringIncludes(current[0] ?? "", 'href="/adapt"');
+  return { tag: match?.[1] ?? "", body: match?.[2] ?? "" };
+};
+
+Deno.test("application shell lights the previews entry on every preview page", () => {
+  const titles: ReadonlyArray<[string, string]> = [
+    ["/previews", "New Feature Previews"],
+    ["/previews/pipeline", "Pipeline Run"],
+    ["/adapt", "Adapt"],
+    ["/review", "Review"],
+    ["/review/gene", "Review"],
+    ["/review/progress", "Review"],
+  ];
+  for (const [path, title] of titles) {
+    const html = shellAt(path);
+    assertStringIncludes(
+      html,
+      `<title>${title} | ${escapeHtml(SITE_TITLE)}</title>`,
+    );
+    // None of them is a tab: the one entry for all of them is the one link
+    // marked current.
+    const current = html.match(/<a\b[^>]*\baria-current="page"[^>]*>/g) ?? [];
+    assertEquals(current.length, 1, path);
+    assertStringIncludes(current[0] ?? "", 'href="/previews"', path);
+  }
 });
 
-Deno.test("application shell puts the described adapt link before the tabs", () => {
-  const html = renderToString(
-    <Shell Component={() => <p>x</p>} url={new URL("http://localhost/")} />,
-  );
-  const link = html.match(/<a [^>]*href="\/adapt"[^>]*>/)?.[0] ?? "";
-  assertStringIncludes(link, 'aria-describedby="nav-adapt-tip"');
-  assert(!link.includes("aria-current"), link);
+Deno.test("application shell puts the described previews entry before the tabs", () => {
+  const html = shellAt("/");
+  const { tag, body } = previewsLink(html);
+  assertStringIncludes(tag, 'aria-describedby="nav-previews-tip"');
+  assert(!tag.includes("aria-current"), tag);
+  const dot = body.indexOf('class="nav-previews-dot" aria-hidden="true"');
+  assert(dot >= 0, body);
+  assert(dot < body.indexOf("<svg"), body);
+  assertStringIncludes(body, "New Feature Previews");
   assertMatch(
     html,
-    /<span[^>]*id="nav-adapt-tip"[^>]*>Recently updated\. A step-by-step guide/,
+    /<span[^>]*id="nav-previews-tip"[^>]*>New\. Three features in preview/,
   );
   // First in the row, so it sits to the left of About.
   const hrefs = [...html.matchAll(/<a [^>]*class="nav-link[^>]*>/g)].map((m) =>
     m[0].match(/href="([^"]*)"/)?.[1]
   );
-  assertEquals(hrefs.slice(0, 2), ["/adapt", "/"]);
+  assertEquals(hrefs.slice(0, 2), ["/previews", "/"]);
+  // The guide is reached through the hub, not from the bar.
+  const nav = html.match(/<ul class="navbar-nav">[\s\S]*?<\/ul>/)?.[0] ?? "";
+  assert(nav.length > 0, html);
+  assert(!nav.includes('href="/adapt"'), nav);
+  assert(!html.includes("Build Your Own"), html);
 });
 
-Deno.test("the navbar's Review control renders exactly when a review is available", () => {
-  // The shell decides with `REVIEW !== null`, which is false in the
-  // committed state, so the decision is tested here both ways.
-  const none = renderToString(
-    <ReviewControl available={false} entered={false} />,
-  );
-  assertEquals(none, "");
-  const offered = renderToString(
-    <ReviewControl available entered={false} />,
-  );
-  assertStringIncludes(offered, 'class="review-control"');
-  assertStringIncludes(offered, `>${escapeHtml(REVIEW_CONTROL)}<`);
-  const entered = renderToString(<ReviewControl available entered />);
-  assertStringIncludes(entered, `>${escapeHtml(REVIEW_CONTROL_ENTERED)}<`);
+Deno.test("the previews entry is not current off the preview pages", () => {
+  // `/previewsx` and `/reviewers` only start with a preview root's name.
+  for (const path of ["/genes", "/previewsx", "/reviewers"]) {
+    const { tag } = previewsLink(shellAt(path));
+    assert(tag.length > 0, path);
+    assert(!tag.includes("aria-current"), `${path}: ${tag}`);
+  }
 });
 
-Deno.test("the shell draws the Review control only while a review exists", () => {
-  const html = renderToString(
-    <Shell Component={() => <p>x</p>} url={new URL("http://localhost/")} />,
-  );
-  assertEquals(html.includes('class="review-control"'), REVIEW !== null);
-});
-
-Deno.test("the login page never draws the Review control", () => {
-  const html = renderToString(
-    <Shell
-      Component={() => <p>x</p>}
-      url={new URL(`http://localhost${LOGIN_PATH}`)}
-    />,
-  );
-  assert(!html.includes("review-control"), html);
-  assert(!html.includes('class="navbar"'), html);
+Deno.test("the shell draws no Review control, signed in or on the login page", () => {
+  for (const path of ["/", LOGIN_PATH]) {
+    const html = shellAt(path);
+    assert(!html.includes("review-control"), path);
+    assert(!html.includes("review-button"), path);
+  }
+  assert(!shellAt(LOGIN_PATH).includes('class="navbar"'));
 });
 
 Deno.test("application shell titles the review pages without a tab", () => {

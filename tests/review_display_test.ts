@@ -157,22 +157,10 @@ Deno.test("every label table is complete and verbatim", () => {
 });
 
 Deno.test("the fixed copy is exported verbatim", () => {
-  assertEquals(copy.CONTROL, "Review");
-  assertEquals(copy.CONTROL_ENTERED, "Review · Observer");
-  assertEquals(copy.MENU_LOG_IN, "Log in");
-  assertEquals(copy.MENU_REQUEST, "Request an account");
   assertEquals(copy.REQUEST_OPEN, "Request an account");
-  assertEquals(copy.MENU_QUEUE, "Review queue");
-  assertEquals(copy.MENU_PROGRESS, "Committee progress");
-  assertEquals(copy.MENU_LEAVE, "Leave review");
-  assertEquals(copy.LOGIN_TITLE, "Committee log in");
   assertEquals(copy.ENTER_OBSERVER, "Enter as observer");
   assertEquals(copy.REQUEST_TITLE, "Request an account");
   assertEquals(copy.REQUEST_SUBMIT, "Send request");
-  assertEquals(
-    copy.LOGIN_BODY,
-    "Member sign-in opens when the scientific review committee is formed. Until then you can look around as an observer, which needs no account.",
-  );
   assertEquals(
     copy.REQUEST_DEMO,
     "Demonstration: the committee is not formed yet, so this form collects nothing. What you type is not stored or sent.",

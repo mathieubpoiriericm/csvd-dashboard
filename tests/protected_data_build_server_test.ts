@@ -19,7 +19,6 @@ const WIZARD = "assets/fresh-island__AdaptWizard-Public3.js";
 const TOGGLE = "assets/fresh-island__ThemeToggle-Public4.js";
 const PREVIEW = "assets/fresh-island__PipelinePreview-Public6.js";
 const WIDGET = "assets/fresh-island__PipelineRun-Public7.js";
-const REVIEW_MENU = "assets/fresh-island__ReviewMenu-Public8.js";
 const REVIEW_REQUEST = "assets/fresh-island__ReviewRequest-Public9.js";
 
 /**
@@ -81,9 +80,6 @@ function bundle(
     }),
     chunk(TOGGLE, "toggle", ["/repo/islands/ThemeToggle.tsx"], {
       name: "fresh-island__ThemeToggle",
-    }),
-    chunk(REVIEW_MENU, "review menu", ["/repo/islands/ReviewMenu.tsx"], {
-      name: "fresh-island__ReviewMenu",
     }),
     chunk(
       REVIEW_REQUEST,
@@ -226,30 +222,17 @@ Deno.test("build guard counts a data-free island's dynamic imports", () => {
   );
 });
 
-Deno.test("build guard rejects a Review control that reaches the protected chunk", () => {
-  // The control is in the navbar of every page while a review exists, and
-  // holds nothing of the dataset or the round: the pages behind it do.
-  assertThrows(
-    () =>
-      assertProtectedDataBundle(
-        withImports(bundle(), REVIEW_MENU, { dynamicImports: [WIDGET] }),
-        ROOT,
-      ),
-    Error,
-    `Data-free island ReviewMenu loads a protected data chunk: ${REVIEW_MENU} -> ${WIDGET} -> ${PROTECTED}`,
-  );
-  assertThrows(
-    () =>
-      assertProtectedDataBundle(
-        withImports(bundle(), REVIEW_MENU, { imports: [PROTECTED] }),
-        ROOT,
-      ),
-    Error,
-    `Data-free island ReviewMenu loads a protected data chunk: ${REVIEW_MENU} -> ${PROTECTED}`,
-  );
-});
-
 Deno.test("build guard rejects an account request that reaches the protected chunk", () => {
+  // Through another chunk, even one loaded on demand, as much as directly.
+  assertThrows(
+    () =>
+      assertProtectedDataBundle(
+        withImports(bundle(), REVIEW_REQUEST, { dynamicImports: [WIDGET] }),
+        ROOT,
+      ),
+    Error,
+    `Data-free island ReviewRequest loads a protected data chunk: ${REVIEW_REQUEST} -> ${WIDGET} -> ${PROTECTED}`,
+  );
   assertThrows(
     () =>
       assertProtectedDataBundle(
@@ -258,16 +241,6 @@ Deno.test("build guard rejects an account request that reaches the protected chu
       ),
     Error,
     `Data-free island ReviewRequest loads a protected data chunk: ${REVIEW_REQUEST} -> ${PROTECTED}`,
-  );
-});
-
-Deno.test("build guard rejects a bundle without the Review control's chunk", () => {
-  const output = bundle();
-  delete output[REVIEW_MENU];
-  assertThrows(
-    () => assertProtectedDataBundle(output, ROOT),
-    Error,
-    "No client chunk for the data-free island ReviewMenu",
   );
 });
 

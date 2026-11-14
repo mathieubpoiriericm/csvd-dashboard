@@ -5,12 +5,17 @@ import { asset } from "fresh/runtime";
 import { define } from "../utils.ts";
 import { Icon } from "../components/Icon.tsx";
 import { InstituteLogo } from "../components/InstituteLogo.tsx";
-import ReviewMenu from "../islands/ReviewMenu.tsx";
 import ThemeToggle from "../islands/ThemeToggle.tsx";
 import { LOGIN_PATH, LOGOUT_PATH } from "../lib/auth.ts";
 import { SITE_TITLE, TABS } from "../lib/constants.ts";
 import { HEADING, INSTITUTE, META_DESCRIPTION } from "../lib/disease/site.ts";
-import { observerEntered } from "../lib/review/access_request.ts";
+import {
+  isPreviewPath,
+  PIPELINE_PREVIEW_PATH,
+  PREVIEWS_LABEL,
+  PREVIEWS_PATH,
+  PREVIEWS_TIP,
+} from "../lib/previews.ts";
 import { REVIEW } from "../lib/review/current.ts";
 import type { ReviewState } from "../lib/review/summary.ts";
 import { THEME_STORAGE_KEY } from "../lib/theme.ts";
@@ -57,22 +62,23 @@ function isActiveTab(pathname: string, href: string): boolean {
     : pathname === href || pathname.startsWith(`${href}/`);
 }
 
-const ADAPT_PATH = "/adapt";
-
-/** Pages that are not tabs but still deserve a title of their own. */
+/**
+ * Pages that are not tabs but still deserve a title of their own. The lookup
+ * takes the first prefix match, so the most specific path comes first.
+ */
 const UNTABBED_TITLES: ReadonlyArray<[string, string]> = [
-  [ADAPT_PATH, "Adapt"],
+  [PIPELINE_PREVIEW_PATH, "Pipeline Run"],
+  [PREVIEWS_PATH, PREVIEWS_LABEL],
+  ["/adapt", "Adapt"],
   ["/review", "Review"],
 ];
 
 /*
- * The adapt link's description: shown under it on hover and keyboard focus,
- * and read out after its name through aria-describedby. The first sentence is
- * what the amber dot means, so the dot is never the only thing saying it.
+ * The previews entry's description: shown under it on hover and keyboard
+ * focus, and read out after its name through aria-describedby. Its first word
+ * is what the green dot means, so the dot is never the only thing saying it.
  */
-const ADAPT_TIP_ID = "nav-adapt-tip";
-const ADAPT_TIP =
-  "Recently updated. A step-by-step guide to building this dashboard for your disease of interest: answer nine questions, have them checked against PubMed, the ontology services and ClinicalTrials.gov, and download the folder for a fork.";
+const PREVIEWS_TIP_ID = "nav-previews-tip";
 
 /**
  * The browser title of a page. A gene's review page leads with the gene, so
@@ -100,19 +106,7 @@ export function pageTitle(
   return untabbed ? `${untabbed[1]} | ${SITE_TITLE}` : SITE_TITLE;
 }
 
-/**
- * The navbar's way into the review area, drawn only while a review exists.
- * The shell calls it with `REVIEW !== null`; apart so that both branches are
- * tested whichever the committed data holds. The island holds no data, only
- * whether the visitor is in the area already.
- */
-export function ReviewControl(
-  { available, entered }: { available: boolean; entered: boolean },
-) {
-  return available ? <ReviewMenu entered={entered} /> : null;
-}
-
-export default define.page(function App({ Component, url, state, req }) {
+export default define.page(function App({ Component, url, state }) {
   const year = new Date().getFullYear();
   // The login page is a bare sheet: the tabs would only bounce back to it.
   const login = url.pathname === LOGIN_PATH;
@@ -209,31 +203,32 @@ export default define.page(function App({ Component, url, state, req }) {
                 <nav aria-label="Main">
                   <ul class="navbar-nav">
                     {
-                      /* Not a tab: it leads out of the dashboard's own pages,
-                      so it sits apart from them and is drawn as an outlined
-                      box rather than a tab at rest. The panel is a sibling of
-                      the link, not a child, so the link's name stays its
-                      label alone. */
+                      /* Not a tab: it leads to the features still in preview,
+                      outside the dashboard's own pages, so it sits apart from
+                      them and is drawn as an outlined box rather than a tab at
+                      rest. It stays lit on every page behind it. The panel is
+                      a sibling of the link, not a child, so the link's name
+                      stays its label alone. */
                     }
-                    <li class="nav-adapt">
+                    <li class="nav-previews">
                       <a
-                        class="nav-link nav-link-adapt"
-                        href={ADAPT_PATH}
-                        aria-describedby={ADAPT_TIP_ID}
-                        aria-current={isActiveTab(url.pathname, ADAPT_PATH)
+                        class="nav-link nav-link-previews"
+                        href={PREVIEWS_PATH}
+                        aria-describedby={PREVIEWS_TIP_ID}
+                        aria-current={isPreviewPath(url.pathname)
                           ? "page"
                           : undefined}
                       >
-                        <span class="nav-adapt-dot" aria-hidden="true" />
-                        <Icon name="arrowsRightLeft" />
-                        Build Your Own
+                        <span class="nav-previews-dot" aria-hidden="true" />
+                        <Icon name="sparkles" />
+                        {PREVIEWS_LABEL}
                       </a>
                       <span
-                        class="nav-adapt-tip"
-                        id={ADAPT_TIP_ID}
+                        class="nav-previews-tip"
+                        id={PREVIEWS_TIP_ID}
                         role="tooltip"
                       >
-                        {ADAPT_TIP}
+                        {PREVIEWS_TIP}
                       </span>
                     </li>
                     {TABS.map((tab) => {
@@ -279,13 +274,6 @@ export default define.page(function App({ Component, url, state, req }) {
                 />
 
                 <div class="navbar-actions">
-                  <ReviewControl
-                    available={REVIEW !== null}
-                    entered={observerEntered(
-                      req?.headers ?? new Headers(),
-                      url.pathname,
-                    )}
-                  />
                   <ThemeToggle />
                   {state?.authenticated && (
                     <form method="post" action={LOGOUT_PATH}>

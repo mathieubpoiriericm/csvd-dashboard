@@ -47,7 +47,6 @@ import {
   visibleTrials,
 } from "../../lib/filters.ts";
 import { computePhenogramLayout } from "../../lib/phenogram.ts";
-import { REVIEW_COOKIE } from "../../lib/review/access.ts";
 import * as REVIEW_COPY from "../../lib/review/copy.ts";
 import { REVIEW } from "../../lib/review/current.ts";
 import {
@@ -66,6 +65,8 @@ import {
   previewInvitation,
   previewNote,
 } from "../../lib/pipeline_preview.ts";
+import { PREVIEWS_LABEL, PREVIEWS_TIP } from "../../lib/previews.ts";
+import { PREVIEWS } from "../../lib/previews_current.ts";
 import { chromosomeOf } from "../../lib/sorting.ts";
 import { locationsWithTableStatus, phaseBarLabel } from "../../lib/trials.ts";
 import {
@@ -342,7 +343,6 @@ function reviewExpectations(state: ReviewState | null) {
     },
     /** A `?g=` the round does not hold: its page is a 404. */
     absentGeneHref: geneHref(absent),
-    cookie: REVIEW_COOKIE,
     copy: { ...REVIEW_COPY },
   };
 }
@@ -510,6 +510,16 @@ const expected = {
   previewLoadFailed: PREVIEW_LOAD_FAILED,
   /** The cookie that keeps the switch on, so a spec can start with it on. */
   previewCookie: PREVIEW_COOKIE,
+
+  /** The navbar's previews entry, and the features its hub offers. */
+  previewsLabel: PREVIEWS_LABEL,
+  previewsTip: PREVIEWS_TIP,
+  previews: PREVIEWS.map(({ key, href, name, title }) => ({
+    key,
+    href,
+    name,
+    title,
+  })),
 
   /** The review area, or null when there is no review round. */
   review: reviewExpectations(REVIEW),

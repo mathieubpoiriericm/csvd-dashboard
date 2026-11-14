@@ -2088,8 +2088,6 @@ Deno.test("every control that lights on hover lights on focus-visible too", () =
   const selectors = [
     ".theme-toggle",
     ".navbar-signout",
-    ".review-button",
-    ".review-menu-item",
     ".review-filter",
     ".sidebar-toggle",
     ".filter-option",
@@ -2209,6 +2207,19 @@ function tokenValue(name: string, theme: "light" | "dark"): string {
   assert(value !== undefined, `${name} does not resolve in ${theme}`);
   return value.replace(/\s*\/\*.*$/, "");
 }
+
+Deno.test("the new-feature dot stands out from the navbar in both themes", () => {
+  // WCAG 1.4.11: the dot is a graphic that carries meaning.
+  for (const theme of ["light", "dark"] as const) {
+    const ratio = contrast(
+      tokenValue("--svd-nav-new", theme),
+      tokenValue("--svd-nav", theme),
+    );
+    assert(ratio >= 3, `${theme}: ${ratio.toFixed(2)}:1`);
+  }
+  assert(!css.includes("--svd-nav-flag"));
+  assert(!css.includes("nav-adapt"));
+});
 
 Deno.test("the switched-on preview switch answers a pointer in both themes", () => {
   // Its hover was the accent giving way to the primary, two tokens the dark
