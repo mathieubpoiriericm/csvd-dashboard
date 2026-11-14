@@ -1,8 +1,8 @@
 # Islands
 
-Island-specific guidance. The root `CLAUDE.md` lists all eight islands; the
-tables, the timeline and the phenogram, whose contracts span `lib/` and
-`scripts/` as well, are in `.claude/rules/`, which load with their files.
+Island-specific guidance for the nine islands in `islands/`; the tables, the
+timeline and the phenogram, whose contracts span `lib/` and `scripts/` as well,
+are in `.claude/rules/`, which load with their files.
 
 ## Map
 
@@ -95,50 +95,13 @@ the `leaflet` module, so it type-checks without one.
 the card is the fallback, because the report is `null` until a run records one
 and a database that has not taken migration 009 keeps it that way. Exactly one
 of the two renders — two accounts of the same run would invite them to disagree,
-which is what this replaces. **Neither renders by default while `GOLD_ONLY` is
-on** (`lib/gold_only.ts`): the About page shows the notice instead, rendered by
-the `PipelinePreview` island. With a report present the notice adds an
-invitation and a switch (`role="switch"`, disabled until the island is live);
-switching on shows the widget directly beneath it, marked "Technical preview",
-and writes the cookie `pipeline_preview=1` (one year, `Path=/`, `SameSite=Lax`),
-which `routes/index.tsx` reads (`previewRequested`,
-`lib/pipeline_preview_request.ts`, kept apart so no `@std` import reaches the
-island's bundle) so the next visit renders it already open. **The route renews
-the cookie it honours**: its `GET` handler sends the same assignment back as
-`Set-Cookie` (`previewRenewal`) to a visitor whose cookie is on, because WebKit
-caps a cookie written from script at seven days and one the server sets keeps
-its year. It is not `HttpOnly`, so the switch still clears it, and a request
-without the cookie gets none. With no report the notice is the plain line, drawn
-by the route with no island at all, and the widget's own e2e specs skip while
-`GOLD_ONLY` is on.
-
-**The switch holds no data, and must not import any.** It is on the page for
-every gold-only visitor, and the run report is a protected chunk that is never
-cached (219 KB, 42 KB compressed, for the 365-day run), so one static import in
-`PipelinePreview.tsx` puts the report and the widget on every visit. The route
-hands it two serialisable props, `initialOn` and the run's `daysBack`, and the
-widget reaches the page one of two ways: pressed on, the switch fetches
-`PipelineRun.tsx` with a dynamic import and draws it; on already, the route
-draws `PipelinePreviewWidget`, an island of its own directly after the notice,
-whose chunk is fetched only by a page that shows it. The two islands hydrate
-apart, so a press is announced (`announcePreview` / `observePreview` in
-`lib/pipeline_preview.ts`) and the widget island follows it; neither imports the
-other, and no run report crosses island props in either path.
-`ON_DEMAND_ISLANDS` in `server/protected_data_build.ts` fails the build when the
-switch's chunk reaches a protected one through static imports, and the About
-spec watches the network: nothing of the report is requested until the first
-press. A fetch that fails (offline, a deploy replacing the chunk under an open
-page, an expired session) puts the switch and its cookie back off and says so in
-the notice's second line, which is a live region for that reason. The sentence
-asks for a reload, not another press: the same press imports the same dead
-chunk, and a browser may keep a failed module for the life of the document.
-**The reload alone is not enough in Safari**: WebKit holds a failed module fetch
-against its chunks past the reload, and the next `import()` fails at once with
-no request sent. So a failed press keeps the chunks it asked for in
-`sessionStorage` (the hrefs of the `modulepreload` links the bundler's loader
-left, `rememberFailedChunks`), and the next press fetches them again before it
-imports (`refetchFailedChunks`), which replaces what WebKit held. CI's
-`e2e-engines` job runs the About spec under WebKit, where it failed before.
+which is what this replaces. **Neither renders on the About page while
+`GOLD_ONLY` is on** (`lib/gold_only.ts`): it shows the plain notice instead. The
+widget is drawn only by `/previews/pipeline`, marked "Technical preview",
+through a static import in that route, so the run report (a protected chunk,
+never cached: 219 KB, 42 KB compressed, for the 365-day run) loads on that page
+alone. The route is a 404 unless gold-only is on and a run is recorded, and the
+widget's own e2e specs skip while `GOLD_ONLY` is on.
 
 It has two readers. A visiting researcher wants to know whether the data is
 fresh and can be trusted; the maintainer wants to know how the run went. So the
@@ -555,67 +518,30 @@ found, on 2026-11-13, are load-bearing:
 - **`.adapt-actions` is never a scroll anchor** (`overflow-anchor: none`).
   WebKit anchors scrolling, and Back and Next are the same elements from step to
   step: entering the long Review step, the page jumped to its end.
-- The radar's measure loop and the preview's failed fetch, in
-  `.claude/rules/timeline.md` and "Pipeline run widget" above.
+- The radar's measure loop, in `.claude/rules/timeline.md`.
 
 A spec that needs a CDP session or the clipboard permissions skips off Chromium,
 and one that blocks a chunk the page already loaded skips on WebKit, which
 serves it from memory. `hover()` in WebKit scrolls its target to the middle of
 the window even when it is in view.
 
-## Review control
+## Review request
 
-`islands/ReviewMenu.tsx` is the way into the scientific review area: a "Review"
-menu button first in `.navbar-actions`, before the theme toggle. It is not the
-site's Sign out beside it, which ends the passphrase session; this touches only
-its own cookie, and it carries a glyph and a caret so the two do not read alike.
-The shell draws it only while a review exists (`ReviewControl` in
-`routes/_app.tsx`, called with `REVIEW !== null`, so both branches are tested
-whichever the committed data holds), and never on the login page. A stale round
--- measured against a gold since curated (`lib/review/stale.ts`) -- is no
-review, so a gold edit to one of its genes removes the control by itself.
+`islands/ReviewRequest.tsx` is the demonstration account request: a "Request an
+account" button and the native dialog it opens through `useModal`, drawn only on
+the previews hub's review card. "Enter as observer" beside it is a plain link to
+`/review`; observing needs no account and sets no cookie.
 
-**It holds no data and imports none.** It is in the navbar of every page while a
-review exists, so it imports `lib/review/copy.ts` and `lib/review/access.ts`
-(both import nothing), hooks and components, and never `lib/data/`,
-`lib/review/current.ts` or `lib/review/simulate.ts`. Its one prop is `entered`.
-`DATA_FREE_ISLANDS` in `server/protected_data_build.ts` fails the build if its
-chunk reaches a protected one.
+**It holds no data and imports none**: `lib/review/copy.ts` (which imports
+nothing), hooks and components, never `lib/data/`, `lib/review/current.ts` or
+`lib/review/simulate.ts`. `DATA_FREE_ISLANDS` in
+`server/protected_data_build.ts` fails the build if its chunk reaches a
+protected one.
 
-- **The cookie is `review_observer=1`** (one year, `Path=/`, `SameSite=Lax`,
-  `observerCookie`), with no identity in it: observing needs no account. The
-  shell reads it with `observerEntered` (`lib/review/access_request.ts`, kept
-  apart so no `@std` import reaches the island), which also counts any page
-  under `/review` as entered, so a deep link renders entered; the island then
-  writes the cookie if it is missing. "Leave review" clears it.
-- Signed out, the menu opens two native dialogs through `useModal`: the log-in
-  dialog, whose one action is "Enter as observer", and the account request. The
-  request form has no `action` and no `method`; its submit is stopped in script
-  once the browser's own validation passes, and the form gives way to the
-  notice. Nothing is stored and no request leaves the page. Closing the dialog
-  resets the form.
-- The button is disabled until the island is live, carries
-  `aria-haspopup="menu"` and `aria-expanded` as a string. The menu takes focus
-  on its first item, moves with the arrows, Home and End, and closes on Escape
-  (`useEscapeKey`, focus back to the button), on Tab and on a press outside. The
-  outside-press listener and both focus moves run in layout effects: a passive
-  one subscribed a frame late and missed a press that quick.
-- **Below 600px the button is its glyph alone**, named by `aria-label`; entered,
-  a dot on the glyph's corner (`.review-button-marker`, positioned over the
-  padding so it costs no width) is what tells it from the signed-out control.
-  The dot is drawn only there: above 600px the label reads "Review · Observer",
-  and the same amber dot the navbar's "Build Your Own" link uses for "recently
-  updated" read beside it as a notification. The island renders it whenever
-  entered; the stylesheet shows it only in the icon-only layout. The menu there
-  hangs from the action cluster's right edge, not the button's
-  (`.navbar-actions` is the positioned box and `.review-control` is static): the
-  toggle and Sign out sit to the glyph's right, and at 320px the 192px menu hung
-  from the button ran 10px past the screen's left edge. At 390px the bar had
-  62px to spare beside the logo, the toggle and Sign out, and the labelled
-  button is 129px. At 320px even the glyph leaves the logo less than its width,
-  and the logo gives way: below 1410px its grid track is what the actions leave,
-  the logo is capped at it, and `object-fit: contain` draws the mark scaled down
-  and undistorted in the narrower box (`.navbar-brand .institute-logo` in
-  `assets/app.css`). Nothing in that rule knows the logo's or the buttons'
-  sizes, so where the row has room, with or without the control, the logo is its
-  full size and the bar is unchanged.
+- The form has no `action` and no `method`; its submit is stopped in script once
+  the browser's own validation passes, and the form gives way to a notice that
+  says nothing was sent. Nothing is stored and no request leaves the page. Focus
+  moves onto the notice, so a screen reader says that nothing was sent rather
+  than "Close". Closing the dialog, by its button or Escape, resets the form.
+- The button is disabled until the island is live, and carries
+  `aria-haspopup="dialog"`.

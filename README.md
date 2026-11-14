@@ -149,8 +149,8 @@ Vite is pinned to 7.x because `@fresh/plugin-vite` requires `vite@^7.1.4`.
 ## Features
 
 Six tabs, one server-rendered route each, listed in `TABS` (`lib/constants.ts`),
-and the adapt page and the review area beside them. Interactivity lives in
-eleven Preact islands.
+and the previews hub, the adapt page and the review area beside them.
+Interactivity lives in nine Preact islands.
 
 ### About (`/`)
 
@@ -163,6 +163,8 @@ eleven Preact islands.
   sync mode (`--clinical-trials`, `--sync-external-data`, `--sync-annotations`),
   read from `data/pipeline_syncs.json`
 - Data-source attribution with licences, how to cite, and the link to `/adapt`
+- While `GOLD_ONLY` is on, the plain notice that only the hand-curated data is
+  shown; the run report is at `/previews/pipeline`
 
 ### Genes (`/genes`)
 
@@ -253,10 +255,28 @@ ClinicalTrials.gov's `geoPoint` (city-level), and co-located sites are fanned
 out so each stays clickable. A visually-hidden `LocationList` is the text
 alternative, because Leaflet's circle markers cannot take focus.
 
+### New Feature Previews (`/previews`)
+
+Not a tab: the navbar's one entry for the features that work today and are still
+in preview, beside the tabs with a pulsing green dot. It is lit on the hub, on
+`/adapt` and on `/review*`. The hub is one card for each feature that exists for
+the data it is built from: the pipeline run, the adaptation guide and the review
+committee. Every page of a feature carries a strip above its header that links
+the other features and, on the review pages, the queue and the progress page.
+The hub and the strip render from one list (`lib/previews.ts`;
+`lib/previews_current.ts` is that list for the committed data), so neither
+offers a page that is a 404.
+
+- **The pipeline run** (`/previews/pipeline`) — the run widget, marked
+  "Technical preview", while `GOLD_ONLY` is on and a run is recorded; otherwise
+  a 404. Its report is loaded by that page alone.
+- **The adaptation guide** and **the review committee** — each card opens its
+  own page, below.
+
 ### Adapt (`/adapt`)
 
-Not a tab: linked from About, for a researcher starting a fork for another
-disease.
+Not a tab: reached from the previews hub and linked from About, for a researcher
+starting a fork for another disease.
 
 - **The nine-question interview as a form** (`islands/AdaptWizard.tsx`), with
   the lookups a browser can run (NCBI, the Ontology Lookup Service,
@@ -275,12 +295,12 @@ disease.
 
 ### Review (`/review`)
 
-Not a tab: the scientific review committee's area, reached from the navbar's
-Review control (`islands/ReviewMenu.tsx`) on every signed-in page. It exists
-only while `GOLD_ONLY` is on and `data/review_round.json` holds a round, the
-changes a preview run proposes against the gold data; otherwise there is no
-control and every review page is a 404. The three pages are server-rendered with
-no island, so the round never reaches the browser:
+Not a tab: the scientific review committee's area, entered from the review card
+on the previews hub. It exists only while `GOLD_ONLY` is on and
+`data/review_round.json` holds a round, the changes a preview run proposes
+against the gold data; otherwise there is no card and every review page is a
+404. The three pages are server-rendered with no island, so the round never
+reaches the browser:
 
 - **The review queue** (`/review`) — one row per gene the run changed, filtered
   by kind of change (new gene, claims changed, citation and protein, citation
@@ -294,7 +314,8 @@ no island, so the round never reaches the browser:
 The committee and its verdicts are simulated, and the pages say so: the rules
 are in `lib/review/`, and every number is computed there from a history
 `lib/review/simulate.ts` generates from the round and a fixed seed. Entering as
-an observer needs no account; the account request collects nothing.
+an observer is a plain link and needs no account; the card's account request
+(`islands/ReviewRequest.tsx`, which holds no data) collects nothing.
 
 ### Across every view
 
@@ -312,11 +333,11 @@ an observer needs no account; the account request collects nothing.
 
 ## Screenshots
 
-The deployed site sits behind a login, so these are its six tabs and its review
-area as a signed-in visitor sees them: light theme, this repository's data.
-`deno task screenshots` recaptures them from a fresh production build, the
-review area only while the build has one; rerun it when the data or a page
-changes, and in a fork after its first live run.
+The deployed site sits behind a login, so these are its six tabs, the previews
+hub and its review area as a signed-in visitor sees them: light theme, this
+repository's data. `deno task screenshots` recaptures them from a fresh
+production build, the review area only while the build has one; rerun it when
+the data or a page changes, and in a fork after its first live run.
 
 <!-- markdownlint-disable MD013 MD033 -->
 <table>
@@ -345,20 +366,20 @@ changes, and in a fork after its first live run.
     <td><img src="docs/screenshots/trials-map.webp" width="100%" alt="The Trials Map page: the study-status filter and the clustered sites" /></td>
   </tr>
   <tr valign="top">
+    <td><strong>New Feature Previews</strong> — the hub: one card each for the pipeline run, the adaptation guide and the review committee.</td>
     <td><strong>Review queue</strong> — every gene the preview run changed, with the simulated committee's tally and standing on each.</td>
-    <td><strong>Gene review</strong> — one gene's change against the gold data, beside each member's verdict.</td>
   </tr>
   <tr valign="top">
+    <td><img src="docs/screenshots/previews.webp" width="100%" alt="The New Feature Previews hub: one card each for the pipeline run, the adaptation guide and the review committee" /></td>
     <td><img src="docs/screenshots/review-queue.webp" width="100%" alt="The review queue: the kind and standing filters and one row per changed gene" /></td>
-    <td><img src="docs/screenshots/review-gene.webp" width="100%" alt="A gene's review: the change field by field and the committee's verdicts" /></td>
   </tr>
   <tr valign="top">
+    <td><strong>Gene review</strong> — one gene's change against the gold data, beside each member's verdict.</td>
     <td><strong>Committee progress</strong> — the settled genes, the verdicts in, the standings by kind of change and each member's progress.</td>
-    <td></td>
   </tr>
   <tr valign="top">
+    <td><img src="docs/screenshots/review-gene.webp" width="100%" alt="A gene's review: the change field by field and the committee's verdicts" /></td>
     <td><img src="docs/screenshots/review-progress.webp" width="100%" alt="Committee progress: the four figures, the standings by kind and the members table" /></td>
-    <td></td>
   </tr>
 </table>
 <!-- markdownlint-enable MD013 MD033 -->
@@ -389,6 +410,7 @@ changes, and in a fork after its first live run.
 │   ├── map.tsx                 Trials Map
 │   ├── login.tsx, logout.tsx   the passphrase form and its counterpart
 │   ├── adapt.tsx               the adapt wizard's page (not a tab)
+│   ├── previews/               the hub and the pipeline run's page (not tabs)
 │   └── review/                 the review queue, a gene's review and the
 │                               committee's progress (not tabs)
 ├── server/                     middleware in main.ts order, then a shared
@@ -409,10 +431,8 @@ changes, and in a fork after its first live run.
 │   ├── TrialsTimeline.tsx      the trials radar
 │   ├── Phenogram.tsx           the karyogram
 │   ├── PipelineRun.tsx         the About page's run report
-│   ├── PipelinePreview.tsx     the gold-only notice and its preview switch
-│   ├── PipelinePreviewWidget.tsx  the run report, drawn for a preview left on
 │   ├── AdaptWizard.tsx         the adapt wizard: interview, lookups, download
-│   ├── ReviewMenu.tsx          the navbar's Review control; holds no data
+│   ├── ReviewRequest.tsx       the demonstration account request; holds no data
 │   └── ThemeToggle.tsx         the theme switch
 ├── components/                 presentational pieces shared by the islands
 │   ├── TableShell.tsx          controls, header, body, pagination, the
@@ -422,6 +442,7 @@ changes, and in a fork after its first live run.
 │   ├── FilterPanel.tsx         the sidebar-and-table layout, and its rail
 │   ├── DensityReadout.tsx      the summary strip: counts and a histogram
 │   ├── PipelineSyncs.tsx       the About page's reference-data refreshes
+│   ├── PreviewSwitcher.tsx     the strip above every preview feature's pages
 │   ├── Icon.tsx                Heroicons v2 outline, plus four custom glyphs
 │   ├── adapt/                  the wizard's steps, cards and fields
 │   ├── review/                 the review pages' tables, bars and badges
@@ -436,6 +457,7 @@ changes, and in a fork after its first live run.
 │   ├── disease/                the narrow readers over disease/manifest.json
 │   ├── adapt/                  the wizard's answers, checks, lookups and
 │   │                           the generators that write disease/
+│   ├── previews.ts             the one list of preview features (pure)
 │   ├── review/                 the committee's rules, its simulation and
 │   │                           every figure the review pages show
 │   ├── timeline_encoding.json  radar appearance contract

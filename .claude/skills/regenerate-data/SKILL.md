@@ -122,7 +122,7 @@ database never treats the preview's papers as processed.
 A round is stale when a change's gold row (`before`) no longer equals the
 committed `data/table1.json` row of its gene, that row is gone, or a new gene is
 now in gold (`staleChanges` in `lib/review/stale.ts`). `currentReview` then
-returns `null`, exactly as for a closed round: there is no Review control and
+returns `null`, exactly as for a closed round: there is no review card on the previews hub and
 every `/review*` page is a 404, and the server logs one warning at start naming
 how many changes no longer match. Nothing fails, so a gold fix ships without
 waiting on a paid run. The ordinary export says so where the edit is made:

@@ -31,7 +31,8 @@ The pipeline builds two reports from one run. `pipeline/report.py` still builds
 rich console summary, and the notification plus SQLite event log.
 `pipeline/run_report.py` builds `PipelineRunReport` beside it, from the same
 inputs, and that one is published: it is stored in `pipeline_runs.report` and
-exported to `data/pipeline_run.json` for the About page's widget. Nothing in the
+exported to `data/pipeline_run.json` for the run widget (the About page, or
+`/previews/pipeline` while gold-only is on). Nothing in the
 second recomputes a metric the first computed.
 
 - **`PipelineRunReport` is the schema on both sides of the database.** The

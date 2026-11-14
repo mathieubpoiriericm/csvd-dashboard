@@ -97,14 +97,21 @@ function belowMergedBlock(page) {
 
 /**
  * The About page hydrates its run report, and renders none -- only a status
- * card -- while `data/pipeline_run.json` is `null`. Under gold-only with the
- * preview cookie unset there is no card, only the preview switch, which is
- * disabled until its island is live.
+ * card -- while `data/pipeline_run.json` is `null`. Under gold-only it draws
+ * neither, only the notice.
  */
 async function aboutReady(page) {
   if (await page.$(".pipeline-card")) await READY.get("/")(page);
-  if (await page.$(".about-preview-switch")) {
-    await page.waitForSelector(".about-preview-switch:not([disabled])");
+}
+
+/**
+ * The hub's cards are server-rendered. The review card's request button is
+ * disabled until its island is live, so wait for it when the card is there.
+ */
+async function previewsReady(page) {
+  await page.waitForSelector(".preview-cards");
+  if (await page.$("button.review-action")) {
+    await page.waitForSelector("button.review-action:not([disabled])");
   }
 }
 
@@ -142,7 +149,7 @@ async function firstRoundGene() {
 
 const reviewGene = await firstRoundGene();
 
-/** A server-rendered review page: its only island is the navbar's control. */
+/** A server-rendered review page, with no island to wait for. */
 async function reviewReady(page) {
   await page.waitForSelector(".page-header");
 }
@@ -194,6 +201,13 @@ const SHOTS = [
       if (!map) throw new Error("no .map-container to crop to");
       return { top: 0, bottom: map.bottom + MARGIN };
     },
+  },
+  {
+    name: "previews",
+    route: "/previews",
+    ready: previewsReady,
+    // One screenful: the hub's cards.
+    crop: () => ({ top: 0, bottom: FOLD }),
   },
   // The review area exists only under gold-only with a round (a fork, or an
   // empty start, has none), so these three are taken only when it does.
