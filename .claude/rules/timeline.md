@@ -347,8 +347,11 @@ their reasons:
   to one of them by `radar.mode`, so a record open across the switch moves
   between them, and the mode effect moves focus to the new close button. It
   closes on the "x", on Escape (reported through `cancel`, which a phone's
-  back gesture fires too) and on a press of the backdrop -- the dialog has no
-  padding, so a press whose target is the dialog itself missed the record.
+  back gesture fires too) and on a press of the backdrop: one that begins
+  and ends outside the window's box, read from the pointer's coordinates. The
+  click's target cannot say so -- it is the dialog for the backdrop, but also
+  for the dialog's own border and for a drag between the record and the
+  backdrop (selecting a value to copy), which a target test closed on.
   The window is the scrollport for a record taller than the phone and its
   header is sticky, so `fitDrawer` does not run there and the close button
   stays in reach; it draws no registration marks, which a scrollport would

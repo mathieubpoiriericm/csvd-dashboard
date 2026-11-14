@@ -69,8 +69,11 @@ Six things are load-bearing:
   definition of the mark. `tests/styles_contract_test.ts` pins that no layer
   hard-codes 11, 6 or 5 px, and that every framed surface actually draws the
   marks — the system's one "don't" about the frame is _"do not drop the
-  registration marks from a framed element"_. The 1px arm thickness is a literal
-  on purpose: it is one device pixel, not a scale value.
+  registration marks from a framed element"_. The exceptions are named in that
+  test's `UNMARKED`, each with its reason (the review KPI tiles: four in a row
+  made sixteen crosses), and an entry that is no longer framed, or draws the
+  marks after all, fails it. The 1px arm thickness is a literal on purpose: it
+  is one device pixel, not a scale value.
 - **A scroll container cannot wear the frame.** `overflow: auto` clips a
   pseudo-element at negative inset, so `.table-scroll`, `.timeline-scroll` and
   `.phenogram-scroll` would simply lose their marks. Each is wrapped in a

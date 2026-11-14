@@ -11,6 +11,7 @@ import {
 
 import { CheckboxFilter } from "../components/CheckboxFilter.tsx";
 import { MiniRadar } from "../components/timeline/MiniRadar.tsx";
+import { TRIAL_DIALOG_ID } from "../components/timeline/ids.ts";
 import { PhaseList } from "../components/timeline/PhaseList.tsx";
 import { Icon, type IconName } from "../components/Icon.tsx";
 import {
@@ -88,8 +89,6 @@ const populationTitle = (layout: Layout, key: string) =>
   layout.sectors.find((s) => s.key === key)?.label.join(" ") ?? key;
 
 const DRAWER_ID = "timeline-drawer";
-/** The window the phone list opens a record in. */
-const DIALOG_ID = "timeline-dialog";
 const LINE_HEIGHT_EM = 1.2;
 const HALO_WIDTH = 3.5;
 /** Radial push when a fitted drug label still touches its marker. */
@@ -776,6 +775,14 @@ function TrialDrawer({ layout, marker, closeRef, onClose }: TrialDrawerProps) {
  * record to this or to the drawer by the layout's mode, so a record open
  * across the switch moves from one to the other.
  */
+/** Whether a pointer event on the dialog fell outside its box, border
+ * included -- on the backdrop, which is the dialog's as an event target. */
+function outsideBox(event: PointerEvent): boolean {
+  const box = (event.currentTarget as HTMLElement).getBoundingClientRect();
+  return event.clientX < box.left || event.clientX >= box.right ||
+    event.clientY < box.top || event.clientY >= box.bottom;
+}
+
 function TrialDialog({ layout, marker, closeRef, onClose }: TrialDrawerProps) {
   const ref = useModal(marker !== null, onClose);
   /** Whether the press now in progress began, and then ended, on the
@@ -784,7 +791,7 @@ function TrialDialog({ layout, marker, closeRef, onClose }: TrialDrawerProps) {
   return (
     <dialog
       ref={ref}
-      id={DIALOG_ID}
+      id={TRIAL_DIALOG_ID}
       class="timeline-dialog"
       aria-label="Trial details"
       onCancel={(event) => {
@@ -794,17 +801,17 @@ function TrialDialog({ layout, marker, closeRef, onClose }: TrialDrawerProps) {
         onClose();
       }}
       onPointerDown={(event) => {
-        pressedBackdrop.current = event.target === event.currentTarget;
+        pressedBackdrop.current = outsideBox(event);
       }}
       onPointerUp={(event) => {
-        pressedBackdrop.current &&= event.target === event.currentTarget;
+        pressedBackdrop.current &&= outsideBox(event);
       }}
       onClick={() => {
-        // The dialog has no padding of its own, so a press whose target is
-        // the dialog itself landed on the backdrop. Both ends of it must,
-        // and the click's own target cannot say so: a drag from the record
-        // to the backdrop (selecting a value to copy) or back is clicked on
-        // the dialog too, as the two ends' common ancestor.
+        // A press on the backdrop is one that begins and ends outside the
+        // window's box. The click's target cannot say so: the backdrop's is
+        // the dialog, but so is a press on the dialog's own border, and so
+        // is a drag from the record to the backdrop (selecting a value to
+        // copy) or back, clicked on the two ends' common ancestor.
         const onBackdrop = pressedBackdrop.current;
         pressedBackdrop.current = false;
         if (onBackdrop) onClose();
@@ -1517,6 +1524,10 @@ export default function TrialsTimeline(
   }, [active]);
 
   const close = () => {
+    // Escape reaches this twice on the phone window, from the dialog's
+    // `cancel` and from the island's own key handler: a call with nothing
+    // open must not overwrite the trial focus is to return to.
+    if (active === null) return;
     restoreFocusTo.current = active;
     dispatchInteraction({ type: "close-drawer" });
   };

@@ -207,6 +207,26 @@ test("a tap outside the window closes it, a tap inside does not", async ({ page 
   await page.mouse.up();
   await expect(dialog).toBeVisible();
 
+  // The window's own border is the window, not the backdrop.
+  const edge = (await dialog.boundingBox())!;
+  // Whole pixels, the first and last inside each edge: the box sits at a
+  // fraction of one, and WebKit and Firefox report a press in whole pixels.
+  const first = (start: number) => Math.ceil(start);
+  const last = (start: number, size: number) => Math.ceil(start + size) - 1;
+  const midX = Math.round(edge.x + edge.width / 2);
+  const midY = Math.round(edge.y + edge.height / 2);
+  for (
+    const [x, y] of [
+      [first(edge.x), midY],
+      [last(edge.x, edge.width), midY],
+      [midX, first(edge.y)],
+      [midX, last(edge.y, edge.height)],
+    ]
+  ) {
+    await page.mouse.click(x, y);
+    await expect(dialog, `press at ${x}, ${y}`).toBeVisible();
+  }
+
   // The backdrop: the corner of the viewport, outside the window's box.
   await page.mouse.click(5, 5);
   await expect(dialog).toBeHidden();
@@ -216,8 +236,10 @@ test("a tap outside the window closes it, a tap inside does not", async ({ page 
 
 /**
  * A record is longer than a short phone is tall. The window takes the
- * viewport's height and scrolls inside itself; its header, the close button
- * with it, stays put, and the page behind does not move.
+ * viewport's height and scrolls inside itself, and its header, the close
+ * button with it, stays put; opening a record does not move the page behind.
+ * A dataset whose every record fits a 500px phone proves none of that, so
+ * the test says so and skips rather than passing on nothing.
  */
 test("the window stays inside a short phone and its close stays in reach", async ({ page }) => {
   test.skip(T.markers === 0, NO_MARKER);
@@ -231,6 +253,7 @@ test("the window stays inside a short phone and its close stays in reach", async
   });
   const rows = page.locator(LIST_ROWS);
   const count = await rows.count();
+  let scrolled = 0;
   for (let i = 0; i < count; i++) {
     const row = rows.nth(i);
     await row.scrollIntoViewIfNeeded();
@@ -251,6 +274,9 @@ test("the window stays inside a short phone and its close stays in reach", async
       name,
     ).toBe(true);
 
+    if (await dialog.evaluate((el) => el.scrollHeight > el.clientHeight)) {
+      scrolled += 1;
+    }
     await dialog.evaluate((el) => el.scrollTo(0, el.scrollHeight));
     await expect(closeButton, name).toBeInViewport({ ratio: 1 });
     expect(await page.evaluate(() => globalThis.scrollY), name).toBe(before);
@@ -258,6 +284,7 @@ test("the window stays inside a short phone and its close stays in reach", async
     await closeButton.click();
     await expect(dialog).toBeHidden();
   }
+  test.skip(scrolled === 0, "no record is taller than a 500px phone");
 });
 
 /**
