@@ -1063,6 +1063,11 @@ Deno.test("no rule un-positions a framed surface", () => {
   );
 });
 
+/** Framed surfaces that deliberately draw no corner marks, with the reason. */
+const UNMARKED: ReadonlyMap<string, string> = new Map([
+  [".review-kpi", "four tiles in a row: sixteen crosses read as clutter"],
+]);
+
 Deno.test("the registration marks are drawn from the mark tokens", () => {
   // The blueprint frame replaced the aurora recipe, and its four "+" corner
   // crosses are eight background layers on one ::after overlay rather than
@@ -1101,12 +1106,19 @@ Deno.test("the registration marks are drawn from the mark tokens", () => {
       selector.split(",").map((s) => s.trim().replace("::after", ""))
     ),
   );
-  const bare = framed.filter((s) => !marked.has(s));
+  const bare = framed.filter((s) => !marked.has(s) && !UNMARKED.has(s));
   assertEquals(
     bare,
     [],
     "these surfaces wear the frame but not its corner marks",
   );
+  // An exception is a framed surface, and one that really draws no marks:
+  // an entry for a selector that left the recipe, or that still wears the
+  // crosses, excuses nothing and is stale.
+  for (const selector of UNMARKED.keys()) {
+    assert(framed.includes(selector), `${selector} is not a framed surface`);
+    assert(!marked.has(selector), `${selector} still draws the corner marks`);
+  }
 });
 
 /** Every declaration of `line-height`. */

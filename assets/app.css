@@ -1564,7 +1564,6 @@ svg {
 .login-card::after,
 .map-error::after,
 .map-container::after,
-.review-kpi::after,
 .blueprint-frame::after {
   content: '';
   position: absolute;
