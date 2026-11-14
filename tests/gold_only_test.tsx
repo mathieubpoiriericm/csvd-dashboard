@@ -27,6 +27,8 @@ import { RUN, runWith } from "./fixtures/pipeline_run.ts";
 import { sampleGene } from "./fixtures/rows.ts";
 import { escapeHtml } from "./helpers/html.ts";
 
+const DATA_LABEL = '<strong class="note-label">Data:</strong>';
+
 // A run that searched a year: the notice reads its window off the report.
 const RECORDED_RUN: PipelineRun = runWith({
   config: { ...RUN.config, daysBack: 365 },
@@ -72,6 +74,17 @@ Deno.test("gold-only About shows the notice and the curated date, and no run", (
     html,
     '<div class="notice notice-neutral about-gold-notice has-preview">',
   );
+  // Each note opens on its eyebrow, as a tip box does.
+  assertStringIncludes(
+    html,
+    '<p class="notice notice-warning about-warning">' +
+      '<strong class="note-label">Preview:</strong> This is a preview of a ' +
+      "dashboard that is still a work in progress.</p>",
+  );
+  assertStringIncludes(
+    html,
+    `<div class="about-gold-text"><p>${DATA_LABEL} ${GOLD_ONLY_NOTICE}</p>`,
+  );
   assertStringIncludes(html, escapeHtml(previewInvitation(365)));
   // It sits directly under the preview warning, above the hero.
   const warning = html.indexOf("about-warning");
@@ -104,7 +117,7 @@ Deno.test("with no run to preview the notice is the plain line, whatever the coo
     );
     assertStringIncludes(
       html,
-      `<p class="notice notice-neutral about-gold-notice">${GOLD_ONLY_NOTICE}</p>`,
+      `<p class="notice notice-neutral about-gold-notice">${DATA_LABEL} ${GOLD_ONLY_NOTICE}</p>`,
     );
     assertNotMatch(html, /about-preview-switch/);
     assertNotMatch(html, /pipeline-card/);

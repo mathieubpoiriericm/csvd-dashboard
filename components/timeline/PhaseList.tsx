@@ -1,4 +1,5 @@
 import { Icon } from "../Icon.tsx";
+import { TRIAL_DIALOG_ID } from "./ids.ts";
 import {
   EVIDENCE_RING_RADIUS,
   EVIDENCE_RING_WIDTH,
@@ -56,7 +57,7 @@ export function PhaseList(
                     ref={(el) => rowRef(marker.index, el)}
                     type="button"
                     class="timeline-row"
-                    aria-controls="timeline-drawer"
+                    aria-controls={TRIAL_DIALOG_ID}
                     aria-expanded={activeIndex === marker.index
                       ? "true"
                       : "false"}

@@ -1,4 +1,10 @@
-import { assert, assertEquals, assertMatch, assertNotMatch } from "@std/assert";
+import {
+  assert,
+  assertEquals,
+  assertMatch,
+  assertNotMatch,
+  assertStringIncludes,
+} from "@std/assert";
 
 import { contrast } from "./helpers/colour.ts";
 
@@ -1063,6 +1069,11 @@ Deno.test("no rule un-positions a framed surface", () => {
   );
 });
 
+/** Framed surfaces that deliberately draw no corner marks, with the reason. */
+const UNMARKED: ReadonlyMap<string, string> = new Map([
+  [".review-kpi", "four tiles in a row: sixteen crosses read as clutter"],
+]);
+
 Deno.test("the registration marks are drawn from the mark tokens", () => {
   // The blueprint frame replaced the aurora recipe, and its four "+" corner
   // crosses are eight background layers on one ::after overlay rather than
@@ -1101,12 +1112,19 @@ Deno.test("the registration marks are drawn from the mark tokens", () => {
       selector.split(",").map((s) => s.trim().replace("::after", ""))
     ),
   );
-  const bare = framed.filter((s) => !marked.has(s));
+  const bare = framed.filter((s) => !marked.has(s) && !UNMARKED.has(s));
   assertEquals(
     bare,
     [],
     "these surfaces wear the frame but not its corner marks",
   );
+  // An exception is a framed surface, and one that really draws no marks:
+  // an entry for a selector that left the recipe, or that still wears the
+  // crosses, excuses nothing and is stale.
+  for (const selector of UNMARKED.keys()) {
+    assert(framed.includes(selector), `${selector} is not a framed surface`);
+    assert(!marked.has(selector), `${selector} still draws the corner marks`);
+  }
 });
 
 /** Every declaration of `line-height`. */
@@ -1598,6 +1616,71 @@ Deno.test("the neutral notice takes the accent, in both themes", () => {
     const ratio = contrast(stripe, tokenValue("--svd-surface", theme));
     assert(ratio >= 3, `${theme} stripe: ${ratio.toFixed(2)}:1`);
   }
+});
+
+Deno.test("a confidence fills in one colour taken from a red-to-green scale", () => {
+  const flat = (text: string) =>
+    text.replace(/\s+/g, " ").replace(/\( /g, "(").replace(/ \)/g, ")").trim();
+  const track = flat(
+    css.match(/\.pipeline-conf-track\s*\{([^}]*)\}/)?.[1] ?? "",
+  );
+  assert(track !== "", "no `.pipeline-conf-track` rule found");
+  // The colour is the score's place between the danger and the ok, both
+  // theme tokens. A track given no score (the legend's sample) mixes at 0%
+  // and fills to 0%, so it shows no colour at all.
+  assertStringIncludes(
+    track,
+    "--pipeline-conf-fill: color-mix(in oklch, var(--svd-color-danger), " +
+      "var(--svd-color-ok) var(--pipeline-conf, 0%));",
+  );
+  // Two stops at the same place: a hard edge, so the fill is one solid
+  // colour and not a gradient along the bar.
+  assertStringIncludes(
+    track,
+    "background: linear-gradient(to right, " +
+      "var(--pipeline-conf-fill) var(--pipeline-conf, 0%), " +
+      "var(--svd-border) var(--pipeline-conf, 0%));",
+  );
+  assert(
+    !css.includes(".pipeline-conf-track.is-kept"),
+    "a kept finding's track takes the scale too",
+  );
+});
+
+Deno.test("the About notes wear the tip box's grammar", () => {
+  // The two notes that head the About page are notes like the tips that
+  // head the others: a hairline, a 2px rail, a 10% wash, the small type and
+  // an eyebrow label. `.notice` itself is left alone -- the adapt guide's
+  // alerts and the review notice wear it too.
+  const flat = (text: string) => text.replace(/\s+/g, " ").trim();
+  const body = flat(
+    css.match(/\.about-warning,\s*\.about-gold-notice\s*\{([^}]*)\}/)?.[1] ??
+      "",
+  );
+  assert(body !== "", "no `.about-warning, .about-gold-notice` rule found");
+  const colour = "var(--svd-notice-color, var(--svd-color-danger))";
+  for (
+    const declaration of [
+      `border: 1px solid color-mix(in oklab, ${colour} 24%, var(--svd-border));`,
+      `border-left: 2px solid ${colour};`,
+      `background: color-mix(in oklab, ${colour} 10%, transparent);`,
+      "padding: var(--svd-space-2) var(--svd-space-3);",
+      "font-size: var(--svd-text-sm);",
+      "line-height: var(--svd-leading-normal);",
+    ]
+  ) {
+    assertStringIncludes(
+      body.replace(/\(\s+/g, "(").replace(/\s+\)/g, ")"),
+      declaration,
+    );
+  }
+  // Full width: the gold-only note holds the preview switch.
+  assert(!/max-width/.test(body), "the notes take no width cap");
+  // One eyebrow, shared with the tip box, in the warning's own red there.
+  assertMatch(css, /\.tip-box > strong,\s*\.note-label\s*\{/);
+  const label = css.match(/\.about-warning \.note-label\s*\{([^}]*)\}/)?.[1] ??
+    "";
+  assertMatch(label, /color:\s*var\(--svd-color-danger-text\);/);
 });
 
 Deno.test("a tip box is a note, not a framed panel", () => {

@@ -22,6 +22,9 @@ const T = EXPECTED.timeline;
 const NO_MARKER = "no trial drawn on the radar";
 
 const LIST_ROWS = ".timeline-list button.timeline-row";
+/** The window the phone list opens a record in. */
+const DIALOG = "#timeline-dialog";
+const DRAWER = "#timeline-drawer";
 const DRUG_LABELS = 'svg.timeline-figure text[data-label^="drug-"]';
 
 async function load(page: Page, width: number, height: number) {
@@ -101,18 +104,35 @@ test("on a phone a row opens its record and Escape hands focus back", async ({ p
   await expect(row).toHaveAttribute("aria-expanded", "false");
   await row.click();
 
-  await expect(page.locator("#timeline-drawer")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Close trial details" }))
-    .toBeFocused();
+  // A window over the page, not the drawer stacked above the plot.
+  const dialog = page.locator(DIALOG);
+  await expect(dialog).toBeVisible();
+  expect(await dialog.evaluate((el) => el.matches(":modal"))).toBe(true);
+  await expect(page.locator(DRAWER)).toBeHidden();
+  expect(await row.textContent()).toContain(
+    (await dialog.locator("h2").textContent())!.trim(),
+  );
+  const closeButton = dialog.getByRole("button", {
+    name: "Close trial details",
+  });
+  await expect(closeButton).toBeFocused();
   await expect(row).toHaveAttribute("aria-expanded", "true");
   // The small radar lifts the open trial's marker.
   await expect(page.locator(".timeline-mini .marker.active")).toHaveCount(1);
 
   await page.keyboard.press("Escape");
-  await expect(page.locator("#timeline-drawer")).toBeHidden();
+  await expect(dialog).toBeHidden();
   await expect(row).toBeFocused();
   await expect(row).toHaveAttribute("aria-expanded", "false");
   await expect(page.locator(".timeline-mini .marker.active")).toHaveCount(0);
+
+  // The "x" leaves the same way.
+  await row.click();
+  await expect(dialog).toBeVisible();
+  await closeButton.click();
+  await expect(dialog).toBeHidden();
+  await expect(row).toBeFocused();
+  await expect(row).toHaveAttribute("aria-expanded", "false");
 });
 
 test("an open record survives a live resize to the list and back", async ({ page }) => {
@@ -123,18 +143,32 @@ test("an open record survives a live resize to the list and back", async ({ page
   await expect(drawer).toBeVisible();
   const drug = (await drawer.locator("h2").textContent())!.trim();
 
+  // On the phone the record moves into the window, still open.
   await page.setViewportSize({ width: 393, height: 852 });
   expect(await settleRadar(page)).toBe("phone");
-  await expect(drawer).toBeVisible();
+  const dialog = page.locator(DIALOG);
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator("h2")).toHaveText(drug);
+  await expect(drawer).toBeHidden();
+  // Focus follows the record to its new close button, both ways.
+  const closeButton = page.getByRole("button", { name: "Close trial details" });
+  await expect(closeButton).toBeFocused();
   const expanded = page.locator(`${LIST_ROWS}[aria-expanded="true"]`);
   await expect(expanded).toHaveCount(1);
   await expect(expanded).toContainText(drug);
   expect(await page.evaluate(() => document.activeElement?.isConnected))
     .toBe(true);
+  expect(
+    await page.evaluate(() => document.activeElement !== document.body),
+  ).toBe(true);
 
+  // And back beside the plate.
   await page.setViewportSize({ width: 1440, height: 900 });
   expect(await settleRadar(page)).toBe("radar");
   await expect(drawer).toBeVisible();
+  await expect(drawer.locator("h2")).toHaveText(drug);
+  await expect(dialog).toBeHidden();
+  await expect(closeButton).toBeFocused();
   const marker = page.locator(
     'svg.timeline-figure g.drug[aria-expanded="true"]',
   );
@@ -142,6 +176,115 @@ test("an open record survives a live resize to the list and back", async ({ page
   await expect(marker).toHaveAttribute("data-drug", drug);
   expect(await page.evaluate(() => document.activeElement?.isConnected))
     .toBe(true);
+});
+
+test("a tap outside the window closes it, a tap inside does not", async ({ page }) => {
+  test.skip(T.markers === 0, NO_MARKER);
+  expect(await load(page, 393, 852)).toBe("phone");
+  const row = page.locator(LIST_ROWS).first();
+  await row.click();
+  const dialog = page.locator(DIALOG);
+  await expect(dialog).toBeVisible();
+
+  await dialog.locator("h2").click();
+  await dialog.locator(".timeline-drawer-fields dd").first().click();
+  await expect(dialog).toBeVisible();
+
+  // A drag that starts on the record and ends outside it -- selecting a
+  // registry ID to copy, say -- is not a press on the backdrop, though the
+  // browser reports its click on the dialog, the two ends' common ancestor.
+  const value = (await dialog.locator(".timeline-drawer-fields dd").first()
+    .boundingBox())!;
+  await page.mouse.move(value.x + 4, value.y + value.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(5, 5, { steps: 4 });
+  await page.mouse.up();
+  await expect(dialog).toBeVisible();
+  // Nor is one that starts outside and ends on the record.
+  await page.mouse.move(5, 5);
+  await page.mouse.down();
+  await page.mouse.move(value.x + 4, value.y + value.height / 2, { steps: 4 });
+  await page.mouse.up();
+  await expect(dialog).toBeVisible();
+
+  // The window's own border is the window, not the backdrop.
+  const edge = (await dialog.boundingBox())!;
+  // Whole pixels, the first and last inside each edge: the box sits at a
+  // fraction of one, and WebKit and Firefox report a press in whole pixels.
+  const first = (start: number) => Math.ceil(start);
+  const last = (start: number, size: number) => Math.ceil(start + size) - 1;
+  const midX = Math.round(edge.x + edge.width / 2);
+  const midY = Math.round(edge.y + edge.height / 2);
+  for (
+    const [x, y] of [
+      [first(edge.x), midY],
+      [last(edge.x, edge.width), midY],
+      [midX, first(edge.y)],
+      [midX, last(edge.y, edge.height)],
+    ]
+  ) {
+    await page.mouse.click(x, y);
+    await expect(dialog, `press at ${x}, ${y}`).toBeVisible();
+  }
+
+  // The backdrop: the corner of the viewport, outside the window's box.
+  await page.mouse.click(5, 5);
+  await expect(dialog).toBeHidden();
+  await expect(row).toBeFocused();
+  await expect(row).toHaveAttribute("aria-expanded", "false");
+});
+
+/**
+ * A record is longer than a short phone is tall. The window takes the
+ * viewport's height and scrolls inside itself, and its header, the close
+ * button with it, stays put; opening a record does not move the page behind.
+ * A dataset whose every record fits a 500px phone proves none of that, so
+ * the test says so and skips rather than passing on nothing.
+ */
+test("the window stays inside a short phone and its close stays in reach", async ({ page }) => {
+  test.skip(T.markers === 0, NO_MARKER);
+  test.slow();
+  const width = 393;
+  const height = 500;
+  expect(await load(page, width, height)).toBe("phone");
+  const dialog = page.locator(DIALOG);
+  const closeButton = dialog.getByRole("button", {
+    name: "Close trial details",
+  });
+  const rows = page.locator(LIST_ROWS);
+  const count = await rows.count();
+  let scrolled = 0;
+  for (let i = 0; i < count; i++) {
+    const row = rows.nth(i);
+    await row.scrollIntoViewIfNeeded();
+    const before = await page.evaluate(() => globalThis.scrollY);
+    await row.click();
+    await expect(dialog).toBeVisible();
+    const name = `row ${i}`;
+
+    const box = (await dialog.boundingBox())!;
+    expect(box.x, name).toBeGreaterThanOrEqual(0);
+    expect(box.y, name).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width, name).toBeLessThanOrEqual(width);
+    expect(box.y + box.height, name).toBeLessThanOrEqual(height);
+    expect(await scrollsSideways(page), name).toBe(false);
+    // Nothing inside reaches past the window's own edge sideways.
+    expect(
+      await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth),
+      name,
+    ).toBe(true);
+
+    if (await dialog.evaluate((el) => el.scrollHeight > el.clientHeight)) {
+      scrolled += 1;
+    }
+    await dialog.evaluate((el) => el.scrollTo(0, el.scrollHeight));
+    await expect(closeButton, name).toBeInViewport({ ratio: 1 });
+    expect(await page.evaluate(() => globalThis.scrollY), name).toBe(before);
+
+    await closeButton.click();
+    await expect(dialog).toBeHidden();
+  }
+  test.skip(scrolled === 0, "no record is taller than a 500px phone");
 });
 
 /**

@@ -1564,7 +1564,6 @@ svg {
 .login-card::after,
 .map-error::after,
 .map-container::after,
-.review-kpi::after,
 .blueprint-frame::after {
   content: '';
   position: absolute;
@@ -2880,6 +2879,35 @@ svg {
 .notice-neutral {
   --svd-notice-color: var(--svd-color-accent);
   background: var(--svd-notice-neutral-wash);
+}
+
+/* The two notes that head the About page wear the tip box's grammar, not
+   the notice's heavier one: a hairline, a 2px rail, a 10% wash of the note's
+   own colour and the small type, under an eyebrow (`.note-label`). They keep
+   the full width, which a tip does not: the gold-only note holds the preview
+   switch. `.notice` itself is unchanged -- the adapt guide's alerts and the
+   review notice wear it. */
+.about-warning,
+.about-gold-notice {
+  border: 1px solid
+    color-mix(
+    in oklab,
+    var(--svd-notice-color, var(--svd-color-danger)) 24%,
+    var(--svd-border)
+  );
+  border-left: 2px solid var(--svd-notice-color, var(--svd-color-danger));
+  background: color-mix(
+    in oklab,
+    var(--svd-notice-color, var(--svd-color-danger)) 10%,
+    transparent
+  );
+  padding: var(--svd-space-2) var(--svd-space-3);
+  font-size: var(--svd-text-sm);
+  line-height: var(--svd-leading-normal);
+}
+
+.about-warning .note-label {
+  color: var(--svd-color-danger-text);
 }
 
 /* The gold-only notice with its technical-preview switch
@@ -4974,7 +5002,8 @@ button.adapt-card-head:focus-visible {
 
 /* The label is an eyebrow, not bold prose: it names the kind of note, and
    the sentence after it is the note. */
-.tip-box > strong {
+.tip-box > strong,
+.note-label {
   font-family: var(--svd-font-heading);
   font-size: var(--svd-text-2xs);
   font-weight: var(--svd-weight-semibold);
@@ -6264,6 +6293,50 @@ button.adapt-card-head:focus-visible {
 
 .timeline-drawer[data-fit="page"] {
   max-height: none;
+}
+
+/* The record's other home (`TrialDialog`): a window over the page, which is
+   how the phone list opens it. A native modal dialog, so the browser supplies
+   the top layer, the focus trap and the backdrop, and this is only the box --
+   the session windows' box, with no registration marks. It is the scrollport
+   for a record taller than the phone, where the drawer zooms one to fit, and
+   has no padding of its own: the body carries it, so a press whose target is
+   the dialog is a press on the backdrop. */
+.timeline-dialog {
+  width: min(24rem, calc(100vw - 2 * var(--svd-space-4)));
+  max-width: none;
+  max-height: calc(100dvh - 2 * var(--svd-space-4));
+  padding: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--svd-border);
+  border-radius: var(--svd-radius-sm);
+  background: var(--svd-bg-card);
+  color: var(--svd-text);
+  box-shadow: var(--svd-shadow-md);
+  font-size: var(--svd-text-base);
+}
+
+.timeline-dialog::backdrop {
+  background: color-mix(in oklab, var(--svd-ink) 45%, transparent);
+}
+
+.timeline-dialog-body {
+  padding: var(--svd-space-4);
+}
+
+/* The header stays while the fields scroll under it, so the close button is
+   in reach at the end of a long record. It takes over the body's top and
+   side padding, or the fields would show in the gap above it. */
+.timeline-dialog .timeline-drawer-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: calc(var(--svd-space-4) * -1) calc(var(--svd-space-4) * -1)
+    var(--svd-space-2);
+  padding: var(--svd-space-4) var(--svd-space-4) var(--svd-space-2);
+  background: var(--svd-bg-card);
 }
 
 .timeline-drawer-head {
@@ -7608,25 +7681,25 @@ button.adapt-card-head:focus-visible {
 }
 
 /* The track runs from 0 to 1 and is filled to the finding's score, which
-   arrives as `--pipeline-conf`. A finding the run kept fills in the
-   primary; one it did not, in the muted ink, so the fill never reads as
-   "passed" on a row that did not. */
+   arrives as `--pipeline-conf`. The fill is one solid colour, the score's
+   place on a scale from the danger red to the ok green: `oklch` takes the
+   shorter hue arc between the two, which passes through amber. A kept
+   finding and a held one are drawn alike -- the list each sits in and the
+   floor ticks say which it was. A track given no score (the legend's
+   sample) fills to 0% and shows no colour. */
 .pipeline-conf-track {
+  --pipeline-conf-fill: color-mix(
+    in oklch,
+    var(--svd-color-danger),
+    var(--svd-color-ok) var(--pipeline-conf, 0%)
+  );
   position: relative;
   flex: none;
   width: 6rem;
   height: 6px;
   background: linear-gradient(
     to right,
-    var(--svd-text-muted) var(--pipeline-conf, 0%),
-    var(--svd-border) var(--pipeline-conf, 0%)
-  );
-}
-
-.pipeline-conf-track.is-kept {
-  background: linear-gradient(
-    to right,
-    var(--svd-color-primary) var(--pipeline-conf, 0%),
+    var(--pipeline-conf-fill) var(--pipeline-conf, 0%),
     var(--svd-border) var(--pipeline-conf, 0%)
   );
 }

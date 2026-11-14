@@ -131,7 +131,9 @@ export default function PipelinePreview(
     <>
       <div class="notice notice-neutral about-gold-notice has-preview">
         <div class="about-gold-text">
-          <p>{GOLD_ONLY_NOTICE}</p>
+          <p>
+            <strong class="note-label">Data:</strong> {GOLD_ONLY_NOTICE}
+          </p>
           {
             /* A live region: the sentence is the only word of a press's
               outcome when the widget could not be fetched. Busy while it

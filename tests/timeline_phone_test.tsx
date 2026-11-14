@@ -63,7 +63,7 @@ Deno.test("the list has a row per marker, with the sub-phase suffix", () => {
   assertEquals(html.match(/<button /g)?.length, layout.markers.length);
   assertStringIncludes(html, "Gamma (Phase Ib)");
   assert(!html.includes("Alpha ("));
-  assertStringIncludes(html, 'aria-controls="timeline-drawer"');
+  assertStringIncludes(html, 'aria-controls="timeline-dialog"');
 });
 
 Deno.test("only the active row is expanded", () => {

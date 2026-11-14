@@ -164,8 +164,9 @@ a marker and its evidence ring together through the CSS `r` property — geometr
 not colour — and an e2e assertion pins the computed radii. Keyboard access is
 the drawer, not the tooltip: each `g.drug` is a `role="button"` with
 `aria-expanded` and `aria-controls`, Enter and Space open the `<aside>`, the
-close button takes focus, Escape closes and returns it. The tooltip is
-pointer-only and `aria-hidden`, as the old one was.
+close button takes focus, Escape closes and returns it. The phone list's rows
+do the same into the record window (below). The tooltip is pointer-only and
+`aria-hidden`, as the old one was.
 
 The two panels divide the record deliberately: **the tooltip identifies a trial
 at a glance, the drawer is the whole record.** The drawer lists all twelve
@@ -331,13 +332,30 @@ their reasons:
   status-filtered trials grouped by `parentPhase()` in ring order, most
   advanced first, rows alphabetical, a sub-phase printed beside the name, a
   trial with no ring left out as it is off the radar. Rows are buttons with
-  `aria-expanded`/`aria-controls`, at least 44px, and open the same drawer
-  element, which survives the switch. `data-mode`, `data-floor` and
+  `aria-expanded`/`aria-controls`, at least 44px. `data-mode`, `data-floor` and
   `data-stack` are on the layout and are what the generic e2e reads
   (`e2e/tests/helpers/timeline.ts`: `settleRadar` waits for two equal reads
   250ms apart). Focus restore on close resolves `(mode === "phone" ? rowRefs :
   markerRefs)[restore]` at the moment of restore, so a trial opened in one mode
   and closed in the other returns focus to its counterpart.
+- **The phone list opens a record in a window, not the drawer.** Stacked in
+  the flow as the drawer is on a tablet, the record opened above the small
+  radar and pushed the tapped list off the screen. `TrialDialog` is a native
+  modal `<dialog id="timeline-dialog">` through `useModal`; the record's
+  markup is `TrialRecord`, shared with the drawer, so the two cannot differ.
+  Both elements are always in the page and the island hands the open record
+  to one of them by `radar.mode`, so a record open across the switch moves
+  between them, and the mode effect moves focus to the new close button. It
+  closes on the "x", on Escape (reported through `cancel`, which a phone's
+  back gesture fires too) and on a press of the backdrop: one that begins
+  and ends outside the window's box, read from the pointer's coordinates. The
+  click's target cannot say so -- it is the dialog for the backdrop, but also
+  for the dialog's own border and for a drag between the record and the
+  backdrop (selecting a value to copy), which a target test closed on.
+  The window is the scrollport for a record taller than the phone and its
+  header is sticky, so `fitDrawer` does not run there and the close button
+  stays in reach; it draws no registration marks, which a scrollport would
+  clip. `e2e/tests/timeline-responsive.spec.ts` opens every row at 393x500.
 - **The tip says tap on a touch screen.** Both wordings are in the first
   `TipBox`; `@media (hover: none)` / `(hover: hover)` shows one and
   `display: none` hides the other. Hover capability, not width, is what makes

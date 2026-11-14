@@ -48,15 +48,12 @@ function Mark({ at }: { at: number }) {
  *
  * The track is why a held finding can be read at a glance as "just short"
  * or "nowhere near". It is a drawing of the number beside it and is hidden
- * from assistive technology; the number is the value. A finding the run
- * kept fills its track in the primary, one it did not in a neutral.
+ * from assistive technology; the number is the value. The fill's colour
+ * is the score's place on a red-to-green scale, which the stylesheet takes
+ * from the same percentage.
  */
 export function Confidence(
-  { value, marks, kept }: {
-    value: number | null;
-    marks: number[];
-    kept: boolean;
-  },
+  { value, marks }: { value: number | null; marks: number[] },
 ) {
   if (value === null) return null;
   return (
@@ -66,7 +63,7 @@ export function Confidence(
         <span class="pipeline-fact-value">{formatConfidence(value)}</span>
       </span>
       <span
-        class={`pipeline-conf-track${kept ? " is-kept" : ""}`}
+        class="pipeline-conf-track"
         style={`--pipeline-conf: ${percent(value)}`}
         aria-hidden="true"
       >
@@ -82,7 +79,7 @@ function AcceptedRecord({ gene, marks }: { gene: RunGene; marks: number[] }) {
       <div class="pipeline-record-head">
         <strong class="pipeline-record-name">{gene.symbol}</strong>
         <span class="pipeline-facts">
-          <Confidence value={gene.confidence} marks={marks} kept />
+          <Confidence value={gene.confidence} marks={marks} />
           {gene.pmid && <Pmid pmid={gene.pmid} />}
         </span>
       </div>
@@ -161,7 +158,7 @@ function RejectedRow({ gene, marks }: { gene: RejectedGene; marks: number[] }) {
   return (
     <li class="pipeline-record pipeline-record-row">
       <strong class="pipeline-record-name">{gene.symbol}</strong>
-      <Confidence value={gene.confidence} marks={marks} kept={false} />
+      <Confidence value={gene.confidence} marks={marks} />
       <span class="pipeline-record-why">
         {first !== undefined && <span>{describeRejection(first).detail}</span>}
         {others.map((reason, index) => (
