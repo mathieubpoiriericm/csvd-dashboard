@@ -234,10 +234,10 @@ export default define.page(function App({ Component, url, state, error }) {
                     {
                       /* Not a tab: it leads to the features still in preview,
                       outside the dashboard's own pages, so it sits apart from
-                      them and is drawn as an outlined box rather than a tab at
-                      rest. It stays lit on every page behind it. The panel is
-                      a sibling of the link, not a child, so the link's name
-                      stays its label alone. */
+                      them and is drawn in the accent, with no box until it is
+                      hovered or current. It stays lit on every page behind
+                      it. The panel is a sibling of the link, not a child, so
+                      the link's name stays its label alone. */
                     }
                     <li class="nav-previews">
                       <a

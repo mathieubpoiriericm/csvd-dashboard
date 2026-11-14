@@ -437,12 +437,6 @@ Deno.test("the adapt tip names Save session only when sessions are on", () => {
   );
 });
 
-Deno.test("the About page links to the adapt page", () => {
-  const html = renderAbout();
-  assertMatch(html, /<a[^>]*href="\/adapt"[^>]*>/);
-  assertStringIncludes(html, "Reuse this dashboard for another disease");
-});
-
 /** The shell around an empty page at `path`. */
 const shellAt = (path: string) =>
   renderToString(

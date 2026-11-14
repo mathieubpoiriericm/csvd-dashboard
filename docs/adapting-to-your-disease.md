@@ -125,11 +125,11 @@ deletes the old tests, runs the checks, measures cost and recall, and ends with
 a hand-off message listing everything it did and anything it could not.
 
 **Through the dashboard.** The dashboard has an "Adapt this dashboard to another
-disease" page at `/adapt`, linked from its About page. The site this repository
-runs belongs to its lab and sits behind their login, so run your own copy: after
-step 1, copy `.env.example` to `.env`, set `DASHBOARD_PASSPHRASE` (a sentence,
-in single quotes) and `DASHBOARD_SESSION_SECRET` (`openssl rand -base64 32`),
-then
+disease" page at `/adapt`, linked from its New Feature Previews page. The site
+this repository runs belongs to its lab and sits behind their login, so run your
+own copy: after step 1, copy `.env.example` to `.env`, set
+`DASHBOARD_PASSPHRASE` (a sentence, in single quotes) and
+`DASHBOARD_SESSION_SECRET` (`openssl rand -base64 32`), then
 
 ```bash
 deno task dev    # then open http://localhost:5173/adapt and sign in
