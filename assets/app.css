@@ -2881,6 +2881,35 @@ svg {
   background: var(--svd-notice-neutral-wash);
 }
 
+/* The two notes that head the About page wear the tip box's grammar, not
+   the notice's heavier one: a hairline, a 2px rail, a 10% wash of the note's
+   own colour and the small type, under an eyebrow (`.note-label`). They keep
+   the full width, which a tip does not: the gold-only note holds the preview
+   switch. `.notice` itself is unchanged -- the adapt guide's alerts and the
+   review notice wear it. */
+.about-warning,
+.about-gold-notice {
+  border: 1px solid
+    color-mix(
+    in oklab,
+    var(--svd-notice-color, var(--svd-color-danger)) 24%,
+    var(--svd-border)
+  );
+  border-left: 2px solid var(--svd-notice-color, var(--svd-color-danger));
+  background: color-mix(
+    in oklab,
+    var(--svd-notice-color, var(--svd-color-danger)) 10%,
+    transparent
+  );
+  padding: var(--svd-space-2) var(--svd-space-3);
+  font-size: var(--svd-text-sm);
+  line-height: var(--svd-leading-normal);
+}
+
+.about-warning .note-label {
+  color: var(--svd-color-danger-text);
+}
+
 /* The gold-only notice with its technical-preview switch
    (islands/PipelinePreview.tsx): the two sentences, and the switch at the
    right edge. The text's flex basis is what wraps the switch under it on a
@@ -4973,7 +5002,8 @@ button.adapt-card-head:focus-visible {
 
 /* The label is an eyebrow, not bold prose: it names the kind of note, and
    the sentence after it is the note. */
-.tip-box > strong {
+.tip-box > strong,
+.note-label {
   font-family: var(--svd-font-heading);
   font-size: var(--svd-text-2xs);
   font-weight: var(--svd-weight-semibold);

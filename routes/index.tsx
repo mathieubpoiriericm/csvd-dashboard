@@ -292,6 +292,7 @@ export function AboutContent(
       header={
         <>
           <p class="notice notice-warning about-warning">
+            <strong class="note-label">Preview:</strong>{" "}
             This is a preview of a dashboard that is still a work in progress.
           </p>
 
@@ -308,7 +309,7 @@ export function AboutContent(
           }
           {goldOnly && run === null && (
             <p class="notice notice-neutral about-gold-notice">
-              {GOLD_ONLY_NOTICE}
+              <strong class="note-label">Data:</strong> {GOLD_ONLY_NOTICE}
             </p>
           )}
           {goldOnly && run !== null && (
