@@ -19,6 +19,9 @@ from pipeline import batch_state, checkpoint
 from pipeline.anthropic_client import _document_text
 from pipeline.api_telemetry import current_recorder, reset_recorder
 from pipeline.batch_extraction import (
+    _CREATE_ATTEMPTS,
+    _FETCH_ATTEMPTS,
+    _is_transient,
     build_batch_request,
     results_by_custom_id,
     submit_and_collect,
@@ -1142,6 +1145,40 @@ class TestAPendingBatchIsResumed:
         assert "msgbatch_old" in caplog.text
         assert [p.batch_id for p in self._loaded(path)] == ["msgbatch_new"]
 
+    async def test_an_ended_batch_whose_results_answer_404_is_resubmitted(
+        self, tmp_path, mocker, monkeypatch, caplog
+    ) -> None:
+        """The batch still names a results URL, and the download says the
+        results are not there: the papers are paid for again rather than
+        the run ending on a record it cannot use."""
+        path = str(tmp_path / "pending.json")
+        self._record(
+            path, PendingBatch("msgbatch_old", {"111": self._sha("111", "text")})
+        )
+        client = self._client(
+            mocker,
+            monkeypatch,
+            results={"msgbatch_new": [_fake_batch_entry("111", _GENE1_GENES)]},
+        )
+        answered = client.messages.batches.results.side_effect
+
+        async def results_for(batch_id: str) -> Any:
+            if batch_id == "msgbatch_old":
+                raise _status_error(anthropic.NotFoundError, 404)
+            return await answered(batch_id)
+
+        client.messages.batches.results.side_effect = results_for
+
+        with caplog.at_level(logging.WARNING):
+            out = await submit_and_collect(
+                {"111": "text"}, self._CONFIG, state_path=path
+            )
+
+        assert self._submitted(client) == ["111"]
+        assert out["111"][0].gene_symbol == "GENE1"
+        assert "msgbatch_old could not be fetched" in caplog.text
+        assert [p.batch_id for p in self._loaded(path)] == ["msgbatch_new"]
+
     async def test_a_recorded_batch_that_outlives_the_wait_says_to_re_run(
         self, tmp_path, mocker, monkeypatch
     ) -> None:
@@ -1297,6 +1334,24 @@ class TestABatchIsNeverSubmittedTwice:
 
         assert client.messages.batches.create.await_count == 2
         assert out["A"][0].gene_symbol == "GENE1"
+
+    async def test_a_refusal_that_never_lifts_is_raised_after_the_last_attempt(
+        self, mocker, monkeypatch
+    ) -> None:
+        client = _batch_client(mocker, monkeypatch, results={})
+        client.messages.batches.create.side_effect = _status_error(
+            anthropic.RateLimitError, 429
+        )
+        sleep = mocker.patch("pipeline.batch_extraction.asyncio.sleep", AsyncMock())
+
+        with pytest.raises(anthropic.RateLimitError):
+            await submit_and_collect({"A": "paper"}, PipelineConfig())
+
+        assert client.messages.batches.create.await_count == _CREATE_ATTEMPTS
+        # A pause between two attempts, and none after the last.
+        assert sleep.await_count == _CREATE_ATTEMPTS - 1
+        client.messages.batches.retrieve.assert_not_awaited()
+        client.close.assert_awaited_once()
 
     async def test_a_rejected_request_is_raised_as_it_is(
         self, mocker, monkeypatch
@@ -1476,3 +1531,43 @@ class TestAnOutageDoesNotEndTheWait:
         assert set(out) == {"A", "B"}
         # No entry twice: A's from the broken read was thrown away.
         assert len(out["A"]) == 1
+
+    async def test_results_that_keep_breaking_off_end_the_run_with_the_error(
+        self, mocker, monkeypatch
+    ) -> None:
+        client = _batch_client(mocker, monkeypatch, results={})
+
+        async def broken():
+            yield _fake_batch_entry("A", _GENE1_GENES)
+            raise httpx2.ReadError("connection reset")
+
+        client.messages.batches.results.side_effect = [
+            broken() for _ in range(_FETCH_ATTEMPTS + 1)
+        ]
+
+        with pytest.raises(httpx2.ReadError, match="connection reset"):
+            await submit_and_collect({"A": "paper A"}, PipelineConfig())
+
+        assert client.messages.batches.results.await_count == _FETCH_ATTEMPTS
+
+    async def test_results_refused_with_a_verdict_are_not_read_again(
+        self, mocker, monkeypatch
+    ) -> None:
+        client = _batch_client(mocker, monkeypatch, results={})
+        client.messages.batches.results.side_effect = _status_error(
+            anthropic.PermissionDeniedError, 403
+        )
+
+        with pytest.raises(anthropic.PermissionDeniedError):
+            await submit_and_collect({"A": "paper A"}, PipelineConfig())
+
+        assert client.messages.batches.results.await_count == 1
+
+    def test_only_an_api_out_of_reach_counts_as_an_outage(self) -> None:
+        assert _is_transient(_connection_error())
+        assert _is_transient(httpx2.ReadError("connection reset"))
+        assert _is_transient(_status_error(anthropic.InternalServerError, 503))
+        assert _is_transient(_status_error(anthropic.RateLimitError, 429))
+        assert not _is_transient(_status_error(anthropic.NotFoundError, 404))
+        # Not the API's error at all: a bug is never waited out.
+        assert not _is_transient(ValueError("not an API error"))

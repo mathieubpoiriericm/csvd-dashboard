@@ -1940,6 +1940,40 @@ class TestAMidStreamFallbackKeepsOnlyTheServingHop:
         # Opus 5.5's reasoning is not saved as Opus 4.8's.
         assert "5.5 reasoning" not in record.call_args.kwargs["thinking"]
 
+    def test_an_sdk_response_is_copied_not_edited(self, caplog):
+        """The SDK's response is a pydantic model: the serving hop is a copy
+        with its other fields kept, and the response itself still holds what
+        the declined model wrote."""
+        from pydantic import BaseModel
+
+        from pipeline.anthropic_client import _serving_hop
+
+        class Response(BaseModel):
+            model: str
+            stop_reason: str
+            content: list[Any]
+
+        declined = SimpleNamespace(type="text", text="partial")
+        marker = SimpleNamespace(
+            type="fallback", trigger=SimpleNamespace(type="refusal", category="bio")
+        )
+        served = SimpleNamespace(type="text", text="The genes.")
+        response = Response(
+            model="claude-opus-4-8",
+            stop_reason="tool_use",
+            content=[declined, marker, served],
+        )
+
+        with caplog.at_level(logging.WARNING):
+            hop = _serving_hop(response, pmid="12345678")
+
+        assert hop is not response
+        assert hop.content == [served]
+        assert (hop.model, hop.stop_reason) == ("claude-opus-4-8", "tool_use")
+        assert response.content == [declined, marker, served]
+        assert "Discarded 1 block(s)" in caplog.text
+        assert "12345678" in caplog.text
+
 
 class TestAStickyRetryKeepsTheFirstDeclinesCategory:
     """A retried request for a paper that fell back is sticky.
@@ -2753,11 +2787,14 @@ class TestPrewarmCache:
         self, monkeypatch, caplog
     ):
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        reset_recorder()
 
         with caplog.at_level(logging.WARNING):
             assert await prewarm_cache(PipelineConfig()) == TokenUsage()
 
         assert "warm" in caplog.text.lower()
+        # Nothing was sent, so no Anthropic call is recorded, failed or not.
+        assert self._anthropic_row() is None
 
 
 def _stream_cm(*, response=None, error=None):

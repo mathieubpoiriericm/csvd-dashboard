@@ -9,6 +9,7 @@ from pipeline.config import PipelineConfig
 from pipeline.pubmed_citations import (
     PubMedCitation,
     SyncResult,
+    _europepmc_authors,
     _fetch_preprint_uncached,
     _fetch_pubmed_uncached,
     _format_authors,
@@ -846,3 +847,19 @@ class TestSyncPubmedCitations:
 
         upsert.assert_not_called()
         assert result.failed == 1
+
+
+def test_a_europepmc_author_with_no_name_at_all_is_left_out() -> None:
+    """An entry carrying only an affiliation or an ORCID names nobody; the
+    people around it keep their order."""
+    record = {
+        "authorList": {
+            "author": [
+                {"lastName": "First", "initials": "A"},
+                {"initials": "B"},
+                {"collectiveName": "  "},
+                {"lastName": "Last", "initials": "C"},
+            ]
+        }
+    }
+    assert _europepmc_authors(record) == ["First A", "Last C"]

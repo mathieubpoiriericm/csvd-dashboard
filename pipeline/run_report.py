@@ -289,18 +289,15 @@ def bring_up_to_date(report: PipelineRunReport) -> PipelineRunReport:
     gene held from two is not in the document.
     """
     accepted = report.accepted_genes
-    if (
-        report.database is None
-        or accepted.truncated
-        or any(gene.pmid is None for gene in accepted.items)
-    ):
+    if report.database is None or accepted.truncated:
         return report
 
     per_paper: dict[str, int] = {}
     best: dict[str, float | None] = {}
     for gene in accepted.items:
-        if gene.pmid is not None:
-            per_paper[gene.pmid] = per_paper.get(gene.pmid, 0) + 1
+        if gene.pmid is None:
+            return report
+        per_paper[gene.pmid] = per_paper.get(gene.pmid, 0) + 1
         key = canonical_gene_symbol(gene.symbol).upper()
         known = best.get(key, 0.0)
         # One unscored mention and the gene's best score is unknown.

@@ -68,6 +68,15 @@ class TestCapitalisation:
         assert normalize_drug_name("aspirin") == "Aspirin"
         assert normalize_drug_name("samplinib") == "Samplinib"
 
+    def test_a_later_agent_with_an_interior_capital_keeps_its_spelling(self):
+        """A combination lower-cases the agents after the first, but not one
+        whose capitals are its name."""
+        assert (
+            normalize_drug_name("aspirin and SaiLuoTong capsule")
+            == "Aspirin and SaiLuoTong"
+        )
+        assert normalize_drug_name("Aspirin and Samplinib") == "Aspirin and samplinib"
+
     def test_a_name_carrying_its_own_capital_is_left_alone(self):
         """rt-PA is not Rt-PA, and SaiLuoTong is not Sailuotong."""
         assert normalize_drug_name("rt-PA") == "rt-PA"

@@ -3740,6 +3740,29 @@ class TestTheServingModelAndTheRefusal:
         )
         assert [r["result"]["pmid"] for r in records] == ["111"]
 
+    async def test_a_rescue_that_errors_before_any_tokens_counts_none(
+        self, mocker, tmp_path: Path
+    ) -> None:
+        # Not an extraction failure, so it carries no usage to count: the
+        # paper fails with the error's own words and the batch is kept.
+        extract = AsyncMock(side_effect=RuntimeError("no route to host"))
+        config = self._refused_batch(mocker, tmp_path, extract)
+        metrics = PipelineMetrics()
+
+        batch = await pipeline_main._process_new_pmids_via_batch(
+            ["111", "222"],
+            metrics,
+            config,
+            pipeline_main._ProgressReporter(config),
+        )
+
+        failed = next(r for r in batch.results if r.pmid == "222")
+        other = next(r for r in batch.results if r.pmid == "111")
+        assert other.succeeded and not failed.succeeded
+        assert failed.error == "no route to host"
+        assert metrics.token_usage.output_tokens == 0
+        assert metrics.streamed_token_usage.output_tokens == 0
+
     async def test_a_rescue_the_fallback_never_answered_stays_on_the_batch_record(
         self, mocker, tmp_path: Path
     ) -> None:
@@ -4814,6 +4837,26 @@ class TestPreviewRun:
         pipeline_main.main()
 
         assert order == ["enter", "run"]
+
+    def test_a_preview_database_that_cannot_be_named_ends_the_run_before_it_starts(
+        self, monkeypatch, mocker, caplog
+    ) -> None:
+        mocker.patch(
+            "pipeline.main.enter_preview_database",
+            side_effect=ValueError("DB_NAME is not set"),
+        )
+        run = mocker.patch("pipeline.main._run_selected_pipelines", new=AsyncMock())
+        monkeypatch.setattr(pipeline_main, "gold_only", lambda: True)
+        monkeypatch.setattr(
+            pipeline_main.sys, "argv", ["pipeline", "--preview", "--test-mode"]
+        )
+
+        with caplog.at_level(logging.ERROR), pytest.raises(SystemExit) as exit_info:
+            pipeline_main.main()
+
+        assert exit_info.value.code == 1
+        assert "Invalid argument: DB_NAME is not set" in caplog.text
+        run.assert_not_awaited()
 
     async def test_the_run_checks_the_preview_database_before_extracting(
         self, mocker

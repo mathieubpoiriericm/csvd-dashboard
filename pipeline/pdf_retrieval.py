@@ -273,10 +273,7 @@ def _parse_pmc_xml(content: bytes) -> str | None:
     # Publishers render the bibliography inside <body>, and a cited title
     # names genes the paper never studied (see europepmc.parse_jats).
     for container in containers:
-        for ref_list in container.findall(".//{*}ref-list"):
-            parent = ref_list.getparent()
-            if parent is not None:
-                parent.remove(ref_list)
+        etree.strip_elements(container, "{*}ref-list")
     # Document order within the body, then each floats-group after it.
     blocks: list[Any] = []
     for body in root.findall(".//{*}body"):

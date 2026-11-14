@@ -336,6 +336,16 @@ class TestWhatIsPublishedIsSanitised:
             assert "'~/elsewhere/file.txt'" in error.detail
             assert str(Path.home()) not in error.detail
 
+    def test_a_home_directory_that_is_the_root_is_not_rewritten(
+        self, monkeypatch
+    ) -> None:
+        # A container's user can have "/" for a home; replacing it would
+        # turn every path and URL in the text into "~".
+        monkeypatch.setattr(Path, "home", classmethod(lambda cls: Path("/")))
+        assert publishable_text("GET https://example.org/a/b failed") == (
+            "GET https://example.org/a/b failed"
+        )
+
     def test_an_over_long_message_is_capped(self) -> None:
         error = classify(RuntimeError("Error code: 500 - " + "x" * 5000))
         assert error.detail is not None

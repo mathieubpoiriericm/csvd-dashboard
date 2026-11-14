@@ -998,10 +998,21 @@ async def prewarm_cache(config: PipelineConfig) -> TokenUsage:
     params = _build_message_params("warmup", "warmup", config)
     params["max_tokens"] = 0
     usage = TokenUsage()
-    client: anthropic.AsyncAnthropic | None = None
-    start = time.monotonic()
+
+    def gave_up(error: Exception) -> TokenUsage:
+        logger.warning(
+            f"Cache warm-up failed ({type(error).__name__}: {error}); "
+            "the papers will each write the prompt cache themselves"
+        )
+        return TokenUsage()
+
     try:
         client = build_async_client()
+    except Exception as error:
+        # Nothing was sent, so there is no call to record.
+        return gave_up(error)
+    start = time.monotonic()
+    try:
         response = await client.with_options(
             timeout=_WARMUP_TIMEOUT_SECONDS, max_retries=0
         ).beta.messages.create(
@@ -1018,20 +1029,15 @@ async def prewarm_cache(config: PipelineConfig) -> TokenUsage:
                 method="POST",
                 status=error.status_code,
             )
-        elif client is not None:
+        else:
             # Sent, or tried to be, with no status to show: a timeout, a
             # dropped connection, an answer that could not be read.
             record_service_failure(
                 _ANTHROPIC_SERVICE, endpoint=_MESSAGES_ENDPOINT, method="POST"
             )
-        logger.warning(
-            f"Cache warm-up failed ({type(error).__name__}: {error}); "
-            "the papers will each write the prompt cache themselves"
-        )
-        return TokenUsage()
+        return gave_up(error)
     finally:
-        if client is not None:
-            await client.close()
+        await client.close()
     # The API answered and wrote the cache, so the call is the 200 it was,
     # whatever the usage then turns out to look like.
     record_service_call(

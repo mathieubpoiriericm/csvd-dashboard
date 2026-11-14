@@ -162,6 +162,14 @@ def test_bare_strings_are_read_as_a_type_and_as_an_item() -> None:
     ]
 
 
+def test_a_value_that_is_not_a_list_is_left_for_the_schema_to_refuse() -> None:
+    """Only a list is read study by study; anything else is not guessed at."""
+    with pytest.raises(ValidationError, match="omics_evidence"):
+        _entry({"study_type": "TWAS"})
+    with pytest.raises(ValidationError, match="omics_evidence"):
+        _entry("TWAS")
+
+
 def test_omics_array_escapes_semicolons() -> None:
     assert omics_array(["TWAS;Q: a*"]) == '["TWAS\\u003bQ: a*"]'
 

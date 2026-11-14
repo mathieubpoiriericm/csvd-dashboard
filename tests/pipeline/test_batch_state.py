@@ -334,3 +334,65 @@ def test_a_save_that_fails_leaves_no_temporary_file_and_raises(
         save(str(path), FP, [PendingBatch("msgbatch_1", {"111": "ab"})])
 
     assert list(tmp_path.iterdir()) == []
+
+
+def test_a_failed_save_whose_temporary_file_cannot_be_deleted_raises_the_first_error(
+    tmp_path, monkeypatch, caplog
+) -> None:
+    """The caller is told why the record was not written, not why the
+    clean-up after it failed."""
+    path = tmp_path / "b.json"
+
+    def refuse_replace(*args, **kwargs):
+        raise PermissionError("the record is read-only")
+
+    def refuse_unlink(self, missing_ok=False):
+        raise OSError("the directory is read-only")
+
+    monkeypatch.setattr("pipeline.batch_state.os.replace", refuse_replace)
+    monkeypatch.setattr(Path, "unlink", refuse_unlink)
+    with (
+        caplog.at_level(logging.WARNING),
+        pytest.raises(PermissionError, match="the record is read-only"),
+    ):
+        save(str(path), FP, [PendingBatch("msgbatch_1", {"111": "ab"})])
+
+    assert "Could not delete" in caplog.text
+    assert "b.json.tmp" in caplog.text
+
+
+_ENTRY = {"batch_id": "msgbatch_1", "document_sha256": {"111": "ab"}}
+
+
+@pytest.mark.parametrize(
+    "entry",
+    [
+        "msgbatch_1",
+        {"batch_id": 7, "document_sha256": {"111": "ab"}},
+        {"batch_id": "msgbatch_1", "document_sha256": ["111"]},
+        {**_ENTRY, "submitted_at": "x"},
+        {**_ENTRY, "submitted_at": True},
+        {"batch_id": "msgbatch_1", "document_sha256": {"111": 5}},
+    ],
+    ids=[
+        "an entry that is not an object",
+        "a batch id that is not a string",
+        "hashes that are not an object",
+        "a date that is not a number",
+        "a date that is a boolean",
+        "a hash that is not a string",
+    ],
+)
+def test_one_malformed_entry_discards_the_whole_file(tmp_path, entry) -> None:
+    """A record that cannot be trusted in one place is not half-used: a
+    good entry beside the bad one is not resumed either."""
+    path = tmp_path / "b.json"
+    good = {
+        "batch_id": "msgbatch_0",
+        "document_sha256": {"000": "ff"},
+        "submitted_at": _RECENT,
+    }
+    path.write_text(json.dumps({"fingerprint": FP, "pending": [good, entry]}))
+
+    assert load(str(path), FP) == []
+    assert not path.exists()
