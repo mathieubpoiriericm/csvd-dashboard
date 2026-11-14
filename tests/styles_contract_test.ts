@@ -1682,7 +1682,7 @@ Deno.test("the About and review notes wear the tip box's grammar", () => {
       declaration,
     );
   }
-  // Full width: the gold-only note holds the preview switch.
+  // Full width: each note heads its page and spans its column.
   assert(!/max-width/.test(body), "the notes take no width cap");
   // One eyebrow, shared with the tip box, in the warning's own red there.
   assertMatch(css, /\.tip-box > strong,\s*\.note-label\s*\{/);
@@ -2247,10 +2247,49 @@ Deno.test("the wizard looks inert until it is live, and a lookup's held button l
   assertMatch(css, /\.adapt:disabled \* \{\s*cursor: progress;/);
   assertMatch(
     css,
-    /\.adapt-button\[aria-disabled="true"\]:focus-visible \{\s*cursor: not-allowed;/,
+    /\.adapt-button\[aria-disabled="true"\]:focus-visible[,\s][^{}]*\{\s*cursor: not-allowed;/,
   );
   // Spaced by gaps: a status paragraph keeps no global margin.
   assertMatch(css, /\.adapt-status \{\s*margin: 0;/);
+});
+
+Deno.test("a disabled review action looks as disabled as a disabled adapt button", () => {
+  // The hub's request button is disabled until its island is live, and for
+  // good without JavaScript; it shares the adapt button's disabled rule, so
+  // it never draws at full strength, lights or offers a pointer while inert.
+  const text = ruleRegion.join("\n");
+  const start = text.indexOf(".adapt-button:disabled,");
+  assert(start > -1, "no `.adapt-button:disabled` rule found");
+  const selectors = text.slice(start, text.indexOf("{", start));
+  for (
+    const selector of [
+      ".review-action:disabled",
+      ".review-action:disabled:hover",
+      ".review-action:disabled:focus-visible",
+    ]
+  ) {
+    assert(
+      selectors.split(",").some((s) => s.trim() === selector),
+      `${selector} is not in the adapt button's disabled rule`,
+    );
+  }
+  assertMatch(text.slice(start), /^[^}]*cursor: not-allowed;/);
+});
+
+Deno.test("the strip's current link stays distinct in forced colours", () => {
+  // Forced colours paint the transparent underline every link carries, so
+  // the current one is told apart with system colours there.
+  // Indented, so the marker is the rule inside a block, not the base rule.
+  const block = mediaBlockContaining("  .preview-switcher-link.is-current {");
+  assertMatch(block, /^@media \(forced-colors: active\)/);
+  assertMatch(
+    block,
+    /\.preview-switcher-link \{\s*border-bottom-color: Canvas;\s*\}/,
+  );
+  assertMatch(
+    block,
+    /\.preview-switcher-link\.is-current \{\s*border-bottom-color: Highlight;\s*\}/,
+  );
 });
 
 Deno.test("the tooltip triggers draw no underline", () => {

@@ -129,3 +129,24 @@ Deno.test("the navbar tip names only the features on offer", () => {
     "New. One feature in preview: the disease adaptation guide.",
   );
 });
+
+Deno.test("the navbar tip counts in numerals past the words it has", () => {
+  // The parameter admits a repeated key, so four entries is a list the tip
+  // accepts; its count falls back to the numeral.
+  assertEquals(
+    previewsTip([
+      { key: "pipeline" },
+      { key: "adapt" },
+      { key: "review" },
+      { key: "adapt" },
+    ]),
+    "New. 4 features in preview: the pipeline run, the disease adaptation guide, the scientific review committee and the disease adaptation guide.",
+  );
+});
+
+Deno.test("the run's card names its window", () => {
+  assertEquals(
+    previewFeatures({ pipeline: true, review: false }, 365)[0].summary,
+    "A real run of the literature pipeline over the last 365 days of publications: what it read, what it proposed and how each step went. Its findings are not in the other pages.",
+  );
+});

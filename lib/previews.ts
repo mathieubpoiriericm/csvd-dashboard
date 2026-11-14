@@ -41,6 +41,7 @@ const TIP_PHRASES: Record<PreviewKey, string> = {
   review: "the scientific review committee",
 };
 
+/** The counts the tip spells out; past them it writes the numeral. */
 const COUNT_WORDS = ["One", "Two", "Three"] as const;
 
 /**
@@ -57,7 +58,8 @@ export function previewsTip(
     ? last
     : `${phrases.slice(0, -1).join(", ")} and ${last}`;
   const noun = phrases.length === 1 ? "feature" : "features";
-  return `New. ${COUNT_WORDS[phrases.length - 1]} ${noun} in preview: ${list}.`;
+  const count = COUNT_WORDS[phrases.length - 1] ?? String(phrases.length);
+  return `New. ${count} ${noun} in preview: ${list}.`;
 }
 
 const ADAPT_PATH = "/adapt";
@@ -86,14 +88,14 @@ export function previewFeatures(
   daysBack: number | null,
 ): PreviewFeature[] {
   const features: PreviewFeature[] = [];
-  const window = windowPhrase(daysBack);
+  const span = windowPhrase(daysBack);
   if (available.pipeline) {
     features.push({
       key: "pipeline",
       href: PIPELINE_PREVIEW_PATH,
       name: "Pipeline run",
       title: "Pipeline run",
-      summary: `A real run of the literature pipeline${window}: ` +
+      summary: `A real run of the literature pipeline${span}: ` +
         `what it read, what it proposed and how each step went. ${NOT_ELSEWHERE}`,
       icon: "arrowPath",
       subpages: [],

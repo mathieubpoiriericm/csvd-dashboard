@@ -1,6 +1,7 @@
 import { useHydratedRef } from "../components/useHydratedRef.ts";
 /**
- * The About page's pipeline-run widget.
+ * The pipeline-run widget: drawn at `/previews/pipeline` while gold-only is
+ * on, and on the About page while it is off.
  *
  * Renders the last recorded run from `data/pipeline_run.json` as a verdict
  * over a ledger: when it ran and whether it completed, three figures a

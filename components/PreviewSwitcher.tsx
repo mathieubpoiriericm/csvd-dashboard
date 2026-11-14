@@ -12,7 +12,9 @@ interface PreviewSwitcherProps {
  * and a second row for the pages inside the current one. Every link states its
  * own `aria-current`, because Fresh marks a link to an ancestor of the page's
  * path by itself and the first row's `/review` would otherwise read as "page"
- * on `/review/progress`.
+ * on `/review/progress`. The back link is never the page, since the strip is
+ * not drawn on the hub, and says so for the same reason: `/previews` is an
+ * ancestor of `/previews/pipeline`.
  */
 export function PreviewSwitcher({ features, pathname }: PreviewSwitcherProps) {
   const current = currentPreview(pathname);
@@ -23,7 +25,7 @@ export function PreviewSwitcher({ features, pathname }: PreviewSwitcherProps) {
         <a
           class="preview-switcher-link preview-switcher-back"
           href={PREVIEWS_PATH}
-          aria-current={PREVIEWS_PATH === pathname ? "page" : "false"}
+          aria-current="false"
         >
           <Icon name="chevronLeft" />
           All previews

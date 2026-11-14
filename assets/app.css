@@ -1020,6 +1020,18 @@ svg {
   font-weight: var(--svd-weight-semibold);
 }
 
+/* Forced colours paint the transparent underline every link carries, so
+   there the current link takes the highlight and the others the canvas. */
+@media (forced-colors: active) {
+  .preview-switcher-link {
+    border-bottom-color: Canvas;
+  }
+
+  .preview-switcher-link.is-current {
+    border-bottom-color: Highlight;
+  }
+}
+
 .preview-switcher-back {
   margin-inline-end: var(--svd-space-2);
 }
@@ -2846,8 +2858,8 @@ svg {
 /* The two notes that head the About page wear the tip box's grammar, not
    the notice's heavier one: a hairline, a 2px rail, a 10% wash of the note's
    own colour and the small type, under an eyebrow (`.note-label`). They keep
-   the full width, which a tip does not: the gold-only note holds the preview
-   switch. The note that heads every review page is one of them, and so is
+   the full width, which a tip does not: each heads its page and spans its
+   column. The note that heads every review page is one of them, and so is
    the one that heads the pipeline run's preview page. `.notice` itself is
    unchanged -- the adapt guide's alerts wear it. */
 .preview-note,
@@ -4558,13 +4570,18 @@ a.review-action-primary:visited {
 
 /* A lookup's button is aria-disabled while another lookup runs, so it
    stays focusable and says why when pressed; it looks as disabled as a
-   :disabled one, hovered and focused too. */
+   :disabled one, hovered and focused too. The hub's request button is
+   disabled until its island is live, and for good without JavaScript, so a
+   disabled review action looks the same. */
 .adapt-button:disabled,
 .adapt-button[aria-disabled="true"],
 .adapt-button:disabled:hover,
 .adapt-button:disabled:focus-visible,
 .adapt-button[aria-disabled="true"]:hover,
-.adapt-button[aria-disabled="true"]:focus-visible {
+.adapt-button[aria-disabled="true"]:focus-visible,
+.review-action:disabled,
+.review-action:disabled:hover,
+.review-action:disabled:focus-visible {
   cursor: not-allowed;
   border-color: var(--svd-border);
   color: var(--svd-text-muted);
@@ -4697,16 +4714,15 @@ a.review-action-primary:visited {
     min-width: 0;
   }
 
-  /* The logo gives way when the actions leave it too little of the row, as
-     the Review control does at 320px, and never otherwise. The logo's track
-     is what the actions leave (a zero floor, which is safe here because the
-     heading has a row of its own, unlike the mirrored tracks above 1410px),
-     and the logo is capped at that width. Its height is kept, so the bar
-     does not change height, and `contain` draws the mark whole and
-     undistorted, scaled down to the narrower box and set against its start.
-     Where the row has room the box is the logo's own width, as before. Not
-     `height: auto`: a ratio-only SVG then has no width to offer its link,
-     and the logo collapses to nothing. */
+  /* The logo gives way when the actions leave it too little of the row, and
+     never otherwise. The logo's track is what the actions leave (a zero
+     floor, which is safe here because the heading has a row of its own,
+     unlike the mirrored tracks above 1410px), and the logo is capped at that
+     width. Its height is kept, so the bar does not change height, and
+     `contain` draws the mark whole and undistorted, scaled down to the
+     narrower box and set against its start. Where the row has room the box is
+     the logo's own width, as before. Not `height: auto`: a ratio-only SVG
+     then has no width to offer its link, and the logo collapses to nothing. */
   .navbar-brand .institute-logo {
     max-width: 100%;
     object-fit: contain;

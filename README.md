@@ -260,10 +260,11 @@ alternative, because Leaflet's circle markers cannot take focus.
 Not a tab: the navbar's one entry for the features that work today and are still
 in preview, beside the tabs with a pulsing green dot. It is lit on `/previews*`,
 on `/adapt` and on `/review*`. The hub is one card for each feature that exists
-for the data it is built from: the pipeline run, the adaptation guide and the
-review committee. Every page of a feature carries a strip above its header that
-links the other features and, on the review pages, the queue and the progress
-page. The hub and the strip render from one list (`lib/previews.ts`;
+for the data it is built from; this repository's data offers three, the pipeline
+run, the adaptation guide and the review committee, and a fork's offers the
+adaptation guide alone. Every page of a feature carries a strip above its header
+that links the other features and, on the review pages, the queue and the
+progress page. The hub and the strip render from one list (`lib/previews.ts`;
 `lib/previews_current.ts` is that list for the committed data), so neither
 offers a page that is a 404.
 
@@ -366,20 +367,28 @@ the data or a page changes, and in a fork after its first live run.
     <td><img src="docs/screenshots/trials-map.webp" width="100%" alt="The Trials Map page: the study-status filter and the clustered sites" /></td>
   </tr>
   <tr valign="top">
-    <td><strong>New Feature Previews</strong> — the hub: one card each for the pipeline run, the adaptation guide and the review committee.</td>
-    <td><strong>Review queue</strong> — every gene the preview run changed, with the simulated committee's tally and standing on each.</td>
+    <td><strong>New Feature Previews</strong> — the hub: one card for each feature this data offers in preview, here the pipeline run, the adaptation guide and the review committee.</td>
+    <td></td>
   </tr>
   <tr valign="top">
     <td><img src="docs/screenshots/previews.webp" width="100%" alt="The New Feature Previews hub: one card each for the pipeline run, the adaptation guide and the review committee" /></td>
-    <td><img src="docs/screenshots/review-queue.webp" width="100%" alt="The review queue: the kind and standing filters and one row per changed gene" /></td>
+    <td></td>
   </tr>
   <tr valign="top">
+    <td><strong>Review queue</strong> — every gene the preview run changed, with the simulated committee's tally and standing on each.</td>
     <td><strong>Gene review</strong> — one gene's change against the gold data, beside each member's verdict.</td>
-    <td><strong>Committee progress</strong> — the settled genes, the verdicts in, the standings by kind of change and each member's progress.</td>
   </tr>
   <tr valign="top">
+    <td><img src="docs/screenshots/review-queue.webp" width="100%" alt="The review queue: the kind and standing filters and one row per changed gene" /></td>
     <td><img src="docs/screenshots/review-gene.webp" width="100%" alt="A gene's review: the change field by field and the committee's verdicts" /></td>
+  </tr>
+  <tr valign="top">
+    <td><strong>Committee progress</strong> — the settled genes, the verdicts in, the standings by kind of change and each member's progress.</td>
+    <td></td>
+  </tr>
+  <tr valign="top">
     <td><img src="docs/screenshots/review-progress.webp" width="100%" alt="Committee progress: the four figures, the standings by kind and the members table" /></td>
+    <td></td>
   </tr>
 </table>
 <!-- markdownlint-enable MD013 MD033 -->
@@ -430,7 +439,7 @@ the data or a page changes, and in a fork after its first live run.
 │   ├── TrialsMap.tsx           Leaflet map, clustered markers
 │   ├── TrialsTimeline.tsx      the trials radar
 │   ├── Phenogram.tsx           the karyogram
-│   ├── PipelineRun.tsx         the About page's run report
+│   ├── PipelineRun.tsx         the pipeline run's report widget
 │   ├── AdaptWizard.tsx         the adapt wizard: interview, lookups, download
 │   ├── ReviewRequest.tsx       the demonstration account request; holds no data
 │   └── ThemeToggle.tsx         the theme switch
@@ -1068,7 +1077,7 @@ not exporting is what would keep that recorded failure invisible.
 
 A run is recorded as six timed steps — Search PubMed, Filter new papers,
 Retrieve & extract, Validate, Merge to database, Finalize — declared once in
-`pipeline/steps.py` and read by the About page's widget through
+`pipeline/steps.py` and read by the run widget through
 `lib/pipeline_encoding.json`.
 
 ### Retrieval

@@ -21,15 +21,14 @@ import { GOLD_DATA_DATE, GOLD_ONLY_NOTICE } from "../lib/gold_only.ts";
 import { formatLongDate } from "../lib/constants.ts";
 import { splitCellTypes } from "../lib/tooltips.ts";
 import type { PipelineRun, SyncRun } from "../lib/types.ts";
-import { RUN, runWith } from "./fixtures/pipeline_run.ts";
+import { RUN } from "./fixtures/pipeline_run.ts";
 import { sampleGene } from "./fixtures/rows.ts";
 
 const DATA_LABEL = '<strong class="note-label">Data:</strong>';
 
-// A run that searched a year: the notice reads its window off the report.
-const RECORDED_RUN: PipelineRun = runWith({
-  config: { ...RUN.config, daysBack: 365 },
-});
+// A recorded run, so the About page has one to ignore: the plain notice stands
+// in its place whatever the run holds.
+const RECORDED_RUN: PipelineRun = RUN;
 
 const RECORDED_REFRESH = {
   runTimestamp: "2026-09-02T03:00:00Z",

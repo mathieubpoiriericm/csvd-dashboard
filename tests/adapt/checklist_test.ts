@@ -74,10 +74,18 @@ Deno.test("the checklist substitutes the key into every command and lists the gu
     "deno task screenshots",
     "run the checks again",
   ]);
+  // The task takes the six tabs and the previews hub.
+  assertStringIncludes(text, "the six tabs and the previews hub");
   // The three review screenshots cannot be retaken: a fork has no review area.
   assertStringIncludes(
     text,
     "Your fork has no review area, so delete the three `docs/screenshots/review-*.webp` and their rows in the README",
+  );
+  // The hub's caption names upstream's three cards; a fork's hub holds the
+  // guide alone.
+  assertStringIncludes(
+    text,
+    "reword the hub's caption and alt text to what your hub holds, the adaptation guide alone",
   );
   // The upstream recall cassettes would be replayed in place of this
   // disease's recording, so they go with the test trees.
