@@ -63,8 +63,6 @@ import {
   countFaults,
   initialRadarState,
   isClean,
-  MARKER_BOX_PAD,
-  MARKER_REACH,
   markerGrowth,
   markerGrowthCap,
   nextRadarState,
@@ -270,7 +268,7 @@ function padded(box: Box, pad: Padding): Box {
 function hitRadius(marker: Marker, k: number): number {
   return k *
     (marker.evidenceRing
-      ? MARKER_REACH
+      ? EVIDENCE_RING_RADIUS + EVIDENCE_RING_WIDTH / 2
       : MARKER_DRAW_RADIUS + MARKER_RING_WIDTH / 2);
 }
 
@@ -284,7 +282,7 @@ function touchesMarker(box: Box, marker: Point, radius: number): boolean {
 
 /** The square a marker occupies, as an obstacle for the separation pass. */
 function markerBox(marker: Marker, k: number): Box {
-  const r = hitRadius(marker, k) + MARKER_BOX_PAD;
+  const r = hitRadius(marker, k) + 1;
   return {
     x: marker.point.x - r,
     y: marker.point.y - r,
@@ -954,9 +952,9 @@ export default function TrialsTimeline(
     initialRadarState(RADAR_MIN_ROOM)
   );
   // Markers grow to keep their size on screen too, but stop short of the
-  // obstacle squares of the closest pair (`markerBox`) overlapping.
+  // closest pair touching.
   const growthCap = useMemo(
-    () => markerGrowthCap(baseLayout.markers),
+    () => markerGrowthCap(baseLayout.markers, EVIDENCE_RING_RADIUS),
     [baseLayout],
   );
   const k = markerGrowth(scale, growthCap);

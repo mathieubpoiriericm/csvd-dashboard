@@ -31,7 +31,10 @@ interface MiniRadarProps {
  * the full radar's are), up to the point where the closest pair would touch.
  */
 export function MiniRadar({ layout, activeIndex, scale }: MiniRadarProps) {
-  const k = markerGrowth(scale, markerGrowthCap(layout.markers));
+  const k = markerGrowth(
+    scale,
+    markerGrowthCap(layout.markers, EVIDENCE_RING_RADIUS),
+  );
   // Count what the list under the figure names: the trials on a phase ring,
   // and the populations they belong to. A sector's `drugCount` also counts
   // trials whose phase has no ring, which the list leaves out, so the legend

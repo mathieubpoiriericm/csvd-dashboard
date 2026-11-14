@@ -1,4 +1,4 @@
-import { assertAlmostEquals, assertEquals } from "@std/assert";
+import { assertEquals } from "@std/assert";
 
 import {
   type Box,
@@ -15,8 +15,6 @@ import {
   HYSTERESIS,
   initialRadarState,
   isClean,
-  MARKER_BOX_PAD,
-  MARKER_REACH,
   markerGrowth,
   markerGrowthCap,
   nextRadarState,
@@ -41,43 +39,10 @@ Deno.test("plateScale is the rendered over the drawn width, within (0, 1]", () =
   assertEquals(plateScale(0), 1);
 });
 
-Deno.test("markerGrowthCap keeps the closest pair's obstacle squares apart", () => {
-  // Half the larger axis distance, less the fixed pad, over the reach.
-  assertAlmostEquals(
-    markerGrowthCap([at(0, 0), at(30, 0), at(300, 0)], 12, 0),
-    1.25,
-    1e-6,
-  );
-  assertAlmostEquals(markerGrowthCap([at(0, 0), at(30, 0)], 7, 1), 2, 1e-6);
-  // A diagonal pair is as close as its larger axis distance, not its
-  // straight-line one: squares meet sooner than circles.
-  assertAlmostEquals(markerGrowthCap([at(0, 0), at(30, 40)], 19, 1), 1, 1e-6);
-  assertEquals(markerGrowthCap([at(0, 0)]), Infinity);
-  assertEquals(markerGrowthCap([]), Infinity);
-});
-
-Deno.test("at the cap, no two marker squares overlap", () => {
-  const markers = [at(0, 0), at(41, 23), at(90, -7), at(60, 60)];
-  const k = markerGrowthCap(markers);
-  const square = (m: Marker) => {
-    const r = MARKER_REACH * k + MARKER_BOX_PAD;
-    return box(m.point.x - r, m.point.y - r, 2 * r, 2 * r);
-  };
-  const faults = countFaults({
-    labels: [],
-    markers: markers.map(square),
-    plate: PLATE,
-  });
-  assertEquals(faults.markerPairs, 0);
-  // A little past it, the closest pair does.
-  const past = markers.map((m) => {
-    const r = MARKER_REACH * k * 1.01 + MARKER_BOX_PAD;
-    return box(m.point.x - r, m.point.y - r, 2 * r, 2 * r);
-  });
-  assertEquals(
-    countFaults({ labels: [], markers: past, plate: PLATE }).markerPairs,
-    1,
-  );
+Deno.test("markerGrowthCap is half the closest pair over the radius", () => {
+  assertEquals(markerGrowthCap([at(0, 0), at(30, 0), at(300, 0)], 12), 1.25);
+  assertEquals(markerGrowthCap([at(0, 0)], 12), Infinity);
+  assertEquals(markerGrowthCap([], 12), Infinity);
 });
 
 Deno.test("markerGrowth restores rest size, capped and never below 1", () => {
