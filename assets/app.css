@@ -7637,25 +7637,25 @@ button.adapt-card-head:focus-visible {
 }
 
 /* The track runs from 0 to 1 and is filled to the finding's score, which
-   arrives as `--pipeline-conf`. A finding the run kept fills in the
-   primary; one it did not, in the muted ink, so the fill never reads as
-   "passed" on a row that did not. */
+   arrives as `--pipeline-conf`. The fill is one solid colour, the score's
+   place on a scale from the danger red to the ok green: `oklch` takes the
+   shorter hue arc between the two, which passes through amber. A kept
+   finding and a held one are drawn alike -- the list each sits in and the
+   floor ticks say which it was. A track given no score (the legend's
+   sample) fills to 0% and shows no colour. */
 .pipeline-conf-track {
+  --pipeline-conf-fill: color-mix(
+    in oklch,
+    var(--svd-color-danger),
+    var(--svd-color-ok) var(--pipeline-conf, 0%)
+  );
   position: relative;
   flex: none;
   width: 6rem;
   height: 6px;
   background: linear-gradient(
     to right,
-    var(--svd-text-muted) var(--pipeline-conf, 0%),
-    var(--svd-border) var(--pipeline-conf, 0%)
-  );
-}
-
-.pipeline-conf-track.is-kept {
-  background: linear-gradient(
-    to right,
-    var(--svd-color-primary) var(--pipeline-conf, 0%),
+    var(--pipeline-conf-fill) var(--pipeline-conf, 0%),
     var(--svd-border) var(--pipeline-conf, 0%)
   );
 }

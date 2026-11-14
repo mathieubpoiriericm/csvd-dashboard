@@ -587,13 +587,12 @@ Deno.test("confidence is a number in words beside a track marked at the two floo
     markup,
     "0.45 to update a known gene, 0.65 to add a new one",
   );
-  // The accepted finding's track is filled to its score, in the ink of a
-  // finding that was kept; the rejected one's is not.
-  assertMatch(
-    markup,
-    /pipeline-conf-track is-kept"[^>]*--pipeline-conf:\s*100%/,
-  );
+  // Each track is filled to its score, and the score is all it is given:
+  // the stylesheet takes the fill's colour from it, so a kept finding and a
+  // rejected one are drawn by the same rule.
+  assertMatch(markup, /pipeline-conf-track"[^>]*--pipeline-conf:\s*100%/);
   assertMatch(markup, /pipeline-conf-track"[^>]*--pipeline-conf:\s*60%/);
+  assertNotMatch(markup, /is-kept/);
   // A finding with no score has no track, and no "Confidence".
   const unscored = detailsOf(
     rejecting([lowGene("GENE1", { confidence: null })]),

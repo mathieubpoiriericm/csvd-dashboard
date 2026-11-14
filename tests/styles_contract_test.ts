@@ -1618,6 +1618,35 @@ Deno.test("the neutral notice takes the accent, in both themes", () => {
   }
 });
 
+Deno.test("a confidence fills in one colour taken from a red-to-green scale", () => {
+  const flat = (text: string) =>
+    text.replace(/\s+/g, " ").replace(/\( /g, "(").replace(/ \)/g, ")").trim();
+  const track = flat(
+    css.match(/\.pipeline-conf-track\s*\{([^}]*)\}/)?.[1] ?? "",
+  );
+  assert(track !== "", "no `.pipeline-conf-track` rule found");
+  // The colour is the score's place between the danger and the ok, both
+  // theme tokens. A track given no score (the legend's sample) mixes at 0%
+  // and fills to 0%, so it shows no colour at all.
+  assertStringIncludes(
+    track,
+    "--pipeline-conf-fill: color-mix(in oklch, var(--svd-color-danger), " +
+      "var(--svd-color-ok) var(--pipeline-conf, 0%));",
+  );
+  // Two stops at the same place: a hard edge, so the fill is one solid
+  // colour and not a gradient along the bar.
+  assertStringIncludes(
+    track,
+    "background: linear-gradient(to right, " +
+      "var(--pipeline-conf-fill) var(--pipeline-conf, 0%), " +
+      "var(--svd-border) var(--pipeline-conf, 0%));",
+  );
+  assert(
+    !css.includes(".pipeline-conf-track.is-kept"),
+    "a kept finding's track takes the scale too",
+  );
+});
+
 Deno.test("the About notes wear the tip box's grammar", () => {
   // The two notes that head the About page are notes like the tips that
   // head the others: a hairline, a 2px rail, a 10% wash, the small type and
