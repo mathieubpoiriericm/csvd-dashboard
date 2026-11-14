@@ -240,7 +240,7 @@ Deno.test("a control owning several issues shows every distinct message", () => 
   // would only say the same fault again, so it stays unsaid.
   const offended = [
     issue("conditions[0]", "A condition substring cannot be empty."),
-    issue("conditions[1]", '"a-b" can never match.'),
+    issue("conditions[1]", '"a-b" is not in the folded form.'),
   ];
   const values: Record<string, string> = {
     "conditions[0]": "",
@@ -280,7 +280,7 @@ Deno.test("a control owning several issues shows every distinct message", () => 
     }).more,
     [
       "A condition substring cannot be empty.",
-      '"a-b" can never match.',
+      '"a-b" is not in the folded form.',
     ],
   );
 });

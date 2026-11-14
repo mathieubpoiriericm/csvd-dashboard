@@ -14,7 +14,7 @@
 
 import type { Middleware } from "fresh";
 
-import { SESSION_COOKIE } from "../lib/auth.ts";
+import { LOGIN_PATH, SESSION_COOKIE } from "../lib/auth.ts";
 
 export const LOGIN_LIMIT_WINDOW_MS = 60_000;
 export const LOGIN_PER_CLIENT_LIMIT = 5;
@@ -117,11 +117,53 @@ export function resolveOptions(
   };
 }
 
+/**
+ * The part of an address that names one client. An IPv6 address is grouped
+ * on its /64, the block one host or household is ordinarily given, so a
+ * single sender cannot mint a fresh client for every request from inside it
+ * and fill the tracked-client cap or the global limit on its own (which would
+ * refuse every other visitor's sign-in). The address is parsed and
+ * canonicalised first, so two spellings of one address group together; an
+ * IPv4-mapped IPv6 address is keyed as the IPv4 address it carries. Anything
+ * that does not parse as IPv6 (an IPv4 address, a malformed header) is kept
+ * as it was.
+ */
+export function addressKey(address: string): string {
+  const trimmed = address.trim();
+  if (!trimmed.includes(":")) return trimmed;
+  let canonical: string;
+  try {
+    canonical = new URL(`http://[${trimmed.replace(/^\[|\]$/g, "")}]/`)
+      .hostname.slice(1, -1);
+  } catch {
+    return trimmed;
+  }
+  const [head, tail] = canonical.split("::");
+  const left = head ? head.split(":") : [];
+  const right = tail ? tail.split(":") : [];
+  const groups = tail === undefined
+    ? left
+    : [...left, ...Array(8 - left.length - right.length).fill("0"), ...right];
+  if (groups.length !== 8) return trimmed;
+  const hextets = groups.map((group) => parseInt(group, 16));
+  if (hextets.slice(0, 5).every((n) => n === 0) && hextets[5] === 0xffff) {
+    return [
+      hextets[6] >> 8,
+      hextets[6] & 255,
+      hextets[7] >> 8,
+      hextets[7] & 255,
+    ].join(".");
+  }
+  return `${groups.slice(0, 4).join(":")}::/64`;
+}
+
 /** The socket peer only: source ports and client-controlled forwarding headers are ignored. */
 export function remoteClientKey(
   address: Deno.ServeHandlerInfo["remoteAddr"],
 ): string {
-  if ("hostname" in address) return `${address.transport}:${address.hostname}`;
+  if ("hostname" in address) {
+    return `${address.transport}:${addressKey(address.hostname)}`;
+  }
   if ("path" in address) return `${address.transport}:${address.path}`;
   return address.transport;
 }
@@ -129,8 +171,9 @@ export function remoteClientKey(
 /**
  * The key one client is counted under: the value of the trusted client-IP
  * header when `header` names one and the request carries it, the socket peer
- * otherwise. Every limiter and the adapt session routes derive the key here,
- * so they can never disagree about who a client is. `header` may be the
+ * otherwise, with an IPv6 address grouped on its /64 (addressKey). Every
+ * limiter and the adapt session routes derive the key here, so they can
+ * never disagree about who a client is. `header` may be the
  * environment's raw value; resolveOptions() has already refused a bad one at
  * start-up.
  */
@@ -141,7 +184,7 @@ export function clientKeyOf(
   const name = header?.trim();
   const forwarded = name ? ctx.req.headers.get(name) : null;
   return forwarded
-    ? `header:${forwarded}`
+    ? `header:${addressKey(forwarded)}`
     : remoteClientKey(ctx.info.remoteAddr);
 }
 
@@ -186,7 +229,13 @@ export class AttemptLedger {
     this.#options = options;
   }
 
-  reserve(client: string): Reservation {
+  /**
+   * `perClientOnly` reserves against the client's own limit alone, for a
+   * request that other clients' attempts must not refuse. Its reservation
+   * still joins the ledger, so while pending or once counted it weighs on
+   * everyone else's global and tracked-client checks as any other does.
+   */
+  reserve(client: string, perClientOnly = false): Reservation {
     const now = this.#options.now();
     this.#prune(now);
 
@@ -195,11 +244,13 @@ export class AttemptLedger {
     if (clientAttempts.length >= this.#options.perClientLimit) {
       waits.push(this.#retryAfter(clientAttempts, now));
     }
-    if (this.#attempts.length >= this.#options.globalLimit) {
+    if (
+      !perClientOnly && this.#attempts.length >= this.#options.globalLimit
+    ) {
       waits.push(this.#retryAfter(this.#attempts, now));
     }
     if (
-      clientAttempts.length === 0 &&
+      !perClientOnly && clientAttempts.length === 0 &&
       this.#byClient.size >= this.#options.maxTrackedClients
     ) {
       waits.push(this.#retryAfterTrackedClientSlot(now));
@@ -297,15 +348,53 @@ export class AttemptLedger {
   }
 }
 
-function tooManyRequests(retryAfterSeconds: number): Response {
-  return new Response("Too many sign-in attempts. Try again later.", {
-    status: 429,
-    headers: {
-      "Cache-Control": "private, no-store",
-      "Content-Type": "text/plain; charset=utf-8",
-      "Retry-After": String(retryAfterSeconds),
+/**
+ * The wait in words, rounded up to whole minutes: the per-client window is a
+ * minute, so this is usually "about a minute".
+ */
+export function waitInWords(retryAfterSeconds: number): string {
+  const minutes = Math.max(1, Math.ceil(retryAfterSeconds / 60));
+  return minutes === 1 ? "about a minute" : `about ${minutes} minutes`;
+}
+
+/**
+ * The login refusal, as a page: a browser shows it in place of the form, so
+ * it carries a title, a language, the wait in words (Retry-After is not shown
+ * to anyone) and a way back to <basePath>/login (absolute: the POST may have
+ * come in on an alias such as "/login/"). The wording blames no one, because
+ * the global limit and the tracked-client cap refuse visitors who never
+ * failed. A static string, not the login card: the limiter runs before any
+ * route renders.
+ */
+export function tooManyRequests(
+  retryAfterSeconds: number,
+  basePath = "",
+): Response {
+  const wait = waitInWords(retryAfterSeconds);
+  const back = escapeAttribute(`${basePath}${LOGIN_PATH}`);
+  return new Response(
+    `<!doctype html><html lang="en"><head><meta charset="utf-8">` +
+      `<meta name="viewport" content="width=device-width, initial-scale=1">` +
+      `<title>Too many sign-in attempts</title></head><body>` +
+      `<main><h1>Too many sign-in attempts</h1>` +
+      `<p role="alert">This site has received too many sign-in attempts ` +
+      `right now. Please try again in ${wait}.</p>` +
+      `<p><a href="${back}">Back to sign in</a></p></main>` +
+      `</body></html>`,
+    {
+      status: 429,
+      headers: {
+        "Cache-Control": "private, no-store",
+        "Content-Type": "text/html; charset=utf-8",
+        "Retry-After": String(retryAfterSeconds),
+      },
     },
-  });
+  );
+}
+
+function escapeAttribute(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;");
 }
 
 function issuedSession(response: Response): boolean {
@@ -354,12 +443,15 @@ export function loginPostLimiter<State>(
  * uncounted; `outcomeOf` turns the route's response into what the ledger
  * records; `refuse` is the answer once the client or the process is over its
  * limit. A route that throws releases its reservation as "other".
+ * `perClientOnly` names the matches held to the client's own limit alone
+ * (AttemptLedger.reserve); by default every match is held to all three.
  */
 export function postLimiter<State, Match>(
   resolved: ResolvedOptions,
   match: (pathname: string, basePath: string) => Match | null,
   outcomeOf: (response: Response, match: Match) => AttemptOutcome,
-  refuse: (retryAfterSeconds: number) => Response,
+  refuse: (retryAfterSeconds: number, basePath: string) => Response,
+  perClientOnly: (match: Match) => boolean = () => false,
 ): Middleware<State> {
   const header = resolved.trustedClientIpHeader;
   const ledger = new AttemptLedger(resolved);
@@ -370,8 +462,13 @@ export function postLimiter<State, Match>(
       : null;
     if (matched === null) return await ctx.next();
 
-    const reservation = ledger.reserve(clientKeyOf(ctx, header));
-    if (!reservation.allowed) return refuse(reservation.retryAfterSeconds);
+    const reservation = ledger.reserve(
+      clientKeyOf(ctx, header),
+      perClientOnly(matched),
+    );
+    if (!reservation.allowed) {
+      return refuse(reservation.retryAfterSeconds, ctx.config.basePath);
+    }
 
     let response: Response;
     try {

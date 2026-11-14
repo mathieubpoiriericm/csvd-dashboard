@@ -3,7 +3,9 @@
 # The tag is an exact patch of the 2.9 LTS line. Deno 2.9 receives monthly
 # bug-fix and security releases until October 2027 and nothing after, so
 # bumping this tag each month is the whole of this image's security
-# maintenance. Keep it equal to the Deno that runs locally and in CI.
+# maintenance. Keep it equal to the Deno that runs locally and to every
+# `deno-version` in .github/workflows/ci.yml, and bump them together:
+# tests/deno_version_pin_test.ts fails when they differ.
 FROM denoland/deno:2.9.8
 
 WORKDIR /app

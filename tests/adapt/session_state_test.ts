@@ -185,6 +185,23 @@ Deno.test("a failed resume keeps its window open with the reason, until reopened
   assertEquals(closed.resumeError, "");
 });
 
+Deno.test("a declined resume closes its window and says so, without an error", () => {
+  const declined = sessionReducer(
+    { ...attached(), dialog: "resume", saving: true },
+    { type: "resume-declined", epoch: 0 },
+  );
+  assertEquals(declined.dialog, "none");
+  assertEquals(declined.resumeError, "");
+  assertEquals(declined.saving, false);
+  assertEquals(declined.message, SESSION_COPY.resumeDeclined);
+  assertEquals(declined.link, LINK);
+  // A second try clears it as it starts, so a second "no" is said again.
+  assertEquals(
+    sessionReducer(declined, { type: "resume-started" }).message,
+    "",
+  );
+});
+
 Deno.test("the resume window cannot be closed while its request runs", () => {
   const busy: SessionState = {
     ...INITIAL_SESSION,
@@ -295,6 +312,7 @@ Deno.test("a save that lands after Start over is dropped", () => {
     { type: "save-failed", message: "x", epoch: saving.epoch },
     { type: "resumed", link: LINK, epoch: saving.epoch },
     { type: "resume-failed", message: "x", epoch: saving.epoch },
+    { type: "resume-declined", epoch: saving.epoch },
   ];
   for (const event of late) {
     assertStrictEquals(sessionReducer(detached, event), detached);

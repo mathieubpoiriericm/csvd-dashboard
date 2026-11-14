@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { STATUS_SUMMARY, TRIAL_TOTAL } from "../../fixtures/expected-data.ts";
-import { banner, pageSizeSelect, rows } from "../../helpers.ts";
+import { banner, pageSizeSelect, rows, wholePage } from "../../helpers.ts";
 
 /**
  * The trials table over the committed cSVD rows, by drug and search term:
@@ -134,12 +134,19 @@ test("the smallest stated enrolment is fifteen", async ({ page }) => {
     page.getByRole("columnheader", { name: "Target Sample Size" }),
   ).toHaveAttribute("aria-sort", "ascending");
 
+  // Read every row, not only the first page: the claim is about every trial,
+  // and a trial with no enrolment sorts last (sortUndefined: "last").
+  await pageSizeSelect(page).selectOption("100");
+  await wholePage(page);
+
   const sizes = await rows(page).locator("td:nth-child(11)").allInnerTexts();
   // Every gold trial states its enrolment, so every row here reads a real
   // number, with no "(unknown)" sentinel to sort ahead of them; THN391's
-  // fifteen is the smallest.
+  // fifteen is the smallest. Filtering for NaN rather than
+  // `not.toContain(NaN)`: toContain compares with indexOf, which never finds
+  // NaN, so that assertion could not fail.
   const numbers = sizes.map((size) => Number(size.trim()));
-  expect(numbers).not.toContain(NaN);
+  expect(sizes.filter((_, i) => !Number.isFinite(numbers[i]))).toEqual([]);
   expect(numbers[0]).toBe(15);
 });
 

@@ -256,15 +256,19 @@ their reasons:
   closes the drawer (the reset effect keys on `baseLayout`, the rest layout of
   the selection).
 - **Markers grow to keep their size, up to a cap.** `markerGrowth(scale, cap)`
-  is `max(1, min(1/scale, cap))`, `cap = markerGrowthCap()` is half the
-  closest pair's centre distance over the evidence ring's radius, so two
-  markers never touch however far the plate shrinks. The factor `k` multiplies
+  is `max(1, min(1/scale, cap))`, and `cap = markerGrowthCap()` is the
+  largest `k` at which no two of the obstacle squares `countFaults` tests
+  (half-side `MARKER_REACH * k + MARKER_BOX_PAD`: the evidence ring's outer
+  stroke edge plus a fixed 1-unit pad) overlap. Squares meet on the larger
+  of the two axis distances, not the centre distance, so the cap uses that;
+  growth alone can then never produce a `markerPairs` fault, and two markers
+  never touch however far the plate shrinks. The factor `k` multiplies
   marker, ring and gap radii and is published as `--radar-k` on the svg; the
   hover lift is `calc(12px * var(--radar-k, 1))`, so a test reads the lifted
   radius divided by `--radar-k`. The drug-label offset grows with it
   (`computeTimelineLayout`'s `labelOffset` option), which changes no shared
   number at its default, so the print figure and both layout tests stand. For
-  the committed data the cap is a little over 2, not the ~15 units apart the
+  the committed data the cap is about 1.87, not the ~15 units apart the
   spec guessed; `k` was about 1.73 at 0.63 scale.
 - **Where the radar gives way is decided at runtime, from the data on screen.**
   A hard-coded width is wrong after a data regeneration, in a fork and under

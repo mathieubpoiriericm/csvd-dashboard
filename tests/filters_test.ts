@@ -3,6 +3,7 @@ import { assert, assertEquals } from "@std/assert";
 import {
   buildFilterSummary,
   defaultTrialFilters,
+  FILTER_VALUE_SEPARATOR,
   filterGenes,
   filterLocationsByStatus,
   filterTrials,
@@ -15,6 +16,7 @@ import { formatTrialPlace, registryOf } from "../lib/trials.ts";
 import { genes, trials } from "../lib/data.ts";
 import type { Trial } from "../lib/types.ts";
 import { sampleGene, sampleTrial, swapAsciiCase } from "./fixtures/rows.ts";
+import * as CONSTANTS from "../lib/constants.ts";
 import {
   DEFAULT_TRIAL_STATUSES,
   defaultTrialStatuses,
@@ -416,8 +418,39 @@ Deno.test("buildFilterSummary prints choice labels, not wire values", () => {
     },
   ]);
   assertEquals(summary, [
-    "Clinical Trial Phase: Phase not stated, Phase I",
+    "Clinical Trial Phase: Phase not stated; Phase I",
   ]);
+});
+
+// A label with a comma of its own (a trait label is free text) once made two
+// selected choices read as several, as "Active, not recruiting" did.
+Deno.test("buildFilterSummary keeps a comma inside one label readable", () => {
+  const summary = buildFilterSummary([
+    {
+      label: "GWAS Trait",
+      value: ["a", "b"],
+      choices: [
+        { label: "Joint (A, B, C)", value: "a" },
+        { label: "B", value: "b" },
+      ],
+    },
+  ]);
+  assertEquals(summary, ["GWAS Trait: Joint (A, B, C); B"]);
+});
+
+Deno.test("no filter choice label holds the summary's separator", () => {
+  const lists = Object.entries(CONSTANTS).filter(([name, value]) =>
+    name.endsWith("_CHOICES") && Array.isArray(value)
+  ) as [string, readonly { label: string }[]][];
+  assert(lists.some(([name]) => name === "GWAS_TRAIT_CHOICES"));
+  for (const [name, choices] of lists) {
+    for (const { label } of choices) {
+      assert(
+        !label.includes(FILTER_VALUE_SEPARATOR.trim()),
+        `${name}: "${label}" holds "${FILTER_VALUE_SEPARATOR.trim()}"`,
+      );
+    }
+  }
 });
 
 Deno.test("status choices derive from the vocabulary and the run default hides Completed, Suspended and Unknown", () => {

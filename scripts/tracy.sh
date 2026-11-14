@@ -178,7 +178,7 @@ run() {
     # background job, it ignores the terminal's Ctrl-C, which goes to the
     # client in the foreground; the capture then saves when the client ends.
     (
-        until nc -z -G 1 127.0.0.1 "$port" 2> /dev/null; do sleep 0.1; done
+        until nc -z -w 1 127.0.0.1 "$port" 2> /dev/null; do sleep 0.1; done
         exec "$capture" -o "$trace" -p "$port" > "${trace%.tracy}.log" 2>&1 < /dev/null
     ) &
     local waiter=$! status=0

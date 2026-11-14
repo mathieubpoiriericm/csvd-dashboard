@@ -90,7 +90,11 @@ Nine things are non-obvious enough to state here:
   probe below was run against the live app on 2 November 2026: it does, and a
   visitor cannot pick their own bucket. Were that ever to change, the global
   limit, which keys on nothing a client sends, would still cap guessing at 64 a
-  minute.
+  minute. That limit, and the cap of 64 tracked clients, refuse everyone once
+  full: a sender with many real addresses can hold them there, and every new
+  sign-in answers 429 while existing cookies keep working. An IPv6 client is
+  keyed on its /64, so one host cannot do it alone. See
+  `.claude/rules/login.md`.
 - **Fly's health check is liveness only, and cannot see a missing login
   secret.** Fly's checks pass on a 2xx and follow no redirect, and `/login` is
   the one page that answers 200 without a session. The gate exempts it before
@@ -119,6 +123,15 @@ Nine things are non-obvious enough to state here:
   2.9 LTS line receives monthly bug-fix and security releases until October 2027
   and nothing after, so that monthly bump, together with the local Deno, is the
   image's security maintenance. After October 2027 the app has to be off Deno.
+  Every `deno-version` in `.github/workflows/ci.yml` names the same exact
+  patch, so CI tests the runtime production serves; bump the `FROM` tag and
+  those lines in one commit (`tests/deno_version_pin_test.ts` fails when they
+  differ).
+- **`fly.toml` sets `[http_service.concurrency]`** to `requests`, soft 100 and
+  hard 150. Fly's default (20/25 connections) is far below what one Deno
+  process serving pre-bundled pages handles, and with one machine the proxy
+  has no other candidate once it is reached. Raise the limits after a load
+  test, not past what the 512 MB `shared-cpu-1x` VM sustains.
 
 Because `data/*.json` is committed and bundled at build time, regenerating data
 and pushing it to `main` republishes the site — `tests/filters_test.ts`'s caveat
@@ -175,7 +188,9 @@ the 1 GB volume from filling (`server/adapt_sessions.ts`): at 500 session files
 bytes together (`SESSION_BYTES_BUDGET`), a create or a revival answers "full";
 a save to an existing session is refused as "full" only when it would grow the
 total past the budget. One connection holds at most 50 live sessions
-(`SESSION_PER_CLIENT_CAP`): past that a create or a revival from it answers 429
+(`SESSION_PER_CLIENT_CAP`) and 25,000,000 bytes of them
+(`SESSION_PER_CLIENT_BYTES`), an IPv6 connection being its /64: past either a
+create or a revival from it answers 429
 `quota`, and its saves to existing sessions still pass. The store learns the
 connection from an owner tag, never its address: beside each session an empty
 `<sha256>.<tag>.own` marker, whose tag is a 16-hex-character keyed hash
@@ -251,7 +266,7 @@ process ("Exactly one machine" above), which a second machine changes as well.
 | Symptom                                                          | Cause and fix                                                                                                                                                                                                                                                                                            |
 | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | every gated page answers 503, `/login` renders                   | a login secret is unset: `fly secrets list`, then `fly secrets set` the missing one (this restarts the machine)                                                                                                                                                                                          |
-| everyone gets "Too many sign-in attempts" at once                | `LOGIN_CLIENT_IP_HEADER` is missing from `fly.toml`'s `[env]`, or `fly status` lists more than one machine                                                                                                                                                                                               |
+| everyone gets "Too many sign-in attempts" at once                | `LOGIN_CLIENT_IP_HEADER` is missing from `fly.toml`'s `[env]`, or `fly status` lists more than one machine; or someone is filling the global limit from many addresses (`fly logs` shows the login POSTs): `fly machine restart` clears the in-process ledger, and an edge rate limit is the lasting fix |
 | the CI `deploy` job printed "FLY_API_TOKEN is not set"           | this repository holds no token, which is expected on the second remote and on a fork that hosts elsewhere                                                                                                                                                                                                |
 | the `container` job's push step fails, so nothing deploys        | `flyctl auth docker` or `docker push` to `registry.fly.io` was refused: check the token (`fly tokens create deploy`) and the app name in `fly.toml`; the live site keeps the previous release                                                                                                            |
 | `deploy` fails with the image not found                          | this commit's image is not in the registry: the token was added after the run's `container` job had skipped the push and only `deploy` was re-run, or an old run's `deploy` was re-run after the image left Fly's registry. Re-run the whole workflow                                                    |

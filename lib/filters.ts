@@ -332,6 +332,15 @@ interface FilterSummarySpec {
   choices?: readonly FilterChoice[];
 }
 
+/**
+ * What joins one group's selected choices in the "Active Filters:" line.
+ *
+ * Not ", ": a choice label may hold a comma of its own (a trait label is free
+ * text in the vocabulary), and then two selected choices read as several.
+ * `TableShell` already joins the groups with " | ", so this is neither.
+ */
+export const FILTER_VALUE_SEPARATOR = "; ";
+
 /** Builds the "Active Filters: …" fragments shown above each table. */
 export function buildFilterSummary(
   specs: readonly FilterSummarySpec[],
@@ -343,6 +352,6 @@ export function buildFilterSummary(
         spec.choices?.find((choice) => choice.value === value)?.label ??
           value
       );
-      return `${spec.label}: ${named.join(", ")}`;
+      return `${spec.label}: ${named.join(FILTER_VALUE_SEPARATOR)}`;
     });
 }

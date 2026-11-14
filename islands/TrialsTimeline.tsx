@@ -63,6 +63,8 @@ import {
   countFaults,
   initialRadarState,
   isClean,
+  MARKER_BOX_PAD,
+  MARKER_REACH,
   markerGrowth,
   markerGrowthCap,
   nextRadarState,
@@ -268,7 +270,7 @@ function padded(box: Box, pad: Padding): Box {
 function hitRadius(marker: Marker, k: number): number {
   return k *
     (marker.evidenceRing
-      ? EVIDENCE_RING_RADIUS + EVIDENCE_RING_WIDTH / 2
+      ? MARKER_REACH
       : MARKER_DRAW_RADIUS + MARKER_RING_WIDTH / 2);
 }
 
@@ -282,7 +284,7 @@ function touchesMarker(box: Box, marker: Point, radius: number): boolean {
 
 /** The square a marker occupies, as an obstacle for the separation pass. */
 function markerBox(marker: Marker, k: number): Box {
-  const r = hitRadius(marker, k) + 1;
+  const r = hitRadius(marker, k) + MARKER_BOX_PAD;
   return {
     x: marker.point.x - r,
     y: marker.point.y - r,
@@ -621,6 +623,8 @@ interface TrialDrawerProps {
   marker: Marker | null;
   closeRef: Ref<HTMLButtonElement>;
   onClose: () => void;
+  /** Whether the drawer sits above the plate, which lifts its height cap. */
+  stacked?: boolean;
 }
 
 /**
@@ -724,11 +728,16 @@ function TrialRecord(
   );
 }
 
-function TrialDrawer({ layout, marker, closeRef, onClose }: TrialDrawerProps) {
+function TrialDrawer(
+  { layout, marker, closeRef, onClose, stacked }: TrialDrawerProps,
+) {
   const drawerRef = useRef<HTMLElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
 
   // A layout effect, so the record is never painted at the wrong size first.
+  // `stacked` is a dependency because stacking lifts the drawer's cap and the
+  // island decides it after a settled label solve, not on a window resize:
+  // the resize listener has already fitted against the old cap by then.
   useLayoutEffect(() => {
     const drawer = drawerRef.current;
     const body = bodyRef.current;
@@ -737,7 +746,7 @@ function TrialDrawer({ layout, marker, closeRef, onClose }: TrialDrawerProps) {
     fit();
     globalThis.addEventListener("resize", fit);
     return () => globalThis.removeEventListener("resize", fit);
-  }, [marker]);
+  }, [marker, stacked]);
 
   return (
     <aside
@@ -945,9 +954,9 @@ export default function TrialsTimeline(
     initialRadarState(RADAR_MIN_ROOM)
   );
   // Markers grow to keep their size on screen too, but stop short of the
-  // closest pair touching.
+  // obstacle squares of the closest pair (`markerBox`) overlapping.
   const growthCap = useMemo(
-    () => markerGrowthCap(baseLayout.markers, EVIDENCE_RING_RADIUS),
+    () => markerGrowthCap(baseLayout.markers),
     [baseLayout],
   );
   const k = markerGrowth(scale, growthCap);
@@ -1761,6 +1770,7 @@ export default function TrialsTimeline(
           marker={radar.mode === "phone" ? null : activeMarker}
           closeRef={closeRef}
           onClose={close}
+          stacked={radar.stacked}
         />
         <TrialDialog
           layout={layout}

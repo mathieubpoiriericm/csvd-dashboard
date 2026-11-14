@@ -6,7 +6,10 @@ import { resolve } from "node:path";
 import type { Connect, Plugin } from "vite";
 
 import { loginConfig, SESSION_COOKIE, verifySession } from "../lib/auth.ts";
-import { isProtectedDataModule } from "./protected_data_assets.ts";
+import {
+  isProtectedDataModule,
+  isUnparseableDenoFileModuleId,
+} from "./protected_data_assets.ts";
 
 const PRIVATE_NO_STORE = "private, no-store";
 const ENCODED_BYTE = /%[0-9A-Fa-f]{2}/;
@@ -63,6 +66,9 @@ function isProtectedModuleId(
   if (hasProtectedOwnership(moduleId)) {
     return true;
   }
+  // A Deno-wrapped file specifier the guard cannot read is denied rather
+  // than called public: the plugin's loader may still read it.
+  if (isUnparseableDenoFileModuleId(moduleId)) return true;
   return /\.map$/i.test(moduleId) &&
     hasProtectedOwnership(moduleId.slice(0, -".map".length));
 }

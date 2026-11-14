@@ -90,7 +90,7 @@ test("registry filtering keys off the ID prefix", async ({ page }) => {
   await expectRowCount(page, T.registryUnion!, TRIAL_TOTAL);
   await expectSummary(
     page,
-    withStatusSummary(`Clinical Trial Registry: ${first.label}, ${second.label}`),
+    withStatusSummary(`Clinical Trial Registry: ${first.label}; ${second.label}`),
   );
 });
 
@@ -118,7 +118,7 @@ test("phase I does not match phase II or III", async ({ page }) => {
   await expectRowCount(page, T.phaseUnion!, TRIAL_TOTAL);
   await expectSummary(
     page,
-    withStatusSummary(`Clinical Trial Phase: ${two.label}, ${three.label}`),
+    withStatusSummary(`Clinical Trial Phase: ${two.label}; ${three.label}`),
   );
 });
 

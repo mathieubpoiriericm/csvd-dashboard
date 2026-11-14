@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import os from "node:os";
 import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
@@ -19,8 +20,17 @@ import { PASSPHRASE, SESSION_SECRET, STORAGE_STATE } from "./fixtures/auth.ts";
  * listening on the port must have been started with the same two values or
  * the setup project cannot sign in.
  */
-// Separate worktrees must not reuse or replace one another's test server.
-const PORT = Number(process.env.E2E_PORT ?? 8000);
+// Playwright loads this config as CommonJS, hence `__dirname`. Separate
+// worktrees must not reuse or replace one another's test server, so
+// without E2E_PORT the port is derived from this checkout's path: stable
+// across the workers Playwright evaluates this config in, different between
+// checkouts (bar a hash collision), below Linux's ephemeral range (32768 up) and clear of the 8000
+// `deno task start` and the perf harness listen on. An explicit E2E_PORT, as
+// every CI runner sets, wins.
+const CHECKOUT = path.resolve(__dirname, "..");
+const DERIVED_PORT = 9000 +
+  createHash("sha1").update(CHECKOUT).digest().readUInt32BE(0) % 21000;
+const PORT = Number(process.env.E2E_PORT || DERIVED_PORT);
 if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) {
   throw new Error("E2E_PORT must be an integer between 1 and 65535");
 }

@@ -523,22 +523,50 @@ Deno.test("generated map metadata and coordinates are internally consistent", ()
     [...new Set(expectedNctIds)].sort(),
   );
 
+  // Against the raw committed JSON, not the normalized boundary: the
+  // normalizer drops a row whose id or coordinates it cannot read and trims
+  // every text field, so asserting through it would pass over exactly the
+  // regression this is here to catch.
   const knownNctIds = new Set<string>(rawGeocodedJson.nctIds);
-  for (const [index, location] of trialLocations.entries()) {
-    assert(typeof location.nctId === "string");
+  const rawLocations = rawGeocodedJson.locations as unknown[];
+  for (const [index, entry] of rawLocations.entries()) {
+    const location = entry as Record<string, unknown>;
+    assert(
+      typeof location.nctId === "string" && location.nctId !== "",
+      `geocoded row ${index} needs an nctId`,
+    );
     for (const field of LOCATION_NULLABLE_STRING_FIELDS) {
+      const value = location[field];
       assert(
-        location[field] === null || typeof location[field] === "string",
+        value === null || typeof value === "string",
         `geocoded row ${index} field ${field} must be a string or null`,
       );
-      if (location[field] !== null) {
-        assertEquals(location[field], location[field].trim());
+      if (typeof value === "string") {
+        assertEquals(
+          value,
+          value.trim(),
+          `geocoded row ${index} field ${field} has edge whitespace`,
+        );
       }
     }
     assert(knownNctIds.has(location.nctId));
-    assert(Number.isFinite(location.lat));
-    assert(Number.isFinite(location.lon));
-    assert(location.lat >= -90 && location.lat <= 90);
-    assert(location.lon >= -180 && location.lon <= 180);
+    const { lat, lon } = location;
+    assert(
+      typeof lat === "number" && Number.isFinite(lat) && lat >= -90 &&
+        lat <= 90,
+      `geocoded row ${index} lat must be a number in [-90, 90]`,
+    );
+    assert(
+      typeof lon === "number" && Number.isFinite(lon) && lon >= -180 &&
+        lon <= 180,
+      `geocoded row ${index} lon must be a number in [-180, 180]`,
+    );
   }
+
+  // Every raw row survives normalization, so none silently leaves the map.
+  assertEquals(
+    trialLocations.length,
+    rawLocations.length,
+    "the normalizer dropped a committed geocoded row",
+  );
 });

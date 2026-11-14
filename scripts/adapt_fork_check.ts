@@ -58,13 +58,14 @@ export function shard(names: readonly string[], spec: string): string[] {
   return names.filter((_, i) => i % n === k - 1);
 }
 
-/** The trees and the cassettes checklist step 3 deletes. */
+/** The trees, the cassettes and the gold tables checklist step 3 deletes. */
 export const UPSTREAM_TESTS: readonly string[] = [
   "tests/csvd",
   "e2e/tests/csvd",
   "tests/pipeline/csvd",
   "tests/scripts/csvd",
   "tests/pipeline/cassettes/test_query_recall_gold",
+  "disease/gold",
 ];
 
 const PYTHON_ENV = {

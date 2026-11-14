@@ -100,6 +100,16 @@ function limited(retryAfterSeconds: number): Response {
  * that someone who mistypes their code ten times waits out the window.
  * The client is identified exactly as the login
  * limiter identifies it, `trustedClientIpHeader` included.
+ *
+ * A save is held to its own client's limit alone, not to the global or
+ * tracked-client ones: those fill with other clients' creates and wrong
+ * codes, and must not refuse a visitor's save to the session they hold. A
+ * save that revives a session still counts against its client like a create,
+ * and toward everyone else's global limit; across clients revivals are
+ * bounded by the store's caps (SESSION_CAP, SESSION_BYTES_BUDGET and the
+ * per-connection ones). Creates and resumes stay under all three limits,
+ * the global one being the defence against guessing codes from many
+ * addresses.
  */
 export function adaptSessionLimiter<State>(
   options: LoginPostLimiterOptions = {},
@@ -131,5 +141,6 @@ export function adaptSessionLimiter<State>(
         : "other";
     },
     limited,
+    (operation) => operation === "save",
   );
 }

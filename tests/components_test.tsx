@@ -155,6 +155,22 @@ Deno.test("CheckboxFilter renders selection state and its visible count", () => 
   assertMatch(one, /checked[^>]*><span>Yes<\/span>/);
 });
 
+Deno.test("CheckboxFilter is server-rendered disabled, so no box can be ticked before hydration", () => {
+  // Hydration reconciles neither `checked` nor `disabled`: a tick made in the
+  // server's HTML would reach no state, so the group stays disabled until the
+  // island's post-mount rerender turns it live.
+  const html = render(
+    <CheckboxFilter
+      label="Evidence"
+      choices={YES_NO_CHOICES}
+      selected={["Yes"]}
+      mode="binary"
+      onChange={() => {}}
+    />,
+  );
+  assertMatch(html, /^<fieldset class="filter-group" disabled/);
+});
+
 Deno.test("CheckboxFilter announces its active count to assistive tech, but only while constrained", () => {
   const choices = [{ label: "Show All", value: SHOW_ALL }, {
     label: "a",
@@ -490,7 +506,11 @@ Deno.test("TableShell renders descending and empty filtered states", () => {
     />,
   );
   assertStringIncludes(secondPage, 'aria-current="page" aria-label="Page 2"');
-  assertEquals((secondPage.match(/disabled/g) ?? []).length, 1);
+  // The last page's Next is `aria-disabled`, never `disabled`: a disabled
+  // button loses keyboard focus when the press that reached the last page
+  // disables it.
+  assertEquals((secondPage.match(/aria-disabled="true"/g) ?? []).length, 1);
+  assertNotMatch(secondPage, /\sdisabled(="|\s|>)/);
 });
 
 Deno.test("TableShell tags every cell with its column id", () => {
@@ -548,6 +568,16 @@ Deno.test("GeneticTargets prints a target's label verbatim and makes only the sy
     /GWAS for ischemic stroke: <(button|i)\b[^>]*>PDE3A<\/\1>/,
   );
   assertEquals((html.match(/class="tooltip-box/g) ?? []).length <= 1, true);
+});
+
+Deno.test("GeneticTargets prints a pair shorthand as written", () => {
+  // The second member keeps its bare digits on screen; the key it is looked
+  // up by (ABC2) is pinned in tests/trials_test.ts.
+  const html = render(<GeneticTargets value="ABC1/2" />);
+  assertMatch(
+    html,
+    /<(button|i)\b[^>]*>ABC1<\/\1>\/<(button|i)\b[^>]*>2<\/\2>/,
+  );
 });
 
 Deno.test("BrainCellTypesCell renders an em dash for the absent sentinel, before splitting", () => {

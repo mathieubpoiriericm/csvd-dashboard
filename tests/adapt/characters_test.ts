@@ -419,6 +419,10 @@ Deno.test("the key names each character it cannot hold and offers the key", () =
     'It has to start with a letter, not "2".',
   );
   assertEquals(diagnose("key", "2fast").fix, null);
+  // The key names `${key}_dashboard_preview` and the Fly host label.
+  assertEquals(diagnose("key", "a".repeat(40)).ok, true);
+  assertEquals(diagnose("key", "a".repeat(41)).ok, false);
+  assertEquals(diagnose("key", "A".repeat(41)).fix, null);
   assertEquals(diagnose("key", "   "), {
     ok: true,
     offences: [],
@@ -694,6 +698,7 @@ Deno.test("ruleFor maps each field path to its rule", () => {
   assertEquals(ruleFor("omimRows[0].omimNum"), "mim");
   assertEquals(ruleFor("rows[0].pmid"), "number");
   assertEquals(ruleFor("citationStandard.doi"), "doi");
+  assertEquals(ruleFor("traits[0].xref"), "plain");
   assertEquals(ruleFor("traits[0].family"), null);
 });
 

@@ -8,6 +8,7 @@
  * Run `deno task phenogram:metrics` after changing either font file;
  * `tests/phenogram_font_metrics_test.ts` fails until the table matches them.
  */
+import { fileURLToPath } from "node:url";
 import { woff2Metrics } from "../tests/helpers/woff2.ts";
 
 /** The weights the karyogram sets text in: pills at 400, symbols at 600. */
@@ -59,9 +60,12 @@ if (import.meta.main) {
     METRICS_PATH,
     JSON.stringify(fontMetricsTable(), null, 2) + "\n",
   );
+  // A URL's pathname is percent-encoded; a checkout under a path with a
+  // space would hand `deno fmt` a file that does not exist.
+  const path = fileURLToPath(METRICS_PATH);
   const fmt = new Deno.Command(Deno.execPath(), {
-    args: ["fmt", METRICS_PATH.pathname],
+    args: ["fmt", path],
   }).outputSync();
   if (!fmt.success) throw new Error(new TextDecoder().decode(fmt.stderr));
-  console.log(`Wrote ${METRICS_PATH.pathname}`);
+  console.log(`Wrote ${path}`);
 }

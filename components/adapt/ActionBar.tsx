@@ -119,7 +119,27 @@ function SessionDetails({ session }: { session: ActionBarSession }) {
           )}
         </div>
       )}
-      <button type="button" class="adapt-button" onClick={session.onResume}>
+      <button
+        type="button"
+        class="adapt-button"
+        onClick={(e) => {
+          // showModal() hides every open popover, this one included, and
+          // the window would hand focus back on closing to this button,
+          // hidden with it: focus fell to the top of the page. The panel is
+          // closed first and its own toggle focused, so that is where the
+          // window returns focus.
+          const pop = (e.currentTarget as HTMLElement).closest<HTMLElement>(
+            "[popover]",
+          );
+          if (pop?.matches(":popover-open")) {
+            pop.hidePopover();
+            document.querySelector<HTMLElement>(
+              `[popovertarget="${CSS.escape(pop.id)}"]`,
+            )?.focus();
+          }
+          session.onResume();
+        }}
+      >
         I have a resume code
       </button>
     </div>

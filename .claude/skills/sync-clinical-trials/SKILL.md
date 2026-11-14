@@ -11,6 +11,12 @@ deno task data      # then, and only then:
 deno task geocode
 ```
 
+**Not while gold-only is on.** `pipeline.main` refuses `--clinical-trials`,
+before any network or database work, while `GOLD_ONLY` is true in
+`lib/gold_only.ts`, because the dashboard then publishes only the hand-curated
+data. Unlike `--pubmed`, it has no `--preview` exception. The undo checklist in
+that file's doc comment comes first.
+
 The discovery gate (`is_disease_study`, `ct_max_retries`, and why `trial_name` and
 `primary_outcome` are curator-owned once `target_population` is filled in --
 renamed from `svd_population` by migration 014 so the wire key does not spell

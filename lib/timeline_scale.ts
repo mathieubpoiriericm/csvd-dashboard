@@ -4,7 +4,14 @@
  * label layout has a fault.
  */
 
-import { type Box, CANVAS, type Marker, overlaps } from "./timeline.ts";
+import {
+  type Box,
+  CANVAS,
+  EVIDENCE_RING_RADIUS,
+  EVIDENCE_RING_WIDTH,
+  type Marker,
+  overlaps,
+} from "./timeline.ts";
 
 /**
  * The plate's rendered width over its drawing width, clamped to `(0, 1]`. A
@@ -16,26 +23,48 @@ export function plateScale(renderedWidth: number): number {
 }
 
 /**
- * The largest factor by which markers of `restRadius` may grow before two of
- * them touch: half the minimum pairwise centre distance over the radius.
- * `Infinity` when fewer than two markers leave nothing to touch.
+ * The margin, in drawing units, that a marker's obstacle square keeps past
+ * its drawn reach (the island's `markerBox`); fixed, not scaled by growth.
+ */
+export const MARKER_BOX_PAD = 1;
+
+/**
+ * The widest drawn reach of a marker at rest: the outer edge of its evidence
+ * ring's stroke. A marker without a ring reaches less, so a cap computed from
+ * this holds for every marker.
+ */
+export const MARKER_REACH = EVIDENCE_RING_RADIUS + EVIDENCE_RING_WIDTH / 2;
+
+/**
+ * The largest factor by which markers may grow before the obstacle squares
+ * of two of them overlap: the squares `countFaults` tests, of half-side
+ * `reach * k + pad`. Two squares overlap only when their centres are closer
+ * than the summed half-sides on both axes, so the distance that matters is
+ * the larger of the two axis distances, not the straight line. `Infinity`
+ * when fewer than two markers leave nothing to touch.
  */
 export function markerGrowthCap(
   markers: readonly Marker[],
-  restRadius: number,
+  reach: number = MARKER_REACH,
+  pad: number = MARKER_BOX_PAD,
 ): number {
   let min = Infinity;
   for (let i = 0; i < markers.length; i++) {
     for (let j = i + 1; j < markers.length; j++) {
-      const d = Math.hypot(
-        markers[i].point.x - markers[j].point.x,
-        markers[i].point.y - markers[j].point.y,
+      const d = Math.max(
+        Math.abs(markers[i].point.x - markers[j].point.x),
+        Math.abs(markers[i].point.y - markers[j].point.y),
       );
       if (d < min) min = d;
     }
   }
-  return min / 2 / restRadius;
+  // A hair short of exact contact, so that rounding in `reach * k + pad`
+  // cannot leave two squares overlapping by a few ulps at the cap.
+  return (min / 2 - pad - CONTACT_SLACK) / reach;
 }
+
+/** Drawing units the cap leaves between two squares at exact contact. */
+const CONTACT_SLACK = 1e-6;
 
 /** Growth that keeps a marker's rendered size at rest, capped, never below 1. */
 export function markerGrowth(scale: number, cap: number): number {

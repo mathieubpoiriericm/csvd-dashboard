@@ -346,6 +346,11 @@ class TestSeparateLabels:
         # does not exist for an empty figure, so the pass has to be skipped.
         assert separate_labels([]) == []
 
+    def test_a_zero_height_label_does_not_hang_the_placement_pass(self) -> None:
+        # A blank label measures zero high; the placement grid built from it
+        # would have a zero step and never end. lib/timeline.ts falls back to 1.
+        assert separate_labels([(0, 0, 0, 0)]) == [(0, 0)]
+
     def test_splits_an_overlap_lower_box_down(self) -> None:
         assert separate_labels([(0, 10, 50, 20), (20, 0, 50, 20)], gap=2) == [
             (0, 6),

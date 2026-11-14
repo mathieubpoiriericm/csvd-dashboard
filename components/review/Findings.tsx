@@ -1,4 +1,4 @@
-import { isDoi } from "../../lib/citations.ts";
+import { doiHref, isDoi } from "../../lib/citations.ts";
 import { PUBMED_BASE_URL } from "../../lib/constants.ts";
 import type { ReviewFinding } from "../../lib/types.ts";
 
@@ -22,7 +22,7 @@ function Finding({ finding }: { finding: ReviewFinding }) {
         {isDoi(finding.pmid) ? "DOI" : "PMID"}{" "}
         <a
           href={isDoi(finding.pmid)
-            ? `https://doi.org/${encodeURI(finding.pmid)}`
+            ? doiHref(finding.pmid)
             : `${PUBMED_BASE_URL}${finding.pmid}/`}
           target="_blank"
           rel="noopener noreferrer"

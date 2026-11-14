@@ -268,7 +268,7 @@ Deno.test("Genes route server-renders filters, readout, and the first table page
 Deno.test("Trials route server-renders grouped rows and its controls", () => {
   const html = render(Trials);
   assertStringIncludes(html, "Clinical Trials");
-  assertStringIncludes(html, "Trials by phase");
+  assertStringIncludes(html, "Rows by phase");
   const shown = visibleTrials(trials).length;
   assertStringIncludes(html, `showing ${shown} of ${trials.length} rows`);
   assertStringIncludes(html, "Study status");
@@ -495,6 +495,10 @@ Deno.test("application shell puts the described previews entry before the tabs",
   const dot = body.indexOf('class="nav-previews-dot" aria-hidden="true"');
   assert(dot >= 0, body);
   assert(dot < body.indexOf("<svg"), body);
+  // Escape dismisses the description (WCAG 1.4.13): an inline script marks
+  // the li, and the stylesheet's show rules respect the mark.
+  assertStringIncludes(html, "e.key==='Escape'");
+  assertStringIncludes(html, "data-dismissed");
   assertStringIncludes(body, "New Feature Previews");
   // The tip names the features this dataset offers, so no count is pinned.
   const tip = html.match(/<span[^>]*id="nav-previews-tip"[^>]*>([^<]*)</)

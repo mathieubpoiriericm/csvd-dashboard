@@ -113,7 +113,7 @@ test("choices within a group union", async ({ page }) => {
 
   await choice(page, GWAS, SECOND.label).check();
   await expectRowCount(page, G.topTraitsUnion, GENE_TOTAL);
-  await expectSummary(page, `GWAS Traits: ${TOP.label}, ${SECOND.label}`);
+  await expectSummary(page, `GWAS Traits: ${TOP.label}; ${SECOND.label}`);
   await expect(filterCount(page, GWAS)).toHaveText("2");
 });
 

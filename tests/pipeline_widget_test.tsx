@@ -140,7 +140,7 @@ Deno.test("each step is one row: its outcome, a flag only if one is due, its tim
   assertStringIncludes(markup, "papers matched");
   assertStringIncludes(markup, "last 7 days");
   assertStringIncludes(markup, "findings extracted");
-  assertStringIncludes(markup, "1 paper failed");
+  assertStringIncludes(markup, "1 paper not read");
   assertStringIncludes(markup, formatDuration(131.4));
   assertNotMatch(markup, /pipeline-step-glyph|pipeline-badge-count/);
 });

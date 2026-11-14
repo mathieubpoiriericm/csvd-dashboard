@@ -13,6 +13,23 @@ import {
   notConfiguredResponse,
   safeNext,
 } from "../lib/auth.ts";
+import { readCappedBytes } from "../server/request_body.ts";
+
+/**
+ * The largest login body read, in bytes: a passphrase, a `next` path and a
+ * multipart envelope's framing fit in a small fraction of it.
+ */
+export const LOGIN_BODY_LIMIT = 8_192;
+
+function plainRefusal(status: number, text: string): Response {
+  return new Response(text, {
+    status,
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+      "Cache-Control": "no-store",
+    },
+  });
+}
 
 export interface LoginData {
   /** Safe same-site, non-auth destination after a successful login. */
@@ -36,20 +53,24 @@ export const handler = define.handlers({
   async POST(ctx) {
     const config = loginConfig();
     if (config === null) return notConfiguredResponse();
+    // The gate exempts this route, so anyone can reach it: read at most
+    // LOGIN_BODY_LIMIT bytes, counted as they arrive, before parsing, since
+    // formData() would buffer a body of any size on a small machine. A 413
+    // settles the limiter's slot as "other", not as a wrong guess.
+    const bytes = await readCappedBytes(ctx.req, LOGIN_BODY_LIMIT);
+    if (bytes === null) return plainRefusal(413, "Payload Too Large");
     // A body that is not a form (JSON, text, a multipart with no boundary)
     // makes formData() throw; that is the client's mistake, so answer 400
     // rather than letting it surface as a logged 500.
     let form: FormData;
     try {
-      form = await ctx.req.formData();
-    } catch {
-      return new Response("Bad Request", {
-        status: 400,
+      form = await new Response(bytes, {
         headers: {
-          "Content-Type": "text/plain; charset=utf-8",
-          "Cache-Control": "no-store",
+          "Content-Type": ctx.req.headers.get("content-type") ?? "",
         },
-      });
+      }).formData();
+    } catch {
+      return plainRefusal(400, "Bad Request");
     }
     form.set("next", safeLoginNext(form.get("next")?.toString()));
     const response = await loginResponse(config, form, ctx.url.hostname);

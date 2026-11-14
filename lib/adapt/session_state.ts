@@ -65,6 +65,8 @@ export type SessionEvent =
   | { type: "resume-started" }
   | Result<{ type: "resumed"; link: SessionLink }>
   | Result<{ type: "resume-failed"; message: string }>
+  /** The resume worked, and the researcher chose to keep the answers here. */
+  | Result<{ type: "resume-declined" }>
   | { type: "dialog-closed" }
   | { type: "welcome-left" }
   /** Another tab wrote the stored link. */
@@ -162,6 +164,16 @@ export function sessionReducer(
         saving: false,
         dialog: "resume",
         resumeError: event.message,
+      };
+    case "resume-declined":
+      // Not an error: the code was good and the answer was no. The window
+      // closes, and the status line says what was kept.
+      return {
+        ...state,
+        saving: false,
+        dialog: "none",
+        resumeError: "",
+        message: SESSION_COPY.resumeDeclined,
       };
     case "dialog-closed":
       // The resume window waits for its request to settle: closed now, the

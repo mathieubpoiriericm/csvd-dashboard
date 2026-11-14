@@ -24,6 +24,7 @@ import {
   EXAMPLE_TYPE,
   hiddenChar,
   KEY,
+  KEY_MAX,
   MIM,
   objectKey,
   OPERATOR,
@@ -125,7 +126,7 @@ const RULES: ReadonlyArray<readonly [RegExp, Rule]> = [
     "plainLines",
   ],
   [
-    /^(?:disease\.(?:short|adjective)|site\.title$|institute\.(?:name|short|copyright|logoAlt)$|maintainer\.name$|cellTypes\.(?:label|glossary\[\d+\]\.name)$|families\[\d+\](?:\.label)?$|traits\[\d+\]\.(?:name|xrefNote)$|citationStandard\.(?:name|label|linkLabel)$|populations\[\d+\]\.label$|populationField\.|mechanismFamilies\[\d+\](?:\.label)?$|aliases\[\d+\]\.symbols$|omimRows\[\d+\]\.geneOrLocus$|rows\[\d+\]\.note$)/,
+    /^(?:disease\.(?:short|adjective)|site\.title$|institute\.(?:name|short|copyright|logoAlt)$|maintainer\.name$|cellTypes\.(?:label|glossary\[\d+\]\.name)$|families\[\d+\](?:\.label)?$|traits\[\d+\]\.(?:name|xref|xrefNote)$|citationStandard\.(?:name|label|linkLabel)$|populations\[\d+\]\.label$|populationField\.|mechanismFamilies\[\d+\](?:\.label)?$|aliases\[\d+\]\.symbols$|omimRows\[\d+\]\.geneOrLocus$|rows\[\d+\]\.note$)/,
     "plain",
   ],
 ];
@@ -605,6 +606,22 @@ function plainKey(text: string): Diagnosis {
   return objectKey(trim(text)) ? FAILS : CLEAN;
 }
 
+/** The disease key, held to KEY_MAX as validate() holds it. */
+function diseaseKey(text: string): Diagnosis {
+  const d = keyLike(text, KEY, "", null);
+  if (!d.ok) {
+    return d.fix !== null && d.fix.length > KEY_MAX ? { ...d, fix: null } : d;
+  }
+  const length = clean(text).length;
+  return length > KEY_MAX
+    ? {
+      ...FAILS,
+      note:
+        `Keep it to ${KEY_MAX} characters; it has ${length}. It names the database and the Fly app.`,
+    }
+    : CLEAN;
+}
+
 function traitLabel(text: string): Diagnosis {
   const d = plain(text);
   if (!d.ok) {
@@ -668,7 +685,7 @@ const conditionFix = (word: string) =>
   transliterate(word).toLowerCase().replace(/[^a-z0-9 ]+/g, " ")
     .replace(/ +/g, " ").trim();
 const CONDITION_MESSAGE =
-  "can't be used: conditions are compared as unaccented letters, digits and single spaces, so this could never match.";
+  "can't be used: conditions are compared in a folded form of unaccented letters, digits and single spaces.";
 
 /** A refused character, or a space after a space. */
 const conditionOffence = (text: string) => (c: string, at: number) =>
@@ -679,7 +696,7 @@ function conditionMessage(offences: Offence[]): string {
   return [
     bad.length > 0 && `${named(bad)} ${CONDITION_MESSAGE}`,
     bad.length < offences.length &&
-    "Two spaces in a row can't be used: a condition is compared with single spaces, so this could never match.",
+    "Two spaces in a row can't be used: conditions are compared in a folded form with single spaces.",
   ].filter(Boolean).join(" ");
 }
 
@@ -994,7 +1011,7 @@ function steps(text: string): Diagnosis {
 export function diagnose(rule: Rule, text: string): Diagnosis {
   switch (rule) {
     case "key":
-      return keyLike(text, KEY, "", null);
+      return diseaseKey(text);
     case "exampleType":
       return keyLike(
         text,

@@ -83,10 +83,12 @@ CPU throttling, on the edge of a good INP; two frames measured 64 ms. With 115
 rows the page-size change measured 120 ms, then 144 ms once every trait and
 omics acronym became its own tooltip (about 490 triggers), so the first batch
 came down from 25 to 20, which measures 120 ms again (2026-11-09,
-`node e2e/perf/run.mjs --no-trace --only genes/page-size-100`). Rows
-already drawn are never held back, so a sort or a narrowing search still
-renders whole rather than tearing rows down to rebuild them, and a batch never
-ends inside a merged trials block. A page is whole on first render, so SSR and
+`node e2e/perf/run.mjs --no-trace --only genes/page-size-100`). The first
+frame is a prefix of the page, so a sort or a narrowing search, where every row
+is drawn or the new ones come last, still renders whole; a drawn row past the
+first 20 new ones (a search cleared back to a full page) is rebuilt in the
+second frame, which is cheaper than drawing every new row before it at once. A
+batch never ends inside a merged trials block. A page is whole on first render, so SSR and
 hydration never batch. The table is `aria-busy` in between: an e2e check that
 reads every row after a page-size change waits for it with `wholePage()` from
 `e2e/helpers.ts`, or it reads the first batch.

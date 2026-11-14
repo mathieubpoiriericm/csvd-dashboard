@@ -114,6 +114,9 @@ test.describe("gene tooltips", () => {
     await page.setViewportSize({ width: 1024, height: 600 });
     await page.reload();
     await page.getByRole("searchbox", { name: "Search genes" }).fill("COL4A1");
+    // The search is debounced: wait for the narrowed row, or the hover lands
+    // on the unsearched first row (STN1) and measures its short panel.
+    await expect(rows(page)).toHaveCount(1);
     const trigger = rows(page).first().locator("td").first().locator(
       ".tooltip-box",
     );
@@ -299,6 +302,8 @@ test.describe("dark-theme tooltip", () => {
   test("the arrow matches the panel background", async ({ page }) => {
     await page.goto("/genes");
     await page.getByRole("searchbox", { name: "Search genes" }).fill("LAMB1");
+    // Wait for the debounced search, so the re-render cannot remove the panel.
+    await expect(rows(page)).toHaveCount(1);
     await rows(page).first().locator("td").first().locator(".tooltip-box")
       .hover();
 
@@ -448,7 +453,12 @@ test("every symbol in a multi-gene target gets its own tooltip", async ({ page }
   const targets = rows(page).first().locator(".tooltip-box").filter({
     hasText: /^GUCY1[AB][12]$/,
   });
-  await expect(targets).toHaveText(["GUCY1B1", "GUCY1B2", "GUCY1A2", "GUCY1A1"]);
+  await expect(targets).toHaveText([
+    "GUCY1B1",
+    "GUCY1B2",
+    "GUCY1A2",
+    "GUCY1A1",
+  ]);
 
   await targets.nth(1).hover();
   await expect(tooltip(page)).toContainText(

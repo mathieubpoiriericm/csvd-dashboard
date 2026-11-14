@@ -4,12 +4,15 @@
  *
  * Creating a row is what costs: a /genes row is about sixty elements and
  * eight tooltips, and at 4x CPU throttling drawing 87 of them in the frame of
- * a page-size change measured a 184 ms event, at the edge of a good INP. Rows
- * already on screen are never held back -- a sort or a narrowing search only
- * moves or removes them, and holding one back would tear it down only to
- * build it again a frame later. So the batch is every row the last frame drew,
- * plus the first `batch` rows it did not, and the caller draws the rest after
- * that frame has painted.
+ * a page-size change measured a 184 ms event, at the edge of a good INP. The
+ * batch is a prefix of the page: every row up to the point where `batch` rows
+ * the last frame did not draw have been counted, and the caller draws the rest
+ * after that frame has painted. Rows already drawn inside that prefix cost
+ * nothing, so a sort or a narrowing search -- which only move or remove rows --
+ * renders whole. A drawn row that sits past the cutoff (a search cleared back
+ * to a full page, its few drawn rows spread through it) is torn down and built
+ * again a frame later: the price of a contiguous batch, and far smaller than
+ * drawing every new row that comes before it in one frame.
  *
  * `continuesBlock(index)` says that row `index` belongs to a merged block
  * started above it (a covered cell, on the trials table). A batch never ends

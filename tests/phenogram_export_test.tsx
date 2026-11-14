@@ -191,3 +191,10 @@ Deno.test("drops the characters XML 1.0 cannot carry", () => {
   // Tab and newline are legal, and the prolog's own newline stays.
   assert(svg.startsWith('<?xml version="1.0" encoding="UTF-8"?>\n'));
 });
+
+Deno.test("escapes the CDATA end a label may hold", () => {
+  const { svg } = build("A]]>B", true, "Fam]]>ily");
+  assert(!svg.includes("]]>"));
+  assert(svg.includes(">A]]&gt;B</text>"));
+  assert(svg.includes("Fam]]&gt;ily"));
+});

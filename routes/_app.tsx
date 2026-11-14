@@ -19,6 +19,7 @@ import {
 import { PREVIEWS } from "../lib/previews_current.ts";
 import { REVIEW } from "../lib/review/current.ts";
 import type { ReviewState } from "../lib/review/summary.ts";
+import { errorHeading, errorStatus } from "../lib/error_page.ts";
 import { THEME_STORAGE_KEY } from "../lib/theme.ts";
 
 // Vite resolves the same assets as CSS in both build environments. Plain Deno
@@ -81,17 +82,26 @@ const UNTABBED_TITLES: ReadonlyArray<[string, string]> = [
  */
 const NAV_TIP_ID = "nav-previews-tip";
 
+/** Escape hides the description; leaving it with pointer and focus resets. */
+const NAV_TIP_DISMISS =
+  `(function(){var l=document.querySelector('.nav-previews');if(!l)return;function f(){return l.contains(document.activeElement)}function h(){return l.matches(':hover')}document.addEventListener('keydown',function(e){if(e.key==='Escape'&&(h()||f()))l.setAttribute('data-dismissed','')});l.addEventListener('mouseleave',function(){if(!f())l.removeAttribute('data-dismissed')});l.addEventListener('focusout',function(e){if(!h()&&!l.contains(e.relatedTarget))l.removeAttribute('data-dismissed')})})();`;
+
 /**
  * The browser title of a page. A gene's review page leads with the gene, so
  * its tabs and history entries tell genes apart, but only for a gene the
  * review holds: an unknown `?g=` is a 404 and keeps the plain title, so
  * nothing arbitrary from the URL is echoed into the page.
+ *
+ * An error page (`status` set) is titled by its error whatever the path, so a
+ * stale /review bookmark reads "Page not found" rather than "Review".
  */
 export function pageTitle(
   pathname: string,
   params: URLSearchParams = new URLSearchParams(),
   review: ReviewState | null = null,
+  status: number | null = null,
 ): string {
+  if (status !== null) return `${errorHeading(status)} | ${SITE_TITLE}`;
   if (pathname === LOGIN_PATH) return `Sign in | ${SITE_TITLE}`;
   if (pathname === "/review/gene") {
     const gene = params.get("g");
@@ -107,7 +117,7 @@ export function pageTitle(
   return untabbed ? `${untabbed[1]} | ${SITE_TITLE}` : SITE_TITLE;
 }
 
-export default define.page(function App({ Component, url, state }) {
+export default define.page(function App({ Component, url, state, error }) {
   const year = new Date().getFullYear();
   // The login page is a bare sheet: the tabs would only bounce back to it.
   const login = url.pathname === LOGIN_PATH;
@@ -117,7 +127,14 @@ export default define.page(function App({ Component, url, state }) {
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>{pageTitle(url.pathname, url.searchParams, REVIEW)}</title>
+        <title>
+          {pageTitle(
+            url.pathname,
+            url.searchParams,
+            REVIEW,
+            errorStatus(error),
+          )}
+        </title>
         <meta
           name="description"
           content={META_DESCRIPTION}
@@ -191,7 +208,18 @@ export default define.page(function App({ Component, url, state }) {
           {!login && (
             <header class="navbar">
               <div class="navbar-inner">
-                <a class="navbar-brand" href="/" aria-label="Home">
+                {
+                  /* An explicit "false": left unset, Fresh's server render
+                  marks a "/" link as the ancestor of every path
+                  (aria-current="true"), and on "/" itself as a second current
+                  page beside the About tab. */
+                }
+                <a
+                  class="navbar-brand"
+                  href="/"
+                  aria-label="Home"
+                  aria-current="false"
+                >
                   <InstituteLogo theme="dark" decorative />
                 </a>
                 {
@@ -239,7 +267,7 @@ export default define.page(function App({ Component, url, state }) {
                           <a
                             class="nav-link"
                             href={tab.href}
-                            aria-current={active ? "page" : undefined}
+                            aria-current={active ? "page" : "false"}
                           >
                             <Icon name={tab.icon} />
                             {tab.label}
@@ -272,6 +300,15 @@ export default define.page(function App({ Component, url, state }) {
                     __html:
                       `(function(){var n=document.querySelector('.navbar-nav');var a=n&&n.querySelector('[aria-current="page"]');if(a&&n.scrollWidth>n.clientWidth)a.scrollIntoView({inline:'center',block:'nearest'});})();`,
                   }}
+                />
+                {
+                  /* Escape dismisses the previews description (WCAG 1.4.13):
+                  data-dismissed on the li hides it until the pointer has left
+                  and focus has moved on, after which hover or focus shows it
+                  again. See .nav-previews-tip in assets/app.css. */
+                }
+                <script
+                  dangerouslySetInnerHTML={{ __html: NAV_TIP_DISMISS }}
                 />
 
                 <div class="navbar-actions">

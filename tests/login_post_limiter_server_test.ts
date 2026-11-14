@@ -1,7 +1,13 @@
-import { assertEquals, assertThrows } from "@std/assert";
+import {
+  assert,
+  assertEquals,
+  assertStringIncludes,
+  assertThrows,
+} from "@std/assert";
 
 import { SESSION_COOKIE } from "../lib/auth.ts";
 import {
+  addressKey,
   clientKeyOf,
   isLoginPostPath,
   LOGIN_PER_CLIENT_LIMIT,
@@ -9,6 +15,8 @@ import {
   postLimiter,
   remoteClientKey,
   resolveOptions,
+  tooManyRequests,
+  waitInWords,
 } from "../server/login_post_limiter.ts";
 
 type Limiter = ReturnType<typeof loginPostLimiter>;
@@ -117,6 +125,29 @@ Deno.test("a configured client-IP header keys clients behind a shared proxy", as
   assertEquals((await viaProxy("198.51.100.7")).status, 401);
   assertEquals((await viaProxy("203.0.113.8")).status, 401);
   assertLimited(await viaProxy("198.51.100.7"), "60");
+});
+
+Deno.test("the login refusal is a titled page with the wait and a way back", async () => {
+  const response = tooManyRequests(60);
+  assertLimited(response, "60");
+  assertEquals(
+    response.headers.get("content-type"),
+    "text/html; charset=utf-8",
+  );
+  const html = await response.text();
+  assertStringIncludes(html, '<html lang="en">');
+  assertStringIncludes(html, "<title>Too many sign-in attempts</title>");
+  assertStringIncludes(html, 'role="alert"');
+  assertStringIncludes(html, "about a minute");
+  assertStringIncludes(html, '<a href="/login">');
+  // Neutral: the global limit refuses visitors who never mistyped.
+  assert(!/your|you entered|wrong/i.test(html), html);
+  assertStringIncludes(
+    await tooManyRequests(5, "/base").text(),
+    'href="/base/login"',
+  );
+  assertEquals(waitInWords(1), "about a minute");
+  assertEquals(waitInWords(61), "about 2 minutes");
 });
 
 Deno.test("the client-IP header is ignored unless configured", async () => {
@@ -412,4 +443,33 @@ Deno.test("one limiter factory takes the matcher, the outcome and the refusal", 
   assertEquals(refused.status, 429);
   assertEquals(await refused.text(), "wait 60");
   assertEquals(outcomes, ["x:418"]);
+});
+
+Deno.test("an IPv6 client is keyed on its canonical /64, an IPv4 one as sent", () => {
+  const ctx = (headers: Record<string, string>) => ({
+    req: new Request("http://localhost/login", { headers }),
+    info: info(PROXY, 4321),
+  });
+  assertEquals(addressKey("198.51.100.7"), "198.51.100.7");
+  const key = "2001:db8:1:2::/64";
+  for (
+    const spelling of [
+      "2001:db8:1:2::1",
+      "2001:DB8:1:2:ffff:ffff:ffff:ffff",
+      "2001:0db8:0001:0002:0:0:0:abcd",
+      "[2001:db8:1:2::9]",
+      " 2001:db8:1:2:3:4:5:6 ",
+    ]
+  ) assertEquals(addressKey(spelling), key, spelling);
+  assertEquals(addressKey("2001:db8:1:3::1"), "2001:db8:1:3::/64");
+  assertEquals(addressKey("::1"), "0:0:0:0::/64");
+  assertEquals(addressKey("::ffff:198.51.100.7"), "198.51.100.7");
+  assertEquals(addressKey("not:an address"), "not:an address");
+  assertEquals(
+    clientKeyOf(
+      ctx({ "Fly-Client-IP": "2001:db8:1:2::abcd" }),
+      "Fly-Client-IP",
+    ),
+    clientKeyOf(ctx({ "Fly-Client-IP": "2001:db8:1:2::1" }), "Fly-Client-IP"),
+  );
 });

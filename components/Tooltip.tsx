@@ -236,7 +236,12 @@ export function Tooltip({ content, italic, label, children }: TooltipProps) {
     const button = trigger.current;
     const pop = panel.current;
     if (!button || !pop) return;
-    return registerTooltip({ button, pop, setOpen });
+    const unregister = registerTooltip({ button, pop, setOpen });
+    // A tap before hydration opens the server-rendered panel natively, and its
+    // toggle events fired before anything listened: adopt that open panel so
+    // it gets its content and placement instead of staying invisible.
+    if (pop.matches(":popover-open")) setOpen(true);
+    return unregister;
   }, [content === null]);
 
   // Content has committed before Floating UI measures the open panel.

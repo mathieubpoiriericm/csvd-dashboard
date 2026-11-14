@@ -143,6 +143,7 @@ export const SESSION_COPY = {
     `This session was saved from somewhere else on ${day} at ${clock}. Overwrite that copy with the answers here?`,
   replaceDraft:
     "Replace the answers in this browser with the saved session? Export them first to keep them.",
+  resumeDeclined: "Kept the answers here; the session was not resumed.",
   signedOut:
     "You are signed out of the dashboard. Sign in again in another tab, then save. Your answers are still in this browser.",
   limited: "Too many attempts. Wait a minute and try again.",

@@ -185,6 +185,68 @@ Deno.test("plain saves release their reservation", async () => {
   }
 });
 
+Deno.test("creates that fill the global limit refuse no other client's save, and still refuse its resume", async () => {
+  const limiter = adaptSessionLimiter({
+    perClientLimit: 2,
+    globalLimit: 4,
+    maxTrackedClients: 64,
+  });
+  for (const hostname of ["192.0.2.1", "192.0.2.2"]) {
+    for (let i = 0; i < 2; i++) {
+      assertEquals(
+        (await invoke(limiter, {
+          hostname,
+          pathname: "/adapt/session/create",
+          next: created,
+        })).status,
+        201,
+      );
+    }
+  }
+  const fresh = "198.51.100.9";
+  assertEquals(
+    (await invoke(limiter, {
+      hostname: fresh,
+      pathname: "/adapt/session/save",
+      next: saved,
+    })).status,
+    200,
+  );
+  assertLimited(await invoke(limiter, { hostname: fresh }));
+  assertLimited(
+    await invoke(limiter, {
+      hostname: fresh,
+      pathname: "/adapt/session/create",
+      next: created,
+    }),
+  );
+});
+
+Deno.test("clients that fill the tracked-client limit refuse no other client's save", async () => {
+  const limiter = adaptSessionLimiter({ maxTrackedClients: 2 });
+  for (const hostname of ["192.0.2.1", "192.0.2.2"]) {
+    assertEquals((await invoke(limiter, { hostname })).status, 404);
+  }
+  const fresh = "198.51.100.9";
+  assertEquals(
+    (await invoke(limiter, {
+      hostname: fresh,
+      pathname: "/adapt/session/save",
+      next: saved,
+    })).status,
+    200,
+  );
+  assertLimited(await invoke(limiter, { hostname: fresh }));
+});
+
+Deno.test("a save is still held to its own client's limit", async () => {
+  const limiter = adaptSessionLimiter({ perClientLimit: 1, globalLimit: 1 });
+  assertEquals((await invoke(limiter)).status, 404);
+  assertLimited(
+    await invoke(limiter, { pathname: "/adapt/session/save", next: saved }),
+  );
+});
+
 Deno.test("a request handed over to the holder is not counted here", async () => {
   // The holder's own limiter counts the replayed request; counting it here
   // too would spend the client's budget twice.

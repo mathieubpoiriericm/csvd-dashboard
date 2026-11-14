@@ -100,6 +100,30 @@ export function formatTrialPlace(
 const TARGET_QUALIFIER = /^[^:]*:\s+/;
 
 /**
+ * The curated pair shorthand ("ABC1/2" for ABC1 and ABC2). `_PAIR_SHORTHAND`
+ * in pipeline/export/text.py is the export's copy: the export expands it
+ * before splitting on the slash, so the lookup table is keyed by the full
+ * second symbol and never by its bare digits.
+ */
+const PAIR_SHORTHAND = /\b([A-Z][A-Z0-9]*[A-Z])(\d+)\/(\d+)\b/g;
+
+/**
+ * The lookup key for each bare-digit second member of a pair shorthand in a
+ * genetic-target cell, by the offset in the cell where those digits start.
+ * The cell prints "2" as written; its tooltip has to look up "ABC2", the key
+ * the export wrote.
+ */
+export function pairShorthandKeys(value: string): Map<number, string> {
+  const keys = new Map<number, string>();
+  for (const match of value.matchAll(PAIR_SHORTHAND)) {
+    const [, stem, , second] = match;
+    const offset = match.index + match[0].length - second.length;
+    keys.set(offset, stem + second);
+  }
+  return keys;
+}
+
+/**
  * One piece of a genetic-target cell split into the label in front of the
  * symbol ("GWAS for ischemic stroke: ", or "" when there is none) and the
  * symbol itself, so the cell can print both verbatim and look up the symbol

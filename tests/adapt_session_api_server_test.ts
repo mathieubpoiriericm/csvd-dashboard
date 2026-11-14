@@ -436,6 +436,29 @@ Deno.test({
   },
 });
 
+Deno.test({
+  name: "a session file that cannot be read answers 503 failed, not 422",
+  ignore: Deno.build.os === "windows",
+  fn: async () => {
+    await withStore(async (store, dir) => {
+      const code = await createdCode(store);
+      const [name] = await files(dir);
+      const path = `${dir}/${name}`;
+      await Deno.chmod(path, 0o000);
+      const original = console.error;
+      console.error = () => {};
+      try {
+        const response = await post(handleResume, store, "resume", { code });
+        assertEquals(response.status, 503);
+        assertEquals(await json(response), { error: "failed" });
+      } finally {
+        console.error = original;
+        await Deno.chmod(path, 0o600);
+      }
+    });
+  },
+});
+
 Deno.test("a full store answers 503 full", async () => {
   const dir = await Deno.makeTempDir({ prefix: "adapt-session-api-" });
   try {

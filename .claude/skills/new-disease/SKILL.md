@@ -120,6 +120,9 @@ from a lookup you ran and can show, never from what a disease "probably" has.
    cassettes sit beside the generic replay test, so remove them too with
    `git rm -r tests/pipeline/cassettes/test_query_recall_gold` -- the recall
    step records the fork's own, and one left in place is replayed instead.
+   Remove upstream's curated gold workbook and tables as well, with
+   `git rm -r -q disease/gold`: unpacking the bundle never deletes a file in
+   `disease/`, and `scripts.load_gold` would load the cSVD rows they hold.
 6. **The test-side edits** `checklist.md` names — the ones a fork must make by
    hand because they carry cSVD content outside `disease/` for a reason each.
 7. **Gates**, then the **cost estimate**, then the **recall measurement**

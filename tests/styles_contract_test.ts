@@ -2176,6 +2176,114 @@ Deno.test("printing drops the chrome and un-clips the tables and plates", () => 
   assert(!/position:\s*static/.test(framedRule[1]));
 });
 
+Deno.test("printing always takes the light theme", () => {
+  // prefers-color-scheme applies to print too, and the toggle's attribute
+  // stays on <html>, so a dark reader printed light ink on paper. Every rule
+  // that switches to dark must be screen-only.
+  const media = [
+    ...css.matchAll(
+      /^\s*@media ([^{\n]*prefers-color-scheme: dark[^{\n]*)\{/gm,
+    ),
+  ]
+    .map((m) => m[1].trim());
+  assert(media.length >= 2, "expected the dark media queries");
+  for (const query of media) assertMatch(query, /^screen and /);
+  const toggled = [...css.matchAll(/^(\s*):root\[data-theme='dark'\]/gm)];
+  assert(toggled.length >= 1, "expected the toggle's dark rules");
+  for (const m of toggled) {
+    const before = css.slice(0, m.index);
+    const opened = before.lastIndexOf("@media screen {");
+    assert(opened !== -1, "a [data-theme='dark'] rule outside @media screen");
+    // No top-level rule closes between the wrapper and this selector.
+    assertNotMatch(before.slice(opened), /\n\}/);
+  }
+});
+
+Deno.test("the navbar re-parameterises --svd-focus-color for its fixed dark bar", () => {
+  // The bar is steel-900/950 in both themes; the theme's light-mode focus
+  // colour (steel-800) measured 1.42:1 on it, under WCAG 1.4.11's 3:1.
+  assertMatch(
+    css,
+    /\n\.navbar \{[^}]*--svd-focus-color: var\(--svd-nav-accent\);/,
+  );
+  for (const theme of ["light", "dark"] as const) {
+    const ratio = contrast(
+      tokenValue("--svd-nav-accent", theme),
+      tokenValue("--svd-nav", theme),
+    );
+    assert(ratio >= 3, `${theme}: ${ratio.toFixed(2)}:1`);
+  }
+});
+
+Deno.test("modal backdrops dim in both themes", () => {
+  // Read from --svd-ink, the backdrop flipped to light grey in dark mode and
+  // lit the page up behind the dialog.
+  const backdrops = [...css.matchAll(/::backdrop\s*\{([^}]*)\}/g)];
+  assert(backdrops.length >= 3, "expected the dialogs' backdrops");
+  for (const [, body] of backdrops) {
+    assertStringIncludes(body, "background: var(--svd-backdrop);");
+  }
+  assertEquals(
+    tokenValue("--svd-backdrop", "light").includes("--svd-ink"),
+    false,
+  );
+  assertEquals(
+    tokenValue("--svd-backdrop", "dark"),
+    tokenValue("--svd-backdrop", "light"),
+  );
+});
+
+Deno.test("the phenogram key's sample pill and hover ring read on the themed page", () => {
+  // The key sits on the page, not the plate: the sample pill's fixed figure
+  // ink measured 1.1:1 on the dark ground over a transparent fill.
+  assertMatch(
+    css,
+    /\.phenogram-pill-sample \{[^}]*background: var\(--svd-figure-plate\);/,
+  );
+  assertMatch(
+    css,
+    /\.phenogram-legend \.tooltip-box:hover \.phenogram-pill \{[^}]*outline: 1px solid var\(--svd-ink\);/,
+  );
+});
+
+Deno.test("the refresh error list reads at AA in both themes", () => {
+  assertMatch(
+    css,
+    /\.pipeline-sync-errors \{[^}]*color: var\(--svd-color-danger-text\);/,
+  );
+  for (const theme of ["light", "dark"] as const) {
+    const ratio = contrast(
+      tokenValue("--svd-color-danger-text", theme),
+      tokenValue("--svd-ground", theme),
+    );
+    assert(ratio >= 4.5, `${theme}: ${ratio.toFixed(2)}:1`);
+  }
+});
+
+Deno.test("touch screens draw every editable field at 16px, so iOS does not zoom", () => {
+  const block = css.match(/@media \(pointer: coarse\) \{([\s\S]*?)\n\}/);
+  assert(block, "expected a (pointer: coarse) block");
+  for (
+    const selector of [
+      ".table-control input",
+      ".review-form textarea",
+      ".login-form input[type='password']",
+      ".adapt-input",
+      ".adapt-select",
+    ]
+  ) assertStringIncludes(block[1], selector);
+  assertStringIncludes(block[1], "font-size: var(--svd-text-md);");
+  assertMatch(css, /--svd-text-md: 1rem;/);
+});
+
+Deno.test("the tab row's scroller leaves room for a tab's focus ring", () => {
+  // overflow-x: auto clips at the padding box; the ring reaches 4px out.
+  assertMatch(
+    css,
+    /\.navbar-nav \{[^}]*overflow-x: auto;[^}]*padding: var\(--svd-space-1\) var\(--svd-space-1\)\s*calc\(var\(--svd-space-1\) \* 2\);\s*margin: calc\(var\(--svd-space-1\) \* -1\);/,
+  );
+});
+
 /** A token's value in the light root, or in the first dark block over it. */
 function tokenValue(name: string, theme: "light" | "dark"): string {
   const declared = (text: string) =>
