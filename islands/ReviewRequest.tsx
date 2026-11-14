@@ -27,7 +27,7 @@ export default function ReviewRequest() {
   const [open, setOpen] = useState(false);
   const [sent, setSent] = useState(false);
   // The server's HTML cannot act on a press, so the button is disabled until
-  // this island is live, as the About page's preview switch is.
+  // this island is live.
   const [live, setLive] = useState(false);
   const form = useRef<HTMLFormElement>(null);
   const notice = useRef<HTMLParagraphElement>(null);

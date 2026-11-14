@@ -476,7 +476,7 @@ test("the download stays disabled while a step has issues", async ({ page }) => 
   await expect(
     page.getByRole("button", { name: "Download disease-adaptation.zip" }),
   ).toBeDisabled();
-  // Scoped to the guide: the navbar's Review control shares the name.
+  // Scoped to the guide, so no control of the navbar or the strip can match.
   await page.getByRole("main").getByRole("button", { name: "Review" }).click();
   await expect(
     page.getByRole("button", { name: "Download disease-adaptation.zip" }),

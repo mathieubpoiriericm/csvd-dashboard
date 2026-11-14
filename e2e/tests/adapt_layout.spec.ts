@@ -11,7 +11,7 @@ import { openAdapt } from "../helpers.ts";
 
 /**
  * Every step, as the stepper names it. A step's button is looked up inside
- * `main`: the navbar's Review control shares the last step's name.
+ * `main`, so no control of the navbar can match.
  */
 const STEPS = [
   "Identity",

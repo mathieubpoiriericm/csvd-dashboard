@@ -258,12 +258,12 @@ alternative, because Leaflet's circle markers cannot take focus.
 ### New Feature Previews (`/previews`)
 
 Not a tab: the navbar's one entry for the features that work today and are still
-in preview, beside the tabs with a pulsing green dot. It is lit on the hub, on
-`/adapt` and on `/review*`. The hub is one card for each feature that exists for
-the data it is built from: the pipeline run, the adaptation guide and the review
-committee. Every page of a feature carries a strip above its header that links
-the other features and, on the review pages, the queue and the progress page.
-The hub and the strip render from one list (`lib/previews.ts`;
+in preview, beside the tabs with a pulsing green dot. It is lit on `/previews*`,
+on `/adapt` and on `/review*`. The hub is one card for each feature that exists
+for the data it is built from: the pipeline run, the adaptation guide and the
+review committee. Every page of a feature carries a strip above its header that
+links the other features and, on the review pages, the queue and the progress
+page. The hub and the strip render from one list (`lib/previews.ts`;
 `lib/previews_current.ts` is that list for the committed data), so neither
 offers a page that is a 404.
 
@@ -342,11 +342,11 @@ the data or a page changes, and in a fork after its first live run.
 <!-- markdownlint-disable MD013 MD033 -->
 <table>
   <tr valign="top">
-    <td width="50%"><strong>About</strong> — the four totals, then the last pipeline run: its six timed steps and the funnel from papers fetched to genes accepted.</td>
+    <td width="50%"><strong>About</strong> — the gold-only notice, then the four totals, the citation and the data sources.</td>
     <td width="50%"><strong>Genes</strong> — Table 1 under its grouped two-row header, beside the filters and below the per-chromosome summary.</td>
   </tr>
   <tr valign="top">
-    <td><img src="docs/screenshots/about.webp" width="100%" alt="The About page: the four totals and the last pipeline run" /></td>
+    <td><img src="docs/screenshots/about.webp" width="100%" alt="The About page: the gold-only notice and the four totals" /></td>
     <td><img src="docs/screenshots/genes.webp" width="100%" alt="The Genes page: the filter sidebar, the summary strip and Table 1" /></td>
   </tr>
   <tr valign="top">

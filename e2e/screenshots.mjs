@@ -206,8 +206,12 @@ const SHOTS = [
     name: "previews",
     route: "/previews",
     ready: previewsReady,
-    // One screenful: the hub's cards.
-    crop: () => ({ top: 0, bottom: FOLD }),
+    // The heading and the cards under it.
+    crop: async (page) => {
+      const cards = await extent(page, ".preview-cards");
+      if (!cards) throw new Error("no .preview-cards to crop to");
+      return { top: 0, bottom: cards.bottom + MARGIN };
+    },
   },
   // The review area exists only under gold-only with a round (a fork, or an
   // empty start, has none), so these three are taken only when it does.

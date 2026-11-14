@@ -101,7 +101,7 @@ widget is drawn only by `/previews/pipeline`, marked "Technical preview",
 through a static import in that route, so the run report (a protected chunk,
 never cached: 219 KB, 42 KB compressed, for the 365-day run) loads on that page
 alone. The route is a 404 unless gold-only is on and a run is recorded, and the
-widget's own e2e specs skip while `GOLD_ONLY` is on.
+widget's own e2e specs run on that page while `GOLD_ONLY` is on.
 
 It has two readers. A visiting researcher wants to know whether the data is
 fresh and can be trusted; the maintainer wants to know how the run went. So the
