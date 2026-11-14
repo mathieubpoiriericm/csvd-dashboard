@@ -6295,6 +6295,50 @@ button.adapt-card-head:focus-visible {
   max-height: none;
 }
 
+/* The record's other home (`TrialDialog`): a window over the page, which is
+   how the phone list opens it. A native modal dialog, so the browser supplies
+   the top layer, the focus trap and the backdrop, and this is only the box --
+   the session windows' box, with no registration marks. It is the scrollport
+   for a record taller than the phone, where the drawer zooms one to fit, and
+   has no padding of its own: the body carries it, so a press whose target is
+   the dialog is a press on the backdrop. */
+.timeline-dialog {
+  width: min(24rem, calc(100vw - 2 * var(--svd-space-4)));
+  max-width: none;
+  max-height: calc(100dvh - 2 * var(--svd-space-4));
+  padding: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--svd-border);
+  border-radius: var(--svd-radius-sm);
+  background: var(--svd-bg-card);
+  color: var(--svd-text);
+  box-shadow: var(--svd-shadow-md);
+  font-size: var(--svd-text-base);
+}
+
+.timeline-dialog::backdrop {
+  background: color-mix(in oklab, var(--svd-ink) 45%, transparent);
+}
+
+.timeline-dialog-body {
+  padding: var(--svd-space-4);
+}
+
+/* The header stays while the fields scroll under it, so the close button is
+   in reach at the end of a long record. It takes over the body's top and
+   side padding, or the fields would show in the gap above it. */
+.timeline-dialog .timeline-drawer-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: calc(var(--svd-space-4) * -1) calc(var(--svd-space-4) * -1)
+    var(--svd-space-2);
+  padding: var(--svd-space-4) var(--svd-space-4) var(--svd-space-2);
+  background: var(--svd-bg-card);
+}
+
 .timeline-drawer-head {
   display: flex;
   align-items: flex-start;

@@ -13,6 +13,7 @@ import {
   assert,
   assertEquals,
   assertMatch,
+  assertNotMatch,
   assertStringIncludes,
 } from "@std/assert";
 import { options } from "preact";
@@ -238,6 +239,17 @@ Deno.test("TrialsTimeline draws a marker per visible trial with rings, gaps and 
     html,
     escapeHtml(timeline.populations[0].label.join(" ")),
   );
+  // A record has two homes, both rendered closed: the drawer beside the
+  // plate, and the window the phone list opens.
+  const [aside, ...moreAsides] = html.match(/<aside\b[^>]*>/g) ?? [];
+  assert(aside !== undefined && moreAsides.length === 0, "one drawer");
+  assertStringIncludes(aside, 'id="timeline-drawer"');
+  assertMatch(aside, /\shidden\b/);
+  const [dialog, ...moreDialogs] = html.match(/<dialog\b[^>]*>/g) ?? [];
+  assert(dialog !== undefined && moreDialogs.length === 0, "one window");
+  assertStringIncludes(dialog, 'id="timeline-dialog"');
+  assertStringIncludes(dialog, 'class="timeline-dialog"');
+  assertNotMatch(dialog, /\sopen\b/);
 });
 
 Deno.test("TrialsTimeline over no trials keeps its key and its count", () => {

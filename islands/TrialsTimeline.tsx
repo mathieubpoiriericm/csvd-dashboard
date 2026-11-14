@@ -19,6 +19,7 @@ import {
 } from "../components/svgMeasurements.ts";
 import { useCheckboxFilters } from "../components/useCheckboxFilters.ts";
 import { useEscapeKey } from "../components/useEscapeKey.ts";
+import { useModal } from "../components/useModal.ts";
 import { DEFAULT_TRIAL_STATUSES, STATUS_CHOICES } from "../lib/constants.ts";
 import { fitZoom } from "../lib/drawer_fit.ts";
 import { POPULATION_FIELD } from "../lib/disease/populations.ts";
@@ -87,6 +88,8 @@ const populationTitle = (layout: Layout, key: string) =>
   layout.sectors.find((s) => s.key === key)?.label.join(" ") ?? key;
 
 const DRAWER_ID = "timeline-drawer";
+/** The window the phone list opens a record in. */
+const DIALOG_ID = "timeline-dialog";
 const LINE_HEIGHT_EM = 1.2;
 const HALO_WIDTH = 3.5;
 /** Radial push when a fitted drug label still touches its marker. */
@@ -651,6 +654,77 @@ function fitDrawer(drawer: HTMLElement, body: HTMLElement) {
   if (!fits) drawer.dataset.fit = "page";
 }
 
+/**
+ * One trial's whole record: the header with its close button, the flag
+ * block and the twelve fields. It has two homes and is the same in both --
+ * the drawer beside the plate, and the window the phone list opens.
+ */
+function TrialRecord(
+  { layout, marker, closeRef, onClose }: {
+    layout: Layout;
+    marker: Marker;
+    closeRef: Ref<HTMLButtonElement>;
+    onClose: () => void;
+  },
+) {
+  return (
+    <>
+      <div class="timeline-drawer-head">
+        <div>
+          <h2>
+            <span
+              class="timeline-drawer-swatch"
+              style={{ background: marker.color }}
+              aria-hidden="true"
+            />
+            {marker.trial.drug}
+          </h2>
+          <span
+            class="timeline-drawer-tag"
+            style={{
+              background: layout.sectors.find((s) =>
+                s.key === marker.population
+              )?.band,
+            }}
+          >
+            {marker.populationLabel} · Phase {marker.trial.clinicalTrialPhase}
+          </span>
+        </div>
+        <button
+          ref={closeRef}
+          type="button"
+          class="timeline-drawer-close"
+          aria-label="Close trial details"
+          onClick={onClose}
+        >
+          ×
+        </button>
+      </div>
+      {marker.flagReasons.length > 0 && (
+        <div class="timeline-drawer-flag">
+          <p class="timeline-drawer-flag-head">
+            <Icon name="exclamationTriangle" />
+            {encoding.recordFlag.label}
+          </p>
+          <ul>
+            {flagWording(marker.flagReasons).map((wording) => (
+              <li key={wording}>{wording}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <dl class="timeline-drawer-fields">
+        {DRUG_FIELDS.map(({ key, label }) => (
+          <div key={key}>
+            <dt>{label}</dt>
+            <dd>{drawerValue(marker, key)}</dd>
+          </div>
+        ))}
+      </dl>
+    </>
+  );
+}
+
 function TrialDrawer({ layout, marker, closeRef, onClose }: TrialDrawerProps) {
   const drawerRef = useRef<HTMLElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -678,62 +752,61 @@ function TrialDrawer({ layout, marker, closeRef, onClose }: TrialDrawerProps) {
     >
       {marker && (
         <div ref={bodyRef} class="timeline-drawer-body">
-          <div class="timeline-drawer-head">
-            <div>
-              <h2>
-                <span
-                  class="timeline-drawer-swatch"
-                  style={{ background: marker.color }}
-                  aria-hidden="true"
-                />
-                {marker.trial.drug}
-              </h2>
-              <span
-                class="timeline-drawer-tag"
-                style={{
-                  background: layout.sectors.find((s) =>
-                    s.key === marker.population
-                  )?.band,
-                }}
-              >
-                {marker.populationLabel} · Phase{" "}
-                {marker.trial.clinicalTrialPhase}
-              </span>
-            </div>
-            <button
-              ref={closeRef}
-              type="button"
-              class="timeline-drawer-close"
-              aria-label="Close trial details"
-              onClick={onClose}
-            >
-              ×
-            </button>
-          </div>
-          {marker.flagReasons.length > 0 && (
-            <div class="timeline-drawer-flag">
-              <p class="timeline-drawer-flag-head">
-                <Icon name="exclamationTriangle" />
-                {encoding.recordFlag.label}
-              </p>
-              <ul>
-                {flagWording(marker.flagReasons).map((wording) => (
-                  <li key={wording}>{wording}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-          <dl class="timeline-drawer-fields">
-            {DRUG_FIELDS.map(({ key, label }) => (
-              <div key={key}>
-                <dt>{label}</dt>
-                <dd>{drawerValue(marker, key)}</dd>
-              </div>
-            ))}
-          </dl>
+          <TrialRecord
+            layout={layout}
+            marker={marker}
+            closeRef={closeRef}
+            onClose={onClose}
+          />
         </div>
       )}
     </aside>
+  );
+}
+
+/**
+ * The record as a window over the page, which is how the phone list shows
+ * it: stacked in the flow as the drawer is on a tablet, it opened above the
+ * small radar and pushed the list that was tapped off the screen. A native
+ * modal `<dialog>` through `useModal`, so the browser supplies the top layer,
+ * the focus trap, the inert page and the backdrop. It scrolls a record
+ * taller than the phone, so nothing is zoomed to fit as in the drawer.
+ *
+ * Always in the page, closed without a marker: the island hands the open
+ * record to this or to the drawer by the layout's mode, so a record open
+ * across the switch moves from one to the other.
+ */
+function TrialDialog({ layout, marker, closeRef, onClose }: TrialDrawerProps) {
+  const ref = useModal(marker !== null, onClose);
+  return (
+    <dialog
+      ref={ref}
+      id={DIALOG_ID}
+      class="timeline-dialog"
+      aria-label="Trial details"
+      onCancel={(event) => {
+        // Escape (and a phone's back gesture) is reported, not obeyed: the
+        // state closes the dialog, so the two cannot drift apart.
+        event.preventDefault();
+        onClose();
+      }}
+      onClick={(event) => {
+        // The dialog has no padding of its own, so a press whose target is
+        // the dialog itself landed on the backdrop.
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      {marker && (
+        <div class="timeline-dialog-body">
+          <TrialRecord
+            layout={layout}
+            marker={marker}
+            closeRef={closeRef}
+            onClose={onClose}
+          />
+        </div>
+      )}
+    </dialog>
   );
 }
 
@@ -1282,6 +1355,10 @@ export default function TrialsTimeline(
       (radar.mode === "phone" ? rowRefs.current : markerRefs.current)[index]
         ?.focus();
     }
+    // An open record changed homes with the mode -- the drawer beside the
+    // plate, the window on the phone list -- and its close button is a new
+    // element: focus follows the record there.
+    if (active !== null) closeRef.current?.focus();
   }, [radar.mode]);
 
   // Which trial's marker or row has focus, kept through the moment a mode
@@ -1649,9 +1726,20 @@ export default function TrialsTimeline(
         class="timeline-main"
         data-stack={radar.stacked ? "true" : undefined}
       >
+        {
+          /* One record, two homes: the drawer beside (or stacked over) the
+            plate, and on the phone list a window over the page. Only one
+            holds the record, so there is one close button to focus. */
+        }
         <TrialDrawer
           layout={layout}
-          marker={activeMarker}
+          marker={radar.mode === "phone" ? null : activeMarker}
+          closeRef={closeRef}
+          onClose={close}
+        />
+        <TrialDialog
+          layout={layout}
+          marker={radar.mode === "phone" ? activeMarker : null}
           closeRef={closeRef}
           onClose={close}
         />

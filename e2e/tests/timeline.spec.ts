@@ -425,9 +425,14 @@ test("a window too short for a record at the floor zoom lets the page scroll, no
 
 test("stacked above the plate, every trial record fits its drawer with no scrollbar", async ({ page }) => {
   test.skip(T.markers === 0, NO_MARKER);
+  let stacked = 0;
   for (const [width, height] of [[1000, 800], [390, 844]] as const) {
     await page.setViewportSize({ width, height });
     await figureSettled(page);
+    // Below the radar's floor the list opens a record in a window, not the
+    // drawer: `timeline-responsive.spec.ts` holds that window to the phone.
+    if (await settleRadar(page) === "phone") continue;
+    stacked += 1;
     for (const record of await everyRecord(page)) {
       expect(record, `${record.drug} at ${width}px`).toMatchObject({
         overflow: "visible",
@@ -437,6 +442,7 @@ test("stacked above the plate, every trial record fits its drawer with no scroll
       });
     }
   }
+  test.skip(stacked === 0, "the list stands in at both widths");
 });
 
 // F34 fix round 2: .timeline-layout:has(.timeline-drawer:not([hidden]))
@@ -454,9 +460,14 @@ test("opening a trial record does not widen the document, stacked or railed", as
   for (const width of [390, 900, 1200, 1440, 1512]) {
     await page.setViewportSize({ width, height: 900 });
     await figureSettled(page);
+    // The list opens the record in a window over the page; the radar, in
+    // the drawer beside or above the plate.
+    const phone = await settleRadar(page) === "phone";
     await recordTriggers(page).first().click();
-    await expect(page.locator("#timeline-drawer")).toBeVisible();
-    if (width <= 1100) {
+    await expect(
+      page.locator(phone ? "#timeline-dialog" : "#timeline-drawer"),
+    ).toBeVisible();
+    if (!phone && width <= 1100) {
       // Un-stuck, not un-positioned: below 1100px the drawer drops from
       // sticky to relative and must give up the sticky rule's `top` too, or
       // it renders 152px below its slot onto the plate. The source rule
@@ -478,6 +489,8 @@ test("opening a trial record does not widen the document, stacked or railed", as
       scrollWidth,
       `${width}px: scrollWidth ${scrollWidth} vs clientWidth ${clientWidth}`,
     ).toBeLessThanOrEqual(clientWidth);
+    // The window is modal: left open, it would take the next width's press.
+    await page.getByRole("button", { name: "Close trial details" }).click();
   }
 });
 

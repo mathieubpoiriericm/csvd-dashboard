@@ -56,7 +56,7 @@ export function PhaseList(
                     ref={(el) => rowRef(marker.index, el)}
                     type="button"
                     class="timeline-row"
-                    aria-controls="timeline-drawer"
+                    aria-controls="timeline-dialog"
                     aria-expanded={activeIndex === marker.index
                       ? "true"
                       : "false"}
