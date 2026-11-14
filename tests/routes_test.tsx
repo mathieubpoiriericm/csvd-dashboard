@@ -11,10 +11,7 @@ import { renderToString } from "preact-render-to-string";
 import App, { pageTitle } from "../routes/_app.tsx";
 import AdaptPage, { AdaptTip } from "../routes/adapt.tsx";
 import Genes from "../routes/genes.tsx";
-import About, {
-  AboutContent,
-  handler as aboutHandler,
-} from "../routes/index.tsx";
+import About, { AboutContent } from "../routes/index.tsx";
 import MapPage from "../routes/map.tsx";
 import PhenogramPage from "../routes/phenogram.tsx";
 import TimelinePage from "../routes/timeline.tsx";
@@ -22,8 +19,6 @@ import Trials from "../routes/trials.tsx";
 import { DEFAULT_PAGE_SIZE } from "../components/TableShell.tsx";
 import { genes, trialLocations, trials } from "../lib/data.ts";
 import { pipelineStatus } from "../lib/data/pipeline.ts";
-import { pipelineRun } from "../lib/data/pipeline_run.ts";
-import { previewCookie } from "../lib/pipeline_preview.ts";
 import { MAINTAINER, RADAR_TITLE, SITE_TITLE } from "../lib/disease.ts";
 import { DEFAULT_TRIAL_STATUSES } from "../lib/constants.ts";
 import { placeGene } from "../lib/cytobands.ts";
@@ -48,23 +43,9 @@ interface AppProps {
   url: URL;
 }
 
-/**
- * The About route, rendered for a request: it reads the preview cookie off
- * the request's headers, so it is given one, with `cookie` when the test
- * needs it.
- */
-const renderAbout = (cookie?: string) =>
-  renderToString(
-    h(
-      About as unknown as preact.ComponentType<{ req: Request }>,
-      {
-        req: new Request(
-          "http://localhost/",
-          cookie ? { headers: { cookie } } : {},
-        ),
-      },
-    ),
-  );
+/** The About route, rendered: it takes no request. */
+const renderAbout = () =>
+  renderToString(h(About as unknown as preact.ComponentType, {}));
 
 const Shell = App as unknown as preact.ComponentType<AppProps>;
 
@@ -201,55 +182,9 @@ Deno.test("About route renders its warning, totals, and the gold-only notice", (
   }
 });
 
-Deno.test("the About route draws the preview the visitor's cookie asked for", () => {
-  // The cookie is honoured only where there is something to preview: the
-  // notice is gold-only's, and the widget needs a recorded run.
-  const on = renderAbout(previewCookie(true).split(";")[0]);
-  const off = renderAbout();
-  if (GOLD_ONLY) {
-    // Under gold-only the widget is the preview's alone, so without the
-    // cookie there is none.
-    assertNotMatch(off, /pipeline-card/);
-    if (pipelineRun !== null) {
-      assertStringIncludes(on, "pipeline-card");
-      assertStringIncludes(on, 'aria-checked="true"');
-      assertStringIncludes(off, 'aria-checked="false"');
-    } else {
-      assertNotMatch(on, /pipeline-card|about-preview-switch/);
-    }
-  } else {
-    // The run branch renders its own widget whenever a run is recorded, and
-    // the cookie changes nothing.
-    assertEquals(on, off);
-  }
-});
-
-Deno.test("the About route renews the preview cookie it drew the preview for", () => {
-  // The switch writes its cookie from script, which WebKit keeps for seven
-  // days at most; the route that honours it sends it back as a header, so
-  // it lasts the year the switch asked for.
-  const get = (cookie?: string) =>
-    new Headers(
-      (aboutHandler.GET({
-        req: new Request(
-          "http://localhost/",
-          cookie ? { headers: { cookie } } : {},
-        ),
-      } as never) as { headers?: HeadersInit }).headers,
-    ).get("set-cookie");
-  const on = get(previewCookie(true).split(";")[0]);
-  if (GOLD_ONLY && pipelineRun !== null) {
-    assertEquals(
-      on,
-      "pipeline_preview=1; Path=/; Max-Age=31536000; SameSite=Lax",
-    );
-  } else {
-    // No preview is offered, so there is no cookie to keep.
-    assertEquals(on, null);
-  }
-  // The server never switches the preview on by itself.
-  assertEquals(get(), null);
-  assertEquals(get("other=1"), null);
+Deno.test("the About route has no handler, so an old preview cookie changes nothing", async () => {
+  const route = await import("../routes/index.tsx");
+  assertEquals("handler" in route, false);
 });
 
 Deno.test("About content reports an unavailable date when no run is recorded", () => {

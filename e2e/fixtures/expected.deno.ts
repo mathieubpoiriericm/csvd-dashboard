@@ -60,12 +60,10 @@ import {
 import { votes } from "../../lib/review/events.ts";
 import type { ReviewState } from "../../lib/review/summary.ts";
 import {
-  PREVIEW_COOKIE,
-  PREVIEW_LOAD_FAILED,
-  previewInvitation,
   previewNote,
-} from "../../lib/pipeline_preview.ts";
-import { PREVIEWS_LABEL, previewsTip } from "../../lib/previews.ts";
+  PREVIEWS_LABEL,
+  previewsTip,
+} from "../../lib/previews.ts";
 import { PREVIEWS } from "../../lib/previews_current.ts";
 import { chromosomeOf } from "../../lib/sorting.ts";
 import { locationsWithTableStatus, phaseBarLabel } from "../../lib/trials.ts";
@@ -504,12 +502,8 @@ const expected = {
   goldOnly: GOLD_ONLY,
   goldOnlyNotice: GOLD_ONLY_NOTICE,
   goldDataDate: formatLongDate(GOLD_DATA_DATE),
-  /** The two sentences of the About page's technical-preview switch. */
-  previewInvitation: previewInvitation(pipelineRun?.config.daysBack ?? null),
+  /** The sentence under the run's own page's heading. */
   previewNote: previewNote(pipelineRun?.config.daysBack ?? null),
-  previewLoadFailed: PREVIEW_LOAD_FAILED,
-  /** The cookie that keeps the switch on, so a spec can start with it on. */
-  previewCookie: PREVIEW_COOKIE,
 
   /** The navbar's previews entry, and the features its hub offers. */
   previewsLabel: PREVIEWS_LABEL,

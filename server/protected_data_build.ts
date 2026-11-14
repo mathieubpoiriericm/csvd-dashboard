@@ -35,15 +35,6 @@ export const DATA_FREE_ISLANDS = [
   "ReviewRequest",
 ] as const;
 
-/**
- * Islands that are on a page whether or not their dataset is wanted, so may
- * reach one only through a dynamic import: the About page's preview switch
- * is drawn for every gold-only visitor and fetches the run widget, and the
- * report with it, when it is switched on. A static import here would put an
- * uncacheable dataset on every visit to the page.
- */
-export const ON_DEMAND_ISLANDS = ["PipelinePreview"] as const;
-
 /** Rollup's name for the public chunk `clientChunkName` assigns. */
 export const SHARED_CHUNK_NAME = "shared";
 
@@ -101,14 +92,13 @@ function assetSourcePath(name: string, repositoryRoot: string): string {
 
 /**
  * The chain of chunk files from one chunk to the first target it reaches, or
- * null. `withThePage` follows static imports alone: what the browser fetches
- * before the chunk runs, rather than everything it can ever fetch.
+ * null. It follows static and dynamic imports alike: a dynamic import still
+ * downloads the dataset, only later.
  */
 function importChain(
   from: Rollup.OutputChunk,
   isTarget: (fileName: string) => boolean,
   chunksByFile: ReadonlyMap<string, Rollup.OutputChunk>,
-  { withThePage = false }: { withThePage?: boolean } = {},
 ): string[] | null {
   const importedBy = new Map<string, string | null>([[from.fileName, null]]);
   const queue = [from.fileName];
@@ -122,9 +112,9 @@ function importChain(
       return chain;
     }
     const chunk = chunksByFile.get(fileName);
-    // A dynamic import still downloads the dataset, only later.
-    const later = withThePage ? [] : chunk?.dynamicImports ?? [];
-    for (const next of [...chunk?.imports ?? [], ...later]) {
+    for (
+      const next of [...chunk?.imports ?? [], ...chunk?.dynamicImports ?? []]
+    ) {
       if (importedBy.has(next)) continue;
       importedBy.set(next, fileName);
       queue.push(next);
@@ -234,28 +224,6 @@ export function assertProtectedDataBundle(
     if (chain !== null) {
       throw new Error(
         `Data-free island ${island} loads a protected data chunk: ${
-          chain.join(" -> ")
-        }`,
-      );
-    }
-  }
-
-  for (const island of ON_DEMAND_ISLANDS) {
-    const entry = chunks.find((chunk) =>
-      chunk.name === `fresh-island__${island}`
-    );
-    if (entry === undefined) {
-      throw new Error(`No client chunk for the on-demand island ${island}`);
-    }
-    const chain = importChain(
-      entry,
-      (fileName) => isProtectedDataAssetPath(`/${fileName}`),
-      chunksByFile,
-      { withThePage: true },
-    );
-    if (chain !== null) {
-      throw new Error(
-        `On-demand island ${island} loads a protected data chunk with the page: ${
           chain.join(" -> ")
         }`,
       );

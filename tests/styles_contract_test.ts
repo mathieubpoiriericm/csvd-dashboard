@@ -2136,18 +2136,6 @@ Deno.test("every control that lights on hover lights on focus-visible too", () =
     /\.pipeline-step-head:hover:not\(:disabled\),\s*\.pipeline-step-head:focus-visible:not\(:disabled\)\s*\{/,
     ".pipeline-step-head lights on hover alone",
   );
-  // The preview switch is disabled until its island is live, so its pairs
-  // carry the same qualifier, on and off.
-  assertMatch(
-    css,
-    /\.about-preview-switch:hover:not\(:disabled\),\s*\.about-preview-switch:focus-visible:not\(:disabled\)\s*\{/,
-    ".about-preview-switch lights on hover alone",
-  );
-  assertMatch(
-    css,
-    /\.about-preview-switch\[aria-checked="true"\]:hover:not\(:disabled\),\s*\.about-preview-switch\[aria-checked="true"\]:focus-visible:not\(:disabled\)\s*\{/,
-    "the switched-on .about-preview-switch lights on hover alone",
-  );
   assertMatch(
     css,
     /\.data-table thead th\.sortable:hover,\s*\.data-table thead th\.sortable:has\(\.sort-button:focus-visible\)\s*\{/,
@@ -2221,65 +2209,8 @@ Deno.test("the new-feature dot stands out from the navbar in both themes", () =>
   assert(!css.includes("nav-adapt"));
 });
 
-Deno.test("the switched-on preview switch answers a pointer in both themes", () => {
-  // Its hover was the accent giving way to the primary, two tokens the dark
-  // blocks set to one value: in the dark theme nothing changed.
-  const fill = (selector: string) => {
-    const at = css.indexOf(`${selector} {`);
-    assert(at !== -1, `no rule for ${selector}`);
-    const body = css.slice(at, css.indexOf("}", at));
-    const token = body.match(/background: var\((--svd-[\w-]+)\);/)?.[1];
-    assert(token !== undefined, `${selector} names no background token`);
-    assertMatch(body, new RegExp(`border-color: var\\(${token}\\);`));
-    return token;
-  };
-  const rest = fill('.about-preview-switch[aria-checked="true"]');
-  const hover = fill(
-    '.about-preview-switch[aria-checked="true"]:focus-visible:not(:disabled)',
-  );
-  const thumb = css.match(
-    /\.about-preview-switch\[aria-checked="true"\]::before \{\s*background: var\((--svd-[\w-]+)\);/,
-  )?.[1];
-  assert(thumb !== undefined, "the switched-on thumb names no token");
-  for (const theme of ["light", "dark"] as const) {
-    assert(
-      tokenValue(rest, theme) !== tokenValue(hover, theme),
-      `${theme}: the switched-on switch does not change on hover`,
-    );
-    // WCAG 1.4.11: the thumb is what says which side the switch is on.
-    for (const track of [rest, hover]) {
-      const ratio = contrast(
-        tokenValue(thumb, theme),
-        tokenValue(track, theme),
-      );
-      assert(ratio >= 3, `${theme} thumb on ${track}: ${ratio.toFixed(2)}:1`);
-    }
-  }
-});
-
-Deno.test("the preview switch keeps its state where colours are forced", () => {
-  // Forced colours replace an author's backgrounds, and both of the
-  // switch's cues are backgrounds: on and off drew as one empty pill. A
-  // system colour is kept, so the thumb and the switched-on track name one.
-  const block = mediaBlockContaining(
-    ".about-preview-switch::before {\n    background: ButtonText;",
-  );
-  assertMatch(block, /@media \(forced-colors: active\)/);
-  // Hover and focus are named with the state: their own fills are not
-  // system colours, and would be replaced over the highlight.
-  assertMatch(
-    block,
-    /\.about-preview-switch\[aria-checked="true"\],\s*\.about-preview-switch\[aria-checked="true"\]:hover:not\(:disabled\),\s*\.about-preview-switch\[aria-checked="true"\]:focus-visible:not\(:disabled\) \{\s*border-color: Highlight;\s*background: Highlight;/,
-  );
-  assertMatch(
-    block,
-    /\.about-preview-switch\[aria-checked="true"\]::before \{\s*background: HighlightText;/,
-  );
-  // After the rules it answers, which it does not outrank.
-  assert(
-    css.indexOf("@media (forced-colors: active)") >
-      css.indexOf(".about-preview-switch:disabled {"),
-  );
+Deno.test("the About page's preview switch left no style behind", () => {
+  assert(!css.includes("about-preview"));
 });
 
 Deno.test("a form control's edge holds 3:1 against the page in both themes", () => {
