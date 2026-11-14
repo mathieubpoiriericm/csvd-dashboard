@@ -161,9 +161,7 @@ Deno.test("the guide and the review pages open on the strip", () => {
       ),
     ]
   ) {
-    assert(
-      html.indexOf("preview-switcher") < html.indexOf("page-header"),
-      html.slice(0, 300),
-    );
+    const s = html.indexOf("preview-switcher");
+    assert(s !== -1 && s < html.indexOf("page-header"), html.slice(0, 300));
   }
 });
