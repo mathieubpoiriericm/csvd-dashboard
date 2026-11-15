@@ -117,6 +117,34 @@ def test_the_parser_refuses_an_empty_term() -> None:
         disease_module._parse_manifest(_MANIFEST_RAW, pipeline_raw)
 
 
+@pytest.mark.parametrize("key", ["diseaseTerms", "markerTerms", "meshTerms"])
+def test_the_parser_refuses_an_empty_query_term_list(key: str) -> None:
+    # pubmed_search quotes each list into an OR-group; an empty one writes
+    # `()`, which NCBI answers inside a 200 as some other query.
+    pipeline_raw = copy.deepcopy(_PIPELINE_RAW)
+    pipeline_raw["search"]["pubmed"][key] = []
+    with pytest.raises(ValueError, match=f"search.pubmed.{key} must hold"):
+        disease_module._parse_manifest(_MANIFEST_RAW, pipeline_raw)
+
+
+def test_the_parser_refuses_a_double_quote_in_a_query_term() -> None:
+    pipeline_raw = copy.deepcopy(_PIPELINE_RAW)
+    pipeline_raw["search"]["pubmed"]["markerTerms"].append('a "b" c')
+    with pytest.raises(ValueError, match="may not contain a double quote"):
+        disease_module._parse_manifest(_MANIFEST_RAW, pipeline_raw)
+
+
+def test_the_schema_refuses_what_the_parser_refuses() -> None:
+    schema = json.loads(
+        (DISEASE_DIR / "pipeline.schema.json").read_text(encoding="utf-8")
+    )
+    validator = Draft202012Validator(schema)
+    for value in ([], ['a "b" c']):
+        pipeline_raw = copy.deepcopy(_PIPELINE_RAW)
+        pipeline_raw["search"]["pubmed"]["meshTerms"] = value
+        assert list(validator.iter_errors(pipeline_raw)), value
+
+
 def test_the_prompt_sections_are_read_from_the_prompt_file() -> None:
     d = load_disease()
     assert PROMPT_PATH.is_file()

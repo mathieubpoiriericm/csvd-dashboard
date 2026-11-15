@@ -9,6 +9,7 @@ import functools
 import logging
 import os
 import time
+import urllib.parse
 import urllib.request
 import warnings
 from collections.abc import Callable
@@ -180,9 +181,18 @@ async def _run_entrez_search(**params: Any) -> _EntrezSearchResult:
     httpx event hooks that instrument every other API module fires for it.
     Without this the run's own search was missing from the External
     services panel it heads.
+
+    ``_check_error_list`` runs here, so every caller -- each page of the
+    walk and ``query_eval``'s recall harness included -- refuses a query
+    NCBI rejected inside a 200 rather than reading its empty ``IdList`` as
+    "matches nothing".
     """
     started = time.monotonic()
-    status = 200
+    # 0 until NCBI answers: a cancellation (SIGTERM, SIGHUP and Ctrl-C all
+    # become one) or an exception outside `_ENTREZ_FAILURES` leaves the
+    # call through the `finally` alone, and was recorded as a clean 200 on
+    # the report of a run that failed in step 1.
+    status = 0
 
     async def search() -> _EntrezSearchResult:
         handle = await asyncio.to_thread(Entrez.esearch, **params)
@@ -193,7 +203,8 @@ async def _run_entrez_search(**params: Any) -> _EntrezSearchResult:
 
     try:
         # TimeoutError is an OSError, so the clause below records it.
-        return await asyncio.wait_for(search(), timeout=_ENTREZ_DEADLINE_S)
+        results = await asyncio.wait_for(search(), timeout=_ENTREZ_DEADLINE_S)
+        status = 200
     except _ENTREZ_FAILURES as e:
         # A failed call is a call. urllib's HTTPError carries the status;
         # a transport failure carries none, and is recorded as 0 so the
@@ -206,10 +217,32 @@ async def _run_entrez_search(**params: Any) -> _EntrezSearchResult:
         record_service_call(
             "ncbi_eutils",
             endpoint="/entrez/eutils/esearch.fcgi",
-            method="GET",
+            method=_entrez_method(params),
             status=status,
             elapsed_ms=(time.monotonic() - started) * 1000.0,
         )
+    # Outside the try: a rejected query is an answered call, recorded 200.
+    _check_error_list(results)
+    return results
+
+
+# Biopython's own rule (`Entrez._build_request`): parameters that encode
+# past this many characters go as a POST. The search query alone is past
+# it, so every esearch here is a POST, and recording it as a GET filed its
+# calls, errors and timings under gene validation's GET row.
+_ENTREZ_POST_THRESHOLD: Final[int] = 1000
+
+
+def _entrez_method(params: dict[str, Any]) -> str:
+    """The HTTP method Biopython sends ``params`` with."""
+    entrez_config = cast(_EntrezConfiguration, Entrez)
+    sent = {**params, "tool": Entrez.tool, "email": entrez_config.email}
+    if entrez_config.api_key:
+        sent["api_key"] = entrez_config.api_key
+    encoded = urllib.parse.urlencode(
+        {k: v for k, v in sent.items() if v is not None}, doseq=True
+    )
+    return "POST" if len(encoded) > _ENTREZ_POST_THRESHOLD else "GET"
 
 
 def _check_error_list(results: _EntrezSearchResult) -> None:
@@ -264,7 +297,9 @@ async def search_recent_papers(
         on_truncated: Called once with ``(retrieved, total)`` whenever the
             list returned is short of ``Count`` -- a pagination failure, an
             empty batch mid-walk, a window with no ``WebEnv``/``QueryKey``
-            to page through, or the ``MAX_TOTAL_RESULTS`` cap.
+            to page through, the ``MAX_TOTAL_RESULTS`` cap, or a window
+            that changed while it was paged. ``Count`` is the largest any
+            page reported, and the list holds each PMID once.
 
     Returns:
         List of PMID strings.
@@ -272,7 +307,8 @@ async def search_recent_papers(
     Raises:
         ValueError: If days_back is not in valid range.
         PubMedSearchError: If the Entrez API call fails, or if NCBI
-            rejected the query inside a 200 (``FieldNotFound``).
+            rejected the query inside a 200 (``FieldNotFound``) on any
+            page.
     """
     _configure_entrez()
 
@@ -301,17 +337,27 @@ async def search_recent_papers(
     except _ENTREZ_FAILURES as e:
         raise PubMedSearchError(f"Entrez API call failed: {e}") from e
 
-    _check_error_list(results)
-    pmids: list[str] = list(results.get("IdList", []))
+    # Each page re-runs the search (see below) over a window still open at
+    # the top, so a record indexed mid-walk shifts every later offset by
+    # one: the next page repeats the id that ended this one, and the oldest
+    # id in the window is never reached. Counting that repeat as a paper
+    # stopped the walk one short with `len == Count`, so the loss was
+    # silent and the duplicate inflated "papers matched". So: ids are kept
+    # ordered and unique, `retstart` is the raw number of ids received,
+    # and `Count` is the largest any page reported -- a grown window is
+    # paged to its end, and a short unique list is reported as truncation.
+    first_ids = results.get("IdList", [])
+    seen: dict[str, None] = dict.fromkeys(first_ids)
+    offset = len(first_ids)
     total_count = int(results.get("Count", 0))
 
     # Paginate if there are more results than the initial batch
-    if total_count > DEFAULT_RETMAX:
+    if total_count > offset:
         web_env = results.get("WebEnv")
         query_key = results.get("QueryKey")
 
         if web_env and query_key:
-            while len(pmids) < total_count and len(pmids) < MAX_TOTAL_RESULTS:
+            while offset < total_count and len(seen) < MAX_TOTAL_RESULTS:
                 try:
                     # The date filter is repeated on every page, and that
                     # is not redundant. esearch re-runs `term` even when a
@@ -332,27 +378,35 @@ async def search_recent_papers(
                         datetype="edat",
                         mindate=mindate,
                         maxdate="3000",
-                        retstart=len(pmids),
+                        retstart=offset,
                         retmax=DEFAULT_RETMAX,
                         webenv=web_env,
                         query_key=query_key,
                     )
                 except _ENTREZ_FAILURES as e:
-                    logger.warning(
-                        f"PubMed pagination failed at offset {len(pmids)}: {e}"
-                    )
+                    logger.warning(f"PubMed pagination failed at offset {offset}: {e}")
                     break
 
                 batch_ids = batch.get("IdList", [])
                 if not batch_ids:
                     break
-                pmids.extend(batch_ids)
+                offset += len(batch_ids)
+                seen.update(dict.fromkeys(batch_ids))
+                batch_count = int(batch.get("Count", total_count))
+                if batch_count != total_count:
+                    logger.warning(
+                        f"PubMed window changed while paging: Count "
+                        f"{total_count} -> {batch_count} at offset {offset}"
+                    )
+                    total_count = max(total_count, batch_count)
 
-            if len(pmids) >= MAX_TOTAL_RESULTS:
+            if len(seen) >= MAX_TOTAL_RESULTS:
                 logger.warning(
                     f"PubMed results capped at {MAX_TOTAL_RESULTS} "
                     f"(total available: {total_count})"
                 )
+
+    pmids = list(seen)
 
     # Every way of coming up short reports the same way. A pagination
     # failure was the only one that reached the run report; the

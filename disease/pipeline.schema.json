@@ -24,9 +24,9 @@
           "additionalProperties": false,
           "properties": {
             "$comment": { "type": "string" },
-            "diseaseTerms": { "$ref": "#/$defs/terms" },
-            "markerTerms": { "$ref": "#/$defs/terms" },
-            "meshTerms": { "$ref": "#/$defs/terms" }
+            "diseaseTerms": { "$ref": "#/$defs/queryTerms" },
+            "markerTerms": { "$ref": "#/$defs/queryTerms" },
+            "meshTerms": { "$ref": "#/$defs/queryTerms" }
           }
         },
         "clinicalTrials": {
@@ -67,6 +67,12 @@
     }
   },
   "$defs": {
-    "terms": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+    "terms": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "queryTerms": {
+      "$comment": "Quoted into the PubMed query: an empty list writes an empty group, and a double quote ends the phrase early.",
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1, "pattern": "^[^\"]*$" }
+    }
   }
 }

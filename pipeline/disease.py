@@ -108,6 +108,24 @@ def _terms(raw: Mapping[str, Any], path: str, filename: str) -> tuple[str, ...]:
     return tuple(t.strip() for t in value)
 
 
+def _query_terms(raw: Mapping[str, Any], path: str, filename: str) -> tuple[str, ...]:
+    """A term list ``pipeline/pubmed_search.py`` quotes into the PubMed query.
+
+    An empty list writes an empty ``()`` group, and a term holding ``"``
+    closes its phrase early and leaves the rest outside the field tag:
+    either way NCBI answers a different query than the one written, inside
+    a 200, and the run goes green over the wrong papers.
+    """
+    terms = _terms(raw, path, filename)
+    if not terms:
+        raise ValueError(f"{filename}: {path} must hold at least one term")
+    if quoted := [t for t in terms if '"' in t]:
+        raise ValueError(
+            f"{filename}: {path} terms may not contain a double quote: {quoted}"
+        )
+    return terms
+
+
 def _check_schema_version(raw: Mapping[str, Any], filename: str) -> None:
     if _at(raw, "schemaVersion", filename) != SCHEMA_VERSION:
         raise ValueError(f"{filename}: schemaVersion must be {SCHEMA_VERSION}")
@@ -194,13 +212,15 @@ def _parse_manifest(
         short=_text(manifest_raw, "disease.short", _MANIFEST),
         abbreviation=_text(manifest_raw, "disease.abbreviation", _MANIFEST),
         run_label=_text(pipeline_raw, "pipeline.runLabel", _PIPELINE),
-        pubmed_disease_terms=_terms(
+        pubmed_disease_terms=_query_terms(
             pipeline_raw, "search.pubmed.diseaseTerms", _PIPELINE
         ),
-        pubmed_marker_terms=_terms(
+        pubmed_marker_terms=_query_terms(
             pipeline_raw, "search.pubmed.markerTerms", _PIPELINE
         ),
-        pubmed_mesh_terms=_terms(pipeline_raw, "search.pubmed.meshTerms", _PIPELINE),
+        pubmed_mesh_terms=_query_terms(
+            pipeline_raw, "search.pubmed.meshTerms", _PIPELINE
+        ),
         ct_search_terms=_terms(
             pipeline_raw, "search.clinicalTrials.searchTerms", _PIPELINE
         ),
