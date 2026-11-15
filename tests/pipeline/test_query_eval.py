@@ -188,6 +188,28 @@ async def test_esearch_pmids_returns_the_id_list_as_a_set(
     assert await esearch_pmids("x", retmax=7) == frozenset({"1", "2"})
 
 
+async def test_esearch_pmids_refuses_a_query_ncbi_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # A field tag NCBI does not know comes back inside a 200 with an empty
+    # IdList. Read as "matches no gold paper" it measured zero recall, and
+    # `--write-baseline` pinned that under the broken query's hash.
+    from unittest.mock import MagicMock
+
+    from pipeline import pubmed_search
+    from pipeline.pubmed_search import PubMedSearchError
+
+    monkeypatch.setattr(query_eval, "_configure_entrez", lambda: None)
+    monkeypatch.setattr(pubmed_search.Entrez, "esearch", lambda **_: MagicMock())
+    monkeypatch.setattr(
+        pubmed_search.Entrez,
+        "read",
+        lambda _: {"IdList": [], "Count": "0", "ErrorList": {"FieldNotFound": ["x"]}},
+    )
+    with pytest.raises(PubMedSearchError, match="FieldNotFound"):
+        await esearch_pmids("x")
+
+
 # ---------------------------------------------------------------------------
 # The baseline
 # ---------------------------------------------------------------------------

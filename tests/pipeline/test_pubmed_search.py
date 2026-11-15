@@ -19,6 +19,13 @@ from pipeline.pubmed_search import (
     search_recent_papers,
 )
 
+
+def _entrez_answers(mocker, *answers):
+    """Have Biopython answer each esearch with the next parsed result."""
+    mocker.patch("pipeline.pubmed_search.Entrez.esearch", return_value=MagicMock())
+    return mocker.patch("pipeline.pubmed_search.Entrez.read", side_effect=answers)
+
+
 # ---------------------------------------------------------------------------
 # SVD_QUERY structure
 # ---------------------------------------------------------------------------
@@ -378,10 +385,9 @@ class TestSearchRecentPapers:
         # A field NCBI does not know is reported inside a 200 as
         # ErrorList/FieldNotFound with Count 0 -- which read as "no new
         # papers" and a green run, indefinitely.
-        mocker.patch(
-            "pipeline.pubmed_search._run_entrez_search",
-            new_callable=AsyncMock,
-            return_value={
+        _entrez_answers(
+            mocker,
+            {
                 "IdList": [],
                 "Count": "0",
                 "ErrorList": {"FieldNotFound": ["Title/Abstrct"], "PhraseNotFound": []},
@@ -394,10 +400,9 @@ class TestSearchRecentPapers:
     async def test_an_unindexed_phrase_is_logged_not_fatal(self, mocker, caplog):
         # PhraseNotFound is NCBI saying one OR-branch matched nothing; the
         # rest of the query still answers.
-        mocker.patch(
-            "pipeline.pubmed_search._run_entrez_search",
-            new_callable=AsyncMock,
-            return_value={
+        _entrez_answers(
+            mocker,
+            {
                 "IdList": ["1"],
                 "Count": "1",
                 "ErrorList": {"PhraseNotFound": ["nonesuch"], "FieldNotFound": []},
@@ -415,10 +420,9 @@ class TestSearchRecentPapers:
         # Every term the query writes is quoted, and NCBI files a quoted
         # phrase with no hits under WarningList, not ErrorList -- the shape
         # Bio.Entrez returns for the live query. OutputMessage is commentary.
-        mocker.patch(
-            "pipeline.pubmed_search._run_entrez_search",
-            new_callable=AsyncMock,
-            return_value={
+        _entrez_answers(
+            mocker,
+            {
                 "IdList": ["1"],
                 "Count": "1",
                 "WarningList": {
@@ -589,3 +593,119 @@ class TestSearchRecentPapers:
         await search_recent_papers(7)
 
         assert "PubMed results capped at 2" in caplog.text
+
+    async def test_a_cancelled_search_is_recorded_as_an_error(self, mocker):
+        # SIGTERM, SIGHUP and Ctrl-C all reach a run as a cancellation, a
+        # BaseException the failure clause never saw: the interrupted search
+        # went through `finally` as a clean 200 on the failed run's report.
+        import asyncio
+        import threading
+
+        from pipeline.api_telemetry import current_recorder, reset_recorder
+
+        reset_recorder()
+        release = threading.Event()
+        mocker.patch(
+            "pipeline.pubmed_search.Entrez.esearch",
+            side_effect=lambda **_: release.wait(5),
+        )
+        task = asyncio.create_task(search_recent_papers(7))
+        await asyncio.sleep(0.05)
+        task.cancel()
+        try:
+            with pytest.raises(asyncio.CancelledError):
+                await task
+        finally:
+            release.set()
+
+        rows = current_recorder().records()
+        assert (rows[0].calls, rows[0].ok, rows[0].errors) == (1, 0, 1)
+
+    async def test_the_search_is_recorded_under_the_method_biopython_sends(
+        self, mocker
+    ):
+        # The query encodes past Biopython's 1000-character threshold, so
+        # every esearch goes as a POST; recorded as GET it shared a row
+        # with gene validation's GETs.
+        from Bio import Entrez
+
+        from pipeline.api_telemetry import current_recorder, reset_recorder
+
+        reset_recorder()
+        search = _entrez_answers(mocker, {"IdList": [], "Count": "0"})
+        await search_recent_papers(7)
+
+        assert search.call_count == 1
+        sent = Entrez._build_request(
+            "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi",
+            {"db": "pubmed", "term": SVD_QUERY, "retmax": 500, "usehistory": "y"},
+        ).get_method()
+        assert sent == "POST"
+        assert [row.method for row in current_recorder().records()] == ["POST"]
+
+    async def test_a_rejected_field_tag_on_a_later_page_raises(self, mocker):
+        # The check runs on every answer, not only the first.
+        _entrez_answers(
+            mocker,
+            {
+                "IdList": [str(i) for i in range(500)],
+                "Count": "700",
+                "WebEnv": "env",
+                "QueryKey": "1",
+            },
+            {"IdList": [], "Count": "0", "ErrorList": {"FieldNotFound": ["x"]}},
+        )
+        with pytest.raises(PubMedSearchError, match="FieldNotFound"):
+            await search_recent_papers(7)
+
+    async def test_a_window_that_grows_mid_walk_is_paged_to_its_end(self, mocker):
+        # Each page re-runs the search over a window open at the top. A
+        # record indexed between pages shifts every offset by one: page 2
+        # repeats page 1's last id, and the window's oldest is one further
+        # on. Counting the repeat stopped the walk at `len == Count` with
+        # the oldest paper never fetched and nothing reported.
+        search = mocker.patch(
+            "pipeline.pubmed_search._run_entrez_search", new_callable=AsyncMock
+        )
+        search.side_effect = [
+            {
+                "IdList": [str(i) for i in range(500)],
+                "Count": "700",
+                "WebEnv": "env",
+                "QueryKey": "1",
+            },
+            {"IdList": [str(i) for i in range(499, 699)], "Count": "701"},
+            {"IdList": ["699"], "Count": "701"},
+        ]
+        on_truncated = MagicMock()
+
+        result = await search_recent_papers(7, on_truncated=on_truncated)
+
+        assert result == [str(i) for i in range(700)]
+        assert [c.kwargs["retstart"] for c in search.await_args_list[1:]] == [
+            500,
+            700,
+        ]
+        # 701 by Count, 700 unique: the new record sits at the head, which
+        # the next run's window overlaps -- but the shortfall is reported.
+        on_truncated.assert_called_once_with(700, 701)
+
+    async def test_a_repeated_id_is_not_counted_as_a_paper(self, mocker):
+        search = mocker.patch(
+            "pipeline.pubmed_search._run_entrez_search", new_callable=AsyncMock
+        )
+        search.side_effect = [
+            {
+                "IdList": [str(i) for i in range(500)],
+                "Count": "700",
+                "WebEnv": "env",
+                "QueryKey": "1",
+            },
+            {"IdList": [str(i) for i in range(499, 699)], "Count": "700"},
+        ]
+        on_truncated = MagicMock()
+
+        result = await search_recent_papers(7, on_truncated=on_truncated)
+
+        assert len(result) == len(set(result)) == 699
+        on_truncated.assert_called_once_with(699, 700)
