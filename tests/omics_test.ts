@@ -7,6 +7,7 @@ import {
   formatOmicsEntry,
   parseOmicsEntry,
 } from "../lib/omics.ts";
+import wireCases from "./fixtures/omics_wire.json" with { type: "json" };
 
 Deno.test("parseOmicsEntry reads type, biomarker and starred items", () => {
   assertEquals(
@@ -91,3 +92,12 @@ Deno.test("text-only surfaces print the clarification mark as the cell does", ()
     "BB? c",
   ]);
 });
+
+// The writer's side of this fixture is tests/pipeline/test_omics.py.
+for (const { name, wire, printed, colocalized } of wireCases) {
+  Deno.test(`the display reads what the writer wrote: ${name}`, () => {
+    const entry = parseOmicsEntry(wire);
+    assertEquals(formatOmicsEntry(entry), printed);
+    assertEquals(colocalizedItems(entry), colocalized);
+  });
+}

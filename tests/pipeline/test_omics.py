@@ -1,6 +1,8 @@
 """The structured omics evidence the extraction returns, and its wire form."""
 
+import json
 import logging
+from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
@@ -15,6 +17,19 @@ from pipeline.omics import (
     to_wire,
     wire_strings,
 )
+
+# The cases tests/omics_test.ts reads back through lib/omics.ts: one fixture,
+# so the writer and the display cannot drift apart.
+_WIRE_CASES = json.loads(
+    (Path(__file__).resolve().parents[1] / "fixtures" / "omics_wire.json").read_text(
+        encoding="utf-8"
+    )
+)
+
+
+@pytest.mark.parametrize("case", _WIRE_CASES, ids=lambda case: case["name"])
+def test_the_writer_and_the_display_agree_on_the_wire_form(case) -> None:
+    assert to_wire(OmicsEvidence.model_validate(case["study"])) == case["wire"]
 
 
 def test_to_wire_writes_the_format_and_stars_only_colocalized_items() -> None:

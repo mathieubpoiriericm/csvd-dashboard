@@ -66,7 +66,10 @@ rejoin -- see it as one element, and a run's array lands after whatever was
 stored, prose or array. The export splits the same way: every array is read
 where it sits, the prose between arrays goes through the chain in place, and a
 study stored twice publishes once (`tests/pipeline/test_load_gold_integration.py`
-covers both orders).
+covers both orders). A run's biomarker never holds a colon outside parentheses
+(`_biomarker` turns each into a comma), and a biomarker with no items is written
+`Type;biomarker`, as the curated table writes it; the writer and the display are
+both tested over `tests/fixtures/omics_wire.json`.
 
 `scripts/backfill_gene_lists.py` populated the tables from the old columns using
 the export's own parsers. It is run as a module
