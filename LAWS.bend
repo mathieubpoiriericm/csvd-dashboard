@@ -1,0 +1,203 @@
+# The committee's standing rule: what must hold of lib/review/standing.bend.
+# The maintainer's file. Each law is an open claim here and is proved by the
+# def of the same name in PROOF.bend; `deno task bend:check` is the gate.
+#
+# a, r, b, o: the members accepting, rejecting, abstaining and outstanding.
+
+import Base
+import ./lib/review/standing.bend as S
+
+def same(x: S.Standing, y: S.Standing) -> Bool:
+  match x y:
+    case S.NotStarted{} S.NotStarted{}:
+      True{}
+    case S.InReview{} S.InReview{}:
+      True{}
+    case S.Conflict{} S.Conflict{}:
+      True{}
+    case S.Accepted{} S.Accepted{}:
+      True{}
+    case S.Rejected{} S.Rejected{}:
+      True{}
+    case S.NoQuorum{} S.NoQuorum{}:
+      True{}
+    case _ _:
+      False{}
+
+# True when at most one of the five is.
+def at_most_one(p: Bool, q: Bool, s: Bool, t: Bool, u: Bool) -> Bool:
+  match p q s t u:
+    case False{} False{} False{} False{} _:
+      True{}
+    case False{} False{} False{} True{} False{}:
+      True{}
+    case False{} False{} True{} False{} False{}:
+      True{}
+    case False{} True{} False{} False{} False{}:
+      True{}
+    case True{} False{} False{} False{} False{}:
+      True{}
+    case _ _ _ _ _:
+      False{}
+
+def none(p: Bool, q: Bool, s: Bool, t: Bool, u: Bool) -> Bool:
+  match p q s t u:
+    case False{} False{} False{} False{} False{}:
+      True{}
+    case _ _ _ _ _:
+      False{}
+
+# 1. Finality. A settled gene keeps its standing whatever one outstanding
+#    member then answers.
+law accepted_final_accept:
+  for +a: Nat
+  for +r: Nat
+  for +b: Nat
+  for +o: Nat
+  for e: {S.standing_of(a, r, b, 1n+o) == S.Accepted{} : S.Standing}
+  {S.standing_of(1n+a, r, b, o) == S.Accepted{} : S.Standing}
+
+law accepted_final_reject:
+  for +a: Nat
+  for +r: Nat
+  for +b: Nat
+  for +o: Nat
+  for e: {S.standing_of(a, r, b, 1n+o) == S.Accepted{} : S.Standing}
+  {S.standing_of(a, 1n+r, b, o) == S.Accepted{} : S.Standing}
+
+law accepted_final_abstain:
+  for +a: Nat
+  for +r: Nat
+  for +b: Nat
+  for +o: Nat
+  for e: {S.standing_of(a, r, b, 1n+o) == S.Accepted{} : S.Standing}
+  {S.standing_of(a, r, 1n+b, o) == S.Accepted{} : S.Standing}
+
+law rejected_final_accept:
+  for +a: Nat
+  for +r: Nat
+  for +b: Nat
+  for +o: Nat
+  for e: {S.standing_of(a, r, b, 1n+o) == S.Rejected{} : S.Standing}
+  {S.standing_of(1n+a, r, b, o) == S.Rejected{} : S.Standing}
+
+law rejected_final_reject:
+  for +a: Nat
+  for +r: Nat
+  for +b: Nat
+  for +o: Nat
+  for e: {S.standing_of(a, r, b, 1n+o) == S.Rejected{} : S.Standing}
+  {S.standing_of(a, 1n+r, b, o) == S.Rejected{} : S.Standing}
+
+law rejected_final_abstain:
+  for +a: Nat
+  for +r: Nat
+  for +b: Nat
+  for +o: Nat
+  for e: {S.standing_of(a, r, b, 1n+o) == S.Rejected{} : S.Standing}
+  {S.standing_of(a, r, 1n+b, o) == S.Rejected{} : S.Standing}
+
+law conflict_final_accept:
+  for +a: Nat
+  for +r: Nat
+  for +b: Nat
+  for +o: Nat
+  for e: {S.standing_of(a, r, b, 1n+o) == S.Conflict{} : S.Standing}
+  {S.standing_of(1n+a, r, b, o) == S.Conflict{} : S.Standing}
+
+law conflict_final_reject:
+  for +a: Nat
+  for +r: Nat
+  for +b: Nat
+  for +o: Nat
+  for e: {S.standing_of(a, r, b, 1n+o) == S.Conflict{} : S.Standing}
+  {S.standing_of(a, 1n+r, b, o) == S.Conflict{} : S.Standing}
+
+law conflict_final_abstain:
+  for +a: Nat
+  for +r: Nat
+  for +b: Nat
+  for +o: Nat
+  for e: {S.standing_of(a, r, b, 1n+o) == S.Conflict{} : S.Standing}
+  {S.standing_of(a, r, 1n+b, o) == S.Conflict{} : S.Standing}
+
+# 2. Exclusive rows. No tally satisfies two of the table's five conditions,
+#    so the order of the rows cannot matter.
+law rows_exclusive:
+  for +a: Nat
+  for +r: Nat
+  for +b: Nat
+  for +o: Nat
+  {at_most_one(S.is_not_started(a, r, b), S.is_accepted(a, r, o), S.is_rejected(a, r, o), S.is_no_quorum(a, r, b, o), S.is_conflict(a, r, o)) == True{} : Bool}
+
+# 3. Needed is two thirds, rounded up.
+law needed_reaches_two_thirds:
+  for +n: Nat
+  {Nat.is_ge(Nat.mul(3n, S.needed(n)), Nat.double(n)) == True{} : Bool}
+
+law needed_is_least:
+  for +n: Nat
+  {Nat.is_lt(Nat.mul(3n, S.needed(n)), Nat.add(Nat.double(n), 3n)) == True{} : Bool}
+
+# 4. Settling point. When someone has not abstained, a gene is accepted
+#    exactly when the accepts reach `needed`, and rejected exactly when the
+#    rejects do.
+law accepted_at_needed:
+  for +a: Nat
+  for +r: Nat
+  for +b: Nat
+  for +o: Nat
+  for e: {Nat.is_gt(Nat.add(a, Nat.add(r, o)), 0n) == True{} : Bool}
+  {same(S.standing_of(a, r, b, o), S.Accepted{}) == Nat.is_ge(a, S.needed(Nat.add(a, Nat.add(r, o)))) : Bool}
+
+law rejected_at_needed:
+  for +a: Nat
+  for +r: Nat
+  for +b: Nat
+  for +o: Nat
+  for e: {Nat.is_gt(Nat.add(a, Nat.add(r, o)), 0n) == True{} : Bool}
+  {same(S.standing_of(a, r, b, o), S.Rejected{}) == Nat.is_ge(r, S.needed(Nat.add(a, Nat.add(r, o)))) : Bool}
+
+# 5. The table is the definition. Each standing is returned exactly when its
+#    condition holds, and in review exactly when none does.
+law not_started_is_its_row:
+  for +a: Nat
+  for +r: Nat
+  for +b: Nat
+  for +o: Nat
+  {same(S.standing_of(a, r, b, o), S.NotStarted{}) == S.is_not_started(a, r, b) : Bool}
+
+law accepted_is_its_row:
+  for +a: Nat
+  for +r: Nat
+  for +b: Nat
+  for +o: Nat
+  {same(S.standing_of(a, r, b, o), S.Accepted{}) == S.is_accepted(a, r, o) : Bool}
+
+law rejected_is_its_row:
+  for +a: Nat
+  for +r: Nat
+  for +b: Nat
+  for +o: Nat
+  {same(S.standing_of(a, r, b, o), S.Rejected{}) == S.is_rejected(a, r, o) : Bool}
+
+law no_quorum_is_its_row:
+  for +a: Nat
+  for +r: Nat
+  for +b: Nat
+  for +o: Nat
+  {same(S.standing_of(a, r, b, o), S.NoQuorum{}) == S.is_no_quorum(a, r, b, o) : Bool}
+
+law conflict_is_its_row:
+  for +a: Nat
+  for +r: Nat
+  for +b: Nat
+  for +o: Nat
+  {same(S.standing_of(a, r, b, o), S.Conflict{}) == S.is_conflict(a, r, o) : Bool}
+
+law in_review_is_no_row:
+  for +a: Nat
+  for +r: Nat
+  for +b: Nat
+  for +o: Nat
+  {same(S.standing_of(a, r, b, o), S.InReview{}) == none(S.is_not_started(a, r, b), S.is_accepted(a, r, o), S.is_rejected(a, r, o), S.is_no_quorum(a, r, b, o), S.is_conflict(a, r, o)) : Bool}
