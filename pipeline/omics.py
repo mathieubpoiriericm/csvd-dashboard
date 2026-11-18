@@ -11,6 +11,9 @@ Only the flag writes a `*`. The model's own text has every `*` removed, so a
 star it copied from a paper's table cannot claim a colocalization, and every
 `;` becomes `,`, because `;` separates the type from its detail.
 
+The writer here and the reader in `lib/omics.ts` are both tested over
+`tests/fixtures/omics_wire.json`.
+
 Stdlib and pydantic only: `pipeline/extraction_models.py` and the export both
 import it.
 """
@@ -169,8 +172,19 @@ def _top_level_parts(text: str) -> list[str]:
     return [part.strip() for part in _split_top_level(text, ",") if part.strip()]
 
 
+def _biomarker(text: str | None) -> str:
+    """A biomarker as the wire form can carry it: `_clean`ed, with every colon
+    outside parentheses turned into a comma, because the display reads the
+    first one as the end of the biomarker and the rest as items."""
+    parts = _split_top_level(_clean(text or ""), ":")
+    return ", ".join(part.strip() for part in parts if part.strip())
+
+
 def to_wire(evidence: OmicsEvidence) -> str:
     """`Type`, `Type;biomarker`, `Type;biomarker: a*, b` or `Type;a*, b`.
+
+    A written biomarker holds no colon outside parentheses: a model's becomes
+    a comma.
 
     An item naming several tissues ("brain, heart") is written as that many
     items, each with the item's flag, since the display reads every comma
@@ -184,7 +198,7 @@ def to_wire(evidence: OmicsEvidence) -> str:
         for item in evidence.items
         for part in _top_level_parts(_clean(item.text))
     )
-    biomarker = _clean(evidence.biomarker or "")
+    biomarker = _biomarker(evidence.biomarker)
     if not biomarker and len(_split_top_level(items, ":")) > 1:
         return f"{evidence.study_type};: {items}"
     detail = f"{biomarker}: {items}" if biomarker and items else biomarker or items
