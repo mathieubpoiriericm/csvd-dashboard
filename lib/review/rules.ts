@@ -29,7 +29,12 @@ export interface Tally {
   outstanding: number;
 }
 
-/** The spec's table, first match wins; two thirds settles a gene. */
+/**
+ * The spec's table, first match wins; two thirds settles a gene. The no-quorum
+ * row is reached only once someone has answered (the first row took the rest),
+ * so no tally satisfies two rows; the test "the standing table's laws hold for
+ * every tally of up to 24 members" checks that over every tally.
+ */
 export function standingOf(tally: Tally): Standing {
   const { accept: acc, reject: rej, abstain: abs, outstanding: out } = tally;
   if (acc + rej + abs === 0) return "not_started";
