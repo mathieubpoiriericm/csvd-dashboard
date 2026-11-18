@@ -12,6 +12,9 @@
  * either way -- the distinction only decides which parts can be colocalized.
  * Items split on commas outside parentheses, counted rather than matched,
  * because curated items nest them (`brain (RNA-Seq)`, `(age > 65)`).
+ *
+ * The pipeline's writer (`pipeline/omics.py`) and this reader are both tested
+ * over `tests/fixtures/omics_wire.json`.
  */
 
 export interface OmicsItem {

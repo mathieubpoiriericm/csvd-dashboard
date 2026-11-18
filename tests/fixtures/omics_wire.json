@@ -1,0 +1,220 @@
+[
+  {
+    "name": "type only",
+    "study": {
+      "study_type": "Proteomics"
+    },
+    "wire": "Proteomics",
+    "printed": "Proteomics",
+    "colocalized": []
+  },
+  {
+    "name": "biomarker only",
+    "study": {
+      "study_type": "TWAS",
+      "biomarker": "TRAIT-A"
+    },
+    "wire": "TWAS;TRAIT-A",
+    "printed": "TWAS (TRAIT-A)",
+    "colocalized": []
+  },
+  {
+    "name": "items only",
+    "study": {
+      "study_type": "TWAS",
+      "items": [
+        {
+          "text": "tissue one",
+          "colocalized": true
+        },
+        {
+          "text": "tissue two",
+          "colocalized": false
+        }
+      ]
+    },
+    "wire": "TWAS;tissue one*, tissue two",
+    "printed": "TWAS (tissue one, tissue two)",
+    "colocalized": [
+      "tissue one"
+    ]
+  },
+  {
+    "name": "biomarker and items",
+    "study": {
+      "study_type": "TWAS",
+      "biomarker": "TRAIT-A",
+      "items": [
+        {
+          "text": "tissue one",
+          "colocalized": true
+        },
+        {
+          "text": "tissue two",
+          "colocalized": false
+        }
+      ]
+    },
+    "wire": "TWAS;TRAIT-A: tissue one*, tissue two",
+    "printed": "TWAS (TRAIT-A: tissue one, tissue two)",
+    "colocalized": [
+      "tissue one"
+    ]
+  },
+  {
+    "name": "an item naming two tissues",
+    "study": {
+      "study_type": "TWAS",
+      "biomarker": "TRAIT-A",
+      "items": [
+        {
+          "text": "tissue one, tissue two",
+          "colocalized": true
+        },
+        {
+          "text": "tissue three (left, right)",
+          "colocalized": false
+        }
+      ]
+    },
+    "wire": "TWAS;TRAIT-A: tissue one*, tissue two*, tissue three (left, right)",
+    "printed": "TWAS (TRAIT-A: tissue one, tissue two, tissue three (left, right))",
+    "colocalized": [
+      "tissue one",
+      "tissue two"
+    ]
+  },
+  {
+    "name": "item colon, no biomarker",
+    "study": {
+      "study_type": "TWAS",
+      "items": [
+        {
+          "text": "SET-A: tissue one",
+          "colocalized": true
+        }
+      ]
+    },
+    "wire": "TWAS;: SET-A: tissue one*",
+    "printed": "TWAS (SET-A: tissue one)",
+    "colocalized": [
+      "SET-A: tissue one"
+    ]
+  },
+  {
+    "name": "biomarker colon, colocalized item",
+    "study": {
+      "study_type": "TWAS",
+      "biomarker": "TRAIT-A: total",
+      "items": [
+        {
+          "text": "tissue one",
+          "colocalized": true
+        }
+      ]
+    },
+    "wire": "TWAS;TRAIT-A, total: tissue one*",
+    "printed": "TWAS (TRAIT-A, total: tissue one)",
+    "colocalized": [
+      "tissue one"
+    ]
+  },
+  {
+    "name": "biomarker colon, no items",
+    "study": {
+      "study_type": "TWAS",
+      "biomarker": "TRAIT-A: total"
+    },
+    "wire": "TWAS;TRAIT-A, total",
+    "printed": "TWAS (TRAIT-A, total)",
+    "colocalized": []
+  },
+  {
+    "name": "colon inside parentheses",
+    "study": {
+      "study_type": "TWAS",
+      "biomarker": "TRAIT-A (ratio 1:2)",
+      "items": [
+        {
+          "text": "tissue one",
+          "colocalized": true
+        }
+      ]
+    },
+    "wire": "TWAS;TRAIT-A (ratio 1:2): tissue one*",
+    "printed": "TWAS (TRAIT-A (ratio 1:2): tissue one)",
+    "colocalized": [
+      "tissue one"
+    ]
+  },
+  {
+    "name": "comma in biomarker",
+    "study": {
+      "study_type": "TWAS",
+      "biomarker": "TRAIT-A, TRAIT-B",
+      "items": [
+        {
+          "text": "tissue one",
+          "colocalized": true
+        }
+      ]
+    },
+    "wire": "TWAS;TRAIT-A, TRAIT-B: tissue one*",
+    "printed": "TWAS (TRAIT-A, TRAIT-B: tissue one)",
+    "colocalized": [
+      "tissue one"
+    ]
+  },
+  {
+    "name": "biomarker colon and item colon",
+    "study": {
+      "study_type": "TWAS",
+      "biomarker": "TRAIT-A: total",
+      "items": [
+        {
+          "text": "SET-A: tissue one",
+          "colocalized": true
+        }
+      ]
+    },
+    "wire": "TWAS;TRAIT-A, total: SET-A: tissue one*",
+    "printed": "TWAS (TRAIT-A, total: SET-A: tissue one)",
+    "colocalized": [
+      "SET-A: tissue one"
+    ]
+  },
+  {
+    "name": "biomarker that is only a colon",
+    "study": {
+      "study_type": "TWAS",
+      "biomarker": ":",
+      "items": [
+        {
+          "text": "tissue one",
+          "colocalized": false
+        }
+      ]
+    },
+    "wire": "TWAS;tissue one",
+    "printed": "TWAS (tissue one)",
+    "colocalized": []
+  },
+  {
+    "name": "unmatched parenthesis around a colon",
+    "study": {
+      "study_type": "TWAS",
+      "biomarker": "TRAIT-A (part: one",
+      "items": [
+        {
+          "text": "tissue one",
+          "colocalized": true
+        }
+      ]
+    },
+    "wire": "TWAS;TRAIT-A part, one: tissue one*",
+    "printed": "TWAS (TRAIT-A part, one: tissue one)",
+    "colocalized": [
+      "tissue one"
+    ]
+  }
+]
