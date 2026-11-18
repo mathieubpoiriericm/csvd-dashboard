@@ -72,3 +72,10 @@ mounted server, having measured worse on both counts and collating text through
 musl. The throwaway pytest container is the exception and runs
 `dhi.io/postgres:18-alpine3.23`: it mounts no volume, so neither concern reaches
 it.
+
+When using Bend:
+
+- run `bend guide` to learn it
+- use `LAWS.bend` to keep important rules
+- run `bend PROOF.bend` before committing
+- parallelize the code whenever possible

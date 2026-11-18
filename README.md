@@ -724,12 +724,13 @@ client installed, and `pipeline/profiling.py` does nothing. Read a capture with
 
 ### Continuous integration
 
-`.github/workflows/ci.yml` runs six test jobs on every push to `main` and every
-pull request -- three of them matrices, fourteen jobs in all:
+`.github/workflows/ci.yml` runs seven test jobs on every push to `main` and
+every pull request -- three of them matrices, fifteen jobs in all:
 
 | Job           | Steps                                                                                                                                                                                                           |
 | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `check`       | `deno install`, `deno task check`, `deno task test:coverage`, `deno task test:perf`                                                                                                                             |
+| `bend`        | Bend 2.0.40, pinned by sha256: `deno task bend:check` proves `LAWS.bend`, and `deno task bend:build` must leave the committed `lib/review/standing.bend.mjs` unchanged                                          |
 | `python`      | `uv sync --locked`, Ruff, ty, pytest with branch coverage against PostgreSQL (a `postgres:18` service on GitHub's runners, the machine's own on a self-hosted one), then `tests/scripts` in a step of its own   |
 | `e2e`         | Playwright against the production build on Chromium, report uploaded                                                                                                                                            |
 | `e2e-engines` | two jobs, WebKit and Firefox: the same Playwright suite with `E2E_BROWSERS` set to that engine                                                                                                                  |

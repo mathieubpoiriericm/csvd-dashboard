@@ -10,7 +10,7 @@ on:
 permissions:
   contents: read
 
-# Where the six test jobs run. A repository that sets the CI_RUNNER variable
+# Where the seven test jobs run. A repository that sets the CI_RUNNER variable
 # sends them to the self-hosted runners carrying that label -- this project's
 # private repository does, to the mini PC the `ci-runner` skill describes.
 # Every repository without it -- the public one, a disease fork, a fork's pull
@@ -32,11 +32,13 @@ permissions:
 # On that machine twelve jobs run at once -- empty-data and adapt-fork are
 # split by gate family (Deno, Python, e2e) so no job runs the three in a row --
 # and they share 16 cores. The two e2e-engines jobs make fourteen, a runner
-# each. The e2e jobs are the critical path, so every Deno
-# and Python command runs under `nice -n 15` (the $NICE prefix) and gives way
-# to the browsers when the machine is full. The parallelism is deliberately
-# moderate: 4 Playwright workers per e2e suite and at most 4 pytest workers,
-# with Deno's tests serial (tests/deno_parallel_isolation_test.ts says why).
+# each, and bend, which takes seconds, makes fifteen: it waits briefly for a
+# runner unless a fifteenth is registered. The e2e jobs are the critical path,
+# so every Deno and Python command runs under `nice -n 15` (the $NICE prefix)
+# and gives way to the browsers when the machine is full. The parallelism is
+# deliberately moderate: 4 Playwright workers per e2e suite and at most 4
+# pytest workers, with Deno's tests serial (tests/deno_parallel_isolation_test.ts
+# says why).
 # Every knob at its maximum ran slower than the unsplit layout and left the
 # e2e suite flaky, because starved pages time out; the `ci-runner` skill has
 # the measurements. The worker count comes from vars.CI_RUNNER, so a
@@ -70,6 +72,66 @@ jobs:
 
       - name: Profiling metric contract tests
         run: $NICE deno task test:perf
+
+  # The committee's standing rule runs from lib/review/standing.bend through
+  # the module Bend generates from it, which is committed so that nothing else
+  # -- the build, the tests, the image, a fork's other jobs -- needs Bend. This
+  # job is the one that does: the twenty laws in LAWS.bend must still prove,
+  # and the committed module must be what the pinned Bend makes of the source.
+  bend:
+    name: Bend proofs and generated module
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    env:
+      NICE: nice -n 15
+      BEND_VERSION: 2.0.40
+      BEND_NO_TELEMETRY: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.9.8
+      # Pinned by version and sha256, as bend-lang.com's installer pins it, and
+      # unpacked into this job's temp directory: several jobs share one host.
+      # The sums are 2.0.40's, so a new BEND_VERSION fails here until they are
+      # replaced. The archive holds bend/ laid out as a BEND_HOME (bin/bend,
+      # bend2/, guide/), and bend finds bend2/ beside its own binary. It writes
+      # nothing under HOME, so the runner's home directory is left alone.
+      - name: Install Bend
+        run: |
+          case "$(uname -s)-$(uname -m)" in
+            Linux-x86_64) arch=x64
+              sum=c9ff8d67bd903fb6ad9a26b43d8a62c01021de82a44d55ce4a3dcd4732113d6b ;;
+            Linux-aarch64 | Linux-arm64) arch=arm64
+              sum=2f42a6fa34ecdaa71ae105e5fa734f9a07e129d333e45448ab6d2ff03a837570 ;;
+            Linux-*)
+              echo "::error::Bend $BEND_VERSION has no Linux build for $(uname -m)"
+              exit 1 ;;
+            *)
+              echo "::error::The bend job installs Bend's Linux build, and this runner is $(uname -s)"
+              exit 1 ;;
+          esac
+          name="bend-$BEND_VERSION-linux-$arch.tar.gz"
+          dir="$RUNNER_TEMP/bend-$BEND_VERSION"
+          rm -rf "$dir"
+          mkdir -p "$dir"
+          curl --proto '=https' --tlsv1.2 -fsSL -o "$dir/$name" \
+            "https://github.com/bendlang/bend/releases/download/v$BEND_VERSION/$name"
+          echo "$sum  $dir/$name" | sha256sum -c - || {
+            echo "::error::$name does not match its pinned sha256; not installed"
+            exit 1
+          }
+          tar -xzf "$dir/$name" -C "$dir"
+          echo "BEND_HOME=$dir/bend" >> "$GITHUB_ENV"
+          echo "$dir/bend/bin" >> "$GITHUB_PATH"
+      - name: Proofs
+        run: $NICE deno task bend:check
+      - name: The committed module is what Bend generates
+        run: |
+          $NICE deno task bend:build
+          git diff --exit-code -- lib/review/standing.bend.mjs || {
+            echo "::error::lib/review/standing.bend.mjs is stale. Regenerate it with Bend $BEND_VERSION: deno task bend:build"
+            exit 1
+          }
 
   python:
     name: Pipeline lint, type-check, unit tests
@@ -654,7 +716,15 @@ jobs:
   deploy:
     name: Deploy to Fly.io
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [check, python, e2e, e2e-engines, empty-data, adapt-fork, container]
+    needs:
+      - check
+      - bend
+      - python
+      - e2e
+      - e2e-engines
+      - empty-data
+      - adapt-fork
+      - container
     runs-on: ubuntu-latest
 
     concurrency:

@@ -1,14 +1,13 @@
 ---
 name: ci-runner
-description: Use when CI jobs queue and never start, when moving CI between the home mini PC and GitHub's runners, when CI gets slower or the e2e suite turns flaky, when tuning test parallelism or adding a CI job, after upgrading @playwright/test, or when provisioning, re-registering or cleaning up the self-hosted runners - the CI_RUNNER variable and its fallback, the fourteen-job layout and why its parallelism is moderate, nice, why the runners belong to the private repository alone, the per-runner E2E_PORT, and the machine's housekeeping.
+description: Use when CI jobs queue and never start, when moving CI between the home mini PC and GitHub's runners, when CI gets slower or the e2e suite turns flaky, when tuning test parallelism or adding a CI job, after upgrading @playwright/test, or when provisioning, re-registering or cleaning up the self-hosted runners - the CI_RUNNER variable and its fallback, the fifteen-job layout on fourteen runners and why its parallelism is moderate, nice, why the runners belong to the private repository alone, the per-runner E2E_PORT, and the machine's housekeeping.
 ---
 
 # The self-hosted CI runners
 
-The six test jobs in `.github/workflows/ci.yml` (`check`, `python`, `e2e`, and
-the `e2e-engines`, `empty-data` and `adapt-fork` matrices, fourteen jobs in all)
-run on
-`${{ vars.CI_RUNNER || 'ubuntu-latest' }}`. The private repository
+The seven test jobs in `.github/workflows/ci.yml` (`check`, `bend`, `python`,
+`e2e`, and the `e2e-engines`, `empty-data` and `adapt-fork` matrices, fifteen
+jobs in all) run on `${{ vars.CI_RUNNER || 'ubuntu-latest' }}`. The private repository
 (`mathieubpoiriericm/csvd-dashboard-private`) has set the repository variable
 `CI_RUNNER=csvd-ci` since 3 November 2026, which sends them to fourteen runners,
 `ryzen-1` to `ryzen-14` (twelve until 13 November 2026), on a dedicated mini PC
@@ -34,7 +33,9 @@ it lands (the `deploy` skill has how).
 (`--shard=K/2
 --only=<family>`). With `check`, `python` and `e2e` that is twelve
 test jobs at once, and the two `e2e-engines` jobs below make fourteen, one per
-runner, sharing 16 cores. On the mini PC:
+runner, sharing 16 cores. The fifteenth, `bend` (below), takes seconds and runs
+on the same fourteen runners, so one job of a run queues briefly for a runner
+unless the maintainer registers a fifteenth. On the mini PC:
 
 | Setting                                        | Value                             |
 | ---------------------------------------------- | --------------------------------- |
@@ -133,6 +134,21 @@ installs them for all three, and a machine provisioned before that date got
 WebKit's by hand (`sudo npx playwright install-deps webkit firefox`).
 All three engines locally: `E2E_BROWSERS=chromium,webkit,firefox`.
 
+## The `bend` job
+
+`bend` checks the committee's standing rule: `deno task bend:check` proves the
+twenty laws in `LAWS.bend`, and `deno task bend:build` followed by
+`git diff --exit-code` fails the job when the committed
+`lib/review/standing.bend.mjs` is not what the pinned Bend generates. It
+downloads Bend 2.0.40's Linux archive for the runner's `uname -m`, checks it
+against the sha256 bend-lang.com's installer pins, and unpacks it under
+`$RUNNER_TEMP`, which the runner empties between jobs, so it needs nothing
+installed on the machine, takes no port and writes nothing under
+`/home/runner`. Bend finds its `bend2/` beside its own binary, and
+`BEND_NO_TELEMETRY=1` keeps it from asking bend-lang.com for a newer version.
+Moving to a newer Bend means changing `BEND_VERSION` and both sums in the
+install step together; with only the version changed, the sum check fails it.
+
 ## Switching
 
 ```sh
@@ -228,8 +244,11 @@ look up " minipc" and report "Could not resolve hostname".
 Playwright 1.64.1's `install-deps` accepted Ubuntu 26.04. If a later one refuses
 the machine's release, reinstall it with the release `ubuntu-latest` uses, which
 also keeps the two environments alike. Fourteen instances (the script's default,
-`E2E_PORT` 8101 to 8114) cover one full run of fourteen test jobs at once, and a
-second run queues behind it, taking runners as the first frees them. With the
+`E2E_PORT` 8101 to 8114) cover fourteen of a run's fifteen test jobs at once:
+whichever job is handed out last waits for a runner to come free, and since
+`bend` takes seconds the wait is short whichever job it falls on. A second run queues behind the first, taking runners
+as it frees them. `RUNNERS=15` would give every job of a run a runner of its
+own (`E2E_PORT` 8115 for the new one). With the
 earlier six-job layout, re-runs of PR #65's and PR #64's CI started together
 finished green in 2m03 and 3m36 with no port or container clash between the two.
 
