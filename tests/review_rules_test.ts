@@ -1,4 +1,4 @@
-import { assertEquals } from "@std/assert";
+import { assert, assertEquals } from "@std/assert";
 
 import type {
   Account,
@@ -10,6 +10,7 @@ import type {
 } from "../lib/review/events.ts";
 import { PIPELINE_ACTOR, votes } from "../lib/review/events.ts";
 import { reviewGene, settlesAt, standingOf } from "../lib/review/rules.ts";
+import type { Standing, Tally } from "../lib/review/rules.ts";
 import { sampleChange } from "./fixtures/review.ts";
 
 const t = (
@@ -96,6 +97,86 @@ Deno.test("every standing has its condition", () => {
 
 Deno.test("a gene settles at two thirds of those not abstaining", () =>
   assertEquals(settlesAt(t(5, 1, 1, 4)), { needed: 7, of: 10 }));
+
+/** Every tally of whole numbers whose four counts sum to at most `max`. */
+export function* everyTally(max: number): Generator<Tally> {
+  for (let accept = 0; accept <= max; accept++) {
+    for (let reject = 0; accept + reject <= max; reject++) {
+      for (let abstain = 0; accept + reject + abstain <= max; abstain++) {
+        for (
+          let outstanding = 0;
+          accept + reject + abstain + outstanding <= max;
+          outstanding++
+        ) {
+          yield { accept, reject, abstain, outstanding };
+        }
+      }
+    }
+  }
+}
+
+/** The spec's table, one predicate per standing; `in_review` is the rest. */
+export const ROWS: Record<
+  Exclude<Standing, "in_review">,
+  (t: Tally) => boolean
+> = {
+  not_started: (t) => t.accept + t.reject + t.abstain === 0,
+  accepted: (t) => t.accept > 0 && t.accept >= 2 * (t.reject + t.outstanding),
+  rejected: (t) => t.reject > 0 && t.reject >= 2 * (t.accept + t.outstanding),
+  // Someone answered, nobody is outstanding, nobody accepted or rejected.
+  no_quorum: (t) =>
+    t.abstain > 0 && t.outstanding === 0 && t.accept + t.reject === 0,
+  conflict: (t) =>
+    t.accept + t.outstanding < 2 * t.reject &&
+    t.reject + t.outstanding < 2 * t.accept,
+};
+
+Deno.test("an empty committee is not started", () =>
+  assertEquals(standingOf(t(0, 0, 0, 0)), "not_started"));
+
+Deno.test("the standing table's laws hold for every tally of up to 24 members", () => {
+  let tallies = 0;
+  for (const tally of everyTally(24)) {
+    tallies++;
+    const where = JSON.stringify(tally);
+    const standing = standingOf(tally);
+    const holding = Object.entries(ROWS).filter(([, holds]) => holds(tally));
+    // Exclusive rows, and the table is the definition.
+    assert(
+      holding.length <= 1,
+      `${where} satisfies several rows: ${holding.map(([row]) => row)}`,
+    );
+    assertEquals(standing, holding[0]?.[0] ?? "in_review", where);
+    // Finality: one outstanding member answering cannot move a settled gene.
+    if (
+      tally.outstanding > 0 &&
+      ["accepted", "rejected", "conflict"].includes(standing)
+    ) {
+      for (const answer of ["accept", "reject", "abstain"] as const) {
+        assertEquals(
+          standingOf({
+            ...tally,
+            [answer]: tally[answer] + 1,
+            outstanding: tally.outstanding - 1,
+          }),
+          standing,
+          `${where} moved when one member answered ${answer}`,
+        );
+      }
+    }
+    // Settling point, and needed is two thirds rounded up.
+    const { needed, of } = settlesAt(tally);
+    assert(
+      3 * needed >= 2 * of && 3 * needed < 2 * of + 3,
+      `${where} needs ${needed} of ${of}, not two thirds rounded up`,
+    );
+    if (of > 0) {
+      assertEquals(standing === "accepted", tally.accept >= needed, where);
+      assertEquals(standing === "rejected", tally.reject >= needed, where);
+    }
+  }
+  assertEquals(tallies, 20475);
+});
 
 Deno.test("only voters vote", () => {
   assertEquals(votes(accounts[0]), true);
