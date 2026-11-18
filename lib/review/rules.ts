@@ -13,6 +13,7 @@ import type {
   RulingEvent,
 } from "./events.ts";
 import { votes } from "./events.ts";
+import generated from "./standing.bend.mjs";
 
 export type Standing =
   | "not_started"
@@ -30,25 +31,44 @@ export interface Tally {
 }
 
 /**
- * The spec's table, first match wins; two thirds settles a gene. The no-quorum
- * row is reached only once someone has answered (the first row took the rest),
- * so no tally satisfies two rows; the test "the standing table's laws hold for
- * every tally of up to 24 members" checks that over every tally.
+ * The table itself is `standing.bend`, its laws proved in `/PROOF.bend`; these
+ * functions run the module Bend generates from it (`deno task bend:build`).
+ * The module refuses a count that is not a whole number from 0 up: it throws
+ * rather than answer.
+ */
+const bend = generated as unknown as {
+  standing_of(
+    acc: number,
+    rej: number,
+    abs: number,
+    out: number,
+  ): { $: string };
+  needed(of: number): number;
+};
+
+const STANDINGS: Record<string, Standing> = {
+  NotStarted: "not_started",
+  InReview: "in_review",
+  Conflict: "conflict",
+  Accepted: "accepted",
+  Rejected: "rejected",
+  NoQuorum: "no_quorum",
+};
+
+/**
+ * The spec's table, first match wins; two thirds settles a gene. The test "the
+ * standing table's laws hold for every tally of up to 24 members" checks it
+ * over every tally.
  */
 export function standingOf(tally: Tally): Standing {
-  const { accept: acc, reject: rej, abstain: abs, outstanding: out } = tally;
-  if (acc + rej + abs === 0) return "not_started";
-  if (acc > 0 && acc >= 2 * (rej + out)) return "accepted";
-  if (rej > 0 && rej >= 2 * (acc + out)) return "rejected";
-  if (out === 0 && acc + rej === 0) return "no_quorum";
-  if (acc + out < 2 * rej && rej + out < 2 * acc) return "conflict";
-  return "in_review";
+  const { accept, reject, abstain, outstanding } = tally;
+  return STANDINGS[bend.standing_of(accept, reject, abstain, outstanding).$];
 }
 
 /** Two thirds of those not abstaining: `needed` votes of `of`. */
 export function settlesAt(tally: Tally): { needed: number; of: number } {
   const of = tally.accept + tally.reject + tally.outstanding;
-  return { needed: Math.ceil(2 * of / 3), of };
+  return { needed: bend.needed(of), of };
 }
 
 export interface GeneReview {

@@ -178,6 +178,21 @@ Deno.test("the standing table's laws hold for every tally of up to 24 members", 
   assertEquals(tallies, 20475);
 });
 
+Deno.test("a tally that is not whole numbers is refused, not answered", () => {
+  for (const bad of [1.5, -1, NaN]) {
+    let refused = false;
+    try {
+      standingOf(t(bad, 0, 0, 0));
+    } catch {
+      refused = true;
+    }
+    assert(refused, `standingOf answered for accept = ${bad}`);
+  }
+});
+
+Deno.test("a committee of thousands still has a settling point", () =>
+  assertEquals(settlesAt(t(1000, 1000, 5, 1000)), { needed: 2000, of: 3000 }));
+
 Deno.test("only voters vote", () => {
   assertEquals(votes(accounts[0]), true);
   assertEquals(votes(accounts[1]), true);
