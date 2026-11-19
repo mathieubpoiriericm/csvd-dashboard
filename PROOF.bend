@@ -508,6 +508,10 @@ def Laws.rows_exclusive(a, r, b, o):
 # exclusions above then remove the earlier ones (*_row).
 # ---------------------------------------------------------------------------
 
+# The six-case skeleton is written out in each first_* and same_* lemma because
+# Bend checks a catch-all case once, with the scrutinee still abstract, so
+# `case _` cannot stand for cases that compute differently.
+#
 # pick answers NotStarted exactly when the first condition is True.
 def first_not_started(p: Bool, q: Bool, s: Bool, t: Bool, u: Bool) -> {
     Laws.same(S.pick(p, q, s, t, u), S.NotStarted{}) == p : Bool}:

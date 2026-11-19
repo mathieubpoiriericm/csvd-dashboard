@@ -35,22 +35,40 @@ export interface Tally {
  * functions run the module Bend generates from it (`deno task bend:build`).
  * The module refuses a count that is not a whole number from 0 up: it throws
  * rather than answer. `standingOf` and `settlesAt` both pass the four counts,
- * so each is refused unless it is a whole number from 0 up. The refusal is a
- * thrown string, not an `Error`, which is why the test uses try/catch and not
- * `assertThrows`.
+ * so each is refused unless it is a whole number from 0 up. A refusal is a
+ * `RangeError` whose `cause` is the string the module threw.
  */
+type BendStanding =
+  | "NotStarted"
+  | "InReview"
+  | "Conflict"
+  | "Accepted"
+  | "Rejected"
+  | "NoQuorum";
+
 const bend = generated as unknown as {
   standing_of(
     acc: number,
     rej: number,
     abs: number,
     out: number,
-  ): { $: string };
-  needed(of: number): number;
+  ): { $: BendStanding };
   needed_for(acc: number, rej: number, abs: number, out: number): number;
 };
 
-const STANDINGS: Record<string, Standing> = {
+/** Runs the module and turns what it throws, a bare string, into an Error. */
+function refusing<T>(run: () => T): T {
+  try {
+    return run();
+  } catch (thrown) {
+    throw new RangeError(
+      `a tally's counts must be whole numbers from 0 up (${String(thrown)})`,
+      { cause: thrown },
+    );
+  }
+}
+
+const STANDINGS: Record<BendStanding, Standing> = {
   NotStarted: "not_started",
   InReview: "in_review",
   Conflict: "conflict",
@@ -66,14 +84,19 @@ const STANDINGS: Record<string, Standing> = {
  */
 export function standingOf(tally: Tally): Standing {
   const { accept, reject, abstain, outstanding } = tally;
-  return STANDINGS[bend.standing_of(accept, reject, abstain, outstanding).$];
+  return STANDINGS[
+    refusing(() => bend.standing_of(accept, reject, abstain, outstanding)).$
+  ];
 }
 
 /** Two thirds of those not abstaining: `needed` votes of `of`. */
 export function settlesAt(tally: Tally): { needed: number; of: number } {
   const { accept, reject, abstain, outstanding } = tally;
   const of = accept + reject + outstanding;
-  return { needed: bend.needed_for(accept, reject, abstain, outstanding), of };
+  const needed = refusing(() =>
+    bend.needed_for(accept, reject, abstain, outstanding)
+  );
+  return { needed, of };
 }
 
 export interface GeneReview {
