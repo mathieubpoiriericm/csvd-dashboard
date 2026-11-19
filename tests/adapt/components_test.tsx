@@ -15,7 +15,11 @@ import {
   LogoInput,
   noteId,
 } from "../../components/adapt/FieldNote.tsx";
-import { SelectField, TextField } from "../../components/adapt/Field.tsx";
+import {
+  SelectField,
+  TextField,
+  windows,
+} from "../../components/adapt/Field.tsx";
 import { ListEditor } from "../../components/adapt/ListEditor.tsx";
 import {
   CodeDialog,
@@ -34,6 +38,7 @@ import { EMPTY_ANSWERS } from "../../lib/adapt/answers.ts";
 import { overview, SESSION_COPY } from "../../lib/adapt/session.ts";
 import { formatCode } from "../../lib/adapt/session_code.ts";
 import { STEP_LABELS, STEP_ORDER } from "../../lib/adapt/validate.ts";
+import { seeded } from "../helpers/seeded.ts";
 import { EXAMPLEITIS } from "./fixtures/exampleitis.ts";
 import { wizardFor } from "./wizard_fixture.ts";
 
@@ -533,6 +538,157 @@ Deno.test("the echo draws an invisible offence, and keeps a far one in view", ()
   // The mark sits in a window of context, the rest elided on either side.
   assertMatch(echo, /^\u2026a a a .*<mark\s*>\{\{<\/mark>x b b .*\u2026$/);
   assert(echo.length < long.length);
+});
+
+Deno.test("the echo's windows merge in order whatever order the offences came in", () => {
+  const value = "x".repeat(200);
+  const at = (start: number) => ({ start, end: start + 1, char: "\u200b" });
+  // 40 and 60 lie within one context of each other; 150 is far from both.
+  assertEquals(windows(value, [at(60), at(150), at(40)]), [[20, 81], [
+    130,
+    171,
+  ]]);
+  assertEquals(windows(value, [at(150), at(60), at(40)]), [[20, 81], [
+    130,
+    171,
+  ]]);
+});
+
+// Values of CJK letters, each one unique to its position so a drawn stretch
+// can be found in the value without doubt, with invisible characters in place
+// of some of the letters (never at either end: the validator trims those).
+const INVISIBLE = ["\u200b", "\u200d", "\u2060", "\ufeff"];
+const LETTER = (i: number) => String.fromCharCode(0x4e00 + i);
+
+Deno.test("the echo marks every offence, in windows that never overlap, over 2,000 seeded values", () => {
+  const wizard = wizardFor(EMPTY_ANSWERS, "identity");
+  const tally = {
+    short: 0,
+    long: 0,
+    unsorted: 0,
+    startElided: 0,
+    endElided: 0,
+    gap: 0,
+    merged: 0,
+    plain: 0,
+  };
+  for (let seed = 0; seed < 2000; seed++) {
+    const rand = seeded(seed);
+    const length = Math.floor(rand() * 201);
+    const count = Math.min(Math.max(length - 2, 0), Math.floor(rand() * 7));
+    const taken = new Set<number>();
+    while (taken.size < count) taken.add(1 + Math.floor(rand() * (length - 2)));
+    const chars = Array.from({ length }, (_, i) => LETTER(i));
+    const offences = [...taken].map((start) => {
+      const char = INVISIBLE[Math.floor(rand() * INVISIBLE.length)];
+      chars[start] = char;
+      return { start, end: start + 1, char };
+    });
+    // Random order for `windows`, which is called directly. Echo is private
+    // and gets its offences from the validators, which sort them, so the
+    // TextField half below only ever sees sorted input.
+    for (let i = offences.length - 1; i > 0; i--) {
+      const j = Math.floor(rand() * (i + 1));
+      [offences[i], offences[j]] = [offences[j], offences[i]];
+    }
+    const value = chars.join("");
+    const at = `seed ${seed} (length ${length}, offences ${
+      offences.map((o) => o.start).join(",")
+    })`;
+    if (offences.some((o, i) => i > 0 && o.start < offences[i - 1].start)) {
+      tally.unsorted++;
+    }
+
+    const ws = windows(value, offences);
+    for (const [i, [from, to]] of ws.entries()) {
+      assert(
+        0 <= from && from <= to && to <= length,
+        `${at}: [${from}, ${to}]`,
+      );
+      if (i > 0) assert(from > ws[i - 1][1], `${at}: windows touch or overlap`);
+    }
+    for (const o of offences) {
+      if (length > 60) {
+        assert(
+          ws.filter(([f, t]) => f <= o.start && o.end <= t).length === 1,
+          `${at}: offence ${o.start} is not in exactly one window`,
+        );
+      }
+    }
+    if (length <= 60) assertEquals(ws, [[0, length]], at);
+    if (length > 60 && ws.length < offences.length) tally.merged++;
+
+    if (count === 0) continue;
+    const html = inside(
+      wizard,
+      <TextField
+        label="Site title"
+        value={value}
+        onInput={() => {}}
+        field="site.title"
+      />,
+    );
+    const echo = html.match(/<span class="adapt-echo"[^>]*>(.*?)<\/span>/);
+    assert(echo !== null, `${at}: no echo`);
+    const marks = [...echo[1].matchAll(/<mark\s*>U\+([0-9A-F]{4})<\/mark>/g)];
+    assertEquals(marks.length, count, `${at}: marks`);
+    // Put each mark's character back, then cut the echo at its ellipses.
+    const drawn = echo[1].replace(
+      /<mark\s*>U\+([0-9A-F]{4})<\/mark>/g,
+      (_, hex) => String.fromCharCode(parseInt(hex, 16)),
+    );
+    assertEquals(drawn.includes("<"), false, `${at}: stray markup ${drawn}`);
+    const stretches = drawn.split("\u2026");
+    let pos = 0;
+    const spans: Array<[number, number]> = [];
+    for (const [i, stretch] of stretches.entries()) {
+      if (stretch === "") {
+        // Only an end may be empty, beside its own ellipsis.
+        assert(i === 0 || i === stretches.length - 1, `${at}: empty stretch`);
+        continue;
+      }
+      const found = value.indexOf(stretch, pos);
+      assert(
+        found >= 0,
+        `${at}: stretch ${i} is out of order or not the value`,
+      );
+      spans.push([found, found + stretch.length]);
+      pos = found + stretch.length;
+    }
+    if (length <= 60) {
+      tally.short++;
+      assertEquals(drawn, value, `${at}: a short value is drawn whole`);
+      continue;
+    }
+    tally.long++;
+    // Every offence lies inside a drawn stretch, with its context or the edge.
+    for (const o of offences) {
+      const s = spans.find(([f, t]) => f <= o.start && o.end <= t);
+      assert(s !== undefined, `${at}: offence ${o.start} is not drawn`);
+      assert(o.start - s[0] >= Math.min(20, o.start), `${at}: no lead context`);
+      assert(s[1] - o.end >= Math.min(20, length - o.end), `${at}: no tail`);
+    }
+    // An ellipsis stands for text left out, and text left out has one.
+    const startElided = drawn.startsWith("\u2026");
+    const endElided = drawn.endsWith("\u2026");
+    assertEquals(startElided, spans[0][0] > 0, `${at}: start ellipsis`);
+    assertEquals(endElided, spans.at(-1)![1] < length, `${at}: end ellipsis`);
+    assertEquals(
+      drawn.split("\u2026").length - 1,
+      spans.length - 1 + Number(startElided) + Number(endElided),
+      `${at}: ellipses`,
+    );
+    for (let i = 1; i < spans.length; i++) {
+      assert(spans[i][0] > spans[i - 1][1], `${at}: gap without an ellipsis`);
+    }
+    if (startElided) tally.startElided++;
+    if (endElided) tally.endElided++;
+    if (spans.length > 1) tally.gap++;
+    if (!startElided && !endElided && spans.length === 1) tally.plain++;
+  }
+  for (const [name, n] of Object.entries(tally)) {
+    assert(n > 0, `the cases never reached ${name}: ${JSON.stringify(tally)}`);
+  }
 });
 
 const BAR = {

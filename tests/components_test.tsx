@@ -506,6 +506,45 @@ Deno.test("Tooltip renders plain children or a stable deferred popover shell", (
   assertNotMatch(withoutLink, /tooltip-link-btn/);
 });
 
+Deno.test("pageWindow over every pageCount up to 40 and every pageIndex from -2 past the end", () => {
+  let cases = 0;
+  let clampedLow = 0;
+  let clampedHigh = 0;
+  let empty = 0;
+  for (let pageCount = 0; pageCount <= 40; pageCount++) {
+    for (let pageIndex = -2; pageIndex <= pageCount + 2; pageIndex++) {
+      const at = `pageWindow(${pageIndex}, ${pageCount})`;
+      const got = pageWindow(pageIndex, pageCount);
+      cases++;
+      if (pageCount <= 1) {
+        assertEquals(got, [], at);
+        empty++;
+        continue;
+      }
+      const span = Math.min(7, pageCount);
+      assertEquals(got.length, span, at);
+      for (let i = 0; i < got.length; i++) {
+        assert(got[i] >= 0 && got[i] <= pageCount - 1, `${at}: ${got[i]}`);
+        if (i > 0) assertEquals(got[i], got[i - 1] + 1, at);
+      }
+      if (pageIndex >= 0 && pageIndex <= pageCount - 1) {
+        assert(got.includes(pageIndex), `${at} lacks the current page`);
+      }
+      // The window starts three before the current page, held inside the pages.
+      const want = Math.min(Math.max(pageIndex - 3, 0), pageCount - span);
+      assertEquals(got[0], want, at);
+      if (want > pageIndex - 3) clampedLow++;
+      if (want < pageIndex - 3) clampedHigh++;
+    }
+  }
+  // 41 counts, pageCount + 5 indices each, and both clamps were reached.
+  assertEquals(cases, 41 * 5 + (40 * 41) / 2);
+  assert(
+    empty > 0 && clampedLow > 0 && clampedHigh > 0,
+    `empty ${empty}, clamped low ${clampedLow}, high ${clampedHigh}`,
+  );
+});
+
 Deno.test("table shell helpers expose every sort state and page-window edge", () => {
   assertEquals(ariaSort(false, false), undefined);
   assertEquals(ariaSort(true, false), "none");

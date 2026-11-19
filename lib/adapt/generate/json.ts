@@ -91,10 +91,13 @@ export function wrap80(text: string): string {
     }
     // A `- ` list item's continuation lines are indented two spaces, to
     // align under the text rather than the marker, the way deno fmt does.
-    const indent = line.startsWith("- ") ? "  " : "";
+    // A line that already starts with spaces (a continuation this function
+    // wrapped before) keeps them on its first line and on its own breaks.
+    const lead = /^ */.exec(line)![0];
+    const indent = line.startsWith("- ") ? "  " : lead;
     const out: string[] = [];
     let current = "";
-    for (const word of line.split(" ")) {
+    for (const word of line.slice(lead.length).split(" ")) {
       // A break never falls before a word that would open a block: a
       // population named "APOE ε4 + carriers" must not become a list.
       if (
@@ -104,7 +107,7 @@ export function wrap80(text: string): string {
         out.push(current);
         current = indent + word;
       } else {
-        current = current.length === 0 ? word : `${current} ${word}`;
+        current = current.length === 0 ? lead + word : `${current} ${word}`;
       }
     }
     out.push(current);

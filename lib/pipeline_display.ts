@@ -227,7 +227,7 @@ export function formatMilliseconds(ms: number): string {
 /** A byte count in the largest unit that keeps it under four digits. */
 export function formatBytes(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes <= 0) return "—";
-  const units = ["B", "kB", "MB", "GB"];
+  const units = ["B", "kB", "MB", "GB", "TB"];
   let value = bytes;
   let unit = 0;
   // Compared as it will print: 999,960 bytes is "1000.0 kB" once rounded,
