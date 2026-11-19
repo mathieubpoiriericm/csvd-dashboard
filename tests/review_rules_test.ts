@@ -1,4 +1,4 @@
-import { assert, assertEquals } from "@std/assert";
+import { assert, assertEquals, assertThrows } from "@std/assert";
 
 import type {
   Account,
@@ -131,6 +131,8 @@ export const ROWS: Record<
     t.reject + t.outstanding < 2 * t.accept,
 };
 
+const SETTLED: readonly Standing[] = ["accepted", "rejected", "conflict"];
+
 Deno.test("an empty committee is not started", () =>
   assertEquals(standingOf(t(0, 0, 0, 0)), "not_started"));
 
@@ -148,10 +150,7 @@ Deno.test("the standing table's laws hold for every tally of up to 24 members", 
     );
     assertEquals(standing, holding[0]?.[0] ?? "in_review", where);
     // Finality: one outstanding member answering cannot move a settled gene.
-    if (
-      tally.outstanding > 0 &&
-      ["accepted", "rejected", "conflict"].includes(standing)
-    ) {
+    if (tally.outstanding > 0 && SETTLED.includes(standing)) {
       for (const answer of ["accept", "reject", "abstain"] as const) {
         assertEquals(
           standingOf({
@@ -170,6 +169,7 @@ Deno.test("the standing table's laws hold for every tally of up to 24 members", 
       3 * needed >= 2 * of && 3 * needed < 2 * of + 3,
       `${where} needs ${needed} of ${of}, not two thirds rounded up`,
     );
+    // `of` is accept + reject + outstanding, the law's premise.
     if (of > 0) {
       assertEquals(standing === "accepted", tally.accept >= needed, where);
       assertEquals(standing === "rejected", tally.reject >= needed, where);
@@ -180,18 +180,33 @@ Deno.test("the standing table's laws hold for every tally of up to 24 members", 
 
 Deno.test("a tally that is not whole numbers is refused, not answered", () => {
   for (const bad of [1.5, -1, NaN]) {
-    let refused = false;
-    try {
-      standingOf(t(bad, 0, 0, 0));
-    } catch {
-      refused = true;
-    }
-    assert(refused, `standingOf answered for accept = ${bad}`);
+    assertThrows(
+      () => standingOf(t(bad, 0, 0, 0)),
+      RangeError,
+      "whole numbers",
+    );
   }
+});
+
+Deno.test("a refusal carries what the module threw", () => {
+  const error = assertThrows(() => standingOf(t(1.5, 0, 0, 0)), RangeError);
+  assertEquals(typeof error.cause, "string");
 });
 
 Deno.test("a committee of thousands still has a settling point", () =>
   assertEquals(settlesAt(t(1000, 1000, 5, 1000)), { needed: 2000, of: 3000 }));
+
+Deno.test("settlesAt refuses a tally whose counts are not whole numbers", () => {
+  for (const bad of [t(-1, 2, 0, 0), t(0.5, 0.5, 0, 0), t(0, 0, -3, 0)]) {
+    assertThrows(() => settlesAt(bad), RangeError, "whole numbers");
+  }
+});
+
+Deno.test("a committee of a million still has a settling point", () =>
+  assertEquals(settlesAt(t(1_000_000, 0, 0, 0)), {
+    needed: 666_667,
+    of: 1_000_000,
+  }));
 
 Deno.test("only voters vote", () => {
   assertEquals(votes(accounts[0]), true);
