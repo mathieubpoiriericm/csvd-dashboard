@@ -1,6 +1,6 @@
 ---
 name: ci-runner
-description: Use when CI jobs queue and never start, when moving CI between the home mini PC and GitHub's runners, when CI gets slower or the e2e suite turns flaky, when tuning test parallelism or adding a CI job, after upgrading @playwright/test, or when provisioning, re-registering or cleaning up the self-hosted runners - the CI_RUNNER variable and its fallback, the fifteen-job layout and why its parallelism is moderate, nice, why the runners belong to the private repository alone, the per-runner E2E_PORT, and the machine's housekeeping.
+description: Use when CI jobs queue and never start, when moving CI between the home mini PC and GitHub's runners, when CI gets slower or the e2e suite turns flaky, when tuning test parallelism or adding a CI job, after upgrading @playwright/test, after a Bend upgrade or the weekly Bend release check, or when provisioning, re-registering or cleaning up the self-hosted runners - the CI_RUNNER variable and its fallback, the fifteen-job layout and why its parallelism is moderate, nice, why the runners belong to the private repository alone, the per-runner E2E_PORT, and the machine's housekeeping.
 ---
 
 # The self-hosted CI runners
@@ -123,7 +123,8 @@ last before them, took 1m37s.
 With twelve runners the engine jobs started at once in every sample and two
 short Python jobs waited 36-44 s for a runner, so nothing on the critical path
 was queued. The fourteen were kept because they cost nothing idle and a second
-run started beside the first queues less; the fifteenth is measured below.
+run started beside the first queues less (merges are still made one run at
+a time, see "What is non-obvious"); the fifteenth is measured below.
 What would shorten a run is less work at once, not more runners: the engines'
 time is contention for the 16 cores.
 One test retried in three of the six runs. Only the first was read: a tooltip
@@ -136,13 +137,14 @@ machine otherwise idle, attempts 2-4 on fifteen runners and attempts 5-7 on
 fourteen (`ryzen-15`'s `csvd-ci` label removed through the API and restored
 afterwards), first self-hosted job start to last finish:
 
-| Runners | Attempts | Runs                | WebKit and Firefox jobs |
-| ------- | -------- | ------------------- | ----------------------- |
-| 15      | 2-4      | 173 s, 173 s, 174 s | 170-174 s in all six    |
-| 14      | 5-7      | 172 s, 172 s, 173 s | 170-174 s in all six    |
+| Runners | Attempts | Runs                |
+| ------- | -------- | ------------------- |
+| 15      | 2-4      | 173 s, 173 s, 174 s |
+| 14      | 5-7      | 172 s, 172 s, 173 s |
 
-With fifteen every job started within 1 s of the first. With fourteen one short
-job (an `adapt-fork` or `empty-data` job) waited 8-9 s for a runner, after the
+The WebKit and Firefox jobs took 170-174 s in all six runs. With fifteen every
+job started within 1 s of the first. With fourteen one short job in each run
+(an `adapt-fork` or `empty-data` job) waited 8-9 s for a runner, after the
 `bend` job freed one. The fifteenth runner removes that wait and does not change
 the run's length, which the engine jobs set. WebKit's
 `csvd/tooltips.spec.ts` test "COL4A1/2's gene and protein tooltips show both
@@ -171,15 +173,25 @@ bend-lang.com for a newer version. Moving to a newer Bend means changing
 changed, the sum check fails it. A weekly workflow, `bend-release.yml` (Mondays
 06:17 UTC, or by hand), compares the `BEND_VERSION` in `ci.yml` with the latest
 release of `bendlang/bend` on a GitHub-hosted runner and goes red when they
-differ, with a line naming both. A red run means a newer Bend is out: make the
-change above. A run that says it could not ask GitHub failed on the request (rate
-limit, network, auth), says nothing about Bend, and is rerun. Scheduled
-workflows do not run in a fork until Actions is enabled there. "2.0.40" is also
+differ, with a line naming both. It runs only where the repository variable
+`BEND_RELEASE_WATCH` is `true`, which is the private repository; the public
+repository and forks skip it, so a fork sets nothing and takes a Bend upgrade by
+merging upstream. (It does not follow `CI_RUNNER`, which is deleted whenever
+the mini PC is down.) A red run whose error names a newer Bend means one is out;
+the other red runs are a failed request (rate limit, network, auth: it says
+nothing about Bend, so rerun it) and a `ci.yml` that no longer has exactly one
+`BEND_VERSION`. The upgrade steps: install the new Bend locally, change
+`BEND_VERSION` and both sums in the install step together, run
+`deno task bend:build` and `deno task bend:check`, and commit the regenerated
+module if it changed (the `bend` job fails until then). Check whether
+`bend --verdict`'s Lean version moves too.
+"2.0.40" is also
 written in `CLAUDE.md`, `README.md` (the `bend` row of the jobs table), this
 skill's own prose and the comment in `ci.yml`'s `bend` job, and moves with
 them.
 
-The install step's branches were each run once, on 18 November 2026:
+The install step's branches were each run once, on 18 November 2026, except
+macOS, whose run (below) used an install step of its own:
 
 - **arm64 Linux:** run 44435577975 in the private repository ran the `bend`
   job's own steps on a GitHub-hosted `ubuntu-24.04-arm` runner, from a
@@ -192,13 +204,16 @@ The install step's branches were each run once, on 18 November 2026:
 - **macOS:** run 44448124696 in the private repository, on 18 November 2026,
   ran one job on a GitHub-hosted `macos-latest` runner (`uname -sm` printed
   `Darwin arm64`) from a throwaway branch, `try-bend-macos`, that was never
-  merged and has been deleted. It downloaded `bend-2.0.40-darwin-arm64.tar.gz`,
-  which matched its pinned sha256 (`b2be003b...b6900b`), and `bend version`
-  printed `bend 2.0.40`. `deno task bend:check` printed `ALL PROOFS CHECK`, and
-  after `deno task bend:build` `git diff --exit-code -- lib/review/standing.bend.mjs`
-  passed: the module macOS generates is byte-identical to the committed one,
-  which was generated on Linux x64. So the module is the same on all three, and
-  `CLAUDE.md` needs no instruction to regenerate it on Linux.
+  merged and has been deleted. CI's install step refuses Darwin and pins no
+  darwin sum, so that job had an install step of its own: it fetched
+  `bend-2.0.40-darwin-arm64.tar.gz` and checked it against the darwin-arm64 sha256
+  bend-lang.com's installer gives (`b2be003b...b6900b`), and it matched.
+  `bend version` printed `bend 2.0.40`, `deno task bend:check` printed
+  `ALL PROOFS CHECK`, and after `deno task bend:build`
+  `git diff --exit-code -- lib/review/standing.bend.mjs` passed: the module
+  macOS generates is byte-identical to the committed one, which was generated on
+  Linux x64. So the module is the same on all three, and `CLAUDE.md` needs no
+  instruction to regenerate it on Linux.
 - **Non-Linux and unknown architecture:** run locally, not in CI, by copying the
   step's `run:` block into a script and running it with `bash -e` under a fake
   `uname` first on `PATH`. With `Darwin` and `arm64` it exited 1 with
@@ -316,7 +331,9 @@ Playwright 1.64.1's `install-deps` accepted Ubuntu 26.04. If a later one refuses
 the machine's release, reinstall it with the release `ubuntu-latest` uses, which
 also keeps the two environments alike. Fifteen instances (the script's default,
 `E2E_PORT` 8101 to 8115) cover one full run of fifteen test jobs at once, and a
-second run queues behind it, taking runners as the first frees them. With the
+second run queues behind it, taking runners as the first frees them. Overlap is
+possible and harmless to the machine, but merges to `main` are still made one
+run at a time: a starved e2e suite flaked once (see "What is non-obvious"). With the
 earlier six-job layout, re-runs of PR #65's and PR #64's CI started together
 finished green in 2m03 and 3m36 with no port or container clash between the two.
 

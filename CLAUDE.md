@@ -87,7 +87,9 @@ holds the rule's laws and is the maintainer's file, changed only on the
 maintainer's say; `PROOF.bend` proves them. CI's `bend` job pins Bend 2.0.40 by
 version and sha256 and fails when a proof fails or the committed module is not
 what that Bend generates. Nothing else needs Bend — not the build, the tests,
-the Docker image or a fork's other jobs — because the module is committed.
+the Docker image or a fork's other jobs — because the module is committed. A
+weekly check, `bend-release.yml`, goes red in the private repository when a
+newer Bend is out; the `ci-runner` skill has the upgrade steps.
 `bend --verdict`, the Lean-checked kernel, needs Lean 4.34.0 exactly; it is a
 local, optional check, not a gate.
 
