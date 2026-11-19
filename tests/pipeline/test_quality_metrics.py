@@ -1,5 +1,7 @@
 """Tests for pipeline.quality_metrics — TokenUsage, PipelineMetrics."""
 
+import collections
+import random
 from types import SimpleNamespace
 
 from pipeline.quality_metrics import (
@@ -543,3 +545,309 @@ class TestADirectFallbackResponse:
         accumulate_usage(usage, response, fallback_model="claude-opus-4-8")
         assert usage.unbilled_input_tokens == 700
         assert usage.fallback_input_tokens == 0
+
+
+# ---------------------------------------------------------------------------
+# Cost accounting over seeded responses
+# ---------------------------------------------------------------------------
+
+_PRIMARY = "claude-opus-5-5"
+_FALLBACK = "claude-opus-4-8"
+# The categories the API bills even for a refusal before any output
+# (.claude/rules/pipeline/fallback.md); everything else, and none, is not.
+_BILLED_CATEGORIES = ("bio", "frontier_llm", "reasoning_extraction")
+_UNBILLED_CATEGORIES = ("cyber", "general_harms", None)
+# Dollars per million tokens (pinned too in test_anthropic_client.py:304 and
+# test_report.py:56-85), from the rules' text: Opus 4.8 is $5 / $25 with
+# cache reads at 0.1x; the requested model is $4 / $20 with reads at 0.05x;
+# a 1h cache write is 2x input on both.
+_RATES = {
+    "primary": (4.0, 20.0, 0.05),
+    "fallback": (5.0, 25.0, 0.1),
+}
+
+
+def _tokens(rng: random.Random) -> int:
+    """Zero a fifth of the time, else a count of a real order of size."""
+    return 0 if rng.random() < 0.2 else rng.randint(1, 400_000)
+
+
+def _seeded_response(rng: random.Random, tally: dict[str, int]):
+    """One response, and the role of each of its attempts as the rules say.
+
+    Returns (response, roles) with roles a list of (role, counts), role one
+    of "primary", "fallback", "unbilled" and counts (input, output, write,
+    read). The role is decided here from the generator's own choices: an
+    attempt declined before any output outside the billed categories is
+    unbilled; else one the fallback model ran is the fallback's; else the
+    requested model's.
+    """
+    shape = rng.choice(
+        ["plain", "direct_fallback", "fell_back", "both_declined", "zero"]
+    )
+    tally[shape] += 1
+    if shape == "both_declined":
+        n_attempts = 2
+    elif shape == "fell_back":
+        n_attempts = rng.randint(2, 3)
+    else:
+        n_attempts = 1
+    iterations = shape in ("fell_back", "both_declined")
+    refused = shape == "both_declined" or (shape != "zero" and rng.random() < 0.3)
+    if shape == "zero":
+        refused = rng.random() < 0.5
+    final_category = rng.choice(_BILLED_CATEGORIES + _UNBILLED_CATEGORIES)
+
+    entries = []
+    roles: list[tuple[str, tuple[int, int, int, int]]] = []
+    blocks = []
+    for index in range(n_attempts):
+        last = index == n_attempts - 1
+        counts = (
+            (0, 0, 0, 0)
+            if shape == "zero"
+            else (_tokens(rng), _tokens(rng), _tokens(rng), _tokens(rng))
+        )
+        # An attempt is declined if a hand-over block says so, or if it is
+        # the last of a refused response.
+        declined = not last or (refused and last)
+        category: str | None = None
+        if declined:
+            if not last:
+                category = rng.choice(_BILLED_CATEGORIES + _UNBILLED_CATEGORIES)
+                blocks.append(
+                    SimpleNamespace(
+                        type="fallback",
+                        trigger=SimpleNamespace(category=category),
+                    )
+                )
+            else:
+                category = final_category
+        if declined and rng.random() < 0.7:
+            counts = (counts[0], 0, counts[2], counts[3])  # before any output
+        if not iterations:
+            model = _FALLBACK if shape == "direct_fallback" else _PRIMARY
+            kind = "message"
+        elif index == 0:
+            model, kind = _PRIMARY, "message"
+        elif last and not refused:
+            model, kind = _FALLBACK, "fallback_message"
+        elif last:
+            # the fallback declined too: a plain message naming its model, or
+            # a fallback_message entry when the API types it as one
+            model = _FALLBACK
+            kind = rng.choice(["message", "fallback_message"])
+        else:
+            model, kind = _PRIMARY, "message"
+        entry = _iteration(kind, model, *counts)
+        entries.append(entry)
+        tally[f"kind:{kind}"] += 1
+
+        if declined and counts[1] == 0 and category not in _BILLED_CATEGORIES:
+            role = "unbilled"
+            tally["unbilled"] += 1
+            tally[f"unbilled:{category}"] += 1
+        elif kind == "fallback_message" or model == _FALLBACK:
+            role = "fallback"
+            tally["fallback"] += 1
+        else:
+            role = "primary"
+            tally["primary"] += 1
+        if declined and counts[1] == 0 and category in _BILLED_CATEGORIES:
+            tally["billed_refusal_before_output"] += 1
+        if declined and counts[1] > 0 and category not in _BILLED_CATEGORIES:
+            tally["billed_midstream_refusal"] += 1
+        if counts == (0, 0, 0, 0):
+            tally["zero_attempt"] += 1
+        roles.append((role, counts))
+
+    served = entries[-1]
+    usage = SimpleNamespace(
+        input_tokens=served.input_tokens,
+        output_tokens=served.output_tokens,
+        cache_creation_input_tokens=served.cache_creation_input_tokens,
+        cache_read_input_tokens=served.cache_read_input_tokens,
+        output_tokens_details=None,
+        iterations=entries if iterations else None,
+    )
+    response = SimpleNamespace(
+        usage=usage,
+        model=_FALLBACK if shape == "direct_fallback" else _PRIMARY,
+        content=blocks,
+        stop_reason="refusal" if refused else "end_turn",
+        stop_details=SimpleNamespace(category=final_category) if refused else None,
+    )
+    return response, roles
+
+
+def _expected_usage(roles) -> TokenUsage:
+    """What the rules say a response added, built from the generator's roles."""
+    expected = TokenUsage()
+    for role, (inp, out, write, read) in roles:
+        expected.input_tokens += inp
+        expected.output_tokens += out
+        expected.cache_creation_input_tokens += write
+        expected.cache_read_input_tokens += read
+        if role == "unbilled":
+            expected.unbilled_input_tokens += inp
+            expected.unbilled_cache_creation_input_tokens += write
+            expected.unbilled_cache_read_input_tokens += read
+        elif role == "fallback":
+            expected.fallback_input_tokens += inp
+            expected.fallback_output_tokens += out
+            expected.fallback_cache_creation_input_tokens += write
+            expected.fallback_cache_read_input_tokens += read
+    return expected
+
+
+def _expected_dollars(roles) -> float:
+    """What the rules say the response cost; an unbilled attempt is free."""
+    total = 0.0
+    for role, (inp, out, write, read) in roles:
+        if role == "unbilled":
+            continue
+        input_rate, output_rate, read_multiplier = _RATES[role]
+        total += (
+            inp * input_rate
+            + write * input_rate * 2.0
+            + read * input_rate * read_multiplier
+            + out * output_rate
+        ) / 1_000_000
+    return total
+
+
+def test_usage_partitions_and_prices_over_500_seeded_responses() -> None:
+    """The tokens a response reports split three ways and are priced once.
+
+    Stated from the rules (fallback.md, run-reporting.md), for every seed:
+    1. An attempt the API reported and did not bill (declined before any
+       output, outside bio / frontier_llm / reasoning_extraction) is in the
+       totals and in the unbilled share, never in the fallback share; the
+       fallback and unbilled shares are disjoint and, together, within the
+       totals componentwise.
+    2. A cost is never negative.
+    3. Cost is additive: pricing the summed usage equals summing the prices
+       of each response's usage.
+    4. A batched cost is exactly half the unbatched one.
+    5. A --batch run's cost, with the streamed share put back to the full
+       rate, lies between half the run's full cost and the full cost, given
+       the streamed share is a part of the total.
+    Each also equals what the generator's own roles add up to.
+    """
+    from pipeline.anthropic_client import AnthropicClient
+    from pipeline.report import _build_common_run_data
+
+    client = AnthropicClient()
+    tally: dict[str, int] = collections.defaultdict(int)
+    run_size = 10
+    for seed in range(50):
+        rng = random.Random(seed)
+        run_usage = TokenUsage()
+        streamed = TokenUsage()
+        parts_cost = 0.0
+        streamed_cost = 0.0  # the oracle's price of the streamed responses
+        for step in range(run_size):
+            where = f"seed {seed} step {step}"
+            response, roles = _seeded_response(rng, tally)
+            usage = TokenUsage()
+            delta = accumulate_usage(usage, response, fallback_model=_FALLBACK)
+            assert usage == delta, where
+
+            expected = _expected_usage(roles)
+            for field_name in (
+                "input_tokens",
+                "output_tokens",
+                "cache_creation_input_tokens",
+                "cache_read_input_tokens",
+                "fallback_input_tokens",
+                "fallback_output_tokens",
+                "fallback_cache_creation_input_tokens",
+                "fallback_cache_read_input_tokens",
+                "unbilled_input_tokens",
+                "unbilled_cache_creation_input_tokens",
+                "unbilled_cache_read_input_tokens",
+            ):
+                assert getattr(usage, field_name) == getattr(expected, field_name), (
+                    f"{where}: {field_name}"
+                )
+
+            # 1: disjoint, and within the totals componentwise
+            for total, fallback, unbilled in (
+                (
+                    usage.input_tokens,
+                    usage.fallback_input_tokens,
+                    usage.unbilled_input_tokens,
+                ),
+                (
+                    usage.cache_creation_input_tokens,
+                    usage.fallback_cache_creation_input_tokens,
+                    usage.unbilled_cache_creation_input_tokens,
+                ),
+                (
+                    usage.cache_read_input_tokens,
+                    usage.fallback_cache_read_input_tokens,
+                    usage.unbilled_cache_read_input_tokens,
+                ),
+            ):
+                assert fallback + unbilled <= total, where
+            assert usage.fallback_output_tokens <= usage.output_tokens, where
+
+            cost = client.estimate_cost(usage)
+            assert cost >= 0, where  # 2
+            assert cost == pytest.approx(_expected_dollars(roles), abs=1e-9), where
+            assert client.estimate_cost(usage, batched=True) == cost * 0.5, where  # 4
+            parts_cost += cost
+            run_usage += usage
+            if rng.random() < 0.5:
+                streamed += usage
+                streamed_cost += _expected_dollars(roles)
+                tally["streamed_response"] += 1
+
+        where = f"seed {seed} run"
+        assert client.estimate_cost(run_usage) == pytest.approx(  # 3
+            parts_cost, rel=1e-9, abs=1e-9
+        ), where
+
+        metrics = PipelineMetrics(token_usage=run_usage, streamed_token_usage=streamed)
+        reported = _build_common_run_data(
+            metrics,
+            [],
+            [],
+            0.0,
+            pipeline_config={},
+            client=client,
+            batched=True,
+        )["token_usage"]["estimated_cost_usd"]
+        full = client.estimate_cost(run_usage)
+        # the report rounds to cents, so allow half a cent either side
+        assert full * 0.5 - 0.0051 <= reported <= full + 0.0051, where  # 5
+        # The bounds cannot see the streamed share go back to the full rate;
+        # the exact figure can: half the run, plus half again of what the
+        # streamed responses cost, priced by the oracle.
+        assert reported == pytest.approx(
+            round(full / 2 + streamed_cost / 2, 2), abs=0.005
+        ), where  # 5
+        tally["run"] += 1
+
+    # every branch the properties range over was reached
+    for key in (
+        "plain",
+        "direct_fallback",
+        "fell_back",
+        "both_declined",
+        "zero",
+        "kind:message",
+        "kind:fallback_message",
+        "unbilled",
+        "unbilled:cyber",
+        "unbilled:general_harms",
+        "unbilled:None",
+        "fallback",
+        "primary",
+        "billed_refusal_before_output",
+        "billed_midstream_refusal",
+        "zero_attempt",
+        "streamed_response",
+    ):
+        assert tally[key] > 0, f"never reached: {key} ({dict(tally)})"
+    assert tally["run"] == 50

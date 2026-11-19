@@ -7,6 +7,7 @@ it runs, nothing a paper cost has been recorded anywhere durable.
 
 import json
 import os
+import random
 import threading
 from pathlib import Path
 
@@ -350,3 +351,112 @@ class TestConcurrentRuns:
             "222",
             "333",
         ]
+
+
+def test_the_checkpoint_matches_a_model_over_50_seeded_histories(tmp_path) -> None:
+    """The file is a list of records; the model is that list, kept by the test.
+
+    The rule, stated from the module's contract and not from its code: `load`
+    returns every complete record appended under the fingerprint, in order,
+    minus the PMIDs `remove` dropped; a record cut short by a crash (bytes cut
+    mid-record, no newline) is lost alone, and the records appended after it
+    all load; another fingerprint empties the checkpoint.
+    """
+    steps_per_history = 40
+    tally = {
+        "append_after_tear": 0,
+        "two_tears_in_a_row": 0,
+        "tear_then_remove": 0,
+        "remove_emptied_it": 0,
+        "remove_kept_some": 0,
+        "fingerprint_change_on_records": 0,
+        "load_with_tail_torn": 0,
+        "both_kinds_loaded": 0,
+        "repeated_pmid_loaded": 0,
+    }
+    for seed in range(50):
+        rng = random.Random(seed)
+        path = str(tmp_path / f"cp{seed}.jsonl")
+        fp = {"model": "m", "n": 0}
+        model: list[dict] = []
+        torn = False  # the file ends in a fragment with no newline
+        serial = 0
+        history: list[str] = []
+
+        for step in range(steps_per_history):
+            roll = rng.random()
+            where = f"seed {seed} step {step}; history {history}"
+            exists = Path(path).exists()
+            if roll < 0.40:
+                serial += 1
+                pmid = str(rng.randint(1, 8))
+                kind = rng.choice(["result", "unvalidated"])
+                record = {kind: {"pmid": pmid, "serial": serial}}
+                history.append(f"append {kind} {pmid}#{serial}")
+                if torn:
+                    tally["append_after_tear"] += 1
+                checkpoint.append(path, fp, record)
+                model.append(record)
+                torn = False
+            elif roll < 0.55:
+                gone = {str(rng.randint(1, 8)) for _ in range(rng.randint(1, 3))}
+                history.append(f"remove {sorted(gone)}")
+                if torn and exists:
+                    tally["tear_then_remove"] += 1
+                checkpoint.remove(path, gone)
+                if exists:
+                    # A prune rewrites from whole lines: the fragment goes.
+                    torn = False
+                    before = len(model)
+                    model = [
+                        r for r in model if next(iter(r.values()))["pmid"] not in gone
+                    ]
+                    if not model:
+                        tally["remove_emptied_it"] += 1
+                    elif len(model) < before:
+                        tally["remove_kept_some"] += 1
+            elif roll < 0.67:
+                if not exists:
+                    continue
+                # A crash mid-append: the record's bytes cut short, no newline.
+                # The fragment stands for a record whose append never finished,
+                # so the model never held it. A torn header is not modelled:
+                # tears happen only on an existing file.
+                serial += 1
+                full = json.dumps({"result": {"pmid": "9", "serial": serial}})
+                cut = full[: rng.randint(1, len(full) - 1)]
+                history.append(f"tear {cut!r}")
+                if torn:
+                    tally["two_tears_in_a_row"] += 1
+                with open(path, "a", encoding="utf-8") as handle:
+                    handle.write(cut)
+                torn = True
+            elif roll < 0.72:
+                fp = {"model": "m", "n": fp["n"] + 1}
+                history.append("fingerprint change, load")
+                if model:
+                    tally["fingerprint_change_on_records"] += 1
+                assert checkpoint.load(path, fp) == [], f"stale file loaded; {where}"
+                assert not Path(path).exists(), f"stale file kept; {where}"
+                model = []
+                torn = False
+            else:
+                history.append("load")
+                if torn:
+                    tally["load_with_tail_torn"] += 1
+                got = checkpoint.load(path, fp)
+                assert got == model, f"load {got} != model {model}; {where}"
+                kinds = {next(iter(r)) for r in got}
+                if kinds == {"result", "unvalidated"}:
+                    tally["both_kinds_loaded"] += 1
+                pmids = [next(iter(r.values()))["pmid"] for r in got]
+                if len(pmids) != len(set(pmids)):
+                    tally["repeated_pmid_loaded"] += 1
+                # `load` leaves the file as it found it.
+                assert Path(path).exists() == bool(exists), f"load moved it; {where}"
+
+        got = checkpoint.load(path, fp)
+        assert got == model, f"seed {seed} final: {got} != {model}; history {history}"
+
+    unreached = [name for name, count in tally.items() if count == 0]
+    assert not unreached, f"cases never reached: {unreached}; tallies {tally}"

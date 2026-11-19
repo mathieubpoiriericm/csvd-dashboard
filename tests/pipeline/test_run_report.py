@@ -1,5 +1,6 @@
 """Tests for pipeline.run_report -- the document the dashboard publishes."""
 
+import random
 from typing import Any
 
 import pytest
@@ -1062,3 +1063,232 @@ class TestFindingsAreNotGenes:
     def test_a_report_already_in_these_words_is_left_alone(self) -> None:
         once = reword_findings(self._stored())
         assert reword_findings(once) is once
+
+
+# The pair the synthetic alias map folds onto one curated key.
+_PAIR_KEY = "GENEA/B"
+_POOL = ("GENE1", "GENE2", "GENE3", "GENE4", "GENE5", "GENEA", "GENEB")
+_QUOTE_DROP = "Quote not found in the paper"
+
+
+def _key(symbol: str) -> str:
+    """A gene's key as the test states it: the pair's members share one."""
+    upper = symbol.strip().upper()
+    return _PAIR_KEY if upper in {"GENEA", "GENEB"} else upper
+
+
+def test_the_published_numbers_reconcile_over_300_seeded_runs(
+    gene_aliases,
+) -> None:
+    """The report's counts, lists and paper rows say one thing about a run.
+
+    Stated from the rules in `.claude/rules/pipeline/run-reporting.md`, with
+    every expectation counted off the generated inputs here:
+
+    1. A paper's `geneCount` is what the accepted list holds for it, and a
+       held gene is not accepted: the rows' `geneCount` sums to the accepted
+       list's total, which is the mentions whose key the merge did not hold.
+    2. A paper's `rejectedCount` is its validation rejections, quote-gate
+       drops included (they are listed with the paper), plus its held
+       mentions; the rows sum to the rejected list's length. The quote-gate
+       drops are listed but are not `genes.rejected`, the validation
+       floor's own number, so the list is `genes.rejected` + drops + holds.
+    3. For papers without an error, fulltext + abstract-only + no-text is
+       processed; an errored paper is in none of the three, and no-text is
+       not folded into failed. This is mostly the test's own construction:
+       `build_run_report` passes `processed`, `fulltext` and `abstract_only`
+       through, and only `noTextAvailable` comes from the code. The funnel's
+       own reconciliation is upstream, in `report.py` and `process_paper`.
+    4. `rejectedAtInsertFloor` counts hold records: one per mention of a held
+       key (members of the pair sharing one key, whatever their spelling; a
+       paper proposing it twice is two mentions), or one for a hold no paper
+       proposed. The funnel closes: accepted plus the held mentions is every
+       mention.
+    """
+    tally = dict.fromkeys(
+        (
+            "empty_run", "no_text", "errored", "held_shared_by_papers",
+            "held_pair_members", "hold_without_paper", "citation_only",
+            "quote_drop", "no_hold", "run_with_holds",
+        ),
+        0,
+    )  # fmt: skip
+    for seed in range(300):
+        rng = random.Random(seed)
+        where = f"seed {seed}"
+        n_papers = 0 if seed % 37 == 0 else rng.randint(1, 12)
+        pool = list(_POOL)
+        held_pool = rng.sample(pool, rng.randint(0, 3)) if seed % 5 else []
+        held_keys = {_key(s) for s in held_pool}
+        held_entries = [
+            {
+                "gene_symbol": _PAIR_KEY if _key(s) == _PAIR_KEY else s,
+                "confidence": 0.5,
+            }
+            for s in dict.fromkeys(_key(s) for s in held_pool)
+        ]
+        # A hold no paper proposes: occasionally, a key absent from the pool.
+        if seed % 11 == 0:
+            held_entries.append({"gene_symbol": "GHOST", "confidence": 0.4})
+            held_keys.add("GHOST")
+            tally["hold_without_paper"] += 1
+        open_keys = [k for k in {_key(s) for s in pool} if k not in held_keys]
+        cited_keys = rng.sample(open_keys, rng.randint(0, 2))
+
+        papers: list[dict[str, Any]] = []
+        mentions = held_mentions = accepted_expected = 0
+        validation_rejections = quote_drops = 0
+        held_by_key: dict[str, list[int]] = {}
+        held_spellings: dict[str, set[str]] = {}
+        n_errors = n_no_text = n_fulltext = n_abstract = 0
+        for index in range(n_papers):
+            roll = rng.random()
+            error = "boom" if roll < 0.15 else None
+            source = (
+                "none"
+                if roll < 0.3 and (roll >= 0.15 or rng.random() < 0.3)
+                else rng.choice(["europepmc", "pmc", "abstract", "unknown"])
+            )
+            if error is None and source == "none":
+                n_no_text += 1
+                tally["no_text"] += 1
+            if error is not None:
+                n_errors += 1
+                tally["errored"] += 1
+            has_text = error is None and source != "none"
+            genes: list[dict[str, Any]] = []
+            rejected: list[dict[str, Any]] = []
+            if has_text:
+                for _ in range(rng.randint(0, 4)):
+                    symbol = rng.choice(pool)
+                    if rng.random() < 0.2:
+                        symbol = symbol.lower()
+                    mention = _gene(symbol, round(rng.uniform(0.3, 0.99), 2))
+                    mention["pmid"] = str(1000 + index)
+                    genes.append(mention)
+                for _ in range(rng.randint(0, 2)):
+                    drop = rng.random() < 0.4
+                    rejected.append(
+                        {
+                            "gene": _gene(rng.choice(pool), 0.3),
+                            "reasons": [
+                                _QUOTE_DROP if drop else "Low confidence: 0.30"
+                            ],
+                        }
+                    )
+                    quote_drops += drop
+                    validation_rejections += not drop
+                    tally["quote_drop"] += drop
+            fulltext = has_text and rng.random() < 0.6
+            n_fulltext += fulltext
+            n_abstract += has_text and not fulltext
+            for gene in genes:
+                mentions += 1
+                key = _key(gene["gene_symbol"])
+                if key in held_keys:
+                    held_mentions += 1
+                    held_by_key.setdefault(key, []).append(index)
+                    held_spellings.setdefault(key, set()).add(gene["gene_symbol"])
+                else:
+                    accepted_expected += 1
+            papers.append(
+                {
+                    "pmid": str(1000 + index),
+                    "source": source,
+                    "fulltext": fulltext,
+                    "gene_count": len(genes),
+                    "genes": genes,
+                    "rejected_genes": rejected,
+                    "processing_time": 1.0,
+                    "error": error,
+                }
+            )
+
+        n_processed = n_papers - n_errors
+        report = _report(
+            papers={
+                "processed": n_processed,
+                "fulltext": n_fulltext,
+                "abstract_only": n_abstract,
+                "failed": n_errors,
+            },
+            genes={
+                "extracted": mentions + validation_rejections,
+                "validated": mentions,
+                "rejected": validation_rejections,
+            },
+            database={
+                "inserted": 0,
+                "updated": 0,
+                "held_below_insert_floor": held_entries,
+                "citation_only": cited_keys,
+            },
+            papers_detail=papers,
+        )
+        rows = report.papers_detail.items
+        assert report.papers_detail.total == n_papers, where
+
+        # 1. Accepted.
+        assert report.accepted_genes.total == accepted_expected, where
+        assert report.accepted_genes.shown == report.accepted_genes.total, where
+        assert sum(row.gene_count for row in rows) == accepted_expected, where
+        for row, paper in zip(rows, papers, strict=True):
+            kept = sum(_key(g["gene_symbol"]) not in held_keys for g in paper["genes"])
+            assert row.gene_count == kept, f"{where}, paper {row.pmid}"
+            assert row.gene_count == sum(
+                g.pmid == row.pmid for g in report.accepted_genes.items
+            ), f"{where}, paper {row.pmid}"
+
+        # 2. Rejected: holds, validation rejections and quote-gate drops.
+        assert report.rejected_genes.shown == report.rejected_genes.total, where
+        unproposed = len(held_entries) - len(held_by_key)
+        holds = held_mentions + unproposed
+        assert report.rejected_genes.total == (
+            validation_rejections + quote_drops + holds
+        ), where
+        assert sum(row.rejected_count for row in rows) == (
+            validation_rejections + quote_drops + held_mentions
+        ), where
+        for row, paper in zip(rows, papers, strict=True):
+            held_here = sum(_key(g["gene_symbol"]) in held_keys for g in paper["genes"])
+            assert row.rejected_count == len(paper["rejected_genes"]) + held_here, where
+        assert report.genes.rejected == validation_rejections, where
+
+        # 3. Retrieval.
+        papers_ok = [row for row, p in zip(rows, papers, strict=True) if not p["error"]]
+        assert report.papers.no_text_available == n_no_text, where
+        assert (
+            report.papers.fulltext
+            + report.papers.abstract_only
+            + report.papers.no_text_available
+            == report.papers.processed
+            == len(papers_ok)
+        ), where
+        assert report.papers.failed == n_errors, where
+
+        # 4. Insert-floor holds, one per mention.
+        assert report.genes.rejected_at_insert_floor == holds, where
+        assert holds == sum(
+            reason.startswith("Held below the insert floor")
+            for item in report.rejected_genes.items
+            for reason in item.reasons
+        ), where
+        assert report.accepted_genes.total + held_mentions == mentions, where
+        # True because `validated` is an input here, not derived.
+        assert report.genes.validated == (
+            report.accepted_genes.total + holds - unproposed
+        ), where
+
+        # Reached.
+        tally["empty_run"] += n_papers == 0
+        tally["no_hold"] += not held_entries
+        tally["run_with_holds"] += bool(held_entries)
+        tally["held_shared_by_papers"] += any(
+            len(set(v)) > 1 for v in held_by_key.values()
+        )
+        tally["held_pair_members"] += len(held_spellings.get(_PAIR_KEY, ())) > 1
+        tally["citation_only"] += any(
+            g.citation_only for g in report.accepted_genes.items
+        )
+
+    assert all(tally.values()), tally

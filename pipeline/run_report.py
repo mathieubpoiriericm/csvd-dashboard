@@ -615,7 +615,7 @@ def _hold_records(
     held: list[dict[str, Any]],
     insert_floor: float | None,
 ) -> list[RejectedGeneRecord]:
-    """The insert floor's holds, one per paper that proposed the gene.
+    """The insert floor's holds, one per mention of the gene in a paper.
 
     The merge groups by gene, so it returns one hold per gene and names no
     paper. Everything this is published beside counts a paper's mention --

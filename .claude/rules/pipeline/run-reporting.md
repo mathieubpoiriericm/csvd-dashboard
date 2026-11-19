@@ -210,11 +210,12 @@ the class name.
   own count included it: PMID 42957517 read "2 accepted" on 2026-11-03 with
   neither gene in `acceptedGenes`, and the rows summed to 19 under a headline of
   10. `_paper_records` moves a paper's held genes to its `rejectedCount`, the
-  side of the run details they are listed on. **A hold is one record per paper that
-  proposed the gene** (`_hold_records`), under the paper's spelling and the
-  score that mention carried, and `rejectedAtInsertFloor` counts those records.
+  side of the run details they are listed on. **A hold is one record per mention**:
+  each time a paper proposed the gene, so a paper naming it twice, or naming
+  both members of a pair, makes two (`_hold_records`), under the paper's
+  spelling and the score that mention carried, and `rejectedAtInsertFloor` counts those records.
   The merge returns one hold per gene, and counting those left the funnel one
-  short whenever two papers proposed a held gene: that run validated 19,
+  short whenever a held gene was proposed twice: that run validated 19,
   accepted 10 and held 8. Now `validated` is the accepted list's total plus the
   holds. The step-5 warning counts the same mentions, and says so when they
   differ from the genes ("8 new genes, extracted 9 times, were held"):
@@ -289,7 +290,10 @@ the class name.
   papers that will make a request. `_StoredAnswers` is shared with the `--batch`
   path, whose rescues write the same record (`fallback.md`), and either path
   replays the other's. The offline modes are untouched: they meet the subclass
-  where they met the plain outage.
+  where they met the plain outage. Where each paid answer lives, on either path,
+  is `_disposition` in `pipeline/main.py`; `tests/pipeline/test_answer_disposition.py`
+  states the law and checks every case. Change a home there and in the law, not
+  at a call site.
 
 The offline `--pmids` and `--local-pdfs` modes write no `pipeline_runs` row, and
 that is correct rather than an oversight: they publish no data, so recording one
