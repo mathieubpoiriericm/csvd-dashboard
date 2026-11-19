@@ -520,8 +520,9 @@ def test_the_checkpoint_matches_a_model_over_50_seeded_histories(tmp_path) -> No
                     tally["repeated_pmid_loaded"] += 1
                 if header_torn:
                     # A header that does not parse is discarded, and with it
-                    # nothing, since no record was written after it.
-                    header_torn = False
+                    # nothing, since no record was written after it. A tear
+                    # on that fragment went with it.
+                    torn = header_torn = False
                     continue
                 # `load` leaves the file as it found it.
                 assert Path(path).exists() == bool(exists), f"load moved it; {where}"
