@@ -153,6 +153,25 @@ changed, the sum check fails it. "2.0.40" is also written in `CLAUDE.md`,
 `README.md` (the `bend` row of the jobs table), this skill's own prose and the
 comment in `ci.yml`'s `bend` job, and moves with them.
 
+The install step's branches were each run once, on 18 November 2026:
+
+- **arm64 Linux:** run 44435577975 in the private repository ran the `bend`
+  job's own steps on a GitHub-hosted `ubuntu-24.04-arm` runner, from a
+  throwaway branch that was never merged, and passed. The arm64 archive
+  `bend-2.0.40-linux-arm64.tar.gz` matched its pinned sha256, `uname -sm`
+  printed `Linux aarch64`, `bend version` printed `bend 2.0.40`, the proofs
+  printed `ALL PROOFS CHECK`, and the regenerated `lib/review/standing.bend.mjs`
+  was byte-identical to the committed one. So the module regenerates on arm64
+  Linux as well as on x64.
+- **Non-Linux and unknown architecture:** run locally, not in CI, by copying the
+  step's `run:` block into a script and running it with `bash -e` under a fake
+  `uname` first on `PATH`. With `Darwin` and `arm64` it exited 1 with
+  `::error::The bend job installs Bend's Linux build, and this runner is Darwin`.
+  With `Linux` and `riscv64` it exited 1 with
+  `::error::Bend 2.0.40 has no Linux build for riscv64`. Neither run attempted a
+  download: `$RUNNER_TEMP` stayed empty and nothing was appended to
+  `$GITHUB_ENV` or `$GITHUB_PATH`. No real macOS or riscv64 machine was used.
+
 ## Switching
 
 ```sh
