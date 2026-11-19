@@ -268,8 +268,9 @@ function registerTooltip(entry: Registration): () => void {
     // Firefox give Escape to the field (a search box clears, and the
     // re-filter takes the panel's row with it) and never close the panel.
     // Capturing on the document runs before the field's default action and
-    // before `useEscapeKey`'s bubbling listener, so this one Escape closes
-    // the panel and does nothing else; the next reaches them as before.
+    // before any bubbling Escape listener (`useEscapeKey`'s, were a page to
+    // hold both), so this one Escape closes the panel and does nothing else;
+    // the next reaches them as before.
     // Focus on the trigger or inside the panel is the keyboard's own route,
     // and the browser's Escape already closes it. `hidePopover()` fires
     // `beforetoggle`, so `depart()` holds an uncovered trigger as it does

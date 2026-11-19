@@ -55,8 +55,9 @@ departure also waits for the first move.
 
 **Escape dismisses a panel the pointer opened, wherever focus is** (WCAG
 1.4.13). The controller's capture-phase `keydown` listener closes it and
-swallows that one Escape, so a search box keeps its text and a drawer stays
-open; the next Escape reaches them. Chromium and Firefox otherwise give Escape
+swallows that one Escape, so a search box keeps its text and no other Escape
+listener (`useEscapeKey`'s, were a page to hold both) sees it; the next Escape
+reaches them. Chromium and Firefox otherwise give Escape
 to a focused text field and never close the panel. A panel the keyboard opened
 is left to the browser's own Escape, as is any panel while focus is on its
 trigger or inside it. The listener is the one non-passive listener the

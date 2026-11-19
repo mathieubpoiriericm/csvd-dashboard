@@ -203,9 +203,8 @@ test.describe("gene tooltips", () => {
     // assistive tech, not just to sighted pointer users.
     await expect(trigger).toHaveAttribute("aria-expanded", "true");
 
-    // Moving away closes it — Escape is not used here because focus is still
-    // in the search box from beforeEach, and Escape's native effect there is
-    // to clear the field, not dismiss the popover.
+    // Moving away closes it. (Escape would too, with focus still in the
+    // search box: the Escape tests below.)
     await page.getByRole("heading", { level: 1 }).hover();
     await expect(tooltip(page)).toHaveCount(0);
     await expect(trigger).toHaveAttribute("aria-expanded", "false");
@@ -333,8 +332,8 @@ test.describe("gene tooltips", () => {
     // the route is checked by `ToggleEvent.source`.
     await recordOpener(panel);
 
-    // Focus the trigger first: Escape in the search box clears the field
-    // instead, and the re-filter replaces the rows under the pointer.
+    // Focus the trigger first, so the browser's own Escape closes it: this
+    // test is about the close, not about the field the focus came from.
     await trigger.focus();
     await page.keyboard.press("Escape");
     await expect.poll(() => isOpen(panel)).toBe(false);
@@ -382,8 +381,8 @@ test.describe("gene tooltips", () => {
     // From the trigger's centre, which the panel covers, to the point: the
     // pointer stays on the panel all the way.
     await page.mouse.move(x, y, { steps: 5 });
-    // Focus the trigger first: Escape in the search box clears the field
-    // instead, and the re-filter replaces the rows under the pointer.
+    // Focus the trigger first, so the browser's own Escape closes it: this
+    // test is about the close, not about the field the focus came from.
     await trigger.focus();
     await page.keyboard.press("Escape");
     await expect.poll(() => isOpen(panel)).toBe(false);
@@ -499,6 +498,47 @@ test.describe("gene tooltips", () => {
     await expect.poll(() => isOpen(panel)).toBe(false);
     await expect(trigger).toBeFocused();
     await expect(search).toHaveValue("LAMB1");
+  });
+
+  /**
+   * A panel the keyboard opened is not the pointer's, wherever focus is: the
+   * pointer then resting on it, focus back in the search box, Escape is the
+   * field's and not the panel's. Only a panel `hover()` itself showed is
+   * dismissed (the `opening` mark), and the field's own listener proves
+   * Escape reached it uncancelled.
+   */
+  test("Escape from the search box leaves a keyboard-opened panel to the field", async ({ page, browserName }) => {
+    const { trigger, panel } = await longPanelAt320(page);
+    const search = page.getByRole("searchbox", { name: "Search genes" });
+    await search.evaluate((field) => {
+      field.addEventListener("keydown", (event) => {
+        if (event.key !== "Escape") return;
+        const log = field as HTMLElement & { escapes?: boolean[] };
+        (log.escapes ??= []).push(event.defaultPrevented);
+      });
+    });
+    await recordOpener(panel);
+    await trigger.focus();
+    await page.keyboard.press("Enter");
+    await expect(panel).toHaveClass(/\bis-placed\b/);
+    expect(await openedByActivation(panel, trigger)).toBe(true);
+    // The pointer onto the panel, which at this size covers its trigger:
+    // that keeps it open once focus leaves.
+    const box = (await panel.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, {
+      steps: 5,
+    });
+    await search.focus();
+    await pastHoverDelay(page);
+    expect(await isOpen(panel)).toBe(true);
+
+    await page.keyboard.press("Escape");
+    expect(
+      await search.evaluate((field) =>
+        (field as HTMLElement & { escapes?: boolean[] }).escapes
+      ),
+    ).toEqual([false]);
+    await expect(search).toHaveValue(browserName === "webkit" ? "LAMB1" : "");
   });
 
   /**
