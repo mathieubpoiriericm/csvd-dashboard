@@ -307,8 +307,6 @@ test.describe("gene tooltips", () => {
    */
   test("a long popover fits whole inside a 320px viewport, scaled rather than cut off", async ({ page }) => {
     const { trigger, panel } = await longPanelAt320(page);
-    const isOpen = () =>
-      panel.evaluate((element) => element.matches(":popover-open"));
     const link = panel.getByRole("link", { name: "View on PubMed" });
 
     await trigger.hover();
@@ -339,12 +337,11 @@ test.describe("gene tooltips", () => {
     // instead, and the re-filter replaces the rows under the pointer.
     await trigger.focus();
     await page.keyboard.press("Escape");
-    await expect.poll(isOpen).toBe(false);
-    // The page opens a hovered panel after 120ms (OPEN_DELAY_MS in
-    // components/Tooltip.tsx). Wait well past it: had the panel's departure
-    // from under the pointer counted as a hover, it would be open again.
-    await page.waitForTimeout(500);
-    expect(await isOpen()).toBe(false);
+    await expect.poll(() => isOpen(panel)).toBe(false);
+    // Had the panel's departure from under the pointer counted as a hover,
+    // it would be open again by now.
+    await pastHoverDelay(page);
+    expect(await isOpen(panel)).toBe(false);
 
     await page.keyboard.press("Enter");
     await expect(panel).toHaveClass(/\bis-placed\b/);
@@ -357,7 +354,7 @@ test.describe("gene tooltips", () => {
     // Closed again, it opens on hover once the pointer has left the tooltip
     // and come back.
     await page.keyboard.press("Escape");
-    await expect.poll(isOpen).toBe(false);
+    await expect.poll(() => isOpen(panel)).toBe(false);
     await page.getByRole("heading", { level: 1 }).hover();
     await trigger.hover();
     await expect(panel).toHaveClass(/\bis-placed\b/);
@@ -494,8 +491,11 @@ test.describe("gene tooltips", () => {
       await expectFitted(panel);
     });
 
-    // Where a panel closed is a question for hover alone: a tap there on the
-    // trigger the panel uncovered opens it, by activation.
+    // A guard. Where a panel closed is a question for hover alone: a tap
+    // there on the trigger the panel uncovered opens it, by activation. On
+    // touch no record is ever taken (every tap ends with a `pointerout` out
+    // of the document, which clears the tooltip the pointer is in), so this
+    // pins that a tap never meets one.
     test("a tap where a panel closed opens the uncovered trigger", async ({ page }) => {
       const { trigger, panel } = await longPanelAt320(page);
       await trigger.tap();

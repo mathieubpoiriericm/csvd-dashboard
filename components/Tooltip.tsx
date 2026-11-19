@@ -140,16 +140,16 @@ function registerTooltip(entry: Registration): () => void {
     // came from: a panel closed from under a resting pointer (by Escape, at a
     // size where the fitted panel covers its trigger) is followed by a
     // `pointerover` on the trigger, whose `relatedTarget` is that panel in
-    // Chromium and Firefox and nothing at all in WebKit.
+    // Chromium and Firefox; WebKit can give none.
     //
     // A panel over another tooltip's trigger uncovers that one in the same
-    // way, and its `pointerover` looks like a hover off the panel: its
-    // `relatedTarget` is the panel (or, in WebKit, can be nothing), just as
-    // when the pointer moves off the panel's edge onto a trigger beside it.
-    // Only the pointer's position tells the two apart. `rest` keeps where
-    // it was when a panel closed from over it, and a `pointerover` there is
-    // the panel leaving, not the pointer arriving: that tooltip's hover is
-    // `held` until the pointer moves.
+    // way, closed or removed with its row, and its `pointerover` looks like
+    // a hover off the panel: its `relatedTarget` is the panel, if anything,
+    // just as when the pointer moves off the panel's edge onto a trigger
+    // beside it. Only the pointer's position tells the two apart. `rest`
+    // keeps where it was when a panel left from over it, and a `pointerover`
+    // there is the panel leaving, not the pointer arriving: that tooltip's
+    // hover is `held` until the pointer moves.
     let pointerIn: Registration | undefined;
     let last = { x: NaN, y: NaN };
     let rest: { x: number; y: number; closed: Registration } | undefined;
