@@ -174,6 +174,18 @@ function useWritesValue() {
   return useRef(typeof document === "undefined");
 }
 
+/**
+ * Whether a control's element is the server's, the only kind a visitor can
+ * have changed before the island started: the server writes a `value`
+ * attribute on both controls (on the select too, where the browser ignores
+ * it), and a first render in the browser writes none. An element the island
+ * created holds nothing of the visitor's, so it takes the state instead, as
+ * that first render would have given it.
+ */
+function fromServer(element: HTMLInputElement | HTMLSelectElement): boolean {
+  return element.hasAttribute("value");
+}
+
 /** Draft keystrokes rerender only this field, not the table's rows. */
 function SearchInput({ label, initialValue, onCommit, resetRef }: {
   label: string;
@@ -204,10 +216,18 @@ function SearchInput({ label, initialValue, onCommit, resetRef }: {
   const writesValue = useWritesValue();
   useLayoutEffect(() => {
     writesValue.current = true;
-    const typed = inputRef.current?.value ?? "";
+    const input = inputRef.current;
+    if (!input) return;
+    if (!fromServer(input)) {
+      input.value = draft;
+      return;
+    }
+    const typed = input.value;
     if (typed === initialValue) return;
+    // The box keeps what was typed; the table gets it trimmed, as it gets
+    // every search.
     setDraft(typed);
-    commit.current(typed);
+    search.apply(typed);
   }, []);
   return (
     <label class="table-control">
@@ -325,7 +345,13 @@ export function TableShell<TData extends RowData>({
   const pageSizeWritesValue = useWritesValue();
   useLayoutEffect(() => {
     pageSizeWritesValue.current = true;
-    const chosen = Number(pageSizeRef.current?.value ?? pageSize);
+    const select = pageSizeRef.current;
+    if (!select) return;
+    if (!fromServer(select)) {
+      select.value = String(pageSize);
+      return;
+    }
+    const chosen = Number(select.value);
     if (chosen !== pageSize) table.setPageSize(chosen);
   }, []);
   useLayoutEffect(() => {

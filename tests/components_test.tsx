@@ -578,6 +578,10 @@ Deno.test("TableShell's server HTML shows the search and page size its table ope
   assertEquals(options.length, 4);
   const shown = options.find((a) => /\sselected\b/.test(a)) ?? options[0];
   assertMatch(shown, /\svalue="10"/);
+  // The island adopts a control only if its element carries a `value`
+  // attribute, which marks it as the server's (fromServer), so the server
+  // must write one on the select as well.
+  assertMatch(html, /<select[^>]*\svalue="10"/);
 });
 
 Deno.test("TableShell tags every cell with its column id", () => {

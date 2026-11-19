@@ -26,3 +26,14 @@ Deno.test("clearing or unmounting cancels pending search writes", async () => {
   await new Promise((resolve) => setTimeout(resolve, 20));
   assertEquals(commits, ["new query"]);
 });
+
+Deno.test("a query written at once is trimmed as a debounced one is, and replaces a pending one", async () => {
+  const commits: string[] = [];
+  const search = createSearchDraft((value) => commits.push(value), 5);
+  search.update("pending");
+  search.apply("  typed before  ");
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assertEquals(commits, ["typed before"]);
+  search.apply(" ");
+  assertEquals(commits, ["typed before", ""]);
+});

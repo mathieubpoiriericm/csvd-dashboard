@@ -4,7 +4,7 @@ import {
   GENE_TOTAL,
   TRIAL_SHOWN,
 } from "../fixtures/expected-data.ts";
-import { banner, pageSizeSelect, rows } from "../helpers.ts";
+import { banner, pageSizeSelect, rows, wholePage } from "../helpers.ts";
 
 /**
  * A search typed, or a page size chosen, in the server's HTML before the
@@ -63,9 +63,20 @@ async function holdIsland(page: Page, island: string) {
   };
 }
 
+/** The banner's count and the page's rows, once the page is drawn whole. */
+async function shownRows(page: Page) {
+  await wholePage(page);
+  return {
+    kept: /showing (\d+) of/.exec((await banner(page).textContent()) ?? "")
+      ?.[1],
+    rows: await rows(page).allInnerTexts(),
+  };
+}
+
 for (const { path, island, search, query, shown } of TABLES) {
   test(`${path}: a search typed before the table starts is kept and applied`, async ({ page }) => {
     test.skip(query === null, "no committed row to search for");
+    test.skip(shown <= 1, "one row: a search cannot keep fewer");
     const start = await holdIsland(page, island);
     await page.goto(path, { waitUntil: "commit" });
     const box = page.getByRole("searchbox", { name: search });
@@ -82,6 +93,32 @@ for (const { path, island, search, query, shown } of TABLES) {
     );
     expect(kept, "rows the search kept").toBeGreaterThan(0);
     expect(kept, "rows the search kept").toBeLessThan(shown);
+  });
+
+  // A phone keyboard adds a space after a word it suggests, and the box keeps
+  // it; the table searches for the words, as it does for a search typed once
+  // the table has started.
+  test(`${path}: a search typed with a trailing space before the table starts finds what its words find`, async ({ page }) => {
+    test.skip(query === null, "no committed row to search for");
+    const start = await holdIsland(page, island);
+    await page.goto(path, { waitUntil: "commit" });
+    const box = page.getByRole("searchbox", { name: search });
+    await box.fill(`${query} `);
+    await start();
+
+    await expect(box).toHaveValue(`${query} `);
+    await expect(banner(page).locator(".filter-active")).toContainText(
+      `Search: “${query}”`,
+    );
+    const typedFirst = await shownRows(page);
+
+    await box.fill("");
+    await expect(banner(page)).not.toContainText("Search:");
+    await box.fill(query!);
+    await expect(banner(page).locator(".filter-active")).toContainText(
+      `Search: “${query}”`,
+    );
+    expect(typedFirst).toEqual(await shownRows(page));
   });
 
   test(`${path}: a page size chosen before the table starts is kept and applied`, async ({ page }) => {
