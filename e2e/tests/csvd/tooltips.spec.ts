@@ -67,6 +67,15 @@ function isOpen(panel: Locator) {
   return panel.evaluate((element) => element.matches(":popover-open"));
 }
 
+/** The trigger text of every open panel on the page. */
+function openPanels(page: Page) {
+  return page.evaluate(() =>
+    [...document.querySelectorAll(".tooltip-pop")]
+      .filter((pop) => pop.matches(":popover-open"))
+      .map((pop) => pop.previousElementSibling?.textContent ?? pop.id)
+  );
+}
+
 /**
  * Waits out the page's own hover delay: it opens a hovered panel 120ms after
  * the pointer enters its trigger (OPEN_DELAY_MS in components/Tooltip.tsx).
@@ -412,6 +421,53 @@ test.describe("gene tooltips", () => {
     await page.keyboard.press("Enter");
     await expect(otherPanel).toHaveClass(/\bis-placed\b/);
     expect(await openedByActivation(otherPanel, other)).toBe(true);
+  });
+
+  /**
+   * The same rest, with focus left in the search box as after typing. There
+   * Chromium and Firefox give Escape to the field: it is cleared, and the
+   * re-filter removes the panel's row from under the pointer with no
+   * `beforetoggle` at all. WebKit's Escape closes the panel instead. Either
+   * way the panel left and the pointer did not move, so the trigger now
+   * under it stays closed.
+   */
+  test("a panel removed by a re-filter does not open the trigger it uncovers", async ({ page, browserName }) => {
+    const { trigger, panel } = await longPanelAt320(page);
+    await trigger.hover();
+    await expect(panel).toHaveClass(/\bis-placed\b/);
+    const point = await pointOverAnotherTrigger(panel);
+    expect(point, "a point of the long panel over another trigger").not
+      .toBeNull();
+    const { x, y } = point!;
+    const pop = (await panel.elementHandle())!;
+
+    await page.mouse.move(x, y, { steps: 5 });
+    await page.keyboard.press("Escape");
+    await expect.poll(() =>
+      pop.evaluate((element) =>
+        element.isConnected && element.matches(":popover-open")
+      )
+    ).toBe(false);
+    // Which way it left, so the test notices an engine that stops removing
+    // it: then the removal needs another route here.
+    expect(
+      await pop.evaluate((element) => element.isConnected),
+      "the panel is still in the page",
+    ).toBe(browserName === "webkit");
+    // The trigger now under the pointer, beneath any panel open over it.
+    const under = await page.evaluate(
+      ([x, y]) =>
+        document.elementsFromPoint(x, y)
+          .find((element) => !element.closest(".tooltip-pop"))
+          ?.closest(".tooltip-box")?.textContent,
+      [x, y],
+    );
+    expect(under, `a trigger under ${x},${y} once the panel left`)
+      .toBeTruthy();
+
+    await pastHoverDelay(page);
+    expect(await openPanels(page), `${under}, uncovered at ${x},${y}`)
+      .toEqual([]);
   });
 
   // A click opens the panel by native activation, as Enter does, and it is

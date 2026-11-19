@@ -118,7 +118,8 @@ interface Registration {
 // not thousands of AbortSignal removals. No DOM access occurs during SSR.
 const controllers = new WeakMap<Document, {
   entries: Map<Element, Registration>;
-  dispose: () => void;
+  depart: (tooltip: Registration) => void;
+  release: () => void;
 }>();
 
 function registerTooltip(entry: Registration): () => void {
@@ -153,6 +154,14 @@ function registerTooltip(entry: Registration): () => void {
     let last = { x: NaN, y: NaN };
     let rest: { x: number; y: number; closed: Registration } | undefined;
     let held: Registration | undefined;
+    // A panel leaving the page: closed (its `beforetoggle`) or removed with
+    // its row by a re-render (no event at all). Only from under the pointer
+    // does it uncover anything.
+    const depart = (tooltip: Registration) => {
+      if (pointerIn !== tooltip) return;
+      rest = { ...last, closed: tooltip };
+      held = undefined;
+    };
     const hover = (tooltip: Registration, element: Element | null) => {
       clearTimeout(tooltip.timer);
       if (element !== tooltip.button) return;
@@ -167,7 +176,10 @@ function registerTooltip(entry: Registration): () => void {
       if (event.type.startsWith("pointer")) {
         const { clientX: x, clientY: y } = event as PointerEvent;
         last = { x, y };
-        if (rest && (x !== rest.x || y !== rest.y)) rest = undefined;
+        if (rest && (x !== rest.x || y !== rest.y)) {
+          rest = undefined;
+          release();
+        }
         if (event.type === "pointermove") {
           // The first move away from that point, still on the held
           // tooltip, enters it as its `pointerover` would have: a move
@@ -211,14 +223,8 @@ function registerTooltip(entry: Registration): () => void {
         if (event.type === "beforetoggle") clearTimeout(registered.timer);
         const open = (event as ToggleLike).newState === "open";
         // Only `beforetoggle` comes before the hit test that follows the
-        // panel's departure; the queued `toggle` can come after it. A panel
-        // closing away from the pointer uncovers nothing under it.
-        if (
-          event.type === "beforetoggle" && !open && pointerIn === registered
-        ) {
-          rest = { ...last, closed: registered };
-          held = undefined;
-        }
+        // panel's departure; the queued `toggle` can come after it.
+        if (event.type === "beforetoggle" && !open) depart(registered);
         if (!open) pop.classList.remove("is-placed");
         // Closing must leave the focused link attached until the native
         // popover algorithm restores focus to its invoker. `toggle` runs
@@ -253,24 +259,28 @@ function registerTooltip(entry: Registration): () => void {
     for (const type of types) {
       doc.addEventListener(type, handle, { capture: true, passive: true });
     }
-    controller = {
-      entries,
-      dispose: () => {
-        for (const type of types) doc.removeEventListener(type, handle, true);
-      },
+    // Listening ends with the last tooltip, but not while a departure's
+    // record stands: a re-filter removes every row before it draws the new
+    // ones, and a trigger drawn under the resting pointer must still meet
+    // the record. The pointer's first move elsewhere clears it.
+    const release = () => {
+      if (entries.size > 0 || rest) return;
+      for (const type of types) doc.removeEventListener(type, handle, true);
+      controllers.delete(doc);
     };
+    controller = { entries, depart, release };
     controllers.set(doc, controller);
   }
   controller.entries.set(entry.button, entry);
   controller.entries.set(entry.pop, entry);
   return () => {
     clearTimeout(entry.timer);
+    // Preact runs this before it removes the row, so a panel going with it
+    // is still connected and open here; removing it fires no `beforetoggle`.
+    if (entry.pop.matches(":popover-open")) controller.depart(entry);
     controller.entries.delete(entry.button);
     controller.entries.delete(entry.pop);
-    if (controller.entries.size === 0) {
-      controller.dispose();
-      controllers.delete(doc);
-    }
+    controller.release();
   };
 }
 
