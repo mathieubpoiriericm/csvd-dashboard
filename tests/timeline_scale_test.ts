@@ -416,6 +416,20 @@ Deno.test("the radar reducer's rules hold over 200,000 fractional observations",
       );
     } else {
       check(next.floor > o.plateWidth, "rule 6: the floor passes the plate");
+      if (o.heightLimited) {
+        check(
+          next.mode === "radar",
+          "rule 6: a height-limited fault stays radar",
+        );
+        check(
+          next.raise >= FLOOR_STEP,
+          "rule 6: a height-limited fault raises by at least a step",
+        );
+        check(
+          next.raise >= s.raise,
+          "rule 6: a height-limited fault never lowers the raise",
+        );
+      }
       if (!o.heightLimited) {
         check(
           o.drawerBeside
