@@ -132,6 +132,13 @@ Deno.test("csvLine round-trips 2,000 seeded rows through an RFC 4180 reader", ()
   assert(special > 500, `fields needing quotes reached: ${special}`);
 });
 
+Deno.test("wrap80 keeps a list item's indent when it runs again over an overlong word", () => {
+  const item = `- ${"a ".repeat(30)}${"w".repeat(100)}`;
+  const once = wrap80(item);
+  assertEquals(once.split("\n")[1], `  ${"w".repeat(100)}`);
+  assertEquals(wrap80(once), once);
+});
+
 Deno.test("the generated manifest validates against the schema and normalises", async () => {
   const text = generateManifest(EXAMPLEITIS);
   const root = await readSchema("manifest.schema.json");
