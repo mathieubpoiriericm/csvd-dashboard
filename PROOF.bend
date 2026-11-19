@@ -13,7 +13,7 @@
 # the laws in the order they lean on one another: law 2 (exclusive rows), law 5
 # (the table is the definition), law 1 (finality), law 3 (needed), law 4 (the
 # settling point), law 6 (unopposed is never adverse), law 7 (the settling
-# point the page prints).
+# point the page prints), law 8 (the page's two numbers).
 #
 # a, r, b, o: the members accepting, rejecting, abstaining and outstanding.
 
@@ -1082,3 +1082,12 @@ def Laws.needed_for_is_needed(a, r, b, o):
   %needed_from_adds(Nat.add(a, Nat.add(r, o)), 0n) : {_ == S.needed(Nat.add(a, Nat.add(r, o))) : Nat}
   %add_zero_r(S.needed(Nat.add(a, Nat.add(r, o)))) : {_ == S.needed(Nat.add(a, Nat.add(r, o))) : Nat}
   {==}
+
+# ---------------------------------------------------------------------------
+# Law 8. The page's two numbers.
+#
+# not_abstaining computes to the sum law 7 names, so law 7 is this law.
+# ---------------------------------------------------------------------------
+
+def Laws.needed_is_of_those_counted(a, r, b, o):
+  Laws.needed_for_is_needed(a, r, b, o)

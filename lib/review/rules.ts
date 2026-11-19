@@ -41,14 +41,12 @@ type BendStanding =
 /**
  * The table itself is `standing.bend`, its laws proved in `/PROOF.bend`; these
  * functions run the module Bend generates from it (`deno task bend:build`).
- * The module refuses a count that is not a whole number from 0 up, and a count
- * past 2^48-1: it throws rather than answer. `standingOf` and `settlesAt` both
- * pass the four counts, so each is refused unless it is a whole number from 0
- * up and within that bound. A refusal is a `RangeError` whose `cause` is the
- * string the module threw. `settlesAt` takes time proportional to the number of
- * members who have not abstained (the generated code loops once per three of
- * them), so it must never be handed a number that did not come from counting
- * accounts.
+ * The module refuses a count that is not a whole number from 0 to 2^53, and
+ * any sum it takes of the counts past 2^48-1: it throws a bare string rather
+ * than answer. `refusing` turns such a throw into a `RangeError` whose `cause`
+ * is what was thrown. `settlesAt` also refuses, with a `RangeError` of its own
+ * and no cause, more than `MOST_COUNTED` members not abstaining, before the
+ * module's loop (once per three of them) runs.
  */
 const bend = generated as unknown as {
   standing_of(
@@ -57,21 +55,32 @@ const bend = generated as unknown as {
     abs: number,
     out: number,
   ): { $: BendStanding };
+  not_abstaining(acc: number, rej: number, abs: number, out: number): number;
   needed_for(acc: number, rej: number, abs: number, out: number): number;
 };
 
-/** Runs the module and turns what it throws, a bare string, into an Error. */
-function refusing<T>(run: () => T): T {
+/**
+ * Runs the module and turns what it throws, a bare string or anything else,
+ * into an Error that keeps it as its `cause`. Exported for its test.
+ */
+export function refusing<T>(run: () => T): T {
   try {
     return run();
   } catch (thrown) {
     throw new RangeError(
       "the standing rule refused this tally: its counts must be whole numbers " +
-        `from 0 up, within what the module holds (${String(thrown)})`,
+        "from 0 up, and the sums the rule takes of them must stay within " +
+        `2^48-1 (${String(thrown)})`,
       { cause: thrown },
     );
   }
 }
+
+/**
+ * The most members not abstaining `settlesAt` will count: the module's loop
+ * runs once per three of them.
+ */
+export const MOST_COUNTED = 10_000_000;
 
 const STANDINGS: Record<BendStanding, Standing> = {
   NotStarted: "not_started",
@@ -94,14 +103,31 @@ export function standingOf(tally: Tally): Standing {
   ];
 }
 
-/** Two thirds of those not abstaining: `needed` votes of `of`. */
+/**
+ * Two thirds of those not abstaining: `needed` votes of `of`. Both come from
+ * the module, and law 8 in `/LAWS.bend` proves `needed` is needed of `of`.
+ * Throws a RangeError past `MOST_COUNTED` members not abstaining.
+ */
 export function settlesAt(tally: Tally): { needed: number; of: number } {
   const { accept, reject, abstain, outstanding } = tally;
-  const of = accept + reject + outstanding;
-  const needed = refusing(() =>
-    bend.needed_for(accept, reject, abstain, outstanding)
+  const of = refusing(() =>
+    bend.not_abstaining(accept, reject, abstain, outstanding)
   );
-  return { needed, of };
+  // The generated `needed_for` loops once per three of `of`, so the ceiling is
+  // checked before it runs, not after it has counted.
+  if (of > MOST_COUNTED) {
+    const most = MOST_COUNTED.toLocaleString("en-US");
+    const got = of.toLocaleString("en-US");
+    throw new RangeError(
+      `settlesAt counts at most ${most} members not abstaining, not ${got}`,
+    );
+  }
+  return {
+    needed: refusing(() =>
+      bend.needed_for(accept, reject, abstain, outstanding)
+    ),
+    of,
+  };
 }
 
 export interface GeneReview {

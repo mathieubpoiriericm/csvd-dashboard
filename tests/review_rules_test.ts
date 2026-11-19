@@ -1,4 +1,9 @@
-import { assert, assertEquals, assertThrows } from "@std/assert";
+import {
+  assert,
+  assertEquals,
+  assertStrictEquals,
+  assertThrows,
+} from "@std/assert";
 
 import type {
   Account,
@@ -9,7 +14,13 @@ import type {
   RulingEvent,
 } from "../lib/review/events.ts";
 import { PIPELINE_ACTOR, votes } from "../lib/review/events.ts";
-import { reviewGene, settlesAt, standingOf } from "../lib/review/rules.ts";
+import generated from "../lib/review/standing.bend.mjs";
+import {
+  refusing,
+  reviewGene,
+  settlesAt,
+  standingOf,
+} from "../lib/review/rules.ts";
 import type { Standing, Tally } from "../lib/review/rules.ts";
 import { sampleChange } from "./fixtures/review.ts";
 
@@ -98,6 +109,9 @@ Deno.test("every standing has its condition", () => {
 Deno.test("a gene settles at two thirds of those not abstaining", () =>
   assertEquals(settlesAt(t(5, 1, 1, 4)), { needed: 7, of: 10 }));
 
+Deno.test("abstainers count in neither of the settling point's numbers", () =>
+  assertEquals(settlesAt(t(5, 1, 7, 4)), { needed: 7, of: 10 }));
+
 /** Every tally of whole numbers whose four counts sum to at most `max`. */
 export function* everyTally(max: number): Generator<Tally> {
   for (let accept = 0; accept <= max; accept++) {
@@ -170,6 +184,7 @@ Deno.test("the standing table's laws hold for every tally of up to 24 members", 
       `${where} needs ${needed} of ${of}, not two thirds rounded up`,
     );
     // `of` is accept + reject + outstanding, the law's premise.
+    assertEquals(of, tally.accept + tally.reject + tally.outstanding, where);
     if (of > 0) {
       assertEquals(standing === "accepted", tally.accept >= needed, where);
       assertEquals(standing === "rejected", tally.reject >= needed, where);
@@ -461,4 +476,45 @@ Deno.test("the history is newest first", () => {
   const c = ruling("v0", "accepted", "2026-01-02T10:00:00Z");
   const review = reviewGene(change, accounts, [a, b, c]);
   assertEquals(review.history, [b, c, a]);
+});
+
+Deno.test("ten million members is the most settlesAt will count", () => {
+  assertEquals(settlesAt(t(10_000_000, 0, 0, 0)), {
+    needed: 6_666_667,
+    of: 10_000_000,
+  });
+  assertThrows(
+    () => settlesAt(t(10_000_001, 0, 0, 0)),
+    RangeError,
+    "10,000,000",
+  );
+});
+
+Deno.test("whatever the module throws is refused as a RangeError that keeps it", () => {
+  const thrown = new TypeError("boom");
+  const error = assertThrows(() =>
+    refusing(() => {
+      throw thrown;
+    }), RangeError);
+  assertStrictEquals(error.cause, thrown);
+});
+
+Deno.test("past ten million, settlesAt refuses before the module counts", () => {
+  const module = generated as unknown as { needed_for: unknown };
+  const real = module.needed_for;
+  let calls = 0;
+  module.needed_for = () => {
+    calls += 1;
+    return 0;
+  };
+  try {
+    assertThrows(
+      () => settlesAt(t(10_000_001, 0, 0, 0)),
+      RangeError,
+      "10,000,000",
+    );
+  } finally {
+    module.needed_for = real;
+  }
+  assertEquals(calls, 0);
 });
