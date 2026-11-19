@@ -203,9 +203,8 @@ test.describe("gene tooltips", () => {
     // assistive tech, not just to sighted pointer users.
     await expect(trigger).toHaveAttribute("aria-expanded", "true");
 
-    // Moving away closes it — Escape is not used here because focus is still
-    // in the search box from beforeEach, and Escape's native effect there is
-    // to clear the field, not dismiss the popover.
+    // Moving away closes it. (Escape would too, with focus still in the
+    // search box: the Escape tests below.)
     await page.getByRole("heading", { level: 1 }).hover();
     await expect(tooltip(page)).toHaveCount(0);
     await expect(trigger).toHaveAttribute("aria-expanded", "false");
@@ -333,8 +332,8 @@ test.describe("gene tooltips", () => {
     // the route is checked by `ToggleEvent.source`.
     await recordOpener(panel);
 
-    // Focus the trigger first: Escape in the search box clears the field
-    // instead, and the re-filter replaces the rows under the pointer.
+    // Focus the trigger first, so the browser's own Escape closes it: this
+    // test is about the close, not about the field the focus came from.
     await trigger.focus();
     await page.keyboard.press("Escape");
     await expect.poll(() => isOpen(panel)).toBe(false);
@@ -382,8 +381,8 @@ test.describe("gene tooltips", () => {
     // From the trigger's centre, which the panel covers, to the point: the
     // pointer stays on the panel all the way.
     await page.mouse.move(x, y, { steps: 5 });
-    // Focus the trigger first: Escape in the search box clears the field
-    // instead, and the re-filter replaces the rows under the pointer.
+    // Focus the trigger first, so the browser's own Escape closes it: this
+    // test is about the close, not about the field the focus came from.
     await trigger.focus();
     await page.keyboard.press("Escape");
     await expect.poll(() => isOpen(panel)).toBe(false);
@@ -422,14 +421,139 @@ test.describe("gene tooltips", () => {
 
   /**
    * The same rest, with focus left in the search box as after typing. There
-   * Chromium and Firefox give Escape to the field: it is cleared, and the
-   * re-filter removes the panel's row from under the pointer with no
-   * `beforetoggle` at all. WebKit's Escape closes the panel instead. Either
-   * way the panel left and the pointer did not move, so the trigger now
-   * under it stays closed.
+   * Chromium and Firefox used to give Escape to the field: it was cleared,
+   * and the re-filter took the panel's row with it, while the panel itself
+   * was never dismissed (WCAG 1.4.13). On every engine Escape now closes the
+   * panel the pointer opened and nothing else: the search keeps its text,
+   * and the trigger the panel uncovered stays closed until the pointer
+   * moves.
    */
-  test("a panel removed by a re-filter does not open the trigger it uncovers", async ({ page, browserName }) => {
+  test("Escape in the search box closes a hover panel and keeps the search", async ({ page }) => {
     const { trigger, panel } = await longPanelAt320(page);
+    const search = page.getByRole("searchbox", { name: "Search genes" });
+    await trigger.hover();
+    await expect(panel).toHaveClass(/\bis-placed\b/);
+    const point = await pointOverAnotherTrigger(panel);
+    expect(point, "a point of the long panel over another trigger").not
+      .toBeNull();
+    const { x, y } = point!;
+    await page.mouse.move(x, y, { steps: 5 });
+    await expect(search).toBeFocused();
+
+    await page.keyboard.press("Escape");
+    await expect.poll(() => isOpen(panel)).toBe(false);
+    expect(await panel.evaluate((element) => element.isConnected)).toBe(true);
+    await expect(search).toHaveValue("LAMB1");
+    await expect(rows(page)).toHaveCount(1);
+    await expect(search).toBeFocused();
+    await pastHoverDelay(page);
+    expect(await openPanels(page), `uncovered at ${x},${y}`).toEqual([]);
+  });
+
+  /**
+   * The Escape the panel took was one only: the next reaches the field,
+   * uncancelled, and does there what the engine does. Chromium and Firefox
+   * clear a search field on Escape; WebKit leaves it alone, panel or no
+   * panel (measured on a bare `<input type="search">`).
+   */
+  test("a second Escape clears the search", async ({ page, browserName }) => {
+    const { trigger, panel } = await longPanelAt320(page);
+    const search = page.getByRole("searchbox", { name: "Search genes" });
+    await search.evaluate((field) => {
+      field.addEventListener("keydown", (event) => {
+        if (event.key !== "Escape") return;
+        const log = field as HTMLElement & { escapes?: boolean[] };
+        (log.escapes ??= []).push(event.defaultPrevented);
+      });
+    });
+    await trigger.hover();
+    await expect(panel).toHaveClass(/\bis-placed\b/);
+    await expect(search).toBeFocused();
+
+    await page.keyboard.press("Escape");
+    await expect.poll(() => isOpen(panel)).toBe(false);
+    await expect(search).toHaveValue("LAMB1");
+    await page.keyboard.press("Escape");
+    // The first never reached the field; the second did, not cancelled.
+    expect(
+      await search.evaluate((field) =>
+        (field as HTMLElement & { escapes?: boolean[] }).escapes
+      ),
+    ).toEqual([false]);
+    await expect(search).toHaveValue(browserName === "webkit" ? "LAMB1" : "");
+  });
+
+  // A panel the keyboard opened is the browser's to close: Escape returns
+  // focus to its trigger and the search is not touched.
+  test("Escape leaves a keyboard-opened panel to the browser", async ({ page }) => {
+    const { trigger, panel } = await longPanelAt320(page);
+    const search = page.getByRole("searchbox", { name: "Search genes" });
+    await recordOpener(panel);
+    await trigger.focus();
+    await page.keyboard.press("Enter");
+    await expect(panel).toHaveClass(/\bis-placed\b/);
+    expect(await openedByActivation(panel, trigger)).toBe(true);
+
+    await page.keyboard.press("Escape");
+    await expect.poll(() => isOpen(panel)).toBe(false);
+    await expect(trigger).toBeFocused();
+    await expect(search).toHaveValue("LAMB1");
+  });
+
+  /**
+   * A panel the keyboard opened is not the pointer's, wherever focus is: the
+   * pointer then resting on it, focus back in the search box, Escape is the
+   * field's and not the panel's. Only a panel `hover()` itself showed is
+   * dismissed (the `opening` mark), and the field's own listener proves
+   * Escape reached it uncancelled.
+   */
+  test("Escape from the search box leaves a keyboard-opened panel to the field", async ({ page, browserName }) => {
+    const { trigger, panel } = await longPanelAt320(page);
+    const search = page.getByRole("searchbox", { name: "Search genes" });
+    await search.evaluate((field) => {
+      field.addEventListener("keydown", (event) => {
+        if (event.key !== "Escape") return;
+        const log = field as HTMLElement & { escapes?: boolean[] };
+        (log.escapes ??= []).push(event.defaultPrevented);
+      });
+    });
+    await recordOpener(panel);
+    await trigger.focus();
+    await page.keyboard.press("Enter");
+    await expect(panel).toHaveClass(/\bis-placed\b/);
+    expect(await openedByActivation(panel, trigger)).toBe(true);
+    // The pointer onto the panel, which at this size covers its trigger:
+    // that keeps it open once focus leaves.
+    const box = (await panel.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, {
+      steps: 5,
+    });
+    await search.focus();
+    await pastHoverDelay(page);
+    expect(await isOpen(panel)).toBe(true);
+
+    await page.keyboard.press("Escape");
+    expect(
+      await search.evaluate((field) =>
+        (field as HTMLElement & { escapes?: boolean[] }).escapes
+      ),
+    ).toEqual([false]);
+    await expect(search).toHaveValue(browserName === "webkit" ? "LAMB1" : "");
+  });
+
+  /**
+   * The same rest, and the search cleared without moving the pointer or the
+   * page, as Escape in the field used to do. The re-filter keeps no row of the old
+   * page, so it removes every row, the panel's with it and with no
+   * `beforetoggle` at all, before it draws the new ones: for a moment no
+   * tooltip is left on the page. The departure's record must outlive that,
+   * or the controller goes with it. The trigger drawn under the resting
+   * pointer stays closed, and the pointer's first move over it opens it, by
+   * hover.
+   */
+  test("a panel removed by a re-filter does not open the trigger it uncovers", async ({ page }) => {
+    const { trigger, panel } = await longPanelAt320(page);
+    const search = page.getByRole("searchbox", { name: "Search genes" });
     await trigger.hover();
     await expect(panel).toHaveClass(/\bis-placed\b/);
     const point = await pointOverAnotherTrigger(panel);
@@ -439,32 +563,38 @@ test.describe("gene tooltips", () => {
     const pop = (await panel.elementHandle())!;
 
     await page.mouse.move(x, y, { steps: 5 });
-    await page.keyboard.press("Escape");
-    await expect.poll(() =>
-      pop.evaluate((element) =>
-        element.isConnected && element.matches(":popover-open")
-      )
-    ).toBe(false);
-    // Which way it left, so the test notices an engine that stops removing
-    // it: then the removal needs another route here.
-    expect(
-      await pop.evaluate((element) => element.isConnected),
-      "the panel is still in the page",
-    ).toBe(browserName === "webkit");
+    // In place: `fill()` scrolls the field into view, and select-all and
+    // Backspace scroll the page to the caret, either of which moves the
+    // page under the resting pointer. Escape cleared it without either.
+    await search.evaluate((field: HTMLInputElement) => {
+      field.value = "";
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await expect.poll(() => pop.evaluate((element) => element.isConnected))
+      .toBe(false);
+
     // The trigger now under the pointer, beneath any panel open over it.
-    const under = await page.evaluate(
+    const id = await page.evaluate(
       ([x, y]) =>
         document.elementsFromPoint(x, y)
           .find((element) => !element.closest(".tooltip-pop"))
-          ?.closest(".tooltip-box")?.textContent,
+          ?.closest(".tooltip-box")?.getAttribute("popovertarget"),
       [x, y],
     );
-    expect(under, `a trigger under ${x},${y} once the panel left`)
+    expect(id, `a trigger under ${x},${y} once the panel left`)
       .toBeTruthy();
+    const uncovered = page.locator(`.tooltip-box[popovertarget="${id}"]`);
+    const uncoveredPanel = page.locator(`[popover][id="${id}"]`);
+    await recordOpener(uncoveredPanel);
 
     await pastHoverDelay(page);
-    expect(await openPanels(page), `${under}, uncovered at ${x},${y}`)
-      .toEqual([]);
+    expect(await openPanels(page), `uncovered at ${x},${y}`).toEqual([]);
+
+    // A move by one pixel, still over it: a hover.
+    expect(await topmostIn(uncovered, x + 1, y), `${x + 1},${y}`).toBe(true);
+    await page.mouse.move(x + 1, y);
+    await expect.poll(() => isOpen(uncoveredPanel)).toBe(true);
+    expect(await openedByActivation(uncoveredPanel, uncovered)).toBe(false);
   });
 
   // A click opens the panel by native activation, as Enter does, and it is
