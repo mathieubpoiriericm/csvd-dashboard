@@ -7,6 +7,7 @@
 import Base
 import ./lib/review/standing.bend as S
 
+# True when both are the same standing.
 def same(x: S.Standing, y: S.Standing) -> Bool:
   match x y:
     case S.NotStarted{} S.NotStarted{}:
@@ -40,11 +41,25 @@ def at_most_one(p: Bool, q: Bool, s: Bool, t: Bool, u: Bool) -> Bool:
     case _ _ _ _ _:
       False{}
 
+# True when none of the five is.
 def none(p: Bool, q: Bool, s: Bool, t: Bool, u: Bool) -> Bool:
   match p q s t u:
     case False{} False{} False{} False{} False{}:
       True{}
     case _ _ _ _ _:
+      False{}
+
+# True for the three standings a member's objection can cause: conflict,
+# rejected and no quorum.
+def adverse(s: S.Standing) -> Bool:
+  match s:
+    case S.Conflict{}:
+      True{}
+    case S.Rejected{}:
+      True{}
+    case S.NoQuorum{}:
+      True{}
+    case _:
       False{}
 
 # 1. Finality. A settled gene keeps its standing whatever one outstanding
@@ -201,3 +216,11 @@ law in_review_is_no_row:
   for +b: Nat
   for +o: Nat
   {same(S.standing_of(a, r, b, o), S.InReview{}) == none(S.is_not_started(a, r, b), S.is_accepted(a, r, o), S.is_rejected(a, r, o), S.is_no_quorum(a, r, b, o), S.is_conflict(a, r, o)) : Bool}
+
+# 6. Unopposed is never adverse. A tally with no reject and no abstention is
+#    never conflict, rejected or no quorum, so turning every objection into an
+#    accept clears an adverse standing (lib/review/simulate.ts relies on it).
+law unopposed_is_never_adverse:
+  for +a: Nat
+  for +o: Nat
+  {adverse(S.standing_of(a, 0n, 0n, o)) == False{} : Bool}

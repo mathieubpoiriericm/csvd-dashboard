@@ -138,7 +138,7 @@ All three engines locally: `E2E_BROWSERS=chromium,webkit,firefox`.
 ## The `bend` job
 
 `bend` checks the committee's standing rule: `deno task bend:check` proves the
-twenty laws in `LAWS.bend`, and `deno task bend:build` followed by
+laws in `LAWS.bend`, and `deno task bend:build` followed by
 `git diff --exit-code` fails the job when the committed
 `lib/review/standing.bend.mjs` is not what the pinned Bend generates. It
 downloads Bend 2.0.40's Linux archive for the runner's `uname -m`, checks it

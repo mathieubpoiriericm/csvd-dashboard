@@ -76,7 +76,7 @@ jobs:
   # The committee's standing rule runs from lib/review/standing.bend through
   # the module Bend generates from it, which is committed so that nothing else
   # -- the build, the tests, the image, a fork's other jobs -- needs Bend. This
-  # job is the one that does: the twenty laws in LAWS.bend must still prove,
+  # job is the one that does: the laws in LAWS.bend must still prove,
   # and the committed module must be what the pinned Bend makes of the source.
   bend:
     name: Bend proofs and generated module

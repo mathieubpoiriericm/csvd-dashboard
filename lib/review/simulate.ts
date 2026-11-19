@@ -278,7 +278,8 @@ export function simulate(
         }));
       while (adverse()) {
         // Each adverse standing needs a reject or an abstention, so there is
-        // one to turn, and turning them all leaves the change accepted.
+        // one to turn, and turning them all leaves the change accepted:
+        // `unopposed_is_never_adverse` in /LAWS.bend, proved of the table.
         const objection = given.findLast((e) =>
           e.answer === "reject" || e.answer === "abstain"
         )!;

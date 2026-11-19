@@ -12,7 +12,7 @@
 # A def may only call the ones above it, so the file goes lemmas first, and
 # the laws in the order they lean on one another: law 2 (exclusive rows), law 5
 # (the table is the definition), law 1 (finality), law 3 (needed), law 4 (the
-# settling point).
+# settling point), law 6 (unopposed is never adverse).
 #
 # a, r, b, o: the members accepting, rejecting, abstaining and outstanding.
 
@@ -1023,3 +1023,30 @@ def Laws.rejected_at_needed(a, r, b, o, e):
     Nat.is_ge(r, S.needed(Nat.add(r, Nat.add(a, o)))),
     Laws.rejected_is_its_row(a, r, b, o),
     acc_settles(r, a, o, some_answer_swap(a, r, o, e)))
+
+# ---------------------------------------------------------------------------
+# Law 6. Unopposed is never adverse.
+#
+# With no reject and no abstention the rejected, no-quorum and conflict
+# conditions all compute to False, so pick is left with not started, accepted
+# or in review.
+# ---------------------------------------------------------------------------
+
+# With the last three conditions False, pick's answer is not adverse.
+def unopposed_pick(ns: Bool, acc: Bool) -> Fails(Laws.adverse(S.pick(ns, acc, False{}, False{}, False{}))):
+  match ns acc:
+    case True{} True{}:
+      {==}
+    case True{} False{}:
+      {==}
+    case False{} True{}:
+      {==}
+    case False{} False{}:
+      {==}
+
+def Laws.unopposed_is_never_adverse(a, o):
+  match a:
+    case 0n:
+      {==}
+    case 1n+p:
+      unopposed_pick(False{}, Nat.is_ge(1n+p, Nat.double(o)))
