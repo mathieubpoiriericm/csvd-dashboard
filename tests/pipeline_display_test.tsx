@@ -608,11 +608,17 @@ Deno.test("a percentage is 0% only at 0 and 100% only at 1, for every n/d with d
   }
 });
 
-Deno.test("a size's leading number stays below 1000, from 1 byte to 1 TB", () => {
-  const scale: Record<string, number> = { B: 1, kB: 1e3, MB: 1e6, GB: 1e9 };
+Deno.test("a size's leading number stays below 1000, from 1 byte past 1 TB", () => {
+  const scale: Record<string, number> = {
+    B: 1,
+    kB: 1e3,
+    MB: 1e6,
+    GB: 1e9,
+    TB: 1e12,
+  };
   const values = new Set<number>();
-  // A log grid, 40 steps per decade from 1 to 1e12.
-  for (let i = 0; i <= 480; i++) values.add(Math.round(10 ** (i / 40)));
+  // A log grid, 40 steps per decade from 1 to 1e14.
+  for (let i = 0; i <= 560; i++) values.add(Math.round(10 ** (i / 40)));
   // Each unit's boundary, one byte and half a printed tenth either side.
   for (const edge of [1e3, 1e6, 1e9, 1e12]) {
     for (const d of [-1, 0, 1]) values.add(edge + d);
@@ -620,18 +626,13 @@ Deno.test("a size's leading number stays below 1000, from 1 byte to 1 TB", () =>
       values.add(Math.round(edge + tenth * edge / 1e4));
     }
   }
-  // KNOWN FINDING, not a rule: formatBytes has no unit above GB, so a count
-  // from 999,950,000,000 bytes up prints "1000.0 GB". The rule is held
-  // below that value until the formatter has a TB unit.
-  const sorted = [...values].filter((x) => x < 999_950_000_000).sort((a, b) =>
-    a - b
-  );
-  const reached: Record<string, number> = { B: 0, kB: 0, MB: 0, GB: 0 };
+  const sorted = [...values].sort((x, y) => x - y);
+  const reached: Record<string, number> = { B: 0, kB: 0, MB: 0, GB: 0, TB: 0 };
   let previous = -Infinity;
   for (const x of sorted) {
     const printed = formatBytes(x);
     const where = `value ${x} printed "${printed}"`;
-    const match = printed.match(/^(\d+(?:\.\d)?) (B|kB|MB|GB)$/);
+    const match = printed.match(/^(\d+(?:\.\d)?) (B|kB|MB|GB|TB)$/);
     assert(match !== null, `unparseable: ${where}`);
     const lead = Number(match[1]);
     assert(lead < 1000, `leading number reached 1000: ${where}`);
