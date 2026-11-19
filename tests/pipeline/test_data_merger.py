@@ -694,6 +694,19 @@ class TestMergeGeneEntries:
             "pipeline.data_merger.merge_genes_transactional", return_value=(0, 0)
         )
         next_pmid = 10_000_000
+        # Each gene's outcome, by the test's own classification (in the
+        # table or not, best score against the floor), not the merger's.
+        tally = dict.fromkeys(
+            (
+                "insert",
+                "update with claims",
+                "citation-only update",
+                "held",
+                "new gene at the floor",
+                "existing gene at the floor",
+            ),
+            0,
+        )
 
         for batch in range(300):
             symbols = rng.sample(pool, rng.randint(1, 4))
@@ -730,6 +743,7 @@ class TestMergeGeneEntries:
             assert len(inserted) == len(to_insert), where
             assert len(updated) == len(to_update), where
             held = result.get("held_below_insert_floor", [])
+            held_here = 0
 
             for symbol in symbols:
                 group = [e for e in entries if e.gene_symbol == symbol]
@@ -746,16 +760,31 @@ class TestMergeGeneEntries:
                     assert symbol not in inserted, where
                     row = updated[symbol]
                     if best < floor:
+                        tally["citation-only update"] += 1
                         assert row["mendelian_randomization"] is False, where
                         assert row["gwas_trait"] == [], where
                         assert row["evidence_from_other_omics_studies"] == "", where
+                    else:
+                        # At or above the floor the claims land: every entry
+                        # carries all three, the deciding one included.
+                        tally["update with claims"] += 1
+                        if best == floor:
+                            tally["existing gene at the floor"] += 1
+                        assert row["mendelian_randomization"] is True, where
+                        assert row["gwas_trait"] != [], where
+                        assert row["evidence_from_other_omics_studies"] != "", where
                 else:
                     # 1. Insert only at or above the floor.
                     assert symbol not in updated, where
                     if best >= floor:
+                        tally["insert"] += 1
+                        if best == floor:
+                            tally["new gene at the floor"] += 1
                         assert symbol in inserted, where
                         row = inserted[symbol]
                     else:
+                        tally["held"] += 1
+                        held_here += 1
                         assert symbol not in inserted, where
                         assert {
                             "gene_symbol": symbol,
@@ -770,6 +799,18 @@ class TestMergeGeneEntries:
                 # 4. No PMID is lost.
                 for entry in group:
                     assert entry.pmid in row["references"], where
+
+            # Nothing is held beyond the new genes below the floor.
+            assert len(held) == held_here, where
+
+        # The generator must keep reaching every outcome, or a later edit of
+        # the seed, the scores or the batch shape would leave a statement
+        # checking nothing.
+        for outcome, count in tally.items():
+            assert count > 0, (
+                f"seed {seed}: no gene in 300 batches reached '{outcome}'; "
+                f"tally {dict(tally)}"
+            )
 
     async def test_existing_genes_updated(self, sample_gene_entries, mocker):
         mocker.patch(
