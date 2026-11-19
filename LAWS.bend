@@ -224,3 +224,13 @@ law unopposed_is_never_adverse:
   for +a: Nat
   for +o: Nat
   {adverse(S.standing_of(a, 0n, 0n, o)) == False{} : Bool}
+
+# 7. The settling point the page prints. needed_for, which lib/review/rules.ts
+#    runs, is needed of the members who have not abstained, so laws 3 and 4
+#    are about the number a reader sees.
+law needed_for_is_needed:
+  for +a: Nat
+  for +r: Nat
+  for +b: Nat
+  for +o: Nat
+  {S.needed_for(a, r, b, o) == S.needed(Nat.add(a, Nat.add(r, o))) : Nat}
