@@ -15,7 +15,11 @@ import {
   LogoInput,
   noteId,
 } from "../../components/adapt/FieldNote.tsx";
-import { SelectField, TextField } from "../../components/adapt/Field.tsx";
+import {
+  SelectField,
+  TextField,
+  windows,
+} from "../../components/adapt/Field.tsx";
 import { ListEditor } from "../../components/adapt/ListEditor.tsx";
 import {
   CodeDialog,
@@ -533,6 +537,20 @@ Deno.test("the echo draws an invisible offence, and keeps a far one in view", ()
   // The mark sits in a window of context, the rest elided on either side.
   assertMatch(echo, /^\u2026a a a .*<mark\s*>\{\{<\/mark>x b b .*\u2026$/);
   assert(echo.length < long.length);
+});
+
+Deno.test("the echo's windows merge in order whatever order the offences came in", () => {
+  const value = "x".repeat(200);
+  const at = (start: number) => ({ start, end: start + 1, char: "\u200b" });
+  // 40 and 60 lie within one context of each other; 150 is far from both.
+  assertEquals(windows(value, [at(60), at(150), at(40)]), [[20, 81], [
+    130,
+    171,
+  ]]);
+  assertEquals(windows(value, [at(150), at(60), at(40)]), [[20, 81], [
+    130,
+    171,
+  ]]);
 });
 
 const BAR = {

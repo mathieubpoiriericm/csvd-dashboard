@@ -73,11 +73,16 @@ const CONTEXT = 20;
 /**
  * The stretches of the value the echo draws: the whole of a short value,
  * else a window of context round each offence, overlapping windows merged.
+ * Exported for its test; the echo is its only caller.
  */
-function windows(value: string, offences: Offence[]): Array<[number, number]> {
+export function windows(
+  value: string,
+  offences: Offence[],
+): Array<[number, number]> {
   if (value.length <= 3 * CONTEXT) return [[0, value.length]];
   const out: Array<[number, number]> = [];
-  for (const o of offences) {
+  // The merge below only looks at the window before, so it needs them in order.
+  for (const o of [...offences].sort((a, b) => a.start - b.start)) {
     const from = Math.max(0, o.start - CONTEXT);
     const to = Math.min(value.length, o.end + CONTEXT);
     const last = out[out.length - 1];
