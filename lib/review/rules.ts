@@ -61,18 +61,25 @@ const bend = generated as unknown as {
   needed_for(acc: number, rej: number, abs: number, out: number): number;
 };
 
-/** Runs the module and turns what it throws, a bare string, into an Error. */
-function refusing<T>(run: () => T): T {
+/**
+ * Runs the module and turns what it throws, a bare string or anything else,
+ * into an Error that keeps it as its `cause`. Exported for its test.
+ */
+export function refusing<T>(run: () => T): T {
   try {
     return run();
   } catch (thrown) {
     throw new RangeError(
       "the standing rule refused this tally: its counts must be whole numbers " +
-        `from 0 up, within what the module holds (${String(thrown)})`,
+        "from 0 up, and the sums the rule takes of them must stay within " +
+        `2^48-1 (${String(thrown)})`,
       { cause: thrown },
     );
   }
 }
+
+/** The most members `settlesAt` will count: its module loop runs per three. */
+export const MOST_COUNTED = 10_000_000;
 
 const STANDINGS: Record<BendStanding, Standing> = {
   NotStarted: "not_started",
@@ -101,13 +108,24 @@ export function standingOf(tally: Tally): Standing {
  */
 export function settlesAt(tally: Tally): { needed: number; of: number } {
   const { accept, reject, abstain, outstanding } = tally;
+  const of = refusing(() =>
+    bend.not_abstaining(accept, reject, abstain, outstanding)
+  );
+  // The generated `needed_for` loops once per three of `of`, so the ceiling is
+  // checked before it runs, not after it has counted.
+  if (of > MOST_COUNTED) {
+    throw new RangeError(
+      `settlesAt counts at most ${
+        MOST_COUNTED.toLocaleString("en-US")
+      } members, ` +
+        `not ${of.toLocaleString("en-US")}`,
+    );
+  }
   return {
     needed: refusing(() =>
       bend.needed_for(accept, reject, abstain, outstanding)
     ),
-    of: refusing(() =>
-      bend.not_abstaining(accept, reject, abstain, outstanding)
-    ),
+    of,
   };
 }
 
