@@ -48,9 +48,23 @@ async function openCard(page: Page, id: string) {
   if (await head.getAttribute("aria-expanded") === "false") await head.click();
 }
 
-/** Scroll the page so `target` sits mid-screen, where it is pressed. */
+/**
+ * Scroll the page so `target` sits mid-screen, where it is pressed, at a
+ * whole-pixel scroll offset. `scrollIntoView({ block: "center" })` can ask
+ * for a half pixel, and Firefox lands on one whole pixel and settles a frame
+ * later on the other. A click in that frame finds its target not stable, and
+ * Playwright's retry scrolls it into view with `block: "end"`, to the
+ * window's bottom edge: the Session panel then opened above its button 7
+ * times in 20.
+ */
 const centre = (target: Locator) =>
-  target.evaluate((el) => el.scrollIntoView({ block: "center" }));
+  target.evaluate((el) => {
+    const { top, height } = el.getBoundingClientRect();
+    scrollTo({
+      top: Math.round(scrollY + top + height / 2 - innerHeight / 2),
+      behavior: "instant",
+    });
+  });
 
 const topOf = (target: Locator) =>
   target.evaluate((el) => el.getBoundingClientRect().top);
@@ -559,19 +573,7 @@ test("the open Session panel sits just under its button, inside the viewport", a
   // Mid-screen first, so there is room under the button in every engine: a
   // click scrolls the button only just into view, which in WebKit is the
   // window's bottom edge, and the panel then rightly opens above it.
-  //
-  // To a whole pixel. Centred by `scrollIntoView`, the button sits on a half
-  // pixel, and Firefox lands on one whole pixel and settles a frame later on
-  // the other. A click in that frame finds the button not stable, and
-  // Playwright's retry scrolls it into view with `block: "end"`, to the
-  // window's bottom edge: the panel then opened above it 7 times in 20.
-  await toggle.evaluate((el) => {
-    const { top, height } = el.getBoundingClientRect();
-    scrollTo({
-      top: Math.round(scrollY + top + height / 2 - innerHeight / 2),
-      behavior: "instant",
-    });
-  });
+  await centre(toggle);
   await toggle.click();
   const panel = page.locator(".adapt-bar-session");
   await expect(panel).toHaveClass(/is-placed/);
