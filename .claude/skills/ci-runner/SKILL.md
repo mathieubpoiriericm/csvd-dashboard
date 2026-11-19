@@ -149,9 +149,16 @@ user's home outside the job's `$RUNNER_TEMP` (no `~/.bend`). Bend finds its
 `bend2/` beside its own binary, and `BEND_NO_TELEMETRY=1` keeps it from asking
 bend-lang.com for a newer version. Moving to a newer Bend means changing
 `BEND_VERSION` and both sums in the install step together; with only the version
-changed, the sum check fails it. "2.0.40" is also written in `CLAUDE.md`,
-`README.md` (the `bend` row of the jobs table), this skill's own prose and the
-comment in `ci.yml`'s `bend` job, and moves with them.
+changed, the sum check fails it. A weekly workflow, `bend-release.yml` (Mondays
+06:17 UTC, or by hand), compares the `BEND_VERSION` in `ci.yml` with the latest
+release of `bendlang/bend` on a GitHub-hosted runner and goes red when they
+differ, with a line naming both. A red run means a newer Bend is out: make the
+change above. A run that says it could not ask GitHub failed on the request (rate
+limit, network, auth), says nothing about Bend, and is rerun. Scheduled
+workflows do not run in a fork until Actions is enabled there. "2.0.40" is also
+written in `CLAUDE.md`, `README.md` (the `bend` row of the jobs table), this
+skill's own prose and the comment in `ci.yml`'s `bend` job, and moves with
+them.
 
 The install step's branches were each run once, on 18 November 2026:
 
