@@ -118,7 +118,8 @@ interface Registration {
 // not thousands of AbortSignal removals. No DOM access occurs during SSR.
 const controllers = new WeakMap<Document, {
   entries: Map<Element, Registration>;
-  dispose: () => void;
+  depart: (tooltip: Registration) => void;
+  release: () => void;
 }>();
 
 function registerTooltip(entry: Registration): () => void {
@@ -139,23 +140,72 @@ function registerTooltip(entry: Registration): () => void {
     // came from: a panel closed from under a resting pointer (by Escape, at a
     // size where the fitted panel covers its trigger) is followed by a
     // `pointerover` on the trigger, whose `relatedTarget` is that panel in
-    // Chromium and Firefox and nothing at all in WebKit.
+    // Chromium and Firefox; WebKit can give none.
+    //
+    // A panel over another tooltip's trigger uncovers that one in the same
+    // way, closed or removed with its row, and its `pointerover` looks like
+    // a hover off the panel: its `relatedTarget` is the panel, if anything,
+    // just as when the pointer moves off the panel's edge onto a trigger
+    // beside it. Only the pointer's position tells the two apart. `rest`
+    // keeps where it was when a panel left from over it, and a `pointerover`
+    // there is the panel leaving, not the pointer arriving: that tooltip's
+    // hover is `held` until the pointer moves.
     let pointerIn: Registration | undefined;
+    let last = { x: NaN, y: NaN };
+    let rest: { x: number; y: number; closed: Registration } | undefined;
+    let held: Registration | undefined;
+    // A panel leaving the page: closed (its `beforetoggle`) or removed with
+    // its row by a re-render (no event at all). Only from under the pointer
+    // does it uncover anything.
+    const depart = (tooltip: Registration) => {
+      if (pointerIn !== tooltip) return;
+      rest = { ...last, closed: tooltip };
+      held = undefined;
+    };
+    const hover = (tooltip: Registration, element: Element | null) => {
+      clearTimeout(tooltip.timer);
+      if (element !== tooltip.button) return;
+      const { pop } = tooltip;
+      tooltip.timer = setTimeout(() => {
+        if (pop.isConnected && !pop.matches(":popover-open")) {
+          pop.showPopover();
+        }
+      }, OPEN_DELAY_MS);
+    };
     const handle = (event: Event) => {
+      if (event.type.startsWith("pointer")) {
+        const { clientX: x, clientY: y } = event as PointerEvent;
+        last = { x, y };
+        if (rest && (x !== rest.x || y !== rest.y)) {
+          rest = undefined;
+          release();
+        }
+        if (event.type === "pointermove") {
+          // The first move away from that point, still on the held
+          // tooltip, enters it as its `pointerover` would have: a move
+          // within one element fires no `pointerover` of its own.
+          if (rest || !held) return;
+          const tooltip = held;
+          held = undefined;
+          if (tooltipOf(event.target) === tooltip) {
+            hover(tooltip, locate(event.target));
+          }
+          return;
+        }
+      }
       const element = locate(event.target);
       const registered = element ? entries.get(element) : undefined;
       if (event.type === "pointerover") {
         const from = pointerIn;
         pointerIn = registered;
         if (!registered || from === registered) return;
-        clearTimeout(registered.timer);
-        if (element !== registered.button) return;
-        const { pop } = registered;
-        registered.timer = setTimeout(() => {
-          if (pop.isConnected && !pop.matches(":popover-open")) {
-            pop.showPopover();
-          }
-        }, OPEN_DELAY_MS);
+        // Uncovered, not entered. The closed panel's own trigger holds no
+        // hover: it waits for the pointer to leave and come back.
+        if (rest) {
+          if (registered !== rest.closed) held = registered;
+          return;
+        }
+        hover(registered, element);
         return;
       }
       // Out of the document altogether, so the next entry is a hover even
@@ -172,6 +222,9 @@ function registerTooltip(entry: Registration): () => void {
         // Only the synchronous transition may cancel a pending close.
         if (event.type === "beforetoggle") clearTimeout(registered.timer);
         const open = (event as ToggleLike).newState === "open";
+        // Only `beforetoggle` comes before the hit test that follows the
+        // panel's departure; the queued `toggle` can come after it.
+        if (event.type === "beforetoggle" && !open) depart(registered);
         if (!open) pop.classList.remove("is-placed");
         // Closing must leave the focused link attached until the native
         // popover algorithm restores focus to its invoker. `toggle` runs
@@ -197,30 +250,37 @@ function registerTooltip(entry: Registration): () => void {
     const types = [
       "pointerover",
       "pointerout",
+      "pointermove",
       "focusin",
       "focusout",
       "beforetoggle",
       "toggle",
     ];
-    for (const type of types) doc.addEventListener(type, handle, true);
-    controller = {
-      entries,
-      dispose: () => {
-        for (const type of types) doc.removeEventListener(type, handle, true);
-      },
+    for (const type of types) {
+      doc.addEventListener(type, handle, { capture: true, passive: true });
+    }
+    // Listening ends with the last tooltip, but not while a departure's
+    // record stands: a re-filter removes every row before it draws the new
+    // ones, and a trigger drawn under the resting pointer must still meet
+    // the record. The pointer's first move elsewhere clears it.
+    const release = () => {
+      if (entries.size > 0 || rest) return;
+      for (const type of types) doc.removeEventListener(type, handle, true);
+      controllers.delete(doc);
     };
+    controller = { entries, depart, release };
     controllers.set(doc, controller);
   }
   controller.entries.set(entry.button, entry);
   controller.entries.set(entry.pop, entry);
   return () => {
     clearTimeout(entry.timer);
+    // Preact runs this before it removes the row, so a panel going with it
+    // is still connected and open here; removing it fires no `beforetoggle`.
+    if (entry.pop.matches(":popover-open")) controller.depart(entry);
     controller.entries.delete(entry.button);
     controller.entries.delete(entry.pop);
-    if (controller.entries.size === 0) {
-      controller.dispose();
-      controllers.delete(doc);
-    }
+    controller.release();
   };
 }
 
@@ -371,8 +431,8 @@ export function Tooltip({ content, italic, label, children }: TooltipProps) {
         popovertarget={popoverId}
         popovertargetaction="show"
         // A string, not `open`: the server drops a boolean-false aria-*
-        // value and hydration never adds it, so a server-rendered trigger
-        // carried no collapsed state until its first open.
+        // value, so a server-rendered trigger carried no collapsed state
+        // until its island started.
         aria-expanded={open ? "true" : "false"}
         aria-controls={popoverId}
         aria-label={label}

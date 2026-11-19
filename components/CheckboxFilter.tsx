@@ -69,11 +69,11 @@ export function CheckboxFilter(
 ) {
   const showingAll = !isFilterActive(selected, mode);
   const activeCount = selected.filter((v) => v !== SHOW_ALL).length;
-  // Disabled until the island has hydrated: a box ticked in the server's HTML
-  // would show its tick while the selection, and so the rows, stayed as they
-  // were, since hydration does not reconcile `checked`. It must be state, not
-  // a static attribute -- hydration does not diff `disabled` either, so only
-  // this post-mount rerender removes it.
+  // Disabled until the island has started: Fresh 2 starts an island with
+  // Preact's `render` over the server's elements, which writes `checked` from
+  // the selection, so a box changed in the server's HTML would be set back
+  // unseen. It must be state, not a static attribute: that first render
+  // writes `disabled` as well, and only this post-mount rerender removes it.
   const [live, setLive] = useState(false);
   useLayoutEffect(() => setLive(true), []);
 

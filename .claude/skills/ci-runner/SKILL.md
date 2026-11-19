@@ -78,7 +78,14 @@ November 2026):
   (`theme.spec.ts`), the genes table's empty state (`genes-table.spec.ts`), a
   tooltip closing (`csvd/tooltips.spec.ts`), two adapt-wizard steps
   (`adapt.spec.ts`) -- hit 30 s timeouts and expired `expect` waits. They are
-  the candidates for hardening; at the settings above none flaked.
+  the candidates for hardening; at the settings above none flaked. The tooltip
+  spec's long-popover test failed 0 times in 2,000 loaded WebKit repeats on 19
+  November 2026, at a 1-minute load average of 40-51 (53-84 for the first
+  500), once a search typed before the genes table's island started was no
+  longer lost. That loss matches one of the two WebKit failures in the
+  incident below, the one in the setup's search wait, whose trace was lost.
+  The other, at the check that the fitted panel covers its trigger, did not
+  recur.
 - **Priority beats width.** The e2e jobs are the critical path and Deno and
   Python finish early whatever happens, so running them under `nice` took 22 s
   off.

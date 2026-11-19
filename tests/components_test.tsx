@@ -205,8 +205,9 @@ Deno.test("CheckboxFilter renders selection state and its visible count", () => 
 });
 
 Deno.test("CheckboxFilter is server-rendered disabled, so no box can be ticked before hydration", () => {
-  // Hydration reconciles neither `checked` nor `disabled`: a tick made in the
-  // server's HTML would reach no state, so the group stays disabled until the
+  // Fresh 2 starts an island with Preact's `render`, which writes `checked`
+  // from the selection over the server's boxes: a tick made in the server's
+  // HTML would be undone unseen, so the group stays disabled until the
   // island's post-mount rerender turns it live.
   const html = render(
     <CheckboxFilter
@@ -599,6 +600,28 @@ Deno.test("TableShell renders descending and empty filtered states", () => {
   // disables it.
   assertEquals((secondPage.match(/aria-disabled="true"/g) ?? []).length, 1);
   assertNotMatch(secondPage, /\sdisabled(="|\s|>)/);
+});
+
+Deno.test("TableShell's server HTML shows the search and page size its table opens with", () => {
+  // Until the island starts, the server's controls are what the visitor sees
+  // and edits, and the island adopts whatever they then hold: its first
+  // render in the browser leaves their `value` unset (useWritesValue in
+  // components/TableShell.tsx). So the server's HTML must show the table's
+  // state by itself: the box its search, the select its page size (the
+  // harness opens on 10). A <select>'s own `value` attribute means nothing
+  // to a browser, which shows the option marked selected, else the first.
+  const html = render(
+    <TableHarness data={[{ name: "Alpha" }]} globalFilter="missing" />,
+  );
+  assertMatch(html, /<input type="search"[^>]* value="missing"/);
+  const options = [...html.matchAll(/<option([^>]*)>/g)].map(([, a]) => a);
+  assertEquals(options.length, 4);
+  const shown = options.find((a) => /\sselected\b/.test(a)) ?? options[0];
+  assertMatch(shown, /\svalue="10"/);
+  // The island adopts a control only if its element carries a `value`
+  // attribute, which marks it as the server's (fromServer), so the server
+  // must write one on the select as well.
+  assertMatch(html, /<select[^>]*\svalue="10"/);
 });
 
 Deno.test("TableShell tags every cell with its column id", () => {

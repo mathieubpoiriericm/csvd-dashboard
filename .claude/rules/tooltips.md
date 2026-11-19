@@ -37,11 +37,20 @@ it declaratively but sits at ~84% support.
 
 **A trigger's own panel is not a hover.** The controller opens a panel only when
 the pointer enters its tooltip from outside, judged by the tooltip the pointer
-last entered rather than by `relatedTarget` (WebKit gives none when a panel
+last entered rather than by `relatedTarget` (WebKit can give none when a panel
 leaves from under the pointer), so a panel that Escape closes from under the
 resting pointer, as at 320px where the fitted panel covers its trigger, stays
 closed until the pointer leaves and comes back, and Enter opens it by the
-keyboard route.
+keyboard route. A panel's departure is never a hover, whichever trigger it
+uncovers: another tooltip's trigger left under the resting pointer opens on
+hover only once the pointer has moved, which the controller judges by the
+pointer's position, since `relatedTarget` names the departing panel just as it
+names a panel the pointer really left. A departure is a panel closing or a panel
+removed with its row (a re-filter, with no `beforetoggle` at all), and while
+its record stands the controller keeps listening even with no tooltip left on
+the page, as a re-filter removes every row before it draws the new ones. The
+record holds until the pointer moves, so a trigger that a scroll brings under
+the resting pointer after such a departure also waits for the first move.
 
 **A panel never scrolls and never cuts content off.** `fitToViewport()` in
 `components/Tooltip.tsx` widens a panel too tall for the viewport, sets short
