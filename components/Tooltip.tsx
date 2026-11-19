@@ -371,8 +371,8 @@ export function Tooltip({ content, italic, label, children }: TooltipProps) {
         popovertarget={popoverId}
         popovertargetaction="show"
         // A string, not `open`: the server drops a boolean-false aria-*
-        // value and hydration never adds it, so a server-rendered trigger
-        // carried no collapsed state until its first open.
+        // value, so a server-rendered trigger carried no collapsed state
+        // until its island started.
         aria-expanded={open ? "true" : "false"}
         aria-controls={popoverId}
         aria-label={label}

@@ -145,9 +145,10 @@ The pipeline half is in `.claude/rules/pipeline/run-reporting.md`. On this side:
 - **`aria-expanded` and `aria-selected` are passed as strings, and must be.**
   Preact 10.29.8's client renderer keeps an `aria-*` attribute whose value is
   boolean `false` (`props.js`'s guard admits it via `name[4] == '-'`), but
-  `preact-render-to-string` drops it, and hydration does not add it back — so
-  `aria-expanded={expanded}` leaves a server-rendered control with no collapsed
-  state until its first toggle. Write `aria-expanded={x ? "true" : "false"}`.
+  `preact-render-to-string` drops it, so `aria-expanded={expanded}` leaves the
+  server's HTML with no collapsed state until the island starts (Fresh 2 starts
+  it with `render`, which then writes the attribute). Write
+  `aria-expanded={x ? "true" : "false"}`.
 - **Two nouns, and every string uses the one it counts.** A _finding_ is one
   paper's proposal of a gene; a _gene_ is a row of the database. `genes.*`, the
   accepted and rejected lists and a paper's two counts are findings;

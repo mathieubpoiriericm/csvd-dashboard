@@ -205,8 +205,9 @@ Deno.test("CheckboxFilter renders selection state and its visible count", () => 
 });
 
 Deno.test("CheckboxFilter is server-rendered disabled, so no box can be ticked before hydration", () => {
-  // Hydration reconciles neither `checked` nor `disabled`: a tick made in the
-  // server's HTML would reach no state, so the group stays disabled until the
+  // Fresh 2 starts an island with Preact's `render`, which writes `checked`
+  // from the selection over the server's boxes: a tick made in the server's
+  // HTML would be undone unseen, so the group stays disabled until the
   // island's post-mount rerender turns it live.
   const html = render(
     <CheckboxFilter
