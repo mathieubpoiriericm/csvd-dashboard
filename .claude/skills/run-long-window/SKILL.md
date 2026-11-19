@@ -241,7 +241,10 @@ validation NCBI did not answer"; see "A rescue's answer outlives an NCBI outage"
 in `.claude/rules/pipeline/fallback.md`). A run without `--batch` does the same
 for every paper: an NCBI outage in validation no longer costs a second
 extraction ("A paid answer outlives an NCBI outage" in
-`.claude/rules/pipeline/run-reporting.md`). Every
+`.claude/rules/pipeline/run-reporting.md`). Where each paid answer lives, on
+either path, is `_disposition` in `pipeline/main.py`;
+`tests/pipeline/test_answer_disposition.py` states the law and checks every
+case. Change a home there and in the law, not at a call site. Every
 other batch on record is kept
 untouched, because `scripts.backfill_pubmed --batch` re-runs from its first
 window after a crash in a later one, and a later window's record erased by the

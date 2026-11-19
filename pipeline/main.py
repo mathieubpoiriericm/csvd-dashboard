@@ -1389,8 +1389,8 @@ def _record_merge_actions(
     held = raw if isinstance(raw, list) else []
     if held:
         # Counted as the card counts them. A hold is one gene, and the
-        # report's "Held" is one per paper that proposed it, so a gene two
-        # papers proposed read 8 on this step's badge under a 9 on the card.
+        # report's "Held" is one per mention of it, so a gene proposed twice
+        # read 8 on this step's badge under a 9 on the card.
         mentions = sum(int(entry.get("mentions", 1)) for entry in held)
         genes = _count(len(held), "new gene")
         progress.warn(

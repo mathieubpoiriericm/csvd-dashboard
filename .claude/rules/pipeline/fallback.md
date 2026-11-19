@@ -215,7 +215,10 @@ leave the checkpoint with the paper's merge: `checkpoint._record_pmid` reads
 either shape, where a record with no `result.pmid` used to be dropped by any
 prune. A dry run neither writes nor reads them. The default path writes and
 replays the same record for any paper ("A paid answer outlives an NCBI outage"
-in `run-reporting.md`), and each path replays the other's.
+in `run-reporting.md`), and each path replays the other's. Where each paid answer lives, on either path,
+is `_disposition` in `pipeline/main.py`; `tests/pipeline/test_answer_disposition.py`
+states the law and checks every case. Change a home there and in the law, not at
+a call site.
 
 **Opus 4.8 was measured on the golden fixtures before it served a paper**
 (2026-11-03, one call per scorable paper, the pipeline's own request with only

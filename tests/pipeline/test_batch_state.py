@@ -426,7 +426,6 @@ def test_batch_state_forgets_and_claims_like_a_model(tmp_path) -> None:
         "forget_emptied_a_batch": 0,
         "forget_emptied_the_file": 0,
         "forget_changed_nothing": 0,
-        "forget_on_no_file": 0,
         "pmid_in_two_batches": 0,
         "claim_first_wins_on_a_shared_paper": 0,
         "claim_passed_over_a_stale_digest": 0,
@@ -519,7 +518,6 @@ def test_batch_state_forgets_and_claims_like_a_model(tmp_path) -> None:
     # `forget` on a file that is not there is a no-op, not an error.
     forget(str(tmp_path / "none.json"), FP, ["1"])
     assert not (tmp_path / "none.json").exists()
-    tally["forget_on_no_file"] += 1
 
     unreached = [name for name, count in tally.items() if count == 0]
     assert not unreached, f"cases never reached: {unreached}; tallies {tally}"

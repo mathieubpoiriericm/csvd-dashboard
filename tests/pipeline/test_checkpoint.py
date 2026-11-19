@@ -380,7 +380,6 @@ def test_the_checkpoint_matches_a_model_over_50_seeded_histories(tmp_path) -> No
         fp = {"model": "m", "n": 0}
         model: list[dict] = []
         torn = False  # the file ends in a fragment with no newline
-        torn_run = 0
         serial = 0
         history: list[str] = []
 
@@ -399,7 +398,6 @@ def test_the_checkpoint_matches_a_model_over_50_seeded_histories(tmp_path) -> No
                 checkpoint.append(path, fp, record)
                 model.append(record)
                 torn = False
-                torn_run = 0
             elif roll < 0.55:
                 gone = {str(rng.randint(1, 8)) for _ in range(rng.randint(1, 3))}
                 history.append(f"remove {sorted(gone)}")
@@ -409,7 +407,6 @@ def test_the_checkpoint_matches_a_model_over_50_seeded_histories(tmp_path) -> No
                 if exists:
                     # A prune rewrites from whole lines: the fragment goes.
                     torn = False
-                    torn_run = 0
                     before = len(model)
                     model = [
                         r for r in model if next(iter(r.values()))["pmid"] not in gone
@@ -422,6 +419,9 @@ def test_the_checkpoint_matches_a_model_over_50_seeded_histories(tmp_path) -> No
                 if not exists:
                     continue
                 # A crash mid-append: the record's bytes cut short, no newline.
+                # The fragment stands for a record whose append never finished,
+                # so the model never held it. A torn header is not modelled:
+                # tears happen only on an existing file.
                 serial += 1
                 full = json.dumps({"result": {"pmid": "9", "serial": serial}})
                 cut = full[: rng.randint(1, len(full) - 1)]
@@ -431,7 +431,6 @@ def test_the_checkpoint_matches_a_model_over_50_seeded_histories(tmp_path) -> No
                 with open(path, "a", encoding="utf-8") as handle:
                     handle.write(cut)
                 torn = True
-                torn_run += 1
             elif roll < 0.72:
                 fp = {"model": "m", "n": fp["n"] + 1}
                 history.append("fingerprint change, load")
@@ -441,7 +440,6 @@ def test_the_checkpoint_matches_a_model_over_50_seeded_histories(tmp_path) -> No
                 assert not Path(path).exists(), f"stale file kept; {where}"
                 model = []
                 torn = False
-                torn_run = 0
             else:
                 history.append("load")
                 if torn:

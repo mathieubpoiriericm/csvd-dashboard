@@ -15,12 +15,12 @@ written from this law, not read from the function:
 (c) An answer that failed validation on its own is kept nowhere and leaves
     the batch record.
 (d) A paper whose fetch failed or that has no text paid for no answer and
-    is decided as the code decided it before this test: a failed fetch
+    is decided as the code decides it: a failed fetch
     stays owed on the batch record on ``--batch`` and has no home on the
     streaming path; no text is checkpointed as finished, as in (a).
 
 A refused paper the fallback model rescued is a fresh answer, under (a) to
-(c). Two rulings of 19 November 2026 settle what the first statement left
+(c). Two rulings of 19 November 2026 settle cases the law above leaves
 open: a ``--batch`` run's own answer cut short by an outage stays on the
 batch record with nothing appended, so the next run collects the same paid
 answer again; and a replay that held but whose finished append failed is

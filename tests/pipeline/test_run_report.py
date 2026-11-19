@@ -1095,7 +1095,10 @@ def test_the_published_numbers_reconcile_over_300_seeded_runs(
        floor's own number, so the list is `genes.rejected` + drops + holds.
     3. For papers without an error, fulltext + abstract-only + no-text is
        processed; an errored paper is in none of the three, and no-text is
-       not folded into failed.
+       not folded into failed. This is mostly the test's own construction:
+       `build_run_report` passes `processed`, `fulltext` and `abstract_only`
+       through, and only `noTextAvailable` comes from the code. The funnel's
+       own reconciliation is upstream, in `report.py` and `process_paper`.
     4. `rejectedAtInsertFloor` counts hold records: one per mention of a held
        key (members of the pair sharing one key, whatever their spelling; a
        paper proposing it twice is two mentions), or one for a hold no paper
@@ -1227,6 +1230,7 @@ def test_the_published_numbers_reconcile_over_300_seeded_runs(
 
         # 1. Accepted.
         assert report.accepted_genes.total == accepted_expected, where
+        assert report.accepted_genes.shown == report.accepted_genes.total, where
         assert sum(row.gene_count for row in rows) == accepted_expected, where
         for row, paper in zip(rows, papers, strict=True):
             kept = sum(_key(g["gene_symbol"]) not in held_keys for g in paper["genes"])
@@ -1236,8 +1240,7 @@ def test_the_published_numbers_reconcile_over_300_seeded_runs(
             ), f"{where}, paper {row.pmid}"
 
         # 2. Rejected: holds, validation rejections and quote-gate drops.
-        mention_holds = sum(len(v) for v in held_by_key.values())
-        assert mention_holds == held_mentions, where
+        assert report.rejected_genes.shown == report.rejected_genes.total, where
         unproposed = len(held_entries) - len(held_by_key)
         holds = held_mentions + unproposed
         assert report.rejected_genes.total == (
@@ -1271,6 +1274,7 @@ def test_the_published_numbers_reconcile_over_300_seeded_runs(
             for reason in item.reasons
         ), where
         assert report.accepted_genes.total + held_mentions == mentions, where
+        # True because `validated` is an input here, not derived.
         assert report.genes.validated == (
             report.accepted_genes.total + holds - unproposed
         ), where

@@ -85,8 +85,8 @@ class HeldGene(TypedDict, closed=True):
     gene_symbol: str
     confidence: float
     # How many extractions the hold stands for: the gene is one row that
-    # was not created, and every paper that proposed it is a mention the
-    # run report counts.
+    # was not created, and every time a paper proposed it (twice in one
+    # paper, or both members of a pair) is a mention the run report counts.
     mentions: NotRequired[int]
 
 

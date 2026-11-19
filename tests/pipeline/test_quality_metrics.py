@@ -557,7 +557,8 @@ _FALLBACK = "claude-opus-4-8"
 # (.claude/rules/pipeline/fallback.md); everything else, and none, is not.
 _BILLED_CATEGORIES = ("bio", "frontier_llm", "reasoning_extraction")
 _UNBILLED_CATEGORIES = ("cyber", "general_harms", None)
-# Dollars per million tokens, from the rules' text: Opus 4.8 is $5 / $25 with
+# Dollars per million tokens (pinned too in test_anthropic_client.py:304 and
+# test_report.py:56-85), from the rules' text: Opus 4.8 is $5 / $25 with
 # cache reads at 0.1x; the requested model is $4 / $20 with reads at 0.05x;
 # a 1h cache write is 2x input on both.
 _RATES = {
@@ -744,6 +745,7 @@ def test_usage_partitions_and_prices_over_500_seeded_responses() -> None:
         run_usage = TokenUsage()
         streamed = TokenUsage()
         parts_cost = 0.0
+        streamed_cost = 0.0  # the oracle's price of the streamed responses
         for step in range(run_size):
             where = f"seed {seed} step {step}"
             response, roles = _seeded_response(rng, tally)
@@ -798,6 +800,7 @@ def test_usage_partitions_and_prices_over_500_seeded_responses() -> None:
             run_usage += usage
             if rng.random() < 0.5:
                 streamed += usage
+                streamed_cost += _expected_dollars(roles)
                 tally["streamed_response"] += 1
 
         where = f"seed {seed} run"
@@ -818,6 +821,12 @@ def test_usage_partitions_and_prices_over_500_seeded_responses() -> None:
         full = client.estimate_cost(run_usage)
         # the report rounds to cents, so allow half a cent either side
         assert full * 0.5 - 0.0051 <= reported <= full + 0.0051, where  # 5
+        # The bounds cannot see the streamed share go back to the full rate;
+        # the exact figure can: half the run, plus half again of what the
+        # streamed responses cost, priced by the oracle.
+        assert reported == pytest.approx(
+            round(full / 2 + streamed_cost / 2, 2), abs=0.005
+        ), where  # 5
         tally["run"] += 1
 
     # every branch the properties range over was reached
