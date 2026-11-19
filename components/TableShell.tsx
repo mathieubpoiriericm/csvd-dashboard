@@ -157,6 +157,23 @@ const FIRST_BATCH = 20;
  * roughly 200 ms the table visibly trails the box. This sits between them.
  */
 const SEARCH_DEBOUNCE_MS = 120;
+
+/**
+ * Whether a control's render writes its `value`. Fresh starts an island with
+ * Preact's `render` laid over the server's elements, not with `hydrate`, and
+ * `render` reuses those elements but diffs them as an ordinary render,
+ * writing each controlled `value` before any effect runs: a search typed or a
+ * page size chosen before the island started was overwritten unseen and never
+ * reached the table. So in the browser the search box and the page-size
+ * select leave `value` unset until a mount effect has adopted what the
+ * element holds and set this. The server has no element to overwrite and must
+ * show the table's state by itself, so it writes `value` from the start
+ * (`typeof document` is the test Fresh's own `IS_BROWSER` makes).
+ */
+function useWritesValue() {
+  return useRef(typeof document === "undefined");
+}
+
 /** Draft keystrokes rerender only this field, not the table's rows. */
 function SearchInput({ label, initialValue, onCommit, resetRef }: {
   label: string;
@@ -180,12 +197,13 @@ function SearchInput({ label, initialValue, onCommit, resetRef }: {
     inputRef.current?.focus({ preventScroll: true });
   };
   useEffect(() => search.cancel, []);
-  // Text typed into the server's HTML before the island hydrated is on screen
-  // but in no state: hydration does not reconcile `value`, so the table would
-  // stay unfiltered under a box that reads as a search. Adopt it on mount and
-  // apply it at once (the typing already happened; nothing is left to wait
-  // out).
+  // Text typed into the server's HTML before the island started is on screen
+  // but in no state, so the table would stay unfiltered under a box that
+  // reads as a search. Adopt it on mount and apply it at once (the typing
+  // already happened; nothing is left to wait out).
+  const writesValue = useWritesValue();
   useLayoutEffect(() => {
+    writesValue.current = true;
     const typed = inputRef.current?.value ?? "";
     if (typed === initialValue) return;
     setDraft(typed);
@@ -198,7 +216,7 @@ function SearchInput({ label, initialValue, onCommit, resetRef }: {
         type="search"
         placeholder={label}
         ref={inputRef}
-        value={draft}
+        value={writesValue.current ? draft : undefined}
         onInput={(event) => {
           const value = event.currentTarget.value;
           setDraft(value);
@@ -301,6 +319,15 @@ export function TableShell<TData extends RowData>({
   const scrollRef = useRef<HTMLDivElement>(null);
   const { pagination, globalFilter } = table.state;
   const { pageIndex, pageSize } = pagination;
+  // A page size chosen in the server's HTML before the island started,
+  // adopted as SearchInput adopts a search (see useWritesValue).
+  const pageSizeRef = useRef<HTMLSelectElement>(null);
+  const pageSizeWritesValue = useWritesValue();
+  useLayoutEffect(() => {
+    pageSizeWritesValue.current = true;
+    const chosen = Number(pageSizeRef.current?.value ?? pageSize);
+    if (chosen !== pageSize) table.setPageSize(chosen);
+  }, []);
   useLayoutEffect(() => {
     // A new page starts at its first row; preserve the chosen column position.
     if (scrollRef.current) scrollRef.current.scrollTop = 0;
@@ -371,7 +398,8 @@ export function TableShell<TData extends RowData>({
         <label class="table-control">
           Show
           <select
-            value={String(pageSize)}
+            ref={pageSizeRef}
+            value={pageSizeWritesValue.current ? String(pageSize) : undefined}
             onChange={(e) => table.setPageSize(Number(e.currentTarget.value))}
           >
             {PAGE_SIZES.map((size) => (

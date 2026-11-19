@@ -562,6 +562,24 @@ Deno.test("TableShell renders descending and empty filtered states", () => {
   assertNotMatch(secondPage, /\sdisabled(="|\s|>)/);
 });
 
+Deno.test("TableShell's server HTML shows the search and page size its table opens with", () => {
+  // Until the island starts, the server's controls are what the visitor sees
+  // and edits, and the island adopts whatever they then hold: its first
+  // render in the browser leaves their `value` unset (useWritesValue in
+  // components/TableShell.tsx). So the server's HTML must show the table's
+  // state by itself: the box its search, the select its page size (the
+  // harness opens on 10). A <select>'s own `value` attribute means nothing
+  // to a browser, which shows the option marked selected, else the first.
+  const html = render(
+    <TableHarness data={[{ name: "Alpha" }]} globalFilter="missing" />,
+  );
+  assertMatch(html, /<input type="search"[^>]* value="missing"/);
+  const options = [...html.matchAll(/<option([^>]*)>/g)].map(([, a]) => a);
+  assertEquals(options.length, 4);
+  const shown = options.find((a) => /\sselected\b/.test(a)) ?? options[0];
+  assertMatch(shown, /\svalue="10"/);
+});
+
 Deno.test("TableShell tags every cell with its column id", () => {
   const html = render(<GenesView rows={[sampleGene()]} />);
   // Matched within the class attribute rather than anchored at its start:
