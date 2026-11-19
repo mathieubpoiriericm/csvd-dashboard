@@ -70,7 +70,13 @@ def needed_from(of: Nat, k: Nat) -> Nat:
     case 3n+p:
       needed_from(p, 2n+k)
 
-# What the page prints: needed of those not abstaining. The abstainers are
-# taken so that all four counts are checked at the boundary.
+# The members who have not abstained: the M of the page's "settles at N of the
+# M". The abstainers are taken so that all four counts are checked at the
+# boundary.
+def not_abstaining(acc: Nat, rej: Nat, abs: Nat, out: Nat) -> Nat:
+  Nat.add(acc, Nat.add(rej, out))
+
+# What the page prints: needed of those not abstaining, the N of "settles at N
+# of the M". It takes the same four counts, so they are checked here too.
 def needed_for(acc: Nat, rej: Nat, abs: Nat, out: Nat) -> Nat:
-  needed_from(Nat.add(acc, Nat.add(rej, out)), 0n)
+  needed_from(not_abstaining(acc, rej, abs, out), 0n)
