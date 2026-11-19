@@ -226,17 +226,18 @@ def _expected_refusal(
     return None
 
 
-_MODE_FLAGS = (
+# The one place that says which flags are run modes (the guard below checks
+# this list against _prepare_cli_args) and which only modify a run.
+_RUN_MODES = (
     "local_pdfs",
     "pmids",
     "pubmed",
     "clinical_trials",
     "sync_external_data",
     "sync_annotations",
-    "preview",
-    "skip_validation",
-    "export",
 )
+_MODIFIERS = ("preview", "skip_validation", "export")
+_MODE_FLAGS = _RUN_MODES + _MODIFIERS
 
 
 def test_every_combination_of_modes_is_refused_or_run_as_the_rules_say(
@@ -244,6 +245,7 @@ def test_every_combination_of_modes_is_refused_or_run_as_the_rules_say(
 ) -> None:
     parser = _build_parser()
     wrong: list[str] = []
+    cases = 0
     for gold_only_on in (True, False):
         for values in itertools.product((False, True), repeat=len(_MODE_FLAGS)):
             on = dict(zip(_MODE_FLAGS, values, strict=True))
@@ -257,6 +259,7 @@ def test_every_combination_of_modes_is_refused_or_run_as_the_rules_say(
                     argv.append(str(tmp_path))
                 elif name == "pmids":
                     argv.append(str(tmp_path / "pmids.txt"))
+            cases += 1
             expected = _expected_refusal(**on, gold_only_on=gold_only_on)
             capsys.readouterr()
             refused: str | None = None
@@ -274,7 +277,7 @@ def test_every_combination_of_modes_is_refused_or_run_as_the_rules_say(
                 wrong.append(f"{where}: table says refused ({expected!r}), it ran")
             elif expected not in refused:
                 wrong.append(f"{where}: table says {expected!r}, got {refused!r}")
-    assert not wrong, f"{len(wrong)} of 1024 command lines disagree:\n" + "\n".join(
+    assert not wrong, f"{len(wrong)} of {cases} command lines disagree:\n" + "\n".join(
         wrong[:20]
     )
 
@@ -286,15 +289,8 @@ def test_the_mode_table_knows_every_mode_flag() -> None:
         match = re.search(rf"{tuple_name} = \((.*?)\)", source, re.DOTALL)
         assert match, f"{tuple_name} is gone from _prepare_cli_args; update this test"
         found |= set(re.findall(r"args\.(\w+)", match.group(1)))
-    assert found == {
-        "local_pdfs",
-        "pmids",
-        "pubmed",
-        "clinical_trials",
-        "sync_external_data",
-        "sync_annotations",
-    }, (
+    assert found == set(_RUN_MODES), (
         f"_prepare_cli_args now names {sorted(found)} as modes: add the new mode"
-        " to _MODE_FLAGS and _expected_refusal in"
+        " to _RUN_MODES and to _expected_refusal in"
         " test_every_combination_of_modes_is_refused_or_run_as_the_rules_say"
     )
