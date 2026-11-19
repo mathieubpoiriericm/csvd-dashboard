@@ -30,14 +30,6 @@ export interface Tally {
   outstanding: number;
 }
 
-/**
- * The table itself is `standing.bend`, its laws proved in `/PROOF.bend`; these
- * functions run the module Bend generates from it (`deno task bend:build`).
- * The module refuses a count that is not a whole number from 0 up: it throws
- * rather than answer. `standingOf` and `settlesAt` both pass the four counts,
- * so each is refused unless it is a whole number from 0 up. A refusal is a
- * `RangeError` whose `cause` is the string the module threw.
- */
 type BendStanding =
   | "NotStarted"
   | "InReview"
@@ -46,6 +38,18 @@ type BendStanding =
   | "Rejected"
   | "NoQuorum";
 
+/**
+ * The table itself is `standing.bend`, its laws proved in `/PROOF.bend`; these
+ * functions run the module Bend generates from it (`deno task bend:build`).
+ * The module refuses a count that is not a whole number from 0 up, and a count
+ * past 2^48-1: it throws rather than answer. `standingOf` and `settlesAt` both
+ * pass the four counts, so each is refused unless it is a whole number from 0
+ * up and within that bound. A refusal is a `RangeError` whose `cause` is the
+ * string the module threw. `settlesAt` takes time proportional to the number of
+ * members who have not abstained (the generated code loops once per three of
+ * them), so it must never be handed a number that did not come from counting
+ * accounts.
+ */
 const bend = generated as unknown as {
   standing_of(
     acc: number,
@@ -62,7 +66,8 @@ function refusing<T>(run: () => T): T {
     return run();
   } catch (thrown) {
     throw new RangeError(
-      `a tally's counts must be whole numbers from 0 up (${String(thrown)})`,
+      "the standing rule refused this tally: its counts must be whole numbers " +
+        `from 0 up, within what the module holds (${String(thrown)})`,
       { cause: thrown },
     );
   }

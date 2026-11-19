@@ -663,34 +663,35 @@ table that cannot be rebuilt, why the image is glibc — is in
 
 Tasks live in `deno.json`.
 
-| Task                      | What it does                                       |
-| ------------------------- | -------------------------------------------------- |
-| `deno task dev`           | Vite dev server with HMR on `:5173`                |
-| `deno task build`         | production build into `_fresh/`                    |
-| `deno task start`         | serve the build on `127.0.0.1:8000` with `.env`    |
-| `deno task check`         | `deno fmt --check` + `deno lint` + `deno check`    |
-| `deno task test`          | unit tests                                         |
-| `deno task test:coverage` | unit tests plus enforced coverage floors           |
-| `deno task e2e:install`   | `npm ci` + download the Chromium build             |
-| `deno task test:e2e`      | build, serve, and drive the app                    |
-| `deno task test:e2e:ui`   | the same suite in Playwright's UI mode             |
-| `deno task perf`          | throttled responsiveness measurement               |
-| `deno task test:perf`     | the perf harness's metric tests, no browser        |
-| `deno task bend:check`    | prove the standing rule; prints `ALL PROOFS CHECK` |
-| `deno task bend:build`    | regenerate `lib/review/standing.bend.mjs`          |
-| `deno task tracy:build`   | build Tracy's tools and the pipeline's client      |
-| `deno task tracy:update`  | move Tracy to its latest release and rebuild       |
-| `deno task tracy:run`     | run a pipeline command under the Tracy profiler    |
-| `deno task screenshots`   | build, then recapture the README's screenshots     |
-| `deno task data`          | regenerate `data/` except the map and cytobands    |
-| `deno task data:empty`    | write the empty `data/` a fork starts from         |
-| `deno task data:preview`  | publish the preview run's report and round         |
-| `deno task geocode`       | regenerate `data/geocoded_trials.json`             |
-| `deno task cytobands`     | regenerate `data/cytobands_hg38.json` from UCSC    |
-| `deno task figure`        | draw both print figures into `figures/`            |
-| `deno task fixtures`      | fetch the golden suite's paper fixtures            |
-| `deno task models`        | prefetch the Docling model weights                 |
-| `deno task update`        | run Fresh's own updater against the checkout       |
+| Task                          | What it does                                       |
+| ----------------------------- | -------------------------------------------------- |
+| `deno task dev`               | Vite dev server with HMR on `:5173`                |
+| `deno task build`             | production build into `_fresh/`                    |
+| `deno task start`             | serve the build on `127.0.0.1:8000` with `.env`    |
+| `deno task check`             | `deno fmt --check` + `deno lint` + `deno check`    |
+| `deno task test`              | unit tests                                         |
+| `deno task test:coverage`     | unit tests plus enforced coverage floors           |
+| `deno task e2e:install`       | `npm ci` + download the Chromium build             |
+| `deno task test:e2e`          | build, serve, and drive the app                    |
+| `deno task test:e2e:ui`       | the same suite in Playwright's UI mode             |
+| `deno task perf`              | throttled responsiveness measurement               |
+| `deno task test:perf`         | the perf harness's metric tests, no browser        |
+| `deno task bend:check`        | prove the standing rule; prints `ALL PROOFS CHECK` |
+| `deno task bend:build`        | regenerate `lib/review/standing.bend.mjs`          |
+| `deno task tracy:build`       | build Tracy's tools and the pipeline's client      |
+| `deno task tracy:update`      | move Tracy to its latest release and rebuild       |
+| `deno task tracy:run`         | run a pipeline command under the Tracy profiler    |
+| `deno task screenshots`       | build, then recapture the README's screenshots     |
+| `deno task data`              | regenerate `data/` except the map and cytobands    |
+| `deno task data:empty`        | write the empty `data/` a fork starts from         |
+| `deno task data:preview`      | publish the preview run's report and round         |
+| `deno task geocode`           | regenerate `data/geocoded_trials.json`             |
+| `deno task cytobands`         | regenerate `data/cytobands_hg38.json` from UCSC    |
+| `deno task phenogram:metrics` | regenerate `lib/phenogram_font_metrics.json`       |
+| `deno task figure`            | draw both print figures into `figures/`            |
+| `deno task fixtures`          | fetch the golden suite's paper fixtures            |
+| `deno task models`            | prefetch the Docling model weights                 |
+| `deno task update`            | run Fresh's own updater against the checkout       |
 
 The pipeline is linted and type-checked through uv; its tests are under
 [Testing](#testing).

@@ -23,11 +23,11 @@ permissions:
 # host port: each runner sets its own E2E_PORT, and the database tests there use
 # a database of the runner's own on the machine's native PostgreSQL rather than
 # a postgres service (see the python job). Caching and Playwright's system
-# packages are decided on runner.environment. The container and deploy jobs stay on GitHub-hosted
-# runners, and must: on a push to main both hold FLY_API_TOKEN -- container to
-# push the image, deploy to release it -- so moving either to vars.CI_RUNNER
-# would put the token on that machine. They are short and off the critical
-# path anyway.
+# packages are decided on runner.environment. The container and deploy jobs stay
+# on GitHub-hosted runners, and must: on a push to main both hold FLY_API_TOKEN
+# -- container to push the image, deploy to release it -- so moving either to
+# vars.CI_RUNNER would put the token on that machine. They are short and off the
+# critical path anyway.
 #
 # On that machine twelve jobs run at once -- empty-data and adapt-fork are
 # split by gate family (Deno, Python, e2e) so no job runs the three in a row --
