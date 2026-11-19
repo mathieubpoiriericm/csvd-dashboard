@@ -122,6 +122,55 @@ Deno.test("nextSelection enforces binary and Show All checkbox rules", () => {
   ]);
 });
 
+Deno.test("nextSelection leaves no group empty, over every toggle of a three-choice group", () => {
+  const choices = [
+    { label: "A", value: "a" },
+    { label: "B", value: "b" },
+    { label: "C", value: "c" },
+  ];
+  const values = ["a", "b", "c", SHOW_ALL];
+  // Every subset of the four values, including states the page cannot reach
+  // (a binary group holding SHOW_ALL).
+  const subsets = Array.from(
+    { length: 1 << values.length },
+    (_, bits) => values.filter((_v, i) => bits & (1 << i)),
+  );
+  assertEquals(subsets.length, 16);
+
+  let calls = 0;
+  for (const mode of ["binary", "showAll"] as const) {
+    for (const current of subsets) {
+      for (const value of values) {
+        for (const checked of [true, false]) {
+          calls++;
+          const where = () =>
+            `${mode} current=[${current}] value=${value} checked=${checked}`;
+          const result = nextSelection(mode, choices, current, value, checked);
+
+          assert(result.length > 0, `empty result: ${where()}`);
+          if (mode === "showAll" && checked && value === SHOW_ALL) {
+            assertEquals(result, [SHOW_ALL], where());
+          }
+          if (mode === "showAll" && checked && value !== SHOW_ALL) {
+            assert(result.includes(value), `lacks ${value}: ${where()}`);
+            assert(!result.includes(SHOW_ALL), `holds SHOW_ALL: ${where()}`);
+          }
+          if (
+            mode === "binary" && !checked &&
+            current.length === 1 && current[0] === value
+          ) {
+            assertEquals(result, ["a", "b", "c"], where());
+          }
+        }
+      }
+    }
+  }
+  assertEquals(calls, 256);
+
+  // The one group that can empty, which no filter declares.
+  assertEquals(nextSelection("binary", [], ["x"], "x", false), []);
+});
+
 Deno.test("CheckboxFilter renders selection state and its visible count", () => {
   const all = render(
     <CheckboxFilter
