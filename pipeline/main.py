@@ -1114,7 +1114,7 @@ async def process_paper(
             # writes nothing. No *served* means no model ran, which only
             # blank text produces: no genes, so no outage to reach here. A
             # failed append leaves it no home on this path, and `keep` logs
-            # that; a fallback's answer is asked about as an extraction.
+            # that.
             if (
                 stored is not None
                 and exc.served is not None
@@ -1915,6 +1915,8 @@ class _Outcome(Enum):
 
 # The outcomes that bring an answer to validate.
 _ANSWERS: Final = frozenset({_Outcome.EXTRACTED, _Outcome.RESCUED, _Outcome.REPLAYED})
+# The outcomes only the ``--batch`` path has: its rescue is its own request.
+_BATCH_ONLY: Final = frozenset({_Outcome.RESCUED, _Outcome.RESCUE_FAILED})
 
 
 class _Validation(Enum):
@@ -1944,26 +1946,46 @@ def _disposition(
     checkpointing: bool = True,
     append_ok: bool = True,
 ) -> _Home:
-    """Where the paper's answer lives: the one place either path decides it.
+    """Where the paper's answer lives, on either path.
 
     Pure: the call sites make the append, the removal or the batch-record
     entry the home names. They ask with *append_ok* left true for where the
-    answer goes, and again with it false when that append failed. Each
+    answer goes, and again with it false when that append failed. Every
     case is checked against the law in `test_answer_disposition.py`.
 
-    *validation* is None exactly when the outcome brought no answer; any
-    other pairing is a question no run asks, and raises ValueError.
-    *batched* is the ``--batch`` path, the one with a batch record.
-    *checkpointing* is false for a run that writes nothing: a dry run,
-    test mode or an offline mode.
+    *validation* is None exactly when the outcome brought no answer, and
+    RESCUED and RESCUE_FAILED are ``--batch`` outcomes; any other question
+    is one no run asks, and raises ValueError. *batched* is the ``--batch``
+    path, the one with a batch record. *checkpointing* is false for a run
+    that writes nothing: a dry run, test mode or an offline mode.
 
-    A replay whose validation held and whose finished append failed is
-    decided as any held answer is, but its stored record is not removed
-    (`_StoredAnswers.settle` asks before the append), so the next run
-    replays it.
+    Not every case is asked. These are decided by the call sites'
+    structure instead, so an edit to one of them here changes no run until
+    a call site asks it:
+
+    - NO_TEXT, and a RESCUED or REPLAYED answer that held, when it comes to
+      the finished append: the hook sees only a finished result and asks as
+      an extraction that held (the test checks that they share its home).
+    - NO_ANSWER on either path; FETCH_FAILED and an answer's own failure on
+      the streaming path; a RESCUED answer's own failure. The hook skips a
+      failed result, and on ``--batch`` these papers are never added to
+      what `batch_state.forget` keeps (an entry with no result is decided
+      after the forget).
+    - Every *append_ok* false on the streaming path: there is nothing to
+      fall back on, and the hook and `_StoredAnswers.keep` only log it.
+    - A REPLAYED *append_ok* false: `_StoredAnswers.settle` never learns
+      the append's result and never removes a held replay's record; the
+      merge removes it, so until then the next run replays it.
+    - The streaming outage append of a run that writes nothing:
+      `process_paper` has no stored answers then, and does not ask.
     """
-    if (validation is None) is (outcome in _ANSWERS):
-        raise ValueError(f"no run asks about {outcome.value} with {validation}")
+    if (validation is None) is (outcome in _ANSWERS) or (
+        not batched and outcome in _BATCH_ONLY
+    ):
+        raise ValueError(
+            f"no run asks about {outcome.value} with {validation}"
+            f" on the {'--batch' if batched else 'streaming'} path"
+        )
     if not checkpointing:
         return _Home.NONE
     # Where a paper goes when nothing better holds it: the batch record on
@@ -2142,8 +2164,9 @@ class _StoredAnswers:
     ) -> None:
         """What becomes of a replayed paper's record once validation decided.
 
-        Asked before the hook's append is known, so a replay whose finished
-        append failed keeps its record, and the next run replays it.
+        It never learns whether the hook's finished append succeeded, and
+        never removes a held replay's record: the merge removes it, so a
+        replay whose finished append failed is replayed by the next run.
         """
         if held:
             self.validated.append(pmid)
@@ -2735,11 +2758,11 @@ async def _process_new_pmids_via_batch(
     # path would re-extract it.
     still_owed: set[str] = set()
 
-    def keep_on_record(pmid: str, home: _Home, reason: set[str]) -> None:
+    def keep_on_record(pmid: str, home: _Home, into: set[str]) -> None:
         # What a batch-record home asks of this path: the paper stays out
         # of `batch_state.forget` below. Every other home leaves it to go.
         if home is _Home.BATCH_RECORD:
-            reason.add(pmid)
+            into.add(pmid)
 
     for pmid, outcome in zip(pending, fetched, strict=True):
         if isinstance(outcome, BaseException):

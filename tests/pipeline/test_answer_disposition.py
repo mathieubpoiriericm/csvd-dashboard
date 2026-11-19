@@ -1,20 +1,60 @@
 """Where a paper's answer lives once validation has decided, over every case.
 
-`pipeline.main._disposition` is the one place the pipeline decides it; the
-call sites do the checkpoint and batch-record writes the answer names. The
-expected home here is written from the law (PR C row 1 of
-docs/superpowers/specs/2026-11-19-open-items-design.md, restated on
-19 November), not read from the function, and the example tests of each call
-site stay in `test_main_orchestration.py`.
+`pipeline.main._disposition` gives the home; the call sites do the
+checkpoint and batch-record writes it names. The expected home here is
+written from this law, not read from the function:
+
+(a) An answer whose validation held is checkpointed as finished; if that
+    append fails, it stays on the batch record on the ``--batch`` path.
+(b) An answer an NCBI outage cut short keeps the home it already has. One
+    paid at the streaming rate (a streaming paper, or a ``--batch`` rescue)
+    is checkpointed as unvalidated, or, if that append fails, stays on the
+    batch record on ``--batch``. A replay keeps its stored unvalidated
+    record. On the streaming path a failed append of either kind has no
+    home: it is logged, and the paper is extracted afresh next run.
+(c) An answer that failed validation on its own is kept nowhere and leaves
+    the batch record.
+(d) A paper whose fetch failed or that has no text paid for no answer and
+    is decided as the code decided it before this test: a failed fetch
+    stays owed on the batch record on ``--batch`` and has no home on the
+    streaming path; no text is checkpointed as finished, as in (a).
+
+A refused paper the fallback model rescued is a fresh answer, under (a) to
+(c). Two rulings of 19 November 2026 settle what the first statement left
+open: a ``--batch`` run's own answer cut short by an outage stays on the
+batch record with nothing appended, so the next run collects the same paid
+answer again; and a replay that held but whose finished append failed is
+decided as (a) decides it, while its stored unvalidated record survives
+until the merge and the next run replays it.
+
+Beside the law, four cases are pinned as the code decides them: a run that
+writes nothing (a dry run, test mode, an offline mode) keeps nothing; no
+usable answer (a failed extraction, a paper both models declined, a batch
+entry with no result) is kept nowhere; a rescue whose request failed leaves
+the batch's refusal on the batch record; and a replay that failed on its
+own is dropped, whether or not the best-effort removal succeeds.
 
 The names are plain strings so the law reads without the code's types; the
-test turns them into the enum members by name.
+test turns them into the enum members by name. The example tests of each
+call site are in `test_main_orchestration.py`, and the rescue an outage cut
+short is driven through the real code at the end of this file.
 """
 
 import itertools
 from collections import Counter
+from collections.abc import Iterator
+from pathlib import Path
+from typing import Any
+from unittest.mock import AsyncMock
 
 import pipeline.main as pipeline_main
+from pipeline import batch_state, checkpoint
+from pipeline.batch_state import PendingBatch
+from pipeline.citations import reset_tally
+from pipeline.config import PipelineConfig
+from pipeline.extraction_models import GeneEntry, ServedBy
+from pipeline.quality_metrics import PipelineMetrics, TokenUsage
+from pipeline.validation import NcbiUnavailableError
 
 # How a paper reached the question: the five outcomes the law names, then
 # the two the code decides beside them (a model that answered nothing
@@ -31,6 +71,8 @@ OUTCOMES = (
 # None: no validation ran, which is every outcome that brought no answer.
 VALIDATIONS = (None, "HELD", "NCBI_OUTAGE", "OWN_FAILURE")
 ANSWERED = frozenset({"EXTRACTED", "RESCUED", "REPLAYED"})
+# The rescue is the --batch path's own request; streaming has none.
+BATCH_ONLY = frozenset({"RESCUED", "RESCUE_FAILED"})
 HOMES = ("FINISHED", "UNVALIDATED", "BATCH_RECORD", "NONE")
 
 # One label per answer the law gives, so a clause no cell reaches fails.
@@ -41,7 +83,7 @@ CLAUSES = (
     "(d) no text is finished, as today",
     "(d) no text whose append failed: --batch record, else no home",
     "no answer to keep",
-    "a failed rescue request leaves the refusal owed on --batch",
+    "a failed rescue request leaves the refusal on the batch record",
     "(c) an answer that failed on its own is kept nowhere",
     "(a) held: finished",
     "(a) held, append failed: --batch record, else no home",
@@ -63,9 +105,12 @@ def home_by_law(
     """The home the law gives a paper, and the clause that gives it.
 
     "REFUSED" is not a home: it is a question no run can ask, an answer
-    without its validation or a validation without an answer.
+    without its validation, a validation without an answer, or a rescue on
+    the streaming path.
     """
     if (validation is not None) != (outcome in ANSWERED):
+        return "REFUSED", "no such case"
+    if not batched and outcome in BATCH_ONLY:
         return "REFUSED", "no such case"
     if not checkpointing:
         # A dry run, test mode or an offline mode writes nothing at all.
@@ -87,7 +132,10 @@ def home_by_law(
     if outcome == "NO_ANSWER":
         return "NONE", "no answer to keep"
     if outcome == "RESCUE_FAILED":
-        return no_append, "a failed rescue request leaves the refusal owed on --batch"
+        return (
+            "BATCH_RECORD",
+            "a failed rescue request leaves the refusal on the batch record",
+        )
 
     # (c)
     if validation == "OWN_FAILURE":
@@ -134,7 +182,7 @@ def disposition(
     return home.name
 
 
-def cells():
+def cells() -> Iterator[dict[str, Any]]:
     """Every cell: path, checkpointing, outcome, validation, append."""
     for batched, checkpointing, outcome, validation, append_ok in itertools.product(
         (False, True), (True, False), OUTCOMES, VALIDATIONS, (True, False)
@@ -177,14 +225,13 @@ def test_every_paid_answer_has_the_home_the_law_gives_it() -> None:
     assert set(clauses) == set(CLAUSES), set(CLAUSES) ^ set(clauses)
 
 
-def test_the_questions_a_call_site_cannot_tell_apart_have_one_answer() -> None:
-    """Two call sites ask about outcomes they cannot distinguish.
+def test_every_finished_paper_has_the_home_the_hook_asks_for() -> None:
+    """The hook asks one question for every finished paper.
 
     `_paper_finished_hook` sees a finished `PaperResult`, which does not say
     whether its answer was extracted, rescued, replayed or never asked for
-    (no text), so it asks as an extraction that held. `process_paper` does
-    not tell a streaming fallback's answer from the primary's, so it asks
-    as an extraction. Each is right only while those outcomes share a home.
+    (no text), so it asks as an extraction that held. That is right only
+    while each of those has the home an extraction that held has.
     """
     compared = 0
     for batched, checkpointing, append_ok in itertools.product(
@@ -195,34 +242,114 @@ def test_the_questions_a_call_site_cannot_tell_apart_have_one_answer() -> None:
             "checkpointing": checkpointing,
             "append_ok": append_ok,
         }
-        finished = {
+        finished = [("EXTRACTED", "HELD"), ("REPLAYED", "HELD"), ("NO_TEXT", None)]
+        if batched:
+            finished.append(("RESCUED", "HELD"))
+        homes = {
             (outcome, validation): disposition(
                 **run, outcome=outcome, validation=validation
             )
-            for outcome, validation in (
-                ("EXTRACTED", "HELD"),
-                ("RESCUED", "HELD"),
-                ("REPLAYED", "HELD"),
-                ("NO_TEXT", None),
-            )
+            for outcome, validation in finished
         }
-        compared += len(finished)
-        assert len(set(finished.values())) == 1, (
+        compared += len(homes)
+        assert "REFUSED" not in homes.values(), homes
+        assert len(set(homes.values())) == 1, (
             name({**run, "outcome": "*", "validation": "HELD"}),
-            finished,
+            homes,
         )
-        if batched:
-            continue
-        for validation in VALIDATIONS[1:]:
-            pair = [
-                disposition(**run, outcome=outcome, validation=validation)
-                for outcome in ("EXTRACTED", "RESCUED")
-            ]
-            compared += len(pair)
-            assert pair[0] == pair[1], (
-                name({**run, "outcome": "EXTRACTED/RESCUED", "validation": validation}),
-                pair,
-            )
 
-    # 8 runs x 4 finished outcomes, and 4 streaming runs x 3 validations x 2.
-    assert compared == 8 * 4 + 4 * 3 * 2
+    # 4 streaming runs x 3 finished outcomes, and 4 --batch runs x 4.
+    assert compared == 4 * 3 + 4 * 4
+
+
+def _gene(symbol: str, pmid: str | None = None) -> GeneEntry:
+    return GeneEntry(
+        gene_symbol=symbol,
+        confidence=0.9,
+        source_quote=f"{symbol} is mentioned.",
+        pmid=pmid,
+    )
+
+
+async def test_an_unstorable_rescue_cut_short_by_an_outage_stays_on_the_batch_record(
+    mocker, tmp_path: Path
+) -> None:
+    """(b) on --batch, through the real code: a rescue whose append failed.
+
+    The batch declined 222 and the fallback model answered it at the
+    streaming rate; NCBI did not answer its validation, and the checkpoint
+    would not take the unvalidated record. The batch record is then the only
+    durable trace of the paper: its entry is the batch's refusal, which the
+    next run collects for nothing before rescuing again, instead of paying
+    for a new entry the primary model declines once more. 111, which the
+    batch answered and validation passed, is checkpointed as finished and
+    comes off the record.
+    """
+    reset_tally()
+    config = PipelineConfig(
+        checkpoint_file=str(tmp_path / "checkpoint.jsonl"),
+        batch_state_file=str(tmp_path / "batch_state.json"),
+        progress_file=str(tmp_path / "progress.json"),
+    )
+    batch_state.save(
+        config.batch_state_file,
+        checkpoint.fingerprint(config),
+        [PendingBatch("msgbatch_old", {"111": "ab", "222": "cd"})],
+    )
+    mocker.patch(
+        "pipeline.main._fetch_paper_text_for_batch",
+        new=AsyncMock(return_value=("paper text", False, "abstract")),
+    )
+
+    async def submit(
+        papers, config, *, usage=None, refusals=None, state_path=None, reused=None
+    ):
+        assert refusals is not None
+        refusals["222"] = "bio"
+        return {"111": [_gene("GENE1", "111")]}
+
+    async def rescue(text, pmid, *, config, rate_limiter, model, declined):
+        return (
+            [_gene("GENE2")],
+            TokenUsage(input_tokens=700, output_tokens=70),
+            ServedBy(model=model, declined=declined),
+        )
+
+    async def validate(genes, metrics, config):
+        if genes[0].gene_symbol == "GENE2":
+            raise NcbiUnavailableError("NCBI down")
+        return genes, []
+
+    real_append = checkpoint.append
+
+    def append(path, fingerprint, record):
+        if "unvalidated" in record:
+            raise OSError("read-only file system")
+        real_append(path, fingerprint, record)
+
+    mocker.patch("pipeline.main.submit_and_collect", new=submit)
+    mocker.patch("pipeline.main.extract_from_paper", new=AsyncMock(side_effect=rescue))
+    mocker.patch("pipeline.main._validate_genes", new=validate)
+    mocker.patch("pipeline.checkpoint.append", side_effect=append)
+
+    batch = await pipeline_main._process_new_pmids_via_batch(
+        ["111", "222"],
+        PipelineMetrics(),
+        config,
+        pipeline_main._ProgressReporter(config),
+    )
+
+    results = {r.pmid: r for r in batch.results}
+    assert results["111"].succeeded
+    assert results["222"].error == "NCBI down"
+    records = checkpoint.load(config.checkpoint_file, checkpoint.fingerprint(config))
+    assert [r["result"]["pmid"] for r in records if "result" in r] == ["111"]
+    assert not [r for r in records if "unvalidated" in r]
+    on_record = {
+        pmid
+        for pending in batch_state.load(
+            config.batch_state_file, checkpoint.fingerprint(config)
+        )
+        for pmid in pending.document_sha256
+    }
+    assert on_record == {"222"}
