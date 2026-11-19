@@ -76,6 +76,7 @@ it.
 When using Bend:
 
 - run `bend guide` to learn it
-- use `LAWS.bend` to keep important rules
-- run `bend PROOF.bend` before committing
+- `LAWS.bend` keeps the important rules; it is the maintainer's file, so propose
+  a law, never add one
+- run `deno task bend:check` before committing
 - parallelize the code whenever possible
