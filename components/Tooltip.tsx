@@ -300,9 +300,10 @@ function registerTooltip(entry: Registration): () => void {
       doc.addEventListener(type, handle, { capture: true, passive: true });
     }
     // Listening ends with the last tooltip, but not while a departure's
-    // record stands: a re-filter removes every row before it draws the new
-    // ones, and a trigger drawn under the resting pointer must still meet
-    // the record. The pointer's first move elsewhere clears it.
+    // record stands: a re-filter can remove every row before it draws the
+    // new ones (when no keyed row survives it), and a trigger drawn under
+    // the resting pointer must still meet the record. The pointer's first
+    // move elsewhere clears it.
     const release = () => {
       if (entries.size > 0 || rest) return;
       for (const type of types) doc.removeEventListener(type, handle, true);

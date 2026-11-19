@@ -48,9 +48,19 @@ pointer's position, since `relatedTarget` names the departing panel just as it
 names a panel the pointer really left. A departure is a panel closing or a panel
 removed with its row (a re-filter, with no `beforetoggle` at all), and while
 its record stands the controller keeps listening even with no tooltip left on
-the page, as a re-filter removes every row before it draws the new ones. The
-record holds until the pointer moves, so a trigger that a scroll brings under
-the resting pointer after such a departure also waits for the first move.
+the page, as a re-filter can remove every row before it draws the new ones
+(when no keyed row survives it). The record holds until the pointer moves, so
+a trigger that a scroll brings under the resting pointer after such a
+departure also waits for the first move.
+
+**Escape dismisses a panel the pointer opened, wherever focus is** (WCAG
+1.4.13). The controller's capture-phase `keydown` listener closes it and
+swallows that one Escape, so a search box keeps its text and a drawer stays
+open; the next Escape reaches them. Chromium and Firefox otherwise give Escape
+to a focused text field and never close the panel. A panel the keyboard opened
+is left to the browser's own Escape, as is any panel while focus is on its
+trigger or inside it. The listener is the one non-passive listener the
+controller adds, since a passive one cannot prevent the field's default.
 
 **A panel never scrolls and never cuts content off.** `fitToViewport()` in
 `components/Tooltip.tsx` widens a panel too tall for the viewport, sets short
