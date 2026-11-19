@@ -34,7 +34,11 @@ export interface Tally {
  * The table itself is `standing.bend`, its laws proved in `/PROOF.bend`; these
  * functions run the module Bend generates from it (`deno task bend:build`).
  * The module refuses a count that is not a whole number from 0 up: it throws
- * rather than answer.
+ * rather than answer. `standingOf` passes the four counts, so each is refused
+ * unless it is a whole number from 0 up; `settlesAt` passes only the sum of
+ * accept, reject and outstanding, so only that sum is checked. The refusal is a
+ * thrown string, not an `Error`, which is why the test uses try/catch and not
+ * `assertThrows`.
  */
 const bend = generated as unknown as {
   standing_of(
