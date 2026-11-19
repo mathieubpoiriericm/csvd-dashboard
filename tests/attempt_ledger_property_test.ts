@@ -29,11 +29,32 @@ interface ModelAttempt {
 
 interface Held {
   id: number;
-  client: string;
-  createdAt: number;
   state: "held" | "settled";
   settle(outcome: AttemptOutcome): void;
 }
+
+type Refusal = "per client" | "global" | "tracked clients";
+
+// Every path the histories must reach, so a change to the odds, the limits
+// or the clients cannot quietly leave a rule untested.
+type Path =
+  | `refused: ${Refusal}`
+  | "allowed"
+  | `settle: ${AttemptOutcome}`
+  | "second settle"
+  | "settle of an expired attempt";
+
+const PATHS: readonly Path[] = [
+  "refused: per client",
+  "refused: global",
+  "refused: tracked clients",
+  "allowed",
+  "settle: auth-failure",
+  "settle: success",
+  "settle: other",
+  "second settle",
+  "settle of an expired attempt",
+];
 
 type Step =
   | { op: "advance"; ms: number }
@@ -47,6 +68,9 @@ type Step =
   | { op: "settle" | "settle again"; id: number; outcome: AttemptOutcome };
 
 Deno.test("the ledger answers as its rules say over 50 seeded histories of 400 steps", () => {
+  const reached = new Map<Path, number>(PATHS.map((path) => [path, 0]));
+  const tally = (path: Path) => reached.set(path, reached.get(path)! + 1);
+
   for (let seed = 1; seed <= 50; seed++) {
     const rand = seeded(seed);
     const pick = <T>(xs: readonly T[]): T => xs[Math.floor(rand() * xs.length)];
@@ -76,24 +100,29 @@ Deno.test("the ledger answers as its rules say over 50 seeded histories of 400 s
       );
     };
 
-    const modelAllows = (client: string, perClientOnly: boolean) => {
+    // The reasons the model refuses a reservation; none means it is allowed.
+    const modelRefusals = (client: string, perClientOnly: boolean) => {
       // Rule 1: an attempt is gone once its window has passed.
       live = live.filter((a) => a.createdAt + WINDOW_MS > clock);
       // Rule 2: the three limits, the last two waived for perClientOnly.
       const own = live.filter((a) => a.client === client).length;
-      if (own >= PER_CLIENT) return false;
-      if (perClientOnly) return true;
-      if (live.length >= GLOBAL) return false;
       const clients = new Set(live.map((a) => a.client)).size;
-      return !(own === 0 && clients >= TRACKED_CLIENTS);
+      const reasons: Refusal[] = [];
+      if (own >= PER_CLIENT) reasons.push("per client");
+      if (!perClientOnly && live.length >= GLOBAL) reasons.push("global");
+      if (!perClientOnly && own === 0 && clients >= TRACKED_CLIENTS) {
+        reasons.push("tracked clients");
+      }
+      return reasons;
     };
 
     const modelSettle = (record: Held, outcome: AttemptOutcome) => {
       // Rule 3: only the first settle of an attempt still listed counts.
-      if (record.state === "settled") return;
+      if (record.state === "settled") return tally("second settle");
       record.state = "settled";
       const attempt = live.find((a) => a.id === record.id);
-      if (!attempt) return;
+      if (!attempt) return tally("settle of an expired attempt");
+      tally(`settle: ${outcome}`);
       if (outcome === "auth-failure") attempt.state = "failed";
       else if (outcome === "other") live = live.filter((a) => a !== attempt);
       else {
@@ -129,7 +158,10 @@ Deno.test("the ledger answers as its rules say over 50 seeded histories of 400 s
       } else {
         const client = pick(CLIENTS);
         const perClientOnly = rand() < 0.5;
-        const expected = modelAllows(client, perClientOnly);
+        const refusals = modelRefusals(client, perClientOnly);
+        const expected = refusals.length === 0;
+        if (expected) tally("allowed");
+        for (const reason of refusals) tally(`refused: ${reason}`);
         const reservation = ledger.reserve(client, perClientOnly);
         const entry: Step = {
           op: "reserve",
@@ -148,13 +180,7 @@ Deno.test("the ledger answers as its rules say over 50 seeded histories of 400 s
           const id = nextId++;
           entry.id = id;
           live.push({ id, client, createdAt: clock, state: "pending" });
-          held.push({
-            id,
-            client,
-            createdAt: clock,
-            state: "held",
-            settle: reservation.settle,
-          });
+          held.push({ id, state: "held", settle: reservation.settle });
         } else if (reservation.retryAfterSeconds !== 1) {
           fail(
             step,
@@ -162,6 +188,12 @@ Deno.test("the ledger answers as its rules say over 50 seeded histories of 400 s
           );
         }
       }
+    }
+  }
+
+  for (const [path, count] of reached) {
+    if (count === 0) {
+      throw new Error(`no history of the 50 seeds reaches "${path}"`);
     }
   }
 });
