@@ -119,6 +119,7 @@ interface Registration {
 const controllers = new WeakMap<Document, {
   entries: Map<Element, Registration>;
   depart: (tooltip: Registration) => void;
+  forget: (tooltip: Registration) => void;
   release: () => void;
 }>();
 
@@ -154,6 +155,12 @@ function registerTooltip(entry: Registration): () => void {
     let last = { x: NaN, y: NaN };
     let rest: { x: number; y: number; closed: Registration } | undefined;
     let held: Registration | undefined;
+    // The panel the pointer opened (`hover()`'s `showPopover()`), until it
+    // closes or the keyboard route opens it instead. Escape dismisses it
+    // wherever focus is (`dismiss` below); `opening` marks the one
+    // `beforetoggle` that call fires, synchronously, inside it.
+    let hovered: Registration | undefined;
+    let opening = false;
     // A panel leaving the page: closed (its `beforetoggle`) or removed with
     // its row by a re-render (no event at all). Only from under the pointer
     // does it uncover anything.
@@ -168,7 +175,12 @@ function registerTooltip(entry: Registration): () => void {
       const { pop } = tooltip;
       tooltip.timer = setTimeout(() => {
         if (pop.isConnected && !pop.matches(":popover-open")) {
-          pop.showPopover();
+          opening = true;
+          try {
+            pop.showPopover();
+          } finally {
+            opening = false;
+          }
         }
       }, OPEN_DELAY_MS);
     };
@@ -222,6 +234,10 @@ function registerTooltip(entry: Registration): () => void {
         // Only the synchronous transition may cancel a pending close.
         if (event.type === "beforetoggle") clearTimeout(registered.timer);
         const open = (event as ToggleLike).newState === "open";
+        if (event.type === "beforetoggle") {
+          if (open && opening) hovered = registered;
+          else if (hovered === registered) hovered = undefined;
+        }
         // Only `beforetoggle` comes before the hit test that follows the
         // panel's departure; the queued `toggle` can come after it.
         if (event.type === "beforetoggle" && !open) depart(registered);
@@ -247,6 +263,30 @@ function registerTooltip(entry: Registration): () => void {
         }, CLOSE_DELAY_MS);
       }
     };
+    // WCAG 1.4.13: content the pointer opened must be dismissible without
+    // moving the pointer or focus. With focus in a text field, Chromium and
+    // Firefox give Escape to the field (a search box clears, and the
+    // re-filter takes the panel's row with it) and never close the panel.
+    // Capturing on the document runs before the field's default action and
+    // before `useEscapeKey`'s bubbling listener, so this one Escape closes
+    // the panel and does nothing else; the next reaches them as before.
+    // Focus on the trigger or inside the panel is the keyboard's own route,
+    // and the browser's Escape already closes it. `hidePopover()` fires
+    // `beforetoggle`, so `depart()` holds an uncovered trigger as it does
+    // for a native close.
+    const dismiss = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.isComposing || !hovered) return;
+      const { button, pop } = hovered;
+      if (!pop.matches(":popover-open")) return;
+      const focused = doc.activeElement;
+      if (focused === button || pop.contains(focused)) return;
+      pop.hidePopover();
+      event.preventDefault();
+      event.stopPropagation();
+    };
+    // Not passive, unlike the rest: a passive listener cannot prevent the
+    // field's default action.
+    doc.addEventListener("keydown", dismiss, { capture: true });
     const types = [
       "pointerover",
       "pointerout",
@@ -266,9 +306,14 @@ function registerTooltip(entry: Registration): () => void {
     const release = () => {
       if (entries.size > 0 || rest) return;
       for (const type of types) doc.removeEventListener(type, handle, true);
+      doc.removeEventListener("keydown", dismiss, true);
       controllers.delete(doc);
     };
-    controller = { entries, depart, release };
+    // A panel removed with its row closes with no `beforetoggle`.
+    const forget = (tooltip: Registration) => {
+      if (hovered === tooltip) hovered = undefined;
+    };
+    controller = { entries, depart, forget, release };
     controllers.set(doc, controller);
   }
   controller.entries.set(entry.button, entry);
@@ -278,6 +323,7 @@ function registerTooltip(entry: Registration): () => void {
     // Preact runs this before it removes the row, so a panel going with it
     // is still connected and open here; removing it fires no `beforetoggle`.
     if (entry.pop.matches(":popover-open")) controller.depart(entry);
+    controller.forget(entry);
     controller.entries.delete(entry.button);
     controller.entries.delete(entry.pop);
     controller.release();
