@@ -63,6 +63,76 @@ async function openedByActivation(panel: Locator, trigger: Locator) {
   );
 }
 
+function isOpen(panel: Locator) {
+  return panel.evaluate((element) => element.matches(":popover-open"));
+}
+
+/**
+ * Waits out the page's own hover delay: it opens a hovered panel 120ms after
+ * the pointer enters its trigger (OPEN_DELAY_MS in components/Tooltip.tsx).
+ * Well past it, a panel a hover would have opened is open.
+ */
+async function pastHoverDelay(page: Page) {
+  await page.waitForTimeout(500);
+}
+
+/**
+ * A point inside the open `panel` (no link there) under which, beneath the
+ * panel, lies another tooltip's trigger S, and one pixel to its right too:
+ * where the pointer can rest on the panel over S, and then move by a pixel
+ * and still be over S once the panel has gone. Null if the panel covers no
+ * other trigger.
+ */
+async function pointOverAnotherTrigger(panel: Locator) {
+  return await panel.evaluate((pop) => {
+    const beneath = (x: number, y: number) => {
+      const [topmost, ...under] = document.elementsFromPoint(x, y);
+      if (!topmost || !pop.contains(topmost) || topmost.closest("a")) {
+        return null;
+      }
+      const box = under.find((element) => !pop.contains(element))
+        ?.closest(".tooltip-box");
+      return box && box.getAttribute("popovertarget") !== pop.id ? box : null;
+    };
+    const { left, top, right, bottom } = pop.getBoundingClientRect();
+    for (let y = Math.ceil(top) + 1; y < bottom - 1; y += 2) {
+      for (let x = Math.ceil(left) + 1; x < right - 2; x += 2) {
+        const box = beneath(x, y);
+        if (box && beneath(x + 1, y) === box) {
+          return {
+            x,
+            y,
+            id: box.getAttribute("popovertarget")!,
+            name: box.textContent!,
+          };
+        }
+      }
+    }
+    return null;
+  });
+}
+
+/** Whether the topmost element at (x, y) lies in `trigger`. */
+function topmostIn(trigger: Locator, x: number, y: number) {
+  return trigger.evaluate(
+    (button, [x, y]) => button.contains(document.elementFromPoint(x, y)),
+    [x, y],
+  );
+}
+
+/** A point in the viewport on no tooltip, to move the pointer away to. */
+async function pointOnNoTooltip(page: Page) {
+  return await page.evaluate(() => {
+    for (let y = 4; y < innerHeight; y += 8) {
+      for (let x = 4; x < innerWidth; x += 8) {
+        const top = document.elementFromPoint(x, y);
+        if (top && !top.closest(".tooltip-box, .tooltip-pop")) return { x, y };
+      }
+    }
+    return null;
+  });
+}
+
 /**
  * The long panel fitted to 320×320: inside the viewport, and, too tall at
  * any width, its body scaled down with every line inside the panel and
@@ -284,6 +354,66 @@ test.describe("gene tooltips", () => {
     await expect(panel).toHaveClass(/\bis-placed\b/);
   });
 
+  /**
+   * Fitted to 320×320, the long panel covers other tooltips' triggers as
+   * well as its own. Escape closing it from over another trigger S uncovers
+   * S under the resting pointer: the panel left, the pointer did not arrive,
+   * so S stays closed. Once the pointer really moves, hover is hover again.
+   */
+  test("a panel closed from over another trigger does not open that trigger", async ({ page }) => {
+    const { trigger, panel } = await longPanelAt320(page);
+    await trigger.hover();
+    await expect(panel).toHaveClass(/\bis-placed\b/);
+
+    const point = await pointOverAnotherTrigger(panel);
+    expect(point, "a point of the long panel over another trigger").not
+      .toBeNull();
+    const { x, y, id, name } = point!;
+    const other = page.locator(`.tooltip-box[popovertarget="${id}"]`);
+    const otherPanel = page.locator(`[popover][id="${id}"]`);
+    await recordOpener(otherPanel);
+
+    // From the trigger's centre, which the panel covers, to the point: the
+    // pointer stays on the panel all the way.
+    await page.mouse.move(x, y, { steps: 5 });
+    // Focus the trigger first: Escape in the search box clears the field
+    // instead, and the re-filter replaces the rows under the pointer.
+    await trigger.focus();
+    await page.keyboard.press("Escape");
+    await expect.poll(() => isOpen(panel)).toBe(false);
+    await pastHoverDelay(page);
+    expect(await isOpen(otherPanel), `${name}, uncovered at ${x},${y}`).toBe(
+      false,
+    );
+
+    // A move by one pixel, still over S, which nothing covers now: a hover.
+    expect(await topmostIn(other, x + 1, y), `${name} at ${x + 1},${y}`)
+      .toBe(true);
+    await page.mouse.move(x + 1, y);
+    await expect.poll(() => isOpen(otherPanel)).toBe(true);
+    expect(await openedByActivation(otherPanel, other)).toBe(false);
+
+    // Closed at the point, then the pointer leaves and comes back to that
+    // very pixel: a hover, since it moved in between.
+    await page.mouse.move(x, y);
+    await page.keyboard.press("Escape");
+    await expect.poll(() => isOpen(otherPanel)).toBe(false);
+    const away = await pointOnNoTooltip(page);
+    expect(away, "a point on no tooltip").not.toBeNull();
+    await page.mouse.move(away!.x, away!.y);
+    await page.mouse.move(x, y);
+    await expect.poll(() => isOpen(otherPanel)).toBe(true);
+    expect(await openedByActivation(otherPanel, other)).toBe(false);
+
+    // Dismissed again at the same point, it opens by the keyboard route.
+    await page.keyboard.press("Escape");
+    await expect.poll(() => isOpen(otherPanel)).toBe(false);
+    await other.focus();
+    await page.keyboard.press("Enter");
+    await expect(otherPanel).toHaveClass(/\bis-placed\b/);
+    expect(await openedByActivation(otherPanel, other)).toBe(true);
+  });
+
   // A click opens the panel by native activation, as Enter does, and it is
   // fitted once shown.
   test("a click fits a long popover inside a 320px viewport", async ({ page }) => {
@@ -306,6 +436,35 @@ test.describe("gene tooltips", () => {
       await expect(panel).toHaveClass(/\bis-placed\b/);
       expect(await openedByActivation(panel, trigger)).toBe(true);
       await expectFitted(panel);
+    });
+
+    // Where a panel closed is a question for hover alone: a tap there on the
+    // trigger the panel uncovered opens it, by activation.
+    test("a tap where a panel closed opens the uncovered trigger", async ({ page }) => {
+      const { trigger, panel } = await longPanelAt320(page);
+      await trigger.tap();
+      await expect(panel).toHaveClass(/\bis-placed\b/);
+
+      const point = await pointOverAnotherTrigger(panel);
+      expect(point, "a point of the long panel over another trigger").not
+        .toBeNull();
+      const { x, y, id, name } = point!;
+      const other = page.locator(`.tooltip-box[popovertarget="${id}"]`);
+      const otherPanel = page.locator(`[popover][id="${id}"]`);
+      await recordOpener(otherPanel);
+
+      // Touched there on the panel, which then closes.
+      await page.touchscreen.tap(x, y);
+      await trigger.focus();
+      await page.keyboard.press("Escape");
+      await expect.poll(() => isOpen(panel)).toBe(false);
+      expect(await topmostIn(other, x, y), `${name} at ${x},${y}`).toBe(true);
+
+      // At that exact point: an offset from the trigger's box, as
+      // Locator.tap() takes, can land a fraction of a pixel off it.
+      await page.touchscreen.tap(x, y);
+      await expect(otherPanel).toHaveClass(/\bis-placed\b/);
+      expect(await openedByActivation(otherPanel, other)).toBe(true);
     });
   });
 

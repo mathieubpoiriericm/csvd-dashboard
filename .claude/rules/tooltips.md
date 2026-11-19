@@ -41,7 +41,11 @@ last entered rather than by `relatedTarget` (WebKit gives none when a panel
 leaves from under the pointer), so a panel that Escape closes from under the
 resting pointer, as at 320px where the fitted panel covers its trigger, stays
 closed until the pointer leaves and comes back, and Enter opens it by the
-keyboard route.
+keyboard route. A panel's departure is never a hover, whichever trigger it
+uncovers: another tooltip's trigger left under the resting pointer opens on
+hover only once the pointer has moved, which the controller judges by the
+pointer's position, since `relatedTarget` names the departing panel just as it
+names a panel the pointer really left.
 
 **A panel never scrolls and never cuts content off.** `fitToViewport()` in
 `components/Tooltip.tsx` widens a panel too tall for the viewport, sets short

@@ -140,22 +140,60 @@ function registerTooltip(entry: Registration): () => void {
     // size where the fitted panel covers its trigger) is followed by a
     // `pointerover` on the trigger, whose `relatedTarget` is that panel in
     // Chromium and Firefox and nothing at all in WebKit.
+    //
+    // A panel over another tooltip's trigger uncovers that one in the same
+    // way, and its `pointerover` looks like a hover off the panel: its
+    // `relatedTarget` is the panel (or, in WebKit, can be nothing), just as
+    // when the pointer moves off the panel's edge onto a trigger beside it.
+    // Only the pointer's position tells the two apart. `rest` keeps where
+    // it was when a panel closed from over it, and a `pointerover` there is
+    // the panel leaving, not the pointer arriving: that tooltip's hover is
+    // `held` until the pointer moves.
     let pointerIn: Registration | undefined;
+    let last = { x: NaN, y: NaN };
+    let rest: { x: number; y: number; closed: Registration } | undefined;
+    let held: Registration | undefined;
+    const hover = (tooltip: Registration, element: Element | null) => {
+      clearTimeout(tooltip.timer);
+      if (element !== tooltip.button) return;
+      const { pop } = tooltip;
+      tooltip.timer = setTimeout(() => {
+        if (pop.isConnected && !pop.matches(":popover-open")) {
+          pop.showPopover();
+        }
+      }, OPEN_DELAY_MS);
+    };
     const handle = (event: Event) => {
+      if (event.type.startsWith("pointer")) {
+        const { clientX: x, clientY: y } = event as PointerEvent;
+        last = { x, y };
+        if (rest && (x !== rest.x || y !== rest.y)) rest = undefined;
+        if (event.type === "pointermove") {
+          // The first move away from that point, still on the held
+          // tooltip, enters it as its `pointerover` would have: a move
+          // within one element fires no `pointerover` of its own.
+          if (rest || !held) return;
+          const tooltip = held;
+          held = undefined;
+          if (tooltipOf(event.target) === tooltip) {
+            hover(tooltip, locate(event.target));
+          }
+          return;
+        }
+      }
       const element = locate(event.target);
       const registered = element ? entries.get(element) : undefined;
       if (event.type === "pointerover") {
         const from = pointerIn;
         pointerIn = registered;
         if (!registered || from === registered) return;
-        clearTimeout(registered.timer);
-        if (element !== registered.button) return;
-        const { pop } = registered;
-        registered.timer = setTimeout(() => {
-          if (pop.isConnected && !pop.matches(":popover-open")) {
-            pop.showPopover();
-          }
-        }, OPEN_DELAY_MS);
+        // Uncovered, not entered. The closed panel's own trigger holds no
+        // hover: it waits for the pointer to leave and come back.
+        if (rest) {
+          if (registered !== rest.closed) held = registered;
+          return;
+        }
+        hover(registered, element);
         return;
       }
       // Out of the document altogether, so the next entry is a hover even
@@ -172,6 +210,15 @@ function registerTooltip(entry: Registration): () => void {
         // Only the synchronous transition may cancel a pending close.
         if (event.type === "beforetoggle") clearTimeout(registered.timer);
         const open = (event as ToggleLike).newState === "open";
+        // Only `beforetoggle` comes before the hit test that follows the
+        // panel's departure; the queued `toggle` can come after it. A panel
+        // closing away from the pointer uncovers nothing under it.
+        if (
+          event.type === "beforetoggle" && !open && pointerIn === registered
+        ) {
+          rest = { ...last, closed: registered };
+          held = undefined;
+        }
         if (!open) pop.classList.remove("is-placed");
         // Closing must leave the focused link attached until the native
         // popover algorithm restores focus to its invoker. `toggle` runs
@@ -197,12 +244,15 @@ function registerTooltip(entry: Registration): () => void {
     const types = [
       "pointerover",
       "pointerout",
+      "pointermove",
       "focusin",
       "focusout",
       "beforetoggle",
       "toggle",
     ];
-    for (const type of types) doc.addEventListener(type, handle, true);
+    for (const type of types) {
+      doc.addEventListener(type, handle, { capture: true, passive: true });
+    }
     controller = {
       entries,
       dispose: () => {
