@@ -1,5 +1,7 @@
 import { assertEquals } from "@std/assert";
 
+import { seeded } from "./helpers/seeded.ts";
+
 import {
   type Box,
   computeTimelineLayout,
@@ -358,4 +360,70 @@ Deno.test("computeTimelineLayout's labelOffset moves only the label anchors", ()
     side * (MARKER_RADIUS + LABEL_GAP) * 2,
   );
   assertEquals(grown.labelPoint.y, rest.labelPoint.y);
+});
+
+Deno.test("the radar reducer's rules hold over 200,000 fractional observations", () => {
+  const seed = 20261118;
+  const rand = seeded(seed);
+  const pick = <T>(xs: readonly T[]): T => xs[Math.floor(rand() * xs.length)];
+  const width = () => Math.floor(rand() * 2000 * 64) / 64;
+  const flag = () => rand() < 0.5;
+  let round = 0;
+  let context = () => "";
+  const check = (ok: boolean, rule: string) => {
+    if (!ok) {
+      throw new Error(`seed ${seed}, round ${round}, ${rule}: ${context()}`);
+    }
+  };
+
+  for (round = 0; round < 200_000; round++) {
+    const s: RadarState = {
+      mode: pick(["radar", "phone"] as const),
+      floor: width(),
+      stacked: flag(),
+      raise: pick([0, 48, 96, 192]),
+    };
+    const o: RadarObservation = {
+      room: width(),
+      plateWidth: width(),
+      available: width(),
+      heightLimited: flag(),
+      drawerBeside: flag(),
+      drawerSpace: width(),
+      clean: pick([true, false, null] as const),
+    };
+    const next = nextRadarState(s, o);
+    context = () => JSON.stringify({ s, o, next });
+
+    check(next.floor >= s.floor, "rule 1: the floor never falls");
+    if (o.room < RADAR_MIN_ROOM) {
+      check(
+        next.mode === "phone" && next.raise === 0,
+        "rule 2: too little room is phone with no raise",
+      );
+    } else if (s.mode === "phone") {
+      check(next.floor === s.floor, "rule 3: phone leaves the floor");
+      check(
+        (next.mode === "radar") === (o.room >= s.floor + HYSTERESIS),
+        "rule 3: radar returns exactly at floor plus hysteresis",
+      );
+    } else if (o.clean === null) {
+      check(next === s, "rule 4: no settled solve returns the same state");
+    } else if (o.clean) {
+      check(
+        next.mode === s.mode && next.floor === s.floor,
+        "rule 5: a clean solve keeps mode and floor",
+      );
+    } else {
+      check(next.floor > o.plateWidth, "rule 6: the floor passes the plate");
+      if (!o.heightLimited) {
+        check(
+          o.drawerBeside
+            ? next.stacked === true && next.mode === "radar"
+            : next.mode === "phone",
+          "rule 6: a fault not limited by height stacks or goes phone",
+        );
+      }
+    }
+  }
 });
