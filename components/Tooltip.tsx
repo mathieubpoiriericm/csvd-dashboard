@@ -130,9 +130,41 @@ function registerTooltip(entry: Registration): () => void {
       target instanceof Element
         ? target.closest(".tooltip-box, .tooltip-pop")
         : null;
+    const tooltipOf = (target: EventTarget | null) => {
+      const element = locate(target);
+      return element ? entries.get(element) : undefined;
+    };
+    // The tooltip the pointer last entered. A hover is the pointer entering a
+    // tooltip from outside it, and this, not `relatedTarget`, says where it
+    // came from: a panel closed from under a resting pointer (by Escape, at a
+    // size where the fitted panel covers its trigger) is followed by a
+    // `pointerover` on the trigger, whose `relatedTarget` is that panel in
+    // Chromium and Firefox and nothing at all in WebKit.
+    let pointerIn: Registration | undefined;
     const handle = (event: Event) => {
       const element = locate(event.target);
-      const registered = element && entries.get(element);
+      const registered = element ? entries.get(element) : undefined;
+      if (event.type === "pointerover") {
+        const from = pointerIn;
+        pointerIn = registered;
+        if (!registered || from === registered) return;
+        clearTimeout(registered.timer);
+        if (element !== registered.button) return;
+        const { pop } = registered;
+        registered.timer = setTimeout(() => {
+          if (pop.isConnected && !pop.matches(":popover-open")) {
+            pop.showPopover();
+          }
+        }, OPEN_DELAY_MS);
+        return;
+      }
+      // Out of the document altogether, so the next entry is a hover even
+      // onto the same trigger.
+      if (
+        event.type === "pointerout" && !(event as MouseEvent).relatedTarget
+      ) {
+        pointerIn = undefined;
+      }
       if (!registered) return;
       const { button, pop, setOpen } = registered;
       if (event.type === "beforetoggle" || event.type === "toggle") {
@@ -147,16 +179,10 @@ function registerTooltip(entry: Registration): () => void {
         if (open || event.type === "toggle") setOpen(open);
         return;
       }
-      const related = locate((event as MouseEvent).relatedTarget);
-      if (related === element) return;
+      // Between a trigger and its own panel is movement within one tooltip.
+      if (tooltipOf((event as FocusEvent).relatedTarget) === registered) return;
       clearTimeout(registered.timer);
-      if (event.type === "pointerover" && element === button) {
-        registered.timer = setTimeout(() => {
-          if (pop.isConnected && !pop.matches(":popover-open")) {
-            pop.showPopover();
-          }
-        }, OPEN_DELAY_MS);
-      } else if (event.type === "pointerout" || event.type === "focusout") {
+      if (event.type === "pointerout" || event.type === "focusout") {
         registered.timer = setTimeout(() => {
           if (
             !button.matches(":focus-within, :hover") &&
@@ -256,6 +282,9 @@ export function Tooltip({ content, italic, label, children }: TooltipProps) {
     // can change the fit, so only that re-runs it.
     let fitted = "";
     const position = async () => {
+      // A hidden panel measures 0×0: fitting it does nothing, and recording
+      // its viewport as fitted would leave the shown panel unfitted.
+      if (!pop.matches(":popover-open")) return;
       const root = pop.ownerDocument.documentElement;
       const viewport = `${root.clientWidth}x${root.clientHeight}`;
       if (viewport !== fitted) {
@@ -314,9 +343,15 @@ export function Tooltip({ content, italic, label, children }: TooltipProps) {
     };
 
     const stop = autoUpdate(button, pop, position);
+    // On native activation (a click, a tap, Enter or Space) the panel can be
+    // rendered from its beforetoggle before it is shown: in Chromium and
+    // WebKit always, in Firefox on a click. The call above then finds it
+    // hidden; `toggle` follows once it is shown, whichever route opened it.
+    pop.addEventListener("toggle", position);
     return () => {
       active = false;
       stop();
+      pop.removeEventListener("toggle", position);
       pop.classList.remove("is-placed");
     };
   }, [open, content]);
