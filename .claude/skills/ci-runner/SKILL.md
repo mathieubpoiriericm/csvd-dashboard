@@ -123,12 +123,31 @@ last before them, took 1m37s.
 With twelve runners the engine jobs started at once in every sample and two
 short Python jobs waited 36-44 s for a runner, so nothing on the critical path
 was queued. The fourteen were kept because they cost nothing idle and a second
-run started beside the first queues less; the fifteenth came with the `bend`
-job and was not measured. What would shorten a run is less work
-at once, not more runners: the engines' time is contention for the 16 cores.
+run started beside the first queues less; the fifteenth is measured below.
+What would shorten a run is less work at once, not more runners: the engines'
+time is contention for the 16 cores.
 One test retried in three of the six runs. Only the first was read: a tooltip
 spec under WebKit (`csvd/tooltips.spec.ts`), which is on the starved-suite list
 above.
+
+**The fifteenth runner, measured.** PR #175's run (44441551956) has 15
+self-hosted jobs. It was re-run six times on 18 and 19 November 2026 with the
+machine otherwise idle, attempts 2-4 on fifteen runners and attempts 5-7 on
+fourteen (`ryzen-15`'s `csvd-ci` label removed through the API and restored
+afterwards), first self-hosted job start to last finish:
+
+| Runners | Attempts | Runs                | WebKit and Firefox jobs |
+| ------- | -------- | ------------------- | ----------------------- |
+| 15      | 2-4      | 173 s, 173 s, 174 s | 170-174 s in all six    |
+| 14      | 5-7      | 172 s, 172 s, 173 s | 170-174 s in all six    |
+
+With fifteen every job started within 1 s of the first. With fourteen one short
+job (an `adapt-fork` or `empty-data` job) waited 8-9 s for a runner, after the
+`bend` job freed one. The fifteenth runner removes that wait and does not change
+the run's length, which the engine jobs set. WebKit's
+`csvd/tooltips.spec.ts` test "COL4A1/2's gene and protein tooltips show both
+collagen genes" retried in attempts 3 and 4 (fifteen runners) and 7 (fourteen);
+nothing else retried. Its cause was in the test and is fixed in PR #176.
 
 Both engines need system packages the runner cannot install: `provision.sh`
 installs them for all three, and a machine provisioned before that date got
@@ -170,6 +189,16 @@ The install step's branches were each run once, on 18 November 2026:
   printed `ALL PROOFS CHECK`, and the regenerated `lib/review/standing.bend.mjs`
   was byte-identical to the committed one. So the module regenerates on arm64
   Linux as well as on x64.
+- **macOS:** run 44448124696 in the private repository, on 18 November 2026,
+  ran one job on a GitHub-hosted `macos-latest` runner (`uname -sm` printed
+  `Darwin arm64`) from a throwaway branch, `try-bend-macos`, that was never
+  merged and has been deleted. It downloaded `bend-2.0.40-darwin-arm64.tar.gz`,
+  which matched its pinned sha256 (`b2be003b...b6900b`), and `bend version`
+  printed `bend 2.0.40`. `deno task bend:check` printed `ALL PROOFS CHECK`, and
+  after `deno task bend:build` `git diff --exit-code -- lib/review/standing.bend.mjs`
+  passed: the module macOS generates is byte-identical to the committed one,
+  which was generated on Linux x64. So the module is the same on all three, and
+  `CLAUDE.md` needs no instruction to regenerate it on Linux.
 - **Non-Linux and unknown architecture:** run locally, not in CI, by copying the
   step's `run:` block into a script and running it with `bash -e` under a fake
   `uname` first on `PATH`. With `Darwin` and `arm64` it exited 1 with
@@ -177,7 +206,7 @@ The install step's branches were each run once, on 18 November 2026:
   With `Linux` and `riscv64` it exited 1 with
   `::error::Bend 2.0.40 has no Linux build for riscv64`. Neither run attempted a
   download: `$RUNNER_TEMP` stayed empty and nothing was appended to
-  `$GITHUB_ENV` or `$GITHUB_PATH`. No real macOS or riscv64 machine was used.
+  `$GITHUB_ENV` or `$GITHUB_PATH`. The guard itself ran on no real macOS or riscv64 machine.
 
 ## Switching
 
@@ -214,6 +243,18 @@ GitHub's runners. Set it again once `actions/runners` lists the instances
   which `e2e/playwright.config.ts` serves the build on. A new job that serves on
   a port, or a fixed container name or image tag like the `container` job's,
   either follows suit or stays on `ubuntu-latest`.
+- **Merge one run at a time.** On 18 November 2026 two `main` runs and a pull
+  request's run shared the fifteen runners, and `main`'s run 44437376750 failed
+  in `End-to-end (firefox)` on `csvd/tooltips.spec.ts:142`: a focus wait timed
+  out, then its retry did. The deploy for that commit did not happen, and
+  re-running the failed job on an idle machine passed. The cause was in the
+  test: its Escape went to the search box rather than the panel, and the
+  debounced re-filter landed during the next steps under load (6 and 7 of 40
+  runs failed at a load average of 40-56; none of 40 with only
+  `deno task test:coverage` running beside it). Two page defects at a 320px
+  viewport sit behind that test, and a separate pull request fixes them. Merges
+  are made one run at a time since: push when no other run is in flight, and
+  wait for `main`'s run through "Deploy to Fly.io" before the next push.
 - **After upgrading `@playwright/test`, re-run the provisioning script with the
   new `PLAYWRIGHT_VERSION`.** The workflow passes `--with-deps` only on GitHub's
   runners, because a self-hosted one has no sudo. A newer Chromium needing a
