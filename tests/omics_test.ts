@@ -94,6 +94,10 @@ Deno.test("text-only surfaces print the clarification mark as the cell does", ()
 });
 
 // The writer's side of this fixture is tests/pipeline/test_omics.py.
+Deno.test("the fixture holds every case", () => {
+  assertEquals(wireCases.length, 16);
+});
+
 for (const { name, wire, printed, colocalized } of wireCases) {
   Deno.test(`the display reads what the writer wrote: ${name}`, () => {
     const entry = parseOmicsEntry(wire);

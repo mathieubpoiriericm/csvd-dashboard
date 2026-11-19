@@ -3,6 +3,7 @@
 import json
 import logging
 from pathlib import Path
+from typing import Any
 
 import pytest
 from pydantic import ValidationError
@@ -13,6 +14,7 @@ from pipeline.omics import (
     OMICS_STUDY_TYPES,
     OmicsEvidence,
     OmicsItem,
+    _split_top_level,
     omics_array,
     to_wire,
     wire_strings,
@@ -25,11 +27,25 @@ _WIRE_CASES = json.loads(
         encoding="utf-8"
     )
 )
+# A reader-only case has no study: the writer cannot produce its wire form.
+_WRITER_CASES = [case for case in _WIRE_CASES if case["study"] is not None]
 
 
-@pytest.mark.parametrize("case", _WIRE_CASES, ids=lambda case: case["name"])
-def test_the_writer_and_the_display_agree_on_the_wire_form(case) -> None:
+@pytest.mark.parametrize("case", _WRITER_CASES, ids=lambda case: case["name"])
+def test_the_writer_writes_the_wire_form_the_fixture_pins(
+    case: dict[str, Any],
+) -> None:
     assert to_wire(OmicsEvidence.model_validate(case["study"])) == case["wire"]
+
+
+def test_the_fixture_has_the_writer_cases_it_should() -> None:
+    assert len(_WRITER_CASES) == 15
+    assert len(_WIRE_CASES) == 16
+
+
+def test_a_stray_closer_does_not_hide_the_next_comma() -> None:
+    # As lib/omics.ts's splitTopLevel: depth never goes below zero.
+    assert _split_top_level("a), b", ",") == ["a)", " b"]
 
 
 def test_to_wire_writes_the_format_and_stars_only_colocalized_items() -> None:

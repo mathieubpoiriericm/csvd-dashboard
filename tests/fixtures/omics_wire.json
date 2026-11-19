@@ -216,5 +216,53 @@
     "colocalized": [
       "tissue one"
     ]
+  },
+  {
+    "name": "parentheses two deep",
+    "study": {
+      "study_type": "TWAS",
+      "biomarker": "TRAIT-A",
+      "items": [
+        {
+          "text": "tissue one (left (upper, lower), right)",
+          "colocalized": true
+        },
+        {
+          "text": "tissue two",
+          "colocalized": true
+        }
+      ]
+    },
+    "wire": "TWAS;TRAIT-A: tissue one (left (upper, lower), right)*, tissue two*",
+    "printed": "TWAS (TRAIT-A: tissue one (left (upper, lower), right), tissue two)",
+    "colocalized": [
+      "tissue one (left (upper, lower), right)",
+      "tissue two"
+    ]
+  },
+  {
+    "name": "a comma straight after a parenthesis",
+    "study": {
+      "study_type": "TWAS",
+      "biomarker": "TRAIT-A",
+      "items": [
+        {
+          "text": "tissue one (left),tissue two",
+          "colocalized": false
+        }
+      ]
+    },
+    "wire": "TWAS;TRAIT-A: tissue one (left), tissue two",
+    "printed": "TWAS (TRAIT-A: tissue one (left), tissue two)",
+    "colocalized": []
+  },
+  {
+    "name": "a stray closing parenthesis (reader only)",
+    "study": null,
+    "wire": "TWAS;TRAIT-A: tissue one), tissue two*",
+    "printed": "TWAS (TRAIT-A: tissue one), tissue two)",
+    "colocalized": [
+      "tissue two"
+    ]
   }
 ]
