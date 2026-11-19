@@ -2,10 +2,12 @@
 
 import json
 import logging
+import random
 from pathlib import Path
 
 import pytest
 
+from pipeline.config import PipelineConfig
 from pipeline.data_merger import (
     _CANONICAL_GENE_SYMBOLS,
     _build_combined_gene_data,
@@ -659,6 +661,115 @@ class TestMergeGeneEntries:
         (to_insert, _to_update) = merge.call_args.args
         assert to_insert[0]["confidence"] == 0.90
         assert to_insert[0]["source_quote"] == "The deciding paper's BTN3A2 sentence."
+
+    async def test_the_floors_hold_over_300_seeded_batches(
+        self, make_gene_entry, mocker, tracked_traits
+    ):
+        """The insert/update decision, over batches no example test wrote.
+
+        Three bugs were fixed in this decision, each pinned by an example:
+        the floor read the first paper rather than the best, the row
+        published another paper's score than the one that admitted it, and
+        a sub-floor paper's claims rode in on a confident one. Each batch
+        here mixes new and existing genes, one to three papers apiece, with
+        scores either side of the insert floor and on it, and four
+        statements must hold of every one. The expected values are worked
+        out here from the rules, not by calling the merger's own helpers.
+
+        Every entry carries a trait, omics evidence and Mendelian
+        randomization, so a citation-only row differs from a full one in all
+        three fields that `_citation_only` withholds.
+        """
+        seed = 20261118
+        rng = random.Random(seed)
+        floor = PipelineConfig().confidence_threshold_insert
+        scores = (0.45, 0.50, 0.64, 0.65, 0.66, 0.90)
+        pool = ("GENEA", "GENEB", "GENEC", "GENED", "GENEE", "GENEF")
+        # Synthetic, so the canonicaliser must leave each one alone; were one
+        # an alias, the merge would group it under another key.
+        assert all(canonical_gene_symbol(symbol) == symbol for symbol in pool)
+
+        existing_genes = mocker.patch("pipeline.data_merger.get_existing_genes")
+        merge = mocker.patch(
+            "pipeline.data_merger.merge_genes_transactional", return_value=(0, 0)
+        )
+        next_pmid = 10_000_000
+
+        for batch in range(300):
+            symbols = rng.sample(pool, rng.randint(1, 4))
+            entries = []
+            for symbol in symbols:
+                for _ in range(rng.randint(1, 3)):
+                    next_pmid += 1
+                    entries.append(
+                        make_gene_entry(
+                            gene_symbol=symbol,
+                            pmid=str(next_pmid),
+                            confidence=rng.choice(scores),
+                            mendelian_randomization=True,
+                            gwas_trait=[rng.choice(tracked_traits)],
+                            omics_evidence=[TWAS],
+                            source_quote=f"{symbol} sentence from PMID {next_pmid}.",
+                        )
+                    )
+            rng.shuffle(entries)
+            in_table = {s for s in symbols if rng.random() < 0.5}
+            existing_genes.return_value = set(in_table)
+            merge.reset_mock()
+
+            result = await merge_gene_entries(entries)
+
+            where = (
+                f"seed {seed}, batch {batch}: in table {sorted(in_table)}, "
+                f"entries {[(e.gene_symbol, e.pmid, e.confidence) for e in entries]}"
+            )
+            assert merge.call_count == 1, where
+            to_insert, to_update = merge.call_args.args
+            inserted = {row["gene"]: row for row in to_insert}
+            updated = {row["gene"]: row for row in to_update}
+            assert len(inserted) == len(to_insert), where
+            assert len(updated) == len(to_update), where
+            held = result.get("held_below_insert_floor", [])
+
+            for symbol in symbols:
+                group = [e for e in entries if e.gene_symbol == symbol]
+                # The deciding entry: the highest score, the first such wins.
+                deciding = group[0]
+                for entry in group[1:]:
+                    if entry.confidence > deciding.confidence:
+                        deciding = entry
+                best = deciding.confidence
+
+                if symbol in in_table:
+                    # 2. An existing gene is always updated, once.
+                    assert symbol in updated, where
+                    assert symbol not in inserted, where
+                    row = updated[symbol]
+                    if best < floor:
+                        assert row["mendelian_randomization"] is False, where
+                        assert row["gwas_trait"] == [], where
+                        assert row["evidence_from_other_omics_studies"] == "", where
+                else:
+                    # 1. Insert only at or above the floor.
+                    assert symbol not in updated, where
+                    if best >= floor:
+                        assert symbol in inserted, where
+                        row = inserted[symbol]
+                    else:
+                        assert symbol not in inserted, where
+                        assert {
+                            "gene_symbol": symbol,
+                            "confidence": best,
+                            "mentions": len(group),
+                        } in held, where
+                        continue
+
+                # 3. The published pair is the deciding entry's.
+                assert row["confidence"] == deciding.confidence, where
+                assert row["source_quote"] == deciding.source_quote, where
+                # 4. No PMID is lost.
+                for entry in group:
+                    assert entry.pmid in row["references"], where
 
     async def test_existing_genes_updated(self, sample_gene_entries, mocker):
         mocker.patch(
