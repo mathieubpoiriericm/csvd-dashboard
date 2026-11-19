@@ -14,6 +14,7 @@ import type {
   RulingEvent,
 } from "../lib/review/events.ts";
 import { PIPELINE_ACTOR, votes } from "../lib/review/events.ts";
+import generated from "../lib/review/standing.bend.mjs";
 import {
   refusing,
   reviewGene,
@@ -496,4 +497,24 @@ Deno.test("whatever the module throws is refused as a RangeError that keeps it",
       throw thrown;
     }), RangeError);
   assertStrictEquals(error.cause, thrown);
+});
+
+Deno.test("past ten million, settlesAt refuses before the module counts", () => {
+  const module = generated as unknown as { needed_for: unknown };
+  const real = module.needed_for;
+  let calls = 0;
+  module.needed_for = () => {
+    calls += 1;
+    return 0;
+  };
+  try {
+    assertThrows(
+      () => settlesAt(t(10_000_001, 0, 0, 0)),
+      RangeError,
+      "10,000,000",
+    );
+  } finally {
+    module.needed_for = real;
+  }
+  assertEquals(calls, 0);
 });

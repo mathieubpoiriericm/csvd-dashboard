@@ -41,14 +41,12 @@ type BendStanding =
 /**
  * The table itself is `standing.bend`, its laws proved in `/PROOF.bend`; these
  * functions run the module Bend generates from it (`deno task bend:build`).
- * The module refuses a count that is not a whole number from 0 up, and a count
- * past 2^48-1: it throws rather than answer. `standingOf` and `settlesAt` both
- * pass the four counts, so each is refused unless it is a whole number from 0
- * up and within that bound. A refusal is a `RangeError` whose `cause` is the
- * string the module threw. `settlesAt` takes time proportional to the number of
- * members who have not abstained (the generated code loops once per three of
- * them), so it must never be handed a number that did not come from counting
- * accounts.
+ * The module refuses a count that is not a whole number from 0 to 2^53, and
+ * any sum it takes of the counts past 2^48-1: it throws a bare string rather
+ * than answer. `refusing` turns such a throw into a `RangeError` whose `cause`
+ * is what was thrown. `settlesAt` also refuses, with a `RangeError` of its own
+ * and no cause, more than `MOST_COUNTED` members not abstaining, before the
+ * module's loop (once per three of them) runs.
  */
 const bend = generated as unknown as {
   standing_of(
@@ -78,7 +76,10 @@ export function refusing<T>(run: () => T): T {
   }
 }
 
-/** The most members `settlesAt` will count: its module loop runs per three. */
+/**
+ * The most members not abstaining `settlesAt` will count: the module's loop
+ * runs once per three of them.
+ */
 export const MOST_COUNTED = 10_000_000;
 
 const STANDINGS: Record<BendStanding, Standing> = {
@@ -105,6 +106,7 @@ export function standingOf(tally: Tally): Standing {
 /**
  * Two thirds of those not abstaining: `needed` votes of `of`. Both come from
  * the module, and law 8 in `/LAWS.bend` proves `needed` is needed of `of`.
+ * Throws a RangeError past `MOST_COUNTED` members not abstaining.
  */
 export function settlesAt(tally: Tally): { needed: number; of: number } {
   const { accept, reject, abstain, outstanding } = tally;
@@ -114,11 +116,10 @@ export function settlesAt(tally: Tally): { needed: number; of: number } {
   // The generated `needed_for` loops once per three of `of`, so the ceiling is
   // checked before it runs, not after it has counted.
   if (of > MOST_COUNTED) {
+    const most = MOST_COUNTED.toLocaleString("en-US");
+    const got = of.toLocaleString("en-US");
     throw new RangeError(
-      `settlesAt counts at most ${
-        MOST_COUNTED.toLocaleString("en-US")
-      } members, ` +
-        `not ${of.toLocaleString("en-US")}`,
+      `settlesAt counts at most ${most} members not abstaining, not ${got}`,
     );
   }
   return {
