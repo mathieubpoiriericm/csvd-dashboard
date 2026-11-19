@@ -260,16 +260,23 @@ GitHub's runners. Set it again once `actions/runners` lists the instances
   either follows suit or stays on `ubuntu-latest`.
 - **Merge one run at a time.** On 18 November 2026 two `main` runs and a pull
   request's run shared the fifteen runners, and `main`'s run 44437376750 failed
-  in `End-to-end (firefox)` on `csvd/tooltips.spec.ts:142`: a focus wait timed
-  out, then its retry did. The deploy for that commit did not happen, and
+  in `End-to-end (firefox)` on the `csvd/tooltips.spec.ts` test "a long popover
+  fits whole inside a 320px viewport, scaled rather than cut off": a focus wait
+  timed out, then its retry did. The deploy for that commit did not happen, and
   re-running the failed job on an idle machine passed. The cause was in the
   test: its Escape went to the search box rather than the panel, and the
   debounced re-filter landed during the next steps under load (6 and 7 of 40
   runs failed at a load average of 40-56; none of 40 with only
-  `deno task test:coverage` running beside it). Two page defects at a 320px
-  viewport sit behind that test, and a separate pull request fixes them. Merges
-  are made one run at a time since: push when no other run is in flight, and
-  wait for `main`'s run through "Deploy to Fly.io" before the next push.
+  `deno task test:coverage` running beside it). Behind it were two page defects
+  at a 320px viewport, both fixed since: a panel that Escape closed from under
+  the resting pointer reopened as if hovered, and a panel opened by native
+  activation (a click, a tap, Enter or Space) was not fitted. The test now
+  focuses the trigger before Escape and checks that Enter opens the panel by
+  the keyboard route, and it no longer depends on the load: at a load average
+  of 40-60 it passed 120 of 120 runs on Chromium and Firefox and 598 of 600 on
+  WebKit, whose two failures came before the steps the fix concerns. Merges are
+  still made one run at a time: push when no other run is in flight, and wait
+  for `main`'s run through "Deploy to Fly.io" before the next push.
 - **After upgrading `@playwright/test`, re-run the provisioning script with the
   new `PLAYWRIGHT_VERSION`.** The workflow passes `--with-deps` only on GitHub's
   runners, because a self-hosted one has no sudo. A newer Chromium needing a

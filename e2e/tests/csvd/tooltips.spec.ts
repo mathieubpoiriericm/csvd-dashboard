@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 import { rows, tooltip } from "../../helpers.ts";
 
 /**
@@ -18,6 +18,86 @@ import { rows, tooltip } from "../../helpers.ts";
  * so the *absence* of `.tooltip-box` is a meaningful assertion in its own
  * right, and the sharpest test of the lookup maps.
  */
+
+/**
+ * LAMB1's "Morel, H., et al. (2023)" reference, whose panel is too tall for a
+ * 320×320 viewport at any width, with the page reloaded at that size. The
+ * panel is addressed by id, not by `.is-placed`, so it can be asked about
+ * closed.
+ */
+async function longPanelAt320(page: Page) {
+  await page.setViewportSize({ width: 320, height: 320 });
+  await page.reload();
+  await page.getByRole("searchbox", { name: "Search genes" }).fill("LAMB1");
+  await expect(rows(page)).toHaveCount(1);
+  const trigger = rows(page).first().locator(".tooltip-box").filter({
+    hasText: "Morel",
+  });
+  const panel = page.locator(
+    `[popover][id="${await trigger.getAttribute("popovertarget")}"]`,
+  );
+  return { trigger, panel };
+}
+
+/**
+ * Keeps the `source` of the panel's latest `beforetoggle`: its trigger when
+ * native activation (a click, a tap, Enter or Space) opened it, null when the
+ * hover route's `showPopover()` did.
+ */
+async function recordOpener(panel: Locator) {
+  await panel.evaluate((pop) => {
+    pop.addEventListener("beforetoggle", (event) => {
+      const { source } = event as Event & { source?: Element | null };
+      (pop as HTMLElement & { lastSource?: Element | null }).lastSource =
+        source ?? null;
+    });
+  });
+}
+
+async function openedByActivation(panel: Locator, trigger: Locator) {
+  return panel.evaluate(
+    (pop, button) =>
+      (pop as HTMLElement & { lastSource?: Element | null }).lastSource ===
+        button,
+    await trigger.elementHandle(),
+  );
+}
+
+/**
+ * The long panel fitted to 320×320: inside the viewport, and, too tall at
+ * any width, its body scaled down with every line inside the panel and
+ * nothing scrolled. Returns its size and scale, to compare two routes.
+ */
+async function expectFitted(panel: Locator) {
+  const box = await panel.boundingBox();
+  expect(box).not.toBeNull();
+  expect(box!.x).toBeGreaterThanOrEqual(7);
+  expect(box!.x + box!.width).toBeLessThanOrEqual(313);
+  expect(box!.y).toBeGreaterThanOrEqual(7);
+  expect(box!.y + box!.height).toBeLessThanOrEqual(313);
+
+  const body = await panel.locator(".tooltip-pop-body").evaluate((
+    element,
+  ) => ({
+    clientHeight: element.clientHeight,
+    scrollHeight: element.scrollHeight,
+    overflowY: getComputedStyle(element).overflowY,
+    overflowWrap: getComputedStyle(element).overflowWrap,
+    zoom: Number(getComputedStyle(element).zoom),
+  }));
+  expect(body.scrollHeight).toBeLessThanOrEqual(body.clientHeight);
+  expect(body.overflowY).toBe("visible");
+  expect(body.overflowWrap).toBe("anywhere");
+  expect(body.zoom).toBeLessThan(1);
+
+  const linkBox = await panel.getByRole("link", { name: "View on PubMed" })
+    .boundingBox();
+  expect(linkBox).not.toBeNull();
+  expect(linkBox!.y + linkBox!.height).toBeLessThanOrEqual(
+    box!.y + box!.height,
+  );
+  return { width: box!.width, height: box!.height, zoom: body.zoom };
+}
 
 test.describe("gene tooltips", () => {
   test.beforeEach(async ({ page }) => {
@@ -139,53 +219,94 @@ test.describe("gene tooltips", () => {
     expect(body.zoom).toBe(1);
   });
 
+  /**
+   * Both routes into a long panel at 320×320. Fitted, the panel covers its
+   * trigger's centre, where the pointer rests after hovering it, so Escape
+   * closes it from under the pointer. That departure is not a fresh hover:
+   * the panel stays closed, and Enter opens it by the keyboard route, fitted
+   * exactly as the hover route fitted it.
+   */
   test("a long popover fits whole inside a 320px viewport, scaled rather than cut off", async ({ page }) => {
-    await page.setViewportSize({ width: 320, height: 320 });
-    await page.reload();
-    await page.getByRole("searchbox", { name: "Search genes" }).fill("LAMB1");
-    await expect(rows(page)).toHaveCount(1);
-
-    const trigger = rows(page).first().locator(".tooltip-box").filter({
-      hasText: "Morel",
-    });
-    await trigger.hover();
-    const panel = tooltip(page);
-    await expect(panel).toBeVisible();
-
-    const box = await panel.boundingBox();
-    expect(box).not.toBeNull();
-    expect(box!.x).toBeGreaterThanOrEqual(7);
-    expect(box!.x + box!.width).toBeLessThanOrEqual(313);
-    expect(box!.y).toBeGreaterThanOrEqual(7);
-    expect(box!.y + box!.height).toBeLessThanOrEqual(313);
-
-    // Too tall for 320px at any width, so the body is scaled down; every
-    // line of it is inside the panel and nothing scrolls.
-    const body = panel.locator(".tooltip-pop-body");
-    const dimensions = await body.evaluate((element) => ({
-      clientHeight: element.clientHeight,
-      scrollHeight: element.scrollHeight,
-      overflowY: getComputedStyle(element).overflowY,
-      overflowWrap: getComputedStyle(element).overflowWrap,
-      zoom: Number(getComputedStyle(element).zoom),
-    }));
-    expect(dimensions.scrollHeight).toBeLessThanOrEqual(dimensions.clientHeight);
-    expect(dimensions.overflowY).toBe("visible");
-    expect(dimensions.overflowWrap).toBe("anywhere");
-    expect(dimensions.zoom).toBeLessThan(1);
-
+    const { trigger, panel } = await longPanelAt320(page);
+    const isOpen = () =>
+      panel.evaluate((element) => element.matches(":popover-open"));
     const link = panel.getByRole("link", { name: "View on PubMed" });
-    const linkBox = await link.boundingBox();
-    expect(linkBox).not.toBeNull();
-    expect(linkBox!.y + linkBox!.height).toBeLessThanOrEqual(
-      box!.y + box!.height,
-    );
 
-    await page.keyboard.press("Escape");
+    await trigger.hover();
+    await expect(panel).toHaveClass(/\bis-placed\b/);
+    const byHover = await expectFitted(panel);
+
+    // What makes the rest a test: the panel lies over the trigger's centre,
+    // where hover() left the pointer.
+    const centre = await trigger.evaluate((button) => {
+      const { x, y, width, height } = button.getBoundingClientRect();
+      const point = [Math.round(x + width / 2), Math.round(y + height / 2)];
+      const top = document.elementFromPoint(point[0], point[1]);
+      const name = top
+        ? `<${top.tagName.toLowerCase()} class="${top.className}">`
+        : "nothing";
+      return {
+        covered: button.nextElementSibling!.contains(top),
+        found: `${name} at ${point.join(",")}`,
+      };
+    });
+    expect(centre.covered, `the trigger's centre: ${centre.found}`).toBe(true);
+
+    // Tab reaches the link in DOM order whichever route opened the panel, so
+    // the route is checked by `ToggleEvent.source`.
+    await recordOpener(panel);
+
+    // Focus the trigger first: Escape in the search box clears the field
+    // instead, and the re-filter replaces the rows under the pointer.
     await trigger.focus();
+    await page.keyboard.press("Escape");
+    await expect.poll(isOpen).toBe(false);
+    // The page opens a hovered panel after 120ms (OPEN_DELAY_MS in
+    // components/Tooltip.tsx). Wait well past it: had the panel's departure
+    // from under the pointer counted as a hover, it would be open again.
+    await page.waitForTimeout(500);
+    expect(await isOpen()).toBe(false);
+
     await page.keyboard.press("Enter");
+    await expect(panel).toHaveClass(/\bis-placed\b/);
+    expect(await openedByActivation(panel, trigger)).toBe(true);
+    expect(await expectFitted(panel)).toEqual(byHover);
+
     await page.keyboard.press("Tab");
     await expect(link).toBeFocused();
+
+    // Closed again, it opens on hover once the pointer has left the tooltip
+    // and come back.
+    await page.keyboard.press("Escape");
+    await expect.poll(isOpen).toBe(false);
+    await page.getByRole("heading", { level: 1 }).hover();
+    await trigger.hover();
+    await expect(panel).toHaveClass(/\bis-placed\b/);
+  });
+
+  // A click opens the panel by native activation, as Enter does, and it is
+  // fitted once shown.
+  test("a click fits a long popover inside a 320px viewport", async ({ page }) => {
+    const { trigger, panel } = await longPanelAt320(page);
+    await recordOpener(panel);
+    await trigger.click();
+    await expect(panel).toHaveClass(/\bis-placed\b/);
+    expect(await openedByActivation(panel, trigger)).toBe(true);
+    await expectFitted(panel);
+  });
+
+  test.describe("on a touch screen", () => {
+    test.use({ hasTouch: true });
+
+    // On a phone a tap is the only way in, and it too is native activation.
+    test("a tap fits a long popover inside a 320px viewport", async ({ page }) => {
+      const { trigger, panel } = await longPanelAt320(page);
+      await recordOpener(panel);
+      await trigger.tap();
+      await expect(panel).toHaveClass(/\bis-placed\b/);
+      expect(await openedByActivation(panel, trigger)).toBe(true);
+      await expectFitted(panel);
+    });
   });
 
   test("a rapid close cannot be undone by stale positioning", async ({ page }) => {

@@ -35,10 +35,23 @@ frozen. Three things about the arrangement are load-bearing:
 Positioning is the only part left to JavaScript; CSS anchor positioning would do
 it declaratively but sits at ~84% support.
 
+**A trigger's own panel is not a hover.** The controller opens a panel only when
+the pointer enters its tooltip from outside, judged by the tooltip the pointer
+last entered rather than by `relatedTarget` (WebKit gives none when a panel
+leaves from under the pointer), so a panel that Escape closes from under the
+resting pointer, as at 320px where the fitted panel covers its trigger, stays
+closed until the pointer leaves and comes back, and Enter opens it by the
+keyboard route.
+
 **A panel never scrolls and never cuts content off.** `fitToViewport()` in
 `components/Tooltip.tsx` widens a panel too tall for the viewport, sets short
 rows in columns, and as a last resort scales the body down with `zoom`, before
 Floating UI places it anywhere in the viewport (`flip` to four sides, `shift`
 with `crossAxis`). Hiding a scrollbar is not a fix: content behind it is still
 cut off. `zoom` sits on `.tooltip-pop-body`, never on the panel, which carries
-the `left`/`top` Floating UI writes.
+the `left`/`top` Floating UI writes. The fit runs only on a shown panel: on
+native activation (a click, a tap, Enter or Space) the panel can be rendered
+before it is shown (in Chromium and WebKit always, in Firefox on a click), so
+`position()` measures nothing while it is hidden (a hidden panel is 0×0, and
+recording that as fitted left the shown one cut off) and runs again on the
+panel's `toggle` event.
