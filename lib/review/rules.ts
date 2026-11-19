@@ -34,9 +34,8 @@ export interface Tally {
  * The table itself is `standing.bend`, its laws proved in `/PROOF.bend`; these
  * functions run the module Bend generates from it (`deno task bend:build`).
  * The module refuses a count that is not a whole number from 0 up: it throws
- * rather than answer. `standingOf` passes the four counts, so each is refused
- * unless it is a whole number from 0 up; `settlesAt` passes only the sum of
- * accept, reject and outstanding, so only that sum is checked. The refusal is a
+ * rather than answer. `standingOf` and `settlesAt` both pass the four counts,
+ * so each is refused unless it is a whole number from 0 up. The refusal is a
  * thrown string, not an `Error`, which is why the test uses try/catch and not
  * `assertThrows`.
  */
@@ -48,6 +47,7 @@ const bend = generated as unknown as {
     out: number,
   ): { $: string };
   needed(of: number): number;
+  needed_for(acc: number, rej: number, abs: number, out: number): number;
 };
 
 const STANDINGS: Record<string, Standing> = {
@@ -71,8 +71,9 @@ export function standingOf(tally: Tally): Standing {
 
 /** Two thirds of those not abstaining: `needed` votes of `of`. */
 export function settlesAt(tally: Tally): { needed: number; of: number } {
-  const of = tally.accept + tally.reject + tally.outstanding;
-  return { needed: bend.needed(of), of };
+  const { accept, reject, abstain, outstanding } = tally;
+  const of = accept + reject + outstanding;
+  return { needed: bend.needed_for(accept, reject, abstain, outstanding), of };
 }
 
 export interface GeneReview {

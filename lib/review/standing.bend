@@ -56,3 +56,21 @@ def needed(of: Nat) -> Nat:
       2n
     case 3n+p:
       2n+needed(p)
+
+# needed, counted with a running total so the generated code loops instead of
+# recursing: needed_from(of, k) is needed(of) + k.
+def needed_from(of: Nat, k: Nat) -> Nat:
+  match of:
+    case 0n:
+      k
+    case 1n:
+      1n+k
+    case 2n:
+      2n+k
+    case 3n+p:
+      needed_from(p, 2n+k)
+
+# What the page prints: needed of those not abstaining. The abstainers are
+# taken so that all four counts are checked at the boundary.
+def needed_for(acc: Nat, rej: Nat, abs: Nat, out: Nat) -> Nat:
+  needed_from(Nat.add(acc, Nat.add(rej, out)), 0n)

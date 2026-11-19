@@ -12,7 +12,8 @@
 # A def may only call the ones above it, so the file goes lemmas first, and
 # the laws in the order they lean on one another: law 2 (exclusive rows), law 5
 # (the table is the definition), law 1 (finality), law 3 (needed), law 4 (the
-# settling point), law 6 (unopposed is never adverse).
+# settling point), law 6 (unopposed is never adverse), law 7 (the settling
+# point the page prints).
 #
 # a, r, b, o: the members accepting, rejecting, abstaining and outstanding.
 
@@ -1050,3 +1051,30 @@ def Laws.unopposed_is_never_adverse(a, o):
       {==}
     case 1n+p:
       unopposed_pick(False{}, Nat.is_ge(1n+p, Nat.double(o)))
+
+# ---------------------------------------------------------------------------
+# Law 7. The settling point the page prints.
+#
+# needed_from carries a running total where needed adds two on the way back,
+# so needed_from(n, k) is needed(n) + k: an induction three members at a time,
+# like law 3's, with the total left free so that the induction hypothesis can
+# be taken at two more. The law is the case k = 0.
+# ---------------------------------------------------------------------------
+
+# needed(n) + k is needed_from(n, k).
+def needed_from_adds(+n: Nat, +k: Nat) -> {Nat.add(S.needed(n), k) == S.needed_from(n, k) : Nat}:
+  match n:
+    case 0n:
+      {==}
+    case 1n:
+      {==}
+    case 2n:
+      {==}
+    case 3n+p:
+      %needed_from_adds(p, 2n+k) : {2n+Nat.add(S.needed(p), k) == _ : Nat}
+      add_two_r(S.needed(p), k)
+
+def Laws.needed_for_is_needed(a, r, b, o):
+  %needed_from_adds(Nat.add(a, Nat.add(r, o)), 0n) : {_ == S.needed(Nat.add(a, Nat.add(r, o))) : Nat}
+  %add_zero_r(S.needed(Nat.add(a, Nat.add(r, o)))) : {_ == S.needed(Nat.add(a, Nat.add(r, o))) : Nat}
+  {==}

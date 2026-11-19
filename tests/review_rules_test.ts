@@ -193,6 +193,24 @@ Deno.test("a tally that is not whole numbers is refused, not answered", () => {
 Deno.test("a committee of thousands still has a settling point", () =>
   assertEquals(settlesAt(t(1000, 1000, 5, 1000)), { needed: 2000, of: 3000 }));
 
+Deno.test("settlesAt refuses a tally whose counts are not whole numbers", () => {
+  for (const bad of [t(-1, 2, 0, 0), t(0.5, 0.5, 0, 0), t(0, 0, -3, 0)]) {
+    let refused = false;
+    try {
+      settlesAt(bad);
+    } catch {
+      refused = true;
+    }
+    assert(refused, `settlesAt answered for ${JSON.stringify(bad)}`);
+  }
+});
+
+Deno.test("a committee of a million still has a settling point", () =>
+  assertEquals(settlesAt(t(1_000_000, 0, 0, 0)), {
+    needed: 666_667,
+    of: 1_000_000,
+  }));
+
 Deno.test("only voters vote", () => {
   assertEquals(votes(accounts[0]), true);
   assertEquals(votes(accounts[1]), true);
