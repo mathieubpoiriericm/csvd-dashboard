@@ -27,6 +27,7 @@ import { glossaryGaps } from "../../lib/acronyms.ts";
 import { GENERIC_ACRONYMS } from "../../lib/constants.ts";
 import { resolveAcronyms } from "../../lib/disease/acronyms.ts";
 import { sampleGene } from "../fixtures/rows.ts";
+import { seeded } from "../helpers/seeded.ts";
 import { FORK_HARD } from "./fixtures/fork_hard.ts";
 
 const readSchema = async (name: string): Promise<Schema> =>
@@ -70,6 +71,65 @@ Deno.test("wrap80 breaks prose at spaces before column 81 and keeps blank lines"
     const lines = wrap80(prose).split("\n");
     assertEquals(lines, [`${"a".repeat(77)} x ${marker}`, "carriers."]);
   }
+});
+
+// RFC 4180 section 2, written from the RFC: a field is plain or, between
+// double quotes, holds commas, line breaks and "" for a quote. Each field
+// comes back with whether it was quoted.
+function readCsvRecord(text: string): { value: string; quoted: boolean }[] {
+  const fields: { value: string; quoted: boolean }[] = [];
+  let value = "";
+  let quoted = false;
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c !== '"') value += c;
+      else if (text[i + 1] === '"') value += text[++i];
+      else inQuotes = false;
+    } else if (c === '"' && value === "" && !quoted) {
+      inQuotes = quoted = true;
+    } else if (c === ",") {
+      fields.push({ value, quoted });
+      value = "";
+      quoted = false;
+    } else value += c;
+  }
+  assert(!inQuotes, "a quoted field is never left open");
+  fields.push({ value, quoted });
+  return fields;
+}
+
+Deno.test("csvLine round-trips 2,000 seeded rows through an RFC 4180 reader", () => {
+  const alphabet = ["a", ",", '"', "\n", "\r", " ", "é"];
+  const seed = 4180;
+  const next = seeded(seed);
+  const pick = (n: number) => Math.floor(next() * n);
+  let plain = 0;
+  let special = 0;
+  const rows: string[][] = [[""]]; // a row of one empty field, always
+  while (rows.length < 2000) {
+    rows.push(Array.from({ length: 1 + pick(9) }, () => {
+      if (pick(5) === 0) return "";
+      return Array.from({ length: 1 + pick(6) }, () => alphabet[pick(7)])
+        .join("");
+    }));
+  }
+  rows.forEach((row, step) => {
+    const where = `seed ${seed}, row ${step}: ${JSON.stringify(row)}`;
+    const parsed = readCsvRecord(csvLine(row));
+    assertEquals(parsed.map((f) => f.value), row, where);
+    // A field with none of , " CR LF is not quoted; one with any is.
+    parsed.forEach((f, i) => {
+      const needs = /[",\r\n]/.test(row[i]);
+      assertEquals(f.quoted, needs, `field ${i}: ${where}`);
+      if (needs) special++;
+      else plain++;
+    });
+  });
+  assertEquals(csvLine([""]), "");
+  assert(plain > 500, `plain fields reached: ${plain}`);
+  assert(special > 500, `fields needing quotes reached: ${special}`);
 });
 
 Deno.test("the generated manifest validates against the schema and normalises", async () => {
