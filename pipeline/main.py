@@ -205,6 +205,7 @@ import traceback
 from collections.abc import Awaitable, Callable, Iterable, Sequence
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
+from enum import Enum
 from typing import Any, Final, Literal, cast
 
 ProgressStatus = Literal["running", "completed", "error"]
@@ -1111,8 +1112,17 @@ async def process_paper(
             # Paid for and not wrong, so kept for the next run to validate;
             # the paper still fails for this one. Without *stored* the run
             # writes nothing. No *served* means no model ran, which only
-            # blank text produces: no genes, so no outage to reach here.
-            if stored is not None and exc.served is not None:
+            # blank text produces: no genes, so no outage to reach here. A
+            # failed append leaves it no home on this path, and `keep` logs
+            # that; a fallback's answer is asked about as an extraction.
+            if (
+                stored is not None
+                and exc.served is not None
+                and _disposition(
+                    _Outcome.EXTRACTED, _Validation.NCBI_OUTAGE, batched=False
+                )
+                is _Home.UNVALIDATED
+            ):
                 stored.keep(
                     _UnvalidatedPaper.answered(pmid, text, exc.genes, exc.served)
                 )
@@ -1879,6 +1889,105 @@ def _restored_paper(
     )
 
 
+class _Outcome(Enum):
+    """How a paper came to the question of where its answer lives."""
+
+    # Its text could not be fetched: nothing was asked.
+    FETCH_FAILED = "fetch failed"
+    # Processed with nothing to extract from: nothing was asked.
+    NO_TEXT = "no text"
+    # A fresh answer from the request the paper went out in: a streaming
+    # request's, whichever model served it (the server-side fallback and
+    # `extract`'s own hand-over included), or a batch entry's.
+    EXTRACTED = "extracted"
+    # The fallback model's answer to a paper the batch's model declined,
+    # from the request `_rescue_refused_batch_paper` sends.
+    RESCUED = "rescued"
+    # An answer an earlier run paid for and stored unvalidated.
+    REPLAYED = "replayed"
+    # No usable answer: an extraction that failed or both models declined,
+    # or a batch entry with no result.
+    NO_ANSWER = "no answer"
+    # The rescue's request failed before the fallback answered or declined,
+    # so the batch's refusal is what there is to collect.
+    RESCUE_FAILED = "rescue failed"
+
+
+# The outcomes that bring an answer to validate.
+_ANSWERS: Final = frozenset({_Outcome.EXTRACTED, _Outcome.RESCUED, _Outcome.REPLAYED})
+
+
+class _Validation(Enum):
+    """How an answer's validation ended."""
+
+    HELD = "held"
+    NCBI_OUTAGE = "NCBI outage"
+    # Any other failure, which the same answer would meet on every run.
+    OWN_FAILURE = "its own failure"
+
+
+class _Home(Enum):
+    """Where a paper's answer lives once its run has decided."""
+
+    FINISHED = "finished checkpoint record"
+    UNVALIDATED = "unvalidated checkpoint record"
+    BATCH_RECORD = "batch record"
+    # Kept nowhere: the next run whose window covers it extracts it afresh.
+    NONE = "none"
+
+
+def _disposition(
+    outcome: _Outcome,
+    validation: _Validation | None = None,
+    *,
+    batched: bool,
+    checkpointing: bool = True,
+    append_ok: bool = True,
+) -> _Home:
+    """Where the paper's answer lives: the one place either path decides it.
+
+    Pure: the call sites make the append, the removal or the batch-record
+    entry the home names. They ask with *append_ok* left true for where the
+    answer goes, and again with it false when that append failed. Each
+    case is checked against the law in `test_answer_disposition.py`.
+
+    *validation* is None exactly when the outcome brought no answer; any
+    other pairing is a question no run asks, and raises ValueError.
+    *batched* is the ``--batch`` path, the one with a batch record.
+    *checkpointing* is false for a run that writes nothing: a dry run,
+    test mode or an offline mode.
+
+    A replay whose validation held and whose finished append failed is
+    decided as any held answer is, but its stored record is not removed
+    (`_StoredAnswers.settle` asks before the append), so the next run
+    replays it.
+    """
+    if (validation is None) is (outcome in _ANSWERS):
+        raise ValueError(f"no run asks about {outcome.value} with {validation}")
+    if not checkpointing:
+        return _Home.NONE
+    # Where a paper goes when nothing better holds it: the batch record on
+    # the path that has one. The streaming path has no other copy.
+    kept_if_batched = _Home.BATCH_RECORD if batched else _Home.NONE
+    if outcome in (_Outcome.FETCH_FAILED, _Outcome.RESCUE_FAILED):
+        # Something outside the paper failed: whatever a batch holds for
+        # it, an answer or the refusal a rescue was for, is still owed.
+        return kept_if_batched
+    if outcome is _Outcome.NO_ANSWER or validation is _Validation.OWN_FAILURE:
+        return _Home.NONE
+    if outcome is _Outcome.NO_TEXT or validation is _Validation.HELD:
+        return _Home.FINISHED if append_ok else kept_if_batched
+    # An NCBI outage, which says nothing against the answer: it keeps the
+    # home it already has.
+    if outcome is _Outcome.REPLAYED:
+        return _Home.UNVALIDATED
+    if outcome is _Outcome.EXTRACTED and batched:
+        # The batch's own answer, which the batch record holds for nothing.
+        return _Home.BATCH_RECORD
+    # Paid at the streaming rate, and held nowhere else.
+    return _Home.UNVALIDATED if append_ok else kept_if_batched
+
+
 @dataclass
 class _UnvalidatedPaper:
     """A paper's paid answer that NCBI did not validate.
@@ -2028,16 +2137,31 @@ class _StoredAnswers:
         current_tally().record_dropped(answer.pmid, answer.dropped)
         return ServedBy(model=answer.extraction_model, declined=answer.refusal)
 
-    def settle(self, pmid: str, *, held: bool, ncbi_outage: bool = False) -> None:
-        """What becomes of a replayed paper's record once validation decided."""
+    def settle(
+        self, pmid: str, *, held: bool, ncbi_outage: bool = False, batched: bool
+    ) -> None:
+        """What becomes of a replayed paper's record once validation decided.
+
+        Asked before the hook's append is known, so a replay whose finished
+        append failed keeps its record, and the next run replays it.
+        """
         if held:
-            # Checkpointed as a finished paper now; the stored answer goes
-            # with the paper's merge.
             self.validated.append(pmid)
-            return
-        if ncbi_outage:
-            # Still owed: the record already holds the answer for the run
-            # after this one, so it is not written twice.
+        validation = (
+            _Validation.HELD
+            if held
+            else _Validation.NCBI_OUTAGE
+            if ncbi_outage
+            else _Validation.OWN_FAILURE
+        )
+        if (
+            _disposition(_Outcome.REPLAYED, validation, batched=batched)
+            is not _Home.NONE
+        ):
+            # Held: checkpointed as a finished paper now; the stored answer
+            # goes with the paper's merge. An NCBI outage: still owed, and
+            # the record already holds the answer for the run after this
+            # one, so it is not written twice.
             return
         # Any other failure is the stored answer's own and would recur on
         # every run, so it is dropped and the next run extracts the paper
@@ -2101,9 +2225,10 @@ async def _validate_stored_answer(
             answer.pmid,
             held=False,
             ncbi_outage=isinstance(exc, NcbiUnavailableError),
+            batched=False,
         )
         raise
-    stored.settle(answer.pmid, held=True)
+    stored.settle(answer.pmid, held=True, batched=False)
     return outcome
 
 
@@ -2233,14 +2358,27 @@ def _paper_finished_hook(
     papers are still what its report is about.
     """
     run_fingerprint = checkpoint.fingerprint(config)
+    batched = unsaved is not None
 
     def on_complete(result: PaperResult, paper_metrics: PipelineMetrics) -> None:
         collected.append(result)
         # Only successes are checkpointed. A failed paper is never written
         # to pubmed_refs, so the next run retries it; checkpointing one
         # would instead restore the failure on resume and retire the paper
-        # without ever extracting it.
-        if not checkpointing or not result.succeeded:
+        # without ever extracting it. A finished result does not say how
+        # its answer was got -- extracted, rescued, replayed, or no text to
+        # ask about -- and every one of those has the same home, so it is
+        # asked about as an extraction that held.
+        if (
+            not result.succeeded
+            or _disposition(
+                _Outcome.EXTRACTED,
+                _Validation.HELD,
+                batched=batched,
+                checkpointing=checkpointing,
+            )
+            is not _Home.FINISHED
+        ):
             return
         # Best effort: a checkpoint that cannot be written leaves the run
         # exactly as exposed as it was before there was one, which is not
@@ -2261,7 +2399,16 @@ def _paper_finished_hook(
                 result.pmid,
                 exc_info=True,
             )
-            if unsaved is not None:
+            if (
+                unsaved is not None
+                and _disposition(
+                    _Outcome.EXTRACTED,
+                    _Validation.HELD,
+                    batched=batched,
+                    append_ok=False,
+                )
+                is _Home.BATCH_RECORD
+            ):
                 unsaved.add(result.pmid)
 
     return on_complete
@@ -2587,6 +2734,13 @@ async def _process_new_pmids_via_batch(
     # expired, so it comes off and is submitted afresh, as the streaming
     # path would re-extract it.
     still_owed: set[str] = set()
+
+    def keep_on_record(pmid: str, home: _Home, reason: set[str]) -> None:
+        # What a batch-record home asks of this path: the paper stays out
+        # of `batch_state.forget` below. Every other home leaves it to go.
+        if home is _Home.BATCH_RECORD:
+            reason.add(pmid)
+
     for pmid, outcome in zip(pending, fetched, strict=True):
         if isinstance(outcome, BaseException):
             # One paper's fetch failure must not abort the whole batch —
@@ -2595,7 +2749,13 @@ async def _process_new_pmids_via_batch(
             # run's list directly rather than through the checkpoint hook.
             logger.error(f"  Error fetching text for PMID {pmid}: {outcome}")
             collected.append(PaperResult(pmid=pmid, error=str(outcome)))
-            still_owed.add(pmid)
+            keep_on_record(
+                pmid,
+                _disposition(
+                    _Outcome.FETCH_FAILED, batched=True, checkpointing=use_checkpoint
+                ),
+                still_owed,
+            )
             continue
         text, fulltext, source = outcome
         if not text:
@@ -2682,8 +2842,16 @@ async def _process_new_pmids_via_batch(
             # off the record.
             current_tally().discard(pmid)
             collected.append(result)
-            if ncbi_outage:
-                still_owed.add(pmid)
+            keep_on_record(
+                pmid,
+                _disposition(
+                    _Outcome.EXTRACTED,
+                    _Validation.NCBI_OUTAGE if ncbi_outage else _Validation.OWN_FAILURE,
+                    batched=True,
+                    checkpointing=use_checkpoint,
+                ),
+                still_owed,
+            )
 
     # A batch entry cannot fall back, so a paper the batch's model declined
     # is sent to the fallback model here, in the same run, rather than
@@ -2718,8 +2886,25 @@ async def _process_new_pmids_via_batch(
             # The request failed, not the paper: the batch's refusal is
             # still retrievable for nothing, and off the record the next
             # run would pay for a new entry the primary declines again.
-            still_owed.add(pmid)
-        if unvalidated is None or not use_checkpoint:
+            keep_on_record(
+                pmid,
+                _disposition(
+                    _Outcome.RESCUE_FAILED, batched=True, checkpointing=use_checkpoint
+                ),
+                still_owed,
+            )
+        # A rescue the fallback declined too, or whose answer failed on its
+        # own, has no answer to keep (`unvalidated` is None).
+        if (
+            unvalidated is None
+            or _disposition(
+                _Outcome.RESCUED,
+                _Validation.NCBI_OUTAGE,
+                batched=True,
+                checkpointing=use_checkpoint,
+            )
+            is not _Home.UNVALIDATED
+        ):
             return
         # The fallback answered and NCBI did not, so the answer is kept for
         # the next run to validate: the batch's entry for this paper is a
@@ -2727,7 +2912,16 @@ async def _process_new_pmids_via_batch(
         # entry the primary model declines again and then for this rescue a
         # second time.
         if not stored.keep(unvalidated):
-            unsaved.add(pmid)
+            keep_on_record(
+                pmid,
+                _disposition(
+                    _Outcome.RESCUED,
+                    _Validation.NCBI_OUTAGE,
+                    batched=True,
+                    append_ok=False,
+                ),
+                unsaved,
+            )
 
     async def replay_one(pmid: str) -> None:
         # An answer an earlier run paid for and could not validate, on
@@ -2748,11 +2942,11 @@ async def _process_new_pmids_via_batch(
         if result.succeeded:
             metrics.fold(paper_metrics)
             on_complete(result, paper_metrics)
-            stored.settle(pmid, held=True)
+            stored.settle(pmid, held=True, batched=True)
             return
         current_tally().discard(pmid)
         collected.append(result)
-        stored.settle(pmid, held=False, ncbi_outage=ncbi_outage)
+        stored.settle(pmid, held=False, ncbi_outage=ncbi_outage, batched=True)
 
     rescued_pmids = [
         pmid for pmid in papers if pmid not in genes_by_pmid and pmid in refusals
@@ -2780,7 +2974,10 @@ async def _process_new_pmids_via_batch(
     # checkpoint append failed (`unsaved`), which are stored nowhere else
     # until the merge, and every
     # paper of another window's batch, which is still paid for. A dry run
-    # leaves a real run's record alone, as it leaves its checkpoint.
+    # leaves a real run's record alone, as it leaves its checkpoint. Each
+    # home is `_disposition`'s, entered through `keep_on_record` and the
+    # hook; an entry with no usable answer (`_Outcome.NO_ANSWER`, below)
+    # has none, so it is left out by never being added.
     if use_checkpoint:
         kept = still_owed | unsaved
         batch_state.forget(
