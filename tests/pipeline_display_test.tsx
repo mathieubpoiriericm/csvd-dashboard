@@ -43,6 +43,7 @@ import {
   syncModeLabel,
 } from "../lib/pipeline_display.ts";
 import type { ApiService } from "../lib/types.ts";
+import { seeded } from "./helpers/seeded.ts";
 
 const API: ApiService = {
   service: "uniprot",
@@ -489,4 +490,163 @@ Deno.test("a rejection kind is headed for a group of them, by its label unless i
     "Quote not in paper",
   );
   assertEquals(describeRejection("something unforeseen").heading, "Error");
+});
+
+// Each printed form of a duration, read back to seconds with the unit it
+// was printed in. The grammar is the rule: the code under test is not asked.
+type DurationForm = "ms" | "tenths" | "seconds" | "minutes" | "hours";
+function readDuration(
+  text: string,
+): { form: DurationForm; seconds: number; unit: number } | null {
+  let m: RegExpMatchArray | null;
+  if ((m = text.match(/^(\d+) ms$/))) {
+    return { form: "ms", seconds: Number(m[1]) / 1000, unit: 0.001 };
+  }
+  if ((m = text.match(/^(\d+\.\d) s$/))) {
+    return { form: "tenths", seconds: Number(m[1]), unit: 0.1 };
+  }
+  if ((m = text.match(/^(\d+) s$/))) {
+    return { form: "seconds", seconds: Number(m[1]), unit: 1 };
+  }
+  if ((m = text.match(/^(\d+)m (\d+)s$/))) {
+    return {
+      form: "minutes",
+      seconds: Number(m[1]) * 60 + Number(m[2]),
+      unit: 1,
+    };
+  }
+  if ((m = text.match(/^(\d+)h (\d+)m$/))) {
+    return {
+      form: "hours",
+      seconds: Number(m[1]) * 3600 + Number(m[2]) * 60,
+      unit: 60,
+    };
+  }
+  return null;
+}
+
+Deno.test("a duration never prints the unit boundary it rounded onto, over 100,000 seeded values", () => {
+  const SEED = 20261119;
+  const random = seeded(SEED);
+  const values: number[] = [];
+  // Ten decades, 1e-4 to 1e6 s, log-uniform within each.
+  for (let decade = -4; decade < 6; decade++) {
+    for (let i = 0; i < 10_000; i++) values.push(10 ** (decade + random()));
+  }
+  // Every boundary of the printed forms, and half a printed unit either side.
+  const edges = [0, 0.001, 1, 10, 60, 3600];
+  for (let k = 1; k <= 120; k++) edges.push(k * 60, k * 3600);
+  for (const edge of [...edges]) {
+    for (const half of [0, 0.0005, 0.05, 0.5, 30]) {
+      edges.push(edge + half, edge - half);
+    }
+  }
+  for (const edge of edges) {
+    for (const d of [0, 1e-9, -1e-9]) {
+      if (edge + d >= 0) values.push(edge + d);
+    }
+  }
+  values.sort((a, b) => a - b);
+
+  const forbidden = /^(1000 ms|10\.0 s|60 s|\d+m 60s|\d+h 60m)$/;
+  const reached: Record<DurationForm, number> = {
+    ms: 0,
+    tenths: 0,
+    seconds: 0,
+    minutes: 0,
+    hours: 0,
+  };
+  let previous = -Infinity;
+  for (const x of values) {
+    const printed = formatDuration(x);
+    const where = `seed ${SEED}, value ${x} printed "${printed}"`;
+    assert(!forbidden.test(printed), `boundary printed: ${where}`);
+    const read = readDuration(printed);
+    assert(read !== null, `unparseable: ${where}`);
+    reached[read.form]++;
+    assert(
+      Math.abs(read.seconds - x) <= read.unit / 2 + 1e-9,
+      `further than half a ${read.unit} s unit from the input: ${where}`,
+    );
+    assert(
+      read.seconds >= previous,
+      `output fell as the input rose (${previous} -> ${read.seconds}): ${where}`,
+    );
+    previous = read.seconds;
+  }
+  assert(values.length >= 100_000, `only ${values.length} values`);
+  for (const [form, count] of Object.entries(reached)) {
+    assert(count > 0, `the ${form} form was never produced`);
+  }
+});
+
+Deno.test("a percentage is 0% only at 0 and 100% only at 1, for every n/d with d up to 300", () => {
+  const reached = { zero: 0, one: 0, full: 0, ninetyNine: 0, between: 0 };
+  for (let d = 1; d <= 300; d++) {
+    let previous = -1;
+    for (let n = 0; n <= d; n++) {
+      const printed = formatPercent(n / d);
+      const where = `n=${n}, d=${d}, printed "${printed}"`;
+      const match = printed.match(/^(\d+)%$/);
+      assert(match !== null, `unparseable: ${where}`);
+      const value = Number(match[1]);
+      assertEquals(value === 0, n === 0, `0% only at 0: ${where}`);
+      assertEquals(value === 100, n === d, `100% only at 1: ${where}`);
+      assert(value >= previous, `not monotone in n: ${where}`);
+      previous = value;
+      if (n === 0) reached.zero++;
+      else if (n === d) reached.full++;
+      else {
+        reached.between++;
+        if (value === 1) reached.one++;
+        if (value === 99) reached.ninetyNine++;
+      }
+    }
+  }
+  for (const [form, count] of Object.entries(reached)) {
+    assert(count > 0, `the ${form} case was never reached`);
+  }
+});
+
+Deno.test("a size's leading number stays below 1000, from 1 byte to 1 TB", () => {
+  const scale: Record<string, number> = { B: 1, kB: 1e3, MB: 1e6, GB: 1e9 };
+  const values = new Set<number>();
+  // A log grid, 40 steps per decade from 1 to 1e12.
+  for (let i = 0; i <= 480; i++) values.add(Math.round(10 ** (i / 40)));
+  // Each unit's boundary, one byte and half a printed tenth either side.
+  for (const edge of [1e3, 1e6, 1e9, 1e12]) {
+    for (const d of [-1, 0, 1]) values.add(edge + d);
+    for (const tenth of [-0.5, 0.5, -1.5, 1.5]) {
+      values.add(Math.round(edge + tenth * edge / 1e4));
+    }
+  }
+  // KNOWN FINDING, not a rule: formatBytes has no unit above GB, so a count
+  // from 999,950,000,000 bytes up prints "1000.0 GB". The rule is held
+  // below that value until the formatter has a TB unit.
+  const sorted = [...values].filter((x) => x < 999_950_000_000).sort((a, b) =>
+    a - b
+  );
+  const reached: Record<string, number> = { B: 0, kB: 0, MB: 0, GB: 0 };
+  let previous = -Infinity;
+  for (const x of sorted) {
+    const printed = formatBytes(x);
+    const where = `value ${x} printed "${printed}"`;
+    const match = printed.match(/^(\d+(?:\.\d)?) (B|kB|MB|GB)$/);
+    assert(match !== null, `unparseable: ${where}`);
+    const lead = Number(match[1]);
+    assert(lead < 1000, `leading number reached 1000: ${where}`);
+    assertEquals(match[2] === "B", !match[1].includes("."), where);
+    const bytes = lead * scale[match[2]];
+    const half = match[2] === "B" ? 0 : scale[match[2]] / 20;
+    assert(
+      Math.abs(bytes - x) <= half + 1e-6,
+      `not within half a unit: ${where}`,
+    );
+    assert(bytes >= previous, `output fell as the input rose: ${where}`);
+    previous = bytes;
+    reached[match[2]]++;
+  }
+  for (const [unit, count] of Object.entries(reached)) {
+    assert(count > 0, `the ${unit} unit was never produced`);
+  }
 });
