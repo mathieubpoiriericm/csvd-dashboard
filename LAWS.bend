@@ -234,3 +234,12 @@ law needed_for_is_needed:
   for +b: Nat
   for +o: Nat
   {S.needed_for(a, r, b, o) == S.needed(Nat.add(a, Nat.add(r, o))) : Nat}
+
+# 8. The page's two numbers. "Settles at N of the M": N is needed of M, where
+#    M is the count lib/review/rules.ts shows.
+law needed_is_of_those_counted:
+  for +a: Nat
+  for +r: Nat
+  for +b: Nat
+  for +o: Nat
+  {S.needed_for(a, r, b, o) == S.needed(S.not_abstaining(a, r, b, o)) : Nat}
