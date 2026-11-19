@@ -42,6 +42,22 @@ Deno.test("csvLine quotes fields holding a comma, a quote, a newline or a CR", (
   assertEquals(csvLine(["a\rb"]), '"a\rb"');
 });
 
+Deno.test("wrap80 keeps a non-list line's own leading spaces on its continuation", () => {
+  const words = Array.from({ length: 20 }, (_, i) => `word${i}xyz`);
+  const line = `  ${words.join(" ")}`;
+  assert(line.length > 80);
+  const lines = wrap80(line).split("\n");
+  assert(lines.length > 1, "the line was not broken");
+  for (const l of lines) {
+    assert(
+      l.startsWith("  ") && !l.startsWith("   "),
+      `not indented by two: ${JSON.stringify(l)}`,
+    );
+    assert(l.length <= 80, `over 80: ${JSON.stringify(l)}`);
+  }
+  assertEquals(lines.join(" ").split(" ").filter(Boolean), words);
+});
+
 Deno.test("wrap80 breaks prose at spaces before column 81 and keeps blank lines", () => {
   const word = "abcdefghi";
   const long = Array(12).fill(word).join(" ");
@@ -201,7 +217,9 @@ Deno.test("wrap80 keeps every word, never starts a line with a block marker, and
         lines.slice(1).forEach((l) => {
           const first = wordsOf(l)[0];
           assert(!opensBlock(first), `block marker opens ${l}: ${where}`);
-          if (line.startsWith("- ")) assert(l.startsWith("  "), where);
+          if (line.startsWith("- ")) {
+            assert(l.startsWith("  "), `continuation not indented: ${where}`);
+          }
         });
         for (const l of lines) {
           // A marker that could not open the next line stays at the end of

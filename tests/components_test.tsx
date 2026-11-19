@@ -508,7 +508,8 @@ Deno.test("Tooltip renders plain children or a stable deferred popover shell", (
 
 Deno.test("pageWindow over every pageCount up to 40 and every pageIndex from -2 past the end", () => {
   let cases = 0;
-  let clamped = 0;
+  let clampedLow = 0;
+  let clampedHigh = 0;
   let empty = 0;
   for (let pageCount = 0; pageCount <= 40; pageCount++) {
     for (let pageIndex = -2; pageIndex <= pageCount + 2; pageIndex++) {
@@ -532,12 +533,16 @@ Deno.test("pageWindow over every pageCount up to 40 and every pageIndex from -2 
       // The window starts three before the current page, held inside the pages.
       const want = Math.min(Math.max(pageIndex - 3, 0), pageCount - span);
       assertEquals(got[0], want, at);
-      if (want !== pageIndex - 3) clamped++;
+      if (want > pageIndex - 3) clampedLow++;
+      if (want < pageIndex - 3) clampedHigh++;
     }
   }
   // 41 counts, pageCount + 5 indices each, and both clamps were reached.
   assertEquals(cases, 41 * 5 + (40 * 41) / 2);
-  assert(empty > 0 && clamped > 0, `empty ${empty}, clamped ${clamped}`);
+  assert(
+    empty > 0 && clampedLow > 0 && clampedHigh > 0,
+    `empty ${empty}, clamped low ${clampedLow}, high ${clampedHigh}`,
+  );
 });
 
 Deno.test("table shell helpers expose every sort state and page-window edge", () => {

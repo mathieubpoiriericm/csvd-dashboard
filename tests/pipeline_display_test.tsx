@@ -548,7 +548,7 @@ Deno.test("a duration never prints the unit boundary it rounded onto, over 100,0
   }
   values.sort((a, b) => a - b);
 
-  const forbidden = /^(1000 ms|10\.0 s|60 s|\d+m 60s|\d+h 60m)$/;
+  const forbidden = /^(1000 ms|10\.0 s|60 s|\d+m 60s|60m \d+s|\d+h 60m)$/;
   const reached: Record<DurationForm, number> = {
     ms: 0,
     tenths: 0,
@@ -594,6 +594,12 @@ Deno.test("a percentage is 0% only at 0 and 100% only at 1, for every n/d with d
       assertEquals(value === 100, n === d, `100% only at 1: ${where}`);
       assert(value >= previous, `not monotone in n: ${where}`);
       previous = value;
+      const exact = (100 * n) / d;
+      assert(
+        Math.abs(value - exact) <= 0.5 + 1e-9 ||
+          (value === 1 && exact < 1) || (value === 99 && exact > 99),
+        `further than half a point: ${where}`,
+      );
       if (n === 0) reached.zero++;
       else if (n === d) reached.full++;
       else {
@@ -617,7 +623,9 @@ Deno.test("a size's leading number stays below 1000, from 1 byte past 1 TB", () 
     TB: 1e12,
   };
   const values = new Set<number>();
-  // A log grid, 40 steps per decade from 1 to 1e14.
+  // A log grid, 40 steps per decade from 1 to 1e14. It stops there because
+  // the top unit is open-ended: 999.95 TB or more prints "1000.0 TB", which
+  // was ruled acceptable, so the rule is held below that.
   for (let i = 0; i <= 560; i++) values.add(Math.round(10 ** (i / 40)));
   // Each unit's boundary, one byte and half a printed tenth either side.
   for (const edge of [1e3, 1e6, 1e9, 1e12]) {
