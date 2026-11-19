@@ -1,12 +1,23 @@
+import hashlib
 import json
 import logging
 import os
+import random
 import time
 from pathlib import Path
 
 import pytest
 
-from pipeline.batch_state import PendingBatch, _dated, forget, load, save
+from pipeline.batch_extraction import _claim_pending
+from pipeline.batch_state import (
+    PRUNE_MARGIN_SECONDS,
+    RESULTS_RETENTION_SECONDS,
+    PendingBatch,
+    _dated,
+    forget,
+    load,
+    save,
+)
 
 FP = {"model": "m", "effort": "high"}
 # A date for the records of tests that are not about age: `load` gives an
@@ -396,3 +407,139 @@ def test_one_malformed_entry_discards_the_whole_file(tmp_path, entry) -> None:
 
     assert load(str(path), FP) == []
     assert not path.exists()
+
+
+def _digest(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def test_batch_state_forgets_and_claims_like_a_model(tmp_path) -> None:
+    """`forget` is set difference per batch, and a batch left with no paper goes.
+
+    The model is a list of (batch id, {pmid: digest}) the test keeps from the
+    operations it applies. `_claim_pending` is checked against the rule that a
+    paper belongs to the first recorded batch that holds it with the digest of
+    the text this run would send, and a batch owning none is left out.
+    """
+    tally = {
+        "forget_trimmed_a_batch": 0,
+        "forget_emptied_a_batch": 0,
+        "forget_emptied_the_file": 0,
+        "forget_changed_nothing": 0,
+        "forget_on_no_file": 0,
+        "pmid_in_two_batches": 0,
+        "claim_first_wins_on_a_shared_paper": 0,
+        "claim_passed_over_a_stale_digest": 0,
+        "claim_left_a_batch_out": 0,
+        "claim_ignored_a_paper_not_in_the_run": 0,
+    }
+    for seed in range(50):
+        rng = random.Random(seed)
+        path = str(tmp_path / f"b{seed}.json")
+        model: list[tuple[str, dict[str, str]]] = []
+        history: list[str] = []
+        for step in range(30):
+            where = f"seed {seed} step {step}; history {history}"
+            if not model or rng.random() < 0.25:
+                batch_id = f"msgbatch_{seed}_{step}"
+                papers = {
+                    str(p): _digest(f"text-{p}-{rng.randint(0, 1)}")
+                    for p in rng.sample(range(1, 11), rng.randint(1, 5))
+                }
+                model.append((batch_id, papers))
+                history.append(f"record {batch_id} {sorted(papers)}")
+                save(
+                    path,
+                    FP,
+                    [PendingBatch(b, dict(d), _RECENT) for b, d in model],
+                )
+                if any(set(papers) & set(d) for _, d in model[:-1]):
+                    tally["pmid_in_two_batches"] += 1
+            elif rng.random() < 0.6:
+                done = {str(p) for p in rng.sample(range(1, 11), rng.randint(1, 6))}
+                history.append(f"forget {sorted(done)}")
+                before = model
+                model = [
+                    (b, {k: v for k, v in d.items() if k not in done})
+                    for b, d in model
+                ]
+                trimmed = any(
+                    0 < len(d) < len(bd)
+                    for (_, d), (_, bd) in zip(model, before, strict=True)
+                )
+                model = [(b, d) for b, d in model if d]
+                if model == before:
+                    tally["forget_changed_nothing"] += 1
+                if len(model) < len(before):
+                    tally["forget_emptied_a_batch"] += 1
+                if trimmed:
+                    tally["forget_trimmed_a_batch"] += 1
+                forget(path, FP, done)
+                if not model:
+                    tally["forget_emptied_the_file"] += 1
+                    assert not Path(path).exists(), where
+                    break
+            else:
+                documents = {
+                    str(p): f"text-{p}-{rng.randint(0, 1)}"
+                    for p in rng.sample(range(1, 13), rng.randint(0, 9))
+                }
+                history.append(f"claim over {sorted(documents)}")
+                loaded = load(path, FP)
+                got = _claim_pending(loaded, documents)
+                # The rule, from the paper's side: its owner is the first batch
+                # holding it with the digest of the text of this run.
+                owner: dict[str, str] = {}
+                for batch_id, held in model:
+                    for pmid, digest in held.items():
+                        if pmid in documents and pmid not in owner:
+                            if digest == _digest(documents[pmid]):
+                                owner[pmid] = batch_id
+                            else:
+                                tally["claim_passed_over_a_stale_digest"] += 1
+                        elif pmid in documents and owner.get(pmid) != batch_id:
+                            if digest == _digest(documents[pmid]):
+                                tally["claim_first_wins_on_a_shared_paper"] += 1
+                        elif pmid not in documents:
+                            tally["claim_ignored_a_paper_not_in_the_run"] += 1
+                expected = [
+                    (b, {p for p, o in owner.items() if o == b})
+                    for b, _ in model
+                    if any(o == b for o in owner.values())
+                ]
+                assert [(b.batch_id, s) for b, s in got] == expected, where
+                claimed = [p for _, s in got for p in s]
+                assert len(claimed) == len(set(claimed)), f"overlap; {where}"
+                if len(got) < len(model):
+                    tally["claim_left_a_batch_out"] += 1
+            assert [(b.batch_id, b.document_sha256) for b in load(path, FP)] == model, (
+                where
+            )
+
+    # `forget` on a file that is not there is a no-op, not an error.
+    forget(str(tmp_path / "none.json"), FP, ["1"])
+    assert not (tmp_path / "none.json").exists()
+    tally["forget_on_no_file"] += 1
+
+    unreached = [name for name, count in tally.items() if count == 0]
+    assert not unreached, f"cases never reached: {unreached}; tallies {tally}"
+
+
+@pytest.mark.parametrize(
+    ("age_offset", "kept"),
+    [(-1.0, True), (-0.5, True), (0.0, True), (0.5, False), (1.0, False)],
+)
+def test_the_prune_edge_is_inclusive_at_29_days_plus_1(
+    tmp_path, age_offset: float, kept: bool
+) -> None:
+    # The API keeps results for 29 days; the margin adds a day. A batch exactly
+    # 30 days old is still held, and one a moment older is dropped.
+    now = 2_000_000_000.0
+    thirty_days = 30 * 24 * 60 * 60
+    assert thirty_days == RESULTS_RETENTION_SECONDS + PRUNE_MARGIN_SECONDS
+    path = str(tmp_path / "b.json")
+    batch = PendingBatch("msgbatch_1", {"111": "ab"}, now - thirty_days - age_offset)
+    save(path, FP, [batch])
+
+    assert load(path, FP, now=now) == ([batch] if kept else [])
+    assert Path(path).exists() is kept
