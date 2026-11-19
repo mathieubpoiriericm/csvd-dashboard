@@ -584,7 +584,9 @@ Deno.test("the echo marks every offence, in windows that never overlap, over 2,0
       chars[start] = char;
       return { start, end: start + 1, char };
     });
-    // Random order: nothing promises the offences arrive sorted.
+    // Random order for `windows`, which is called directly. Echo is private
+    // and gets its offences from the validators, which sort them, so the
+    // TextField half below only ever sees sorted input.
     for (let i = offences.length - 1; i > 0; i--) {
       const j = Math.floor(rand() * (i + 1));
       [offences[i], offences[j]] = [offences[j], offences[i]];

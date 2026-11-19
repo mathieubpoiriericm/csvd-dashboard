@@ -103,10 +103,13 @@ export function windows(
 function Echo({ value, offences }: { value: string; offences: Offence[] }) {
   const parts: ComponentChildren[] = [];
   let drawn = 0;
-  for (const [from, to] of windows(value, offences)) {
+  // Defensive: the validators already sort their offences, but the marking
+  // loop below walks a cursor forward and would drop one that came late.
+  const sorted = [...offences].sort((a, b) => a.start - b.start);
+  for (const [from, to] of windows(value, sorted)) {
     if (from > drawn) parts.push("\u2026");
     let at = from;
-    for (const o of offences) {
+    for (const o of sorted) {
       if (o.start < at || o.end > to) continue;
       if (o.start > at) parts.push(value.slice(at, o.start));
       parts.push(<mark key={o.start}>{visible(o.char)}</mark>);
