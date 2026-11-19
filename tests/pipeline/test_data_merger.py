@@ -663,7 +663,7 @@ class TestMergeGeneEntries:
         assert to_insert[0]["source_quote"] == "The deciding paper's BTN3A2 sentence."
 
     async def test_the_floors_hold_over_300_seeded_batches(
-        self, make_gene_entry, mocker, tracked_traits
+        self, make_gene_entry, mocker, monkeypatch, tracked_traits
     ):
         """The insert/update decision, over batches no example test wrote.
 
@@ -685,8 +685,11 @@ class TestMergeGeneEntries:
         floor = PipelineConfig().confidence_threshold_insert
         scores = (0.45, 0.50, 0.64, 0.65, 0.66, 0.90)
         pool = ("GENEA", "GENEB", "GENEC", "GENED", "GENEE", "GENEF")
-        # Synthetic, so the canonicaliser must leave each one alone; were one
-        # an alias, the merge would group it under another key.
+        # This test is about the floors, and alias folding has tests of its
+        # own; a fork may alias any symbol, so every symbol is its own key here.
+        monkeypatch.setattr("pipeline.data_merger._CANONICAL_GENE_SYMBOLS", {})
+        # The precondition: were a symbol an alias, the merge would group it
+        # under another key.
         assert all(canonical_gene_symbol(symbol) == symbol for symbol in pool)
 
         existing_genes = mocker.patch("pipeline.data_merger.get_existing_genes")
