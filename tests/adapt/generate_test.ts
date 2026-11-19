@@ -139,6 +139,96 @@ Deno.test("wrap80 keeps a list item's indent when it runs again over an overlong
   assertEquals(wrap80(once), once);
 });
 
+Deno.test("wrap80 keeps every word, never starts a line with a block marker, and is idempotent", () => {
+  // From wrap80's contract: a line of 80 or fewer, or one opening with "|"
+  // (table), four spaces (code) or "#" (heading), is returned as it is; any
+  // other is broken at single spaces, a `- ` item's continuations indented
+  // two, and a break never falls before a word that opens a block.
+  const opensBlock = (word: string) => /^([-+*>]|#{1,6}|\d+[.)])$/.test(word);
+  const wordsOf = (text: string) => text.split(/\s+/).filter((w) => w !== "");
+  const markers = ["-", "+", "*", ">", "#", "12.", "3)"];
+  const seed = 80;
+  const next = seeded(seed);
+  const pick = (n: number) => Math.floor(next() * n);
+  const letters = "abcdefghijklmnopqrstuvwxyzé";
+  const word = (max: number) =>
+    Array.from({ length: 1 + pick(max) }, () => letters[pick(letters.length)])
+      .join("");
+  const tally = {
+    wrapped: 0,
+    unchanged: 0,
+    markerAtBreak: 0,
+    overlong: 0,
+    listItems: 0,
+  };
+  let step = 0;
+  for (const marker of markers) {
+    for (let column = 0; column <= 85; column++) {
+      if (column === 1) continue; // a marker at column 1 would need an empty word
+      for (let rep = 0; rep < (column === 0 ? 40 : 8); rep++, step++) {
+        // A prefix of column - 1 characters, spaces inside, then the marker.
+        const prefix = column === 0
+          ? []
+          : Array.from({ length: column - 1 }, () => letters[pick(26)]);
+        for (let at = 1; at < prefix.length - 1; at++) {
+          if (pick(4) === 0 && prefix[at - 1] !== " ") prefix[at] = " ";
+        }
+        const head = column === 0 ? "" : prefix.join("") + " ";
+        const tail = Array.from(
+          { length: pick(30) },
+          () => pick(6) === 0 ? markers[pick(7)] : word(12),
+        );
+        let line = `${head}${marker} ${tail.join(" ")}`;
+        const target = 60 + pick(141);
+        while (line.length < target) line += ` ${word(12)}`;
+        if (pick(25) === 0) line += ` ${"w".repeat(81 + pick(40))}`;
+        const where = `seed ${seed}, step ${step}, marker ${marker}, ` +
+          `column ${column}: ${JSON.stringify(line)}`;
+        const out = wrap80(line);
+        const lines = out.split("\n");
+        if (
+          line.length <= 80 || line.startsWith("|") ||
+          line.startsWith("    ") || line.startsWith("#")
+        ) {
+          tally.unchanged++;
+          assertEquals(out, line, `changed: ${where}`);
+          assertEquals(wrap80(out), out, `not idempotent: ${where}`);
+          continue;
+        }
+        tally.wrapped++;
+        if (line.startsWith("- ")) tally.listItems++;
+        assertEquals(wordsOf(out), wordsOf(line), `words: ${where}`);
+        lines.slice(1).forEach((l) => {
+          const first = wordsOf(l)[0];
+          assert(!opensBlock(first), `block marker opens ${l}: ${where}`);
+          if (line.startsWith("- ")) assert(l.startsWith("  "), where);
+        });
+        for (const l of lines) {
+          // A marker that could not open the next line stays at the end of
+          // this one, so a line may run on by those marker words alone.
+          const kept = wordsOf(l);
+          while (kept.length > 1 && opensBlock(kept[kept.length - 1])) {
+            kept.pop();
+            tally.markerAtBreak++;
+          }
+          if (kept.length > 1) {
+            assert(
+              kept.join(" ").length + (l.length - l.trimStart().length) <= 80,
+              `long ${l}: ${where}`,
+            );
+          } else if (l.length > 80) tally.overlong++;
+        }
+        assertEquals(wrap80(out), out, `not idempotent: ${where}`);
+      }
+    }
+  }
+  assert(tally.wrapped > 1000, JSON.stringify(tally));
+  assert(tally.unchanged > 100, JSON.stringify(tally));
+  assert(tally.markerAtBreak > 20, JSON.stringify(tally));
+  assert(tally.overlong > 5, JSON.stringify(tally));
+  assert(tally.listItems > 30, JSON.stringify(tally));
+});
+
 Deno.test("the generated manifest validates against the schema and normalises", async () => {
   const text = generateManifest(EXAMPLEITIS);
   const root = await readSchema("manifest.schema.json");
