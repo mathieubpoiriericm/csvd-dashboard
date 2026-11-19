@@ -57,6 +57,7 @@ const bend = generated as unknown as {
     abs: number,
     out: number,
   ): { $: BendStanding };
+  not_abstaining(acc: number, rej: number, abs: number, out: number): number;
   needed_for(acc: number, rej: number, abs: number, out: number): number;
 };
 
@@ -94,14 +95,20 @@ export function standingOf(tally: Tally): Standing {
   ];
 }
 
-/** Two thirds of those not abstaining: `needed` votes of `of`. */
+/**
+ * Two thirds of those not abstaining: `needed` votes of `of`. Both come from
+ * the module, and law 8 in `/LAWS.bend` proves `needed` is needed of `of`.
+ */
 export function settlesAt(tally: Tally): { needed: number; of: number } {
   const { accept, reject, abstain, outstanding } = tally;
-  const of = accept + reject + outstanding;
-  const needed = refusing(() =>
-    bend.needed_for(accept, reject, abstain, outstanding)
-  );
-  return { needed, of };
+  return {
+    needed: refusing(() =>
+      bend.needed_for(accept, reject, abstain, outstanding)
+    ),
+    of: refusing(() =>
+      bend.not_abstaining(accept, reject, abstain, outstanding)
+    ),
+  };
 }
 
 export interface GeneReview {

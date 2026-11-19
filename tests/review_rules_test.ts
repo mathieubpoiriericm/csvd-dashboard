@@ -98,6 +98,9 @@ Deno.test("every standing has its condition", () => {
 Deno.test("a gene settles at two thirds of those not abstaining", () =>
   assertEquals(settlesAt(t(5, 1, 1, 4)), { needed: 7, of: 10 }));
 
+Deno.test("abstainers count in neither of the settling point's numbers", () =>
+  assertEquals(settlesAt(t(5, 1, 7, 4)), { needed: 7, of: 10 }));
+
 /** Every tally of whole numbers whose four counts sum to at most `max`. */
 export function* everyTally(max: number): Generator<Tally> {
   for (let accept = 0; accept <= max; accept++) {
