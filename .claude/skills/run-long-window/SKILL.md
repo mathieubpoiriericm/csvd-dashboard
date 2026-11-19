@@ -122,7 +122,10 @@ them rather than paying for them again. Six things about it are load-bearing:
   `dropped_unverified: 0` into the report. A mismatch deletes the file rather
   than resuming from it: restoring a paper extracted under different settings
   would mix methods inside one dataset, which is what pinning `EXTRACTION_MODEL`
-  in code exists to prevent. `--days-back` is deliberately _not_ in it, so a
+  in code exists to prevent. A header that does not parse is corruption, not a
+  mismatch, and the warning says so; a crash (or a full disk) that tears a new
+  file's header leaves no newline in it, and the next append starts that file
+  afresh, so no record written after the tear is lost with it. `--days-back` is deliberately _not_ in it, so a
   checkpoint written by a 30-day run is valid for the 60-day run that resumes
   it.
 - **Only successes are checkpointed, and the file is pruned -- not cleared --
