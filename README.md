@@ -554,15 +554,16 @@ either variable unset every page answers 503 rather than opening.
 
 ### Prerequisites
 
-| Tool                | Needed for                                                | Version |
-| ------------------- | --------------------------------------------------------- | ------- |
-| Deno                | the web app (always)                                      | 2.9+    |
-| Node.js + npm       | the Playwright suite, the perf harness, the screenshots   | 26+     |
-| uv                  | the Python pipeline and the print figures                 | 0.12+   |
-| PostgreSQL          | regenerating `data/` only                                 | 18.6    |
-| Apple's `container` | optional: a containerised PostgreSQL, the pytest database | 1.3+    |
-| libwebp (`cwebp`)   | recapturing the screenshots                               | 1.0+    |
-| CMake + Ninja       | building Tracy (`deno task tracy:build`)                  | 3.25+   |
+| Tool                | Needed for                                                                                           | Version |
+| ------------------- | ---------------------------------------------------------------------------------------------------- | ------- |
+| Deno                | the web app (always)                                                                                 | 2.9+    |
+| Node.js + npm       | the Playwright suite, the perf harness, the screenshots                                              | 26+     |
+| uv                  | the Python pipeline and the print figures                                                            | 0.12+   |
+| PostgreSQL          | regenerating `data/` only                                                                            | 18.6    |
+| Apple's `container` | optional: a containerised PostgreSQL, the pytest database                                            | 1.3+    |
+| libwebp (`cwebp`)   | recapturing the screenshots                                                                          | 1.0+    |
+| CMake + Ninja       | building Tracy (`deno task tracy:build`)                                                             | 3.25+   |
+| Bend                | optional: only to edit `standing.bend`, `LAWS.bend`, `PROOF.bend`; the generated module is committed | 2.0.40  |
 
 ### Web application
 
@@ -662,32 +663,34 @@ table that cannot be rebuilt, why the image is glibc — is in
 
 Tasks live in `deno.json`.
 
-| Task                      | What it does                                    |
-| ------------------------- | ----------------------------------------------- |
-| `deno task dev`           | Vite dev server with HMR on `:5173`             |
-| `deno task build`         | production build into `_fresh/`                 |
-| `deno task start`         | serve the build on `127.0.0.1:8000` with `.env` |
-| `deno task check`         | `deno fmt --check` + `deno lint` + `deno check` |
-| `deno task test`          | unit tests                                      |
-| `deno task test:coverage` | unit tests plus enforced coverage floors        |
-| `deno task e2e:install`   | `npm ci` + download the Chromium build          |
-| `deno task test:e2e`      | build, serve, and drive the app                 |
-| `deno task test:e2e:ui`   | the same suite in Playwright's UI mode          |
-| `deno task perf`          | throttled responsiveness measurement            |
-| `deno task test:perf`     | the perf harness's metric tests, no browser     |
-| `deno task tracy:build`   | build Tracy's tools and the pipeline's client   |
-| `deno task tracy:update`  | move Tracy to its latest release and rebuild    |
-| `deno task tracy:run`     | run a pipeline command under the Tracy profiler |
-| `deno task screenshots`   | build, then recapture the README's screenshots  |
-| `deno task data`          | regenerate `data/` except the map and cytobands |
-| `deno task data:empty`    | write the empty `data/` a fork starts from      |
-| `deno task data:preview`  | publish the preview run's report and round      |
-| `deno task geocode`       | regenerate `data/geocoded_trials.json`          |
-| `deno task cytobands`     | regenerate `data/cytobands_hg38.json` from UCSC |
-| `deno task figure`        | draw both print figures into `figures/`         |
-| `deno task fixtures`      | fetch the golden suite's paper fixtures         |
-| `deno task models`        | prefetch the Docling model weights              |
-| `deno task update`        | run Fresh's own updater against the checkout    |
+| Task                      | What it does                                       |
+| ------------------------- | -------------------------------------------------- |
+| `deno task dev`           | Vite dev server with HMR on `:5173`                |
+| `deno task build`         | production build into `_fresh/`                    |
+| `deno task start`         | serve the build on `127.0.0.1:8000` with `.env`    |
+| `deno task check`         | `deno fmt --check` + `deno lint` + `deno check`    |
+| `deno task test`          | unit tests                                         |
+| `deno task test:coverage` | unit tests plus enforced coverage floors           |
+| `deno task e2e:install`   | `npm ci` + download the Chromium build             |
+| `deno task test:e2e`      | build, serve, and drive the app                    |
+| `deno task test:e2e:ui`   | the same suite in Playwright's UI mode             |
+| `deno task perf`          | throttled responsiveness measurement               |
+| `deno task test:perf`     | the perf harness's metric tests, no browser        |
+| `deno task bend:check`    | prove the standing rule; prints `ALL PROOFS CHECK` |
+| `deno task bend:build`    | regenerate `lib/review/standing.bend.mjs`          |
+| `deno task tracy:build`   | build Tracy's tools and the pipeline's client      |
+| `deno task tracy:update`  | move Tracy to its latest release and rebuild       |
+| `deno task tracy:run`     | run a pipeline command under the Tracy profiler    |
+| `deno task screenshots`   | build, then recapture the README's screenshots     |
+| `deno task data`          | regenerate `data/` except the map and cytobands    |
+| `deno task data:empty`    | write the empty `data/` a fork starts from         |
+| `deno task data:preview`  | publish the preview run's report and round         |
+| `deno task geocode`       | regenerate `data/geocoded_trials.json`             |
+| `deno task cytobands`     | regenerate `data/cytobands_hg38.json` from UCSC    |
+| `deno task figure`        | draw both print figures into `figures/`            |
+| `deno task fixtures`      | fetch the golden suite's paper fixtures            |
+| `deno task models`        | prefetch the Docling model weights                 |
+| `deno task update`        | run Fresh's own updater against the checkout       |
 
 The pipeline is linted and type-checked through uv; its tests are under
 [Testing](#testing).
@@ -724,12 +727,13 @@ client installed, and `pipeline/profiling.py` does nothing. Read a capture with
 
 ### Continuous integration
 
-`.github/workflows/ci.yml` runs six test jobs on every push to `main` and every
-pull request -- three of them matrices, fourteen jobs in all:
+`.github/workflows/ci.yml` runs seven test jobs on every push to `main` and
+every pull request -- three of them matrices, fifteen jobs in all:
 
 | Job           | Steps                                                                                                                                                                                                           |
 | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `check`       | `deno install`, `deno task check`, `deno task test:coverage`, `deno task test:perf`                                                                                                                             |
+| `bend`        | Bend 2.0.40, pinned by sha256: `deno task bend:check` proves `LAWS.bend`, and `deno task bend:build` must leave the committed `lib/review/standing.bend.mjs` unchanged                                          |
 | `python`      | `uv sync --locked`, Ruff, ty, pytest with branch coverage against PostgreSQL (a `postgres:18` service on GitHub's runners, the machine's own on a self-hosted one), then `tests/scripts` in a step of its own   |
 | `e2e`         | Playwright against the production build on Chromium, report uploaded                                                                                                                                            |
 | `e2e-engines` | two jobs, WebKit and Firefox: the same Playwright suite with `E2E_BROWSERS` set to that engine                                                                                                                  |
