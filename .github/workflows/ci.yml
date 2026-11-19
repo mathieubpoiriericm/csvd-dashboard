@@ -31,9 +31,9 @@ permissions:
 #
 # On that machine twelve jobs run at once -- empty-data and adapt-fork are
 # split by gate family (Deno, Python, e2e) so no job runs the three in a row --
-# and they share 16 cores. The two e2e-engines jobs make fourteen, a runner
-# each, and bend makes fifteen: one job of a run queues until a runner frees
-# up, unless a fifteenth runner is registered. The e2e jobs are the critical
+# and they share 16 cores. The two e2e-engines jobs make fourteen and bend
+# makes fifteen, each on a runner of its own: fifteen are registered, so no
+# job of a single run waits for one. The e2e jobs are the critical
 # path, so every Deno and Python command runs under `nice -n 15` (the $NICE
 # prefix) and gives way to the browsers when the machine is full. The
 # parallelism is deliberately moderate: 4 Playwright workers per e2e suite and
