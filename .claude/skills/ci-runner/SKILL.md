@@ -7,16 +7,16 @@ description: Use when CI jobs queue and never start, when moving CI between the 
 
 The seven test jobs in `.github/workflows/ci.yml` (`check`, `bend`, `python`,
 `e2e`, and the `e2e-engines`, `empty-data` and `adapt-fork` matrices, fifteen
-jobs in all) run on `${{ vars.CI_RUNNER || 'ubuntu-latest' }}`. The private repository
-(`mathieubpoiriericm/csvd-dashboard-private`) has set the repository variable
-`CI_RUNNER=csvd-ci` since 3 November 2026, which sends them to fourteen runners,
-`ryzen-1` to `ryzen-14` (twelve until 13 November 2026), on a dedicated mini PC
-at home: Ubuntu Server 26.04 on
-bare metal, a Ryzen 9 9955HX (16 cores, 32 threads) with 32 GB, reached from the
-researcher's Mac as `ssh minipc` with key login only. The public repository and
-every fork have no such variable and stay on `ubuntu-latest`. `container` and
-`deploy` are hosted everywhere. A VS Code warning "Context access might be
-invalid: CI_RUNNER" on a `runs-on` line is that deliberate fallback.
+jobs in all) run on `${{ vars.CI_RUNNER || 'ubuntu-latest' }}`. The private
+repository (`mathieubpoiriericm/csvd-dashboard-private`) has set the repository
+variable `CI_RUNNER=csvd-ci` since 3 November 2026, which sends them to fourteen
+runners, `ryzen-1` to `ryzen-14` (twelve until 13 November 2026), on a
+dedicated mini PC at home: Ubuntu Server 26.04 on bare metal, a Ryzen 9 9955HX
+(16 cores, 32 threads) with 32 GB, reached from the researcher's Mac as
+`ssh minipc` with key login only. The public repository and every fork have no
+such variable and stay on `ubuntu-latest`. `container` and `deploy` are hosted
+everywhere. A VS Code warning "Context access might be invalid: CI_RUNNER" on a
+`runs-on` line is that deliberate fallback.
 
 The same CI run, PR #65's (41720801102), took 8m01 on GitHub's two-core private
 runners and 2m20 on the mini PC -- its first jobs there, on cold caches -- with
@@ -33,9 +33,9 @@ it lands (the `deploy` skill has how).
 (`--shard=K/2
 --only=<family>`). With `check`, `python` and `e2e` that is twelve
 test jobs at once, and the two `e2e-engines` jobs below make fourteen, one per
-runner, sharing 16 cores. The fifteenth, `bend` (below), takes seconds and runs
-on the same fourteen runners, so one job of a run queues briefly for a runner
-unless the maintainer registers a fifteenth. On the mini PC:
+runner, sharing 16 cores. The fifteenth, `bend` (below), runs on the same
+fourteen runners, so one job of a run queues until a runner frees up, unless
+the maintainer registers a fifteenth. On the mini PC:
 
 | Setting                                        | Value                             |
 | ---------------------------------------------- | --------------------------------- |
@@ -143,8 +143,8 @@ twenty laws in `LAWS.bend`, and `deno task bend:build` followed by
 downloads Bend 2.0.40's Linux archive for the runner's `uname -m`, checks it
 against the sha256 bend-lang.com's installer pins, and unpacks it under
 `$RUNNER_TEMP`, which the runner empties between jobs, so it needs nothing
-installed on the machine, takes no port and writes nothing under
-`/home/runner`. Bend finds its `bend2/` beside its own binary, and
+installed on the machine, takes no port and installs nothing under the runner
+user's home outside the job's `$RUNNER_TEMP` (no `~/.bend`). Bend finds its `bend2/` beside its own binary, and
 `BEND_NO_TELEMETRY=1` keeps it from asking bend-lang.com for a newer version.
 Moving to a newer Bend means changing `BEND_VERSION` and both sums in the
 install step together; with only the version changed, the sum check fails it.
@@ -244,11 +244,10 @@ look up " minipc" and report "Could not resolve hostname".
 Playwright 1.64.1's `install-deps` accepted Ubuntu 26.04. If a later one refuses
 the machine's release, reinstall it with the release `ubuntu-latest` uses, which
 also keeps the two environments alike. Fourteen instances (the script's default,
-`E2E_PORT` 8101 to 8114) cover fourteen of a run's fifteen test jobs at once:
-whichever job is handed out last waits for a runner to come free, and since
-`bend` takes seconds the wait is short whichever job it falls on. A second run queues behind the first, taking runners
-as it frees them. `RUNNERS=15` would give every job of a run a runner of its
-own (`E2E_PORT` 8115 for the new one). With the
+`E2E_PORT` 8101 to 8114) cover fourteen of a run's fifteen test jobs at once,
+so one job of a run queues until a runner frees up. A second run queues behind
+the first, taking runners as it frees them. `RUNNERS=15` would give every job
+of a run a runner of its own (`E2E_PORT` 8115 for the new one). With the
 earlier six-job layout, re-runs of PR #65's and PR #64's CI started together
 finished green in 2m03 and 3m36 with no port or container clash between the two.
 

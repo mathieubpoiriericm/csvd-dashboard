@@ -32,13 +32,13 @@ permissions:
 # On that machine twelve jobs run at once -- empty-data and adapt-fork are
 # split by gate family (Deno, Python, e2e) so no job runs the three in a row --
 # and they share 16 cores. The two e2e-engines jobs make fourteen, a runner
-# each, and bend, which takes seconds, makes fifteen: it waits briefly for a
-# runner unless a fifteenth is registered. The e2e jobs are the critical path,
-# so every Deno and Python command runs under `nice -n 15` (the $NICE prefix)
-# and gives way to the browsers when the machine is full. The parallelism is
-# deliberately moderate: 4 Playwright workers per e2e suite and at most 4
-# pytest workers, with Deno's tests serial (tests/deno_parallel_isolation_test.ts
-# says why).
+# each, and bend makes fifteen: one job of a run queues until a runner frees
+# up, unless a fifteenth runner is registered. The e2e jobs are the critical
+# path, so every Deno and Python command runs under `nice -n 15` (the $NICE
+# prefix) and gives way to the browsers when the machine is full. The
+# parallelism is deliberately moderate: 4 Playwright workers per e2e suite and
+# at most 4 pytest workers, with Deno's tests serial
+# (tests/deno_parallel_isolation_test.ts says why).
 # Every knob at its maximum ran slower than the unsplit layout and left the
 # e2e suite flaky, because starved pages time out; the `ci-runner` skill has
 # the measurements. The worker count comes from vars.CI_RUNNER, so a
@@ -94,14 +94,14 @@ jobs:
       # unpacked into this job's temp directory: several jobs share one host.
       # The sums are 2.0.40's, so a new BEND_VERSION fails here until they are
       # replaced. The archive holds bend/ laid out as a BEND_HOME (bin/bend,
-      # bend2/, guide/), and bend finds bend2/ beside its own binary. It writes
-      # nothing under HOME, so the runner's home directory is left alone.
+      # bend2/, guide/), and bend finds bend2/ beside its own binary. Nothing is
+      # installed outside this job's $RUNNER_TEMP: no ~/.bend on the runner.
       - name: Install Bend
         run: |
           case "$(uname -s)-$(uname -m)" in
             Linux-x86_64) arch=x64
               sum=c9ff8d67bd903fb6ad9a26b43d8a62c01021de82a44d55ce4a3dcd4732113d6b ;;
-            Linux-aarch64 | Linux-arm64) arch=arm64
+            Linux-aarch64) arch=arm64
               sum=2f42a6fa34ecdaa71ae105e5fa734f9a07e129d333e45448ab6d2ff03a837570 ;;
             Linux-*)
               echo "::error::Bend $BEND_VERSION has no Linux build for $(uname -m)"
