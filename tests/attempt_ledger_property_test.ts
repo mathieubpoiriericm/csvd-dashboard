@@ -197,3 +197,158 @@ Deno.test("the ledger answers as its rules say over 50 seeded histories of 400 s
     }
   }
 });
+
+Deno.test("a refusal's wait is what the rules say, over 50 seeded histories with a five-second window", () => {
+  const windowMs = 5000;
+  const distinctWaits = new Set<number>();
+  let mixedReasons = 0;
+  let trackedWaitDecided = 0;
+
+  for (let seed = 1; seed <= 50; seed++) {
+    const rand = seeded(seed);
+    const pick = <T>(xs: readonly T[]): T => xs[Math.floor(rand() * xs.length)];
+
+    let clock = 0;
+    const ledger = new AttemptLedger({
+      perClientLimit: PER_CLIENT,
+      globalLimit: GLOBAL,
+      windowMs,
+      maxTrackedClients: TRACKED_CLIENTS,
+      now: () => clock,
+      trustedClientIpHeader: undefined,
+    });
+
+    let live: ModelAttempt[] = [];
+    const held: Held[] = [];
+    const history: string[] = [];
+    let nextId = 1;
+
+    const fail = (step: number, what: string): never => {
+      const lines = history.map((s, i) => `  ${i}: ${s}`);
+      throw new Error(
+        `seed ${seed}, step ${step}: ${what}\n` +
+          `clock ${clock}, model ${JSON.stringify(live)}\n` +
+          `history:\n${lines.join("\n")}`,
+      );
+    };
+
+    // Whole seconds from now until `at`, rounded up, never below one.
+    const seconds = (at: number) => Math.max(1, Math.ceil((at - clock) / 1000));
+    const expiry = (a: ModelAttempt) => a.createdAt + windowMs;
+
+    const modelSettle = (record: Held, outcome: AttemptOutcome) => {
+      record.state = "settled";
+      const attempt = live.find((a) => a.id === record.id);
+      if (!attempt) return;
+      if (outcome === "auth-failure") attempt.state = "failed";
+      else if (outcome === "other") live = live.filter((a) => a !== attempt);
+      else {
+        live = live.filter((a) =>
+          a !== attempt &&
+          !(a.client === attempt.client && a.id <= attempt.id &&
+            a.state === "failed")
+        );
+      }
+    };
+
+    for (let step = 0; step < 400; step++) {
+      const pending = held.filter((h) => h.state === "held");
+      const roll = rand();
+
+      // These odds differ from the first test's on purpose: more reservations,
+      // more refusals, and no "settle again" step.
+      if (roll < 0.25) {
+        const ms = Math.floor(rand() * 2001);
+        clock += ms;
+        history.push(`advance ${ms}`);
+      } else if (roll < 0.45 && pending.length > 0) {
+        const record = pick(pending);
+        const outcome = pick(OUTCOMES);
+        history.push(`settle ${record.id} ${outcome}`);
+        record.settle(outcome);
+        modelSettle(record, outcome);
+      } else {
+        const client = pick(CLIENTS);
+        const perClientOnly = rand() < 0.5;
+        history.push(`reserve ${client} perClientOnly=${perClientOnly}`);
+
+        live = live.filter((a) => expiry(a) > clock);
+        const own = live.filter((a) => a.client === client);
+        const byClient = new Map<string, number[]>();
+        for (const a of live) {
+          byClient.set(a.client, [
+            ...(byClient.get(a.client) ?? []),
+            expiry(a),
+          ]);
+        }
+        // Each applicable reason with the wait the rules give it.
+        const waits: number[] = [];
+        let trackedWait = 0;
+        if (own.length >= PER_CLIENT) {
+          waits.push(seconds(Math.min(...own.map(expiry))));
+        }
+        if (!perClientOnly && live.length >= GLOBAL) {
+          waits.push(seconds(Math.min(...live.map(expiry))));
+        }
+        if (
+          !perClientOnly && own.length === 0 &&
+          byClient.size >= TRACKED_CLIENTS
+        ) {
+          trackedWait = seconds(Math.min(
+            ...[...byClient.values()].map((e) => Math.max(...e)),
+          ));
+          waits.push(trackedWait);
+        }
+
+        const reservation = ledger.reserve(client, perClientOnly);
+        if (waits.length === 0) {
+          if (!reservation.allowed) {
+            fail(step, "ledger refused, model allowed");
+          }
+          if (reservation.allowed) {
+            const id = nextId++;
+            live.push({ id, client, createdAt: clock, state: "pending" });
+            held.push({ id, state: "held", settle: reservation.settle });
+          }
+        } else {
+          if (reservation.allowed) {
+            fail(step, "ledger allowed, model refused");
+          } else {
+            const expected = Math.max(...waits);
+            if (reservation.retryAfterSeconds !== expected) {
+              fail(
+                step,
+                `retryAfterSeconds ${reservation.retryAfterSeconds}, ` +
+                  `model ${expected} (reason waits ${waits.join(", ")})`,
+              );
+            }
+            distinctWaits.add(expected);
+            if (new Set(waits).size > 1) mixedReasons++;
+            // The tracked-clients wait is the largest reason and is not the
+            // global rule's wait (the earliest expiry of all live attempts).
+            if (
+              trackedWait > 0 && trackedWait === expected &&
+              trackedWait !== seconds(Math.min(...live.map(expiry)))
+            ) trackedWaitDecided++;
+          }
+        }
+      }
+    }
+  }
+
+  if (distinctWaits.size < 4) {
+    throw new Error(
+      `only ${distinctWaits.size} distinct waits occurred: ` +
+        `${[...distinctWaits].sort().join(", ")}`,
+    );
+  }
+  if (trackedWaitDecided === 0) {
+    throw new Error(
+      `no refusal was decided by the tracked-clients wait alone ` +
+        `(count ${trackedWaitDecided})`,
+    );
+  }
+  if (mixedReasons === 0) {
+    throw new Error("no refusal had two reasons with differing waits");
+  }
+});

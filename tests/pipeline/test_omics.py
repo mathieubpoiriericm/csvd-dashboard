@@ -41,6 +41,9 @@ def test_the_writer_writes_the_wire_form_the_fixture_pins(
 def test_the_fixture_has_the_writer_cases_it_should() -> None:
     assert len(_WRITER_CASES) == 15
     assert len(_WIRE_CASES) == 16
+    assert [case["name"] for case in _WIRE_CASES if case["study"] is None] == [
+        "a stray closing parenthesis (reader only)"
+    ]
 
 
 def test_a_stray_closer_does_not_hide_the_next_comma() -> None:

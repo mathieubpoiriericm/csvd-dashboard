@@ -7,9 +7,12 @@ committed switch says, so these hold before and after gold-only is undone.
 """
 
 import argparse
+import ast
 import inspect
 import itertools
 import re
+import textwrap
+from collections.abc import Callable
 from pathlib import Path
 from unittest.mock import AsyncMock
 
@@ -238,6 +241,9 @@ _RUN_MODES = (
 )
 _MODIFIERS = ("preview", "skip_validation", "export")
 _MODE_FLAGS = _RUN_MODES + _MODIFIERS
+# The PubMed-only options _prepare_cli_args warns about. They do not decide a
+# refusal, so the exhaustive table need not vary them.
+_PUBMED_ONLY_OPTIONS = ("test_mode", "dry_run", "batch", "days_back")
 
 
 def test_every_combination_of_modes_is_refused_or_run_as_the_rules_say(
@@ -293,4 +299,56 @@ def test_the_mode_table_knows_every_mode_flag() -> None:
         f"_prepare_cli_args now names {sorted(found)} as modes: add the new mode"
         " to _RUN_MODES and to _expected_refusal in"
         " test_every_combination_of_modes_is_refused_or_run_as_the_rules_say"
+    )
+
+
+def _names_read_off_args(function: Callable[..., object]) -> set[str]:
+    """Every ``args.<name>`` read and ``getattr(args, "<name>", ...)`` in a function."""
+    tree = ast.parse(textwrap.dedent(inspect.getsource(function)))
+    names: set[str] = set()
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Attribute)
+            and isinstance(node.ctx, ast.Load)
+            and isinstance(node.value, ast.Name)
+            and node.value.id == "args"
+        ):
+            names.add(node.attr)
+        elif (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "getattr"
+            and len(node.args) >= 2
+            and isinstance(node.args[0], ast.Name)
+            and node.args[0].id == "args"
+            and isinstance(node.args[1], ast.Constant)
+            and isinstance(node.args[1].value, str)
+        ):
+            names.add(node.args[1].value)
+    return names
+
+
+def test_the_refusal_rules_read_no_argument_the_table_does_not_know() -> None:
+    refusal_reads = _names_read_off_args(_refuse_while_gold_only) | {
+        name for name, _flag in pipeline_main._REFUSED_WHILE_GOLD_ONLY
+    }
+    found = _names_read_off_args(_prepare_cli_args) | refusal_reads
+    known = set(_MODE_FLAGS) | set(_PUBMED_ONLY_OPTIONS)
+    problems: list[str] = []
+    if found - known:
+        problems.append(
+            f"the refusal rules read {sorted(found - known)} that the table does"
+            " not know: the exhaustive table must learn it (_RUN_MODES/_MODIFIERS"
+            " and _expected_refusal) or _PUBMED_ONLY_OPTIONS must list it"
+        )
+    if known - found:
+        problems.append(f"{sorted(known - found)} is no longer read")
+    assert not problems, "; and ".join(problems)
+    # _PUBMED_ONLY_OPTIONS "do not decide a refusal", and only the table's own
+    # flags may: the table never varies these, so a rule reading one is untested.
+    extra = sorted(refusal_reads - set(_MODE_FLAGS))
+    assert not extra, (
+        f"_refuse_while_gold_only decides on {extra}:"
+        " a PubMed-only option must not decide the gold-only refusal unless the"
+        " exhaustive table varies it"
     )
