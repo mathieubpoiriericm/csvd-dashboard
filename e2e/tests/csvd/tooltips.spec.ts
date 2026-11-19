@@ -372,8 +372,11 @@ test("a PMID shows its citation and links to PubMed", async ({ page }) => {
 test("COL4A1/2's gene and protein tooltips show both collagen genes", async ({ page }) => {
   await page.goto("/genes");
   await page.getByRole("searchbox", { name: "Search genes" }).fill("COL4A1/2");
-  // The global filter also matches HTRA1, whose source quote names COL4A1/2,
-  // so pick the row out by its gene cell rather than assuming a single hit.
+  // The search is debounced: wait for it to narrow the table to one row, or
+  // the hover lands on the unsearched third row's trigger and the re-filter
+  // then moves COL4A1/2 out from under the pointer. Only COL4A1/2 matches in
+  // the committed data; the row is still picked out by its gene cell.
+  await expect(rows(page)).toHaveCount(1);
   const row = rows(page).filter({
     has: page.locator("td").first().getByText("COL4A1/2", { exact: true }),
   });
