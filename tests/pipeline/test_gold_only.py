@@ -7,6 +7,9 @@ committed switch says, so these hold before and after gold-only is undone.
 """
 
 import argparse
+import inspect
+import itertools
+import re
 from pathlib import Path
 from unittest.mock import AsyncMock
 
@@ -181,3 +184,117 @@ def test_a_namespace_without_the_flag_is_still_refused() -> None:
     args = argparse.Namespace(pubmed=True, clinical_trials=False)
     with pytest.raises(SystemExit):
         _refuse_while_gold_only(_build_parser(), args, gold_only_on=True)
+
+
+def _expected_refusal(
+    *,
+    local_pdfs: bool,
+    pmids: bool,
+    pubmed: bool,
+    clinical_trials: bool,
+    sync_external_data: bool,
+    sync_annotations: bool,
+    preview: bool,
+    skip_validation: bool,
+    export: bool,
+    gold_only_on: bool,
+) -> str | None:
+    """The rules as written down, first match wins; None means not refused.
+
+    Deliberately shares nothing with pipeline.main: it is a second statement
+    of the same rules, and the test fails where the two disagree.
+    """
+    offline = local_pdfs or pmids
+    online = pubmed or clinical_trials or sync_external_data or sync_annotations
+    if local_pdfs and pmids:
+        return "--local-pdfs and --pmids cannot be combined"
+    if offline and online:
+        return "cannot be combined with --pubmed"
+    if preview and (
+        offline or clinical_trials or sync_external_data or sync_annotations
+    ):
+        return "--preview runs the PubMed pipeline alone"
+    if skip_validation and not offline:
+        return "--skip-validation requires"
+    if export and offline:
+        return "--export cannot be combined"
+    if preview and not gold_only_on:
+        return "--preview refused"
+    pubmed_selected = pubmed or not (offline or online)
+    if gold_only_on and (clinical_trials or (pubmed_selected and not preview)):
+        return "refused: GOLD_ONLY is true"
+    return None
+
+
+_MODE_FLAGS = (
+    "local_pdfs",
+    "pmids",
+    "pubmed",
+    "clinical_trials",
+    "sync_external_data",
+    "sync_annotations",
+    "preview",
+    "skip_validation",
+    "export",
+)
+
+
+def test_every_combination_of_modes_is_refused_or_run_as_the_rules_say(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    parser = _build_parser()
+    wrong: list[str] = []
+    for gold_only_on in (True, False):
+        for values in itertools.product((False, True), repeat=len(_MODE_FLAGS)):
+            on = dict(zip(_MODE_FLAGS, values, strict=True))
+            argv: list[str] = []
+            for name in _MODE_FLAGS:
+                if not on[name]:
+                    continue
+                flag = "--" + name.replace("_", "-")
+                argv.append(flag)
+                if name == "local_pdfs":
+                    argv.append(str(tmp_path))
+                elif name == "pmids":
+                    argv.append(str(tmp_path / "pmids.txt"))
+            expected = _expected_refusal(**on, gold_only_on=gold_only_on)
+            capsys.readouterr()
+            refused: str | None = None
+            try:
+                args = _prepare_cli_args(parser, parser.parse_args(argv))
+                _refuse_while_gold_only(parser, args, gold_only_on=gold_only_on)
+            except SystemExit as exit_info:
+                assert exit_info.code == 2
+                refused = capsys.readouterr().err
+            where = f"{' '.join(argv) or '(no flags)'} with gold_only_on={gold_only_on}"
+            if expected is None:
+                if refused is not None:
+                    wrong.append(f"{where}: table says run, refused with {refused!r}")
+            elif refused is None:
+                wrong.append(f"{where}: table says refused ({expected!r}), it ran")
+            elif expected not in refused:
+                wrong.append(f"{where}: table says {expected!r}, got {refused!r}")
+    assert not wrong, f"{len(wrong)} of 1024 command lines disagree:\n" + "\n".join(
+        wrong[:20]
+    )
+
+
+def test_the_mode_table_knows_every_mode_flag() -> None:
+    source = inspect.getsource(_prepare_cli_args)
+    found: set[str] = set()
+    for tuple_name in ("offline_modes", "online_modes"):
+        match = re.search(rf"{tuple_name} = \((.*?)\)", source, re.DOTALL)
+        assert match, f"{tuple_name} is gone from _prepare_cli_args; update this test"
+        found |= set(re.findall(r"args\.(\w+)", match.group(1)))
+    assert found == {
+        "local_pdfs",
+        "pmids",
+        "pubmed",
+        "clinical_trials",
+        "sync_external_data",
+        "sync_annotations",
+    }, (
+        f"_prepare_cli_args now names {sorted(found)} as modes: add the new mode"
+        " to _MODE_FLAGS and _expected_refusal in"
+        " test_every_combination_of_modes_is_refused_or_run_as_the_rules_say"
+    )
