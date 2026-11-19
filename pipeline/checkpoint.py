@@ -18,8 +18,11 @@ properties matter:
 
 - **Append-only.** A record is one `write` of one line, so a process killed
   mid-append can corrupt only the final line, and `load` drops it; the next
-  `append` ends that line first, so its own record is not lost with it. Rewriting
-  the whole file per paper could instead lose every earlier one.
+  `append` ends that line first, so its own record is not lost with it. A file
+  with no newline at all is a header cut short, and holds no record: the next
+  `append` starts the file afresh, so nothing written after it is lost behind a
+  header no `load` can read. Rewriting the whole file per paper could instead
+  lose every earlier one.
 - **Fingerprinted.** A checkpoint is only reusable by a run extracting the
   same way. Restoring a paper the previous run extracted under a different
   model, prompt or effort would mix methods inside one dataset -- which is
@@ -112,9 +115,17 @@ def append(path: str, run_fingerprint: dict[str, Any], record: dict[str, Any]) -
     """Add one paper's record, writing the header first if the file is new."""
     target = Path(path)
     with _locked(target):
-        new_file = not target.exists() or target.stat().st_size == 0
+        # No newline anywhere is a header cut short by a crash in the file's
+        # first append (or a full disk): there is no record to keep, and a
+        # record written after it would sit behind a header `load` cannot
+        # read, and be deleted with it. Truncate and start again.
+        new_file = (
+            not target.exists()
+            or target.stat().st_size == 0
+            or not _has_newline(target)
+        )
         torn_tail = not new_file and not _ends_with_newline(target)
-        with target.open("a", encoding="utf-8") as handle:
+        with target.open("w" if new_file else "a", encoding="utf-8") as handle:
             if new_file:
                 handle.write(json.dumps({_HEADER_KEY: run_fingerprint}) + "\n")
             elif torn_tail:
@@ -130,6 +141,19 @@ def append(path: str, run_fingerprint: dict[str, Any], record: dict[str, Any]) -
             # buffer.
             handle.flush()
             os.fsync(handle.fileno())
+
+
+def _has_newline(target: Path) -> bool:
+    """Whether the file holds a newline anywhere.
+
+    Read in chunks until the first one: on any healthy file that is inside
+    the header line, so this reads a few hundred bytes.
+    """
+    with target.open("rb") as handle:
+        while chunk := handle.read(65536):
+            if b"\n" in chunk:
+                return True
+    return False
 
 
 def _ends_with_newline(target: Path) -> bool:
@@ -164,7 +188,15 @@ def _read(target: Path, run_fingerprint: dict[str, Any]) -> list[dict[str, Any]]
     lines = target.read_text(encoding="utf-8").splitlines()
 
     header = _parse(lines[0]) if lines else None
-    if header is None or header.get(_HEADER_KEY) != run_fingerprint:
+    if header is None:
+        logger.warning(
+            "Discarding a corrupt extraction checkpoint whose header could not "
+            "be read; its papers will be extracted again."
+        )
+        # Not `clear`, which takes the lock this call already holds.
+        target.unlink(missing_ok=True)
+        return []
+    if header.get(_HEADER_KEY) != run_fingerprint:
         logger.warning(
             "Discarding an extraction checkpoint written by a different run "
             "configuration; its papers will be extracted again."

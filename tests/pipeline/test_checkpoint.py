@@ -177,6 +177,57 @@ class TestRejection:
 
         assert checkpoint.load(path, checkpoint.fingerprint(PipelineConfig())) == []
 
+    def test_a_record_appended_after_a_torn_header_is_kept(
+        self, tmp_path: Path
+    ) -> None:
+        # A crash cut the new file's header short. The next append used to
+        # end that line and write its record after it; the next load could
+        # not read the header and deleted the file, record and all.
+        path = _path(tmp_path)
+        fp = checkpoint.fingerprint(PipelineConfig())
+        Path(path).write_text('{"fingerprint": {"mo')
+
+        checkpoint.append(path, fp, {"pmid": "1"})
+        checkpoint.append(path, fp, {"pmid": "2"})
+
+        assert checkpoint.load(path, fp) == [{"pmid": "1"}, {"pmid": "2"}]
+
+    def test_a_whole_header_without_its_newline_is_rewritten(
+        self, tmp_path: Path
+    ) -> None:
+        path = _path(tmp_path)
+        fp = checkpoint.fingerprint(PipelineConfig())
+        Path(path).write_text(json.dumps({"fingerprint": fp}))
+
+        checkpoint.append(path, fp, {"pmid": "1"})
+
+        assert checkpoint.load(path, fp) == [{"pmid": "1"}]
+        assert Path(path).read_text().count('"fingerprint"') == 1
+
+    def test_a_torn_header_is_reported_as_corruption(
+        self, tmp_path: Path, caplog
+    ) -> None:
+        path = _path(tmp_path)
+        Path(path).write_text('{"fingerprint": {"mo')
+
+        with caplog.at_level("WARNING", logger="pipeline.checkpoint"):
+            checkpoint.load(path, checkpoint.fingerprint(PipelineConfig()))
+
+        assert "corrupt" in caplog.text
+        assert "different run configuration" not in caplog.text
+
+    def test_a_checkpoint_from_another_method_still_names_the_configuration(
+        self, tmp_path: Path, caplog
+    ) -> None:
+        path = _path(tmp_path)
+        checkpoint.append(path, {"model": "other"}, {"pmid": "1"})
+
+        with caplog.at_level("WARNING", logger="pipeline.checkpoint"):
+            checkpoint.load(path, checkpoint.fingerprint(PipelineConfig()))
+
+        assert "different run configuration" in caplog.text
+        assert "corrupt" not in caplog.text
+
 
 class TestClear:
     def test_clear_removes_the_file(self, tmp_path: Path) -> None:
@@ -360,7 +411,9 @@ def test_the_checkpoint_matches_a_model_over_50_seeded_histories(tmp_path) -> No
     returns every complete record appended under the fingerprint, in order,
     minus the PMIDs `remove` dropped; a record cut short by a crash (bytes cut
     mid-record, no newline) is lost alone, and the records appended after it
-    all load; another fingerprint empties the checkpoint.
+    all load; a header cut short the same way, on a file just begun, costs
+    no record either, since the next append starts the file afresh; another
+    fingerprint empties the checkpoint.
     """
     steps_per_history = 40
     tally = {
@@ -371,6 +424,8 @@ def test_the_checkpoint_matches_a_model_over_50_seeded_histories(tmp_path) -> No
         "remove_kept_some": 0,
         "fingerprint_change_on_records": 0,
         "load_with_tail_torn": 0,
+        "append_after_header_tear": 0,
+        "load_with_header_torn": 0,
         "both_kinds_loaded": 0,
         "repeated_pmid_loaded": 0,
     }
@@ -380,6 +435,7 @@ def test_the_checkpoint_matches_a_model_over_50_seeded_histories(tmp_path) -> No
         fp = {"model": "m", "n": 0}
         model: list[dict] = []
         torn = False  # the file ends in a fragment with no newline
+        header_torn = False  # the file is only a fragment of its header
         serial = 0
         history: list[str] = []
 
@@ -395,9 +451,11 @@ def test_the_checkpoint_matches_a_model_over_50_seeded_histories(tmp_path) -> No
                 history.append(f"append {kind} {pmid}#{serial}")
                 if torn:
                     tally["append_after_tear"] += 1
+                if header_torn:
+                    tally["append_after_header_tear"] += 1
                 checkpoint.append(path, fp, record)
                 model.append(record)
-                torn = False
+                torn = header_torn = False
             elif roll < 0.55:
                 gone = {str(rng.randint(1, 8)) for _ in range(rng.randint(1, 3))}
                 history.append(f"remove {sorted(gone)}")
@@ -406,7 +464,7 @@ def test_the_checkpoint_matches_a_model_over_50_seeded_histories(tmp_path) -> No
                 checkpoint.remove(path, gone)
                 if exists:
                     # A prune rewrites from whole lines: the fragment goes.
-                    torn = False
+                    torn = header_torn = False
                     before = len(model)
                     model = [
                         r for r in model if next(iter(r.values()))["pmid"] not in gone
@@ -417,11 +475,17 @@ def test_the_checkpoint_matches_a_model_over_50_seeded_histories(tmp_path) -> No
                         tally["remove_kept_some"] += 1
             elif roll < 0.67:
                 if not exists:
+                    # A crash in a new file's first append: its header cut
+                    # short, no newline, and no record yet.
+                    full = json.dumps({"fingerprint": fp})
+                    cut = full[: rng.randint(1, len(full) - 1)]
+                    history.append(f"tear header {cut!r}")
+                    Path(path).write_text(cut, encoding="utf-8")
+                    header_torn = True
                     continue
                 # A crash mid-append: the record's bytes cut short, no newline.
                 # The fragment stands for a record whose append never finished,
-                # so the model never held it. A torn header is not modelled:
-                # tears happen only on an existing file.
+                # so the model never held it.
                 serial += 1
                 full = json.dumps({"result": {"pmid": "9", "serial": serial}})
                 cut = full[: rng.randint(1, len(full) - 1)]
@@ -439,11 +503,13 @@ def test_the_checkpoint_matches_a_model_over_50_seeded_histories(tmp_path) -> No
                 assert checkpoint.load(path, fp) == [], f"stale file loaded; {where}"
                 assert not Path(path).exists(), f"stale file kept; {where}"
                 model = []
-                torn = False
+                torn = header_torn = False
             else:
                 history.append("load")
                 if torn:
                     tally["load_with_tail_torn"] += 1
+                if header_torn:
+                    tally["load_with_header_torn"] += 1
                 got = checkpoint.load(path, fp)
                 assert got == model, f"load {got} != model {model}; {where}"
                 kinds = {next(iter(r)) for r in got}
@@ -452,6 +518,12 @@ def test_the_checkpoint_matches_a_model_over_50_seeded_histories(tmp_path) -> No
                 pmids = [next(iter(r.values()))["pmid"] for r in got]
                 if len(pmids) != len(set(pmids)):
                     tally["repeated_pmid_loaded"] += 1
+                if header_torn:
+                    # A header that does not parse is discarded, and with it
+                    # nothing, since no record was written after it. A tear
+                    # on that fragment went with it.
+                    torn = header_torn = False
+                    continue
                 # `load` leaves the file as it found it.
                 assert Path(path).exists() == bool(exists), f"load moved it; {where}"
 
