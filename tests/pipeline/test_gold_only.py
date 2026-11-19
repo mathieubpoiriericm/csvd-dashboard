@@ -329,15 +329,26 @@ def _names_read_off_args(function: Callable[..., object]) -> set[str]:
 
 
 def test_the_refusal_rules_read_no_argument_the_table_does_not_know() -> None:
-    found = (
-        _names_read_off_args(_prepare_cli_args)
-        | _names_read_off_args(_refuse_while_gold_only)
-        | {name for name, _flag in pipeline_main._REFUSED_WHILE_GOLD_ONLY}
-    )
+    refusal_reads = _names_read_off_args(_refuse_while_gold_only) | {
+        name for name, _flag in pipeline_main._REFUSED_WHILE_GOLD_ONLY
+    }
+    found = _names_read_off_args(_prepare_cli_args) | refusal_reads
     known = set(_MODE_FLAGS) | set(_PUBMED_ONLY_OPTIONS)
-    assert found == known, (
-        f"the refusal rules read {sorted(found - known)} that the table does not"
-        f" know: the exhaustive table must learn it (_RUN_MODES/_MODIFIERS and"
-        f" _expected_refusal) or _PUBMED_ONLY_OPTIONS must list it; and"
-        f" {sorted(known - found)} is no longer read"
+    problems: list[str] = []
+    if found - known:
+        problems.append(
+            f"the refusal rules read {sorted(found - known)} that the table does"
+            " not know: the exhaustive table must learn it (_RUN_MODES/_MODIFIERS"
+            " and _expected_refusal) or _PUBMED_ONLY_OPTIONS must list it"
+        )
+    if known - found:
+        problems.append(f"{sorted(known - found)} is no longer read")
+    assert not problems, "; and ".join(problems)
+    # _PUBMED_ONLY_OPTIONS "do not decide a refusal", and only the table's own
+    # flags may: the table never varies these, so a rule reading one is untested.
+    extra = sorted(refusal_reads - set(_MODE_FLAGS))
+    assert not extra, (
+        f"_refuse_while_gold_only decides on {extra}:"
+        " a PubMed-only option must not decide the gold-only refusal unless the"
+        " exhaustive table varies it"
     )

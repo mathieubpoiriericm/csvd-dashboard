@@ -202,6 +202,7 @@ Deno.test("a refusal's wait is what the rules say, over 50 seeded histories with
   const windowMs = 5000;
   const distinctWaits = new Set<number>();
   let mixedReasons = 0;
+  let trackedWaitDecided = 0;
 
   for (let seed = 1; seed <= 50; seed++) {
     const rand = seeded(seed);
@@ -236,7 +237,6 @@ Deno.test("a refusal's wait is what the rules say, over 50 seeded histories with
     const expiry = (a: ModelAttempt) => a.createdAt + windowMs;
 
     const modelSettle = (record: Held, outcome: AttemptOutcome) => {
-      if (record.state === "settled") return;
       record.state = "settled";
       const attempt = live.find((a) => a.id === record.id);
       if (!attempt) return;
@@ -255,6 +255,8 @@ Deno.test("a refusal's wait is what the rules say, over 50 seeded histories with
       const pending = held.filter((h) => h.state === "held");
       const roll = rand();
 
+      // These odds differ from the first test's on purpose: more reservations,
+      // more refusals, and no "settle again" step.
       if (roll < 0.25) {
         const ms = Math.floor(rand() * 2001);
         clock += ms;
@@ -281,6 +283,7 @@ Deno.test("a refusal's wait is what the rules say, over 50 seeded histories with
         }
         // Each applicable reason with the wait the rules give it.
         const waits: number[] = [];
+        let trackedWait = 0;
         if (own.length >= PER_CLIENT) {
           waits.push(seconds(Math.min(...own.map(expiry))));
         }
@@ -291,11 +294,10 @@ Deno.test("a refusal's wait is what the rules say, over 50 seeded histories with
           !perClientOnly && own.length === 0 &&
           byClient.size >= TRACKED_CLIENTS
         ) {
-          waits.push(
-            seconds(Math.min(
-              ...[...byClient.values()].map((e) => Math.max(...e)),
-            )),
-          );
+          trackedWait = seconds(Math.min(
+            ...[...byClient.values()].map((e) => Math.max(...e)),
+          ));
+          waits.push(trackedWait);
         }
 
         const reservation = ledger.reserve(client, perClientOnly);
@@ -322,6 +324,12 @@ Deno.test("a refusal's wait is what the rules say, over 50 seeded histories with
             }
             distinctWaits.add(expected);
             if (new Set(waits).size > 1) mixedReasons++;
+            // The tracked-clients wait is the largest reason and is not the
+            // global rule's wait (the earliest expiry of all live attempts).
+            if (
+              trackedWait > 0 && trackedWait === expected &&
+              trackedWait !== seconds(Math.min(...live.map(expiry)))
+            ) trackedWaitDecided++;
           }
         }
       }
@@ -332,6 +340,12 @@ Deno.test("a refusal's wait is what the rules say, over 50 seeded histories with
     throw new Error(
       `only ${distinctWaits.size} distinct waits occurred: ` +
         `${[...distinctWaits].sort().join(", ")}`,
+    );
+  }
+  if (trackedWaitDecided === 0) {
+    throw new Error(
+      `no refusal was decided by the tracked-clients wait alone ` +
+        `(count ${trackedWaitDecided})`,
     );
   }
   if (mixedReasons === 0) {
