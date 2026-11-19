@@ -749,7 +749,9 @@ repository sends them to a machine of its own (the `ci-runner` skill,
 `uv sync --locked` fails the build if `uv.lock` has drifted from
 `pyproject.toml` rather than silently re-resolving. CI gates the deploy: the
 `deploy` job needs every test job and the `container` job (see
-[Deployment](#deployment)).
+[Deployment](#deployment)). `.github/workflows/bend-release.yml` checks weekly
+that `ci.yml` pins Bend's latest release; it runs only where the repository
+variable `BEND_RELEASE_WATCH` is `true`, so forks skip it.
 
 ---
 

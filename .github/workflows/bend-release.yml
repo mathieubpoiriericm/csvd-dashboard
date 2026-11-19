@@ -1,0 +1,46 @@
+# Fails when Bend's latest release differs from the version ci.yml pins, so the
+# upgrade (see the ci-runner skill) is not forgotten.
+# GitHub's runners only: this must not follow vars.CI_RUNNER, which is deleted
+# whenever the mini PC is down. It runs only where the repository variable
+# BEND_RELEASE_WATCH is "true" (the private repository): a red weekly run in the
+# public repository or a fork cannot be acted on, and a fork takes a Bend
+# upgrade by merging upstream.
+name: Bend release
+
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  newer-bend:
+    name: Newer Bend than the pin
+    if: vars.BEND_RELEASE_WATCH == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Compare ci.yml's pin with Bend's latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pinned=$(sed -nE 's/^[[:space:]]*BEND_VERSION:[[:space:]]*"?([0-9][0-9.]*)"?[[:space:]]*$/\1/p' .github/workflows/ci.yml | sort -u)
+          if [ -z "$pinned" ] || [ "$(printf '%s\n' "$pinned" | wc -l)" -ne 1 ]; then
+            echo "::error::expected exactly one BEND_VERSION in ci.yml, found: $(printf '%s' "${pinned:-none}" | tr '\n' ' ')"
+            exit 1
+          fi
+          if ! tag=$(gh api repos/bendlang/bend/releases/latest --jq .tag_name) || [ -z "$tag" ]; then
+            echo "::error::could not ask GitHub for Bend's latest release (rate limit, network or auth); this says nothing about whether a newer Bend exists"
+            exit 1
+          fi
+          if [ "$tag" = "v$pinned" ]; then
+            echo "Bend $tag is the release ci.yml pins."
+            exit 0
+          fi
+          echo "::error::Bend $tag is out and ci.yml pins $pinned: the ci-runner skill has the upgrade steps"
+          exit 1
